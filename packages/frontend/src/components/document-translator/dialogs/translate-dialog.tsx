@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Matt Geiger
+//
+// FEED — Food Equity & Efficient Delivery. Application code licensed
+// under AGPL-3.0-or-later; see LICENSE. William Temple House branding is
+// not covered by this license; see TRADEMARKS.md.
+
 import React, { useEffect, useState } from 'react';
 import { FileOutput, Download, Languages, FileIcon, AlertTriangle, FileSearch, TriangleAlert, CircleHelp } from "@/components/ui/icons";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../ui/dialog';
