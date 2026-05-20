@@ -1,0 +1,79 @@
+import React from 'react';
+import { AppSidebar } from './app-sidebar';
+import { Header } from './header';
+import { SkipNav } from './skip-nav';
+import {
+  SidebarInset,
+  SidebarProvider,
+} from '@/components/ui/sidebar';
+import { AlertButton } from '@/components/dashboard/alerts/alert-button';
+import { ThemeSwitcher } from '@/components/theme-switcher';
+
+// Match the storage key from sidebar.tsx
+const SIDEBAR_STORAGE_KEY = "sidebar_state";
+
+interface RootLayoutProps {
+  children: React.ReactNode;
+  breadcrumbs?: {
+    title: string;
+    href?: string;
+  }[];
+}
+
+export function RootLayout({ children, breadcrumbs = [] }: RootLayoutProps) {
+  // Initialize state from localStorage, defaulting to true if nothing is stored
+  const [sidebarOpen, setSidebarOpen] = React.useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem(SIDEBAR_STORAGE_KEY);
+      return saved !== null ? saved === 'true' : true;
+    }
+    return true;
+  });
+  
+  // Custom setter that updates both state and localStorage
+  const handleSidebarChange = React.useCallback((open: boolean) => {
+    setSidebarOpen(open);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(SIDEBAR_STORAGE_KEY, String(open));
+    }
+  }, []);
+  
+  return (
+    <>
+      <SkipNav />
+      <div
+        aria-hidden="true"
+        className="feed-shell-backdrop pointer-events-none fixed inset-0 z-0"
+      />
+      <SidebarProvider
+        open={sidebarOpen}
+        onOpenChange={handleSidebarChange}
+      >
+        <AppSidebar />
+        <SidebarInset className="relative z-10 bg-transparent">
+          <Header 
+            breadcrumbs={breadcrumbs} 
+            rightContent={
+              <div className="flex items-center space-x-1">
+                <ThemeSwitcher />
+                <AlertButton />
+              </div>
+            } 
+          />
+          <main
+            id="main-content"
+            className="
+              flex flex-1 flex-col gap-4 px-6 pt-0 pb-6
+              focus:outline-none
+              tabIndex={-1}
+            "
+          >
+            <div className="flex flex-col gap-4">
+              {children}
+            </div>
+          </main>
+        </SidebarInset>
+      </SidebarProvider>
+    </>
+  );
+}

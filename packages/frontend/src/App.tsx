@@ -1,0 +1,319 @@
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
+import { QueryClientProvider, useQueryClient } from '@tanstack/react-query'
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
+import { useEffect } from 'react'
+import { queryClient } from './lib/react-query'
+import { ShoppingLists } from './components/shopping-lists'
+import { ShoppingListBuilder } from './components/shopping-lists/builder/ShoppingListBuilder'
+import { DocumentTranslator } from './components/document-translator'
+import { CategoryManagement } from './components/category-management'
+import { FoodItemManagement } from './components/food-item-management'
+import { CategoryProvider } from './contexts/CategoryContext'
+import { FoodItemProvider } from './contexts/FoodItemContext'
+import { Toaster } from './components/ui/toaster'
+import { RootLayout } from './components/layout'
+import wthLogo from './assets/WTH_Logo_Horizontal.png'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './components/ui/card'
+import { TranslationManagement } from './components/translation-management'
+import { LanguageManagement } from './components/language-management'
+import { LanguageProvider } from './contexts/LanguageContext'
+import { StatsCards } from './components/dashboard/stats-cards'
+import { InventoryChart } from './components/dashboard/inventory-chart'
+import { CategoryChart } from './components/dashboard/category-chart'
+import { TranslationMetrics } from './components/dashboard/translation-metrics'
+import { TranslationPerformance } from './components/dashboard/translation-performance'
+import { CostForecast } from './components/dashboard/cost-forecasting/cost-forecast'
+import { UsageSummary } from './components/dashboard/usage-stats/usage-summary'
+import { TokenUsageMetrics } from './components/dashboard/token-usage'
+import { useTokenMetrics } from './hooks/dashboard/useTokenMetrics'
+import { ThemeProvider } from './components/theme-provider'
+import { AuthProvider } from './contexts/AuthContext'
+import { ProtectedRoute } from './components/protected-route'
+import LoginPage from './components/pages/login-page'
+import LogoutPage from './components/pages/logout-page'
+import { AIConfiguration } from './components/ai-configuration'
+import DashboardErrorBoundary from './components/dashboard/dashboard-error-boundary'
+// Removed PrintView and in-browser print route (deprecated)
+
+function CategoryPage() {
+  return (
+    <RootLayout
+      breadcrumbs={[
+        { title: "Dashboard (Home)", href: "/" },
+        { title: "Inventory"},
+        { title: "Categories" }
+      ]}
+    >
+      <CategoryProvider>
+        <CategoryManagement />
+      </CategoryProvider>
+    </RootLayout>
+  )
+}
+
+function FoodItemPage() {
+  return (
+    <RootLayout
+      breadcrumbs={[
+        { title: "Dashboard (Home)", href: "/" },
+        { title: "Inventory"},
+        { title: "Food Items" }
+      ]}
+    >
+      <CategoryProvider>
+        <FoodItemProvider>
+          <FoodItemManagement />
+        </FoodItemProvider>
+      </CategoryProvider>
+    </RootLayout>
+  )
+}
+
+function HomePage() {
+  // React Query 5 Native Refetch Pattern - Dashboard invalidation
+  const queryClient = useQueryClient();
+  
+  // Invalidate all dashboard queries on mount to ensure fresh data
+  useEffect(() => {
+    queryClient.invalidateQueries({ 
+      queryKey: ['dashboard'], 
+      exact: false 
+    });
+  }, [queryClient]);
+  
+  // Get token metrics data
+  const { data: tokenData, isLoading: isTokenLoading } = useTokenMetrics();
+  
+  return (
+    <RootLayout
+      breadcrumbs={[
+        { title: "Dashboard (Home)" }
+      ]}
+    >
+      <div className="mt-4">
+        {/* Logo and Title - Clean borderless card as in next-gen */}
+        <Card className="mx-auto w-full max-w-[1400px] bg-transparent bg-none border-0 shadow-none mb-4">
+          <CardHeader className="pb-1">
+            <div className="flex justify-center mb-1">
+              <img 
+                src={wthLogo} 
+                alt="William Temple House Logo" 
+                className="h-20 object-contain"
+              />
+            </div>
+            <CardTitle className="text-center text-xl">
+              FEED System
+            </CardTitle>
+            <CardDescription className="text-center text-muted-foreground">
+              Food Equity & Efficient Delivery
+            </CardDescription>
+          </CardHeader>
+        </Card>
+        
+        {/* Dashboard Content Container */}
+        <div className="mx-auto max-w-7xl w-full px-4">
+        <DashboardErrorBoundary>
+          {/* Stats Cards - Full Width */}
+        <div className="mb-4">
+            <StatsCards />
+          </div>
+          
+          {/* Charts with consistent spacing */}
+        <div className="space-y-4">
+          {/* Two-column charts */}
+        <div className="grid gap-4 md:grid-cols-2">
+          <InventoryChart />
+            <CategoryChart />
+              </div>
+            
+            {/* Additional charts */}
+            <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
+              <CostForecast />
+              <UsageSummary />
+            </div>
+            
+            {/* Token Usage Metrics - Full Width */}
+            <div>
+              {isTokenLoading || !tokenData ? (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Token Usage Metrics</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="h-[400px] w-full bg-muted/20 animate-pulse rounded-md"></div>
+                  </CardContent>
+                </Card>
+              ) : (
+                <TokenUsageMetrics 
+                  dailyUsage={tokenData.dailyUsage}
+                  monthlyUsage={tokenData.monthlyUsage}
+                  modelUsage={tokenData.modelUsage}
+                  rateLimit={tokenData.rateLimit}
+                  requestsPerMinute={tokenData.requestsPerMinute}
+                  requestsPerDay={tokenData.requestsPerDay}
+                  historicalData={tokenData.historicalData}
+                />
+              )}
+            </div>
+            
+            {/* Full-width charts */}
+            <div>
+              <TranslationPerformance />
+            </div>
+            
+            <div>
+              <TranslationMetrics />
+            </div>
+          </div>
+          </DashboardErrorBoundary>
+        </div>
+      </div>
+    </RootLayout>
+  )
+}
+
+function LanguagePage() {
+  return (
+    <RootLayout
+      breadcrumbs={[
+        { title: "Dashboard (Home)", href: "/" },
+        { title: "Language & Translation"},
+        { title: "Languages" }
+      ]}
+    >
+      <LanguageProvider>
+        <LanguageManagement />
+      </LanguageProvider>
+    </RootLayout>
+  )
+}
+
+function TranslationPage() {
+  return (
+    <RootLayout
+      breadcrumbs={[
+        { title: "Dashboard (Home)", href: "/" },
+        { title: "Language & Translation"},
+        { title: "Translations" }
+      ]}
+    >
+      <LanguageProvider>
+        <TranslationManagement />
+      </LanguageProvider>
+    </RootLayout>
+  )
+}
+
+function ShoppingListsPage() {
+  return (
+    <RootLayout
+      breadcrumbs={[
+        { title: "Dashboard (Home)", href: "/" },
+        { title: "Tools"},
+        { title: "Shopping Lists" }
+      ]}
+    >
+      <LanguageProvider>
+        <ShoppingLists />
+      </LanguageProvider>
+    </RootLayout>
+  )
+}
+
+function ShoppingListBuilderPage() {
+  return (
+    <RootLayout
+      breadcrumbs={[
+        { title: "Dashboard (Home)", href: "/" },
+        { title: "Tools"},
+        { title: "Shopping Lists", href: "/shopping-lists" },
+        { title: "Builder" }
+      ]}
+    >
+      {/*
+        LanguageProvider is required for the builder's Translation Settings
+        modal (and any future translation-aware UI). Without it, hooks like
+        useLanguageContext() throw at mount, crashing the React tree to a
+        blank page. Other translation-aware pages wrap in this provider
+        the same way -- see the routes for Translation Management,
+        Language Management, and Shopping Lists above.
+      */}
+      <LanguageProvider>
+        <CategoryProvider>
+          <FoodItemProvider>
+            <ShoppingListBuilder />
+          </FoodItemProvider>
+        </CategoryProvider>
+      </LanguageProvider>
+    </RootLayout>
+  )
+}
+
+function DocumentTranslatorPage() {
+  return (
+    <RootLayout
+      breadcrumbs={[
+        { title: "Dashboard (Home)", href: "/" },
+        { title: "Tools"},
+        { title: "Document Translator" }
+      ]}
+    >
+      <DocumentTranslator />
+    </RootLayout>
+  )
+}
+
+function AIConfigurationPage() {
+  return (
+    <RootLayout
+      breadcrumbs={[
+        { title: "Dashboard (Home)", href: "/" },
+        { title: "Tools"},
+        { title: "AI Configuration" }
+      ]}
+    >
+      <AIConfiguration />
+    </RootLayout>
+  )
+}
+
+function App() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider>
+        <AuthProvider>
+          <Router>
+            <>
+              <Routes>
+                {/* Public login route */}
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/logout" element={<LogoutPage />} />
+                
+                {/* Protected routes */}
+                <Route element={<ProtectedRoute />}>
+                  <Route path="/" element={<HomePage />} />
+                  <Route path="/categories" element={<CategoryPage />} />
+                  <Route path="/food-items" element={<FoodItemPage />} />
+                  <Route path="/languages" element={<LanguagePage />} />
+                  <Route path="/translations" element={<TranslationPage />} />
+                  <Route path="/shopping-lists" element={<ShoppingListsPage />} />
+                  <Route path="/shopping-lists/builder" element={<ShoppingListBuilderPage />} />
+                  {/** In-browser PrintView removed; use server-side React-PDF export instead */}
+                  <Route path="/document-translator" element={<DocumentTranslatorPage />} />
+                  <Route path="/ai-configuration" element={<AIConfigurationPage />} />
+                  
+                  {/* Catch-all route for any unmatched routes */}
+                  <Route path="*" element={<Navigate to="/" replace />} />
+                </Route>
+              </Routes>
+              <Toaster />
+            </>
+          </Router>
+        </AuthProvider>
+      </ThemeProvider>
+      {import.meta.env.VITE_RQ_DEVTOOLS === 'true' && <ReactQueryDevtools initialIsOpen={false} />}
+    </QueryClientProvider>
+  )
+}
+
+export default App

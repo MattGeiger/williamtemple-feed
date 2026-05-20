@@ -1,0 +1,176 @@
+import { ColumnDef } from "@tanstack/react-table"
+import { Button } from "@/components/ui/button"
+import { ArrowUpDown, PersonStanding, Home } from "@/components/ui/icons";
+import { SquarePenIcon } from "@/components/animate-ui/icons/square-pen";
+import { Trash2Icon } from "@/components/animate-ui/icons/trash-2";
+import { IconDisplay } from "../icon-display"
+import { TableActionMenu } from "@/components/ui/table-action-menu"
+import { Category } from "@/types/category"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { ResponsiveTruncatedText } from "@/components/ui/responsive-truncated-text"
+import { calculateColumnWidths, extractColumnSizes, getColumnWidthStyle } from "@/lib/table"
+
+export interface CategoryActions {
+  onEdit: (category: Category) => void
+  onDelete: (category: Category) => void
+}
+
+export const columns = ({ onEdit, onDelete }: CategoryActions): ColumnDef<Category>[] => {
+  const columnDefinitions: ColumnDef<Category>[] = [
+  {
+    id: "select",
+    size: 10, // Fixed width for checkbox column
+    enableSorting: false,
+    enableHiding: false,
+    header: ({ table }) => (
+      <Checkbox
+        checked={
+          table.getIsAllPageRowsSelected() ||
+          (table.getIsSomePageRowsSelected() && "indeterminate")
+        }
+        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+        aria-label="Select all"
+      />
+    ),
+    cell: ({ row }) => (
+      <Checkbox
+        checked={row.getIsSelected()}
+        onCheckedChange={(value) => row.toggleSelected(!!value)}
+        aria-label="Select row"
+      />
+    ),
+  },
+  {
+    accessorKey: "name",
+    size: 300, // Responsive width for name column
+    header: ({ column }) => (
+      <Button
+        variant="ghost"
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+      >
+        Name
+        <ArrowUpDown className="ml-2 h-4 w-4" />
+      </Button>
+    ),
+    cell: ({ row }) => {
+      const name = row.getValue("name") as string;
+      const icon = row.original.icon;
+      
+      return (
+        <div className="flex items-center space-x-2 min-w-0">
+          <IconDisplay iconName={icon} size="sm" showTooltip={false} className="flex-shrink-0" />
+          <ResponsiveTruncatedText 
+            text={name} 
+            title="View full category name"
+            className="flex-1 min-w-0"
+          />
+        </div>
+      );
+    }
+  },
+  {
+    accessorKey: "limit",
+    size: 120, // Fixed width for limit column
+    header: ({ column }) => (
+      <Button
+        variant="ghost"
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+      >
+        Limit
+        <ArrowUpDown className="ml-2 h-4 w-4" />
+      </Button>
+    ),
+    cell: ({ row }) => {
+      const limit = row.getValue("limit") as number
+      const limitType = row.original.limitType
+      
+      if (limit === 100) return "No Limit"
+      
+      return (
+        <div className="flex items-center gap-1">
+          <span>{limit.toString()}</span>
+          <Tooltip>
+            <TooltipTrigger>
+              {limitType === 'person' ? (
+                <PersonStanding className="h-4 w-4 text-muted-foreground" />
+              ) : (
+                <Home className="h-4 w-4 text-muted-foreground" />
+              )}
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{limitType === 'person' ? 'Per Person' : 'Per Household'}</p>
+            </TooltipContent>
+          </Tooltip>
+        </div>
+      )
+    },
+  },
+  {
+    id: "lastUpdated",
+    accessorFn: (row) => row.updatedAt,
+    size: 150, // Fixed width for date column
+    enableHiding: true,
+    header: ({ column }) => (
+      <Button
+        variant="ghost"
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+      >
+        Last Updated
+        <ArrowUpDown className="ml-2 h-4 w-4" />
+      </Button>
+    ),
+    cell: ({ row }) => {
+      const date = new Date(row.getValue("lastUpdated") as string)
+      return date.toLocaleDateString()
+    }
+  },
+  {
+    id: "actions",
+    size: 100, // Fixed width for actions column
+    enableHiding: false,
+    header: "Actions",
+    cell: ({ row }) => {
+      const category = row.original
+
+      return (
+        <TableActionMenu
+          actions={[
+            {
+              label: "Edit",
+              icon: SquarePenIcon,
+              onClick: () => onEdit(category)
+            },
+            {
+              label: "Delete",
+              icon: Trash2Icon,
+              onClick: () => onDelete(category),
+              variant: "destructive"
+            }
+          ]}
+          triggerLabel="Open category actions"
+          size="sm"
+        />
+      )
+    },
+  },
+  ]
+
+  // Calculate column widths based on size values
+  const columnSizes = extractColumnSizes(columnDefinitions)
+  const widths = calculateColumnWidths(columnSizes)
+
+  // Apply calculated widths to columns
+  columnDefinitions.forEach((col, index) => {
+    const columnId = col.id || String(col.accessorKey) || `col-${index}`
+    const width = widths[columnId]
+    if (width) {
+      col.meta = { 
+        ...col.meta, 
+        style: getColumnWidthStyle(width) 
+      }
+    }
+  })
+
+  return columnDefinitions
+}

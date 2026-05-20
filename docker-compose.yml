@@ -1,0 +1,122 @@
+services:
+  # ============================================
+  # Backend Service
+  # ============================================
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: backend
+      args:
+        - NODE_ENV=production
+    image: ${DOCKER_REGISTRY:-feed}/feed-backend:${VERSION:-latest}
+    container_name: feed-backend
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - DATABASE_URL=file:/app/data/production.db
+      - STORAGE_PATH=/app/storage
+    env_file:
+      - ./packages/backend/.env
+    volumes:
+      # Persist database
+      - ./data/backend:/app/data
+      # Persist uploaded files and translations
+      - ./data/storage:/app/storage
+      # Optional: mount logs
+      - ./logs/backend:/app/logs
+    ports:
+      - "3001:3001"
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - feed-network
+
+  # ============================================
+  # Seed Service (run on-demand)
+  # ============================================
+  seed:
+    profiles: ["seed"]
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: backend-builder
+      args:
+        - NODE_ENV=production
+    image: ${DOCKER_REGISTRY:-feed}/feed-backend-seed:${VERSION:-latest}
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - DATABASE_URL=file:/app/data/production.db
+      - STORAGE_PATH=/app/storage
+    env_file:
+      - ./packages/backend/.env
+    volumes:
+      # Persist database
+      - ./data/backend:/app/data
+      # Persist uploaded files and translations
+      - ./data/storage:/app/storage
+    command: ["npx", "prisma", "db", "seed"]
+    networks:
+      - feed-network
+
+  # ============================================
+  # Frontend Service (Nginx)
+  # ============================================
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: frontend
+      args:
+        - VITE_API_BASE_URL=${VITE_API_BASE_URL:-http://localhost:3001}
+    image: ${DOCKER_REGISTRY:-feed}/feed-frontend:${VERSION:-latest}
+    container_name: feed-frontend
+    restart: unless-stopped
+    ports:
+      - "5173:80"
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1:80/nginx-health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - feed-network
+
+  # ============================================
+  # Cloudflare Tunnel
+  # ============================================
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: feed-cloudflared
+    restart: unless-stopped
+    command: tunnel run
+    environment:
+      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
+    # Alternative: mount config file
+    # volumes:
+    #   - ./docker/cloudflared:/etc/cloudflared
+    depends_on:
+      frontend:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    networks:
+      - feed-network
+
+networks:
+  feed-network:
+    driver: bridge
+
+volumes:
+  backend-data:
+  storage-data:

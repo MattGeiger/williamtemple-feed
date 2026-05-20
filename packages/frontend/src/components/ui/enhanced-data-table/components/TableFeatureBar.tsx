@@ -1,0 +1,207 @@
+import * as React from "react"
+import { cn } from "@/lib/utils"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
+import { ChevronDown, Filter, X } from "@/components/ui/icons";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu"
+import { Table } from "@tanstack/react-table"
+import { TableBulkAction } from "@/types/table"
+import { humanizeString } from "@/lib/utils"
+import { LanguageFilter } from "@/components/ui/language-filter"
+import { TypeFilter } from "@/components/ui/type-filter"
+import { TranslationType } from "@/types/translation"
+import type { LucideIcon } from "lucide-react";
+
+interface ToolbarAction {
+  label: string
+  icon?: LucideIcon
+  variant: 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link'
+  action: () => void
+}
+
+interface TableFeatureBarProps<TData> {
+  table: Table<TData>
+  filterColumn?: string
+  filterPlaceholder?: string
+  enableColumnVisibility?: boolean
+  enableFiltering?: boolean
+  enableLanguageFilter?: boolean
+  enableTypeFilter?: boolean
+  selectedLanguage?: string
+  selectedTypes?: TranslationType[]
+  availableLanguages?: string[]
+  onLanguageChange?: (language: string) => void
+  onTypeChange?: (types: TranslationType[]) => void
+  className?: string
+  bulkActions?: TableBulkAction<TData>[]
+  toolbarActions?: ToolbarAction[]
+  toolbarControls?: React.ReactNode
+  selectedRows?: TData[]
+  onClearSelection?: () => void
+}
+
+export function TableFeatureBar<TData>({
+  table,
+  filterColumn,
+  filterPlaceholder,
+  enableColumnVisibility = true,
+  enableFiltering = true,
+  enableLanguageFilter = false,
+  enableTypeFilter = false,
+  selectedLanguage,
+  selectedTypes,
+  availableLanguages,
+  onLanguageChange,
+  onTypeChange,
+  className,
+  bulkActions,
+  toolbarActions = [],
+  toolbarControls,
+  selectedRows = [],
+  onClearSelection,
+}: TableFeatureBarProps<TData>) {
+  const hasSelection = selectedRows.length > 0
+
+  const handleBulkAction = React.useCallback(async (action: TableBulkAction<TData>) => {
+    if (!selectedRows.length) return;
+
+    try {
+      await action.action(selectedRows);
+    } catch (error) {
+      // Error will be handled by the action itself
+    }
+  }, [selectedRows]);
+
+  return (
+    <div 
+      className="flex flex-col gap-4"
+      data-testid="table-feature-bar"
+    >
+      {/* Toolbar Actions Row */}
+      <div className="flex flex-wrap items-center gap-2">
+        {toolbarActions.map((action, index) => (
+          <Button
+            key={index}
+            variant={action.variant}
+            size="sm"
+            onClick={action.action}
+          >
+            {action.icon && <action.icon className="h-4 w-4 mr-2" />}
+            {action.label}
+          </Button>
+        ))}
+      </div>
+
+      {/* Table Feature Row */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 w-full">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+          {enableFiltering && filterColumn && (
+            <div className="relative w-full px-[1px]">
+              <Filter className="absolute left-[9px] top-2 h-4 w-4 text-muted-foreground pointer-events-none" />
+              <Input
+                placeholder={filterPlaceholder || `Filter ${filterColumn}...`}
+                value={(table.getColumn(filterColumn)?.getFilterValue() as string) ?? ""}
+                onChange={(event) =>
+                  table.getColumn(filterColumn)?.setFilterValue(event.target.value)
+                }
+                className="w-full pl-8"
+              />
+            </div>
+          )}
+          {hasSelection && bulkActions && bulkActions.length > 0 && (
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">
+                {selectedRows.length} selected
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onClearSelection}
+                className="h-8 px-2"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button size="sm" className="h-8 whitespace-nowrap" data-testid="bulk-actions-button">
+                    Actions <ChevronDown className="ml-2 h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  {bulkActions.map((action, index) => (
+                    <DropdownMenuItem
+                      key={index}
+                      onClick={async () => await handleBulkAction(action)}
+                      className={cn(
+                        action.variant === 'destructive' && "text-destructive focus:text-destructive",
+                        action.disabled && "cursor-not-allowed opacity-50"
+                      )}
+                      disabled={action.disabled}
+                    >
+                      {action.icon && (
+                        <action.icon className="mr-2 h-4 w-4" />
+                      )}
+                      {action.label}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          )}
+        </div>
+
+        {/* Right-aligned menu controls */}
+        <div className="flex items-center gap-2">
+          {toolbarControls}
+          {enableLanguageFilter && onLanguageChange && (
+            <LanguageFilter
+              value={selectedLanguage}
+              onChange={onLanguageChange}
+              availableLanguages={availableLanguages}
+            />
+          )}
+          {enableTypeFilter && onTypeChange && selectedTypes && (
+            <TypeFilter
+              selectedTypes={selectedTypes}
+              onTypeChange={onTypeChange}
+            />
+          )}
+          {enableColumnVisibility && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="h-8">
+                  Columns <ChevronDown className="ml-2 h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {table
+                  .getAllColumns()
+                  .filter((column) => column.getCanHide())
+                  .map((column) => {
+                    return (
+                      <DropdownMenuCheckboxItem
+                        key={column.id}
+                        className="normal-case"
+                        checked={column.getIsVisible()}
+                        onCheckedChange={(value) =>
+                          column.toggleVisibility(!!value)
+                        }
+                      >
+                        {humanizeString(column.id)}
+                      </DropdownMenuCheckboxItem>
+                    )
+                  })}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
