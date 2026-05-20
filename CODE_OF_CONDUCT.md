@@ -13,8 +13,8 @@ joining discussions, contributing code — you agree to abide by its terms.
 
 If you experience or witness behavior in violation of the Covenant in a
 FEED-affiliated space (this repository, project discussions, mailing
-lists, events), please report it privately to the maintainer at
-[mgeiger@williamtemple.org](mailto:mgeiger@williamtemple.org).
+lists, events), please report it privately to the maintainer, Matt
+Geiger, at [et2.geiger@gmail.com](mailto:et2.geiger@gmail.com).
 
 Reports will be reviewed and investigated promptly. All maintainers are
 obligated to respect the privacy of reporters.
