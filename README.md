@@ -210,31 +210,39 @@ work.
 
 ## License
 
-FEED is licensed under [AGPL-3.0-or-later](./LICENSE).
+**The application code is open source. The William Temple House
+deployment is branded. The brand is not open source.**
 
-In plain English:
+The FEED application code is licensed under
+[AGPL-3.0-or-later](./LICENSE). In plain English:
 
-- You can use FEED for free, including for commercial purposes.
-- You can copy, modify, deploy, and build on it.
-- If you modify FEED and make your modified version available to
-  others — **including as a hosted web service** — you must publish
-  your modified source code under the same license.
-
-The "hosted web service" part is the key network-use clause that
-distinguishes AGPL from MIT or Apache 2.0. It's why we chose AGPL: we
-want the project's improvements to flow back to the community of
-nonprofits who might run their own instances, not get locked into
-proprietary forks.
+1. The application code is AGPL-3.0-or-later.
+2. Anyone may **use, study, modify, redistribute, and self-host** the
+   software under the AGPL terms — free of charge.
+3. If someone modifies FEED and offers it to others over a network
+   (**including as a hosted web service**), AGPLv3 requires them to
+   offer the corresponding source code to those users. This network-use
+   clause is what distinguishes AGPL from MIT or Apache 2.0, and it's
+   why FEED uses it: improvements should flow back to the community of
+   pantries and nonprofits who run their own instances.
+4. The **William Temple House name, logo, visual identity, and other
+   branding assets are *not* open source** and may not be reused without
+   separate written permission. See [TRADEMARKS.md](./TRADEMARKS.md).
+5. **Food pantries deploying FEED should replace the included branding**
+   — name, logo, colors, and contact information — with their own before
+   any public deployment.
 
 ---
 
 ## Acknowledgements
 
-FEED was built for and is deployed by
+FEED was built independently by Matt Geiger to serve the clients of
 [William Temple House](https://www.williamtemple.org/), a Portland-based
-nonprofit that has served the Pacific Northwest community since 1965.
-The project started as an internal tool and grew into something we
-wanted to share with peer organizations.
+nonprofit that has served the Pacific Northwest community since 1965,
+where it runs in production. The application code is the author's own
+work, released as open source so peer organizations can use and improve
+it; the William Temple House branding it ships with belongs to William
+Temple House (see [TRADEMARKS.md](./TRADEMARKS.md)).
 
 The animated icon system uses
 [Lucide React](https://lucide.dev/) as its base icon set, with
@@ -253,8 +261,9 @@ Translation infrastructure is built on top of the major AI providers
   [technology@williamtemple.org](mailto:technology@williamtemple.org).
 - **Bug reports:** open an issue with the `bug` template.
 - **Security disclosures:** see [SECURITY.md](./SECURITY.md).
-- **Direct contact with the maintainer:** Matt Geiger —
-  [mgeiger@williamtemple.org](mailto:mgeiger@williamtemple.org) or
-  [et2.geiger@gmail.com](mailto:et2.geiger@gmail.com).
-- **William Temple House (the originating organization):**
+- **Project maintainer:** Matt Geiger —
+  [et2.geiger@gmail.com](mailto:et2.geiger@gmail.com). FEED is developed
+  and maintained independently by Matt Geiger; the application code is
+  not owned by William Temple House.
+- **William Temple House (the originating deployment):**
   https://www.williamtemple.org/about/contact/
