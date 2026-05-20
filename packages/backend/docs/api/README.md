@@ -24,16 +24,17 @@ All API endpoints (except health checks) require HTTP Basic Authentication.
 Authorization: Basic base64(username:password)
 ```
 
-Default credentials:
-- Username: `admin`
-- Password: `REDACTED`
+Credentials are supplied via the `AUTH_USERNAME` / `AUTH_PASSWORD`
+environment variables (Basic Auth is disabled when they are unset):
+- Username: `<AUTH_USERNAME>`
+- Password: `<AUTH_PASSWORD>`
 
 ### Example
 
 ```bash
 # Using curl with authentication
 curl -X GET http://localhost:3001/api/food-items \
-  -H "Authorization: Basic REDACTED"
+  -H "Authorization: Basic $(printf '%s' \"$AUTH_USERNAME:$AUTH_PASSWORD\" | base64)"
 ```
 
 ### Public Endpoints

@@ -6,7 +6,7 @@ async function testBulkRetry() {
   try {
     const response = await request(API_URL)
       .post('/api/translations/bulk-retry')
-      .auth('admin', 'REDACTED') // Add authentication
+      .auth(process.env.AUTH_USERNAME ?? '', process.env.AUTH_PASSWORD ?? '') // Basic Auth from env
       .send({ ids: [316] }); // Using the ID from the error log
 
     console.log('Response status:', response.status);
