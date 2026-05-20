@@ -244,6 +244,14 @@ work, released as open source so peer organizations can use and improve
 it; the William Temple House branding it ships with belongs to William
 Temple House (see [TRADEMARKS.md](./TRADEMARKS.md)).
 
+FEED was built with [Claude](https://www.anthropic.com/claude), by
+Anthropic — a collaboration between a human author and an AI agent. The
+project began with Claude Sonnet 3.5 (the
+[Model Context Protocol](https://modelcontextprotocol.io/) was a turning
+point, giving the model direct access to the file system), and
+significant portions were later built with
+[Claude Code](https://www.anthropic.com/claude-code).
+
 The animated icon system uses
 [Lucide React](https://lucide.dev/) as its base icon set, with
 context-driven motion variants from [animate-ui](https://animate-ui.com/)
