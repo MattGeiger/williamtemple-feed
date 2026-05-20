@@ -37,8 +37,10 @@ data/
 # Generated local artifacts
 output/
 tmp/
-storage/
-packages/backend/storage/
+# Runtime storage only — anchored to repo root so these do NOT match the
+# source directory packages/backend/src/services/storage/
+/storage/
+/packages/backend/storage/
 
 # Claude Code local state (worktrees, projects, sessions)
 .claude/
