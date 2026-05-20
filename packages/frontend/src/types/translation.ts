@@ -1,3 +1,10 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Matt Geiger
+//
+// FEED — Food Equity & Efficient Delivery. Application code licensed
+// under AGPL-3.0-or-later; see LICENSE. William Temple House branding is
+// not covered by this license; see TRADEMARKS.md.
+
 // 'Generated (List)' is used by the Shopping List Builder's render-time
 // translation pipeline. See packages/backend/src/services/builder-translation.ts
 // (BUILDER_TRANSLATION_TYPE). Kept distinct from 'Generated' (DOCX) so the
