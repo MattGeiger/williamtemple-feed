@@ -26,11 +26,11 @@ RATE_LIMIT_WINDOW_MS=60000
 RATE_LIMIT_MAX_REQUESTS=100
 
 # ❌ PROBLEM 2: Encryption key stored in plain text file
-ENCRYPTION_MASTER_KEY=REDACTED=
+ENCRYPTION_MASTER_KEY=
 
 # ❌ PROBLEM 3: Outdated authentication config
-AUTH_USERNAME=admin
-AUTH_PASSWORD=REDACTED
+AUTH_USERNAME=
+AUTH_PASSWORD=
 FORCE_AUTH=true
 ```
 
@@ -426,7 +426,7 @@ Once verified working:
 
 ```bash
 # Remove from .env:
-# ENCRYPTION_MASTER_KEY=REDACTED=
+# ENCRYPTION_MASTER_KEY=<your-base64-32-byte-key>
 ```
 
 #### Step 2.10: Update Documentation
@@ -470,8 +470,8 @@ await KeyManager.rotateKey(
 
 From .env, remove:
 ```bash
-# AUTH_USERNAME=admin
-# AUTH_PASSWORD=REDACTED
+# AUTH_USERNAME=
+# AUTH_PASSWORD=
 # FORCE_AUTH=true
 ```
 
@@ -599,8 +599,8 @@ function setupAuth() {
     console.log('Please manually update your .env file:');
     console.log('');
     console.log('REMOVE:');
-    console.log('  AUTH_USERNAME=admin');
-    console.log('  AUTH_PASSWORD=REDACTED');
+    console.log('  AUTH_USERNAME=');
+    console.log('  AUTH_PASSWORD=');
     console.log('');
     console.log('ADD:');
     console.log(`  JWT_SECRET="${jwtSecret}"`);
