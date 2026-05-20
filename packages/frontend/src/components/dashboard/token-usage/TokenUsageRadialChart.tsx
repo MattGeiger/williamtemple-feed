@@ -1,0 +1,139 @@
+import React from 'react';
+import {
+  Label,
+  PolarGrid,
+  PolarRadiusAxis,
+  RadialBar,
+  RadialBarChart,
+} from "recharts";
+import { ChartConfig, ChartContainer } from "@/components/ui/chart";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+
+interface TokenUsageRadialChartProps {
+  title: string;
+  description?: string;
+  currentValue: number;
+  maxValue: number;
+  label: string;
+  warningLevel?: 'normal' | 'warning' | 'elevated' | 'critical';
+  footer?: React.ReactNode;
+}
+
+export function TokenUsageRadialChart({
+  title,
+  description,
+  currentValue,
+  maxValue,
+  label,
+  warningLevel = 'normal',
+  footer
+}: TokenUsageRadialChartProps) {
+  // Ensure values are numbers
+  const safeCurrentValue = typeof currentValue === 'number' ? currentValue : 0;
+  const safeMaxValue = typeof maxValue === 'number' ? maxValue : 100;
+  
+  // Calculate percentage (capped at 100%)
+  const percentage = Math.min(100, (safeCurrentValue / safeMaxValue) * 100);
+  
+  // Format with commas
+  const formattedCurrent = safeCurrentValue.toLocaleString();
+  const formattedMax = safeMaxValue.toLocaleString();
+  
+  // Color based on warning level
+  const getColor = () => {
+    switch(warningLevel) {
+      case 'critical': return 'hsl(var(--chart-danger))';
+      case 'elevated': return 'hsl(var(--chart-warning))';
+      case 'warning': return 'hsl(var(--chart-warning))';
+      default: return 'hsl(var(--chart-success))';
+    }
+  };
+  
+  const chartData = [
+    { name: label, value: percentage, fill: getColor() }
+  ];
+  
+  const chartConfig = {
+    [label]: {
+      label: label,
+      theme: {
+        light: getColor(),
+        dark: getColor()
+      }
+    }
+  } as ChartConfig;
+
+  return (
+    <Card className="flex flex-col h-full">
+      <CardHeader className="items-center pb-0">
+        <CardTitle>{title}</CardTitle>
+        {description && <CardDescription>{description}</CardDescription>}
+      </CardHeader>
+      <CardContent className="flex-1 pb-0">
+        <ChartContainer
+          config={chartConfig}
+          className="mx-auto aspect-square max-h-[200px]"
+        >
+          <RadialBarChart
+            data={chartData}
+            startAngle={180}
+            endAngle={180 + (360 * (percentage / 100))}
+            innerRadius={80}
+            outerRadius={110}
+            barSize={12}
+          >
+            <PolarGrid
+              gridType="circle"
+              radialLines={false}
+              stroke="none"
+              className="first:fill-muted last:fill-background"
+              polarRadius={[86, 74]}
+            />
+            <RadialBar 
+              dataKey="value" 
+              background={{ fill: 'hsl(var(--chart-background))' }}
+              cornerRadius={10} 
+            />
+            <PolarRadiusAxis tick={false} tickLine={false} axisLine={false}>
+              <Label
+                content={({ viewBox }) => {
+                  if (viewBox && "cx" in viewBox && "cy" in viewBox) {
+                    return (
+                      <text
+                        x={viewBox.cx}
+                        y={viewBox.cy}
+                        textAnchor="middle"
+                        dominantBaseline="middle"
+                      >
+                        <tspan
+                          x={viewBox.cx}
+                          y={(viewBox.cy || 0) - 10}
+                          className="fill-foreground text-xl font-bold"
+                        >
+                          {formattedCurrent}
+                        </tspan>
+                        <tspan
+                          x={viewBox.cx}
+                          y={(viewBox.cy || 0) + 10}
+                          className="fill-muted-foreground text-xs"
+                          style={{ letterSpacing: '0.5px' }}
+                        >
+                          of<tspan>&nbsp;</tspan>{formattedMax}<tspan>&nbsp;</tspan>{label}
+                        </tspan>
+                      </text>
+                    )
+                  }
+                }}
+              />
+            </PolarRadiusAxis>
+          </RadialBarChart>
+        </ChartContainer>
+      </CardContent>
+      {footer && (
+        <CardFooter className="flex-col gap-2 text-sm mt-2">
+          {footer}
+        </CardFooter>
+      )}
+    </Card>
+  );
+}

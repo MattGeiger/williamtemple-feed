@@ -1,0 +1,17 @@
+services:
+  backend:
+    environment:
+      - NODE_ENV=development
+    env_file:
+      - ./packages/backend/.env.local
+
+  seed:
+    environment:
+      - NODE_ENV=development
+    env_file:
+      - ./packages/backend/.env.local
+
+  frontend:
+    build:
+      args:
+        - VITE_API_BASE_URL=

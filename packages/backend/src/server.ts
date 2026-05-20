@@ -1,0 +1,97 @@
+import express from 'express';
+import compression from 'compression';
+import cors from 'cors';
+import cookieParser from 'cookie-parser';
+import path from 'path';
+import globalLimitRouter from './routes/global-limit';
+import categoriesRouter from './routes/categories';
+import foodItemsRouter from './routes/food-items';
+import languagesRouter from './routes/languages';
+import translationsRouter from './routes/translations';
+import alertsRouter from './routes/alerts';
+import projectionsRouter from './routes/projections';
+import documentsRouter from './routes/documents';
+import storageReconciliationRouter from './routes/storage-reconciliation';
+import quarantineRouter from './routes/quarantine';
+import customTextsRouter from './routes/custom-texts';
+import shoppingListsRouter from './routes/shopping-lists';
+import shoppingListBuilderRouter from './routes/shopping-list-builder';
+import aiConfigRouter from './routes/ai-config';
+import systemPromptsRouter from './routes/system-prompts';
+import systemRouter from './routes/system';
+import authTestRouter from './routes/auth-test';
+import authRouter from './routes/auth';
+import { errorHandler } from './middleware/error-handler';
+import { jsonErrorHandler } from './middleware/json-error-handler';
+import { authMiddleware, jwtAuthMiddleware } from './middleware/auth';
+import { version } from '../package.json';
+
+export const createServer = () => {
+  const app = express();
+
+  // Middleware
+  const shouldCompress = (req: express.Request, res: express.Response) => {
+    if (req.path === '/api/alerts/stream' || req.headers.accept?.includes('text/event-stream')) {
+      return false;
+    }
+    return compression.filter(req, res);
+  };
+
+  app.use(compression({ threshold: 1024, filter: shouldCompress })); // Compress responses > 1KB
+  app.use(cors({
+    origin: process.env.APP_URL || 'http://localhost:5173',
+    credentials: true,
+    exposedHeaders: ['Content-Disposition'],
+  }));
+  app.use(express.json());
+  app.use(express.urlencoded({ extended: true }));
+  app.use(cookieParser());
+  app.use(jsonErrorHandler);
+
+  // Add health check endpoint that bypasses authentication
+  app.get('/health', (req, res) => {
+    res.status(200).json({ status: 'ok', version });
+  });
+
+  app.get('/api/health', (req, res) => {
+    res.status(200).json({ status: 'ok', version });
+  });
+
+  // Serve the built frontend before auth so static assets don't require credentials
+  const distPath = path.join(__dirname, '../../frontend/dist');
+  app.use(express.static(distPath));
+  app.get(/^(?!\/api(?:\/|$)|\/health$).*/, (req, res, next) => {
+    return res.sendFile(path.join(distPath, 'index.html'));
+  });
+
+  // Add authentication middleware (before routes, after basic middleware)
+  app.use(jwtAuthMiddleware);
+  app.use(authMiddleware);
+
+  // Routes
+  app.use('/api/global-limit', globalLimitRouter);
+  app.use('/api/categories', categoriesRouter);
+  app.use('/api/food-items', foodItemsRouter);
+  app.use('/api/languages', languagesRouter);
+  app.use('/api/translations', translationsRouter);
+  app.use('/api/alerts', alertsRouter);
+  app.use('/api/projections', projectionsRouter);
+  app.use('/api/documents', documentsRouter);
+  app.use('/api/storage-reconciliation', storageReconciliationRouter);
+  app.use('/api/quarantine', quarantineRouter);
+  app.use('/api/custom-texts', customTextsRouter);
+  app.use('/api/shopping-lists', shoppingListsRouter);
+  app.use('/api/shopping-list-builder', shoppingListBuilderRouter);
+  app.use('/api/ai-config', aiConfigRouter);
+  app.use('/api/system-prompts', systemPromptsRouter);
+  app.use('/api/system', systemRouter);
+  app.use('/api/auth/test', authTestRouter);
+  app.use('/api/auth', authRouter);
+
+  // Error handling
+  app.use(errorHandler);
+
+  return app;
+};
+
+export default createServer;

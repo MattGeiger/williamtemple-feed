@@ -1,0 +1,424 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model GlobalLimit {
+  id        Int      @id @default(autoincrement())
+  value     Int      @default(10)
+  updatedAt DateTime @updatedAt
+}
+
+model Category {
+  id           Int                     @id @default(autoincrement())
+  name         String
+  nameSearch   String                  @unique
+  limit        Int                     @default(10)
+  limitType    String                  @default("household")
+  createdAt    DateTime                @default(now())
+  updatedAt    DateTime                @updatedAt
+  icon         String?                 @default("package")
+  translations CategoryTranslation[]
+  foodItems    FoodItem[]
+  shoppingListSections ShoppingListSection[]
+}
+
+model CategoryTranslation {
+  id         Int      @id @default(autoincrement())
+  categoryId Int
+  language   String
+  name       String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([categoryId, language])
+}
+
+model FoodItem {
+  id                Int                   @id @default(autoincrement())
+  name              String
+  nameSearch        String                @unique
+  limit             Int                   @default(10)
+  limitType         String                @default("household")
+  isInStock         Boolean               @default(true)
+  isLimited         Boolean               @default(false)
+  isClearance       Boolean               @default(false)
+  categoryId        Int
+  vegan             Boolean               @default(false)
+  vegetarian        Boolean               @default(false)
+  glutenFree        Boolean               @default(false)
+  organic           Boolean               @default(false)
+  halal             Boolean               @default(false)
+  kosher            Boolean               @default(false)
+  readyToEat        Boolean               @default(false)
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+  category          Category              @relation(fields: [categoryId], references: [id])
+  translations      FoodItemTranslation[]
+}
+
+model FoodItemTranslation {
+  id         Int      @id @default(autoincrement())
+  foodItemId Int
+  language   String
+  name       String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  foodItem   FoodItem @relation(fields: [foodItemId], references: [id], onDelete: Cascade)
+
+  @@unique([foodItemId, language])
+}
+
+model Language {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  isEnabled Boolean  @default(false)
+  sortOrder Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Translation {
+  id                     Int           @id @default(autoincrement())
+  originalText           String
+  translatedText         String?
+  status                 String        @default("pending")
+  language               String
+  type                   String
+  promptTokens           Int?
+  completionTokens       Int?
+  totalCost              Float?
+  metadata               Json?
+  createdAt              DateTime      @default(now())
+  updatedAt              DateTime      @updatedAt
+  documentId             Int?
+  skipTranslation        Boolean       @default(false)
+  classificationAction   String?       // 'skip', 'include', 'normal', or null
+  classificationPromptId Int?
+  document               Document?     @relation(fields: [documentId], references: [id])
+  classificationPrompt   SystemPrompt? @relation("ClassificationPrompt", fields: [classificationPromptId], references: [id])
+  usageRecords           UsageRecord[] // Add relation to usage records
+
+  @@unique([originalText, language, type], name: "translation_unique_combo")
+  @@index([classificationPromptId])
+}
+
+model Alert {
+  id        Int      @id @default(autoincrement())
+  level     String
+  message   String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model ApiUsageLog {
+  id               Int      @id @default(autoincrement())
+  model            String
+  promptTokens     Int
+  completionTokens Int
+  totalTokens      Int      @default(0)
+  endpoint         String   @default("completion")
+  timestamp        DateTime @default(now())
+
+  @@index([timestamp])
+}
+
+model Document {
+  id                 Int                  @id @default(autoincrement())
+  name               String               @unique
+  uuid               String               @unique @default(uuid())
+  storagePath        String?
+  fileSize           Int?
+  contentType        String               @default("application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  lastTranslatedAt   DateTime?
+  metadata           Json?
+  translations       TranslatedDocument[]
+  cachedTranslations Translation[]
+  formattingChoices  FormattingChoice[]
+  usageRecords       UsageRecord[]       // Add relation to usage records
+}
+
+model TranslatedDocument {
+  id          Int      @id @default(autoincrement())
+  fileName    String
+  uuid        String   @unique @default(uuid())
+  storagePath String
+  fileSize    Int
+  documentId  Int
+  language    String
+  createdAt   DateTime @default(now())
+  metadata    Json?
+  document    Document @relation(fields: [documentId], references: [id])
+}
+
+model ShoppingListTemplate {
+  id          Int                     @id @default(autoincrement())
+  name        String
+  description String?
+  language    String                  @default("en")
+  layoutType  String                  @default("full-page")
+  paperSize   String                  @default("letter")
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @updatedAt
+  sections    ShoppingListSection[]
+  instances   ShoppingListInstance[]
+
+  @@index([language])
+}
+
+model ShoppingListSection {
+  id             Int                    @id @default(autoincrement())
+  templateId     Int
+  sectionType    String                 // 'custom-text', 'form', 'category'
+  categoryId     Int?
+  displayOrder   Int
+  isEnabled      Boolean                @default(true)
+  title          String?
+  subtitle       String?                // Subtitle text for title sections
+  configuration  Json?                  // Section-specific settings
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+  template       ShoppingListTemplate   @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  category       Category?              @relation(fields: [categoryId], references: [id])
+
+  @@index([templateId])
+  @@index([categoryId])
+  @@index([displayOrder])
+}
+
+model ShoppingListInstance {
+  id            Int                    @id @default(autoincrement())
+  templateId    Int
+  generatedData Json                   // Complete rendered shopping list
+  title         String
+  generatedAt   DateTime               @default(now())
+  generatedBy   String?
+  template      ShoppingListTemplate   @relation(fields: [templateId], references: [id])
+  pdf           ShoppingListPDF?       // Optional relation to PDF
+
+  @@index([templateId])
+  @@index([generatedAt])
+}
+
+model ShoppingListPDF {
+  id               Int                    @id @default(autoincrement())
+  instanceId       Int                    @unique
+  uuid             String                 @unique @default(uuid())
+  storagePath      String
+  fileSize         Int
+  layoutType       String
+  generationTime   Int?                   // Milliseconds to generate
+  metadata         Json?                  // PDFGenerationMetadata
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+  instance         ShoppingListInstance   @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+
+  @@index([instanceId])
+  @@index([createdAt])
+}
+
+model ShoppingListBuilderComponent {
+  id            Int      @id @default(autoincrement())
+  ownerId       String
+  name          String
+  componentType String
+  componentData Json
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([ownerId])
+  @@index([componentType])
+  @@index([updatedAt])
+}
+
+model ShoppingListBuilderTemplate {
+  id           Int      @id @default(autoincrement())
+  ownerId      String
+  name         String
+  templateData Json
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([ownerId])
+  @@index([updatedAt])
+}
+
+model AIConfiguration {
+  id                Int           @id @default(autoincrement())
+  name              String        @unique
+  type              String
+  value             String
+  description       String?
+  serviceType       String?
+  model             String?
+  modelName         String?
+  endpointUrl       String?
+  encryptedApiKey   String?
+  inputCost         Float?
+  outputCost        Float?
+  unitPrice         String?
+  temperature       Float?        @default(0.7)
+  topP              Float?        @default(1.0)
+  thinkingLevel     String?
+  maxTokens         Int?
+  inputTokenLimit   Int?
+  outputTokenLimit  Int?
+  dailyCostLimit    Float?
+  monthlyCostLimit  Float?
+  tokensPerMinute   Int?
+  requestsPerMinute Int?
+  requestsPerDay    Int?
+  isActive          Boolean       @default(true)
+  deletedAt         DateTime?     // Soft delete timestamp
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  salt              String?
+  usageRecords      UsageRecord[] // Add relation to usage records
+
+  @@index([deletedAt])
+}
+
+model EncryptionKey {
+  id        String   @id @default(cuid())
+  keyId     String   @unique
+  algorithm String   @default("aes-256-gcm")
+  keyValue  String
+  purpose   String   @default("api_encryption")
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([keyId])
+  @@index([purpose, isActive])
+}
+
+model SystemPrompt {
+  id                       Int                @id @default(autoincrement())
+  name                     String             @unique
+  promptType               String
+  isActive                 Boolean            @default(true)
+  isDefault                Boolean            @default(false)
+  description              String?
+  serviceDescription       String?
+  translationApproach      String?
+  contextGuidance          String?
+  additionalGuidance       String?
+  skipTranslation          String?
+  includeEnglish           String?
+  createdAt                DateTime           @default(now())
+  updatedAt                DateTime           @updatedAt
+  includeEnglishThreshold  Float?             @default(0.7)
+  skipTranslationThreshold Float?             @default(0.7)
+  temperature              Float?             @default(0.7)
+  topP                     Float?             @default(1.0)
+  rememberFormattingChoices Boolean           @default(true)
+  cachedClassifications    Translation[]      @relation("ClassificationPrompt")
+  formattingChoices        FormattingChoice[]
+}
+
+model FormattingChoice {
+  id               Int          @id @default(autoincrement())
+  originalText     String
+  classificationAction String   // 'skip', 'include', 'normal'
+  source           String       @default("ai") // 'ai' | 'manual' - NEW FIELD
+  confidence       Float?       // AI confidence score  
+  textHash         String?      // For faster lookups
+  systemPromptId   Int
+  documentId       Int?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt  // NEW FIELD for tracking manual overrides
+  systemPrompt     SystemPrompt @relation(fields: [systemPromptId], references: [id], onDelete: Cascade)
+  document         Document?    @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  
+  @@unique([originalText, systemPromptId])
+  @@index([textHash, systemPromptId])
+  @@index([systemPromptId])
+  @@index([source])  // NEW INDEX for source-based filtering
+}
+
+model SavedCustomText {
+  id        Int      @id @default(autoincrement())
+  text      String   @unique
+  isTitle   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model UsageRecord {
+  id                    Int             @id @default(autoincrement())
+  aiConfigurationId     Int
+  configurationSnapshot String          // JSON snapshot of AI config pricing/limits
+  timestamp             DateTime        @default(now())
+  operationType         String          // 'translation', 'classification', 'batch'
+  
+  // Usage metrics
+  promptTokens          Int
+  completionTokens      Int
+  totalCost             Float
+  success               Boolean         @default(true) // Track operation success/failure
+  duration              Int?            // Response time in milliseconds
+  
+  // Optional business entity references (nullable if entity deleted)
+  translationId         Int?
+  documentId            Int?
+  
+  // Service details
+  modelUsed             String
+  serviceProvider       String          // 'OpenAI', 'Anthropic', 'Google'
+  language              String?         // Target language for language-specific analytics
+  
+  // Relations
+  aiConfiguration       AIConfiguration @relation(fields: [aiConfigurationId], references: [id])
+  translation           Translation?    @relation(fields: [translationId], references: [id])
+  document              Document?       @relation(fields: [documentId], references: [id])
+  
+  @@index([aiConfigurationId])
+  @@index([timestamp])
+  @@index([serviceProvider])
+  @@index([operationType])
+  @@index([success])
+  @@index([language])
+}
+
+// ===================================
+// AUTHENTICATION MODELS
+// ===================================
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  emailVerified DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  @@index([email])
+}
+
+model VerificationToken {
+  identifier String   // email address
+  token      String   // hashed token or OTP
+  type       String   // "magic_link" or "otp"
+  expires    DateTime
+  createdAt  DateTime @default(now())
+  
+  @@unique([identifier, token])
+  @@index([identifier])
+  @@index([expires])
+}
+
+model OtpFailure {
+  email       String   @id
+  attempts    Int      @default(0)
+  lockedUntil DateTime?
+  lastRequest DateTime @default(now())
+  
+  @@index([email])
+  @@index([lockedUntil])
+}

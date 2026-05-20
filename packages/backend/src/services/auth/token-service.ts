@@ -1,0 +1,65 @@
+import jwt, { Secret, SignOptions } from 'jsonwebtoken';
+import crypto from 'crypto';
+
+const JWT_SECRET: Secret | undefined = process.env.JWT_SECRET;
+const JWT_EXPIRES_IN = (process.env.JWT_EXPIRES_IN || '7d') as SignOptions['expiresIn'];
+
+interface JWTPayload {
+  userId: string;
+  email: string;
+  iat?: number;
+  exp?: number;
+}
+
+export class TokenService {
+  /**
+   * Generate JWT for authenticated user
+   */
+  static generateJWT(userId: string, email: string): string {
+    if (!JWT_SECRET) {
+      throw new Error('JWT_SECRET not configured');
+    }
+
+    return jwt.sign(
+      { userId, email },
+      JWT_SECRET,
+      { expiresIn: JWT_EXPIRES_IN }
+    );
+  }
+
+  /**
+   * Verify and decode JWT
+   */
+  static verifyJWT(token: string): JWTPayload | null {
+    if (!JWT_SECRET) {
+      throw new Error('JWT_SECRET not configured');
+    }
+
+    try {
+      return jwt.verify(token, JWT_SECRET) as JWTPayload;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  /**
+   * Generate cryptographically secure verification token
+   */
+  static generateVerificationToken(): string {
+    return crypto.randomBytes(32).toString('hex');
+  }
+
+  /**
+   * Generate 6-digit OTP code
+   */
+  static generateOTP(): string {
+    return String(Math.floor(100000 + Math.random() * 900000));
+  }
+
+  /**
+   * Hash token for database storage
+   */
+  static hashToken(token: string): string {
+    return crypto.createHash('sha256').update(token).digest('hex');
+  }
+}

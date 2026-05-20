@@ -1,0 +1,44 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+tmp-assets/
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+.DS_Store?
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Sensitive files
+.env
+.repomixignore
+food-pantry.code-workspace
+
+# Data
+*.db
+data/
+
+# Generated local artifacts
+output/
+tmp/
+storage/
+packages/backend/storage/
+
+# Claude Code local state (worktrees, projects, sessions)
+.claude/

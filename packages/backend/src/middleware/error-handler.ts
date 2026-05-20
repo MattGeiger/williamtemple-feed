@@ -1,0 +1,142 @@
+import { Request, Response, NextFunction } from 'express';
+import { Prisma } from '@prisma/client';
+
+export interface AppError extends Error {
+  statusCode?: number;
+  code?: string;
+}
+
+/**
+ * Type guard for Prisma errors
+ */
+const isPrismaError = (error: any): error is Prisma.PrismaClientKnownRequestError => {
+  return error && 
+    error instanceof Error && 
+    error.name === 'PrismaClientKnownRequestError' && 
+    'code' in error;
+};
+
+/**
+ * Environment-aware error logging
+ */
+const logError = (message: string, details?: unknown) => {
+  if (process.env.NODE_ENV === 'development') {
+    console.error(`[Error] ${message}`, details);
+  }
+};
+
+/**
+ * Global error handler middleware
+ */
+export const errorHandler = (
+  err: AppError,
+  req: Request,
+  res: Response,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  next: NextFunction
+) => {
+  // Basic error info for logging
+  const errorInfo = {
+    name: err.name,
+    message: err.message,
+    code: err.code,
+    path: req.path,
+    method: req.method
+  };
+
+  // Log error in development
+  logError('Request failed', errorInfo);
+
+  // Format timestamp
+  const timestamp = new Date().toISOString();
+
+  // Handle Multer errors
+  if (err.name === 'MulterError') {
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({
+        error: {
+          message: 'Please upload a smaller file. The maximum size allowed is 5MB.',
+          timestamp,
+          code: 'LIMIT_FILE_SIZE'
+        }
+      });
+    }
+    
+    if (err.code === 'LIMIT_UNEXPECTED_FILE') {
+      return res.status(400).json({
+        error: {
+          message: 'Please select a valid file type for upload.',
+          timestamp,
+          code: 'LIMIT_UNEXPECTED_FILE'
+        }
+      });
+    }
+  }
+
+  // Handle Prisma errors
+  if (isPrismaError(err)) {
+    if (err.code === 'P2002') {
+      // Extract the field name from the error meta if available
+      const target = err.meta?.target as string[] || [];
+      const fieldName = target[0] || 'name';
+      
+      return res.status(400).json({
+        error: {
+          message: `An item with this ${fieldName} already exists. Please choose a different ${fieldName}.`,
+          timestamp,
+          code: err.code
+        }
+      });
+    }
+    
+    if (err.code === 'P2003') {
+      return res.status(400).json({
+        error: {
+          message: 'Cannot delete this item because it is referenced by other items.',
+          timestamp,
+          code: err.code
+        }
+      });
+    }
+    
+    if (err.code === 'P2025') {
+      return res.status(404).json({
+        error: {
+          message: 'The requested item could not be found. It may have been deleted or moved.',
+          timestamp,
+          code: err.code
+        }
+      });
+    }
+  }
+
+  // Set status code and format response
+  const statusCode = err.statusCode || 500;
+  const message = err.message || 'Internal Server Error';
+
+  // Get actionable friendly message based on status code
+  let friendlyMessage = message;
+  
+  if (statusCode === 500 && (!err.message || err.message === 'Internal Server Error')) {
+    friendlyMessage = 'Something went wrong on our end. Please try again later or contact support at github.com/MattGeiger';
+  } else if (statusCode === 404 && (!err.message || err.message === 'Not Found')) {
+    friendlyMessage = 'The requested resource could not be found. It may have been moved or deleted.';
+  } else if (statusCode === 401 && (!err.message || err.message === 'Unauthorized')) {
+    friendlyMessage = 'Please log in to access this feature.';
+  } else if (statusCode === 403 && (!err.message || err.message === 'Forbidden')) {
+    friendlyMessage = 'You don\'t have permission to access this resource.';
+  } else if (statusCode === 400 && (!err.message || err.message === 'Bad Request')) {
+    friendlyMessage = 'There was a problem with your request. Please check your input and try again.';
+  } else if (statusCode === 429 && (!err.message || err.message === 'Too Many Requests')) {
+    friendlyMessage = 'You\'ve made too many requests. Please wait a minute and try again.';
+  }
+  
+  // Format error response
+  res.status(statusCode).json({
+    error: {
+      message: friendlyMessage,
+      timestamp,
+      code: err.code || 'INTERNAL_ERROR'
+    }
+  });
+};
