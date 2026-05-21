@@ -3,6 +3,21 @@
 All notable changes to FEED are documented here. This project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Fixed
+
+- **Shopping List Builder templates and saved components are now shared
+  org-wide** (ISSUES.md #31). They were previously partitioned per user
+  account, so a template created by one user was invisible to others.
+  FEED is a single shared-data environment; the per-user `ownerId`
+  column has been dropped from `ShoppingListBuilderTemplate` and
+  `ShoppingListBuilderComponent`, and all builder routes now read and
+  write one shared set. Existing rows are preserved by the migration
+  and become visible to every authenticated user. Requires the
+  `20260520000000_drop_shopping_list_builder_owner` migration (applied
+  automatically on container start via `prisma migrate deploy`).
+
 ## [1.0.0] — 2026-05-19
 
 Initial public release.

@@ -226,27 +226,23 @@ model ShoppingListPDF {
 
 model ShoppingListBuilderComponent {
   id            Int      @id @default(autoincrement())
-  ownerId       String
   name          String
   componentType String
   componentData Json
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  @@index([ownerId])
   @@index([componentType])
   @@index([updatedAt])
 }
 
 model ShoppingListBuilderTemplate {
   id           Int      @id @default(autoincrement())
-  ownerId      String
   name         String
   templateData Json
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  @@index([ownerId])
   @@index([updatedAt])
 }
 

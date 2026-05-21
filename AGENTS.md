@@ -16,6 +16,18 @@ This repository is mature and has been shaped through iterative design, user tes
 - PDF generation: Phase 1/reference generation uses pdfmake. The interactive Shopping List Builder `/preview-pdf` export uses Chromium/HTML-to-PDF so canvas and exported PDFs share browser font fallback, bidi ordering, and Arabic-script shaping. pdfme has been evaluated as UX inspiration, not adopted as the generation engine.
 - Root `package.json` is not the app runtime package. Run most commands from `packages/frontend` or `packages/backend`.
 
+## Core Architecture Principle: Shared Whole-Organization Environment
+
+FEED is a single shared-data environment for one organization, not a multi-tenant or per-account product. **Every authenticated user sees and acts on the same dataset.** Inventory (categories, food items, limits, statuses), translations, translated documents, shopping list templates, saved components, AI configuration, and any other feature data are identical regardless of who is logged in. A change one user makes is immediately observed by all users. Authentication exists to gate access to the organization's shared workspace, not to partition data per person.
+
+Implications for any new feature:
+
+- Do **not** add per-user / per-account scoping to feature data — no `ownerId`/`userId` column, no `where: { ownerId: req.auth.userId }` filter, no per-session private copies. Default all feature tables and queries to org-wide shared scope.
+- Authentication identity (`req.auth.userId`) is for *gating access* (is the caller logged in?) and audit/attribution, **not** for filtering what data a user can see.
+- If a future requirement genuinely needs per-user state (e.g. a personal draft or UI preference), treat that as an explicit, discussed exception — confirm the design with the user first; it runs against this baseline.
+
+This is a hard-won rule. Shopping-list templates and saved components originally shipped with an `ownerId` partition, which sequestered each user's templates behind their own login and broke the shared-environment expectation (one user couldn't see another's templates). That design flaw was removed in ISSUES.md #31 — the `ownerId` column was dropped and all builder routes now read/write one shared set. Keep this precedent in mind: when in doubt, shared is the default.
+
 ## Required Reading
 
 Read these before broad changes:
