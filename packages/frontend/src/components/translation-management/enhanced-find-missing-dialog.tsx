@@ -483,70 +483,14 @@ export function EnhancedFindMissingDialog({
 
             <TabsContents className="flex-1 min-h-0">
             <TabsContent value="overview" className="flex-1 min-h-0 overflow-hidden">
-              <ScrollArea className="h-full">
+              {/* Definite height (not max-h) so the Radix ScrollArea viewport
+                  is bounded and scrolls inside the animate-ui auto-height
+                  TabsContents wrapper. See ISSUES.md #30 / #29a. */}
+              <ScrollArea className="h-[calc(85vh-13rem)]">
                 <div className="flex flex-col gap-4 p-4">
-                  {result.details && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {getTypeCounts().map((category) => (
-                        <Card key={category.type} className={category.count > 0 ? "border-[hsl(var(--status-warning-border))]" : ""}>
-                          <CardHeader className="pb-2">
-                            <CardTitle className="text-sm font-medium flex items-center gap-2">
-                              {category.icon}
-                              {category.displayName}
-                            </CardTitle>
-                          </CardHeader>
-                          <CardContent>
-                            <div className="text-2xl font-bold">
-                              {category.count}
-                            </div>
-                          </CardContent>
-                          <CardFooter className="pt-0">
-                            <div className="text-xs text-muted-foreground">
-                              <p>
-                                {category.count > 0 
-                                  ? `Missing translations for ${category.count} items`
-                                  : "All items fully translated"
-                                }
-                              </p>
-                              {category.count > 0 && category.type !== 'Generated' && category.type !== 'Generated (List)' ? (
-                                <div className="mt-2 flex items-center gap-2">
-                                  <Checkbox
-                                    id={`select-${category.type}`}
-                                    checked={selectedTypes[category.type] || false}
-                                    onCheckedChange={(checked) => {
-                                      setSelectedTypes(prev => ({
-                                        ...prev,
-                                        [category.type]: !!checked
-                                      }));
-                                    }}
-                                  />
-                                  <label
-                                    htmlFor={`select-${category.type}`}
-                                    className="text-xs cursor-pointer"
-                                  >
-                                    Select for processing
-                                  </label>
-                                </div>
-                              ) : category.count > 0 && category.type === 'Generated' ? (
-                                <div className="mt-2">
-                                  <span className="text-xs">
-                                    <span className="font-semibold">This is normal:</span> these translations are handled by the Document Translator.
-                                  </span>
-                                </div>
-                              ) : category.count > 0 && category.type === 'Generated (List)' ? (
-                                <div className="mt-2">
-                                  <span className="text-xs">
-                                    <span className="font-semibold">This is normal:</span> these translations are handled by the Shopping Lists Builder.
-                                  </span>
-                                </div>
-                              ) : null}
-                            </div>
-                          </CardFooter>
-                        </Card>
-                      ))}
-                    </div>
-                  )}
-
+                  {/* Action/results card is rendered FIRST so the actionable
+                      content (and its buttons) is immediately visible; the
+                      category-count grid follows below. See ISSUES.md #30. */}
                   {/* Only show Missing Translations card if truly missing translations (not just failed or stale) */}
                   {(hasMissingTranslations && !hasStaleTranslations && queueableMissingCount > 0) ? (
                     <Card>
@@ -566,7 +510,7 @@ export function EnhancedFindMissingDialog({
                               Missing translations were found
                             </p>
                             <p className="text-sm text-muted-foreground">
-                              Select which categories to process using the checkboxes above,
+                              Select which categories to process using the checkboxes below,
                               then choose an action below.
                             </p>
                           </div>
@@ -790,12 +734,74 @@ export function EnhancedFindMissingDialog({
                       </Card>
                     ) : null)
                   )}
+
+                  {result.details && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {getTypeCounts().map((category) => (
+                        <Card key={category.type} className={category.count > 0 ? "border-[hsl(var(--status-warning-border))]" : ""}>
+                          <CardHeader className="pb-2">
+                            <CardTitle className="text-sm font-medium flex items-center gap-2">
+                              {category.icon}
+                              {category.displayName}
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="text-2xl font-bold">
+                              {category.count}
+                            </div>
+                          </CardContent>
+                          <CardFooter className="pt-0">
+                            <div className="text-xs text-muted-foreground">
+                              <p>
+                                {category.count > 0
+                                  ? `Missing translations for ${category.count} items`
+                                  : "All items fully translated"
+                                }
+                              </p>
+                              {category.count > 0 && category.type !== 'Generated' && category.type !== 'Generated (List)' ? (
+                                <div className="mt-2 flex items-center gap-2">
+                                  <Checkbox
+                                    id={`select-${category.type}`}
+                                    checked={selectedTypes[category.type] || false}
+                                    onCheckedChange={(checked) => {
+                                      setSelectedTypes(prev => ({
+                                        ...prev,
+                                        [category.type]: !!checked
+                                      }));
+                                    }}
+                                  />
+                                  <label
+                                    htmlFor={`select-${category.type}`}
+                                    className="text-xs cursor-pointer"
+                                  >
+                                    Select for processing
+                                  </label>
+                                </div>
+                              ) : category.count > 0 && category.type === 'Generated' ? (
+                                <div className="mt-2">
+                                  <span className="text-xs">
+                                    <span className="font-semibold">This is normal:</span> these translations are handled by the Document Translator.
+                                  </span>
+                                </div>
+                              ) : category.count > 0 && category.type === 'Generated (List)' ? (
+                                <div className="mt-2">
+                                  <span className="text-xs">
+                                    <span className="font-semibold">This is normal:</span> these translations are handled by the Shopping Lists Builder.
+                                  </span>
+                                </div>
+                              ) : null}
+                            </div>
+                          </CardFooter>
+                        </Card>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </ScrollArea>
             </TabsContent>
 
             <TabsContent value="details" className="flex-1 min-h-0 overflow-hidden">
-              <ScrollArea className="h-full">
+              <ScrollArea className="h-[calc(85vh-13rem)]">
                 <div className="flex flex-col gap-4 p-4">
                   <Card>
                     <CardHeader>
@@ -844,7 +850,7 @@ export function EnhancedFindMissingDialog({
             </TabsContent>
 
             <TabsContent value="languages" className="flex-1 min-h-0 overflow-hidden">
-              <ScrollArea className="h-full">
+              <ScrollArea className="h-[calc(85vh-13rem)]">
                 <div className="flex flex-col gap-4 p-4">
                   <Card>
                     <CardHeader>
