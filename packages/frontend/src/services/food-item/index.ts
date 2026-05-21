@@ -96,7 +96,11 @@ export class FoodItemService extends BaseApiService {
     this.validateStatusFlags(data.statusFlags);
 
     try {
-      return await this.post<FoodItem>('', {
+      // The API wraps the created item as { foodItem: ... }; unwrap it so
+      // callers receive a FoodItem (with nested statusFlags), matching
+      // getFoodItems(). Returning the raw envelope would store an item with
+      // no statusFlags in state and crash the list/filter render.
+      const response = await this.post<{ foodItem: FoodItem }>('', {
         ...data,
         status: this.deriveStatus(data.statusFlags),
         statusFlags: {
@@ -108,6 +112,7 @@ export class FoodItemService extends BaseApiService {
           ...data.dietaryFlags
         }
       });
+      return response.foodItem;
     } catch (error) {
       throw this.handleError(error);
     }
@@ -126,7 +131,12 @@ export class FoodItemService extends BaseApiService {
     this.validateStatusFlags(data.statusFlags);
 
     try {
-      return await this.put<FoodItem>(`/${data.id}`, {
+      // The API wraps the updated item as { foodItem: ... }; unwrap it so
+      // callers receive a FoodItem (with nested statusFlags), matching
+      // getFoodItems(). Returning the raw envelope would store an item with
+      // no statusFlags in state and crash the list/filter render
+      // (Cannot read properties of undefined (reading 'isInStock')).
+      const response = await this.put<{ foodItem: FoodItem }>(`/${data.id}`, {
         ...data,
         status: this.deriveStatus(data.statusFlags),
         statusFlags: {
@@ -138,6 +148,7 @@ export class FoodItemService extends BaseApiService {
           ...data.dietaryFlags
         }
       });
+      return response.foodItem;
     } catch (error) {
       throw this.handleError(error);
     }
