@@ -331,8 +331,8 @@ describe('Shopping List Builder API', () => {
     });
   });
 
-  test('saved component delete is scoped to the authenticated owner', async () => {
-    mockPrisma.shoppingListBuilderComponent.findFirst.mockResolvedValue({ id: 12, ownerId: 'test-owner' });
+  test('saved component delete looks up by id only (org-wide shared scope)', async () => {
+    mockPrisma.shoppingListBuilderComponent.findFirst.mockResolvedValue({ id: 12 });
     mockPrisma.shoppingListBuilderComponent.delete.mockResolvedValue({ id: 12 });
 
     await request(app)
@@ -340,11 +340,26 @@ describe('Shopping List Builder API', () => {
       .expect(200);
 
     expect(mockPrisma.shoppingListBuilderComponent.findFirst).toHaveBeenCalledWith({
-      where: { id: 12, ownerId: 'test-owner' },
+      where: { id: 12 },
     });
     expect(mockPrisma.shoppingListBuilderComponent.delete).toHaveBeenCalledWith({
       where: { id: 12 },
     });
+  });
+
+  test('templates are listed without an owner filter so every user sees the same set', async () => {
+    mockPrisma.shoppingListBuilderTemplate.findMany.mockResolvedValue([
+      { id: 1, name: 'Shared', templateData: template, createdAt: savedTimestamp, updatedAt: savedTimestamp },
+    ]);
+
+    const response = await request(app)
+      .get('/api/shopping-list-builder/templates')
+      .expect(200);
+
+    expect(mockPrisma.shoppingListBuilderTemplate.findMany).toHaveBeenCalledWith({
+      orderBy: { updatedAt: 'desc' },
+    });
+    expect(response.body.templates).toHaveLength(1);
   });
 
   test('saving a component with an existing name updates that saved component instead of duplicating it', async () => {

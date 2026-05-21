@@ -30,7 +30,6 @@ import {
 const pdfmake = require('pdfmake');
 
 const router = Router();
-const LOCAL_DEVELOPMENT_OWNER = 'local-development';
 
 type BuilderComponentType = 'text' | 'form-field-group' | 'section-table' | 'line' | 'date' | 'language-tag';
 type BuilderLayoutMode = 'guided' | 'freeform';
@@ -358,13 +357,17 @@ const createRouteError = (message: string, statusCode = 400): AppRouteError => {
   return error;
 };
 
-const getOwnerId = (req: Request) => {
+// Shopping List Builder content is part of the single org-wide shared data
+// environment (see ISSUES.md #31): templates and saved components are visible
+// to every authenticated user, not partitioned per account. This guard only
+// enforces that the caller is logged in.
+const requireAuth = (req: Request) => {
   if (req.auth?.userId) {
-    return req.auth.userId;
+    return;
   }
 
   if (process.env.NODE_ENV === 'development' && process.env.FORCE_AUTH !== 'true') {
-    return LOCAL_DEVELOPMENT_OWNER;
+    return;
   }
 
   throw createRouteError('Please log in to save and load shopping list builder content.', 401);
@@ -1611,9 +1614,8 @@ const validateSavedTemplateName = (name: unknown) => {
 
 const normalizeSavedEntityName = (name: string) => name.trim().toLocaleLowerCase();
 
-const findSavedComponentByName = async (ownerId: string, name: string, excludeId?: number) => {
+const findSavedComponentByName = async (name: string, excludeId?: number) => {
   const records = await prisma.shoppingListBuilderComponent.findMany({
-    where: { ownerId },
     orderBy: { updatedAt: 'desc' },
   });
 
@@ -1623,9 +1625,8 @@ const findSavedComponentByName = async (ownerId: string, name: string, excludeId
   )) ?? null;
 };
 
-const findSavedTemplateByName = async (ownerId: string, name: string, excludeId?: number) => {
+const findSavedTemplateByName = async (name: string, excludeId?: number) => {
   const records = await prisma.shoppingListBuilderTemplate.findMany({
-    where: { ownerId },
     orderBy: { updatedAt: 'desc' },
   });
 
@@ -3527,9 +3528,8 @@ const lookupInventoryBuilderTranslations = async (
 
 router.get('/components', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const ownerId = getOwnerId(req);
+    requireAuth(req);
     const components = await prisma.shoppingListBuilderComponent.findMany({
-      where: { ownerId },
       orderBy: { updatedAt: 'desc' },
     });
 
@@ -3541,13 +3541,13 @@ router.get('/components', async (req: Request, res: Response, next: NextFunction
 
 router.post('/components', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const ownerId = getOwnerId(req);
+    requireAuth(req);
     const { name, component } = req.body as SaveBuilderComponentRequest;
     const savedName = validateSavedComponentName(name);
     const componentData = component as BuilderComponent;
     validateBuilderComponent(componentData);
 
-    const existingByName = await findSavedComponentByName(ownerId, savedName);
+    const existingByName = await findSavedComponentByName(savedName);
     if (existingByName) {
       const savedComponent = await prisma.shoppingListBuilderComponent.update({
         where: { id: existingByName.id },
@@ -3564,7 +3564,6 @@ router.post('/components', async (req: Request, res: Response, next: NextFunctio
 
     const savedComponent = await prisma.shoppingListBuilderComponent.create({
       data: {
-        ownerId,
         name: savedName,
         componentType: componentData.type,
         componentData: componentData as unknown as Prisma.InputJsonValue,
@@ -3579,11 +3578,11 @@ router.post('/components', async (req: Request, res: Response, next: NextFunctio
 
 router.put('/components/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const ownerId = getOwnerId(req);
+    requireAuth(req);
     const id = parseIdParam(req.params.id, 'Invalid saved component ID.');
     const { name, component } = req.body as SaveBuilderComponentRequest;
     const existing = await prisma.shoppingListBuilderComponent.findFirst({
-      where: { id, ownerId },
+      where: { id },
     });
 
     if (!existing) {
@@ -3593,7 +3592,7 @@ router.put('/components/:id', async (req: Request, res: Response, next: NextFunc
     const data: Prisma.ShoppingListBuilderComponentUpdateInput = {};
     if (name !== undefined) {
       const savedName = validateSavedComponentName(name);
-      const conflict = await findSavedComponentByName(ownerId, savedName, id);
+      const conflict = await findSavedComponentByName(savedName, id);
       if (conflict) {
         throw createRouteError(
           `A saved component named "${savedName}" already exists. Choose a unique name or edit that saved component instead.`,
@@ -3622,10 +3621,10 @@ router.put('/components/:id', async (req: Request, res: Response, next: NextFunc
 
 router.delete('/components/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const ownerId = getOwnerId(req);
+    requireAuth(req);
     const id = parseIdParam(req.params.id, 'Invalid saved component ID.');
     const existing = await prisma.shoppingListBuilderComponent.findFirst({
-      where: { id, ownerId },
+      where: { id },
     });
 
     if (!existing) {
@@ -3644,9 +3643,8 @@ router.delete('/components/:id', async (req: Request, res: Response, next: NextF
 
 router.get('/templates', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const ownerId = getOwnerId(req);
+    requireAuth(req);
     const templates = await prisma.shoppingListBuilderTemplate.findMany({
-      where: { ownerId },
       orderBy: { updatedAt: 'desc' },
     });
 
@@ -3658,13 +3656,13 @@ router.get('/templates', async (req: Request, res: Response, next: NextFunction)
 
 router.post('/templates', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const ownerId = getOwnerId(req);
+    requireAuth(req);
     const { name, template } = req.body as SaveBuilderTemplateRequest;
     const savedName = validateSavedTemplateName(name);
     const templateData = template as ShoppingListBuilderTemplate;
     validateTemplate(templateData);
 
-    const existingByName = await findSavedTemplateByName(ownerId, savedName);
+    const existingByName = await findSavedTemplateByName(savedName);
     if (existingByName) {
       const savedTemplate = await prisma.shoppingListBuilderTemplate.update({
         where: { id: existingByName.id },
@@ -3680,7 +3678,6 @@ router.post('/templates', async (req: Request, res: Response, next: NextFunction
 
     const savedTemplate = await prisma.shoppingListBuilderTemplate.create({
       data: {
-        ownerId,
         name: savedName,
         templateData: templateData as unknown as Prisma.InputJsonValue,
       },
@@ -3694,11 +3691,11 @@ router.post('/templates', async (req: Request, res: Response, next: NextFunction
 
 router.put('/templates/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const ownerId = getOwnerId(req);
+    requireAuth(req);
     const id = parseIdParam(req.params.id, 'Invalid saved template ID.');
     const { name, template } = req.body as SaveBuilderTemplateRequest;
     const existing = await prisma.shoppingListBuilderTemplate.findFirst({
-      where: { id, ownerId },
+      where: { id },
     });
 
     if (!existing) {
@@ -3708,7 +3705,7 @@ router.put('/templates/:id', async (req: Request, res: Response, next: NextFunct
     const data: Prisma.ShoppingListBuilderTemplateUpdateInput = {};
     if (name !== undefined) {
       const savedName = validateSavedTemplateName(name);
-      const conflict = await findSavedTemplateByName(ownerId, savedName, id);
+      const conflict = await findSavedTemplateByName(savedName, id);
       if (conflict) {
         throw createRouteError(
           `A saved template named "${savedName}" already exists. Choose a unique name or apply that template instead.`,
@@ -3736,10 +3733,10 @@ router.put('/templates/:id', async (req: Request, res: Response, next: NextFunct
 
 router.delete('/templates/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const ownerId = getOwnerId(req);
+    requireAuth(req);
     const id = parseIdParam(req.params.id, 'Invalid saved template ID.');
     const existing = await prisma.shoppingListBuilderTemplate.findFirst({
-      where: { id, ownerId },
+      where: { id },
     });
 
     if (!existing) {
@@ -3758,7 +3755,7 @@ router.delete('/templates/:id', async (req: Request, res: Response, next: NextFu
 
 router.post('/refresh-inventory', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    getOwnerId(req);
+    requireAuth(req);
     const template = req.body?.template as ShoppingListBuilderTemplate;
     validateTemplate(template);
     const refreshedTemplate = await refreshInventoryBackedTemplate(template);
@@ -3771,7 +3768,7 @@ router.post('/refresh-inventory', async (req: Request, res: Response, next: Next
 
 router.put('/inventory-items/:id/limit', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    getOwnerId(req);
+    requireAuth(req);
     const id = parseIdParam(req.params.id, 'Invalid food item ID.');
     const { limit } = req.body as UpdateInventoryLimitRequest;
     const parsedLimit = parseInventoryLimitValue(limit);
@@ -3817,7 +3814,7 @@ router.put('/inventory-items/:id/limit', async (req: Request, res: Response, nex
 
 router.get('/inventory-sections', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    getOwnerId(req);
+    requireAuth(req);
     const categories = await prisma.category.findMany({
       include: {
         foodItems: {
@@ -3851,7 +3848,7 @@ router.get('/inventory-sections', async (req: Request, res: Response, next: Next
 
 router.post('/preview-pdf', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    getOwnerId(req);
+    requireAuth(req);
     const template = req.body?.template as ShoppingListBuilderTemplate;
     validateTemplate(template);
     const refreshedTemplate = await refreshInventoryBackedTemplate(template);
@@ -3915,7 +3912,7 @@ router.post('/preview-pdf', async (req: Request, res: Response, next: NextFuncti
  */
 router.post('/translation-preflight', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    getOwnerId(req);
+    requireAuth(req);
     const template = req.body?.template as ShoppingListBuilderTemplate;
     validateTemplate(template);
     const targetLanguage = typeof req.body?.targetLanguage === 'string'
@@ -3979,7 +3976,7 @@ router.post('/translation-preflight', async (req: Request, res: Response, next: 
  */
 router.post('/translate-missing-strings', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    getOwnerId(req);
+    requireAuth(req);
     const rawStrings = req.body?.strings;
     const targetLanguage = typeof req.body?.targetLanguage === 'string'
       ? req.body.targetLanguage.trim()

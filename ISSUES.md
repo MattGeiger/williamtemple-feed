@@ -1,6 +1,6 @@
 # FEED — Known Issues & Future Work
 
-**Last Updated**: May 19, 2026
+**Last Updated**: May 20, 2026
 **Status**: v1.0.0 release prep in progress (see `docs/V1-RELEASE-PLAN.md`)
 **Production**: https://feed.williamtemple.app
 
@@ -204,6 +204,97 @@ patch in place. Documented in `docs/motion/ICON_ANIMATIONS.md` and
 `AGENTS.md`.
 
 Long-term fix: upstream issues / PRs against the registries.
+
+---
+
+### #30 — "Find Missing Translations" Modal Needs Scroll Area + Card Reordering
+**Priority**: Medium (UX) · **Status**: Open
+**Bucket**: v1.x backlog
+**Component**: `packages/frontend/src/components/translation-management/enhanced-find-missing-dialog.tsx`
+
+Adding the new **"Generated (Shopping List)"** translation category increased
+the modal's content height beyond what fits in the dialog. When a run
+produces failed or stuck-in-pending translations, a results card is
+appended at the **bottom** of the modal, pushing it out of view and
+leaving it **partially cut off** with no way to scroll to it.
+
+Intended resolution:
+1. **Reorder cards** — move the failed/pending results card to the **top**
+   of the modal, with the translation-type (category) card beneath it, so
+   the actionable results are immediately visible.
+2. **Add a scroll area** — make the modal body scrollable so users can
+   review all content when results are presented and nothing is clipped.
+
+Implementation note: prefer an `overflow-y-auto` container over Radix
+`ScrollArea` with a `max-h-*` constraint — see resolved issue #29a, where
+`ScrollArea` failed to scroll under a `max-h-*` cap in
+`translate-and-generate-dialog.tsx`.
+
+---
+
+### #31 — Shopping List Templates & Saved Components Are Per-User, Not Org-Shared
+**Priority**: High · **Status**: Fixed (May 20, 2026) — pending deploy
+**Bucket**: v1.x backlog
+**Component**: `packages/backend/src/routes/shopping-list-builder.ts`,
+`packages/backend/prisma/schema.prisma`
+ (`ShoppingListBuilderTemplate`, `ShoppingListBuilderComponent`)
+
+**Observed behavior**: Saved Shopping List templates (and Saved
+Components) are sequestered by login. If `user1@williamtemple.org`
+creates a template, only that account sees it; if
+`user2@williamtemple.org` logs in, they see only their own templates and
+none of user1's. Each account gets a private set of templates/components.
+
+**Expected behavior**: FEED is designed around a single
+whole-organization data environment. Changes made by one user should be
+visible to all users. Inventory, templates, saved components,
+translations, and translated documents should be identical regardless of
+which account is logged in. This is a shared environment, not a
+per-account experience.
+
+**Root cause**: The `ShoppingListBuilderTemplate` and
+`ShoppingListBuilderComponent` tables carry an `ownerId String` column
+(indexed `@@index([ownerId])`), and every builder CRUD route scopes its
+query by it. `getOwnerId(req)` returns `req.auth.userId` (the logged-in
+user's id) and all reads/writes filter `where: { ownerId }`:
+- List/save/update/delete templates — lines ~3648, 3661, 3697, 3739
+- List/save/update/delete components — lines ~3530, 3544, 3582, 3623
+- Same-name dedup helpers `findSavedTemplateByName` /
+  `findSavedComponentByName` — lines ~1614, 1626
+
+So each user's id partitions the data. By contrast, the shared inventory
+and translation tables (`Category`, `FoodItem`, `CategoryTranslation`,
+`FoodItemTranslation`, `Translation`) have **no** `ownerId` column — they
+are already global, which is why inventory and translations are correctly
+shared across logins. The builder tables are the only ones that diverged
+from the org-shared model.
+
+**Resolution** (Option 1 — drop `ownerId` entirely; chosen because the
+deployment is <24h old with minimal staff content, so the merge risk is
+negligible):
+1. Dropped the `ownerId` column and its `@@index([ownerId])` from
+   `ShoppingListBuilderTemplate` and `ShoppingListBuilderComponent` in
+   `schema.prisma`.
+2. Migration `20260520000000_drop_shopping_list_builder_owner` rebuilds
+   both SQLite tables without `ownerId`, copying every existing row so
+   prior per-user content survives as shared content. Applied
+   automatically on container start (`prisma migrate deploy` in the
+   Docker CMD).
+3. All builder routes now read/write one shared set: removed
+   `where: { ownerId }` from every find/list, dropped `ownerId` from
+   creates, and dropped the `ownerId` argument from the
+   `findSavedTemplateByName` / `findSavedComponentByName` dedup helpers
+   (a same-name collision across former users is now a real collision,
+   resolved by the existing newest-match update logic).
+4. `getOwnerId` (which both returned the per-user id and gated login) was
+   replaced by `requireAuth`, which only enforces that the caller is
+   logged in. The translation auditor already read all templates with no
+   owner filter, so it was unaffected.
+5. Backend tests updated: delete now asserts `where: { id }` only, plus a
+   new test that `GET /templates` lists without an owner filter. Full
+   shopping-list suite (119 tests) passes; backend `tsc` build clean.
+
+**Remaining**: deploy to production (Pi) so the migration runs there.
 
 ---
 
