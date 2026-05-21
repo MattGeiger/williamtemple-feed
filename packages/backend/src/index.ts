@@ -21,7 +21,6 @@ const initializeServices = async () => {
   try {
     await storageService.initialize();
     console.log('Storage service initialized');
-    console.log('Shopping list PDF service skipped: legacy implementation removed while PDFMake replacement is in progress');
   } catch (err) {
     console.error('Failed to initialize services:', err);
     process.exit(1);
