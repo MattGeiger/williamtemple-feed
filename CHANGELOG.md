@@ -3,7 +3,7 @@
 All notable changes to FEED are documented here. This project adheres to
 [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [1.0.8] — 2026-05-21
 
 ### Fixed
 
@@ -17,6 +17,14 @@ All notable changes to FEED are documented here. This project adheres to
   and become visible to every authenticated user. Requires the
   `20260520000000_drop_shopping_list_builder_owner` migration (applied
   automatically on container start via `prisma migrate deploy`).
+
+### Security
+
+- Removed hardcoded credentials (a legacy example encryption key and the
+  legacy Basic Auth password) from tracked docs and a test script,
+  replacing them with environment-variable placeholders. Production was
+  unaffected — Basic Auth is disabled and the active encryption key
+  differs from the removed example value.
 
 ## [1.0.0] — 2026-05-19
 
