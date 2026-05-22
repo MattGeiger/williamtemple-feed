@@ -409,7 +409,7 @@ Full-page-only).
 ---
 
 ### #34 — v1.1.0 Shopping List Builder + Export Settings (Complete)
-**Priority**: Medium · **Status**: Done — all v1.1.0 features landed on `main` (awaiting build/deploy decision)
+**Priority**: Medium · **Status**: Done — all v1.1.0 features landed on `main`; released as 1.1.0 (build + Pi deploy in progress)
 **Bucket**: v1.1.0
 
 **Progress (May 21–22, 2026)** — landed and pushed to `main`, each its own
