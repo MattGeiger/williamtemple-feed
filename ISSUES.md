@@ -368,7 +368,7 @@ Kept as documented native-overflow exceptions (inline-justified):
 ---
 
 ### #33 — Builder Row-Height Under-Calculation at Higher Font Sizes
-**Priority**: Medium · **Status**: Planned (v1.1.0)
+**Priority**: Medium · **Status**: Fixed (May 21, 2026) — pending deploy
 **Bucket**: v1.1.0
 **Component**: typography engine
 (`packages/frontend/src/components/shopping-lists/builder/typography.ts`
@@ -390,6 +390,21 @@ typography unit tests, the inventory-section height tests in
 `shopping-list-builder.test.ts`, and a rendered-PDF smoke at 14/16/18pt
 (including RTL and long item names). Full design notes:
 `docs/shopping-lists/v1.1.0-feature-plan.md` (section C).
+
+**Resolution (May 21, 2026):** the actual root cause was narrower than the
+hypothesis above. The live wrap engine (`estimateWrappedSegmentLineCount`,
+duplicated in the backend route and `ShoppingListBuilder.tsx`) already
+reserved a **flat 6pt** of wrap slack to absorb real Chromium rendering
+~3-5% wider than the per-glyph estimator. That flat value only covered
+cells up to ~120pt, so mid-width cells under-counted lines and clipped —
+even at 12pt (e.g. "Hot Dog & Hamburger Buns"). Fix: reserve
+`max(6pt, 5% of cell width)` so the wrap threshold tracks Chrome's
+percentage over-width at every font size. Applied identically to both
+engines; 119 shopping-list tests still pass (10pt inventory-height
+assertions unchanged); confirmed against a full real-inventory pass in the
+running builder. Follow-on: `SPLIT_PAGE_MAX_BUILDER_FONT_SIZE` raised 12→14
+so 14pt section tables are now offered in Split-page layout (16-18pt remain
+Full-page-only).
 
 ---
 
