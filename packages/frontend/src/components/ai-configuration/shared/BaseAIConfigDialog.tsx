@@ -14,6 +14,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { useMessage } from '@/hooks/message/useMessage'
 import {
   BaseDialogProps,
@@ -143,8 +144,9 @@ export function BaseAIConfigDialog<T extends ConfigData>({
           <DialogDescription>{getStepDescription()}</DialogDescription>
         </DialogHeader>
 
-        {/* Fixed height content area */}
-        <div className="h-[480px] overflow-y-auto">
+        {/* Fixed height content area (shadcn ScrollArea; definite height so
+            the Radix viewport is bounded and scrolls — see AGENTS.md). */}
+        <ScrollArea className="h-[480px]">
           <StepComponent
             mode={mode}
             data={data}
@@ -153,7 +155,7 @@ export function BaseAIConfigDialog<T extends ConfigData>({
             validation={validation}
             onBlur={handleBlur}
           />
-        </div>
+        </ScrollArea>
 
         {/* Navigation buttons outside fixed container */}
         <div className="flex justify-between pt-4">
