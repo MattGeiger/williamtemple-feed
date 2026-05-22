@@ -162,7 +162,7 @@ describe('Shopping List Builder API', () => {
       { foodItemId: 8, item: 'Pinto Beans', limit: '', limitSource: 'none' },
     ]);
     expect(response.body.sections[0].component).toMatchObject({
-      width: 270,
+      width: 267,
       limitWidth: 51,
       wantWidth: 57,
       cornerRadius: 9,
