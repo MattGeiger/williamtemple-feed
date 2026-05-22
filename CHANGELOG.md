@@ -3,6 +3,37 @@
 All notable changes to FEED are documented here. This project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [1.0.10] — 2026-05-21
+
+(1.0.9 was bumped during development but never deployed; production goes
+from 1.0.8 directly to 1.0.10.)
+
+### Fixed
+
+- **Food Items: editing an item with a status filter active no longer
+  crashes the page.** The food-item service returned the raw API envelope
+  instead of the inner item, so state held an item without `statusFlags`
+  and the next render threw `Cannot read properties of undefined (reading
+  'isInStock')`. Create/update now unwrap `.foodItem` like the list path.
+- **Find Missing Translations modal** (ISSUES.md #30): the results/action
+  card is shown first and the tab bodies scroll, so the action buttons are
+  no longer clipped on large results.
+- **Shopping List Builder row heights** (ISSUES.md #33): section-table rows
+  now grow to fit wrapped item names at all font sizes. The wrap estimator
+  reserves slack proportional to cell width (matching real Chromium's
+  ~3-5% over-width) instead of a flat 6pt that under-cushioned mid-width
+  cells even at 12pt.
+
+### Changed
+
+- **Scroll containers standardized on the shadcn `ScrollArea`** for
+  fixed-height regions (ISSUES.md #32); grow-to-fit / nested previews keep
+  documented native overflow.
+- **14pt section tables are now available in Split-page layout**
+  (16-18pt remain Full-page-only).
+- In-app version label reads "Version x.y.z" (dropped the stale
+  "Pre-Release" prefix now that FEED is on public 1.0.x).
+
 ## [1.0.8] — 2026-05-21
 
 ### Fixed
