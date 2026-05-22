@@ -236,6 +236,9 @@ interface SectionTableBuilderComponent extends BuilderComponentBase {
     limitSource?: 'food-item' | 'category' | 'none';
   }>;
   showLimit: boolean;
+  // Show/hide the Want column (A5). Optional for back-compat; always read as
+  // `component.showWant !== false` (undefined = show). Mirrors the frontend.
+  showWant?: boolean;
   limitHeader: string;
   wantHeader: string;
   limitWidth: number;
@@ -923,6 +926,7 @@ const tableHeaderHeight = (
     wantWidth: number;
     fontSize: number;
     showLimit: boolean;
+    showWant: boolean;
     titleSegments?: BuilderTextMeasureSegment[];
     categoryLimitSegments?: BuilderTextMeasureSegment[];
     limitHeaderSegments?: BuilderTextMeasureSegment[];
@@ -976,16 +980,18 @@ const tableHeaderHeight = (
         options.fontSize,
       ))
     : 1;
-  const wantHeaderLineCount = options.wantHeaderSegments
-    ? estimateWrappedSegmentLineCount(
-      options.wantHeaderSegments,
-      Math.max(1, options.wantWidth - TABLE_CELL_HORIZONTAL_PADDING),
-    )
-    : estimateWrappedLineCount(
-      component.wantHeader || 'Want',
-      Math.max(1, options.wantWidth - TABLE_CELL_HORIZONTAL_PADDING),
-      options.fontSize,
-    );
+  const wantHeaderLineCount = options.showWant
+    ? (options.wantHeaderSegments
+      ? estimateWrappedSegmentLineCount(
+        options.wantHeaderSegments,
+        Math.max(1, options.wantWidth - TABLE_CELL_HORIZONTAL_PADDING),
+      )
+      : estimateWrappedLineCount(
+        component.wantHeader || 'Want',
+        Math.max(1, options.wantWidth - TABLE_CELL_HORIZONTAL_PADDING),
+        options.fontSize,
+      ))
+    : 1;
   const otherHeaderMaxLineCount = Math.max(
     1,
     limitHeaderLineCount,
@@ -1082,7 +1088,8 @@ const getSectionTableMetrics = (
 ): SectionTableMetrics => {
   const rowHeight = asNumber(component.rowHeight, DEFAULT_SECTION_TABLE_ROW_HEIGHT);
   const limitWidth = component.showLimit ? asNumber(component.limitWidth, DEFAULT_SECTION_TABLE_LIMIT_WIDTH) : 0;
-  const wantWidth = asNumber(component.wantWidth, DEFAULT_SECTION_TABLE_WANT_WIDTH);
+  const showWant = component.showWant !== false;
+  const wantWidth = showWant ? asNumber(component.wantWidth, DEFAULT_SECTION_TABLE_WANT_WIDTH) : 0;
   const itemWidth = component.width - limitWidth - wantWidth;
   const fontSize = asNumber(component.fontSize, 10);
   const showCategoryIcon = Boolean(layout?.showCategoryIcon && component.inventorySource);
@@ -1092,6 +1099,7 @@ const getSectionTableMetrics = (
     wantWidth,
     fontSize,
     showLimit: component.showLimit,
+    showWant,
     iconOverhead: categoryIconTitleWidthOverhead(fontSize, showCategoryIcon),
     ...sectionTableHeaderMeasurementSegments(component, fontSize, measurement),
   });
@@ -1752,6 +1760,7 @@ const buildInventorySectionComponent = (category: {
     wantWidth,
     fontSize,
     showLimit: true,
+    showWant: true,
   });
 
   return {
@@ -1994,7 +2003,8 @@ const sectionTableNodes = (component: SectionTableBuilderComponent) => {
   const nodes: any[] = [];
   const rowBaseHeight = asNumber(component.rowHeight, DEFAULT_SECTION_TABLE_ROW_HEIGHT);
   const limitWidth = component.showLimit ? asNumber(component.limitWidth, DEFAULT_SECTION_TABLE_LIMIT_WIDTH) : 0;
-  const wantWidth = asNumber(component.wantWidth, DEFAULT_SECTION_TABLE_WANT_WIDTH);
+  const showWant = component.showWant !== false;
+  const wantWidth = showWant ? asNumber(component.wantWidth, DEFAULT_SECTION_TABLE_WANT_WIDTH) : 0;
   const itemWidth = component.width - limitWidth - wantWidth;
   const fontSize = asNumber(component.fontSize, 10);
   const headerHeight = tableHeaderHeight(component, rowBaseHeight, {
@@ -2003,6 +2013,7 @@ const sectionTableNodes = (component: SectionTableBuilderComponent) => {
     wantWidth,
     fontSize,
     showLimit: component.showLimit,
+    showWant,
   });
   const categoryLimitTag = formatCategoryLimitTag(component.categoryLimit, component.categoryLimitType);
   const categoryLimitFontSize = Math.max(7, fontSize - 2);
@@ -2173,6 +2184,7 @@ const sectionTableFlowNode = (component: SectionTableBuilderComponent) => {
           wantWidth,
           fontSize,
           showLimit: component.showLimit,
+          showWant: component.showWant !== false,
         });
       },
       widths,
@@ -2754,12 +2766,17 @@ const sectionTableComponentHtml = (
 ) => {
   const rowBaseHeight = asNumber(component.rowHeight, DEFAULT_SECTION_TABLE_ROW_HEIGHT);
   const limitWidth = component.showLimit ? asNumber(component.limitWidth, DEFAULT_SECTION_TABLE_LIMIT_WIDTH) : 0;
-  const wantWidth = asNumber(component.wantWidth, DEFAULT_SECTION_TABLE_WANT_WIDTH);
+  const showWant = component.showWant !== false;
+  const wantWidth = showWant ? asNumber(component.wantWidth, DEFAULT_SECTION_TABLE_WANT_WIDTH) : 0;
   const itemWidth = component.width - limitWidth - wantWidth;
   const fontSize = asNumber(component.fontSize, 10);
-  const gridTemplateColumns = component.showLimit
-    ? `${pt(itemWidth)} ${pt(limitWidth)} ${pt(wantWidth)}`
-    : `${pt(itemWidth)} ${pt(wantWidth)}`;
+  // Columns in order: Item, [Limit if shown], [Want if shown] — all four
+  // combinations (A5). Must match the canvas grid in ShoppingListBuilder.tsx.
+  const gridTemplateColumns = [
+    pt(itemWidth),
+    ...(component.showLimit ? [pt(limitWidth)] : []),
+    ...(showWant ? [pt(wantWidth)] : []),
+  ].join(' ');
   const categoryLimitTag = formatCategoryLimitTag(component.categoryLimit, component.categoryLimitType);
   const categoryLimitTagSource = categoryLimitTag ? `(${categoryLimitTag})` : null;
   const translationSettings = resolveSectionTableTranslationSettings(component.translationSettings);
@@ -2789,6 +2806,7 @@ const sectionTableComponentHtml = (
     wantWidth,
     fontSize,
     showLimit: component.showLimit,
+    showWant,
     iconOverhead: categoryIconTitleWidthOverhead(fontSize, showCategoryIcon),
     ...sectionTableHeaderMeasurementSegments(component, fontSize, measurement),
   });
@@ -2835,7 +2853,7 @@ const sectionTableComponentHtml = (
           ${categoryLimitTagSource ? `<span class="builder-table-category-limit" style="font-size: ${pt(categoryLimitFontSize)};">${translatedBuilderTextHtml(categoryLimitTagSource, options.translations?.[categoryLimitTagSource], tagMode)}</span>` : ''}
         </div>
         ${component.showLimit ? `<div class="builder-table-cell-left-border builder-table-header-cell" dir="auto">${translatedBuilderTextHtml(component.limitHeader || 'Limit', options.translations?.[component.limitHeader || 'Limit'], headerMode)}</div>` : ''}
-        <div class="builder-table-cell-left-border builder-table-header-cell" dir="auto">${translatedBuilderTextHtml(component.wantHeader || 'Want', options.translations?.[component.wantHeader || 'Want'], headerMode)}</div>
+        ${showWant ? `<div class="builder-table-cell-left-border builder-table-header-cell" dir="auto">${translatedBuilderTextHtml(component.wantHeader || 'Want', options.translations?.[component.wantHeader || 'Want'], headerMode)}</div>` : ''}
       </div>
       ${resolvedRows.map((row, index, allRows) => {
         const rowHeight = computedRowHeights?.[index] ?? tableRowHeight(row, rowBaseHeight, {
@@ -2867,7 +2885,7 @@ const sectionTableComponentHtml = (
               rowMode,
             )}</div>
             ${component.showLimit ? `<div class="builder-table-text-cell builder-table-cell-left-border builder-table-center" dir="auto">${escapeHtml(row.limit)}</div>` : ''}
-            <div class="builder-table-cell-left-border"></div>
+            ${showWant ? '<div class="builder-table-cell-left-border"></div>' : ''}
           </div>
         `;
       }).join('')}
@@ -3371,7 +3389,9 @@ export const extractBuilderTranslatableStrings = (
       if (component.showLimit) {
         pushIfNeeded(component.limitHeader || 'Limit', settings.headers);
       }
-      pushIfNeeded(component.wantHeader || 'Want', settings.headers);
+      if (component.showWant !== false) {
+        pushIfNeeded(component.wantHeader || 'Want', settings.headers);
+      }
 
       const categoryLimitTag = formatCategoryLimitTag(component.categoryLimit, component.categoryLimitType);
       if (categoryLimitTag) {

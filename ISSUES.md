@@ -408,9 +408,15 @@ Full-page-only).
 
 ---
 
-### #34 — v1.1.0 Shopping List Builder + Export Settings (Planned)
-**Priority**: Medium · **Status**: Planned (design documented)
+### #34 — v1.1.0 Shopping List Builder + Export Settings (In Progress)
+**Priority**: Medium · **Status**: In progress
 **Bucket**: v1.1.0
+
+**Progress**: A5 (show/hide the Want column) **landed May 21, 2026** —
+`showWant` mirrors `showLimit` across both renderers, measurement, and the
+Properties panel; verified canvas == PDF for all four column combinations.
+Remaining: A1/A3 (dividers/borders), A2+A4 (status icons + Legend), A6
+(Want checkbox), B1 (Export Settings), B2 (English in Translate & Download).
 
 Planned v1.1.0 feature set, fully designed in
 `docs/shopping-lists/v1.1.0-feature-plan.md`:

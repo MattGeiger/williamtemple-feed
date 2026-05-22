@@ -3,7 +3,15 @@
 All notable changes to FEED are documented here. This project adheres to
 [Semantic Versioning](https://semver.org/).
 
-## [1.0.11] — 2026-05-21
+## [1.1.0] — 2026-05-21
+
+### Added
+
+- **Shopping List Builder: show/hide the Want column** on section tables
+  (A5, v1.1.0 plan). Mirrors the existing Limit toggle, so a table can be
+  Item+Limit+Want, Item+Limit, Item+Want, or **Item-only** (names with the
+  category in the header). The item column widens to fill freed space.
+  Applied identically in the canvas preview and the Chromium PDF export.
 
 ### Fixed
 
