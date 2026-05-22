@@ -7,6 +7,7 @@
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { formatText } from "@/lib/formatting/text"
 import { StatusFlagsGroup, DietaryFlagsGroup } from './components'
 import {
   Select,
@@ -126,7 +127,9 @@ export function FoodItemForm({
 
     try {
       const submitData = {
-        name: name.trim(),
+        // Title-Case enforcement happens here at submit, not per keystroke,
+        // so the caret stays put while typing/editing (ISSUES.md #38).
+        name: formatText(name).trim(),
         limit: getFormattedLimit(),
         limitType,
         categoryId: parseInt(categoryId, 10),

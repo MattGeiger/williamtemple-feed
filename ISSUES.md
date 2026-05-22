@@ -514,6 +514,36 @@ the running app: from inside an input the keys are no longer
 
 ---
 
+### #38 — Title Case Enforced Per-Keystroke Reset the Caret While Typing
+**Priority**: Medium (UX) · **Status**: Fixed (May 21, 2026) — pending deploy
+**Bucket**: v1.x
+**Component**: `packages/frontend/src/lib/formatting/text.ts` and the
+food-item / category name forms
+
+**Observed**: after arrow-keying back to edit mid-string in a name field
+(food item, category), typing pushed the caret back to the **end** of the
+string — making in-place edits impossible. (This is the "Title Case
+compromise" originally recalled — and it was real, distinct from the
+arrow-key blocker #37.)
+
+**Root cause**: `createFormattedChangeHandler` ran `formatText` (the
+Title-Case enforcer) on **every keystroke** and wrote the formatted value
+back to the controlled input. When the formatted value differed from the
+typed value (capitalizing a letter, collapsing spaces), React re-set the
+input's `value` and the browser moved the caret to the end — the classic
+controlled-input live-reformat anti-pattern.
+
+**Fix**: stop reformatting on change — the change handler now stores the
+raw typed value (caret preserved), and `formatText` is applied **once at
+submit** in each form (`FoodItemForm` create, `useEditForm` edit,
+`CategoryForm`). Users type freely; Title Case is enforced when they save.
+Native `maxLength={36}` on the inputs still caps length caret-safely. Only
+the name fields used live formatting; other fields were unaffected.
+Verified in-app: typing "hot dog & buns" stays raw while editing and saves
+as "Hot Dog & Buns".
+
+---
+
 ### #6 — Shopping List Feature Incomplete (OBSOLETE)
 **Status**: Superseded by Shopping List Builder; closed in v1.0.0 release prep
 
