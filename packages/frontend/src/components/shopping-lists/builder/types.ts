@@ -5,7 +5,7 @@
 // under AGPL-3.0-or-later; see LICENSE. William Temple House branding is
 // not covered by this license; see TRADEMARKS.md.
 
-export type BuilderComponentType = 'text' | 'form-field-group' | 'section-table' | 'line' | 'date' | 'language-tag';
+export type BuilderComponentType = 'text' | 'form-field-group' | 'section-table' | 'line' | 'date' | 'language-tag' | 'legend';
 
 export type BuilderDateMode = 'today' | 'custom';
 export type BuilderDateFormatId =
@@ -454,13 +454,28 @@ export interface LanguageTagBuilderComponent extends BuilderComponentBase {
   lineHeight: number;
 }
 
+// A4: Legend base component — explains the A2 status icons. A focused
+// status legend (not a generic icon editor): it renders the Limited
+// (triangle) and/or Clearance (tag) icons with editable, translatable
+// labels, laid out horizontally or vertically.
+export interface LegendBuilderComponent extends BuilderComponentBase {
+  type: 'legend';
+  fontSize: number;
+  layout: 'horizontal' | 'vertical';
+  showLimited: boolean;
+  limitedLabel: string;
+  showClearance: boolean;
+  clearanceLabel: string;
+}
+
 export type BuilderComponent =
   | TextBuilderComponent
   | FormFieldGroupBuilderComponent
   | SectionTableBuilderComponent
   | LineBuilderComponent
   | DateBuilderComponent
-  | LanguageTagBuilderComponent;
+  | LanguageTagBuilderComponent
+  | LegendBuilderComponent;
 
 export interface ShoppingListBuilderTemplate {
   id: string;
