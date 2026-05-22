@@ -1,3 +1,14 @@
+<p align="center">
+  <a href="https://templepdx.com">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="docs/temple-logo-dark.svg">
+      <img alt="Temple Consulting, LLC." src="docs/temple-logo-light.svg" width="96" height="96">
+    </picture>
+  </a>
+</p>
+
+<p align="center"><em>A creation of <a href="https://templepdx.com">Temple Consulting, LLC.</a></em></p>
+
 # FEED — Food Equity & Efficient Delivery
 
 A web-based food pantry management system built for
@@ -7,7 +18,7 @@ food-distribution programs at scale.
 
 **Production deployment:** https://feed.williamtemple.app
 **License:** [AGPL-3.0-or-later](./LICENSE)
-**Status:** v1.0.0 — in production use
+**Status:** v1.1.0 — in production use
 
 ---
 
@@ -236,13 +247,14 @@ The FEED application code is licensed under
 
 ## Acknowledgements
 
-FEED was built independently by Matt Geiger to serve the clients of
+FEED is a creation of [Temple Consulting, LLC.](https://templepdx.com),
+built by Matt Geiger to serve the clients of
 [William Temple House](https://www.williamtemple.org/), a Portland-based
 nonprofit that has served the Pacific Northwest community since 1965,
-where it runs in production. The application code is the author's own
-work, released as open source so peer organizations can use and improve
-it; the William Temple House branding it ships with belongs to William
-Temple House (see [TRADEMARKS.md](./TRADEMARKS.md)).
+where it runs in production. The application code is Temple Consulting's
+own work, released as open source so peer organizations can use and
+improve it; the William Temple House branding it ships with belongs to
+William Temple House (see [TRADEMARKS.md](./TRADEMARKS.md)).
 
 FEED was built with [Claude](https://www.anthropic.com/claude), by
 Anthropic — a collaboration between a human author and an AI agent. The
@@ -269,9 +281,10 @@ Translation infrastructure is built on top of the major AI providers
   [technology@williamtemple.org](mailto:technology@williamtemple.org).
 - **Bug reports:** open an issue with the `bug` template.
 - **Security disclosures:** see [SECURITY.md](./SECURITY.md).
-- **Project maintainer:** Matt Geiger —
-  [et2.geiger@gmail.com](mailto:et2.geiger@gmail.com). FEED is developed
-  and maintained independently by Matt Geiger; the application code is
-  not owned by William Temple House.
+- **Project maintainer:** Matt Geiger, Temple Consulting, LLC. —
+  [matt@templepdx.com](mailto:matt@templepdx.com) ·
+  [templepdx.com](https://templepdx.com). FEED is developed and maintained
+  by Temple Consulting, LLC.; the application code is not owned by William
+  Temple House.
 - **William Temple House (the originating deployment):**
   https://www.williamtemple.org/about/contact/
