@@ -19,7 +19,7 @@ import { InitialSetupWizard } from "./setup/InitialSetupWizard"
 import { useMessage } from "@/hooks/message/useMessage"
 import { ErrorHandlerService } from "@/services/error/ErrorHandlerService"
 import { useSystemStatus } from "./hooks/useSystemStatus"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { AIConfigService } from "@/services/ai-config"
 import { UnifiedConfigService, UnifiedConfiguration, parseCompositeId } from "@/services/unified-config"
 import { SystemPrompt } from '@/types/system-prompt'
@@ -36,7 +36,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { AnimateIcon } from "@/components/animate-ui/icons/icon";
 import { BotIcon } from "@/components/animate-ui/icons/bot";
 import { MessageSquareQuoteIcon } from "@/components/animate-ui/icons/message-square-quote";
-import { CpuIcon } from "@/components/ui/cpu";
+import { CpuIcon, type CpuIconHandle } from "@/components/ui/cpu";
 
 // Initialize services
 const aiConfigService = new AIConfigService();
@@ -50,6 +50,10 @@ export function AIConfiguration() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [systemPromptData, setSystemPromptData] = useState<SystemPrompt | null>(null);
+  // CpuIcon is an imperative-ref (lucide-animated) icon: attaching a ref puts
+  // it in controlled mode so the parent Card's hover drives it, matching the
+  // native animate-ui Prompt card (ISSUES.md #35).
+  const aiModelIconRef = useRef<CpuIconHandle>(null);
 
   // Dialog state
   const editAIModelDialog = useDialogState<UnifiedConfiguration>();
@@ -408,19 +412,21 @@ export function AIConfiguration() {
             </div>
 
             <div className="grid grid-cols-1 gap-4">
-              {/* AI Model card — Cpu is imperative-ref (lucide-animated).
-                  Native AnimateIcon context does not drive it, so it
-                  self-animates on direct icon hover. Wrapping the Card with
-                  AnimateIcon does still provide a load-time view trigger
-                  via the imperative-ref icon's own ref API in a future
-                  iteration; for now, parent-hover fires through React event
-                  propagation since the icon fills the card's hover area. */}
+              {/* AI Model card — Cpu is imperative-ref (lucide-animated), so
+                  the native AnimateIcon context cannot drive it. Instead we
+                  attach a ref (which flips the icon into controlled mode,
+                  disabling its own direct-hover trigger) and start/stop its
+                  animation from the Card's hover, so hovering anywhere on the
+                  card animates the icon — matching the native Prompt card
+                  below (ISSUES.md #35). */}
               <Card
                 className="cursor-pointer transition-all hover:border-primary"
                 onClick={() => handleTypeSelect('apikey')}
+                onMouseEnter={() => aiModelIconRef.current?.startAnimation()}
+                onMouseLeave={() => aiModelIconRef.current?.stopAnimation()}
               >
                 <CardHeader className="text-center pb-2">
-                  <CpuIcon className="h-8 w-8 mx-auto text-primary" size={32} />
+                  <CpuIcon ref={aiModelIconRef} className="h-8 w-8 mx-auto text-primary" size={32} />
                   <CardTitle className="text-base">AI Model</CardTitle>
                 </CardHeader>
                 <CardContent className="pt-0">

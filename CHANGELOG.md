@@ -3,6 +3,14 @@
 All notable changes to FEED are documented here. This project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [1.0.11] — 2026-05-21
+
+### Fixed
+
+- **Add AI Configuration type-chooser** (ISSUES.md #35): the AI Model
+  card's icon now animates on hover anywhere over the card, matching the
+  Prompt card, instead of only on a direct icon hover.
+
 ## [1.0.10] — 2026-05-21
 
 (1.0.9 was bumped during development but never deployed; production goes
