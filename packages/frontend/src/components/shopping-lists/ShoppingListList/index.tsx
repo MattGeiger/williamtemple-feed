@@ -16,7 +16,7 @@ import { Trash2, Download, Copy } from "@/components/ui/icons";
 import { ClipboardListIcon } from "@/components/animate-ui/icons/clipboard-list";
 import { PlusIcon } from "@/components/animate-ui/icons/plus";
 import { FileDownIcon } from "@/components/animate-ui/icons/file-down";
-import { GlobeLockIcon } from "@/components/ui/globe-lock";
+import { GlobeLockIcon } from "@/components/animate-ui/icons/globe-lock";
 
 interface ShoppingListListProps {
   builderTemplates: SavedBuilderTemplate[]

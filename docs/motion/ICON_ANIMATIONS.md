@@ -380,8 +380,23 @@ The `isControlledRef` flag is the key pattern: when a parent holds the ref and c
 
 When you need an animated icon that has **no upstream animate-ui version**
 (neither registry ships it), it is a sound and supported approach to
-hand-roll one using the imperative-ref pattern above. You do **not** need to
-wait for, or force, a registry icon. Recipe:
+hand-roll one. You do **not** need to wait for, or force, a registry icon.
+
+**Pick the system by trigger zone (this is the part that bites):**
+
+- **Animates on a parent's hover** — e.g. it lives inside a `<Button>`, a
+  toolbar, or any `<AnimateIcon animateOnHover>` context, and should react to
+  the *whole control* lighting up — then **author it as a native animate-ui
+  icon** (see "Adding a New animate-ui Icon" above). Only a native icon reads
+  the parent `AnimateIcon` context; an imperative-ref icon placed in that
+  context will **only self-animate on direct icon hover**, which looks broken
+  next to native siblings that animate on full-button hover. The bridge does
+  **not** rescue this (`BridgedAnimatedIcon` is tap-only — see above).
+- **Self-animates on its own hover, or is ref-driven by a parent** (e.g. a
+  card that calls `startAnimation()` via the icon's ref) — then the
+  imperative-ref pattern is fine.
+
+Recipe (same motion ideas either way — only the host framework differs):
 
 1. **Copy the geometry verbatim from Lucide** so the icon is visually
    identical to the static version at rest. Pull the exact paths from
@@ -397,26 +412,31 @@ wait for, or force, a registry icon. Recipe:
      set to that group's center in viewBox units, and
      `repeat: Number.POSITIVE_INFINITY` to loop while hovered. (See the
      Folder-Lock-style lock.)
-3. **Compose them** with one `useAnimation()` control per independent motion
-   (e.g. `lineControls` for the traced lines, `lockControls` for the bobbing
-   group), and start/stop all of them together in the hover handlers and the
-   `useImperativeHandle` block.
+3. **Compose them.** In a native icon, give each independent motion its own
+   keyed entry under `animations.default` (e.g. `lines`, `lock`) and bind each
+   `motion` element to `animate={controls}` with `variants={variants.<key>}`
+   and `initial="initial"` (never put `animate` on the `motion.svg` root — see
+   the silent-failure trap above). In an imperative icon, use one
+   `useAnimation()` control per motion and start/stop them together.
 
-**Worked example in the codebase:** `components/ui/globe-lock.tsx` — an
-animated variant of Lucide `globe-lock` whose globe lines trace in (Dribbble
-idea) while the lock bobs and tips (Folder-Lock idea). It is used by the
-**Global Limit Settings** toolbar button on the Shopping Lists page.
+**Worked example in the codebase:** `components/animate-ui/icons/globe-lock.tsx`
+— a **native** animated variant of Lucide `globe-lock` whose globe lines trace
+in (Dribbble idea) while the lock bobs and tips (Folder-Lock idea). It is used
+by the **Global Limit Settings** toolbar button on the Shopping Lists page,
+where `TableFeatureBar` wraps each button in `<AnimateIcon animateOnHover
+animateOnTap>` — so it animates on full-button hover, exactly like its native
+`Plus` and `FileDown` siblings. (It was first written as an imperative-ref
+icon and only animated on direct icon hover; that's the bug this section
+exists to prevent.)
 
-> **Toolbar/consumer sizing note.** Generic consumers (e.g. the data-table
-> `TableFeatureBar`) render icons as `<Icon className="h-4 w-4 mr-2" />` and
-> expect that `className` to size and space the **glyph**. The bare
-> imperative template above puts `className` on the wrapper `<div>`, which
-> sizes the wrapper but leaves the inner `<svg>` at `size` (28px) — too big in
-> a toolbar. When an icon must drop into those generic slots, apply
-> `className` to the `<svg>` (the glyph) and keep a tight `inline-flex`
-> wrapper for the hover handlers, exactly as `globe-lock.tsx` does. This
-> mirrors how animate-ui icons behave (CSS width/height beats the `width`/
-> `height` attributes).
+> **Sizing in generic slots is free with a native icon.** Generic consumers
+> (e.g. `TableFeatureBar`) render icons as `<Icon className="h-4 w-4 mr-2" />`
+> and expect that `className` to size and space the **glyph**. Native
+> animate-ui icons already apply `className` to the `<svg>` via `IconWrapper`,
+> so CSS width/height beats the `width`/`height` attributes and the icon sizes
+> correctly. (An imperative-ref icon puts `className` on its wrapper `<div>`,
+> leaving the inner `<svg>` at `size` (28px) — another reason to prefer the
+> native framework for icons that drop into shared slots.)
 
 ---
 
