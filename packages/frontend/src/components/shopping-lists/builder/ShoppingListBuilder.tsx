@@ -2094,11 +2094,17 @@ function PreviewFormFields({ component }: { component: FormFieldGroupBuilderComp
   // border-inline-start is unsafe next to dir="auto" cells.
   const isRtl = isRTLLanguage(language);
   const dividerClass = isRtl ? 'border-r' : 'border-l';
+  // A1/A3 (forms, mirror of section tables): default ON for back-compat.
+  // showColumnDividers gates the vertical label|value divider; showBorders
+  // gates the outer box + horizontal row separators.
+  const showColumnDividers = component.showColumnDividers !== false;
+  const showBorders = component.showBorders !== false;
+  const colDivider = showColumnDividers ? dividerClass : '';
 
   return (
     <div
       dir={isRtl ? 'rtl' : undefined}
-      className="w-full border border-[#a8a8a8] bg-white"
+      className={cn('w-full bg-white', showBorders && 'border border-[#a8a8a8]')}
       style={{
         fontSize: component.fontSize,
         borderRadius: cornerRadius,
@@ -2120,7 +2126,7 @@ function PreviewFormFields({ component }: { component: FormFieldGroupBuilderComp
         return (
           <div
             key={field.id}
-            className={cn('grid', index > 0 && 'border-t border-[#a8a8a8]')}
+            className={cn('grid', showBorders && index > 0 && 'border-t border-[#a8a8a8]')}
             style={{
               gridTemplateColumns: `${labelWidth}px ${valueWidth}px`,
               minHeight: fieldRowHeight,
@@ -2137,7 +2143,7 @@ function PreviewFormFields({ component }: { component: FormFieldGroupBuilderComp
             >
               {renderedLabel}
             </div>
-            <div className={cn('border-[#a8a8a8]', dividerClass)} />
+            <div className={cn('border-[#a8a8a8]', colDivider)} />
           </div>
         );
       })}
@@ -5621,6 +5627,22 @@ export function ShoppingListBuilder() {
                             <SelectItem value="9">9 pt</SelectItem>
                           </SelectContent>
                         </Select>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          id="form-show-dividers"
+                          checked={selectedComponent.showColumnDividers !== false}
+                          onCheckedChange={(checked) => updateSelectedComponent({ showColumnDividers: checked === true })}
+                        />
+                        <Label htmlFor="form-show-dividers">Show column dividers</Label>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          id="form-show-borders"
+                          checked={selectedComponent.showBorders !== false}
+                          onCheckedChange={(checked) => updateSelectedComponent({ showBorders: checked === true })}
+                        />
+                        <Label htmlFor="form-show-borders">Show table &amp; cell borders</Label>
                       </div>
                       <div className="space-y-3">
                         <div className="flex items-center justify-between">

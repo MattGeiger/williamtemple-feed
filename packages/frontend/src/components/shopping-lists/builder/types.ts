@@ -361,6 +361,13 @@ export interface FormFieldGroupBuilderComponent extends BuilderComponentBase {
   labelWidth: number;
   fontSize: number;
   cornerRadius?: number;
+  // A1/A3 (forms): mirror the section-table border toggles.
+  // - showColumnDividers gates the vertical label|value divider.
+  // - showBorders gates the outer box + horizontal row separators.
+  // Optional; default `true` (read as `!== false`) for back-compat with
+  // templates that predate these flags. Mirrored in the backend route.
+  showColumnDividers?: boolean;
+  showBorders?: boolean;
 }
 
 export interface SectionTableRow {
