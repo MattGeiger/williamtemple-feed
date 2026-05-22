@@ -621,6 +621,14 @@ const estimateWrappedLineCount = (value: string, availableWidth: number, fontSiz
 // overflowing the row's planned 15pt height into the next row.
 const WRAP_AVAILABLE_WIDTH_SAFETY_PT = 6;
 
+// Real Chromium renders text ~3-5% wider than the per-glyph estimator
+// predicts, so the wrap slack must scale with the cell width rather than be a
+// flat pt value (ISSUES.md #33). A flat 6pt under-cushioned mid-width cells
+// even at 12pt (e.g. "Hot Dog & Hamburger Buns" wrapped in real Chrome but the
+// planner predicted one line, so the row never grew). Reserve the larger of
+// the 6pt floor and 5% of the available width. Mirror with the frontend engine.
+const WRAP_AVAILABLE_WIDTH_SAFETY_RATIO = 0.05;
+
 const estimateWrappedSegmentLineCount = (
   segments: BuilderTextMeasureSegment[],
   availableWidth: number,
@@ -630,7 +638,11 @@ const estimateWrappedSegmentLineCount = (
   // Chrome rendering. The slack only applies to wrap-boundary decisions;
   // the rest of the algorithm continues to operate on the raw available
   // width so currentLineWidth accumulation stays accurate.
-  const width = Math.max(1, availableWidth - WRAP_AVAILABLE_WIDTH_SAFETY_PT);
+  const safetyPt = Math.max(
+    WRAP_AVAILABLE_WIDTH_SAFETY_PT,
+    availableWidth * WRAP_AVAILABLE_WIDTH_SAFETY_RATIO,
+  );
+  const width = Math.max(1, availableWidth - safetyPt);
   let lineCount = 1;
   let currentLineWidth = 0;
   let pendingSpaceWidth = 0;
