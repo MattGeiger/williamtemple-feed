@@ -2333,10 +2333,10 @@ function PreviewSectionTable({ component, rows = component.rows, rowHeights, inc
               {component.showStatusIcons === true && (row.isLimited || row.isClearance) && (
                 <span className="flex shrink-0 items-center gap-0.5" style={{ height: `${component.fontSize}px`, lineHeight: 1 }}>
                   {row.isLimited && (
-                    <AlertTriangleIcon size={component.fontSize} style={{ color: '#d97706' }} />
+                    <AlertTriangleIcon size={component.fontSize} style={{ color: '#111827' }} />
                   )}
                   {row.isClearance && (
-                    <TagIcon size={component.fontSize} style={{ color: '#0d9488' }} />
+                    <TagIcon size={component.fontSize} style={{ color: '#111827' }} />
                   )}
                 </span>
               )}
@@ -2454,10 +2454,10 @@ function PreviewLegend({ component }: { component: LegendBuilderComponent }) {
     renderTranslatedBuilderText(label, language ? translations[label] : null, 'translate');
   const entries: Array<{ key: string; icon: React.ReactNode; label: string }> = [];
   if (component.showLimited) {
-    entries.push({ key: 'limited', icon: <AlertTriangleIcon size={component.fontSize} style={{ color: '#d97706' }} />, label: component.limitedLabel });
+    entries.push({ key: 'limited', icon: <AlertTriangleIcon size={component.fontSize} style={{ color: '#111827' }} />, label: component.limitedLabel });
   }
   if (component.showClearance) {
-    entries.push({ key: 'clearance', icon: <TagIcon size={component.fontSize} style={{ color: '#0d9488' }} />, label: component.clearanceLabel });
+    entries.push({ key: 'clearance', icon: <TagIcon size={component.fontSize} style={{ color: '#111827' }} />, label: component.clearanceLabel });
   }
   return (
     <div
