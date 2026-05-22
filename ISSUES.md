@@ -313,7 +313,7 @@ negligible):
 ---
 
 ### #32 — Standardize Scroll Containers on shadcn `ScrollArea`
-**Priority**: Medium (UX consistency) · **Status**: Open (scan complete May 21, 2026)
+**Priority**: Medium (UX consistency) · **Status**: Resolved (May 21, 2026) — pending deploy
 **Bucket**: v1.x backlog (incremental cleanup)
 
 Project direction (see AGENTS.md "UI Standards"): scrollable **content
@@ -329,41 +329,41 @@ height is unbounded), but works correctly when given a **definite height**
 `ScrollArea`, not abandoning it for native overflow. #29a's
 `overflow-y-auto` workaround is therefore a convert-candidate below.
 
-**Inventory of non-shadcn scroll (scan May 21, 2026):**
+**Refined finding (the "fixed-height impact" evaluation):** the original
+"convert candidates" split cleanly into two groups. **Fixed-height** scroll
+regions are genuine `ScrollArea` conversions. **Grow-to-fit** (`max-h-*`)
+content previews and **nested** scroll boxes are *not* — a fixed-height
+`ScrollArea` would render mostly-empty boxes for small/variable content,
+and a nested `ScrollArea` would trap scrolling. Those are legitimate
+documented native-overflow exceptions (AGENTS.md "UI Standards" was
+refined to codify the three exception cases). Blanket-converting would have
+worsened UX.
 
-Convert to `ScrollArea` (app-level content regions):
-- `shopping-lists/dialogs/translate-and-generate-dialog.tsx:337` — the
-  #29a `max-h-72 overflow-y-auto` workaround; now reconcilable with a
-  definite-height `ScrollArea`.
-- `document-translator/dialogs/reconciliation-dialog.tsx` — 5 boxes
-  (`max-h-* overflow-auto`).
-- `translation-management/enhanced-find-missing-dialog.tsx:827` — a
-  `max-h-[30vh] overflow-auto` content box still in the Details tab of the
-  modal fixed under #30.
-- `ai-configuration/EditSystemPromptDialog.tsx:729` and
-  `ai-configuration/shared/BaseAIConfigDialog.tsx:147` —
-  `h-[480px] overflow-y-auto` dialog bodies.
-- `dashboard/translation-metrics.tsx:395` — `overflow-y-auto` chart
-  container with `scrollbar-thin` plugin classes; evaluate (custom
-  scrollbar styling is a design-intent consideration).
-- `components/ui/view-text-dialog.tsx:43` — `max-h-[400px] overflow-y-auto`
-  text viewer body. Also delete the stale
-  `components/translation-management/view-text-dialog.tsx.backup`.
+**Resolution (May 21, 2026):**
 
-Justified exceptions (keep; document inline if touched):
-- `components/ui/table.tsx`, `components/ui/command.tsx`,
-  `components/ui/sidebar.tsx`, `components/ui/enhanced-data-table` — native
-  overflow is built into these shadcn primitives; converting fights the
-  library.
-- `food-item-management/FoodItemList/index.tsx:272` — `max-h-72
-  overflow-y-auto` on a Radix `DropdownMenuContent`; native overflow on a
-  popper menu is a standard pattern (a `ScrollArea` inside a Radix popper
-  is awkward).
+Converted to definite-height `ScrollArea`:
+- `ai-configuration/shared/BaseAIConfigDialog.tsx` and
+  `ai-configuration/EditSystemPromptDialog.tsx` — `h-[480px]` dialog bodies.
+- `dashboard/translation-metrics.tsx` — `h-[250px]` response-times chart
+  (verified scrollable: 250px viewport, ~280px content).
+- (Already done under #30: the three result-tab `ScrollArea`s in
+  `enhanced-find-missing-dialog.tsx`.)
 
-Approach: convert incrementally, one component per change, validating the
-scroll in-browser each time (definite height, light/dark, no clipped
-content). Each remaining native-overflow site must either be converted or
-carry an inline comment justifying the exception.
+Kept as documented native-overflow exceptions (inline-justified):
+- `components/ui/view-text-dialog.tsx` — single, usually-short string;
+  grow-to-fit. (Stale `view-text-dialog.tsx.backup` deleted.)
+- `enhanced-find-missing-dialog.tsx` Details-tab sample box — nested +
+  short variable lists.
+- `document-translator/dialogs/reconciliation-dialog.tsx` — 5 preview boxes
+  listing variable, often-tiny issue/action lists; grow-to-fit.
+- `shopping-lists/dialogs/translate-and-generate-dialog.tsx` — per-language
+  progress list (commonly 1–3 rows); grow-to-fit. (Supersedes #29a's
+  workaround framing: the box correctly stays native here.)
+- Shadcn primitives (`ui/table.tsx`, `ui/command.tsx`, `ui/sidebar.tsx`,
+  `ui/enhanced-data-table`) and the `FoodItemList` `DropdownMenuContent`
+  popper — native overflow is inherent/standard.
+
+**Remaining**: ships with the next image/deploy (frontend change).
 
 ---
 
