@@ -14,6 +14,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
@@ -725,10 +726,11 @@ export function EditSystemPromptDialog({
           <DialogDescription>Modify system prompt configuration</DialogDescription>
         </DialogHeader>
 
-        {/* Fixed height content area */}
-        <div className="h-[480px] overflow-y-auto px-2">
+        {/* Fixed height content area (shadcn ScrollArea; definite height so
+            the Radix viewport is bounded and scrolls — see AGENTS.md). */}
+        <ScrollArea className="h-[480px] px-2">
           {renderStepContent()}
-        </div>
+        </ScrollArea>
 
         {/* Navigation buttons outside fixed container */}
         <div className="flex justify-between pt-4">

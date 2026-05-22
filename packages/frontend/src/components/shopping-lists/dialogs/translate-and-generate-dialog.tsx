@@ -334,6 +334,11 @@ export function TranslateAndGenerateDialog({
 
         {(step === 'progress' || step === 'done') && (
           <div className="space-y-2 py-2">
+            {/* Native max-h grow-to-fit is intentional (shadcn-exception, per
+                AGENTS.md / ISSUES.md #32): this lists one row per selected
+                language (commonly 1–3), so a fixed-height ScrollArea would show
+                a large empty box. It grows to the rows and scrolls only past
+                the cap. (Supersedes the #29a note; the box stays native here.) */}
             <div className="max-h-72 overflow-y-auto rounded-md border">
               <div className="space-y-3 p-3">
                 {perLanguage.map(renderLanguageRow)}

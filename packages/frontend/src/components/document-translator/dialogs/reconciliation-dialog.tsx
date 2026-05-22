@@ -342,6 +342,13 @@ export function ReconciliationDialog({ open, onOpenChange, onComplete }: Reconci
                               <FileWarning className="inline h-4 w-4 mr-2 text-[hsl(var(--status-danger-border))]" />
                               Missing Files ({issues.missingFiles.length})
                             </h4>
+                            {/* Native max-h grow-to-fit is intentional for the
+                                bordered preview boxes in this dialog
+                                (shadcn-exception, per AGENTS.md / ISSUES.md
+                                #32): they list a variable, often-tiny number of
+                                issues/actions, so a fixed-height ScrollArea
+                                would render mostly-empty boxes. They grow to the
+                                content and scroll only past the cap. */}
                             <div className="max-h-[10vh] sm:max-h-[60px] overflow-auto rounded-md border p-3">
                               {issues.missingFiles.map((issue, i) => (
                                 <React.Fragment key={i}>

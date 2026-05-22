@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/chart"
 
 import { Skeleton } from "@/components/ui/skeleton"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { useTranslationMetricsData } from "@/hooks/dashboard/useTranslationMetricsData"
 import { useMultiServiceUsage } from "@/hooks/dashboard/useMultiServiceUsage"
 
@@ -391,9 +392,10 @@ export function TranslationMetrics() {
           </div>
         </CardHeader>
         <CardContent>
-          {/* Set a fixed height for the chart container with overflow-auto for scrolling */}
-          <div className="relative h-[250px] overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-rounded-md scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent">
-            <ChartContainer 
+          {/* Fixed-height scroll region (shadcn ScrollArea; definite height so
+              the chart, which grows ~40px per language, scrolls — see AGENTS.md). */}
+          <ScrollArea className="h-[250px]">
+            <ChartContainer
               config={responseConfig}
               // Calculate dynamic height based on the number of languages
               // Each language bar needs ~40px of height minimum
@@ -454,7 +456,7 @@ export function TranslationMetrics() {
                 </Bar>
               </BarChart>
             </ChartContainer>
-          </div>
+          </ScrollArea>
         </CardContent>
         <CardFooter className="flex-col items-start gap-2 text-sm">
           <div className="leading-none text-muted-foreground">

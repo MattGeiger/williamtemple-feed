@@ -824,6 +824,12 @@ export function EnhancedFindMissingDialog({
                               {typeInfo?.icon} 
                               <span className="ml-2">{displayName} ({items.length} examples)</span>
                             </h4>
+                            {/* Native max-h grow-to-fit is intentional
+                                (shadcn-exception, per AGENTS.md / ISSUES.md
+                                #32): this nests inside the Details tab's
+                                ScrollArea, so a second ScrollArea would trap
+                                scroll; the sample lists are short/variable, so
+                                grow-to-fit avoids an empty fixed-height box. */}
                             <div className="max-h-[30vh] sm:max-h-[150px] overflow-auto rounded-md border p-3">
                               {items.map((item, i) => (
                                 <React.Fragment key={i}>
