@@ -12,8 +12,11 @@ import { TooltipProvider } from "@/components/ui/tooltip"
 import { TableBulkAction } from "@/types/table"
 import { SavedBuilderTemplate } from "@/components/shopping-lists/builder/types"
 import { GlobalLimitDialog } from "../global-limit-dialog"
-import { Trash2, Plus, GlobeLock, Download, Copy, FileDown } from "@/components/ui/icons";
+import { Trash2, Download, Copy } from "@/components/ui/icons";
 import { ClipboardListIcon } from "@/components/animate-ui/icons/clipboard-list";
+import { PlusIcon } from "@/components/animate-ui/icons/plus";
+import { SettingsIcon } from "@/components/animate-ui/icons/settings";
+import { FileDownIcon } from "@/components/animate-ui/icons/file-down";
 
 interface ShoppingListListProps {
   builderTemplates: SavedBuilderTemplate[]
@@ -87,19 +90,19 @@ export function ShoppingListList({
   const toolbarActions = [
     {
       label: 'Create Template',
-      icon: Plus,
+      icon: PlusIcon,
       variant: 'default' as const,
       action: () => onOpenBuilder?.()
     },
     {
       label: 'Global Limit Settings',
-      icon: GlobeLock,
+      icon: SettingsIcon,
       variant: 'outline' as const,
       action: () => setGlobalLimitDialogOpen(true)
     },
     ...(onOpenExportSettings ? [{
       label: 'Export Settings',
-      icon: FileDown,
+      icon: FileDownIcon,
       variant: 'outline' as const,
       action: () => onOpenExportSettings()
     }] : [])

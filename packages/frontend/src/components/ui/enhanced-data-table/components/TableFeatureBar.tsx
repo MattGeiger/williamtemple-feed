@@ -23,11 +23,13 @@ import { humanizeString } from "@/lib/utils"
 import { LanguageFilter } from "@/components/ui/language-filter"
 import { TypeFilter } from "@/components/ui/type-filter"
 import { TranslationType } from "@/types/translation"
-import type { LucideIcon } from "lucide-react";
+import { AnimateIcon } from "@/components/animate-ui/icons/icon";
 
 interface ToolbarAction {
   label: string
-  icon?: LucideIcon
+  // Accepts both static Lucide icons and animate-ui native icons (the latter
+  // animate on button hover/tap via the AnimateIcon wrapper below).
+  icon?: React.ComponentType<any>
   variant: 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link'
   action: () => void
 }
@@ -93,15 +95,18 @@ export function TableFeatureBar<TData>({
       {/* Toolbar Actions Row */}
       <div className="flex flex-wrap items-center gap-2">
         {toolbarActions.map((action, index) => (
-          <Button
-            key={index}
-            variant={action.variant}
-            size="sm"
-            onClick={action.action}
-          >
-            {action.icon && <action.icon className="h-4 w-4 mr-2" />}
-            {action.label}
-          </Button>
+          // Wrap in AnimateIcon so animate-ui icons animate on hover/tap of the
+          // whole button. Inert for plain Lucide icons (they ignore the context).
+          <AnimateIcon key={index} asChild animateOnHover animateOnTap>
+            <Button
+              variant={action.variant}
+              size="sm"
+              onClick={action.action}
+            >
+              {action.icon && <action.icon className="h-4 w-4 mr-2" />}
+              {action.label}
+            </Button>
+          </AnimateIcon>
         ))}
       </div>
 
