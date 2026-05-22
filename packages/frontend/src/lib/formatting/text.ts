@@ -63,15 +63,24 @@ export const validateMinLength = (text: string, minLength: number = 3): boolean 
 };
 
 /**
- * Creates a change handler for text inputs with formatting
+ * Creates a change handler for text inputs.
+ *
+ * Title-Case / formatting is intentionally NOT applied here. Reformatting a
+ * controlled input on every keystroke resets the caret to the end, so editing
+ * mid-string is impossible (you arrow back, type, and the cursor jumps to the
+ * end). Instead, the raw value is stored as typed and `formatText` is applied
+ * once at submit time by each form (ISSUES.md #38). Native `maxLength` on the
+ * input still caps length caret-safely during typing.
+ *
+ * The `options` parameter is retained for backward compatibility but unused;
+ * length is enforced by the input's `maxLength` and by `formatText` at submit.
  */
 export const createFormattedChangeHandler = (
   setValue: (value: string) => void,
-  options?: TextFormattingOptions
+  _options?: TextFormattingOptions
 ) => {
   return (e: React.ChangeEvent<HTMLInputElement>) => {
-    const formatted = formatText(e.target.value, options);
-    setValue(formatted);
+    setValue(e.target.value);
   };
 };
 

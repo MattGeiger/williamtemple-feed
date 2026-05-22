@@ -11,6 +11,11 @@ All notable changes to FEED are documented here. This project adheres to
   #37). A global sidebar keyboard-navigation listener was intercepting
   those keys app-wide, even while typing, so the caret couldn't be moved by
   keyboard. It now ignores those keys when focus is in an editable element.
+- **Editing names mid-string no longer jumps the caret to the end**
+  (ISSUES.md #38). Title-Case enforcement on food-item / category names
+  moved from per-keystroke reformatting (which reset the caret) to a
+  one-time transform at submit. You can type freely; the name is
+  Title-Cased when saved.
 
 - **AI Configuration icon hover triggers** (ISSUES.md #35, #36): the AI
   Model card's icon (type chooser) and the Document Text Translation card's

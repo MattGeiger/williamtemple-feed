@@ -14,7 +14,7 @@ import {
   DEFAULT_NUTRITIONAL_FLAGS,
   OUT_OF_STOCK_FLAGS
 } from '@/types/food-item';
-import { createFormattedChangeHandler, validateMinLength } from '@/lib/formatting/text';
+import { createFormattedChangeHandler, validateMinLength, formatText } from '@/lib/formatting/text';
 
 interface EditFormState {
   name: string;
@@ -186,7 +186,8 @@ export function useEditForm(initialData?: FoodItem | null) {
                       !formState.statusFlags.isClearance;
 
     return {
-      name: formState.name.trim(),
+      // Title-Case enforced at submit, not per keystroke (ISSUES.md #38).
+      name: formatText(formState.name).trim(),
       limit,
       categoryId: parseInt(formState.categoryId, 10),
       statusFlags: formState.statusFlags,
