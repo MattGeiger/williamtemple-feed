@@ -373,6 +373,10 @@ export interface SectionTableRow {
   // the blank fill-in space. Optional; default 'blank'. Only visible when the
   // table's Want column is shown.
   wantControl?: 'blank' | 'checkbox';
+  // A2: per-row status, populated from inventory when the section is generated.
+  // Drives the optional Limited/Clearance status icons (component.showStatusIcons).
+  isLimited?: boolean;
+  isClearance?: boolean;
 }
 
 export type CategoryLimitType = 'person' | 'household';
@@ -393,6 +397,9 @@ export interface SectionTableBuilderComponent extends BuilderComponentBase {
   // (read as `!== false`) for back-compat. Mirrored in the backend route.
   showColumnDividers?: boolean;
   showBorders?: boolean;
+  // A2: show Limited/Clearance status icons next to row items. Optional;
+  // default `false` (read as `=== true`) so legacy templates are unchanged.
+  showStatusIcons?: boolean;
   limitHeader: string;
   wantHeader: string;
   limitWidth: number;

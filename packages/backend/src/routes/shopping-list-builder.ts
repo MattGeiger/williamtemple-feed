@@ -237,6 +237,9 @@ interface SectionTableBuilderComponent extends BuilderComponentBase {
     // A6: 'checkbox' renders an empty checkbox in the Want cell instead of
     // blank fill-in space. Optional; default 'blank'. Mirrors the frontend.
     wantControl?: 'blank' | 'checkbox';
+    // A2: per-row status for the optional Limited/Clearance icons.
+    isLimited?: boolean;
+    isClearance?: boolean;
   }>;
   showLimit: boolean;
   // Show/hide the Want column (A5). Optional for back-compat; always read as
@@ -246,6 +249,9 @@ interface SectionTableBuilderComponent extends BuilderComponentBase {
   // default true (read as `!== false`). Mirrors the frontend.
   showColumnDividers?: boolean;
   showBorders?: boolean;
+  // A2: show Limited/Clearance status icons on rows. Optional; default false
+  // (read as `=== true`). Mirrors the frontend.
+  showStatusIcons?: boolean;
   limitHeader: string;
   wantHeader: string;
   limitWidth: number;
@@ -854,6 +860,18 @@ const getAdjustedSectionTablePlannerHeight = (
   return Math.max(DEFAULT_GRID_SIZE, visualHeight + adjustment);
 };
 
+// A2: pt reserved at the start of the item cell by status icons (Limited /
+// Clearance). Mirrors the frontend `statusIconRowOverhead`.
+const statusIconRowOverhead = (
+  row: SectionTableBuilderComponent['rows'][number],
+  fontSize: number,
+  showStatusIcons?: boolean,
+): number => {
+  if (!showStatusIcons) return 0;
+  const count = (row.isLimited ? 1 : 0) + (row.isClearance ? 1 : 0);
+  return count * fontSize * 1.35;
+};
+
 const tableRowHeight = (
   row: SectionTableBuilderComponent['rows'][number],
   baseHeight: number,
@@ -862,6 +880,7 @@ const tableRowHeight = (
     limitWidth: number;
     fontSize: number;
     showLimit: boolean;
+    showStatusIcons?: boolean;
     itemSegments?: BuilderTextMeasureSegment[];
     useNaturalContentHeight?: boolean;
   },
@@ -875,15 +894,19 @@ const tableRowHeight = (
     ? baseHeight
     : DEFAULT_SECTION_TABLE_ROW_HEIGHT;
   const rowHeight = Math.max(storedRowHeight, fontFloor);
+  const itemAvailableWidth = Math.max(
+    1,
+    options.itemWidth - TABLE_CELL_HORIZONTAL_PADDING - statusIconRowOverhead(row, options.fontSize, options.showStatusIcons),
+  );
   const lineCount = Math.max(
     options.itemSegments
       ? estimateWrappedSegmentLineCount(
         options.itemSegments,
-        Math.max(1, options.itemWidth - TABLE_CELL_HORIZONTAL_PADDING),
+        itemAvailableWidth,
       )
       : estimateWrappedLineCount(
         row.item,
-        Math.max(1, options.itemWidth - TABLE_CELL_HORIZONTAL_PADDING),
+        itemAvailableWidth,
         options.fontSize,
       ),
     options.showLimit
@@ -1125,6 +1148,7 @@ const getSectionTableRowHeights = (
     limitWidth: metrics.limitWidth,
     fontSize: metrics.fontSize,
     showLimit: component.showLimit,
+    showStatusIcons: component.showStatusIcons === true,
     itemSegments: sectionTableRowItemSegments(row, rowMode, metrics.fontSize, measurement),
     useNaturalContentHeight: sectionTableRowUsesTranslatedText(row, rowMode, measurement),
   }));
@@ -1728,6 +1752,7 @@ const buildInventorySectionComponent = (category: {
     name: string;
     limit: number;
     isLimited: boolean;
+    isClearance: boolean;
   }>;
 }): SectionTableBuilderComponent => {
   const categoryLimit = category.limit && category.limit !== NO_LIMIT_SENTINEL ? category.limit : null;
@@ -1747,6 +1772,9 @@ const buildInventorySectionComponent = (category: {
       limit: foodItemLimit == null ? '' : String(foodItemLimit),
       foodItemId: item.id,
       limitSource: foodItemLimit != null ? 'food-item' as const : 'none' as const,
+      // A2: per-row status for the optional Limited/Clearance icons.
+      isLimited: item.isLimited,
+      isClearance: item.isClearance,
     };
   });
 
@@ -1882,6 +1910,7 @@ export const refreshInventoryBackedTemplate = async (
           name: true,
           limit: true,
           isLimited: true,
+          isClearance: true,
         },
       },
     },
@@ -2066,6 +2095,7 @@ const sectionTableNodes = (component: SectionTableBuilderComponent) => {
       limitWidth,
       fontSize,
       showLimit: component.showLimit,
+      showStatusIcons: component.showStatusIcons === true,
     });
     const fill = component.alternateRows && index % 2 === 0 ? '#e4e4e4' : 'white';
     nodes.push(rectAt(component.x, cursorY, component.width, height, { fill, stroke: '#cfcfcf' }));
@@ -2185,6 +2215,7 @@ const sectionTableFlowNode = (component: SectionTableBuilderComponent) => {
           limitWidth,
           fontSize,
           showLimit: component.showLimit,
+          showStatusIcons: component.showStatusIcons === true,
         }) : tableHeaderHeight(component, rowBaseHeight, {
           itemWidth,
           limitWidth,
@@ -2750,6 +2781,24 @@ const formatCategoryLimitTag = (
   return `Choose up to ${limit}`;
 };
 
+// A2: Limited / Clearance status icons for rows. Raw SVG (lucide
+// triangle-alert / tag) so the Chromium PDF matches the canvas lucide icons;
+// validate any path edits against a rendered PDF (AGENTS.md icon parity).
+const STATUS_ICON_SVG_PATHS = {
+  limited: '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
+  clearance: '<path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r=".5" fill="currentColor"/>',
+} as const;
+
+const statusIconSvg = (kind: 'limited' | 'clearance', color: string): string =>
+  `<svg class="builder-status-icon" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${STATUS_ICON_SVG_PATHS[kind]}</svg>`;
+
+const builderRowStatusIconsHtml = (
+  row: { isLimited?: boolean; isClearance?: boolean },
+): string => {
+  if (!row.isLimited && !row.isClearance) return '';
+  return `<span class="builder-status-icons">${row.isLimited ? statusIconSvg('limited', '#d97706') : ''}${row.isClearance ? statusIconSvg('clearance', '#0d9488') : ''}</span>`;
+};
+
 const builderCategoryIconSvg = (iconName: string | null | undefined): string => {
   const key = iconName && FOOD_ICON_SVG_PATHS[iconName] ? iconName : 'package';
   return `<svg class="builder-category-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${FOOD_ICON_SVG_PATHS[key]}</svg>`;
@@ -2873,6 +2922,7 @@ const sectionTableComponentHtml = (
           limitWidth,
           fontSize,
           showLimit: component.showLimit,
+          showStatusIcons: component.showStatusIcons === true,
           itemSegments: sectionTableRowItemSegments(row, rowMode, fontSize, measurement),
           useNaturalContentHeight: sectionTableRowUsesTranslatedText(row, rowMode, measurement),
         });
@@ -2887,15 +2937,22 @@ const sectionTableComponentHtml = (
               background: ${fillColor};
             "
           >
-            <div class="builder-table-text-cell" dir="auto">${translatedBuilderTextHtml(
-              row.item,
+            ${(() => {
               // Inventory rows resolve from FoodItemTranslation; base-component
               // rows (no foodItemId) resolve from the Generated (List) cache.
-              row.foodItemId
-                ? options.inventoryTranslations?.foodItems[row.foodItemId]
-                : options.translations?.[row.item],
-              rowMode,
-            )}</div>
+              const itemHtml = translatedBuilderTextHtml(
+                row.item,
+                row.foodItemId
+                  ? options.inventoryTranslations?.foodItems[row.foodItemId]
+                  : options.translations?.[row.item],
+                rowMode,
+              );
+              // A2: only restructure to flex (icons + text) when status icons
+              // are on; otherwise keep the original cell byte-identical.
+              return component.showStatusIcons === true
+                ? `<div class="builder-table-text-cell builder-table-item-cell" dir="auto">${builderRowStatusIconsHtml(row)}<span class="builder-item-text">${itemHtml}</span></div>`
+                : `<div class="builder-table-text-cell" dir="auto">${itemHtml}</div>`;
+            })()}
             ${component.showLimit ? `<div class="builder-table-text-cell builder-table-cell-left-border builder-table-center" dir="auto">${escapeHtml(row.limit)}</div>` : ''}
             ${showWant ? `<div class="builder-table-cell-left-border builder-table-want-cell">${row.wantControl === 'checkbox' ? '<span class="builder-want-checkbox"></span>' : ''}</div>` : ''}
           </div>
@@ -3302,6 +3359,34 @@ const builderPreviewHtml = async (
             display: inline-block;
             height: 9pt;
             width: 9pt;
+          }
+
+          /* A2: status icons leading the item text. The cell becomes flex so
+             the text wraps in the width the planner reserved (statusIconRow
+             Overhead). */
+          .builder-table-item-cell {
+            align-items: flex-start;
+            display: flex;
+            gap: 3pt;
+          }
+
+          .builder-status-icons {
+            align-items: center;
+            display: inline-flex;
+            flex: 0 0 auto;
+            gap: 2pt;
+            line-height: 1;
+          }
+
+          .builder-status-icon {
+            height: 1em;
+            width: 1em;
+          }
+
+          .builder-item-text {
+            min-width: 0;
+            overflow-wrap: break-word;
+            white-space: pre-wrap;
           }
 
           .builder-line {
@@ -3900,6 +3985,7 @@ router.get('/inventory-sections', async (req: Request, res: Response, next: Next
             name: true,
             limit: true,
             isLimited: true,
+            isClearance: true,
           },
         },
       },

@@ -87,6 +87,7 @@ import { SettingsIcon } from '@/components/animate-ui/icons/settings';
 import { CirclePlusIcon } from '@/components/animate-ui/icons/circle-plus';
 import { PackageXIcon } from '@/components/animate-ui/icons/package-x';
 import { TagIcon } from '@/components/animate-ui/icons/tag';
+import { AlertTriangleIcon } from '@/components/animate-ui/icons/alert-triangle';
 import { ArrowLeftRightIcon } from '@/components/animate-ui/icons/arrow-left-right';
 import { Grid2x2CheckIcon } from '@/components/animate-ui/icons/grid-2x2-check';
 import { SquareDashedMousePointerIcon } from '@/components/animate-ui/icons/square-dashed-mouse-pointer';
@@ -666,6 +667,19 @@ const getAdjustedSectionTablePlannerHeight = (
   return Math.max(DEFAULT_GRID_SIZE, visualHeight + adjustment);
 };
 
+// A2: pt reserved at the start of the item cell by status icons (Limited /
+// Clearance), so the item text wraps in the remaining width. ~1em icon + gap
+// per visible icon; mirrors the backend `statusIconRowOverhead`.
+const statusIconRowOverhead = (
+  row: SectionTableBuilderComponent['rows'][number],
+  fontSize: number,
+  showStatusIcons?: boolean,
+): number => {
+  if (!showStatusIcons) return 0;
+  const count = (row.isLimited ? 1 : 0) + (row.isClearance ? 1 : 0);
+  return count * fontSize * 1.35;
+};
+
 const getTableRowTextLineCount = (
   row: SectionTableBuilderComponent['rows'][number],
   options: {
@@ -673,17 +687,18 @@ const getTableRowTextLineCount = (
     limitWidth: number;
     fontSize: number;
     showLimit: boolean;
+    showStatusIcons?: boolean;
     itemSegments?: BuilderTextMeasureSegment[];
   },
 ) => Math.max(
   options.itemSegments
     ? estimateWrappedSegmentLineCount(
       options.itemSegments,
-      Math.max(1, options.itemWidth - TABLE_CELL_HORIZONTAL_PADDING),
+      Math.max(1, options.itemWidth - TABLE_CELL_HORIZONTAL_PADDING - statusIconRowOverhead(row, options.fontSize, options.showStatusIcons)),
     )
     : estimateWrappedLineCount(
       row.item,
-      Math.max(1, options.itemWidth - TABLE_CELL_HORIZONTAL_PADDING),
+      Math.max(1, options.itemWidth - TABLE_CELL_HORIZONTAL_PADDING - statusIconRowOverhead(row, options.fontSize, options.showStatusIcons)),
       options.fontSize,
     ),
   options.showLimit
@@ -703,6 +718,7 @@ const getTableRowHeight = (
     limitWidth: number;
     fontSize: number;
     showLimit: boolean;
+    showStatusIcons?: boolean;
     itemSegments?: BuilderTextMeasureSegment[];
     useNaturalContentHeight?: boolean;
   },
@@ -857,6 +873,7 @@ const getComponentHeight = (
       limitWidth,
       fontSize: component.fontSize,
       showLimit: component.showLimit,
+      showStatusIcons: component.showStatusIcons === true,
       itemSegments: sectionTableRowItemSegments(row, rowMode, component.fontSize, measurement),
       useNaturalContentHeight: sectionTableRowUsesTranslatedText(row, rowMode, measurement),
     }));
@@ -997,6 +1014,7 @@ const getSectionTableRowHeights = (
     limitWidth: metrics.limitWidth,
     fontSize: metrics.fontSize,
     showLimit: component.showLimit,
+    showStatusIcons: component.showStatusIcons === true,
     itemSegments: sectionTableRowItemSegments(row, rowMode, metrics.fontSize, measurement),
     useNaturalContentHeight: sectionTableRowUsesTranslatedText(row, rowMode, measurement),
   }));
@@ -2278,6 +2296,7 @@ function PreviewSectionTable({ component, rows = component.rows, rowHeights, inc
           limitWidth,
           fontSize: component.fontSize,
           showLimit: component.showLimit,
+          showStatusIcons: component.showStatusIcons === true,
           itemSegments: sectionTableRowItemSegments(row, rowMode, component.fontSize, measurement),
           useNaturalContentHeight: sectionTableRowUsesTranslatedText(row, rowMode, measurement),
         });
@@ -2295,25 +2314,36 @@ function PreviewSectionTable({ component, rows = component.rows, rowHeights, inc
             }}
           >
             <div
-              dir="auto"
-              className="whitespace-pre-line px-1 [unicode-bidi:plaintext]"
+              className="flex items-start gap-1 px-1"
               style={{
                 paddingTop: BUILDER_CELL_VERTICAL_PADDING_PT,
                 paddingBottom: BUILDER_CELL_VERTICAL_PADDING_PT,
                 lineHeight: BUILDER_LINE_HEIGHT_MULTIPLIER,
               }}
             >
-              {renderTranslatedBuilderText(
-                row.item,
-                // Inventory rows resolve from FoodItemTranslation; base-
-                // component rows resolve from the Generated (List) cache.
-                language
-                  ? (row.foodItemId
-                    ? inventoryTranslations?.foodItems[row.foodItemId]
-                    : translations[row.item])
-                  : null,
-                rowMode,
+              {component.showStatusIcons === true && (row.isLimited || row.isClearance) && (
+                <span className="flex shrink-0 items-center gap-0.5" style={{ height: `${component.fontSize}px`, lineHeight: 1 }}>
+                  {row.isLimited && (
+                    <AlertTriangleIcon size={component.fontSize} style={{ color: '#d97706' }} />
+                  )}
+                  {row.isClearance && (
+                    <TagIcon size={component.fontSize} style={{ color: '#0d9488' }} />
+                  )}
+                </span>
               )}
+              <span dir="auto" className="min-w-0 whitespace-pre-line [unicode-bidi:plaintext]">
+                {renderTranslatedBuilderText(
+                  row.item,
+                  // Inventory rows resolve from FoodItemTranslation; base-
+                  // component rows resolve from the Generated (List) cache.
+                  language
+                    ? (row.foodItemId
+                      ? inventoryTranslations?.foodItems[row.foodItemId]
+                      : translations[row.item])
+                    : null,
+                  rowMode,
+                )}
+              </span>
             </div>
             {component.showLimit && (
               <div
@@ -5828,6 +5858,14 @@ export function ShoppingListBuilder() {
                           onCheckedChange={(checked) => updateSelectedComponent({ showBorders: checked === true })}
                         />
                         <Label htmlFor="table-show-borders">Show table &amp; cell borders</Label>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          id="table-show-status-icons"
+                          checked={selectedComponent.showStatusIcons === true}
+                          onCheckedChange={(checked) => updateSelectedComponent({ showStatusIcons: checked === true })}
+                        />
+                        <Label htmlFor="table-show-status-icons">Show status icons (Limited / Clearance)</Label>
                       </div>
                       <div className="flex items-center gap-2">
                         <Checkbox
