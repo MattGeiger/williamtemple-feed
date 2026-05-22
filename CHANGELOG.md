@@ -3,18 +3,53 @@
 All notable changes to FEED are documented here. This project adheres to
 [Semantic Versioning](https://semver.org/).
 
-## [1.1.0] — 2026-05-21
+## [1.1.0] — 2026-05-22
+
+The Shopping List Builder gains a batch of layout/printing controls plus an
+org-wide Export Settings panel. Every builder change is applied identically
+in the canvas preview and the Chromium PDF export (verified by rendered-PDF
+parity smokes).
 
 ### Added
 
-- **Shopping List Builder: show/hide the Want column** on section tables
-  (A5, v1.1.0 plan). Mirrors the existing Limit toggle, so a table can be
-  Item+Limit+Want, Item+Limit, Item+Want, or **Item-only** (names with the
-  category in the header). The item column widens to fill freed space.
-  Applied identically in the canvas preview and the Chromium PDF export.
+- **Show/hide the Want column** on section tables (A5). Mirrors the existing
+  Limit toggle, so a table can be Item+Limit+Want, Item+Limit, Item+Want, or
+  **Item-only** (names with the category in the header). The item column
+  widens to fill freed space.
+- **Show/hide column dividers and table/cell borders** (A1/A3) on section
+  tables **and** form-field groups. Independent toggles, both default on.
+- **Limited / Clearance status icons** on section-table rows (A2), shown
+  inline with the item name when enabled.
+- **Legend base component** (A4) that explains the Limited/Clearance status
+  icons, with horizontal/vertical layouts and editable labels. Right-to-left
+  target languages flip the legend's alignment and reading order.
+- **Per-row checkbox in the Want column** (A6) as an alternative to the
+  blank fill-in space.
+- **Show Global Limit** option per section table (B3): rows with no
+  item-level limit display the current org-wide Global Limit value in the
+  Limit column instead of a blank cell. Resolved live at render time.
+- **English in the Translate & Download PDF modal** (B2): English is now a
+  selectable export target and takes the identity path (skips translation).
+- **Export Settings** panel on the Shopping Lists page (B1): org-wide shared
+  configuration for exported-PDF filenames — base names for single vs.
+  translated downloads, plus optional template-name / language / date-stamp
+  tokens and date position, with a live filename preview.
+
+### Changed
+
+- **All Shopping List text and icons render in pure black** (`#000000`) for
+  maximum print contrast, aligning the PDF renderer with the canvas.
+- **Default builder component width is now 267pt** (was 270).
+- **Enhanced the animated Save icon motion.**
 
 ### Fixed
 
+- **Builder translation failures now show a specific, actionable message.**
+  A transient AI-provider overload (503 "high demand") during shopping-list
+  translation previously surfaced as a generic "unexpected error"; it now
+  names the language, explains the condition is temporary, and reassures
+  that no work was lost. Curated backend messages are no longer masked by a
+  generic frontend fallback.
 - **Keyboard arrow keys (and Home/End) now work in text fields** (ISSUES.md
   #37). A global sidebar keyboard-navigation listener was intercepting
   those keys app-wide, even while typing, so the caret couldn't be moved by
@@ -24,7 +59,6 @@ All notable changes to FEED are documented here. This project adheres to
   moved from per-keystroke reformatting (which reset the caret) to a
   one-time transform at submit. You can type freely; the name is
   Title-Cased when saved.
-
 - **AI Configuration icon hover triggers** (ISSUES.md #35, #36): the AI
   Model card's icon (type chooser) and the Document Text Translation card's
   icon (Prompt Category step) now animate on hover anywhere over the card,
