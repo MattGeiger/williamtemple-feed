@@ -408,8 +408,8 @@ Full-page-only).
 
 ---
 
-### #34 — v1.1.0 Shopping List Builder + Export Settings (In Progress)
-**Priority**: Medium · **Status**: In progress
+### #34 — v1.1.0 Shopping List Builder + Export Settings (Complete)
+**Priority**: Medium · **Status**: Done — all v1.1.0 features landed on `main` (awaiting build/deploy decision)
 **Bucket**: v1.1.0
 
 **Progress (May 21–22, 2026)** — landed and pushed to `main`, each its own
@@ -420,18 +420,16 @@ rendered-PDF parity check):
 - ✅ **A6** — per-row checkbox in the Want column (`293e018`)
 - ✅ **B2** — English in the Translate & Download modal (`53147eb`)
 - ✅ **A2** — Limited/Clearance status icons on rows (`c4f2d65`)
+- ✅ **A4** — Legend base component (`d497125`)
+- ✅ **B1** — Export Settings modal (shared filename-structure settings).
+  New `ExportSettings` Prisma model + migration
+  (`20260522000000_add_export_settings`), org-wide shared singleton (id=1,
+  no ownerId per #31). Filenames assembled client-side in
+  `builder/export-filename.ts` (unit-tested); GET/PUT
+  `/export-settings` routes; modal on the Shopping Lists page with live
+  preview; wired into single, bulk, and Translate & Generate downloads.
 
-**Remaining**:
-- ⬜ **A4** — Legend base component (explains the A2 status icons). New
-  component type — touches the most sync points (BuilderComponent union,
-  both render switches, both height calculators, the palette, translation
-  extraction, Properties). Recommended scope: a *focused* status legend
-  that reuses the A2 icons, not a generic icon editor.
-- ⬜ **B1** — Export Settings modal (shared filename-structure settings).
-  Needs a new Prisma model + migration; per AGENTS.md, land the migration
-  with review.
-
-Both are fully designed in `docs/shopping-lists/v1.1.0-feature-plan.md`.
+All features are designed in `docs/shopping-lists/v1.1.0-feature-plan.md`.
 
 A1 scope note: divider/border toggles cover **section tables**;
 form-field-group dividers remain a small follow-up.

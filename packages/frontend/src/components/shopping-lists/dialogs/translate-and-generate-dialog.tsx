@@ -29,6 +29,10 @@ import {
   SavedBuilderTemplate,
   ShoppingListBuilderTemplate,
 } from '@/components/shopping-lists/builder/types';
+import {
+  ExportSettings,
+  buildExportFilename,
+} from '@/components/shopping-lists/builder/export-filename';
 
 /**
  * Bulk Translate & Download PDFs modal for one saved shopping-list template.
@@ -80,15 +84,15 @@ interface TranslateAndGenerateDialogProps {
   template: SavedBuilderTemplate;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Filename stem (without extension) for downloaded PDFs. */
-  downloadFileName: string;
+  /** B1 — org-wide shared export filename configuration. */
+  exportSettings: ExportSettings;
 }
 
 export function TranslateAndGenerateDialog({
   template,
   open,
   onOpenChange,
-  downloadFileName,
+  exportSettings,
 }: TranslateAndGenerateDialogProps) {
   const { showMessage } = useMessage();
   const { languages, isLoading: isLoadingLanguages } = useLanguageContext();
@@ -175,7 +179,11 @@ export function TranslateAndGenerateDialog({
         targetLanguage: isEnglish ? undefined : language,
         printMode: singlePageDuplicate ? 'two-sided-when-single-page' : undefined,
       });
-      triggerPdfDownload(blob, `${downloadFileName} (${language}).pdf`);
+      triggerPdfDownload(blob, buildExportFilename(exportSettings, {
+        kind: 'translated',
+        templateName: template.name,
+        language,
+      }));
       updateLanguageState(language, { status: 'done' });
       return true;
     } catch (error) {
@@ -270,7 +278,7 @@ export function TranslateAndGenerateDialog({
           </DialogTitle>
           <DialogDescription>
             Pick the languages to export. Each selection downloads a separate
-            PDF named {`${downloadFileName} (Language).pdf`} into your Downloads folder.
+            PDF into your Downloads folder, named per your Export Settings.
           </DialogDescription>
         </DialogHeader>
 

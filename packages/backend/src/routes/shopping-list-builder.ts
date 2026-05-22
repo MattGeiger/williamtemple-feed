@@ -4241,4 +4241,70 @@ router.post('/translate-missing-strings', async (req: Request, res: Response, ne
   }
 });
 
+// --- B1: Export Settings (org-wide shared singleton, no ownerId per #31) ---
+
+interface ExportSettingsPayload {
+  includeDate: boolean;
+  datePosition: 'start' | 'end';
+  includeTemplateName: boolean;
+  includeLanguage: boolean;
+  previewBaseName: string;
+  translatedBaseName: string;
+}
+
+const EXPORT_SETTINGS_DEFAULTS: ExportSettingsPayload = {
+  includeDate: true,
+  datePosition: 'end',
+  includeTemplateName: true,
+  includeLanguage: true,
+  previewBaseName: 'Shopping List',
+  translatedBaseName: 'Shopping List',
+};
+
+const EXPORT_BASE_NAME_MAX = 80;
+
+const sanitizeExportBaseName = (value: unknown, fallback: string): string => {
+  if (typeof value !== 'string') {
+    return fallback;
+  }
+  const trimmed = value.trim().slice(0, EXPORT_BASE_NAME_MAX);
+  return trimmed.length > 0 ? trimmed : fallback;
+};
+
+const normalizeExportSettings = (raw: any): ExportSettingsPayload => ({
+  includeDate: raw?.includeDate !== false,
+  datePosition: raw?.datePosition === 'start' ? 'start' : 'end',
+  includeTemplateName: raw?.includeTemplateName !== false,
+  includeLanguage: raw?.includeLanguage !== false,
+  previewBaseName: sanitizeExportBaseName(raw?.previewBaseName, EXPORT_SETTINGS_DEFAULTS.previewBaseName),
+  translatedBaseName: sanitizeExportBaseName(raw?.translatedBaseName, EXPORT_SETTINGS_DEFAULTS.translatedBaseName),
+});
+
+router.get('/export-settings', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    requireAuth(req);
+    const settings = await prisma.exportSettings.findFirst();
+    res.json({ settings: settings ? normalizeExportSettings(settings) : { ...EXPORT_SETTINGS_DEFAULTS } });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.put('/export-settings', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    requireAuth(req);
+    const normalized = normalizeExportSettings(req.body);
+
+    const saved = await prisma.exportSettings.upsert({
+      where: { id: 1 },
+      update: normalized,
+      create: { id: 1, ...normalized },
+    });
+
+    res.json({ settings: normalizeExportSettings(saved) });
+  } catch (error) {
+    return next(error);
+  }
+});
+
 export default router;
