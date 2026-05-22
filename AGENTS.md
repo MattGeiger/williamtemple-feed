@@ -227,23 +227,23 @@ Use targeted validation first, then broaden based on risk.
 Common commands:
 
 ```bash
-cd /Users/russbook/wth_app_clean/packages/frontend && npm run build
-cd /Users/russbook/wth_app_clean/packages/frontend && npm test
-cd /Users/russbook/wth_app_clean/packages/backend && npm run test:shopping-lists
-cd /Users/russbook/wth_app_clean/packages/backend && npm test
+cd /Users/russbook/williamtemple-feed/packages/frontend && npm run build
+cd /Users/russbook/williamtemple-feed/packages/frontend && npm test
+cd /Users/russbook/williamtemple-feed/packages/backend && npm run test:shopping-lists
+cd /Users/russbook/williamtemple-feed/packages/backend && npm test
 ```
 
 When validating the Phase 1/reference pdfmake generator locally, use a Node runtime compatible with pdfmake/fontkit embedded TTF parsing. Node 20/24 have worked in this project; Node 23 has produced `Unknown font format` failures with embedded fonts. In the current macOS setup, this command has been used successfully:
 
 ```bash
-cd /Users/russbook/wth_app_clean/packages/backend && PATH=/opt/homebrew/opt/node@24/bin:$PATH npm run test:shopping-lists
+cd /Users/russbook/williamtemple-feed/packages/backend && PATH=/opt/homebrew/opt/node@24/bin:$PATH npm run test:shopping-lists
 ```
 
 Development servers typically run as:
 
 ```bash
-cd /Users/russbook/wth_app_clean/packages/backend && npm run dev
-cd /Users/russbook/wth_app_clean/packages/frontend && npm run dev
+cd /Users/russbook/williamtemple-feed/packages/backend && npm run dev
+cd /Users/russbook/williamtemple-feed/packages/frontend && npm run dev
 ```
 
 Expected local ports in recent work:
@@ -251,7 +251,7 @@ Expected local ports in recent work:
 - Backend: `http://localhost:3001`
 - Frontend: `http://localhost:5173`
 
-**Port discipline:** The user's active dev server runs on port 5173, served from the root repo at `/Users/russbook/wth_app_clean/packages/frontend/`. All file edits must target that path. Even when Claude Code opens a session inside a git worktree (e.g. `/Users/russbook/wth_app_clean/.claude/worktrees/<name>/`), the user's browser still points at port 5173. Write files to the main repo path (`/Users/russbook/wth_app_clean/packages/frontend/...`), not the worktree mirror. Never start a second Vite process on a different port — the user cannot see changes served on any port other than 5173, and the worktree's preview server (if one starts automatically) is invisible to the user's active browser session.
+**Port discipline:** The user's active dev server runs on port 5173, served from the root repo at `/Users/russbook/williamtemple-feed/packages/frontend/`. All file edits must target that path. Even when Claude Code opens a session inside a git worktree (e.g. `/Users/russbook/williamtemple-feed/.claude/worktrees/<name>/`), the user's browser still points at port 5173. Write files to the main repo path (`/Users/russbook/williamtemple-feed/packages/frontend/...`), not the worktree mirror. Never start a second Vite process on a different port — the user cannot see changes served on any port other than 5173, and the worktree's preview server (if one starts automatically) is invisible to the user's active browser session.
 
 **Authentication wall:** The application uses magic-link OTP authentication. There is no dev bypass. Frontend-only testing is never sufficient — the auth flow requires the backend to be running. When browser smoke testing reaches the login page, ask the user to complete authentication; do not attempt to bypass it or treat a login-screen screenshot as evidence that the change works. Once the user confirms they are authenticated, use the preview browser at port 5173 to observe the change in context.
 
@@ -272,6 +272,75 @@ Manual validation checklists should be short and task-specific. For shopping lis
 - Apply a saved template from the dropdown.
 - Download/export the PDF, render it visually, and confirm the PDF matches the canvas preview.
 - Toggle light/dark mode and verify printed-page preview remains readable.
+
+## Local Development Environment
+
+The active working repo is `/Users/russbook/williamtemple-feed`.
+(`/Users/russbook/wth_app_clean` is a **retired** old checkout kept warm
+for operational reference only — do not edit or run it, and never `git
+push` from it.)
+
+**Running locally (no Docker):** dependencies and the Prisma client are
+already installed in each package. You need two gitignored env files and a
+`dev.db`:
+
+- `packages/backend/.env` — at minimum: `DATABASE_URL="file:../dev.db"`
+  (SQLite path resolves relative to `prisma/schema.prisma`, so this is
+  `packages/backend/dev.db`), `NODE_ENV=development`, `PORT=3001`,
+  `JWT_SECRET` (any 64+ char value), `JWT_EXPIRES_IN="7d"`,
+  `APP_URL="http://localhost:5173"`, `COOKIE_DOMAIN=""` (empty = host-only
+  cookie, which is what works on localhost; the prod `.williamtemple.app`
+  value breaks local cookies), and `FORCE_AUTH=false`. Resend keys are
+  **not** needed locally (see auth note).
+- `packages/frontend/.env` — `VITE_API_BASE_URL=http://localhost:3001`.
+- Initialize the DB: `cd packages/backend && npx prisma migrate deploy`
+  (creates `dev.db` with all migrations and their indexes/constraints).
+- Run: backend `npm run dev` (ts-node-dev, :3001), frontend `npm run dev`
+  (Vite, :5173).
+
+**Auth in dev is subtle.** `FORCE_AUTH=false` makes the *backend* skip auth
+(`auth-middleware.ts` calls `next()` when `NODE_ENV==='development' &&
+FORCE_AUTH!=='true'`), but the **frontend still gates the UI** on
+`GET /api/auth/session` reading the `auth_token` cookie — so a fresh
+browser still lands on the login screen. To get past it without Resend:
+either (a) seed a known OTP and POST `/api/auth/otp/verify` (the code is
+stored **hashed** — `sha256` of the code, no secret — so insert a
+`VerificationToken` row with `token = sha256('123456')`, `type='otp'`,
+future `expires`, then verify to get the real cookie), or (b) mint a JWT
+locally (`{ userId, email }` signed with the local `JWT_SECRET`; the
+middleware only verifies it, no DB lookup) and set it as the `auth_token`
+cookie. Both are valid logins, appropriate for local smoke testing — not
+production bypasses.
+
+**Preview/smoke browser** (the `Claude_Preview` MCP) attaches to the
+running Vite server via a gitignored `.claude/launch.json`
+(`runtimeArgs: ["--prefix","packages/frontend","run","dev"]`, `port:
+5173`). It's a separate browser context, so it has no cookie until you
+authenticate it as above. Use `preview_resize` for mobile/desktop ratios
+and `preview_eval` for DOM checks (e.g. confirming a `ScrollArea`
+viewport is bounded: read `[data-radix-scroll-area-viewport]`'s
+`scrollHeight` vs `clientHeight`).
+
+**Seeding.** `npm run seed` (`scripts/seed-all.ts`) is the canonical seed
+(GlobalLimit, 59 languages, 3 system prompts, 8 categories, ~70 food
+items) — all `upsert`, idempotent, but it **resets** inventory states
+(stock, limits) and enabled languages to seed defaults, so don't run it if
+you've loaded real states you care about. `scripts/seed-system-prompts.ts`
+seeds *only* `SystemPrompt` (additive), but has a latent implicit-`any`, so
+run it `npx ts-node --transpile-only -r dotenv/config
+scripts/seed-system-prompts.ts`.
+
+**Loading production data locally:** copy the whole `production.db`, or
+import a `sqlite3 .dump <tables>` extract. ⚠️ **`.dump <table>` does NOT
+emit the table's unique indexes** — after a table-scoped import, Prisma
+`upsert` fails with `ON CONFLICT clause does not match any PRIMARY KEY or
+UNIQUE constraint`. Recreate the unique indexes from the consolidated
+migration (`Category_nameSearch_key`, `FoodItem_nameSearch_key`,
+`CategoryTranslation_categoryId_language_key`,
+`FoodItemTranslation_foodItemId_language_key`, `Language_name_key`, etc.)
+after such an import. Prod data also carries the encryption key + encrypted
+AI provider keys; for inventory/UI work, import only the inventory tables
+and avoid moving secrets onto the dev box.
 
 ## Dependency Rules
 
@@ -334,4 +403,8 @@ Passdown messages should be concrete enough that a fresh agent can continue with
 - **`BridgedAnimatedIcon` only works for `animateOnTap`**: the bridge reads `active` from `AnimateIconContext` via a `useEffect`. This async chain works for pointer-down events but silently fails for `animate` (mount) and `animateOnHover` (mouse events) because of ordering races and the imperative-ref icon's extra `<div>` wrapper. If an icon needs all three triggers, convert it to a native animate-ui icon (using `useAnimateIconContext` and `motion.svg`) instead of wiring it through the bridge. The bridge is acceptable only for tap-only contexts. See `docs/motion/ICON_ANIMATIONS.md` for the full explanation.
 - **Check before installing any icon from the registry**: this project has animated icons in two locations — `src/components/animate-ui/icons/` (native, context-driven) and `src/components/ui/` (imperative-ref, self-animating). Before running any `npx shadcn@latest add` command for an icon, grep both directories first. If the icon exists in one location and you need it in the other context, create a parallel file — never overwrite the existing one. `npx shadcn@latest add … --overwrite` will silently destroy any file at the target path, including working icons used by unrelated parts of the UI (e.g., the sidebar). See `docs/motion/ICON_ANIMATIONS.md` — "Before Installing from the Registry" — for the full pre-install checklist and guidance on when each system applies.
 - **`animate={controls}` on `motion.svg` root causes silent animation failure**: if `controls.start()` is bound to the `motion.svg` element itself (rather than a child `motion.g` or `motion.path`), and any child variant objects are empty (`{}`), Framer Motion silently rejects or no-ops the animation Promise. `AnimateIcon`'s `startAnim` wraps this in `try/catch { return }`, so the error is completely swallowed — the icon looks fine at rest, hover triggers fire, but nothing moves. The fix is always to animate child elements: put `animate={controls}` on a `motion.g` wrapper inside the `motion.svg`, and remove any empty variant keys. See `docs/motion/ICON_ANIMATIONS.md` — "The `motion.svg` root animation silent failure trap" — for the corrected pattern.
-- **Port 5173 is the only valid test target**: all file edits must target the main repo at `/Users/russbook/wth_app_clean/packages/frontend/`. Even when Claude Code opens a session in a git worktree, the user's browser points at port 5173, not the worktree's preview server. Never treat a worktree preview server screenshot as evidence of correctness. Frontend-only testing is never sufficient — the app requires the backend at port 3001 for authentication and all data. If the browser shows a login screen, ask the user to authenticate rather than attempting a bypass or concluding the change is untestable.
+- **Port 5173 is the only valid test target**: all file edits must target the main repo at `/Users/russbook/williamtemple-feed/packages/frontend/`. Even when Claude Code opens a session in a git worktree, the user's browser points at port 5173, not the worktree's preview server. Never treat a worktree preview server screenshot as evidence of correctness. Frontend-only testing is never sufficient — the app requires the backend at port 3001 for authentication and all data. If the browser shows a login screen, ask the user to authenticate rather than attempting a bypass or concluding the change is untestable.
+- **API response envelopes: unwrap consistently in the service layer.** Backend routes return *enveloped* objects — `{ foodItem }`, `{ foodItems }`, `{ template }`, `{ component }`, etc. Frontend services must unwrap to the inner value. A mismatch is a real bug source: `FoodItemService.updateFoodItem`/`createFoodItem` returned the raw `{ foodItem }` envelope (mistyped as `FoodItem`) while `getFoodItems` correctly returned `response.foodItems`; the malformed object (no `statusFlags`) was stored in state and crashed the next render with `Cannot read properties of undefined (reading 'isInStock')` — but only on *mutations* (initial load worked because GET unwrapped). When adding/editing any service method, mirror the unwrap the GET path uses, and confirm the returned object has the same shape the UI consumes.
+- **Keep the three version sources in sync on a release bump.** The in-app version tag is `APP_VERSION` = `packages/frontend/package.json` version (shown in the sidebar/login/logout); the backend `/api/health` reports `packages/backend/package.json` version; the deployed Docker image tag is the `VERSION` build arg (and the Pi's `.env`). They drift independently — bump all three together. (They were stuck at `0.99.0` in the UI while images shipped `1.0.x`.)
+- **DB migrations auto-apply on container start** via the backend Docker `CMD` (`prisma migrate deploy && node dist/index.js`). A new migration committed into the image runs automatically on the next Pi deploy — back up `production.db` first when a migration is destructive (e.g. a table rebuild), then build/push the image and `docker compose pull && up -d`.
+- **Secret leaks / public repo:** treat any committed secret as permanently compromised — **rotation is the real fix**, not deletion (git history keeps it; removing from the working tree does nothing). Scrub history with `git filter-repo --replace-text` then force-push; reconcile other checkouts with `git fetch && git reset --hard origin/main` (gitignored files like `.env` survive). The runtime encryption key lives in the DB `EncryptionKey` table (`KeyManager.getActiveKey`), **not** in `ENCRYPTION_MASTER_KEY` env — so a leaked env key may not even match the active key; verify before assuming exposure. GitGuardian alerts are legitimate, but verify via `dashboard.gitguardian.com`, never an emailed "grant access" link.
