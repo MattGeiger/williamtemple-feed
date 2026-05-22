@@ -400,6 +400,12 @@ export interface SectionTableBuilderComponent extends BuilderComponentBase {
   // A2: show Limited/Clearance status icons next to row items. Optional;
   // default `false` (read as `=== true`) so legacy templates are unchanged.
   showStatusIcons?: boolean;
+  // B3: when on, rows with no item-level limit ("No Limit") display the
+  // current Global Limit value in the Limit column instead of a blank cell.
+  // Optional; default `false` (read as `=== true`). The value is resolved
+  // live at render time (canvas: context; PDF: backend query), never baked
+  // into the saved rows. Mirrored in the backend route.
+  showGlobalLimit?: boolean;
   limitHeader: string;
   wantHeader: string;
   limitWidth: number;

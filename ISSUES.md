@@ -428,8 +428,18 @@ rendered-PDF parity check):
   `builder/export-filename.ts` (unit-tested); GET/PUT
   `/export-settings` routes; modal on the Shopping Lists page with live
   preview; wired into single, bulk, and Translate & Generate downloads.
+- ✅ **B3** — per-section-table "Show Global Limit" option. When enabled,
+  rows with no item-level limit ("No Limit") display the current org-wide
+  Global Limit value in the Limit column instead of a blank cell. New
+  optional `showGlobalLimit` flag on `SectionTableBuilderComponent` (default
+  false, read as `=== true`), mirrored in both packages. Value resolved live
+  at render time (canvas: `PreviewLanguageContext.globalLimit`, fetched via
+  `GlobalLimitService`; PDF: backend reads `GlobalLimit` only when a table
+  opts in) — never baked into saved rows. Shared `resolveRowLimitText` mirror
+  in both renderers; Properties toggle nested under "Show limit column".
 
-All features are designed in `docs/shopping-lists/v1.1.0-feature-plan.md`.
+All features are designed in `docs/shopping-lists/v1.1.0-feature-plan.md`
+(B3 added per follow-up request after the initial plan).
 
 A1 scope note: divider/border toggles cover **section tables**;
 form-field-group dividers remain a small follow-up.
