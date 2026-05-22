@@ -30,20 +30,21 @@ const animations = {
         transition: { duration: 0.55, times: [0, 0.4, 1], ease: 'easeInOut' },
       },
     },
-    // Label panel slides in slightly later for sequencing, then settles.
+    // Label panel slides in for sequencing, then settles.
     label: {
       initial: { y: 0 },
       animate: {
         y: [0, 2.5, 0],
-        transition: { duration: 0.55, times: [0, 0.4, 1], ease: 'easeInOut', delay: 0.05 },
+        transition: { duration: 0.55, times: [0, 0.4, 1], ease: 'easeInOut', },
       },
     },
-    // Top shutter retracts in opposition (suggests a write-protect mechanism)
+    // Top shutter slides left (suggests a read mechanism)
     shutter: {
-      initial: { y: 0 },
+        initial: { y: 0, x: 0 },
       animate: {
-        y: [0, -2.5, 0],
-        transition: { duration: 0.55, times: [0, 0.4, 1], ease: 'easeInOut' },
+        y: [0, 2.5, 0],
+        x: [0, 2.5, 0],
+        transition: { duration: 0.55, times: [0, 0.4, 1], ease: 'easeInOut', },
       },
     },
   } satisfies Record<string, Variants>,
