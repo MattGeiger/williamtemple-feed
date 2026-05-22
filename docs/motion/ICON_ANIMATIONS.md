@@ -376,6 +376,48 @@ export { MyIcon };
 
 The `isControlledRef` flag is the key pattern: when a parent holds the ref and calls `startAnimation`/`stopAnimation`, the icon's own hover handlers are suppressed. When used standalone (no ref), it self-animates on hover.
 
+### Hand-rolling an animated variant of a Lucide icon
+
+When you need an animated icon that has **no upstream animate-ui version**
+(neither registry ships it), it is a sound and supported approach to
+hand-roll one using the imperative-ref pattern above. You do **not** need to
+wait for, or force, a registry icon. Recipe:
+
+1. **Copy the geometry verbatim from Lucide** so the icon is visually
+   identical to the static version at rest. Pull the exact paths from
+   `node_modules/lucide-react/dist/esm/icons/<name>.js` (`__iconNode`) — do
+   not eyeball or redraw them.
+2. **Borrow motion ideas from existing animated icons** rather than inventing
+   new ones. Two reliable, composable primitives already in the codebase:
+   - **Line tracing** (draw-on): animate `pathLength` / `pathOffset` /
+     `opacity` on `motion.path` / `motion.circle`. Good for outlines,
+     meridians, strokes. (See the Dribbble-style globe lines.)
+   - **Transform loop** (bob / tip / pulse): animate `y` / `rotate` / `scale`
+     on a `motion.g` wrapping a sub-group, with `style={{ transformOrigin }}`
+     set to that group's center in viewBox units, and
+     `repeat: Number.POSITIVE_INFINITY` to loop while hovered. (See the
+     Folder-Lock-style lock.)
+3. **Compose them** with one `useAnimation()` control per independent motion
+   (e.g. `lineControls` for the traced lines, `lockControls` for the bobbing
+   group), and start/stop all of them together in the hover handlers and the
+   `useImperativeHandle` block.
+
+**Worked example in the codebase:** `components/ui/globe-lock.tsx` — an
+animated variant of Lucide `globe-lock` whose globe lines trace in (Dribbble
+idea) while the lock bobs and tips (Folder-Lock idea). It is used by the
+**Global Limit Settings** toolbar button on the Shopping Lists page.
+
+> **Toolbar/consumer sizing note.** Generic consumers (e.g. the data-table
+> `TableFeatureBar`) render icons as `<Icon className="h-4 w-4 mr-2" />` and
+> expect that `className` to size and space the **glyph**. The bare
+> imperative template above puts `className` on the wrapper `<div>`, which
+> sizes the wrapper but leaves the inner `<svg>` at `size` (28px) — too big in
+> a toolbar. When an icon must drop into those generic slots, apply
+> `className` to the `<svg>` (the glyph) and keep a tight `inline-flex`
+> wrapper for the hover handlers, exactly as `globe-lock.tsx` does. This
+> mirrors how animate-ui icons behave (CSS width/height beats the `width`/
+> `height` attributes).
+
 ---
 
 ## Action Menu Icons (TableActionMenu)
