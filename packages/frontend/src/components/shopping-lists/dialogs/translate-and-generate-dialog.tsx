@@ -98,6 +98,17 @@ export function TranslateAndGenerateDialog({
     [languages],
   );
 
+  // B2: English is always an export target (the source language). Selecting it
+  // skips the translation pipeline and renders the document as-is, so staff can
+  // get every language — including English — from one modal. Pinned first.
+  const exportTargets = React.useMemo(
+    () => [
+      { name: 'English', isEnglish: true },
+      ...enabledNonEnglishLanguages.map((lang) => ({ name: lang.name, isEnglish: false })),
+    ],
+    [enabledNonEnglishLanguages],
+  );
+
   const [step, setStep] = React.useState<Step>('setup');
   const [selectedLanguages, setSelectedLanguages] = React.useState<Set<string>>(new Set());
   const [singlePageDuplicate, setSinglePageDuplicate] = React.useState(true);
@@ -115,9 +126,9 @@ export function TranslateAndGenerateDialog({
     }
   }, [open]);
 
-  const allSelected = enabledNonEnglishLanguages.length > 0
-    && enabledNonEnglishLanguages.every((lang) => selectedLanguages.has(lang.name));
-  const someSelected = enabledNonEnglishLanguages.some((lang) => selectedLanguages.has(lang.name));
+  const allSelected = exportTargets.length > 0
+    && exportTargets.every((target) => selectedLanguages.has(target.name));
+  const someSelected = exportTargets.some((target) => selectedLanguages.has(target.name));
 
   const toggleLanguage = (name: string, checked: boolean) => {
     setSelectedLanguages((current) => {
@@ -129,7 +140,7 @@ export function TranslateAndGenerateDialog({
 
   const toggleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedLanguages(new Set(enabledNonEnglishLanguages.map((lang) => lang.name)));
+      setSelectedLanguages(new Set(exportTargets.map((target) => target.name)));
     } else {
       setSelectedLanguages(new Set());
     }
@@ -143,20 +154,25 @@ export function TranslateAndGenerateDialog({
 
   const exportLanguage = async (language: string): Promise<boolean> => {
     const templateData = template.templateData as ShoppingListBuilderTemplate;
+    // B2: English is the source language — skip preflight/translation entirely
+    // and render with no targetLanguage (the backend's English path).
+    const isEnglish = language === 'English';
     try {
-      // Preflight to know which strings need translation. Empty templates
-      // return totalStrings: 0 and we skip straight to PDF render.
-      updateLanguageState(language, { status: 'preflight' });
-      const preflight = await shoppingListBuilderService.translationPreflight(templateData, language);
+      if (!isEnglish) {
+        // Preflight to know which strings need translation. Empty templates
+        // return totalStrings: 0 and we skip straight to PDF render.
+        updateLanguageState(language, { status: 'preflight' });
+        const preflight = await shoppingListBuilderService.translationPreflight(templateData, language);
 
-      if (preflight.missingStrings.length > 0) {
-        updateLanguageState(language, { status: 'translating' });
-        await shoppingListBuilderService.translateMissingStrings(preflight.missingStrings, language);
+        if (preflight.missingStrings.length > 0) {
+          updateLanguageState(language, { status: 'translating' });
+          await shoppingListBuilderService.translateMissingStrings(preflight.missingStrings, language);
+        }
       }
 
       updateLanguageState(language, { status: 'generating' });
       const blob = await shoppingListBuilderService.createPreviewPdf(templateData, {
-        targetLanguage: language,
+        targetLanguage: isEnglish ? undefined : language,
         printMode: singlePageDuplicate ? 'two-sided-when-single-page' : undefined,
       });
       triggerPdfDownload(blob, `${downloadFileName} (${language}).pdf`);
@@ -171,9 +187,9 @@ export function TranslateAndGenerateDialog({
   };
 
   const handleStart = async () => {
-    const selected = enabledNonEnglishLanguages
-      .filter((lang) => selectedLanguages.has(lang.name))
-      .map((lang) => lang.name);
+    const selected = exportTargets
+      .filter((target) => selectedLanguages.has(target.name))
+      .map((target) => target.name);
     if (selected.length === 0) {
       showMessage('Pick at least one language to continue.', 'warning');
       return;
@@ -264,12 +280,6 @@ export function TranslateAndGenerateDialog({
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" /> Loading languages…
               </div>
-            ) : enabledNonEnglishLanguages.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                No translation languages are enabled. Enable at least one
-                non-English language in Language Settings before generating
-                a translated list.
-              </p>
             ) : (
               <>
                 <div className="flex items-center justify-between gap-2">
@@ -286,17 +296,17 @@ export function TranslateAndGenerateDialog({
                 <div className="max-h-48 overflow-hidden rounded-md border">
                   <ScrollArea className="h-full">
                     <div className="grid grid-cols-2 gap-2 p-3">
-                      {enabledNonEnglishLanguages.map((lang) => {
-                        const id = `bulk-translate-lang-${lang.name}`;
+                      {exportTargets.map((target) => {
+                        const id = `bulk-translate-lang-${target.name}`;
                         return (
-                          <div key={lang.name} className="flex items-center gap-2">
+                          <div key={target.name} className="flex items-center gap-2">
                             <Checkbox
                               id={id}
-                              checked={selectedLanguages.has(lang.name)}
-                              onCheckedChange={(checked) => toggleLanguage(lang.name, checked === true)}
+                              checked={selectedLanguages.has(target.name)}
+                              onCheckedChange={(checked) => toggleLanguage(target.name, checked === true)}
                             />
                             <Label htmlFor={id} className="cursor-pointer text-sm font-normal">
-                              {lang.name}
+                              {target.isEnglish ? 'English (no translation)' : target.name}
                             </Label>
                           </div>
                         );
@@ -304,9 +314,15 @@ export function TranslateAndGenerateDialog({
                     </div>
                   </ScrollArea>
                 </div>
+                {enabledNonEnglishLanguages.length === 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    Only English is available. Enable languages in Language
+                    Settings to export translated lists.
+                  </p>
+                )}
                 {someSelected && (
                   <p className="text-xs text-muted-foreground">
-                    {selectedLanguages.size} of {enabledNonEnglishLanguages.length} selected.
+                    {selectedLanguages.size} of {exportTargets.length} selected.
                   </p>
                 )}
 
@@ -355,7 +371,7 @@ export function TranslateAndGenerateDialog({
               </Button>
               <Button
                 onClick={handleStart}
-                disabled={selectedLanguages.size === 0 || enabledNonEnglishLanguages.length === 0}
+                disabled={selectedLanguages.size === 0}
               >
                 Generate &amp; download
                 {selectedLanguages.size > 0 && ` (${selectedLanguages.size})`}
