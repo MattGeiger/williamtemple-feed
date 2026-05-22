@@ -2328,7 +2328,16 @@ function PreviewSectionTable({ component, rows = component.rows, rowHeights, inc
                 {row.limit}
               </div>
             )}
-            {showWant && <div className={cn('border-[#cfcfcf]', colDivider)} />}
+            {showWant && (
+              <div className={cn('flex items-center justify-center border-[#cfcfcf]', colDivider)}>
+                {row.wantControl === 'checkbox' && (
+                  <span
+                    className="inline-block border border-[#555555]"
+                    style={{ width: 9, height: 9, borderRadius: 1 }}
+                  />
+                )}
+              </div>
+            )}
           </div>
         );
       })}
@@ -5985,6 +5994,22 @@ export function ShoppingListBuilder() {
                                     <Badge variant={row.foodItemId ? 'secondary' : 'outline'} className="shrink-0">
                                       {limitSourceLabel(row)}
                                     </Badge>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <Checkbox
+                                      id={`row-want-checkbox-${row.id}`}
+                                      checked={row.wantControl === 'checkbox'}
+                                      onCheckedChange={(checked) =>
+                                        updateSelectedComponent({
+                                          rows: selectedComponent.rows.map((current) =>
+                                            current.id === row.id
+                                              ? { ...current, wantControl: checked === true ? 'checkbox' : 'blank' }
+                                              : current,
+                                          ),
+                                        })
+                                      }
+                                    />
+                                    <Label htmlFor={`row-want-checkbox-${row.id}`} className="text-xs">Checkbox in Want column</Label>
                                   </div>
                                 </div>
                               </div>

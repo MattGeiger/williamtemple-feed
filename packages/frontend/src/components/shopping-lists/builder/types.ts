@@ -369,6 +369,10 @@ export interface SectionTableRow {
   limit: string;
   foodItemId?: number;
   limitSource?: 'food-item' | 'category' | 'none';
+  // A6: render an empty checkbox in the Want column for this row instead of
+  // the blank fill-in space. Optional; default 'blank'. Only visible when the
+  // table's Want column is shown.
+  wantControl?: 'blank' | 'checkbox';
 }
 
 export type CategoryLimitType = 'person' | 'household';

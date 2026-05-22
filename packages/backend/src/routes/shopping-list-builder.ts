@@ -234,6 +234,9 @@ interface SectionTableBuilderComponent extends BuilderComponentBase {
     limit: string;
     foodItemId?: number;
     limitSource?: 'food-item' | 'category' | 'none';
+    // A6: 'checkbox' renders an empty checkbox in the Want cell instead of
+    // blank fill-in space. Optional; default 'blank'. Mirrors the frontend.
+    wantControl?: 'blank' | 'checkbox';
   }>;
   showLimit: boolean;
   // Show/hide the Want column (A5). Optional for back-compat; always read as
@@ -2894,7 +2897,7 @@ const sectionTableComponentHtml = (
               rowMode,
             )}</div>
             ${component.showLimit ? `<div class="builder-table-text-cell builder-table-cell-left-border builder-table-center" dir="auto">${escapeHtml(row.limit)}</div>` : ''}
-            ${showWant ? '<div class="builder-table-cell-left-border"></div>' : ''}
+            ${showWant ? `<div class="builder-table-cell-left-border builder-table-want-cell">${row.wantControl === 'checkbox' ? '<span class="builder-want-checkbox"></span>' : ''}</div>` : ''}
           </div>
         `;
       }).join('')}
@@ -3284,6 +3287,21 @@ const builderPreviewHtml = async (
 
           .builder-table-center {
             text-align: center;
+          }
+
+          /* A6: per-row empty checkbox in the Want column. */
+          .builder-table-want-cell {
+            align-items: center;
+            display: flex;
+            justify-content: center;
+          }
+
+          .builder-want-checkbox {
+            border: 0.5pt solid #555555;
+            border-radius: 1pt;
+            display: inline-block;
+            height: 9pt;
+            width: 9pt;
           }
 
           .builder-line {
