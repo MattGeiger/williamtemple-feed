@@ -56,6 +56,7 @@ purposes only.
 ## Contact
 
 - Questions about the **application code or its AGPL license:**
-  Matt Geiger — [et2.geiger@gmail.com](mailto:et2.geiger@gmail.com).
+  Matt Geiger, Temple Consulting, LLC. —
+  [matt@templepdx.com](mailto:matt@templepdx.com) · <https://templepdx.com>.
 - Requests to use **William Temple House branding:** contact William
   Temple House at <https://www.williamtemple.org/about/contact/>.
