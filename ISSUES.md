@@ -428,6 +428,36 @@ JSON fields, shadcn-first UI, and org-wide shared persistence.
 
 ---
 
+### #35 — AI Model Type-Chooser Icon Animates Only on Direct Icon Hover
+**Priority**: Low (UX polish) · **Status**: Fixed (May 21, 2026) — pending deploy
+**Bucket**: v1.x
+**Component**: `packages/frontend/src/components/ai-configuration/index.tsx`
+
+In the "Add AI Configuration" type-chooser (step 1 of the multi-step
+modal), the **AI Model** card's icon animated only when hovering the icon
+itself, while the **Prompt** card's icon animated on hover anywhere over
+the card (the desired behavior).
+
+**Root cause**: the two cards use different animated-icon systems (see
+AGENTS.md "Lessons From Recent Work"). Prompt uses `MessageSquareQuoteIcon`
+from `@/components/animate-ui/icons` (native, context-driven) wrapped in
+`<AnimateIcon asChild animateOnHover>` on the Card, so card-hover drives it.
+AI Model used `CpuIcon` from `@/components/ui/cpu` (imperative-ref,
+self-animating) with no ref — the native `AnimateIcon` context cannot drive
+an imperative-ref icon, so it fell back to its own direct-icon-hover
+trigger. There is no native animate-ui `Cpu` icon (only `bot`,
+`message-square-*`).
+
+**Fix**: attach a `CpuIconHandle` ref to the `CpuIcon` (which flips it into
+controlled mode, disabling its own direct-hover trigger) and call
+`startAnimation()` / `stopAnimation()` from the Card's `onMouseEnter` /
+`onMouseLeave`. Hovering anywhere on the card now animates the icon,
+matching the Prompt card — using the imperative icon's own documented ref
+API, with no new icon installed (avoiding the registry viewBox/path
+hazards documented in AGENTS.md).
+
+---
+
 ### #6 — Shopping List Feature Incomplete (OBSOLETE)
 **Status**: Superseded by Shopping List Builder; closed in v1.0.0 release prep
 
