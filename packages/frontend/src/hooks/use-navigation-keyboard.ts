@@ -22,6 +22,21 @@ export function useNavigationKeyboard({
 
   const handleKeyDown = useCallback(
     (event: KeyboardEvent) => {
+      // This is a document-level listener, so it must NOT swallow arrow /
+      // Home / End keys while the user is editing text — otherwise the cursor
+      // can't be moved with the keyboard in any field. Bail out when focus is
+      // in an editable element (input, textarea, select, or contentEditable).
+      const target = event.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.tagName === 'SELECT' ||
+          target.isContentEditable)
+      ) {
+        return;
+      }
+
       let newIndex = currentIndex.current;
 
       switch (event.key) {

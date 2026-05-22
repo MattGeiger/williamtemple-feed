@@ -7,6 +7,11 @@ All notable changes to FEED are documented here. This project adheres to
 
 ### Fixed
 
+- **Keyboard arrow keys (and Home/End) now work in text fields** (ISSUES.md
+  #37). A global sidebar keyboard-navigation listener was intercepting
+  those keys app-wide, even while typing, so the caret couldn't be moved by
+  keyboard. It now ignores those keys when focus is in an editable element.
+
 - **AI Configuration icon hover triggers** (ISSUES.md #35, #36): the AI
   Model card's icon (type chooser) and the Document Text Translation card's
   icon (Prompt Category step) now animate on hover anywhere over the card,
