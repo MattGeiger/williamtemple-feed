@@ -15,6 +15,7 @@ import {
   SavedBuilderTemplate,
   ShoppingListBuilderTemplate,
 } from '@/components/shopping-lists/builder/types';
+import { ExportSettings } from '@/components/shopping-lists/builder/export-filename';
 
 class ShoppingListBuilderService extends BaseApiService {
   constructor() {
@@ -171,6 +172,22 @@ class ShoppingListBuilderService extends BaseApiService {
     targetLanguage: string,
   ): Promise<{ translations: Record<string, string> }> {
     return this.post('/translate-missing-strings', { strings, targetLanguage });
+  }
+
+  /**
+   * B1 — fetch the org-wide shared Export Settings (filename configuration
+   * for exported PDFs). The backend returns sensible defaults when no row
+   * has been saved yet.
+   */
+  async getExportSettings(): Promise<ExportSettings> {
+    const response = await this.get<{ settings: ExportSettings }>('/export-settings');
+    return response.settings;
+  }
+
+  /** B1 — persist the org-wide shared Export Settings. */
+  async updateExportSettings(settings: ExportSettings): Promise<ExportSettings> {
+    const response = await this.put<{ settings: ExportSettings }>('/export-settings', settings);
+    return response.settings;
   }
 }
 

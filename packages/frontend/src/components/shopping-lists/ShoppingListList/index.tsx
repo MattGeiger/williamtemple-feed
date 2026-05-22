@@ -12,7 +12,7 @@ import { TooltipProvider } from "@/components/ui/tooltip"
 import { TableBulkAction } from "@/types/table"
 import { SavedBuilderTemplate } from "@/components/shopping-lists/builder/types"
 import { GlobalLimitDialog } from "../global-limit-dialog"
-import { Trash2, Plus, GlobeLock, Download, Copy } from "@/components/ui/icons";
+import { Trash2, Plus, GlobeLock, Download, Copy, FileDown } from "@/components/ui/icons";
 import { ClipboardListIcon } from "@/components/animate-ui/icons/clipboard-list";
 
 interface ShoppingListListProps {
@@ -29,6 +29,7 @@ interface ShoppingListListProps {
   onBulkDownloadBuilderTemplatePdfs?: (templates: SavedBuilderTemplate[]) => Promise<void> | void
   onBulkDuplicateBuilderTemplates?: (templates: SavedBuilderTemplate[]) => Promise<void> | void
   onBulkDeleteBuilderTemplates?: (templates: SavedBuilderTemplate[]) => Promise<void> | void
+  onOpenExportSettings?: () => void
 }
 
 /**
@@ -52,6 +53,7 @@ export function ShoppingListList({
   onBulkDownloadBuilderTemplatePdfs,
   onBulkDuplicateBuilderTemplates,
   onBulkDeleteBuilderTemplates,
+  onOpenExportSettings,
 }: ShoppingListListProps) {
   const dataListRef = useRef<{ clearSelection: () => void } | null>(null)
   const [globalLimitDialogOpen, setGlobalLimitDialogOpen] = useState(false)
@@ -94,7 +96,13 @@ export function ShoppingListList({
       icon: GlobeLock,
       variant: 'outline' as const,
       action: () => setGlobalLimitDialogOpen(true)
-    }
+    },
+    ...(onOpenExportSettings ? [{
+      label: 'Export Settings',
+      icon: FileDown,
+      variant: 'outline' as const,
+      action: () => onOpenExportSettings()
+    }] : [])
   ]
 
   const builderTemplateBulkActions: TableBulkAction<SavedBuilderTemplate>[] = [

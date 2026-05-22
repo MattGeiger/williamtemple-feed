@@ -14,6 +14,12 @@ import { shoppingListBuilderService } from '@/services/shopping-list-builder'
 import { ShoppingListList } from './ShoppingListList'
 import { SavedBuilderTemplate } from './builder/types'
 import { TranslateAndGenerateDialog } from './dialogs/translate-and-generate-dialog'
+import { ExportSettingsDialog } from './dialogs/export-settings-dialog'
+import {
+  DEFAULT_EXPORT_SETTINGS,
+  ExportSettings,
+  buildExportFilename,
+} from './builder/export-filename'
 import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -22,16 +28,6 @@ import { Label } from '@/components/ui/label'
 
 const MAX_SAVED_TEMPLATE_NAME_LENGTH = 48;
 const limitBuilderTemplateName = (name: string) => name.slice(0, MAX_SAVED_TEMPLATE_NAME_LENGTH);
-
-const toPdfFileName = (name: string) => {
-  const slug = name
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-
-  return `${slug || 'shopping-list-template'}.pdf`;
-};
 
 const downloadPdfBlob = (blob: Blob, fileName: string) => {
   const url = URL.createObjectURL(blob);
@@ -94,6 +90,17 @@ function ShoppingListsContent() {
   const [isRenameBuilderTemplateDialogOpen, setIsRenameBuilderTemplateDialogOpen] = useState(false);
   const [deleteBuilderTemplate, setDeleteBuilderTemplate] = useState<SavedBuilderTemplate | null>(null);
   const [bulkDeleteBuilderTemplates, setBulkDeleteBuilderTemplates] = useState<SavedBuilderTemplate[]>([]);
+  const [exportSettings, setExportSettings] = useState<ExportSettings>(DEFAULT_EXPORT_SETTINGS);
+  const [isExportSettingsDialogOpen, setIsExportSettingsDialogOpen] = useState(false);
+
+  const loadExportSettings = useCallback(async () => {
+    try {
+      const settings = await shoppingListBuilderService.getExportSettings();
+      setExportSettings(settings);
+    } catch (error) {
+      ErrorHandlerService.handleError(error, 'shoppingListBuilderLoadExportSettings');
+    }
+  }, []);
 
   const loadBuilderTemplates = useCallback(async () => {
     try {
@@ -109,7 +116,8 @@ function ShoppingListsContent() {
 
   useEffect(() => {
     void loadBuilderTemplates();
-  }, [loadBuilderTemplates]);
+    void loadExportSettings();
+  }, [loadBuilderTemplates, loadExportSettings]);
 
   const handleRenameBuilderTemplate = (template: SavedBuilderTemplate) => {
     setRenameBuilderTemplate(template);
@@ -199,7 +207,10 @@ function ShoppingListsContent() {
     try {
       setIsSaving(true);
       const blob = await shoppingListBuilderService.createPreviewPdf(template.templateData);
-      downloadPdfBlob(blob, toPdfFileName(template.name));
+      downloadPdfBlob(blob, buildExportFilename(exportSettings, {
+        kind: 'preview',
+        templateName: template.name,
+      }));
       showMessage('Template PDF downloaded successfully', 'success');
     } catch (error) {
       ErrorHandlerService.handleError(error, 'shoppingListBuilderDownloadTemplatePdf');
@@ -224,7 +235,10 @@ function ShoppingListsContent() {
       setIsSaving(true);
       for (const template of templates) {
         const blob = await shoppingListBuilderService.createPreviewPdf(template.templateData);
-        downloadPdfBlob(blob, toPdfFileName(template.name));
+        downloadPdfBlob(blob, buildExportFilename(exportSettings, {
+          kind: 'preview',
+          templateName: template.name,
+        }));
       }
       showMessage(
         `Downloaded ${templates.length} template PDF${templates.length === 1 ? '' : 's'}`,
@@ -347,6 +361,15 @@ function ShoppingListsContent() {
         onBulkDownloadBuilderTemplatePdfs={handleBulkDownloadBuilderTemplatePdfs}
         onBulkDuplicateBuilderTemplates={handleBulkDuplicateBuilderTemplates}
         onBulkDeleteBuilderTemplates={handleBulkDeleteBuilderTemplates}
+        onOpenExportSettings={() => setIsExportSettingsDialogOpen(true)}
+      />
+
+      <ExportSettingsDialog
+        open={isExportSettingsDialogOpen}
+        onOpenChange={(open) => {
+          setIsExportSettingsDialogOpen(open);
+          if (!open) void loadExportSettings();
+        }}
       />
 
       {translateTargetTemplate && (
@@ -358,7 +381,7 @@ function ShoppingListsContent() {
               setTranslateTargetTemplate(null);
             }
           }}
-          downloadFileName={toPdfFileName(translateTargetTemplate.name).replace(/\.pdf$/i, '')}
+          exportSettings={exportSettings}
         />
       )}
 

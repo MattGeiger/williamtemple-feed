@@ -13,6 +13,20 @@ model GlobalLimit {
   updatedAt DateTime @updatedAt
 }
 
+// B1: org-wide shared Export Settings for shopping-list PDF filenames
+// (ISSUES.md #34). A single shared row (id = 1, upserted) — no per-user
+// scoping, per the shared-environment principle (#31).
+model ExportSettings {
+  id                  Int      @id @default(autoincrement())
+  includeDate         Boolean  @default(true)
+  datePosition        String   @default("end")
+  includeTemplateName Boolean  @default(true)
+  includeLanguage     Boolean  @default(true)
+  previewBaseName     String   @default("Shopping List")
+  translatedBaseName  String   @default("Shopping List")
+  updatedAt           DateTime @updatedAt
+}
+
 model Category {
   id           Int                     @id @default(autoincrement())
   name         String
