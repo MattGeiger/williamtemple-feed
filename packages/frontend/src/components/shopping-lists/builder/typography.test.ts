@@ -44,8 +44,8 @@ describe('builder typography', () => {
     });
 
     it('limits Split-page layout to small sizes only', () => {
-      expect(SPLIT_PAGE_MAX_BUILDER_FONT_SIZE).toBe(12);
-      expect(SPLIT_PAGE_FONT_SIZES).toEqual([10, 10.5, 11, 12]);
+      expect(SPLIT_PAGE_MAX_BUILDER_FONT_SIZE).toBe(14);
+      expect(SPLIT_PAGE_FONT_SIZES).toEqual([10, 10.5, 11, 12, 14]);
     });
   });
 
