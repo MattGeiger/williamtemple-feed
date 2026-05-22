@@ -2813,7 +2813,7 @@ const builderRowStatusIconsHtml = (
   row: { isLimited?: boolean; isClearance?: boolean },
 ): string => {
   if (!row.isLimited && !row.isClearance) return '';
-  return `<span class="builder-status-icons">${row.isLimited ? statusIconSvg('limited', '#d97706') : ''}${row.isClearance ? statusIconSvg('clearance', '#0d9488') : ''}</span>`;
+  return `<span class="builder-status-icons">${row.isLimited ? statusIconSvg('limited', '#111827') : ''}${row.isClearance ? statusIconSvg('clearance', '#111827') : ''}</span>`;
 };
 
 const builderCategoryIconSvg = (iconName: string | null | undefined): string => {
@@ -3006,8 +3006,8 @@ const legendComponentHtml = (component: LegendBuilderComponent, options: {
   const entry = (kind: 'limited' | 'clearance', color: string, label: string) =>
     `<span class="builder-legend-entry">${statusIconSvg(kind, color)}<span dir="auto" class="builder-legend-label">${translatedBuilderTextHtml(label, options.translations?.[label], 'translate')}</span></span>`;
   const entries = [
-    component.showLimited ? entry('limited', '#d97706', component.limitedLabel) : '',
-    component.showClearance ? entry('clearance', '#0d9488', component.clearanceLabel) : '',
+    component.showLimited ? entry('limited', '#111827', component.limitedLabel) : '',
+    component.showClearance ? entry('clearance', '#111827', component.clearanceLabel) : '',
   ].join('');
   return `
     <div
