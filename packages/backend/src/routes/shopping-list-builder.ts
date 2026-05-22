@@ -4216,12 +4216,12 @@ router.post('/translation-preflight', async (req: Request, res: Response, next: 
  * Response: { translations: Record<originalText, translatedText> }
  */
 router.post('/translate-missing-strings', async (req: Request, res: Response, next: NextFunction) => {
+  const targetLanguage = typeof req.body?.targetLanguage === 'string'
+    ? req.body.targetLanguage.trim()
+    : '';
   try {
     requireAuth(req);
     const rawStrings = req.body?.strings;
-    const targetLanguage = typeof req.body?.targetLanguage === 'string'
-      ? req.body.targetLanguage.trim()
-      : '';
     if (!Array.isArray(rawStrings)) {
       return next(createRouteError('`strings` must be an array.', 400));
     }
@@ -4234,7 +4234,27 @@ router.post('/translate-missing-strings', async (req: Request, res: Response, ne
     res.json({ translations });
   } catch (error) {
     if (error instanceof Error && !('statusCode' in error)) {
-      const routeError = createRouteError('Unable to translate the requested strings. The AI provider may be unavailable; please try again.', 502);
+      // The AI provider returns 503/UNAVAILABLE when the model is briefly
+      // overloaded ("high demand"). That is transient and self-resolving, so
+      // we tell the user exactly that and that retrying shortly will work --
+      // distinct from a hard provider outage / misconfiguration.
+      const status = (error as { status?: number }).status;
+      const haystack = `${error.message} ${(error as { status?: number | string }).status ?? ''}`.toLowerCase();
+      const isOverloaded = status === 503
+        || haystack.includes('unavailable')
+        || haystack.includes('high demand')
+        || haystack.includes('overloaded')
+        || haystack.includes('rate limit')
+        || haystack.includes('429');
+      const routeError = isOverloaded
+        ? createRouteError(
+            `The translation service is busy right now (high demand for ${targetLanguage}). This is temporary -- wait about a minute, then click Generate again. No work was lost.`,
+            503,
+          )
+        : createRouteError(
+            `We couldn't translate this list into ${targetLanguage}. The AI translation service didn't respond. Try again in a moment; if it keeps failing, check the AI provider settings in Translations.`,
+            502,
+          );
       return next(routeError);
     }
     return next(error);

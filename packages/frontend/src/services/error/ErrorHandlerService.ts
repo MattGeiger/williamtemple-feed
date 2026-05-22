@@ -214,14 +214,28 @@ export class ErrorHandlerService {
       rawMessage = error.message;
     }
 
-    let userMessage = 'An unexpected error occurred. Please try again.';
+    const GENERIC_FALLBACK = 'An unexpected error occurred. Please try again.';
+    let userMessage = GENERIC_FALLBACK;
 
     // Find a more user-friendly message from the map
+    let matched = false;
     for (const key in errorMessageMap) {
       if (rawMessage.toLowerCase().includes(key.toLowerCase())) {
         userMessage = errorMessageMap[key];
+        matched = true;
         break;
       }
+    }
+
+    // No override matched. Backend routes already produce ASK-compliant,
+    // user-facing messages (specific + actionable), so surface the raw
+    // message rather than masking it with a generic fallback -- a generic
+    // "something went wrong" leaves the user helpless. We only fall back to
+    // the generic text when the raw message is missing, is our own unknown
+    // placeholder, or looks like a developer-facing payload (JSON / stack
+    // trace / HTML) that would confuse rather than help.
+    if (!matched && this.isUserPresentableMessage(rawMessage)) {
+      userMessage = rawMessage;
     }
 
     // Check for duplicate errors within the time window
@@ -250,6 +264,30 @@ export class ErrorHandlerService {
       title: 'Error',
       description: userMessage,
     });
+  }
+
+  /**
+   * Heuristic: is this raw error message safe to show a non-technical user?
+   * Backend route errors are curated prose; raw provider errors, JSON
+   * payloads, stack traces and HTML pages are not. We surface the former and
+   * fall back to a generic message for the latter.
+   */
+  private static isUserPresentableMessage(message: string): boolean {
+    if (!message) return false;
+    const trimmed = message.trim();
+    if (trimmed.length === 0) return false;
+    // Our own "we don't know" placeholder -- not informative.
+    if (trimmed === 'An unknown error occurred.') return false;
+    // Developer-facing payloads: JSON, HTML, stack traces, status text.
+    if (/^[[{<]/.test(trimmed)) return false;
+    if (/<!DOCTYPE|<html|Cannot (GET|POST|PUT|DELETE)/i.test(trimmed)) return false;
+    if (/\bat\s+\w+.*\(.*:\d+:\d+\)/.test(trimmed)) return false;
+    if (/\bApiError\b|\bTypeError\b|\bReferenceError\b/.test(trimmed)) return false;
+    // Bare HTTP status lines like "Request failed with status code 500".
+    if (/^Request failed with status code \d+$/i.test(trimmed)) return false;
+    // Should read like a sentence, not a token/identifier.
+    if (!/\s/.test(trimmed)) return false;
+    return true;
   }
 
   /**
