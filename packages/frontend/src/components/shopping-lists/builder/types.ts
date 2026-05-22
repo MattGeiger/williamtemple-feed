@@ -384,6 +384,11 @@ export interface SectionTableBuilderComponent extends BuilderComponentBase {
   // `component.showWant !== false` so undefined means "show"; never read raw.
   // The backend route mirrors this field and convention.
   showWant?: boolean;
+  // A1/A3: show/hide the vertical column dividers and the table/cell borders
+  // (outer box + horizontal row rules) respectively. Optional; default `true`
+  // (read as `!== false`) for back-compat. Mirrored in the backend route.
+  showColumnDividers?: boolean;
+  showBorders?: boolean;
   limitHeader: string;
   wantHeader: string;
   limitWidth: number;

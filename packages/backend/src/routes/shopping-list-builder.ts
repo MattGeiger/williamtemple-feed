@@ -239,6 +239,10 @@ interface SectionTableBuilderComponent extends BuilderComponentBase {
   // Show/hide the Want column (A5). Optional for back-compat; always read as
   // `component.showWant !== false` (undefined = show). Mirrors the frontend.
   showWant?: boolean;
+  // A1/A3: show/hide column dividers and table/cell borders. Optional;
+  // default true (read as `!== false`). Mirrors the frontend.
+  showColumnDividers?: boolean;
+  showBorders?: boolean;
   limitHeader: string;
   wantHeader: string;
   limitWidth: number;
@@ -2770,6 +2774,11 @@ const sectionTableComponentHtml = (
   const wantWidth = showWant ? asNumber(component.wantWidth, DEFAULT_SECTION_TABLE_WANT_WIDTH) : 0;
   const itemWidth = component.width - limitWidth - wantWidth;
   const fontSize = asNumber(component.fontSize, 10);
+  // A1/A3 (must mirror the canvas): default ON; root modifier classes null
+  // out the class-based dividers/borders, and the outer border is inline.
+  const showColumnDividers = component.showColumnDividers !== false;
+  const showBorders = component.showBorders !== false;
+  const tableModifierClasses = `${showColumnDividers ? '' : ' builder-table-no-dividers'}${showBorders ? '' : ' builder-table-no-borders'}`;
   // Columns in order: Item, [Limit if shown], [Want if shown] — all four
   // combinations (A5). Must match the canvas grid in ShoppingListBuilder.tsx.
   const gridTemplateColumns = [
@@ -2829,14 +2838,14 @@ const sectionTableComponentHtml = (
 
   return `
     <div${dirAttr}
-      class="builder-component builder-section-table"
+      class="builder-component builder-section-table${tableModifierClasses}"
       style="
         left: ${pt(options.x ?? component.x)};
         top: ${pt(options.y ?? component.y)};
         width: ${pt(component.width)};
         font-size: ${pt(fontSize)};
         border-radius: ${pt(cornerRadius)};
-        border: 0.45pt solid #b9b9b9;
+        ${showBorders ? 'border: 0.45pt solid #b9b9b9;' : 'border: none;'}
         background: #ffffff;
         overflow: ${cornerRadius > 0 ? 'hidden' : 'visible'};
       "
@@ -3247,6 +3256,22 @@ const builderPreviewHtml = async (
 
           [dir="rtl"] .builder-table-header .builder-table-cell-left-border {
             border-right-color: #b9b9b9;
+          }
+
+          /* A1/A3 toggles: root modifier classes null out the dividers /
+             borders. !important on the dividers beats the [dir="rtl"]
+             border-right rule above regardless of source order. */
+          .builder-table-no-dividers .builder-table-cell-left-border {
+            border-left: 0 !important;
+            border-right: 0 !important;
+          }
+
+          .builder-table-no-borders .builder-table-header {
+            border-bottom: 0;
+          }
+
+          .builder-table-no-borders .builder-table-row {
+            border-bottom: 0;
           }
 
           .builder-table-text-cell {

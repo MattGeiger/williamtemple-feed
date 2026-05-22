@@ -2181,11 +2181,17 @@ function PreviewSectionTable({ component, rows = component.rows, rowHeights, inc
   // limit value or an untranslated "Limit" header) -- stacking both dividers
   // on the same side. Pick the physical edge explicitly from the table dir.
   const dividerClass = isRtl ? 'border-r' : 'border-l';
+  // A1/A3: vertical column dividers and table/cell borders (outer box +
+  // horizontal row rules) are independently toggleable; both default ON for
+  // back-compat with templates that predate these flags.
+  const showColumnDividers = component.showColumnDividers !== false;
+  const showBorders = component.showBorders !== false;
+  const colDivider = showColumnDividers ? dividerClass : '';
 
   return (
     <div
       dir={isRtl ? 'rtl' : undefined}
-      className="w-full border border-[#b9b9b9] bg-white"
+      className={cn('w-full bg-white', showBorders && 'border border-[#b9b9b9]')}
       style={{
         fontSize: component.fontSize,
         borderRadius: cornerRadius,
@@ -2193,7 +2199,7 @@ function PreviewSectionTable({ component, rows = component.rows, rowHeights, inc
       }}
     >
       <div
-        className="grid border-b border-[#b9b9b9] bg-white font-bold"
+        className={cn('grid bg-white font-bold', showBorders && 'border-b border-[#b9b9b9]')}
         style={{ gridTemplateColumns, height: headerHeight }}
       >
         <div
@@ -2242,7 +2248,7 @@ function PreviewSectionTable({ component, rows = component.rows, rowHeights, inc
         {component.showLimit && (
           <div
             dir="auto"
-            className={cn('flex items-center justify-center border-[#b9b9b9] px-1 [unicode-bidi:plaintext]', dividerClass)}
+            className={cn('flex items-center justify-center border-[#b9b9b9] px-1 [unicode-bidi:plaintext]', colDivider)}
             style={{ lineHeight: BUILDER_LINE_HEIGHT_MULTIPLIER }}
         >
             {renderTranslatedBuilderText(
@@ -2255,7 +2261,7 @@ function PreviewSectionTable({ component, rows = component.rows, rowHeights, inc
         {showWant && (
           <div
             dir="auto"
-            className={cn('flex items-center justify-center border-[#b9b9b9] px-1 [unicode-bidi:plaintext]', dividerClass)}
+            className={cn('flex items-center justify-center border-[#b9b9b9] px-1 [unicode-bidi:plaintext]', colDivider)}
             style={{ lineHeight: BUILDER_LINE_HEIGHT_MULTIPLIER }}
           >
             {renderTranslatedBuilderText(
@@ -2280,7 +2286,7 @@ function PreviewSectionTable({ component, rows = component.rows, rowHeights, inc
             key={row.id}
             className={cn(
               'grid',
-              index < rows.length - 1 && 'border-b border-[#cfcfcf]',
+              showBorders && index < rows.length - 1 && 'border-b border-[#cfcfcf]',
             )}
             style={{
               gridTemplateColumns,
@@ -2312,7 +2318,7 @@ function PreviewSectionTable({ component, rows = component.rows, rowHeights, inc
             {component.showLimit && (
               <div
                 dir="auto"
-                className={cn('whitespace-pre-line border-[#cfcfcf] px-1 text-center [unicode-bidi:plaintext]', dividerClass)}
+                className={cn('whitespace-pre-line border-[#cfcfcf] px-1 text-center [unicode-bidi:plaintext]', colDivider)}
                 style={{
                   paddingTop: BUILDER_CELL_VERTICAL_PADDING_PT,
                   paddingBottom: BUILDER_CELL_VERTICAL_PADDING_PT,
@@ -2322,7 +2328,7 @@ function PreviewSectionTable({ component, rows = component.rows, rowHeights, inc
                 {row.limit}
               </div>
             )}
-            {showWant && <div className={cn('border-[#cfcfcf]', dividerClass)} />}
+            {showWant && <div className={cn('border-[#cfcfcf]', colDivider)} />}
           </div>
         );
       })}
@@ -5797,6 +5803,22 @@ export function ShoppingListBuilder() {
                           onCheckedChange={(checked) => updateSelectedComponent({ showWant: checked === true })}
                         />
                         <Label htmlFor="table-show-want">Show want column</Label>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          id="table-show-dividers"
+                          checked={selectedComponent.showColumnDividers !== false}
+                          onCheckedChange={(checked) => updateSelectedComponent({ showColumnDividers: checked === true })}
+                        />
+                        <Label htmlFor="table-show-dividers">Show column dividers</Label>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          id="table-show-borders"
+                          checked={selectedComponent.showBorders !== false}
+                          onCheckedChange={(checked) => updateSelectedComponent({ showBorders: checked === true })}
+                        />
+                        <Label htmlFor="table-show-borders">Show table &amp; cell borders</Label>
                       </div>
                       <div className="flex items-center gap-2">
                         <Checkbox
