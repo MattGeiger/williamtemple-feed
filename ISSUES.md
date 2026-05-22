@@ -441,8 +441,11 @@ rendered-PDF parity check):
 All features are designed in `docs/shopping-lists/v1.1.0-feature-plan.md`
 (B3 added per follow-up request after the initial plan).
 
-A1 scope note: divider/border toggles cover **section tables**;
-form-field-group dividers remain a small follow-up.
+A1 scope note: divider/border toggles now cover **section tables** AND
+**form-field groups** — the form-field follow-up landed, mapping
+`showColumnDividers` to the vertical label|value divider and `showBorders`
+to the outer box + horizontal row separators (canvas + PDF, with the
+`[dir="rtl"]` override gated). A1 is fully complete.
 
 Planned v1.1.0 feature set, fully designed in
 `docs/shopping-lists/v1.1.0-feature-plan.md`:

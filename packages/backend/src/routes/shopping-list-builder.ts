@@ -223,6 +223,12 @@ interface FormFieldGroupBuilderComponent extends BuilderComponentBase {
   labelWidth: number;
   fontSize: number;
   cornerRadius?: number;
+  // A1/A3 (forms): mirror the section-table border toggles. Optional; default
+  // `true` (read as `!== false`). Mirrors the frontend.
+  // - showColumnDividers gates the vertical label|value divider.
+  // - showBorders gates the outer box + horizontal row separators.
+  showColumnDividers?: boolean;
+  showBorders?: boolean;
 }
 
 interface SectionTableBuilderComponent extends BuilderComponentBase {
@@ -2744,16 +2750,22 @@ const formFieldComponentHtml = (component: FormFieldGroupBuilderComponent, optio
   // (label moves to the right) and flips text alignment. The column
   // widths and the label|value border (border-inline-start) follow.
   const dirAttr = isRTLTargetLanguage(options.language) ? ' dir="rtl"' : '';
+  // A1/A3 (forms, mirror of section tables): default ON; root modifier classes
+  // null out the class-based row separators / label|value divider, and the
+  // outer border is inline (same split as `sectionTableComponentHtml`).
+  const showColumnDividers = component.showColumnDividers !== false;
+  const showBorders = component.showBorders !== false;
+  const formModifierClasses = `${showColumnDividers ? '' : ' builder-form-no-dividers'}${showBorders ? '' : ' builder-form-no-borders'}`;
 
   return `
     <div${dirAttr}
-      class="builder-component builder-form-fields"
+      class="builder-component builder-form-fields${formModifierClasses}"
       style="
         left: ${pt(options.x ?? component.x)};
         top: ${pt(options.y ?? component.y)};
         width: ${pt(component.width)};
         font-size: ${pt(component.fontSize, 10)};
-        border: 0.45pt solid #a8a8a8;
+        ${showBorders ? 'border: 0.45pt solid #a8a8a8;' : 'border: none;'}
         background: #ffffff;
         border-radius: ${pt(cornerRadius)};
         overflow: ${cornerRadius > 0 ? 'hidden' : 'visible'};
@@ -3302,6 +3314,19 @@ const builderPreviewHtml = async (
           [dir="rtl"] .builder-form-value {
             border-left: 0;
             border-right: 0.45pt solid #a8a8a8;
+          }
+
+          /* A1 (forms): hide the vertical label|value divider. !important
+             beats both the base rule and the [dir="rtl"] override above
+             regardless of source order. */
+          .builder-form-no-dividers .builder-form-value {
+            border-left: 0 !important;
+            border-right: 0 !important;
+          }
+
+          /* A3 (forms): hide the horizontal row separators. */
+          .builder-form-no-borders .builder-form-row-separator {
+            border-top: 0;
           }
 
           .builder-table-header {
