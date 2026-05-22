@@ -487,6 +487,33 @@ a sweep for other occurrences.
 
 ---
 
+### #37 — Arrow / Home / End Keys Don't Work in Text Fields (Cursor Can't Move)
+**Priority**: Medium (UX) · **Status**: Fixed (May 21, 2026) — pending deploy
+**Bucket**: v1.x
+**Component**: `packages/frontend/src/hooks/use-navigation-keyboard.ts`
+
+**Observed**: in every text field across the app, the keyboard arrow keys
+(and Home/End) could not move the caret — users had to reposition the
+cursor by mouse-click. (Originally recalled as a side effect of "Title
+Case" validation; that recollection was incorrect — there is no title-case
+input transform. The real cause was the sidebar keyboard-navigation hook.)
+
+**Root cause**: `useNavigationKeyboard` adds a **document-level** `keydown`
+listener that `preventDefault()`s `ArrowUp/Down/Left/Right`, `Home`, and
+`End` to drive sidebar item navigation. It's mounted by `app-sidebar.tsx`
+and `navigation-section.tsx` (always-present layout), so it ran on every
+page and swallowed those keys **including while focus was in an
+input/textarea** — blocking caret movement everywhere.
+
+**Fix**: bail out of the handler (no `preventDefault`, no navigation) when
+`event.target` is an editable element (`INPUT`, `TEXTAREA`, `SELECT`, or
+`contentEditable`). Arrow/Home/End now work normally in fields; sidebar
+keyboard navigation still works when focus is outside a field. Verified in
+the running app: from inside an input the keys are no longer
+`defaultPrevented`; from `document.body` they still are.
+
+---
+
 ### #6 — Shopping List Feature Incomplete (OBSOLETE)
 **Status**: Superseded by Shopping List Builder; closed in v1.0.0 release prep
 
