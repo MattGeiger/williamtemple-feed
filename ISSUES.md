@@ -412,11 +412,29 @@ Full-page-only).
 **Priority**: Medium · **Status**: In progress
 **Bucket**: v1.1.0
 
-**Progress**: A5 (show/hide the Want column) **landed May 21, 2026** —
-`showWant` mirrors `showLimit` across both renderers, measurement, and the
-Properties panel; verified canvas == PDF for all four column combinations.
-Remaining: A1/A3 (dividers/borders), A2+A4 (status icons + Legend), A6
-(Want checkbox), B1 (Export Settings), B2 (English in Translate & Download).
+**Progress (May 21–22, 2026)** — landed and pushed to `main`, each its own
+revertable commit, every one validated (backend `tsc` + 119 tests +
+rendered-PDF parity check):
+- ✅ **A5** — show/hide Want column (`293defa`)
+- ✅ **A1 + A3** — show/hide column dividers + table/cell borders (`13a746e`)
+- ✅ **A6** — per-row checkbox in the Want column (`293e018`)
+- ✅ **B2** — English in the Translate & Download modal (`53147eb`)
+- ✅ **A2** — Limited/Clearance status icons on rows (`c4f2d65`)
+
+**Remaining**:
+- ⬜ **A4** — Legend base component (explains the A2 status icons). New
+  component type — touches the most sync points (BuilderComponent union,
+  both render switches, both height calculators, the palette, translation
+  extraction, Properties). Recommended scope: a *focused* status legend
+  that reuses the A2 icons, not a generic icon editor.
+- ⬜ **B1** — Export Settings modal (shared filename-structure settings).
+  Needs a new Prisma model + migration; per AGENTS.md, land the migration
+  with review.
+
+Both are fully designed in `docs/shopping-lists/v1.1.0-feature-plan.md`.
+
+A1 scope note: divider/border toggles cover **section tables**;
+form-field-group dividers remain a small follow-up.
 
 Planned v1.1.0 feature set, fully designed in
 `docs/shopping-lists/v1.1.0-feature-plan.md`:
