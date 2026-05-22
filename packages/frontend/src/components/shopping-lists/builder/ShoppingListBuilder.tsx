@@ -2480,8 +2480,13 @@ function PreviewLegend({ component }: { component: LegendBuilderComponent }) {
   if (component.showClearance) {
     entries.push({ key: 'clearance', icon: <TagIcon size={component.fontSize} style={{ color: '#000000' }} />, label: component.clearanceLabel });
   }
+  // RTL preview language: dir="rtl" flips the legend to read right-to-left —
+  // entries pack from the right edge and each entry's icon leads on the right.
+  // Mirrors the backend legendComponentHtml. Must match section-table/form RTL.
+  const isRtl = isRTLLanguage(language);
   return (
     <div
+      dir={isRtl ? 'rtl' : undefined}
       className={cn('flex w-full', component.layout === 'vertical' ? 'flex-col gap-1' : 'flex-row flex-wrap items-center gap-x-4 gap-y-1')}
       style={{ fontSize: component.fontSize, lineHeight: BUILDER_LINE_HEIGHT_MULTIPLIER }}
     >
