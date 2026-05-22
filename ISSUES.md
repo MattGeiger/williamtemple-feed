@@ -1,6 +1,6 @@
 # FEED — Known Issues & Future Work
 
-**Last Updated**: May 20, 2026
+**Last Updated**: May 21, 2026
 **Status**: v1.0.0 release prep in progress (see `docs/V1-RELEASE-PLAN.md`)
 **Production**: https://feed.williamtemple.app
 
@@ -208,7 +208,7 @@ Long-term fix: upstream issues / PRs against the registries.
 ---
 
 ### #30 — "Find Missing Translations" Modal Needs Scroll Area + Card Reordering
-**Priority**: Medium (UX) · **Status**: Open
+**Priority**: Medium (UX) · **Status**: Fix in progress (May 21, 2026)
 **Bucket**: v1.x backlog
 **Component**: `packages/frontend/src/components/translation-management/enhanced-find-missing-dialog.tsx`
 
@@ -218,17 +218,31 @@ produces failed or stuck-in-pending translations, a results card is
 appended at the **bottom** of the modal, pushing it out of view and
 leaving it **partially cut off** with no way to scroll to it.
 
+**Reproduced (May 21, 2026):** in the post-scan **Overview** tab, the
+results/action card is rendered *after* the category-count grid, so with a
+large result (observed: 847 missing) the action card and its buttons are
+clipped at the bottom. The cut-off content is the **"Missing Translations
+Found"** card — count line, "Missing translations were found", the "Select
+which categories… / Choose how to handle…" copy, and the **Queue for
+Translation / Retry Failed / Delete** action buttons. The Overview tab
+already wraps its body in a Radix `ScrollArea`, but it does **not** scroll —
+the same failure mode as resolved issue #29a (Radix `ScrollArea` does not
+get a bounded height inside the dialog's `flex` + `max-h-*` chain, so the
+viewport grows with content and `overflow-hidden` clips it without a
+scrollbar).
+
 Intended resolution:
-1. **Reorder cards** — move the failed/pending results card to the **top**
-   of the modal, with the translation-type (category) card beneath it, so
-   the actionable results are immediately visible.
-2. **Add a scroll area** — make the modal body scrollable so users can
-   review all content when results are presented and nothing is clipped.
+1. **Reorder cards** — move the results/action card to the **top** of the
+   Overview tab, above the category-count grid, so the actionable results
+   are immediately visible.
+2. **Make the body scrollable** — ensure clipped content can be reached.
 
 Implementation note: prefer an `overflow-y-auto` container over Radix
 `ScrollArea` with a `max-h-*` constraint — see resolved issue #29a, where
 `ScrollArea` failed to scroll under a `max-h-*` cap in
-`translate-and-generate-dialog.tsx`.
+`translate-and-generate-dialog.tsx`. The existing Radix `ScrollArea` in
+this modal is exhibiting exactly that failure, so the fix replaces it with
+an `overflow-y-auto` container.
 
 ---
 
@@ -295,6 +309,61 @@ negligible):
    shopping-list suite (119 tests) passes; backend `tsc` build clean.
 
 **Remaining**: deploy to production (Pi) so the migration runs there.
+
+---
+
+### #32 — Standardize Scroll Containers on shadcn `ScrollArea`
+**Priority**: Medium (UX consistency) · **Status**: Open (scan complete May 21, 2026)
+**Bucket**: v1.x backlog (incremental cleanup)
+
+Project direction (see AGENTS.md "UI Standards"): scrollable **content
+regions** should use the shadcn `ScrollArea` consistently, not a mix of
+`ScrollArea` and native `overflow-y-auto` / `overflow-auto` divs. Mixed
+scroll mechanisms produce inconsistent scrollbars and behavior.
+
+**Key insight from #30 (May 21, 2026):** the earlier belief (resolved
+issue #29a) that "Radix `ScrollArea` doesn't scroll, use `overflow-y-auto`"
+was incomplete. `ScrollArea` fails under a **`max-h-*`** cap (its viewport
+height is unbounded), but works correctly when given a **definite height**
+(e.g. `h-[calc(85vh-13rem)]`). So the standard fix is a definite-height
+`ScrollArea`, not abandoning it for native overflow. #29a's
+`overflow-y-auto` workaround is therefore a convert-candidate below.
+
+**Inventory of non-shadcn scroll (scan May 21, 2026):**
+
+Convert to `ScrollArea` (app-level content regions):
+- `shopping-lists/dialogs/translate-and-generate-dialog.tsx:337` — the
+  #29a `max-h-72 overflow-y-auto` workaround; now reconcilable with a
+  definite-height `ScrollArea`.
+- `document-translator/dialogs/reconciliation-dialog.tsx` — 5 boxes
+  (`max-h-* overflow-auto`).
+- `translation-management/enhanced-find-missing-dialog.tsx:827` — a
+  `max-h-[30vh] overflow-auto` content box still in the Details tab of the
+  modal fixed under #30.
+- `ai-configuration/EditSystemPromptDialog.tsx:729` and
+  `ai-configuration/shared/BaseAIConfigDialog.tsx:147` —
+  `h-[480px] overflow-y-auto` dialog bodies.
+- `dashboard/translation-metrics.tsx:395` — `overflow-y-auto` chart
+  container with `scrollbar-thin` plugin classes; evaluate (custom
+  scrollbar styling is a design-intent consideration).
+- `components/ui/view-text-dialog.tsx:43` — `max-h-[400px] overflow-y-auto`
+  text viewer body. Also delete the stale
+  `components/translation-management/view-text-dialog.tsx.backup`.
+
+Justified exceptions (keep; document inline if touched):
+- `components/ui/table.tsx`, `components/ui/command.tsx`,
+  `components/ui/sidebar.tsx`, `components/ui/enhanced-data-table` — native
+  overflow is built into these shadcn primitives; converting fights the
+  library.
+- `food-item-management/FoodItemList/index.tsx:272` — `max-h-72
+  overflow-y-auto` on a Radix `DropdownMenuContent`; native overflow on a
+  popper menu is a standard pattern (a `ScrollArea` inside a Radix popper
+  is awkward).
+
+Approach: convert incrementally, one component per change, validating the
+scroll in-browser each time (definite height, light/dark, no clipped
+content). Each remaining native-overflow site must either be converted or
+carry an inline comment justifying the exception.
 
 ---
 
