@@ -409,7 +409,7 @@ Full-page-only).
 ---
 
 ### #34 — v1.1.0 Shopping List Builder + Export Settings (Complete)
-**Priority**: Medium · **Status**: Done — all v1.1.0 features landed on `main`; released as 1.1.0 (build + Pi deploy in progress)
+**Priority**: Medium · **Status**: Released — shipped to production as 1.1.0 on 2026-05-22 (migration applied, /api/health + in-app tag both report 1.1.0)
 **Bucket**: v1.1.0
 
 **Progress (May 21–22, 2026)** — landed and pushed to `main`, each its own
