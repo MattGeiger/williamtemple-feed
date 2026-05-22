@@ -66,7 +66,7 @@ export default function LogoutPage() {
             </div>
             
             <div className="text-center text-xs text-muted-foreground mt-6 space-y-2">
-              <p>Pre-Release Version {APP_VERSION}</p>
+              <p>Version {APP_VERSION}</p>
               <p className="mt-1">For authorized testing only</p>
               <BuiltWithClaude className="flex justify-center" />
             </div>

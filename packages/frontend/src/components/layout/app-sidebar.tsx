@@ -326,7 +326,7 @@ export function AppSidebar() {
           "
         >
           <div className="group-data-[collapsible=icon]:hidden">
-            Pre-Release Version {APP_VERSION}
+            Version {APP_VERSION}
           </div>
           <BuiltWithClaude className="group-data-[collapsible=icon]:hidden" />
         </div>
