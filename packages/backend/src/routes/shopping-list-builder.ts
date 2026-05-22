@@ -2813,7 +2813,7 @@ const builderRowStatusIconsHtml = (
   row: { isLimited?: boolean; isClearance?: boolean },
 ): string => {
   if (!row.isLimited && !row.isClearance) return '';
-  return `<span class="builder-status-icons">${row.isLimited ? statusIconSvg('limited', '#111827') : ''}${row.isClearance ? statusIconSvg('clearance', '#111827') : ''}</span>`;
+  return `<span class="builder-status-icons">${row.isLimited ? statusIconSvg('limited', '#000000') : ''}${row.isClearance ? statusIconSvg('clearance', '#000000') : ''}</span>`;
 };
 
 const builderCategoryIconSvg = (iconName: string | null | undefined): string => {
@@ -3006,8 +3006,8 @@ const legendComponentHtml = (component: LegendBuilderComponent, options: {
   const entry = (kind: 'limited' | 'clearance', color: string, label: string) =>
     `<span class="builder-legend-entry">${statusIconSvg(kind, color)}<span dir="auto" class="builder-legend-label">${translatedBuilderTextHtml(label, options.translations?.[label], 'translate')}</span></span>`;
   const entries = [
-    component.showLimited ? entry('limited', '#111827', component.limitedLabel) : '',
-    component.showClearance ? entry('clearance', '#111827', component.clearanceLabel) : '',
+    component.showLimited ? entry('limited', '#000000', component.limitedLabel) : '',
+    component.showClearance ? entry('clearance', '#000000', component.clearanceLabel) : '',
   ].join('');
   return `
     <div
@@ -3205,7 +3205,7 @@ const builderPreviewHtml = async (
             margin: 0;
             padding: 0;
             background: #ffffff;
-            color: #111827;
+            color: #000000;
             font-family: ${BUILDER_HTML_FONT_STACK};
           }
 
@@ -3213,7 +3213,7 @@ const builderPreviewHtml = async (
             position: relative;
             overflow: hidden;
             background: #ffffff;
-            color: #111827;
+            color: #000000;
             page-break-after: always;
             break-after: page;
           }
@@ -3225,7 +3225,7 @@ const builderPreviewHtml = async (
 
           .builder-component {
             position: absolute;
-            color: #111827;
+            color: #000000;
             font-family: ${BUILDER_HTML_FONT_STACK};
             unicode-bidi: plaintext;
             white-space: pre-wrap;
