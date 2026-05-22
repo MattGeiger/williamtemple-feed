@@ -367,6 +367,52 @@ Kept as documented native-overflow exceptions (inline-justified):
 
 ---
 
+### #33 — Builder Row-Height Under-Calculation at Higher Font Sizes
+**Priority**: Medium · **Status**: Planned (v1.1.0)
+**Bucket**: v1.1.0
+**Component**: typography engine
+(`packages/frontend/src/components/shopping-lists/builder/typography.ts`
+⇄ `packages/backend/src/lib/builder-typography.ts`)
+
+At the upper end of `BUILDER_FONT_SIZES` (14/16/18pt), wrapped text can
+overflow its computed row: `estimateWrappedLineCount` /
+`estimateWrappedSegmentLineCount` under-estimate the wrapped line count
+(the average-character-advance approximation drifts as glyphs widen and
+fixed paddings consume proportionally more of the row), so the row band is
+too short and content spills. Related watchpoint: #26.
+
+Approach: make the wrap estimate progressively more conservative as font
+size grows (monotonic safety factor keyed off `fontSize` so 10–12pt is
+unchanged), and feed the *actual* item-cell content width into the
+estimate (status icons / Want checkbox / hidden Want column all change it).
+Keep the two typography engines byte-equivalent; re-validate with the
+typography unit tests, the inventory-section height tests in
+`shopping-list-builder.test.ts`, and a rendered-PDF smoke at 14/16/18pt
+(including RTL and long item names). Full design notes:
+`docs/shopping-lists/v1.1.0-feature-plan.md` (section C).
+
+---
+
+### #34 — v1.1.0 Shopping List Builder + Export Settings (Planned)
+**Priority**: Medium · **Status**: Planned (design documented)
+**Bucket**: v1.1.0
+
+Planned v1.1.0 feature set, fully designed in
+`docs/shopping-lists/v1.1.0-feature-plan.md`:
+- Builder: show/hide column dividers; status tags (Limited/Clearance) as
+  icons; show/hide table & cell borders; new **Legend** base component;
+  show/hide the **Want** column; per-row **checkbox** in the Want column.
+- Shopping Lists page: **Export Settings** modal (filename structure —
+  date/time, template name, language, default preview/translated base
+  names; org-wide shared per #31); add **English** to the Translate &
+  Download modal (identity path, skips translation).
+
+Cross-cutting constraints captured in the plan: canvas/PDF parity, the
+frontend/backend typography + icon mirrors, 9pt grid, back-compat template
+JSON fields, shadcn-first UI, and org-wide shared persistence.
+
+---
+
 ### #6 — Shopping List Feature Incomplete (OBSOLETE)
 **Status**: Superseded by Shopping List Builder; closed in v1.0.0 release prep
 
