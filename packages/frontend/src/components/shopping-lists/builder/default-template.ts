@@ -585,6 +585,23 @@ export const createBuilderComponent = (type: BuilderComponentType, x = 48, y = 4
         align: 'left',
         lineHeight: 1.2,
       };
+    case 'legend':
+      return {
+        id,
+        type: 'legend',
+        name: 'Legend',
+        region: 'body',
+        x,
+        y,
+        width: DEFAULT_BUILDER_COMPONENT_WIDTH,
+        height: 18,
+        fontSize: 10,
+        layout: 'horizontal',
+        showLimited: true,
+        limitedLabel: 'Limited supply',
+        showClearance: true,
+        clearanceLabel: 'Clearance',
+      };
     case 'text':
     default:
       return {

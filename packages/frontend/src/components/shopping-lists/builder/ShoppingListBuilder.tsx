@@ -220,6 +220,7 @@ const paletteItems: Array<{
   { type: 'form-field-group', label: 'Form fields', icon: RectangleEllipsisIcon },
   { type: 'section-table', label: 'Section table', icon: Table2Icon },
   { type: 'line', label: 'Line', icon: MinusIcon },
+  { type: 'legend', label: 'Legend', icon: GalleryVerticalEndIcon },
 ];
 
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
@@ -914,6 +915,12 @@ const getComponentHeight = (
       : Math.max(component.height, 16);
   }
 
+  if (component.type === 'legend') {
+    const entries = (component.showLimited ? 1 : 0) + (component.showClearance ? 1 : 0);
+    const rows = component.layout === 'vertical' ? Math.max(1, entries) : 1;
+    return typographyBaseRowHeight(component.fontSize) * rows;
+  }
+
   return component.height;
 };
 
@@ -1580,6 +1587,8 @@ const componentTypeLabel = (type: BuilderComponentType) => {
       return 'Date';
     case 'language-tag':
       return 'Language tag';
+    case 'legend':
+      return 'Legend';
     case 'text':
     default:
       return 'Text block';
@@ -2437,6 +2446,34 @@ function PreviewLanguageTag({ component }: { component: LanguageTagBuilderCompon
   );
 }
 
+function PreviewLegend({ component }: { component: LegendBuilderComponent }) {
+  // A4: explains the A2 status icons. Labels translate via the same Generated
+  // (List) cache as text components; icons reuse the A2 lucide icons/colors.
+  const { language, translations } = usePreviewLanguage();
+  const renderLabel = (label: string) =>
+    renderTranslatedBuilderText(label, language ? translations[label] : null, 'translate');
+  const entries: Array<{ key: string; icon: React.ReactNode; label: string }> = [];
+  if (component.showLimited) {
+    entries.push({ key: 'limited', icon: <AlertTriangleIcon size={component.fontSize} style={{ color: '#d97706' }} />, label: component.limitedLabel });
+  }
+  if (component.showClearance) {
+    entries.push({ key: 'clearance', icon: <TagIcon size={component.fontSize} style={{ color: '#0d9488' }} />, label: component.clearanceLabel });
+  }
+  return (
+    <div
+      className={cn('flex w-full', component.layout === 'vertical' ? 'flex-col gap-1' : 'flex-row flex-wrap items-center gap-x-4 gap-y-1')}
+      style={{ fontSize: component.fontSize, lineHeight: BUILDER_LINE_HEIGHT_MULTIPLIER }}
+    >
+      {entries.map((entry) => (
+        <span key={entry.key} className="flex items-center gap-1">
+          <span className="flex shrink-0 items-center" style={{ height: `${component.fontSize}px`, lineHeight: 1 }}>{entry.icon}</span>
+          <span dir="auto" className="[unicode-bidi:plaintext]">{renderLabel(entry.label)}</span>
+        </span>
+      ))}
+    </div>
+  );
+}
+
 function PreviewComponent({ component, includeCategoryIcons = false }: {
   component: BuilderComponent;
   includeCategoryIcons?: boolean;
@@ -2452,6 +2489,8 @@ function PreviewComponent({ component, includeCategoryIcons = false }: {
       return <PreviewDate component={component} />;
     case 'language-tag':
       return <PreviewLanguageTag component={component} />;
+    case 'legend':
+      return <PreviewLegend component={component} />;
     case 'text':
     default:
       return <PreviewText component={component} />;
@@ -6159,6 +6198,73 @@ export function ShoppingListBuilder() {
                     </>
                   )}
 
+                  {selectedComponent.type === 'legend' && (
+                    <>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-2">
+                          <Label htmlFor="legend-layout">Layout</Label>
+                          <Select
+                            value={selectedComponent.layout}
+                            onValueChange={(value) => updateSelectedComponent({ layout: value as 'horizontal' | 'vertical' })}
+                          >
+                            <SelectTrigger id="legend-layout"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="horizontal">Horizontal</SelectItem>
+                              <SelectItem value="vertical">Vertical</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="legend-font-size">Font size</Label>
+                          <Select
+                            value={String(selectedComponent.fontSize)}
+                            onValueChange={(value) => updateSelectedComponent({ fontSize: Number(value) })}
+                          >
+                            <SelectTrigger id="legend-font-size"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {BUILDER_FONT_SIZES.map((size) => (
+                                <SelectItem key={String(size)} value={String(size)}>{size} pt</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          id="legend-show-limited"
+                          checked={selectedComponent.showLimited}
+                          onCheckedChange={(checked) => updateSelectedComponent({ showLimited: checked === true })}
+                        />
+                        <Label htmlFor="legend-show-limited">Show &quot;Limited&quot; entry</Label>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="legend-limited-label">Limited label</Label>
+                        <Input
+                          id="legend-limited-label"
+                          value={selectedComponent.limitedLabel}
+                          onChange={(event) => updateSelectedComponent({ limitedLabel: event.target.value })}
+                          disabled={!selectedComponent.showLimited}
+                        />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          id="legend-show-clearance"
+                          checked={selectedComponent.showClearance}
+                          onCheckedChange={(checked) => updateSelectedComponent({ showClearance: checked === true })}
+                        />
+                        <Label htmlFor="legend-show-clearance">Show &quot;Clearance&quot; entry</Label>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="legend-clearance-label">Clearance label</Label>
+                        <Input
+                          id="legend-clearance-label"
+                          value={selectedComponent.clearanceLabel}
+                          onChange={(event) => updateSelectedComponent({ clearanceLabel: event.target.value })}
+                          disabled={!selectedComponent.showClearance}
+                        />
+                      </div>
+                    </>
+                  )}
                   {selectedComponent.type === 'date' && (
                     <>
                       <div className="space-y-2">

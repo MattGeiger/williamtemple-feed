@@ -31,7 +31,7 @@ const pdfmake = require('pdfmake');
 
 const router = Router();
 
-type BuilderComponentType = 'text' | 'form-field-group' | 'section-table' | 'line' | 'date' | 'language-tag';
+type BuilderComponentType = 'text' | 'form-field-group' | 'section-table' | 'line' | 'date' | 'language-tag' | 'legend';
 type BuilderLayoutMode = 'guided' | 'freeform';
 type BuilderDateMode = 'today' | 'custom';
 type BuilderDateFormatId =
@@ -303,13 +303,25 @@ interface LanguageTagBuilderComponent extends BuilderComponentBase {
   lineHeight: number;
 }
 
+// A4: Legend base component (focused status legend) — mirrors the frontend.
+interface LegendBuilderComponent extends BuilderComponentBase {
+  type: 'legend';
+  fontSize: number;
+  layout: 'horizontal' | 'vertical';
+  showLimited: boolean;
+  limitedLabel: string;
+  showClearance: boolean;
+  clearanceLabel: string;
+}
+
 type BuilderComponent =
   | TextBuilderComponent
   | FormFieldGroupBuilderComponent
   | SectionTableBuilderComponent
   | LineBuilderComponent
   | DateBuilderComponent
-  | LanguageTagBuilderComponent;
+  | LanguageTagBuilderComponent
+  | LegendBuilderComponent;
 
 export interface ShoppingListBuilderTemplate {
   id: string;
@@ -1228,6 +1240,11 @@ const getNonFlowingBodyHeight = (
       return component.direction === 'horizontal'
         ? Math.max(asNumber(component.strokeWidth, 1), 4)
         : Math.max(asNumber(component.height, 16), 16);
+    case 'legend': {
+      const entries = (component.showLimited ? 1 : 0) + (component.showClearance ? 1 : 0);
+      const rows = component.layout === 'vertical' ? Math.max(1, entries) : 1;
+      return baseRowHeight(asNumber(component.fontSize, 10)) * rows;
+    }
     case 'text':
     case 'date':
     default:
@@ -1602,7 +1619,7 @@ export const createFlowingTablePlan = (
 };
 
 const isSupportedComponentType = (type: unknown): type is BuilderComponentType => {
-  return typeof type === 'string' && ['text', 'form-field-group', 'section-table', 'line', 'date', 'language-tag'].includes(type);
+  return typeof type === 'string' && ['text', 'form-field-group', 'section-table', 'line', 'date', 'language-tag', 'legend'].includes(type);
 };
 
 const validateBuilderComponent = (component: BuilderComponent) => {
@@ -2978,6 +2995,33 @@ const lineComponentHtml = (component: LineBuilderComponent, options: { x?: numbe
     ></div>`;
 };
 
+// A4: focused status legend — reuses the A2 status icon SVGs; labels
+// translate via the Generated (List) cache like text. Must mirror the
+// canvas PreviewLegend.
+const legendComponentHtml = (component: LegendBuilderComponent, options: {
+  x?: number;
+  y?: number;
+  translations?: Record<string, string>;
+} = {}) => {
+  const entry = (kind: 'limited' | 'clearance', color: string, label: string) =>
+    `<span class="builder-legend-entry">${statusIconSvg(kind, color)}<span dir="auto" class="builder-legend-label">${translatedBuilderTextHtml(label, options.translations?.[label], 'translate')}</span></span>`;
+  const entries = [
+    component.showLimited ? entry('limited', '#d97706', component.limitedLabel) : '',
+    component.showClearance ? entry('clearance', '#0d9488', component.clearanceLabel) : '',
+  ].join('');
+  return `
+    <div
+      class="builder-component builder-legend builder-legend-${component.layout === 'vertical' ? 'vertical' : 'horizontal'}"
+      style="
+        left: ${pt(options.x ?? component.x)};
+        top: ${pt(options.y ?? component.y)};
+        width: ${pt(component.width)};
+        font-size: ${pt(component.fontSize, 10)};
+        line-height: ${BUILDER_LINE_HEIGHT_MULTIPLIER};
+      "
+    >${entries}</div>`;
+};
+
 const componentHtml = (component: BuilderComponent, options: {
   x?: number;
   y?: number;
@@ -3025,6 +3069,12 @@ const componentHtml = (component: BuilderComponent, options: {
         x: options.x,
         y: options.y,
         language: options.language,
+      });
+    case 'legend':
+      return legendComponentHtml(component, {
+        x: options.x,
+        y: options.y,
+        translations: options.translations,
       });
     default:
       throw createRouteError('Unsupported builder component type.');
@@ -3389,6 +3439,30 @@ const builderPreviewHtml = async (
             white-space: pre-wrap;
           }
 
+          /* A4: Legend component (reuses .builder-status-icon sizing). */
+          .builder-legend {
+            display: flex;
+          }
+
+          .builder-legend-horizontal {
+            align-items: center;
+            column-gap: 16pt;
+            flex-direction: row;
+            flex-wrap: wrap;
+            row-gap: 3pt;
+          }
+
+          .builder-legend-vertical {
+            flex-direction: column;
+            row-gap: 3pt;
+          }
+
+          .builder-legend-entry {
+            align-items: center;
+            display: inline-flex;
+            gap: 3pt;
+          }
+
           .builder-line {
             background: #000000;
           }
@@ -3545,6 +3619,12 @@ export const extractBuilderTranslatableStrings = (
       const resolved = resolveDateInstance(component);
       const formatted = formatBuilderDateString(resolved, component.formatId ?? 'long-ordinal');
       pushIfNeeded(formatted, component.translationMode);
+    }
+
+    if (component.type === 'legend') {
+      // A4: legend labels translate via the Generated (List) cache.
+      if (component.showLimited) pushIfNeeded(component.limitedLabel, 'translate');
+      if (component.showClearance) pushIfNeeded(component.clearanceLabel, 'translate');
     }
   }
   return strings;
