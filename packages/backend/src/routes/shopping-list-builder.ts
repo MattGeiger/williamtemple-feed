@@ -3041,6 +3041,7 @@ const legendComponentHtml = (component: LegendBuilderComponent, options: {
   x?: number;
   y?: number;
   translations?: Record<string, string>;
+  language?: string;
 } = {}) => {
   const entry = (kind: 'limited' | 'clearance', color: string, label: string) =>
     `<span class="builder-legend-entry">${statusIconSvg(kind, color)}<span dir="auto" class="builder-legend-label">${translatedBuilderTextHtml(label, options.translations?.[label], 'translate')}</span></span>`;
@@ -3048,8 +3049,12 @@ const legendComponentHtml = (component: LegendBuilderComponent, options: {
     component.showLimited ? entry('limited', '#000000', component.limitedLabel) : '',
     component.showClearance ? entry('clearance', '#000000', component.clearanceLabel) : '',
   ].join('');
+  // RTL target language: dir="rtl" flips the legend to read right-to-left —
+  // entries pack from the right edge and each entry's icon leads on the right.
+  // Must mirror the canvas PreviewLegend.
+  const dirAttr = isRTLTargetLanguage(options.language) ? ' dir="rtl"' : '';
   return `
-    <div
+    <div${dirAttr}
       class="builder-component builder-legend builder-legend-${component.layout === 'vertical' ? 'vertical' : 'horizontal'}"
       style="
         left: ${pt(options.x ?? component.x)};
@@ -3117,6 +3122,7 @@ const componentHtml = (component: BuilderComponent, options: {
         x: options.x,
         y: options.y,
         translations: options.translations,
+        language: options.language,
       });
     default:
       throw createRouteError('Unsupported builder component type.');
