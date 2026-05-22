@@ -458,6 +458,35 @@ hazards documented in AGENTS.md).
 
 ---
 
+### #36 — Prompt Category "Document Text Translation" Icon Animates Only on Direct Hover
+**Priority**: Low (UX polish) · **Status**: Fixed (May 21, 2026) — pending deploy
+**Bucket**: v1.x
+**Component**: `packages/frontend/src/components/ai-configuration/steps/PromptCategoryStep.tsx`
+
+Second instance of the #35 pattern. In the "Prompt Category" step (Add
+System Prompt flow), all four category cards are wrapped in
+`<AnimateIcon asChild animateOnHover>`, but three icons (`LanguagesIcon`,
+`MessageSquareMoreIcon`, `BlocksIcon`) are native animate-ui (context-
+driven → animate on whole-card hover) while **Document Text Translation**
+used `FileTextIcon` from `@/components/ui/file-text` (imperative-ref). The
+native `AnimateIcon` context can't drive an imperative-ref icon, so it only
+animated on direct icon hover. No native animate-ui `file-text` icon exists
+(only `file-down`).
+
+**Fix**: same controlled-ref approach as #35 — attach a `FileTextIconHandle`
+ref to the `FileTextIcon` (controlled mode) and drive `startAnimation()` /
+`stopAnimation()` from that card's `onMouseEnter` / `onMouseLeave`; the
+other three remain driven by the `AnimateIcon` wrapper.
+
+**Recurring-pattern note**: imperative-ref icons from `@/components/ui/*`
+placed inside an `<AnimateIcon>` wrapper will silently fall back to
+direct-hover. When adding an icon to an `AnimateIcon`-wrapped element,
+prefer a native `@/components/animate-ui/icons/*` icon; if only an
+imperative-ref icon exists, wire it via its ref handle as in #35/#36. Worth
+a sweep for other occurrences.
+
+---
+
 ### #6 — Shopping List Feature Incomplete (OBSOLETE)
 **Status**: Superseded by Shopping List Builder; closed in v1.0.0 release prep
 

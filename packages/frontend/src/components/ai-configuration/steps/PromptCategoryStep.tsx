@@ -5,14 +5,14 @@
 // under AGPL-3.0-or-later; see LICENSE. William Temple House branding is
 // not covered by this license; see TRADEMARKS.md.
 
-import React from 'react'
+import React, { useRef } from 'react'
 import { Card } from "@/components/ui/card"
 import { AnimateIcon } from "@/components/animate-ui/icons/icon"
 import { LanguagesIcon } from "@/components/animate-ui/icons/languages"
 import { MessageSquareMoreIcon } from "@/components/animate-ui/icons/message-square-more"
 import { MessageSquareQuoteIcon } from "@/components/animate-ui/icons/message-square-quote"
 import { BlocksIcon } from "@/components/animate-ui/icons/blocks"
-import { FileTextIcon } from "@/components/ui/file-text"
+import { FileTextIcon, type FileTextIconHandle } from "@/components/ui/file-text"
 import { StepWrapper } from '../shared/StepWrapper'
 import { PromptCategoryStepProps, PromptCategory } from '../shared/types'
 
@@ -49,6 +49,10 @@ export function PromptCategoryStep({
   onChange,
   isLoading = false
 }: PromptCategoryStepProps) {
+  // FileTextIcon (Document Text Translation) is an imperative-ref
+  // (lucide-animated) icon that the native AnimateIcon context can't drive;
+  // a ref puts it in controlled mode so the Card's hover animates it (#35).
+  const fileTextIconRef = useRef<FileTextIconHandle>(null)
   return (
     <StepWrapper
       icon={MessageSquareQuoteIcon as React.ComponentType<{ className?: string; size?: number }>}
@@ -58,6 +62,10 @@ export function PromptCategoryStep({
       <div className="grid grid-cols-1 gap-2">
         {PROMPT_CATEGORIES.map((category) => {
           const IconComponent = category.icon
+          // The other three icons are native animate-ui (driven by the
+          // AnimateIcon wrapper); only this one is imperative-ref and needs
+          // ref-driven hover (see fileTextIconRef above, ISSUES.md #35).
+          const isImperativeIcon = category.id === 'batch_translation'
           return (
             <AnimateIcon
               key={category.id}
@@ -72,9 +80,15 @@ export function PromptCategoryStep({
                   data.promptCategory === category.id ? 'border-primary bg-primary/5' : ''
                 }`}
                 onClick={() => onChange({ promptCategory: category.id })}
+                onMouseEnter={isImperativeIcon ? () => fileTextIconRef.current?.startAnimation() : undefined}
+                onMouseLeave={isImperativeIcon ? () => fileTextIconRef.current?.stopAnimation() : undefined}
               >
                 <div className="flex items-start space-x-3">
-                  <IconComponent className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" size={20} />
+                  {isImperativeIcon ? (
+                    <FileTextIcon ref={fileTextIconRef} className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" size={20} />
+                  ) : (
+                    <IconComponent className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" size={20} />
+                  )}
                   <div className="flex-1 min-w-0">
                     <h4 className="text-sm font-medium text-foreground mb-1">{category.name}</h4>
                     <p className="text-xs text-muted-foreground">
