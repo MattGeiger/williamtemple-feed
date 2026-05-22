@@ -378,6 +378,12 @@ export interface SectionTableBuilderComponent extends BuilderComponentBase {
   title: string;
   rows: SectionTableRow[];
   showLimit: boolean;
+  // Show/hide the Want column, mirroring showLimit (A5, v1.1.0). Optional for
+  // back-compat: older saved templates lack it and must default to `true`
+  // (Want was always shown before this field existed). ALWAYS read it as
+  // `component.showWant !== false` so undefined means "show"; never read raw.
+  // The backend route mirrors this field and convention.
+  showWant?: boolean;
   limitHeader: string;
   wantHeader: string;
   limitWidth: number;

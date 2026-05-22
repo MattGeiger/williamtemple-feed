@@ -748,6 +748,7 @@ const getTableHeaderHeight = (
     wantWidth: number;
     fontSize: number;
     showLimit: boolean;
+    showWant: boolean;
     titleSegments?: BuilderTextMeasureSegment[];
     categoryLimitSegments?: BuilderTextMeasureSegment[];
     limitHeaderSegments?: BuilderTextMeasureSegment[];
@@ -789,16 +790,18 @@ const getTableHeaderHeight = (
         options.fontSize,
       ))
     : 1;
-  const wantHeaderLineCount = options.wantHeaderSegments
-    ? estimateWrappedSegmentLineCount(
-      options.wantHeaderSegments,
-      Math.max(1, options.wantWidth - TABLE_CELL_HORIZONTAL_PADDING),
-    )
-    : estimateWrappedLineCount(
-      component.wantHeader || 'Want',
-      Math.max(1, options.wantWidth - TABLE_CELL_HORIZONTAL_PADDING),
-      options.fontSize,
-    );
+  const wantHeaderLineCount = options.showWant
+    ? (options.wantHeaderSegments
+      ? estimateWrappedSegmentLineCount(
+        options.wantHeaderSegments,
+        Math.max(1, options.wantWidth - TABLE_CELL_HORIZONTAL_PADDING),
+      )
+      : estimateWrappedLineCount(
+        component.wantHeader || 'Want',
+        Math.max(1, options.wantWidth - TABLE_CELL_HORIZONTAL_PADDING),
+        options.fontSize,
+      ))
+    : 1;
   const otherHeaderMaxLineCount = Math.max(1, limitHeaderLineCount, wantHeaderLineCount);
 
   // Tagged case: typography engine snaps the compact title/tag stack to the
@@ -833,7 +836,8 @@ const getComponentHeight = (
       ? component.rowHeight
       : DEFAULT_SECTION_TABLE_ROW_HEIGHT;
     const limitWidth = component.showLimit ? component.limitWidth : 0;
-    const wantWidth = component.wantWidth;
+    const showWant = component.showWant !== false;
+    const wantWidth = showWant ? component.wantWidth : 0;
     const itemWidth = component.width - limitWidth - wantWidth;
     const rowMode = resolveSectionTableTranslationSettings(component.translationSettings).rows;
     const showCategoryIcon = Boolean(layout?.includeCategoryIcons && component.inventorySource);
@@ -843,6 +847,7 @@ const getComponentHeight = (
       wantWidth,
       fontSize: component.fontSize,
       showLimit: component.showLimit,
+      showWant,
       iconOverhead: categoryIconTitleWidthOverhead(component.fontSize, showCategoryIcon),
       ...sectionTableHeaderMeasurementSegments(component, component.fontSize, measurement),
     });
@@ -962,7 +967,8 @@ const getSectionTableMetrics = (
     ? component.rowHeight
     : DEFAULT_SECTION_TABLE_ROW_HEIGHT;
   const limitWidth = component.showLimit ? component.limitWidth : 0;
-  const wantWidth = component.wantWidth;
+  const showWant = component.showWant !== false;
+  const wantWidth = showWant ? component.wantWidth : 0;
   const itemWidth = component.width - limitWidth - wantWidth;
   const fontSize = component.fontSize;
   const showCategoryIcon = Boolean(layout?.showCategoryIcon && component.inventorySource);
@@ -972,6 +978,7 @@ const getSectionTableMetrics = (
     wantWidth,
     fontSize,
     showLimit: component.showLimit,
+    showWant,
     iconOverhead: categoryIconTitleWidthOverhead(fontSize, showCategoryIcon),
     ...sectionTableHeaderMeasurementSegments(component, fontSize, measurement),
   });
@@ -2107,7 +2114,9 @@ function PreviewSectionTable({ component, rows = component.rows, rowHeights, inc
     ? component.rowHeight
     : DEFAULT_SECTION_TABLE_ROW_HEIGHT;
   const limitWidth = component.showLimit ? component.limitWidth : 0;
-  const itemWidth = component.width - limitWidth - component.wantWidth;
+  const showWant = component.showWant !== false;
+  const wantWidth = showWant ? component.wantWidth : 0;
+  const itemWidth = component.width - limitWidth - wantWidth;
   const measurement = language ? { language, translations, inventoryTranslations } : undefined;
   const translationSettings = resolveSectionTableTranslationSettings(component.translationSettings);
   const headerMode = translationSettings.headers ?? DEFAULT_BUILDER_TRANSLATION_MODE;
@@ -2129,15 +2138,20 @@ function PreviewSectionTable({ component, rows = component.rows, rowHeights, inc
   const headerHeight = getTableHeaderHeight(component, rowHeight, {
     itemWidth,
     limitWidth,
-    wantWidth: component.wantWidth,
+    wantWidth,
     fontSize: component.fontSize,
     showLimit: component.showLimit,
+    showWant,
     iconOverhead: categoryIconTitleWidthOverhead(component.fontSize, shouldShowCategoryIcon),
     ...sectionTableHeaderMeasurementSegments(component, component.fontSize, measurement),
   });
-  const gridTemplateColumns = component.showLimit
-    ? `${itemWidth}px ${limitWidth}px ${component.wantWidth}px`
-    : `${itemWidth}px ${component.wantWidth}px`;
+  // Columns in order: Item, [Limit if shown], [Want if shown]. Handles all
+  // four combinations (A5): both, limit-only, want-only, names-only.
+  const gridTemplateColumns = [
+    `${itemWidth}px`,
+    ...(component.showLimit ? [`${limitWidth}px`] : []),
+    ...(showWant ? [`${wantWidth}px`] : []),
+  ].join(' ');
   const categoryLimitTag = formatCategoryLimitTag(component.categoryLimit, component.categoryLimitType);
   const categoryLimitTagSource = categoryLimitTag ? `(${categoryLimitTag})` : null;
   // Inventory tables resolve the title from CategoryTranslation; base-
@@ -2238,17 +2252,19 @@ function PreviewSectionTable({ component, rows = component.rows, rowHeights, inc
             )}
           </div>
         )}
-        <div
-          dir="auto"
-          className={cn('flex items-center justify-center border-[#b9b9b9] px-1 [unicode-bidi:plaintext]', dividerClass)}
-          style={{ lineHeight: BUILDER_LINE_HEIGHT_MULTIPLIER }}
-      >
-          {renderTranslatedBuilderText(
-            component.wantHeader || 'Want',
-            language ? translations[component.wantHeader || 'Want'] : null,
-            headerMode,
-          )}
-        </div>
+        {showWant && (
+          <div
+            dir="auto"
+            className={cn('flex items-center justify-center border-[#b9b9b9] px-1 [unicode-bidi:plaintext]', dividerClass)}
+            style={{ lineHeight: BUILDER_LINE_HEIGHT_MULTIPLIER }}
+          >
+            {renderTranslatedBuilderText(
+              component.wantHeader || 'Want',
+              language ? translations[component.wantHeader || 'Want'] : null,
+              headerMode,
+            )}
+          </div>
+        )}
       </div>
       {rows.map((row, index) => {
         const tableRowHeight = computedRowHeights?.[index] ?? getTableRowHeight(row, rowHeight, {
@@ -2306,7 +2322,7 @@ function PreviewSectionTable({ component, rows = component.rows, rowHeights, inc
                 {row.limit}
               </div>
             )}
-            <div className={cn('border-[#cfcfcf]', dividerClass)} />
+            {showWant && <div className={cn('border-[#cfcfcf]', dividerClass)} />}
           </div>
         );
       })}
@@ -5745,6 +5761,7 @@ export function ShoppingListBuilder() {
                             type="number"
                             value={selectedComponent.wantWidth}
                             onChange={(event) => updateSelectedComponent({ wantWidth: toNumber(event.target.value, selectedComponent.wantWidth) })}
+                            disabled={selectedComponent.showWant === false}
                           />
                         </div>
                         <div className="space-y-2">
@@ -5772,6 +5789,14 @@ export function ShoppingListBuilder() {
                           onCheckedChange={(checked) => updateSelectedComponent({ showLimit: checked === true })}
                         />
                         <Label htmlFor="table-show-limit">Show limit column</Label>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          id="table-show-want"
+                          checked={selectedComponent.showWant !== false}
+                          onCheckedChange={(checked) => updateSelectedComponent({ showWant: checked === true })}
+                        />
+                        <Label htmlFor="table-show-want">Show want column</Label>
                       </div>
                       <div className="flex items-center gap-2">
                         <Checkbox
