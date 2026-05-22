@@ -15,8 +15,8 @@ import { GlobalLimitDialog } from "../global-limit-dialog"
 import { Trash2, Download, Copy } from "@/components/ui/icons";
 import { ClipboardListIcon } from "@/components/animate-ui/icons/clipboard-list";
 import { PlusIcon } from "@/components/animate-ui/icons/plus";
-import { SettingsIcon } from "@/components/animate-ui/icons/settings";
 import { FileDownIcon } from "@/components/animate-ui/icons/file-down";
+import { GlobeLockIcon } from "@/components/ui/globe-lock";
 
 interface ShoppingListListProps {
   builderTemplates: SavedBuilderTemplate[]
@@ -96,7 +96,7 @@ export function ShoppingListList({
     },
     {
       label: 'Global Limit Settings',
-      icon: SettingsIcon,
+      icon: GlobeLockIcon,
       variant: 'outline' as const,
       action: () => setGlobalLimitDialogOpen(true)
     },
