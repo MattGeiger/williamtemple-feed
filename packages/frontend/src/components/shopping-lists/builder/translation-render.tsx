@@ -144,6 +144,10 @@ export interface PreviewLanguageContextValue {
     categories: Record<number, string>;
     foodItems: Record<number, string>;
   };
+  // B3: current org-wide Global Limit value. Used by section tables that opt
+  // into `showGlobalLimit` as the Limit-cell fallback for no-limit rows.
+  // Resolved live (fetched by the builder), never baked into the template.
+  globalLimit?: number;
 }
 
 export const PreviewLanguageContext = React.createContext<PreviewLanguageContextValue>({

@@ -104,6 +104,7 @@ import { useMessage } from '@/hooks/message/useMessage';
 import { ErrorHandlerService } from '@/services/error/ErrorHandlerService';
 import { notifyFoodItemCreateError } from '@/services/food-item/duplicate-name-notification';
 import { shoppingListBuilderService } from '@/services/shopping-list-builder';
+import { GlobalLimitService } from '@/services/global-limit';
 import { DEFAULT_ICON, getIconComponent } from '@/lib/food-icons';
 import { cn, truncateMiddle } from '@/lib/utils';
 import { createBuilderComponent, createDefaultBuilderTemplate } from './default-template';
@@ -2021,6 +2022,20 @@ const cloneComponentForCanvas = (
   } as BuilderComponent;
 };
 
+// B3: resolve the text shown in a row's Limit cell. A row carries only its own
+// item-level limit; when it has none ("No Limit") and the table opts into
+// `showGlobalLimit`, fall back to the live org-wide Global Limit value. MUST
+// mirror `resolveRowLimitText` in the backend route.
+function resolveRowLimitText(
+  rowLimit: string,
+  showGlobalLimit: boolean,
+  globalLimit: number | null | undefined,
+): string {
+  if (rowLimit && rowLimit.length > 0) return rowLimit;
+  if (showGlobalLimit && globalLimit != null) return String(globalLimit);
+  return rowLimit;
+}
+
 function PreviewText({ component }: { component: TextBuilderComponent }) {
   // Pull the canvas-wide preview language + cache map from context. When
   // language === '' the canvas is in its default English state and we
@@ -2136,7 +2151,7 @@ function PreviewSectionTable({ component, rows = component.rows, rowHeights, inc
   rowHeights?: number[];
   includeCategoryIcons?: boolean;
 }) {
-  const { language, translations, inventoryTranslations } = usePreviewLanguage();
+  const { language, translations, inventoryTranslations, globalLimit } = usePreviewLanguage();
   const rowHeight = Number.isFinite(component.rowHeight) && component.rowHeight > 0
     ? component.rowHeight
     : DEFAULT_SECTION_TABLE_ROW_HEIGHT;
@@ -2364,7 +2379,7 @@ function PreviewSectionTable({ component, rows = component.rows, rowHeights, inc
                   lineHeight: BUILDER_LINE_HEIGHT_MULTIPLIER,
                 }}
               >
-                {row.limit}
+                {resolveRowLimitText(row.limit, component.showGlobalLimit === true, globalLimit)}
               </div>
             )}
             {showWant && (
@@ -2936,6 +2951,10 @@ function GridGuidesToggle({
   );
 }
 
+// B3: shared instance for reading the org-wide Global Limit (the value shown
+// in the Limit column for no-limit rows when a section table opts in).
+const globalLimitService = new GlobalLimitService();
+
 export function ShoppingListBuilder() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -2981,6 +3000,10 @@ export function ShoppingListBuilder() {
   const [savedTemplates, setSavedTemplates] = useState<SavedBuilderTemplate[]>([]);
   const [hasLoadedSavedTemplates, setHasLoadedSavedTemplates] = useState(false);
   const [inventorySections, setInventorySections] = useState<InventorySectionComponent[]>([]);
+  // B3: org-wide Global Limit value, shown in the Limit column for no-limit
+  // rows when a section table has Show Global Limit enabled. Defaults to 10
+  // (matching the backend) until the live value loads.
+  const [globalLimit, setGlobalLimit] = useState<number>(10);
   const [editingFoodItem, setEditingFoodItem] = useState<FoodItem | null>(null);
   const [foodItemPendingDelete, setFoodItemPendingDelete] = useState<FoodItem | null>(null);
   const [isDeletingFoodItem, setIsDeletingFoodItem] = useState(false);
@@ -3210,12 +3233,23 @@ export function ShoppingListBuilder() {
     }
   }, []);
 
+  const loadGlobalLimit = useCallback(async () => {
+    try {
+      const limit = await globalLimitService.getGlobalLimit();
+      setGlobalLimit(limit);
+    } catch (error) {
+      // Non-fatal: the canvas falls back to the default until this succeeds.
+      ErrorHandlerService.handleError(error, 'shoppingListBuilderLoadGlobalLimit');
+    }
+  }, []);
+
   useEffect(() => {
     void loadSavedComponents();
     void loadSavedTemplates();
     void loadInventorySections();
     void refreshFoodItems();
-  }, [loadInventorySections, loadSavedComponents, loadSavedTemplates, refreshFoodItems]);
+    void loadGlobalLimit();
+  }, [loadInventorySections, loadSavedComponents, loadSavedTemplates, refreshFoodItems, loadGlobalLimit]);
 
   // Build a stable, sorted signature of every translation-eligible string
   // in the current template. The fetch effect below depends on this
@@ -4556,6 +4590,7 @@ export function ShoppingListBuilder() {
         language: previewLanguage,
         translations: previewTranslations,
         inventoryTranslations: previewInventoryTranslations,
+        globalLimit,
       }}
     >
       <TooltipProvider>
@@ -5874,6 +5909,18 @@ export function ShoppingListBuilder() {
                         />
                         <Label htmlFor="table-show-limit">Show limit column</Label>
                       </div>
+                      {selectedComponent.showLimit && (
+                        <div className="ml-6 flex items-center gap-2">
+                          <Checkbox
+                            id="table-show-global-limit"
+                            checked={selectedComponent.showGlobalLimit === true}
+                            onCheckedChange={(checked) => updateSelectedComponent({ showGlobalLimit: checked === true })}
+                          />
+                          <Label htmlFor="table-show-global-limit">
+                            Show Global Limit ({globalLimit}) for no-limit items
+                          </Label>
+                        </div>
+                      )}
                       <div className="flex items-center gap-2">
                         <Checkbox
                           id="table-show-want"

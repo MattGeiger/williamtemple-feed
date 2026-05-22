@@ -252,6 +252,11 @@ interface SectionTableBuilderComponent extends BuilderComponentBase {
   // A2: show Limited/Clearance status icons on rows. Optional; default false
   // (read as `=== true`). Mirrors the frontend.
   showStatusIcons?: boolean;
+  // B3: when on, rows with no item-level limit ("No Limit") display the
+  // current Global Limit value in the Limit column instead of a blank cell.
+  // Optional; default false (read as `=== true`). Mirrors the frontend. The
+  // value itself is resolved live at render time, never baked into rows.
+  showGlobalLimit?: boolean;
   limitHeader: string;
   wantHeader: string;
   limitWidth: number;
@@ -1758,6 +1763,10 @@ const serializeSavedTemplate = (record: {
 
 const NO_LIMIT_SENTINEL = 100;
 
+// B3: fallback when no GlobalLimit row exists yet. Mirrors the default used by
+// the global-limit route (`GET /api/global-limit` returns 10 when unset).
+const DEFAULT_GLOBAL_LIMIT = 10;
+
 const buildInventorySectionComponent = (category: {
   id: number;
   name: string;
@@ -2821,6 +2830,21 @@ const builderCategoryIconSvg = (iconName: string | null | undefined): string => 
   return `<svg class="builder-category-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${FOOD_ICON_SVG_PATHS[key]}</svg>`;
 };
 
+// B3: resolve the text shown in a row's Limit cell. Each row carries only its
+// own item-level limit; when a row has none ("No Limit") and the table opts
+// into `showGlobalLimit`, fall back to the org-wide Global Limit value. The
+// value is supplied live at render time and never baked into the saved rows.
+// MUST mirror `resolveRowLimitText` in the frontend ShoppingListBuilder.
+const resolveRowLimitText = (
+  rowLimit: string,
+  showGlobalLimit: boolean,
+  globalLimit: number | null | undefined,
+): string => {
+  if (rowLimit && rowLimit.length > 0) return rowLimit;
+  if (showGlobalLimit && globalLimit != null) return String(globalLimit);
+  return rowLimit;
+};
+
 const sectionTableComponentHtml = (
   component: SectionTableBuilderComponent,
   options: {
@@ -2835,6 +2859,9 @@ const sectionTableComponentHtml = (
       categories: Record<number, string>;
       foodItems: Record<number, string>;
     };
+    // B3: current Global Limit value, used as the Limit-cell fallback for
+    // no-limit rows when `component.showGlobalLimit` is on.
+    globalLimit?: number | null;
   } = {},
 ) => {
   const rowBaseHeight = asNumber(component.rowHeight, DEFAULT_SECTION_TABLE_ROW_HEIGHT);
@@ -2970,7 +2997,7 @@ const sectionTableComponentHtml = (
                 ? `<div class="builder-table-text-cell builder-table-item-cell" dir="auto">${builderRowStatusIconsHtml(row)}<span class="builder-item-text">${itemHtml}</span></div>`
                 : `<div class="builder-table-text-cell" dir="auto">${itemHtml}</div>`;
             })()}
-            ${component.showLimit ? `<div class="builder-table-text-cell builder-table-cell-left-border builder-table-center" dir="auto">${escapeHtml(row.limit)}</div>` : ''}
+            ${component.showLimit ? `<div class="builder-table-text-cell builder-table-cell-left-border builder-table-center" dir="auto">${escapeHtml(resolveRowLimitText(row.limit, component.showGlobalLimit === true, options.globalLimit))}</div>` : ''}
             ${showWant ? `<div class="builder-table-cell-left-border builder-table-want-cell">${row.wantControl === 'checkbox' ? '<span class="builder-want-checkbox"></span>' : ''}</div>` : ''}
           </div>
         `;
@@ -3036,6 +3063,8 @@ const componentHtml = (component: BuilderComponent, options: {
     categories: Record<number, string>;
     foodItems: Record<number, string>;
   };
+  // B3: current Global Limit value, threaded to section tables.
+  globalLimit?: number | null;
 } = {}) => {
   switch (component.type) {
     case 'text':
@@ -3055,6 +3084,7 @@ const componentHtml = (component: BuilderComponent, options: {
         language: options.language,
         translations: options.translations,
         inventoryTranslations: options.inventoryTranslations,
+        globalLimit: options.globalLimit,
       });
     case 'line':
       return lineComponentHtml(component, options);
@@ -3091,6 +3121,7 @@ const builderPageHtml = (
     categories: Record<number, string>;
     foodItems: Record<number, string>;
   },
+  globalLimit?: number | null,
 ) => {
   const includeCategoryIcons = getTemplateIncludeCategoryIcons(template);
 
@@ -3118,7 +3149,7 @@ const builderPageHtml = (
       // still render only on page 0 from their stored coordinates.
       return pageIndex === 0;
     })
-    .map((component) => componentHtml(component, { includeCategoryIcons, translations, language, inventoryTranslations }))
+    .map((component) => componentHtml(component, { includeCategoryIcons, translations, language, inventoryTranslations, globalLimit }))
     .join('\n')}
     ${flowPlan.bodyPlacements
     .filter((placement) => placement.pageIndex === pageIndex)
@@ -3131,6 +3162,7 @@ const builderPageHtml = (
         translations,
         language,
         inventoryTranslations,
+        globalLimit,
       }) : '';
     })
     .join('\n')}
@@ -3145,6 +3177,7 @@ const builderPageHtml = (
       translations,
       inventoryTranslations,
       rowHeights: segment.rowHeights,
+      globalLimit,
     }))
     .join('\n')}
   </section>`;
@@ -3163,6 +3196,9 @@ const builderPreviewHtml = async (
   // single-sided saved template into two-sided printing for the duration
   // of one render without mutating the saved template.
   printModeOverride?: BuilderPrintMode,
+  // B3: current Global Limit value, used as the Limit-cell fallback for
+  // no-limit rows in tables that opt into `showGlobalLimit`.
+  globalLimit?: number | null,
 ) => {
   // Inline the CJK Noto fonts only when the target language actually
   // needs them. Skips the ~36 MB base64 payload for English / Latin /
@@ -3175,7 +3211,7 @@ const builderPreviewHtml = async (
       : undefined,
   );
   const pageHtml = Array.from({ length: flowPlan.pageCount }, (_, pageIndex) => (
-    builderPageHtml(template, pageIndex, flowPlan, translations, targetLanguage, inventoryTranslations)
+    builderPageHtml(template, pageIndex, flowPlan, translations, targetLanguage, inventoryTranslations, globalLimit)
   )).join('\n');
   const effectivePrintMode = resolveEffectivePrintMode(template, printModeOverride);
   const pages = shouldDuplicatePagesForPrint(effectivePrintMode, flowPlan.pageCount)
@@ -3481,6 +3517,7 @@ const renderBuilderTemplateToPdf = async (
   },
   targetLanguage?: string,
   printModeOverride?: BuilderPrintMode,
+  globalLimit?: number | null,
 ) => {
   const html = await builderPreviewHtml(
     template,
@@ -3488,6 +3525,7 @@ const renderBuilderTemplateToPdf = async (
     inventoryTranslations,
     targetLanguage,
     printModeOverride,
+    globalLimit,
   );
   const userDataDir = await fs.mkdtemp(path.join(os.tmpdir(), 'wth-builder-pdf-'));
   const browser = await puppeteer.launch({
@@ -4121,12 +4159,24 @@ router.post('/preview-pdf', async (req: Request, res: Response, next: NextFuncti
       ? req.body.printMode
       : undefined;
 
+    // B3: resolve the current Global Limit only when a section table opts into
+    // showing it, so the common case skips the extra query. The value is read
+    // live (never baked into the template) so it always reflects the current
+    // org-wide setting at export time.
+    const needsGlobalLimit = refreshedTemplate.components.some(
+      (component) => component.type === 'section-table' && component.showGlobalLimit === true,
+    );
+    const globalLimit = needsGlobalLimit
+      ? (await prisma.globalLimit.findFirst())?.value ?? DEFAULT_GLOBAL_LIMIT
+      : undefined;
+
     const pdfBuffer = await renderBuilderTemplateToPdf(
       refreshedTemplate,
       translations,
       inventoryTranslations,
       rawTargetLanguage,
       printModeOverride,
+      globalLimit,
     );
 
     res.setHeader('Content-Type', 'application/pdf');
