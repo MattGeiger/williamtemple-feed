@@ -44,10 +44,11 @@ export const DEFAULT_BUILDER_FONT_SIZE: BuilderFontSize = 10;
 
 /**
  * Subset of font sizes that the section-table dropdown surfaces while the
- * template body is in Split-page layout. Larger sizes are gated to Full-page
- * for the first release; see roadmap.
+ * template body is in Split-page layout. 14pt was enabled in split once the
+ * #33 wrap-slack fix made row-height calculation reliable at that size in the
+ * narrower split lanes; 16–18pt remain gated to Full-page (tightest slack).
  */
-export const SPLIT_PAGE_MAX_BUILDER_FONT_SIZE = 12;
+export const SPLIT_PAGE_MAX_BUILDER_FONT_SIZE = 14;
 
 export const SPLIT_PAGE_FONT_SIZES: readonly BuilderFontSize[] = BUILDER_FONT_SIZES.filter(
   (size) => size <= SPLIT_PAGE_MAX_BUILDER_FONT_SIZE,
