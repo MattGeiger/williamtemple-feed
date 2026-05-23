@@ -9,7 +9,7 @@
 
 import { motion, useAnimation } from "motion/react";
 import type { HTMLAttributes } from "react";
-import { forwardRef, useCallback, useImperativeHandle, useRef } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -26,10 +26,14 @@ export interface BellDotIconHandle {
 
 interface BellDotIconProps extends HTMLAttributes<HTMLDivElement> {
   size?: number;
+  // Play the shake once when the icon mounts (i.e. when the "new alerts"
+  // state first appears, including on page load). Self-contained so it does
+  // not depend on a parent ref being attached in time.
+  animateOnMount?: boolean;
 }
 
 const BellDotIcon = forwardRef<BellDotIconHandle, BellDotIconProps>(
-  ({ onMouseEnter, onMouseLeave, className, size = 28, ...props }, ref) => {
+  ({ onMouseEnter, onMouseLeave, className, size = 28, animateOnMount = false, ...props }, ref) => {
     const controls = useAnimation();
     const isControlledRef = useRef(false);
 
@@ -40,6 +44,12 @@ const BellDotIcon = forwardRef<BellDotIconHandle, BellDotIconProps>(
         stopAnimation: () => controls.start("normal"),
       };
     });
+
+    useEffect(() => {
+      if (animateOnMount) controls.start("animate");
+      // Run once on mount only.
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const handleMouseEnter = useCallback(
       (e: React.MouseEvent<HTMLDivElement>) => {
