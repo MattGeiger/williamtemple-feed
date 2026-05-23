@@ -6,10 +6,7 @@
 // not covered by this license; see TRADEMARKS.md.
 
 "use client";
-import * as React from "react";
 import { ChevronsUpDown, User } from "@/components/ui/icons";
-import { AnimateIcon } from "@/components/animate-ui/icons/icon";
-import { LogOutIcon } from "@/components/animate-ui/icons/log-out";
 
 import {
   Avatar,
@@ -36,34 +33,6 @@ export function NavUser() {
   const { isMobile } = useSidebar();
   const { user, logout } = useAuth();
 
-  // Drive the AnimateIcon `animate` prop from the menu's open state so that
-  // after the open animation, localAnimate resets to false and every hover
-  // can cycle false → true reliably. Same pattern as TableActionMenu — see
-  // ICON_ANIMATIONS.md "The `animate` prop stuck-state pitfall".
-  const ANIMATE_RESET_DELAY_MS = 800;
-  const [animateMount, setAnimateMount] = React.useState(false);
-  const timerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const handleOpenChange = React.useCallback((isOpen: boolean) => {
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-      timerRef.current = null;
-    }
-    if (isOpen) {
-      setAnimateMount(true);
-      timerRef.current = setTimeout(() => {
-        setAnimateMount(false);
-        timerRef.current = null;
-      }, ANIMATE_RESET_DELAY_MS);
-    } else {
-      setAnimateMount(false);
-    }
-  }, []);
-
-  React.useEffect(() => () => {
-    if (timerRef.current) clearTimeout(timerRef.current);
-  }, []);
-
   if (!user) {
     return null;
   }
@@ -71,7 +40,7 @@ export function NavUser() {
   return (
     <SidebarMenu>
       <SidebarMenuItem>
-        <DropdownMenu onOpenChange={handleOpenChange}>
+        <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton
               size="lg"
@@ -116,12 +85,34 @@ export function NavUser() {
               Profile
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <AnimateIcon asChild animate={animateMount} animateOnHover animateOnTap>
-              <DropdownMenuItem onClick={logout}>
-                <LogOutIcon className="mr-2 h-4 w-4" size={16} />
-                Log out
-              </DropdownMenuItem>
-            </AnimateIcon>
+            {/* Animate-on-row-hover via pure CSS: the row is `group`, the
+                arrow `<g>` slides on `group-hover`. `data-feed-no-icon-motion`
+                disables the global menuitem icon "pop" so only the slide plays.
+                (AnimateIcon/animate-ui hover did not fire reliably on a Radix
+                DropdownMenuItem here — see ICON_ANIMATIONS.md.) */}
+            <DropdownMenuItem
+              onClick={logout}
+              className="group"
+              data-feed-no-icon-motion="true"
+            >
+              <svg
+                className="mr-2 h-4 w-4 shrink-0"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                <g className="origin-center transition-transform duration-300 ease-out group-hover:translate-x-[3px]">
+                  <path d="m16 17 5-5-5-5" />
+                  <path d="M21 12H9" />
+                </g>
+              </svg>
+              Log out
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </SidebarMenuItem>
