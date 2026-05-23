@@ -25,7 +25,7 @@ food-distribution programs at scale.
 ## What FEED does
 
 FEED was built to support food pantry needs and take inventory management
-beyond simple spreadsheets and without the costs of enterprise inventory
+beyond simple spreadsheets, without the costs of enterprise inventory
 software. FEED supports the common operational reality of food pantries:
 
 - **Inventory management** — categories, food items, per-item and
