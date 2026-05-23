@@ -1,0 +1,39 @@
+# Shopping Lists
+
+Shopping Lists lets staff find saved templates and export current, printable lists for pantry clients.
+
+## What Shopping Lists Are
+
+A shopping list template is a saved layout. It can include pantry inventory, instructions, form fields, and translated text.
+
+When you export a list, FEED uses current inventory data.
+
+## When To Use This Page
+
+Use Shopping Lists when you already have a saved template and need to print or download it.
+
+Use the Builder when you need to design or change a template.
+
+## How To Export A List
+
+1. Open Shopping Lists.
+2. Find the template you need.
+3. Open the action menu for that row.
+4. Choose the download or translate option.
+5. Save or print the PDF.
+
+## How To Choose A Translated List
+
+Use Translate & Download PDF when a client needs a list in another language.
+
+English is also available from that flow when staff want all export choices in one place.
+
+## Export Settings
+
+Export Settings controls how PDF filenames are built.
+
+Use it when staff need consistent filenames that include details such as date, language, or template name.
+
+## What To Read Next
+
+- To design or edit a template, read [Shopping List Builder](07-shopping-list-builder.md).

@@ -3,6 +3,15 @@
 All notable changes to FEED are documented here. This project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- **Information section** in the sidebar with a searchable, Markdown-sourced
+  Help center and a concise About page. Help guides are written for pantry
+  staff in plain language and include a screenshot backlog for future visual
+  workflow references.
+
 ## [1.1.2] — 2026-05-22
 
 More UI motion polish plus a breadcrumb fix. No backend or database changes.

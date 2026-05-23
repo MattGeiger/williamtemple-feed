@@ -5,13 +5,15 @@
 // under AGPL-3.0-or-later; see LICENSE. William Temple House branding is
 // not covered by this license; see TRADEMARKS.md.
 
-import { Package, Globe2, Settings } from "@/components/ui/icons";
+import { Info, Package, Globe2, Settings } from "@/components/ui/icons";
 import {
+  AboutNavIcon,
   AIConfigurationNavIcon,
   CategoriesNavIcon,
   DashboardNavIcon,
   DocumentTranslatorNavIcon,
   FoodItemsNavIcon,
+  HelpNavIcon,
   LanguagesNavIcon,
   ShoppingListsNavIcon,
   TranslationsNavIcon,
@@ -85,6 +87,23 @@ export const navigationItems: NavItem[] = [
         title: "AI Configuration",
         href: "/ai-configuration",
         icon: AIConfigurationNavIcon
+      }
+    ]
+  },
+  {
+    title: "Information",
+    href: "#",
+    icon: Info,
+    items: [
+      {
+        title: "Help",
+        href: "/help",
+        icon: HelpNavIcon,
+      },
+      {
+        title: "About",
+        href: "/about",
+        icon: AboutNavIcon,
       }
     ]
   }

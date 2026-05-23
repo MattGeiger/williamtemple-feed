@@ -8,8 +8,10 @@
 import type * as React from "react";
 
 import { BotIcon } from "@/components/animate-ui/icons/bot";
+import { CircleHelpIcon } from "@/components/animate-ui/icons/circle-help";
 import { ClipboardListIcon } from "@/components/animate-ui/icons/clipboard-list";
 import { GaugeIcon } from "@/components/animate-ui/icons/gauge";
+import { InfoIcon } from "@/components/animate-ui/icons/info";
 import { BridgedAnimatedIcon } from "@/components/animate-ui/bridge";
 import { AppleIcon } from "@/components/ui/apple";
 import { FileTextIcon } from "@/components/ui/file-text";
@@ -104,6 +106,26 @@ export function DocumentTranslatorNavIcon({
 export function AIConfigurationNavIcon({ className, ...props }: NavIconProps) {
   return (
     <BotIcon
+      size={16}
+      className={animatedIconClassName(className)}
+      {...props}
+    />
+  );
+}
+
+export function HelpNavIcon({ className, ...props }: NavIconProps) {
+  return (
+    <CircleHelpIcon
+      size={16}
+      className={animatedIconClassName(className)}
+      {...props}
+    />
+  );
+}
+
+export function AboutNavIcon({ className, ...props }: NavIconProps) {
+  return (
+    <InfoIcon
       size={16}
       className={animatedIconClassName(className)}
       {...props}
