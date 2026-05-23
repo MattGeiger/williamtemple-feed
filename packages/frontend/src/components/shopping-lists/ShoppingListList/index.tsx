@@ -15,7 +15,7 @@ import { GlobalLimitDialog } from "../global-limit-dialog"
 import { Trash2, Download, Copy } from "@/components/ui/icons";
 import { ClipboardListIcon } from "@/components/animate-ui/icons/clipboard-list";
 import { PlusIcon } from "@/components/animate-ui/icons/plus";
-import { FileDownIcon } from "@/components/animate-ui/icons/file-down";
+import { SquareArrowOutUpRightIcon } from "@/components/animate-ui/icons/square-arrow-out-up-right";
 import { GlobeLockIcon } from "@/components/animate-ui/icons/globe-lock";
 
 interface ShoppingListListProps {
@@ -102,7 +102,7 @@ export function ShoppingListList({
     },
     ...(onOpenExportSettings ? [{
       label: 'Export Settings',
-      icon: FileDownIcon,
+      icon: SquareArrowOutUpRightIcon,
       variant: 'outline' as const,
       action: () => onOpenExportSettings()
     }] : [])
