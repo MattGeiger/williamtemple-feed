@@ -133,6 +133,22 @@ React.useEffect(() => {
 </Card>
 ```
 
+**Use this (not `<AnimateIcon>`) for dropdown / context-menu rows.** Wrapping a
+Radix `DropdownMenuItem` in `<AnimateIcon asChild animateOnHover>` does **not**
+reliably animate on row hover — the item's own pointer/selection handling
+competes with the wrapper, so the icon stays static on row hover. Instead hold
+a ref to an imperative icon and drive it from the row's `onMouseEnter` /
+`onMouseLeave` (the row is the larger trigger zone). Pass an explicit
+`size={16}` (the imperative wrapper takes `className` on its `<div>`, so a
+sizing class like `size-4` would not reach the inner `<svg>`).
+
+> **Bonus:** because an imperative icon wraps its `<svg>` in a `<div>`, the svg
+> is no longer a *direct* child of the `[role="menuitem"]`, so the generic
+> icon-motion rule in `index.css` (`[role="menuitem"] > svg` hover pop) does
+> not apply — only your intended animation plays. A native icon rendered bare
+> as a direct child would otherwise pick up that generic hover pop. The "Log
+> out" row in `components/nav-user.tsx` is the worked example.
+
 ### Bridging Imperative-Ref Icons into an animate-ui Context
 
 When an imperative-ref icon needs to respond to a parent `<AnimateIcon>` context (e.g., a sidebar nav item), use `BridgedAnimatedIcon` from `@/components/animate-ui/bridge`.

@@ -6,9 +6,9 @@
 // not covered by this license; see TRADEMARKS.md.
 
 "use client";
+import { useRef } from "react";
 import { ChevronsUpDown, User } from "@/components/ui/icons";
-import { AnimateIcon } from "@/components/animate-ui/icons/icon";
-import { LogOutIcon } from "@/components/animate-ui/icons/log-out";
+import { LogoutIcon, type LogoutIconHandle } from "@/components/ui/logout";
 
 import {
   Avatar,
@@ -34,6 +34,9 @@ import { useAuth } from "@/contexts/AuthContext"
 export function NavUser() {
   const { isMobile } = useSidebar();
   const { user, logout } = useAuth();
+  // Drive the logout icon from the whole row's hover (trigger zone larger than
+  // the icon) — the documented imperative-ref pattern for menu rows.
+  const logoutIconRef = useRef<LogoutIconHandle>(null);
 
   if (!user) {
     return null;
@@ -87,12 +90,14 @@ export function NavUser() {
               Profile
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <AnimateIcon asChild animateOnHover animateOnTap>
-              <DropdownMenuItem onClick={logout}>
-                <LogOutIcon className="mr-2 size-4" />
-                Log out
-              </DropdownMenuItem>
-            </AnimateIcon>
+            <DropdownMenuItem
+              onClick={logout}
+              onMouseEnter={() => logoutIconRef.current?.startAnimation()}
+              onMouseLeave={() => logoutIconRef.current?.stopAnimation()}
+            >
+              <LogoutIcon ref={logoutIconRef} size={16} className="mr-2" />
+              Log out
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </SidebarMenuItem>
