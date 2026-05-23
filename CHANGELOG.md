@@ -3,6 +3,30 @@
 All notable changes to FEED are documented here. This project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [1.1.2] — 2026-05-22
+
+More UI motion polish plus a breadcrumb fix. No backend or database changes.
+
+### Changed
+
+- **Alerts bell** now uses an animated bell in the "no new alerts" state that
+  rings on hover/tap (no page-load animation). The "new alerts" bell still
+  shakes on appearance.
+- **Filter inputs** on every data-table page (Categories, Food Items,
+  Translations, Shopping Lists, Document Translator, AI Configuration) animate
+  their funnel icon on page load + filter-field hover/click.
+- **Language Management search** field animates its magnifying-glass icon
+  (a hop/nudge) on page load + field hover/click.
+- **Translate Document dialog**: added vertical spacing around the
+  "Select All" row so it isn't squeezed against the Basic/Advanced tabs.
+
+### Fixed
+
+- **Breadcrumb dead links**: non-route group labels (Inventory, Tools,
+  Language & Translation) rendered as buttons with link-hover styling but did
+  nothing when clicked. They now render as non-interactive text; routed
+  crumbs still navigate.
+
 ## [1.1.1] — 2026-05-22
 
 UI motion polish — animated icons throughout the app. No backend or database
