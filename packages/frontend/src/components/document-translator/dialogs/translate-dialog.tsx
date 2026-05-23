@@ -660,7 +660,7 @@ export function TranslateDialog({
 
               <TabsContents>
               <TabsContent value="basic" className="space-y-4">
-                <div className="flex flex-wrap items-center gap-2 mb-4">
+                <div className="flex flex-wrap items-center gap-2 my-4">
                   {selectedLanguages.length > 0 && (
                     <div className="flex items-center gap-2">
                       <span className="text-sm text-muted-foreground">
@@ -734,7 +734,7 @@ export function TranslateDialog({
               </TabsContent>
               
               <TabsContent value="advanced" className="space-y-4">
-                <div className="flex flex-wrap items-center gap-2 mb-4">
+                <div className="flex flex-wrap items-center gap-2 my-4">
                   {selectedLanguages.length > 0 && (
                     <div className="flex items-center gap-2">
                       <span className="text-sm text-muted-foreground">
