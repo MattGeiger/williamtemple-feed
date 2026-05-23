@@ -5,12 +5,24 @@ All notable changes to FEED are documented here. This project adheres to
 
 ## [Unreleased]
 
+## [1.1.3] — 2026-05-23
+
+Help, About, and auth-screen polish. No backend or database changes.
+
 ### Added
 
 - **Information section** in the sidebar with a searchable, Markdown-sourced
   Help center and a concise About page. Help guides are written for pantry
   staff in plain language and include a screenshot backlog for future visual
   workflow references.
+
+### Changed
+
+- **About** moved from a primary sidebar section to a concise modal opened
+  from the sidebar footer, with Temple Consulting branding and project links.
+- **Login and logout screens** now use simpler William Temple House branding,
+  updated attribution, and solid auth email input backgrounds in light and dark
+  mode.
 
 ## [1.1.2] — 2026-05-22
 
