@@ -10,7 +10,8 @@
 import * as React from "react"
 import { Slot } from "@radix-ui/react-slot"
 import { VariantProps, cva } from "class-variance-authority"
-import { PanelLeft } from "@/components/ui/icons";
+import { AnimateIcon } from "@/components/animate-ui/icons/icon";
+import { PanelLeftCloseIcon } from "@/components/animate-ui/icons/panel-left-close";
 
 import { useIsMobile } from "@/hooks/use-mobile"
 import { cn } from "@/lib/utils"
@@ -281,21 +282,24 @@ const SidebarTrigger = React.forwardRef<
   const { toggleSidebar } = useSidebar()
 
   return (
-    <Button
-      ref={ref}
-      data-sidebar="trigger"
-      variant="ghost"
-      size="icon"
-      className={cn("h-7 w-7", className)}
-      onClick={(event) => {
-        onClick?.(event)
-        toggleSidebar()
-      }}
-      {...props}
-    >
-      <PanelLeft />
-      <span className="sr-only">Toggle Sidebar</span>
-    </Button>
+    <AnimateIcon asChild animateOnHover animateOnTap>
+      <Button
+        ref={ref}
+        data-sidebar="trigger"
+        data-feed-no-icon-motion="true"
+        variant="ghost"
+        size="icon"
+        className={cn("h-7 w-7", className)}
+        onClick={(event) => {
+          onClick?.(event)
+          toggleSidebar()
+        }}
+        {...props}
+      >
+        <PanelLeftCloseIcon />
+        <span className="sr-only">Toggle Sidebar</span>
+      </Button>
+    </AnimateIcon>
   )
 })
 SidebarTrigger.displayName = "SidebarTrigger"
