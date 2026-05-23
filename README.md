@@ -24,9 +24,9 @@ food-distribution programs at scale.
 
 ## What FEED does
 
-FEED is what happens when a working food pantry needs more than a
-spreadsheet but less than enterprise inventory software. It manages the
-operational reality of distributing food to clients each week:
+FEED was built to support food pantry needs and take inventory management
+beyond simple spreadsheets and without the costs of enterprise inventory
+software. FEED supports the common operational reality of food pantries:
 
 - **Inventory management** — categories, food items, per-item and
   per-category limits, in-stock / out-of-stock / clearance status.
@@ -53,12 +53,12 @@ operational reality of distributing food to clients each week:
 ## Who FEED is for
 
 - Food pantries and food banks running distribution operations they
-  want to digitize without a six-figure software contract.
+  want to digitize without an expensive software contract.
 - Nonprofits building multilingual client materials and looking for
-  a working translation pipeline.
+  a translation pipeline that performs better than Google Translate.
 - Developers who want a non-trivial reference for a React + Express +
   Prisma + SQLite app that includes a real PDF generation pipeline,
-  AI integration, and i18n done seriously.
+  and LLM integration.
 
 If you fall into any of those buckets and FEED looks useful, you can
 fork it, modify it, and deploy your own instance — see
