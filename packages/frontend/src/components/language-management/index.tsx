@@ -5,10 +5,15 @@
 // under AGPL-3.0-or-later; see LICENSE. William Temple House branding is
 // not covered by this license; see TRADEMARKS.md.
 
-import { Globe } from "@/components/ui/icons";
 import { LanguageSelectionForm } from "./language-selection-form"
 import { LanguageProvider } from "@/contexts/LanguageContext"
 import { SectionHeader } from "@/components/shared/section-header"
+import { GlobeIcon } from "@/components/ui/globe"
+import { createPageTitleIcon } from "@/components/layout/page-title-icon"
+
+// Page-title icon: animates on mount (page load) + hover. Mirrors the
+// AI Configuration title pattern.
+const PageTitleGlobeIcon = createPageTitleIcon(GlobeIcon);
 
 export function LanguageManagement() {
   return (
@@ -17,7 +22,7 @@ export function LanguageManagement() {
         <SectionHeader
           title="Language Management"
           description="Manage language availability and content translation settings."
-          icon={Globe}
+          icon={PageTitleGlobeIcon}
         />
 
         <div className="w-full">
