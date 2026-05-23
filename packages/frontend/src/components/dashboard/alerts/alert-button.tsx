@@ -5,8 +5,9 @@
 // under AGPL-3.0-or-later; see LICENSE. William Temple House branding is
 // not covered by this license; see TRADEMARKS.md.
 
-import { useState } from 'react';
-import { Bell, BellDot } from "@/components/ui/icons";
+import { useEffect, useRef, useState } from 'react';
+import { Bell } from "@/components/ui/icons";
+import { BellDotIcon, type BellDotIconHandle } from "@/components/ui/bell-dot";
 import { Button } from '@/components/ui/button';
 import { AlertDialog } from './alert-dialog';
 import { useAlerts } from '@/hooks/alerts/useAlerts';
@@ -18,6 +19,15 @@ export function AlertButton() {
     refreshInterval: 30000
   });
 
+  const hasUnread = unreadCount > 0;
+
+  // Shake the bell when unread alerts appear (0 -> >0), to draw attention to
+  // newly-spawned alerts. It also replays on hover (handlers below).
+  const bellRef = useRef<BellDotIconHandle>(null);
+  useEffect(() => {
+    if (hasUnread) bellRef.current?.startAnimation();
+  }, [hasUnread]);
+
   return (
     <>
       <Button
@@ -26,18 +36,21 @@ export function AlertButton() {
         className="h-9 w-9"
         onClick={() => setDialogOpen(true)}
       >
-        {unreadCount > 0 ? (
-          <BellDot 
-            className="h-5 w-5" 
-            style={{ color: 'var(--color-clearance)' }} 
+        {hasUnread ? (
+          <BellDotIcon
+            ref={bellRef}
+            size={20}
+            style={{ color: 'var(--color-clearance)' }}
+            onMouseEnter={() => bellRef.current?.startAnimation()}
+            onMouseLeave={() => bellRef.current?.stopAnimation()}
           />
         ) : (
           <Bell className="h-5 w-5 text-muted-foreground" />
         )}
       </Button>
-      <AlertDialog 
-        open={dialogOpen} 
-        onOpenChange={setDialogOpen} 
+      <AlertDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
       />
     </>
   );
