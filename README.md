@@ -47,6 +47,8 @@ software. FEED supports the common operational reality of food pantries:
 - **Dashboards** — translation throughput, cost projections, token
   usage by provider, response-time monitoring; all with proper
   empty-state handling for fresh installs.
+- **In-app Help** — searchable staff guides written in plain language,
+  plus a concise About page with project and license information.
 - **Magic-link OTP authentication** — no passwords. Email-based
   sign-in via [Resend](https://resend.com/).
 
