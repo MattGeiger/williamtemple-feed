@@ -70,6 +70,7 @@ export function MagicLinkTab() {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="you@williamtemple.org"
+          className="bg-white dark:bg-slate-950"
           required
           disabled={isLoading}
         />

@@ -7,7 +7,6 @@
 
 import { Info, Package, Globe2, Settings } from "@/components/ui/icons";
 import {
-  AboutNavIcon,
   AIConfigurationNavIcon,
   CategoriesNavIcon,
   DashboardNavIcon,
@@ -99,11 +98,6 @@ export const navigationItems: NavItem[] = [
         title: "Help",
         href: "/help",
         icon: HelpNavIcon,
-      },
-      {
-        title: "About",
-        href: "/about",
-        icon: AboutNavIcon,
       }
     ]
   }
