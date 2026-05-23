@@ -6,7 +6,7 @@
 // not covered by this license; see TRADEMARKS.md.
 
 "use client";
-import { ChevronsUpDown, User } from "@/components/ui/icons";
+import { ChevronsUpDown, LogOut, User } from "@/components/ui/icons";
 
 import {
   Avatar,
@@ -85,32 +85,8 @@ export function NavUser() {
               Profile
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            {/* Animate-on-row-hover via pure CSS: the row is `group`, the
-                arrow `<g>` slides on `group-hover`. `data-feed-no-icon-motion`
-                disables the global menuitem icon "pop" so only the slide plays.
-                (AnimateIcon/animate-ui hover did not fire reliably on a Radix
-                DropdownMenuItem here — see ICON_ANIMATIONS.md.) */}
-            <DropdownMenuItem
-              onClick={logout}
-              className="group"
-              data-feed-no-icon-motion="true"
-            >
-              <svg
-                className="mr-2 h-4 w-4 shrink-0"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
-              >
-                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                <g className="origin-center transition-transform duration-300 ease-out group-hover:translate-x-[3px]">
-                  <path d="m16 17 5-5-5-5" />
-                  <path d="M21 12H9" />
-                </g>
-              </svg>
+            <DropdownMenuItem onClick={logout}>
+              <LogOut className="mr-2 size-4" />
               Log out
             </DropdownMenuItem>
           </DropdownMenuContent>
