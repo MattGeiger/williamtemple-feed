@@ -13,7 +13,12 @@ import { TableBulkAction } from "@/types/table"
 import { SavedBuilderTemplate } from "@/components/shopping-lists/builder/types"
 import { GlobalLimitDialog } from "../global-limit-dialog"
 import { Trash2, Download, Copy } from "@/components/ui/icons";
-import { ClipboardListIcon } from "@/components/animate-ui/icons/clipboard-list";
+import { ClipboardListIcon } from "@/components/ui/clipboard-list";
+import { createPageTitleIcon } from "@/components/layout/page-title-icon";
+
+// Page-title icon: animates on mount (page load) + hover. Mirrors the
+// AI Configuration title pattern.
+const PageTitleClipboardListIcon = createPageTitleIcon(ClipboardListIcon);
 import { PlusIcon } from "@/components/animate-ui/icons/plus";
 import { SquareArrowOutUpRightIcon } from "@/components/animate-ui/icons/square-arrow-out-up-right";
 import { GlobeLockIcon } from "@/components/animate-ui/icons/globe-lock";
@@ -152,7 +157,7 @@ export function ShoppingListList({
           filterPlaceholder="Filter saved templates..."
           enableColumnVisibility={true}
           onError={handleError}
-          toolbarIcon={ClipboardListIcon}
+          toolbarIcon={PageTitleClipboardListIcon}
           toolbarActions={toolbarActions}
         />
       </TooltipProvider>

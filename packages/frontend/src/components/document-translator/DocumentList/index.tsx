@@ -14,9 +14,15 @@ import { DataList } from "@/components/shared/data-list/DataList";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { TableBulkAction } from "@/types/table";
 import { useMessage } from "@/hooks/message/useMessage";
-import { Trash2, FileText, Download } from "@/components/ui/icons";
+import { Trash2, Download } from "@/components/ui/icons";
 import { UploadIcon } from "@/components/animate-ui/icons/upload";
 import { FolderCheckIcon } from "@/components/animate-ui/icons/folder-check";
+import { FileTextIcon } from "@/components/ui/file-text";
+import { createPageTitleIcon } from "@/components/layout/page-title-icon";
+
+// Page-title icon: animates on mount (page load) + hover. Mirrors the
+// AI Configuration title pattern.
+const PageTitleFileTextIcon = createPageTitleIcon(FileTextIcon);
 import { BulkDeleteDialog, BulkDeleteAction } from "../dialogs/bulk-delete-dialog";
 import { ReconciliationDialog } from "../dialogs/reconciliation-dialog";
 
@@ -283,7 +289,7 @@ export function DocumentList({
         enableColumnVisibility={true}
         onError={handleError}
         toolbarActions={toolbarActions}
-        toolbarIcon={FileText}
+        toolbarIcon={PageTitleFileTextIcon}
       />
 
       <BulkDeleteDialog

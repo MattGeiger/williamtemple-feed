@@ -12,8 +12,14 @@ import { DataList } from "@/components/shared/data-list/DataList"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { TableBulkAction } from "@/types/table"
 import { useMessage } from "@/hooks/message/useMessage"
-import { Trash2, Shapes } from "@/components/ui/icons";
+import { Trash2 } from "@/components/ui/icons";
 import { PlusIcon } from "@/components/animate-ui/icons/plus";
+import { ShapesIcon } from "@/components/ui/shapes";
+import { createPageTitleIcon } from "@/components/layout/page-title-icon";
+
+// Page-title icon: animates on mount (page load) + hover. Mirrors the
+// AI Configuration title pattern.
+const PageTitleShapesIcon = createPageTitleIcon(ShapesIcon);
 import { BulkDeleteDialog } from "./bulk-delete-dialog"
 
 interface CategoryListProps {
@@ -126,7 +132,7 @@ export function CategoryList({
         enableColumnVisibility={true}
         onError={handleError}
         toolbarActions={toolbarActions}
-        toolbarIcon={Shapes}
+        toolbarIcon={PageTitleShapesIcon}
       />
 
       <BulkDeleteDialog
