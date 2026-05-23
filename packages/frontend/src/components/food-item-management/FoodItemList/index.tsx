@@ -29,7 +29,8 @@ import {
   FOOD_ITEM_STATUS_FILTERS,
   filterFoodItemsForInventoryUpdate,
 } from "../filters"
-import { X, Trash2, Package, AlertTriangle, Tag, Apple, Plus, ArrowLeftRight, ChevronDown, ListFilter } from "@/components/ui/icons";
+import { X, Trash2, Package, AlertTriangle, Tag, Apple, ArrowLeftRight, ChevronDown, ListFilter } from "@/components/ui/icons";
+import { PlusIcon } from "@/components/animate-ui/icons/plus";
 
 interface FoodItemListProps {
   onAddItem?: () => void
@@ -253,7 +254,7 @@ export function FoodItemList({
   const toolbarActions = [
     {
       label: 'Add New Item',
-      icon: Plus,
+      icon: PlusIcon,
       variant: 'default' as const,
       action: () => onAddItem?.()
     }

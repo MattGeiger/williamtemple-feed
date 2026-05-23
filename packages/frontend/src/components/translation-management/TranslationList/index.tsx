@@ -12,7 +12,9 @@ import { DataList } from "@/components/shared/data-list/DataList"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { TableBulkAction } from "@/types/table"
 import { useMessage } from "@/hooks/message/useMessage"
-import { Trash2, Plus, SearchCheck, RefreshCw, Languages } from "@/components/ui/icons";
+import { Trash2, RefreshCw, Languages } from "@/components/ui/icons";
+import { PlusIcon } from "@/components/animate-ui/icons/plus";
+import { SearchCheckIcon } from "@/components/animate-ui/icons/search-check";
 import { TranslationService } from "@/services/translation"
 import { BulkDeleteDialog } from "./bulk-delete-dialog"
 
@@ -332,13 +334,13 @@ export function TranslationList({
   const toolbarActions = [
     {
       label: 'Add New Translation',
-      icon: Plus,
+      icon: PlusIcon,
       variant: 'default' as const,
       action: () => onAddTranslation?.()
     },
     {
       label: 'Find Missing Translations',
-      icon: SearchCheck,
+      icon: SearchCheckIcon,
       variant: 'outline' as const,
       action: () => onFindMissingTranslations?.()
     }

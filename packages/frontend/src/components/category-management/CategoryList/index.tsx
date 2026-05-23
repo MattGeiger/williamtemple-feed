@@ -12,7 +12,8 @@ import { DataList } from "@/components/shared/data-list/DataList"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { TableBulkAction } from "@/types/table"
 import { useMessage } from "@/hooks/message/useMessage"
-import { Trash2, Shapes, Plus } from "@/components/ui/icons";
+import { Trash2, Shapes } from "@/components/ui/icons";
+import { PlusIcon } from "@/components/animate-ui/icons/plus";
 import { BulkDeleteDialog } from "./bulk-delete-dialog"
 
 interface CategoryListProps {
@@ -95,7 +96,7 @@ export function CategoryList({
   const toolbarActions = [
     {
       label: 'Add New Category',
-      icon: Plus,
+      icon: PlusIcon,
       variant: 'default' as const,
       action: () => onAddCategory?.() // Call the prop function instead
     }
