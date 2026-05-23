@@ -38,6 +38,9 @@ import { ProtectedRoute } from './components/protected-route'
 import LoginPage from './components/pages/login-page'
 import LogoutPage from './components/pages/logout-page'
 import { AIConfiguration } from './components/ai-configuration'
+import { AboutPage } from './components/about/AboutPage'
+import { HelpGuidePage } from './components/help/HelpGuidePage'
+import { HelpPage } from './components/help/HelpPage'
 import DashboardErrorBoundary from './components/dashboard/dashboard-error-boundary'
 // Removed PrintView and in-browser print route (deprecated)
 
@@ -283,6 +286,49 @@ function AIConfigurationPage() {
   )
 }
 
+function HelpIndexPage() {
+  return (
+    <RootLayout
+      breadcrumbs={[
+        { title: "Dashboard (Home)", href: "/" },
+        { title: "Information"},
+        { title: "Help" }
+      ]}
+    >
+      <HelpPage />
+    </RootLayout>
+  )
+}
+
+function HelpDetailPage() {
+  return (
+    <RootLayout
+      breadcrumbs={[
+        { title: "Dashboard (Home)", href: "/" },
+        { title: "Information"},
+        { title: "Help", href: "/help" },
+        { title: "Guide" }
+      ]}
+    >
+      <HelpGuidePage />
+    </RootLayout>
+  )
+}
+
+function AboutRoutePage() {
+  return (
+    <RootLayout
+      breadcrumbs={[
+        { title: "Dashboard (Home)", href: "/" },
+        { title: "Information"},
+        { title: "About" }
+      ]}
+    >
+      <AboutPage />
+    </RootLayout>
+  )
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
@@ -307,6 +353,9 @@ function App() {
                   {/** In-browser PrintView removed; use server-side React-PDF export instead */}
                   <Route path="/document-translator" element={<DocumentTranslatorPage />} />
                   <Route path="/ai-configuration" element={<AIConfigurationPage />} />
+                  <Route path="/help" element={<HelpIndexPage />} />
+                  <Route path="/help/:slug" element={<HelpDetailPage />} />
+                  <Route path="/about" element={<AboutRoutePage />} />
                   
                   {/* Catch-all route for any unmatched routes */}
                   <Route path="*" element={<Navigate to="/" replace />} />

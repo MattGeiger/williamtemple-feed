@@ -1,0 +1,157 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Matt Geiger
+//
+// FEED — Food Equity & Efficient Delivery. Application code licensed
+// under AGPL-3.0-or-later; see LICENSE. William Temple House branding is
+// not covered by this license; see TRADEMARKS.md.
+
+import type { ReactNode } from "react"
+import { Link } from "react-router-dom"
+import ReactMarkdown, { type Components } from "react-markdown"
+import remarkGfm from "remark-gfm"
+
+import { cn } from "@/lib/utils"
+import { createGuideSlugger, rewriteGuideLink } from "@/lib/user-guides"
+
+type MarkdownGuideProps = {
+  content: string
+}
+
+function getReactNodeText(node: ReactNode): string {
+  if (node === null || node === undefined || typeof node === "boolean") return ""
+  if (typeof node === "string" || typeof node === "number") return String(node)
+  if (Array.isArray(node)) return node.map(getReactNodeText).join("")
+  if (typeof node === "object" && "props" in node) {
+    return getReactNodeText((node as { props?: { children?: ReactNode } }).props?.children)
+  }
+  return ""
+}
+
+export function MarkdownGuide({ content }: MarkdownGuideProps) {
+  const slugger = createGuideSlugger()
+
+  const components: Components = {
+    a: ({ href, children, node: _node, ...props }) => {
+      if (!href) {
+        return <a {...props}>{children}</a>
+      }
+
+      const rewrittenHref = rewriteGuideLink(href)
+      const isExternal =
+        rewrittenHref.startsWith("http://") || rewrittenHref.startsWith("https://")
+
+      if (isExternal) {
+        return (
+          <a href={rewrittenHref} target="_blank" rel="noopener noreferrer" {...props}>
+            {children}
+          </a>
+        )
+      }
+
+      if (rewrittenHref.startsWith("mailto:") || rewrittenHref.startsWith("#")) {
+        return (
+          <a href={rewrittenHref} {...props}>
+            {children}
+          </a>
+        )
+      }
+
+      return (
+        <Link to={rewrittenHref} {...props}>
+          {children}
+        </Link>
+      )
+    },
+    h1: ({ children, node: _node, ...props }) => (
+      <h1
+        className="text-3xl font-semibold tracking-tight text-foreground"
+        {...props}
+      >
+        {children}
+      </h1>
+    ),
+    h2: ({ children, node: _node, ...props }) => {
+      const id = slugger.slug(getReactNodeText(children))
+      return (
+        <h2
+          id={id}
+          className="scroll-mt-24 border-t pt-8 text-2xl font-semibold tracking-tight text-foreground first:border-t-0 first:pt-0"
+          {...props}
+        >
+          {children}
+        </h2>
+      )
+    },
+    h3: ({ children, node: _node, ...props }) => {
+      const id = slugger.slug(getReactNodeText(children))
+      return (
+        <h3
+          id={id}
+          className="scroll-mt-24 text-lg font-semibold text-foreground"
+          {...props}
+        >
+          {children}
+        </h3>
+      )
+    },
+    p: ({ className, node: _node, ...props }) => (
+      <p className={cn("leading-7 text-foreground/90", className)} {...props} />
+    ),
+    ul: ({ className, node: _node, ...props }) => (
+      <ul className={cn("ml-5 list-disc space-y-2 leading-7", className)} {...props} />
+    ),
+    ol: ({ className, node: _node, ...props }) => (
+      <ol className={cn("ml-5 list-decimal space-y-2 leading-7", className)} {...props} />
+    ),
+    li: ({ className, node: _node, ...props }) => (
+      <li className={cn("pl-1 text-foreground/90", className)} {...props} />
+    ),
+    blockquote: ({ className, node: _node, ...props }) => (
+      <blockquote
+        className={cn("border-l-4 border-primary/40 pl-4 text-muted-foreground", className)}
+        {...props}
+      />
+    ),
+    code: ({ className, node: _node, ...props }) => (
+      <code
+        className={cn(
+          "rounded bg-muted px-1.5 py-0.5 font-mono text-sm text-foreground",
+          className
+        )}
+        {...props}
+      />
+    ),
+    pre: ({ className, node: _node, ...props }) => (
+      <pre
+        className={cn(
+          "overflow-x-auto rounded-lg border bg-muted p-4 text-sm text-foreground",
+          className
+        )}
+        {...props}
+      />
+    ),
+    table: ({ className, node: _node, ...props }) => (
+      <table className={cn("w-full border-collapse text-sm", className)} {...props} />
+    ),
+    th: ({ className, node: _node, ...props }) => (
+      <th
+        className={cn("border bg-muted px-3 py-2 text-left font-medium", className)}
+        {...props}
+      />
+    ),
+    td: ({ className, node: _node, ...props }) => (
+      <td className={cn("border px-3 py-2 align-top", className)} {...props} />
+    ),
+  }
+
+  return (
+    <article
+      data-guide-article
+      className="max-w-none space-y-5 rounded-lg border bg-card p-5 shadow-sm md:p-7"
+    >
+      <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
+        {content}
+      </ReactMarkdown>
+    </article>
+  )
+}
