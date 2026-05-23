@@ -3,6 +3,32 @@
 All notable changes to FEED are documented here. This project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [1.1.1] — 2026-05-22
+
+UI motion polish — animated icons throughout the app. No backend or database
+changes. Hand-rolled icons that have no upstream animate-ui version are
+authored as native animate-ui icons using Lucide v0.522.0 geometry verbatim,
+so they're visually identical to the static icons at rest.
+
+### Changed
+
+- **Animated toolbar action icons** across the management pages — the
+  Create/Add buttons (Categories, Food Items, Translations, AI Configuration),
+  Find Missing Translations, Document Translator's Upload Document and Run
+  Storage Check, AI Configuration's Reset to Defaults, and Shopping Lists'
+  Export Settings (now a square-arrow-out icon) animate on hover/tap.
+- **Animated page-title icons on every page** — Categories, Food Items,
+  Translations, Document Translator, Shopping Lists, and Language Management
+  now animate their title icon on load + hover, matching the AI Configuration
+  page (extracted into a shared `createPageTitleIcon` helper).
+- **Sidebar toggle** uses an animated `panel-left-close` icon whose chevron
+  nudges on hover.
+- **Sidebar Log out** icon animates (arrow slides out) on row hover.
+- **Global Limit Settings** button uses a custom animated `globe-lock` icon
+  (globe lines trace in, the lock bobs).
+- **Alerts bell shakes** when unread alerts are present — on appearance / page
+  load and on hover — drawing attention to newly-spawned alerts.
+
 ## [1.1.0] — 2026-05-22
 
 The Shopping List Builder gains a batch of layout/printing controls plus an
