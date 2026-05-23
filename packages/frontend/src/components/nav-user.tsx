@@ -6,7 +6,9 @@
 // not covered by this license; see TRADEMARKS.md.
 
 "use client";
-import { ChevronsUpDown, LogOut, User } from "@/components/ui/icons";
+import { ChevronsUpDown, User } from "@/components/ui/icons";
+import { AnimateIcon } from "@/components/animate-ui/icons/icon";
+import { LogOutIcon } from "@/components/animate-ui/icons/log-out";
 
 import {
   Avatar,
@@ -85,10 +87,12 @@ export function NavUser() {
               Profile
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={logout}>
-              <LogOut className="mr-2 size-4" />
-              Log out
-            </DropdownMenuItem>
+            <AnimateIcon asChild animateOnHover animateOnTap>
+              <DropdownMenuItem onClick={logout}>
+                <LogOutIcon className="mr-2 size-4" />
+                Log out
+              </DropdownMenuItem>
+            </AnimateIcon>
           </DropdownMenuContent>
         </DropdownMenu>
       </SidebarMenuItem>
