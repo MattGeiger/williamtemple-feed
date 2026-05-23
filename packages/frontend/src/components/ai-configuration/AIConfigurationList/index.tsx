@@ -14,7 +14,9 @@ import { DataList } from "@/components/shared/data-list/DataList"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { TableBulkAction } from "@/types/table"
 import { useMessage } from "@/hooks/message/useMessage"
-import { Trash2, Plus, Settings, ToggleLeft, ToggleRight, Bot } from "@/components/ui/icons";
+import { Trash2, ToggleLeft, ToggleRight, Bot } from "@/components/ui/icons";
+import { PlusIcon } from "@/components/animate-ui/icons/plus";
+import { SettingsIcon } from "@/components/animate-ui/icons/settings";
 import { BotIcon, type BotIconHandle } from "@/components/ui/bot";
 
 /**
@@ -155,13 +157,13 @@ export function AIConfigurationList({
   const toolbarActions = [
     {
       label: 'Add Configuration',
-      icon: Plus,
+      icon: PlusIcon,
       variant: 'default' as const,
       action: () => onAddConfiguration?.()
     },
     {
       label: 'Reset to Defaults',
-      icon: Settings,
+      icon: SettingsIcon,
       variant: 'outline' as const,
       action: () => onResetDefaults?.()
     }

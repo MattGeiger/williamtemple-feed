@@ -14,7 +14,9 @@ import { DataList } from "@/components/shared/data-list/DataList";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { TableBulkAction } from "@/types/table";
 import { useMessage } from "@/hooks/message/useMessage";
-import { FolderCheck, Trash2, FileText, Upload, Download } from "@/components/ui/icons";
+import { Trash2, FileText, Download } from "@/components/ui/icons";
+import { UploadIcon } from "@/components/animate-ui/icons/upload";
+import { FolderCheckIcon } from "@/components/animate-ui/icons/folder-check";
 import { BulkDeleteDialog, BulkDeleteAction } from "../dialogs/bulk-delete-dialog";
 import { ReconciliationDialog } from "../dialogs/reconciliation-dialog";
 
@@ -171,13 +173,13 @@ export function DocumentList({
   const toolbarActions = [
     {
       label: 'Upload Document',
-      icon: Upload,
+      icon: UploadIcon,
       variant: 'default' as const,
       action: onUpload
     },
     {
       label: 'Run Storage Check',
-      icon: FolderCheck,
+      icon: FolderCheckIcon,
       variant: 'outline' as const,
       action: handleStorageCheck
     }
