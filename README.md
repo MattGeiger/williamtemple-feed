@@ -18,7 +18,7 @@ food-distribution programs at scale.
 
 **Production deployment:** https://feed.williamtemple.app
 **License:** [AGPL-3.0-or-later](./LICENSE)
-**Status:** v1.1.2 — in production use
+**Status:** v1.1.3 — in production use
 
 ---
 
