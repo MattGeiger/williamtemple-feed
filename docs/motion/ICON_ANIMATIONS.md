@@ -133,21 +133,16 @@ React.useEffect(() => {
 </Card>
 ```
 
-**Use this (not `<AnimateIcon>`) for dropdown / context-menu rows.** Wrapping a
-Radix `DropdownMenuItem` in `<AnimateIcon asChild animateOnHover>` does **not**
-reliably animate on row hover — the item's own pointer/selection handling
-competes with the wrapper, so the icon stays static on row hover. Instead hold
-a ref to an imperative icon and drive it from the row's `onMouseEnter` /
-`onMouseLeave` (the row is the larger trigger zone). Pass an explicit
-`size={16}` (the imperative wrapper takes `className` on its `<div>`, so a
-sizing class like `size-4` would not reach the inner `<svg>`).
-
-> **Bonus:** because an imperative icon wraps its `<svg>` in a `<div>`, the svg
-> is no longer a *direct* child of the `[role="menuitem"]`, so the generic
-> icon-motion rule in `index.css` (`[role="menuitem"] > svg` hover pop) does
-> not apply — only your intended animation plays. A native icon rendered bare
-> as a direct child would otherwise pick up that generic hover pop. The "Log
-> out" row in `components/nav-user.tsx` is the worked example.
+**Dropdown / context-menu rows use the action-menu pattern instead** (native
+icon + `<AnimateIcon>`), not this imperative-ref approach. A Radix
+`DropdownMenuItem` animates on row hover when wrapped in `<AnimateIcon asChild
+animate={animateMount} animateOnHover animateOnTap>` with the `animate` prop
+cycled from the menu's open state — see "Action Menu Icons (TableActionMenu)"
+below. The user dropdown's "Log out" row (`components/nav-user.tsx`) follows
+this exact pattern. (Treating such a row like a persistent sidebar nav item —
+dropping `animate` and/or using an imperative-ref icon — leaves the icon
+static on row hover; the `<AnimateIcon>` context never reaches an
+imperative-ref icon, and without the cycled `animate` the first hover can no-op.)
 
 ### Bridging Imperative-Ref Icons into an animate-ui Context
 
