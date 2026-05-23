@@ -6,9 +6,10 @@
 // not covered by this license; see TRADEMARKS.md.
 
 "use client";
-import { useRef } from "react";
+import * as React from "react";
 import { ChevronsUpDown, User } from "@/components/ui/icons";
-import { LogoutIcon, type LogoutIconHandle } from "@/components/ui/logout";
+import { AnimateIcon } from "@/components/animate-ui/icons/icon";
+import { LogOutIcon } from "@/components/animate-ui/icons/log-out";
 
 import {
   Avatar,
@@ -34,9 +35,34 @@ import { useAuth } from "@/contexts/AuthContext"
 export function NavUser() {
   const { isMobile } = useSidebar();
   const { user, logout } = useAuth();
-  // Drive the logout icon from the whole row's hover (trigger zone larger than
-  // the icon) — the documented imperative-ref pattern for menu rows.
-  const logoutIconRef = useRef<LogoutIconHandle>(null);
+
+  // Drive the AnimateIcon `animate` prop from the menu's open state so that
+  // after the open animation, localAnimate resets to false and every hover
+  // can cycle false → true reliably. Same pattern as TableActionMenu — see
+  // ICON_ANIMATIONS.md "The `animate` prop stuck-state pitfall".
+  const ANIMATE_RESET_DELAY_MS = 800;
+  const [animateMount, setAnimateMount] = React.useState(false);
+  const timerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleOpenChange = React.useCallback((isOpen: boolean) => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    if (isOpen) {
+      setAnimateMount(true);
+      timerRef.current = setTimeout(() => {
+        setAnimateMount(false);
+        timerRef.current = null;
+      }, ANIMATE_RESET_DELAY_MS);
+    } else {
+      setAnimateMount(false);
+    }
+  }, []);
+
+  React.useEffect(() => () => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+  }, []);
 
   if (!user) {
     return null;
@@ -45,7 +71,7 @@ export function NavUser() {
   return (
     <SidebarMenu>
       <SidebarMenuItem>
-        <DropdownMenu>
+        <DropdownMenu onOpenChange={handleOpenChange}>
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton
               size="lg"
@@ -90,14 +116,12 @@ export function NavUser() {
               Profile
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={logout}
-              onMouseEnter={() => logoutIconRef.current?.startAnimation()}
-              onMouseLeave={() => logoutIconRef.current?.stopAnimation()}
-            >
-              <LogoutIcon ref={logoutIconRef} size={16} className="mr-2" />
-              Log out
-            </DropdownMenuItem>
+            <AnimateIcon asChild animate={animateMount} animateOnHover animateOnTap>
+              <DropdownMenuItem onClick={logout}>
+                <LogOutIcon className="mr-2 h-4 w-4" size={16} />
+                Log out
+              </DropdownMenuItem>
+            </AnimateIcon>
           </DropdownMenuContent>
         </DropdownMenu>
       </SidebarMenuItem>
