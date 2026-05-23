@@ -37,7 +37,9 @@ The project uses two distinct animated icon systems that serve different use cas
 
 Motion/React-based icons that use Framer Motion variants. They are driven by an `AnimateIconContext` and can be triggered by a parent `<AnimateIcon>` wrapper or by trigger props handled internally via `IconWrapper`.
 
-**Examples:** `UndoIcon`, `CopyIcon`, `Trash2Icon`, `SquarePenIcon`, `XIcon`, `TagIcon`, `ArrowLeftRightIcon`, `SunIcon`, `MoonIcon`, `SunMoonIcon`, `GaugeIcon`, `BotIcon`, `ClipboardListIcon`
+**Examples:** `UndoIcon`, `CopyIcon`, `Trash2Icon`, `SquarePenIcon`, `XIcon`, `TagIcon`, `ArrowLeftRightIcon`, `SunIcon`, `MoonIcon`, `SunMoonIcon`, `GaugeIcon`, `BotIcon`, `PlusIcon`, `FileDownIcon`, `SettingsIcon`
+
+**Hand-rolled here** (no upstream registry version; Lucide geometry verbatim): `UploadIcon`, `SearchCheckIcon`, `FolderCheckIcon`, `GlobeLockIcon`, `LogOutIcon`, `PanelLeftCloseIcon`
 
 **File location:** `packages/frontend/src/components/animate-ui/icons/`
 
@@ -45,7 +47,7 @@ Motion/React-based icons that use Framer Motion variants. They are driven by an 
 
 Lucide-animated-style icons that expose `startAnimation` / `stopAnimation` methods via `React.forwardRef`. They manage their own internal Framer Motion controls.
 
-**Examples:** `ShapesIcon`, `AppleIcon`, `GlobeIcon`, `LanguagesIcon`, `FileTextIcon`
+**Examples:** `ShapesIcon`, `AppleIcon`, `GlobeIcon`, `LanguagesIcon`, `FileTextIcon`, `ClipboardListIcon`, `BellDotIcon`
 
 **File location:** `packages/frontend/src/components/ui/`
 
