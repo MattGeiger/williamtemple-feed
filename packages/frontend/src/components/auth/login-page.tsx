@@ -17,8 +17,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Mail, KeyRound } from "@/components/ui/icons";
 import { MagicLinkTab } from "./magic-link-tab";
 import { OTPTab } from "./otp-tab";
-import { BuiltWithClaude } from "@/components/shared/built-with-claude";
-import { APP_VERSION } from "@/config/app-version";
+import { AuthAttribution } from "./auth-attribution";
 
 export function LoginPage() {
   const [activeTab, setActiveTab] = useState<"magic" | "otp">("otp");
@@ -60,11 +59,7 @@ export function LoginPage() {
           </TabsContents>
         </Tabs>
 
-        <div className="text-center text-xs text-muted-foreground mt-6 space-y-2">
-          <p>Version {APP_VERSION}</p>
-          <p className="mt-1">For authorized testing only</p>
-          <BuiltWithClaude className="flex justify-center" />
-        </div>
+        <AuthAttribution className="mt-6" showSourceLink={false} />
       </CardContent>
     </Card>
   );

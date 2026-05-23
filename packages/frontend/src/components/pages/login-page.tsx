@@ -24,33 +24,22 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="grid min-h-svh lg:grid-cols-2">
-      <div className="flex flex-col gap-4 p-6 md:p-10">
-        <div className="flex justify-center gap-2 md:justify-start">
-          <div className="flex items-center gap-2 font-medium">
-          </div>
-        </div>
-        <div className="flex flex-1 items-center justify-center">
-          <div className="w-full max-w-lg">
-            <LoginForm />
-          </div>
-        </div>
-      </div>
-      <div className="relative hidden bg-muted lg:block">
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-slate-950 dark:to-blue-950">
+    <div className="flex min-h-svh items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 px-4 py-10 dark:from-gray-950 dark:to-gray-900">
+      <div className="flex w-full max-w-lg flex-col items-center gap-8">
+        <div className="space-y-5 text-center">
           <img
             src={wthLogoHorizontal}
             alt="William Temple House Logo"
-            className="max-w-[60%] object-contain p-8 dark:brightness-[0.9]"
+            className="mx-auto h-auto w-72 max-w-full object-contain dark:brightness-[0.9]"
           />
-          <div className="mt-8 max-w-md p-8 text-center">
-            <h2 className="mb-4 text-2xl font-bold">Food Equity & Efficient Delivery</h2>
-            <p className="text-balance text-muted-foreground">
-              A comprehensive food pantry management system designed for
-              William Temple House's operations.
-            </p>
+          <div className="space-y-2">
+            <h1 className="text-2xl font-semibold tracking-tight">
+              Food Equity & Efficient Delivery
+            </h1>
           </div>
         </div>
+
+        <LoginForm />
       </div>
     </div>
   );

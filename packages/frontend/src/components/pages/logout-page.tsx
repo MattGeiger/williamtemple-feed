@@ -10,8 +10,7 @@ import { Navigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { LogOut } from "@/components/ui/icons";
 import { Card, CardContent } from "@/components/ui/card";
-import { BuiltWithClaude } from "@/components/shared/built-with-claude";
-import { APP_VERSION } from "@/config/app-version";
+import { AuthAttribution } from "@/components/auth/auth-attribution";
 
 export default function LogoutPage() {
   const { logout } = useAuth();
@@ -65,11 +64,7 @@ export default function LogoutPage() {
               Redirecting to login page in <span className="font-bold">{redirectCounter}</span> seconds...
             </div>
             
-            <div className="text-center text-xs text-muted-foreground mt-6 space-y-2">
-              <p>Version {APP_VERSION}</p>
-              <p className="mt-1">For authorized testing only</p>
-              <BuiltWithClaude className="flex justify-center" />
-            </div>
+            <AuthAttribution className="mt-6" showSourceLink={false} />
           </div>
         </CardContent>
       </Card>
