@@ -62,13 +62,18 @@ export function Header({ breadcrumbs = [], rightContent }: HeaderProps) {
                       <BreadcrumbItem className="hidden sm:inline-flex">
                         {index === breadcrumbs.length - 1 ? (
                           <BreadcrumbPage>{crumb.title}</BreadcrumbPage>
-                        ) : (
-                          <button 
+                        ) : crumb.href ? (
+                          <button
                             onClick={() => handleNavigate(crumb.href)}
                             className="hover:text-foreground/80 transition-colors"
                           >
                             {crumb.title}
                           </button>
+                        ) : (
+                          // Group labels (e.g. "Inventory", "Tools") have no
+                          // route — render as non-interactive text so they
+                          // don't present as clickable dead links.
+                          <span className="text-muted-foreground">{crumb.title}</span>
                         )}
                       </BreadcrumbItem>
                       {index < breadcrumbs.length - 1 && (

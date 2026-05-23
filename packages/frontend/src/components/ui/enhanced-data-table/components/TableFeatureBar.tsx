@@ -9,7 +9,8 @@ import * as React from "react"
 import { cn } from "@/lib/utils"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { ChevronDown, Filter, X } from "@/components/ui/icons";
+import { ChevronDown, X } from "@/components/ui/icons";
+import { FunnelIcon, type FunnelIconHandle } from "@/components/ui/funnel";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -77,6 +78,17 @@ export function TableFeatureBar<TData>({
 }: TableFeatureBarProps<TData>) {
   const hasSelection = selectedRows.length > 0
 
+  // Animated filter funnel: draws on at page load, and again on hover / click
+  // of the filter field (the icon itself is pointer-events-none, so the
+  // surrounding field drives it via this ref).
+  const filterIconRef = React.useRef<FunnelIconHandle>(null)
+  React.useEffect(() => {
+    filterIconRef.current?.startAnimation()
+  }, [])
+  const playFilterIcon = React.useCallback(() => {
+    filterIconRef.current?.startAnimation()
+  }, [])
+
   const handleBulkAction = React.useCallback(async (action: TableBulkAction<TData>) => {
     if (!selectedRows.length) return;
 
@@ -114,8 +126,16 @@ export function TableFeatureBar<TData>({
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 w-full">
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
           {enableFiltering && filterColumn && (
-            <div className="relative w-full px-[1px]">
-              <Filter className="absolute left-[9px] top-2 h-4 w-4 text-muted-foreground pointer-events-none" />
+            <div
+              className="relative w-full px-[1px]"
+              onMouseEnter={playFilterIcon}
+              onClick={playFilterIcon}
+            >
+              <FunnelIcon
+                ref={filterIconRef}
+                size={16}
+                className="absolute left-[9px] top-2 h-4 w-4 text-muted-foreground pointer-events-none"
+              />
               <Input
                 placeholder={filterPlaceholder || `Filter ${filterColumn}...`}
                 value={(table.getColumn(filterColumn)?.getFilterValue() as string) ?? ""}
