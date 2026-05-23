@@ -133,16 +133,20 @@ React.useEffect(() => {
 </Card>
 ```
 
-**Dropdown / context-menu rows use the action-menu pattern instead** (native
-icon + `<AnimateIcon>`), not this imperative-ref approach. A Radix
-`DropdownMenuItem` animates on row hover when wrapped in `<AnimateIcon asChild
-animate={animateMount} animateOnHover animateOnTap>` with the `animate` prop
-cycled from the menu's open state — see "Action Menu Icons (TableActionMenu)"
-below. The user dropdown's "Log out" row (`components/nav-user.tsx`) follows
-this exact pattern. (Treating such a row like a persistent sidebar nav item —
-dropping `animate` and/or using an imperative-ref icon — leaves the icon
-static on row hover; the `<AnimateIcon>` context never reaches an
-imperative-ref icon, and without the cycled `animate` the first hover can no-op.)
+**Dropdown / context-menu rows: prefer the action-menu pattern** (native icon
++ `<AnimateIcon>`), see "Action Menu Icons (TableActionMenu)" below. For the
+multi-action `TableActionMenu` that pattern is the right call.
+
+**Fallback for a one-off row — pure-CSS `group-hover`.** If the
+`<AnimateIcon>` hover does not fire for a particular Radix `DropdownMenuItem`
+(it did not for the user dropdown's "Log out" row, across native + imperative
+attempts), a dependency-free CSS slide is the pragmatic fix and reads the
+same. Make the row a `group`, animate the moving sub-`<g>` of an inline SVG
+with `transition-transform … group-hover:translate-x-[3px]`, and set
+`data-feed-no-icon-motion="true"` on the row so the global menuitem icon
+"pop" doesn't double up. Worked example: `components/nav-user.tsx`. (Verified
+in the running bundle: the row-hover slide and the pop-suppression both apply
+as computed styles.)
 
 ### Bridging Imperative-Ref Icons into an animate-ui Context
 
