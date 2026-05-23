@@ -133,21 +133,6 @@ React.useEffect(() => {
 </Card>
 ```
 
-**Dropdown / context-menu rows: prefer the action-menu pattern** (native icon
-+ `<AnimateIcon>`), see "Action Menu Icons (TableActionMenu)" below. For the
-multi-action `TableActionMenu` that pattern is the right call.
-
-**Fallback for a one-off row — pure-CSS `group-hover`.** If the
-`<AnimateIcon>` hover does not fire for a particular Radix `DropdownMenuItem`
-(it did not for the user dropdown's "Log out" row, across native + imperative
-attempts), a dependency-free CSS slide is the pragmatic fix and reads the
-same. Make the row a `group`, animate the moving sub-`<g>` of an inline SVG
-with `transition-transform … group-hover:translate-x-[3px]`, and set
-`data-feed-no-icon-motion="true"` on the row so the global menuitem icon
-"pop" doesn't double up. Worked example: `components/nav-user.tsx`. (Verified
-in the running bundle: the row-hover slide and the pop-suppression both apply
-as computed styles.)
-
 ### Bridging Imperative-Ref Icons into an animate-ui Context
 
 When an imperative-ref icon needs to respond to a parent `<AnimateIcon>` context (e.g., a sidebar nav item), use `BridgedAnimatedIcon` from `@/components/animate-ui/bridge`.

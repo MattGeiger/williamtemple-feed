@@ -7,7 +7,7 @@
 
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LogOut } from "@/components/ui/icons";
+import { LogOutIcon } from "@/components/animate-ui/icons/log-out";
 import {
   Sidebar,
   SidebarContent,
@@ -279,39 +279,45 @@ export function AppSidebar() {
       <SidebarFooter className="border-t flex flex-col">
         {/* Logout Button - Expanded State */}
         <div className="mt-1 px-2 group-data-[collapsible=icon]:hidden">
-          <Link
-            to="/logout"
-            className="
-              flex items-center gap-2 px-2 py-1.5
-              transition-all duration-200
-              hover:bg-sidebar-accent hover:bg-opacity-50
-              rounded-md text-sm
-              focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
-            "
-            aria-label="Logout"
-          >
-            <LogOut className="h-4 w-4 shrink-0" aria-hidden="true" />
-            <span className="truncate">Logout</span>
-          </Link>
+          <AnimateIcon asChild animateOnHover animateOnTap>
+            <Link
+              to="/logout"
+              data-feed-no-icon-motion="true"
+              className="
+                flex items-center gap-2 px-2 py-1.5
+                transition-all duration-200
+                hover:bg-sidebar-accent hover:bg-opacity-50
+                rounded-md text-sm
+                focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
+              "
+              aria-label="Logout"
+            >
+              <LogOutIcon className="h-4 w-4 shrink-0" aria-hidden="true" />
+              <span className="truncate">Logout</span>
+            </Link>
+          </AnimateIcon>
         </div>
 
         {/* Logout Button - Collapsed State */}
         <div className="hidden group-data-[collapsible=icon]:block mt-1 px-2">
           <Tooltip>
             <TooltipTrigger asChild>
-              <Link
-                to="/logout"
-                className="
-                  flex items-center justify-center p-2
-                  transition-all duration-200
-                  hover:bg-sidebar-accent hover:bg-opacity-50
-                  rounded-md
-                  focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
-                "
-                aria-label="Logout"
-              >
-                <LogOut className="h-4 w-4 shrink-0" aria-hidden="true" />
-              </Link>
+              <AnimateIcon asChild animateOnHover animateOnTap>
+                <Link
+                  to="/logout"
+                  data-feed-no-icon-motion="true"
+                  className="
+                    flex items-center justify-center p-2
+                    transition-all duration-200
+                    hover:bg-sidebar-accent hover:bg-opacity-50
+                    rounded-md
+                    focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
+                  "
+                  aria-label="Logout"
+                >
+                  <LogOutIcon className="h-4 w-4 shrink-0" aria-hidden="true" />
+                </Link>
+              </AnimateIcon>
             </TooltipTrigger>
             <TooltipContent side="right" sideOffset={10}>Logout</TooltipContent>
           </Tooltip>
