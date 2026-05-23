@@ -15,6 +15,12 @@ import { useMessage } from "@/hooks/message/useMessage"
 import { Trash2, RefreshCw, Languages } from "@/components/ui/icons";
 import { PlusIcon } from "@/components/animate-ui/icons/plus";
 import { SearchCheckIcon } from "@/components/animate-ui/icons/search-check";
+import { LanguagesIcon } from "@/components/ui/languages";
+import { createPageTitleIcon } from "@/components/layout/page-title-icon";
+
+// Page-title icon: animates on mount (page load) + hover. Mirrors the
+// AI Configuration title pattern.
+const PageTitleLanguagesIcon = createPageTitleIcon(LanguagesIcon);
 import { TranslationService } from "@/services/translation"
 import { BulkDeleteDialog } from "./bulk-delete-dialog"
 
@@ -395,7 +401,7 @@ export function TranslationList({
         onTypeChange={handleTypeChange}
         onError={handleError}
         toolbarActions={toolbarActions}
-        toolbarIcon={Languages}
+        toolbarIcon={PageTitleLanguagesIcon}
       />
 
       <BulkDeleteDialog

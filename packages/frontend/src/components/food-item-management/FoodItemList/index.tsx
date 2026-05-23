@@ -29,8 +29,14 @@ import {
   FOOD_ITEM_STATUS_FILTERS,
   filterFoodItemsForInventoryUpdate,
 } from "../filters"
-import { X, Trash2, Package, AlertTriangle, Tag, Apple, ArrowLeftRight, ChevronDown, ListFilter } from "@/components/ui/icons";
+import { X, Trash2, Package, AlertTriangle, Tag, ArrowLeftRight, ChevronDown, ListFilter } from "@/components/ui/icons";
 import { PlusIcon } from "@/components/animate-ui/icons/plus";
+import { AppleIcon } from "@/components/ui/apple";
+import { createPageTitleIcon } from "@/components/layout/page-title-icon";
+
+// Page-title icon: animates on mount (page load) + hover. Mirrors the
+// AI Configuration title pattern.
+const PageTitleAppleIcon = createPageTitleIcon(AppleIcon);
 
 interface FoodItemListProps {
   onAddItem?: () => void
@@ -376,7 +382,7 @@ export function FoodItemList({
           enableColumnVisibility={true}
           onError={handleError}
           onUpdate={onUpdate}
-          toolbarIcon={Apple}
+          toolbarIcon={PageTitleAppleIcon}
           toolbarActions={toolbarActions}
           toolbarControls={inventoryFilterControls}
           preservePageOnDataChange={true}
