@@ -10,6 +10,10 @@ It is not where most work happens. It is the place to notice changes, costs, and
 
 ## What To Check
 
+The Dashboard gives a quick system overview after sign-in.
+
+![Dashboard overview with inventory, category, language, and translation cards](/help-screenshots/dashboard-overview.png)
+
 - Total Categories: how food is grouped.
 - Food Items: how many items are being tracked.
 - Languages: how many languages are available.

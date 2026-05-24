@@ -2,6 +2,10 @@
 
 This guide covers common problems staff may run into while using FEED.
 
+Use Help search when you are not sure which guide has the answer.
+
+![Help page search with matching guide cards](/help-screenshots/help-search-results.png)
+
 ## I Cannot Sign In
 
 Check your email address first.

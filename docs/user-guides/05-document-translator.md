@@ -16,6 +16,10 @@ Small edits after translation may require new translations, so it is best to rev
 
 ## How To Translate A Document
 
+The Upload Document dialog is where you choose the DOCX file.
+
+![Upload Document dialog with DOCX drop area](/help-screenshots/document-translator-upload-dialog.png)
+
 1. Open Document Translator.
 2. Select Upload Document.
 3. Choose a DOCX file.
@@ -23,6 +27,10 @@ Small edits after translation may require new translations, so it is best to rev
 5. Select the languages needed.
 6. Start translation.
 7. Download the finished files when they are ready.
+
+Finished documents appear in the document table.
+
+![Document Translator page with translated files in the document table](/help-screenshots/document-translator-list.png)
 
 ## When To Use Advanced Options
 

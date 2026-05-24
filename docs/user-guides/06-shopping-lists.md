@@ -16,6 +16,10 @@ Use the Builder when you need to design or change a template.
 
 ## How To Export A List
 
+Use the row action menu when a template is ready to export.
+
+![Shopping Lists row action menu with Download PDF and Translate & Download PDF](/help-screenshots/shopping-lists-export-menu.png)
+
 1. Open Shopping Lists.
 2. Find the template you need.
 3. Open the action menu for that row.
@@ -33,6 +37,8 @@ English is also available from that flow when staff want all export choices in o
 Export Settings controls how PDF filenames are built.
 
 Use it when staff need consistent filenames that include details such as date, language, or template name.
+
+![Export Settings dialog with filename options and preview](/help-screenshots/shopping-lists-export-settings-dialog.png)
 
 ## What To Read Next
 

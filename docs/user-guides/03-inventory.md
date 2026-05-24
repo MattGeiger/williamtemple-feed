@@ -37,6 +37,10 @@ Use Food Items when you need to:
 
 ## How To Update Stock Status
 
+The Food Items table shows each item, its category, stock status, limit, and row action menu.
+
+![Food Items table with stock status, category filters, and row actions](/help-screenshots/inventory-food-items-table.png)
+
 1. Open Food Items.
 2. Search or filter to find the item.
 3. Open the item action menu.

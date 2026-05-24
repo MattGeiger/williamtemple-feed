@@ -17,6 +17,14 @@ type MarkdownGuideProps = {
   content: string
 }
 
+function getDarkScreenshotSrc(src?: string) {
+  if (!src?.startsWith("/help-screenshots/") || !src.endsWith(".png")) {
+    return undefined
+  }
+
+  return src.replace(/\.png$/, "-dark.png")
+}
+
 export function MarkdownGuide({ content }: MarkdownGuideProps) {
   const headingIdsByLine = useMemo(() => getGuideHeadingIdsByLine(content), [content])
 
@@ -104,6 +112,41 @@ export function MarkdownGuide({ content }: MarkdownGuideProps) {
         {...props}
       />
     ),
+    img: ({ alt, className, node: _node, src, ...props }) => {
+      const darkSrc = getDarkScreenshotSrc(src)
+      const imageClassName = cn("rounded-lg border shadow-sm", className)
+
+      if (!darkSrc) {
+        return (
+          <img
+            alt={alt}
+            className={cn("my-4", imageClassName)}
+            loading="lazy"
+            src={src}
+            {...props}
+          />
+        )
+      }
+
+      return (
+        <span className="my-4 block">
+          <img
+            alt={alt}
+            className={cn(imageClassName, "dark:hidden")}
+            loading="lazy"
+            src={src}
+            {...props}
+          />
+          <img
+            alt={alt}
+            className={cn(imageClassName, "hidden dark:block")}
+            loading="lazy"
+            src={darkSrc}
+            {...props}
+          />
+        </span>
+      )
+    },
     code: ({ className, node: _node, ...props }) => (
       <code
         className={cn(

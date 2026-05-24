@@ -30,6 +30,8 @@ If the email does not arrive, check spam or junk mail first. Then ask a staff le
 
 Use the left sidebar to move through FEED.
 
+![Dashboard with sidebar navigation and system overview cards](/help-screenshots/getting-started-dashboard-sidebar.png)
+
 - Dashboard: see the current system overview.
 - Inventory: manage Categories and Food Items.
 - Language & Translation: manage languages and translation records.
