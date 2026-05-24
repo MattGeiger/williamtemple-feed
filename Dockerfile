@@ -23,6 +23,7 @@ RUN npm ci --legacy-peer-deps
 
 # Copy frontend source
 COPY packages/frontend ./
+COPY docs /app/docs
 
 # Build frontend
 RUN npm run build
