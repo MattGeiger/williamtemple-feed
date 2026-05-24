@@ -62,6 +62,11 @@
 **/archived_tests
 **/*.md
 !**/README.md
+!docs
+!docs/Temple_Icon_System.svg
+!docs/release-notes.md
+!docs/user-guides
+!docs/user-guides/*.md
 
 # Docker
 **/Dockerfile*
