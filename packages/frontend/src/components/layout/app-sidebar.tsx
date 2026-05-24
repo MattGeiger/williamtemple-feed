@@ -342,41 +342,41 @@ export function AppSidebar() {
           <div className="group-data-[collapsible=icon]:hidden">
             Version {APP_VERSION}
           </div>
-          <Dialog>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <DialogTrigger asChild>
-                  <AnimateIcon asChild animateOnHover animateOnTap>
-                    <button
-                      type="button"
-                      data-feed-no-icon-motion="true"
-                      className="
-                        flex items-center gap-2 rounded-md px-0 py-1
-                        text-left text-xs text-muted-foreground/80
-                        transition-all duration-200
-                        hover:text-foreground
-                        focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
-                        group-data-[collapsible=icon]:justify-center
-                        group-data-[collapsible=icon]:px-2
-                      "
-                      aria-label="About FEED"
-                    >
-                      <AboutNavIcon className="h-4 w-4 shrink-0" aria-hidden="true" />
-                      <span className="group-data-[collapsible=icon]:hidden">About</span>
-                    </button>
-                  </AnimateIcon>
-                </DialogTrigger>
-              </TooltipTrigger>
-              <TooltipContent side="right" sideOffset={10}>About</TooltipContent>
-            </Tooltip>
-            <DialogContent className="!border-0 !bg-transparent !p-0 !shadow-none !outline-none !ring-0 focus:!outline-none focus-visible:!outline-none focus-visible:!ring-0 sm:max-w-xl [&>button]:right-10 [&>button]:top-4">
-              <DialogTitle className="sr-only">About FEED</DialogTitle>
-              <DialogDescription className="sr-only">
-                Product, source, and licensing information for FEED.
-              </DialogDescription>
-              <AboutCard />
-            </DialogContent>
-          </Dialog>
+          <div className="group-data-[collapsible=icon]:hidden">
+            <Dialog>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <DialogTrigger asChild>
+                    <AnimateIcon asChild animateOnHover animateOnTap>
+                      <button
+                        type="button"
+                        data-feed-no-icon-motion="true"
+                        className="
+                          flex items-center gap-2 rounded-md px-0 py-1
+                          text-left text-xs text-muted-foreground/80
+                          transition-all duration-200
+                          hover:text-foreground
+                          focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
+                        "
+                        aria-label="About FEED"
+                      >
+                        <AboutNavIcon className="h-4 w-4 shrink-0" aria-hidden="true" />
+                        <span>About</span>
+                      </button>
+                    </AnimateIcon>
+                  </DialogTrigger>
+                </TooltipTrigger>
+                <TooltipContent side="right" sideOffset={10}>About</TooltipContent>
+              </Tooltip>
+              <DialogContent className="!border-0 !bg-transparent !p-0 !shadow-none !outline-none !ring-0 focus:!outline-none focus-visible:!outline-none focus-visible:!ring-0 sm:max-w-xl [&>button]:right-10 [&>button]:top-4">
+                <DialogTitle className="sr-only">About FEED</DialogTitle>
+                <DialogDescription className="sr-only">
+                  Product, source, and licensing information for FEED.
+                </DialogDescription>
+                <AboutCard />
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
       </SidebarFooter>
     </Sidebar>

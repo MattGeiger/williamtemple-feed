@@ -12,6 +12,8 @@ If you only need to print an existing list, use [Shopping Lists](06-shopping-lis
 
 You build a reusable template, not a one-time list.
 
+![Shopping List Builder with component panel, page canvas, and page settings](/help-screenshots/shopping-list-builder-canvas.png)
+
 The template can include:
 
 - Text.
