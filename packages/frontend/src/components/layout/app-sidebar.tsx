@@ -28,6 +28,7 @@ import { APP_VERSION } from '@/config/app-version';
 import { AnimateIcon } from '@/components/animate-ui/icons/icon';
 import { AboutNavIcon } from './animated-nav-icons';
 import { AboutCard } from '@/components/about/AboutPage';
+import { ReleaseNotesCard } from '@/components/release-notes/ReleaseNotesCard';
 import {
   Dialog,
   DialogContent,
@@ -340,7 +341,29 @@ export function AppSidebar() {
           "
         >
           <div className="group-data-[collapsible=icon]:hidden">
-            Version {APP_VERSION}
+            <Dialog>
+              <DialogTrigger asChild>
+                <button
+                  type="button"
+                  className="
+                    rounded-md px-0 py-1 text-left text-xs text-muted-foreground/80
+                    transition-colors
+                    hover:text-foreground
+                    focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
+                  "
+                  aria-label={`Open release notes for Version ${APP_VERSION}`}
+                >
+                  Version {APP_VERSION}
+                </button>
+              </DialogTrigger>
+              <DialogContent className="!border-0 !bg-transparent !p-0 !shadow-none !outline-none !ring-0 focus:!outline-none focus-visible:!outline-none focus-visible:!ring-0 sm:max-w-2xl [&>button]:right-4 [&>button]:top-4">
+                <DialogTitle className="sr-only">Release Notes</DialogTitle>
+                <DialogDescription className="sr-only">
+                  Plain-language release notes for FEED versions 1.0.0 through {APP_VERSION}.
+                </DialogDescription>
+                <ReleaseNotesCard />
+              </DialogContent>
+            </Dialog>
           </div>
           <div className="group-data-[collapsible=icon]:hidden">
             <Dialog>
