@@ -55,11 +55,11 @@ Look for:
 
 Export again after saving changes.
 
-## Found a bug?
+## Found a bug? 🪳
 
-Send a message to the developer: **[https://github.com/MattGeiger/williamtemple-feed](https://github.com/MattGeiger/williamtemple-feed#contact)**
+### [Send a message to the developer](mailto:matt@templepdx.com)
 
-Include details:
+**Include details:**
 
 - When did it happen?
 - What were you trying to do when it happened?
@@ -67,17 +67,4 @@ Include details:
 - Have a screenshot?
 - Can the bug be reproduced? List the steps.
 
-Have ideas for making FEED better? Share your thoughts! The project is open source.
-
-        <div className="flex flex-col gap-2 sm:flex-row sm:justify-center">
-          <Button asChild variant="secondary">
-            <a
-              href="https://github.com/MattGeiger/williamtemple-feed"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <Github className="h-4 w-4" aria-hidden="true" />
-              Source Code on GitHub
-            </a>
-          </Button>
-        </div>
+Have ideas for making FEED better? **This project is open source [on GitHub](https://github.com/MattGeiger/williamtemple-feed)**
