@@ -15,6 +15,8 @@ Public inventory feed for LOTTO. No frontend UI changes.
   by LOTTO and other external tools.
 - The feed includes categories, available food items, category and item limits,
   stock status tags, clearance tags, and dietary flags.
+- The feed includes enabled-language translations for category and food item
+  names when those translations exist.
 
 ### Changed
 
