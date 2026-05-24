@@ -5,6 +5,28 @@ All notable changes to FEED are documented here. This project adheres to
 
 ## [Unreleased]
 
+## [1.2.0] — 2026-05-24
+
+Help screenshots and release notes. No backend or database changes.
+
+### Added
+
+- **Release notes modal** from the sidebar version label, sourced from
+  repo-owned Markdown and written in plain language back to v1.0.0.
+- **Help screenshots** for the initial guide set, with matching light and dark
+  variants so screenshots match the user's current theme.
+
+### Changed
+
+- **Help guide copy** refined after review for shorter, clearer staff-facing
+  guidance.
+
+### Fixed
+
+- **Help search results** now link directly to the matching guide section.
+- **Support & Troubleshooting** no longer displays embedded React button code
+  inside the Markdown guide.
+
 ## [1.1.3] — 2026-05-23
 
 Help, About, and auth-screen polish. No backend or database changes.

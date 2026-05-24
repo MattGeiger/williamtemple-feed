@@ -17,6 +17,8 @@ type MarkdownGuideProps = {
   content: string
 }
 
+type MarkdownGuideContentProps = MarkdownGuideProps
+
 function getDarkScreenshotSrc(src?: string) {
   if (!src?.startsWith("/help-screenshots/") || !src.endsWith(".png")) {
     return undefined
@@ -25,7 +27,7 @@ function getDarkScreenshotSrc(src?: string) {
   return src.replace(/\.png$/, "-dark.png")
 }
 
-export function MarkdownGuide({ content }: MarkdownGuideProps) {
+export function MarkdownGuideContent({ content }: MarkdownGuideContentProps) {
   const headingIdsByLine = useMemo(() => getGuideHeadingIdsByLine(content), [content])
 
   const components: Components = {
@@ -180,13 +182,19 @@ export function MarkdownGuide({ content }: MarkdownGuideProps) {
   }
 
   return (
+    <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
+      {content}
+    </ReactMarkdown>
+  )
+}
+
+export function MarkdownGuide({ content }: MarkdownGuideProps) {
+  return (
     <article
       data-guide-article
       className="max-w-none space-y-5 rounded-lg border bg-card p-5 shadow-sm md:p-7"
     >
-      <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
-        {content}
-      </ReactMarkdown>
+      <MarkdownGuideContent content={content} />
     </article>
   )
 }

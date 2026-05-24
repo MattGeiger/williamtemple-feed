@@ -34,7 +34,7 @@ export function AboutCard() {
               Food Equity & Efficient Delivery
             </p>
             <p className="mt-3 text-sm leading-6 text-muted-foreground">
-              Food pantry management software for William Temple House.
+              Food pantry management software for non-profits.
             </p>
           </div>
         </div>
