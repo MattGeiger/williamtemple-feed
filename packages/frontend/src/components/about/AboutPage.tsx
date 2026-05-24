@@ -11,23 +11,35 @@ import { Button } from "@/components/ui/button"
 import { SectionHeader } from "@/components/shared/section-header"
 import { APP_VERSION } from "@/config/app-version"
 import { Github } from "lucide-react"
-import templeConsultingIconUrl from "../../../../../docs/Temple_Icon_System.svg"
 
 const aboutFacts = [
   { label: "Version", value: APP_VERSION },
   { label: "License", value: "AGPL-3.0-or-later" },
 ]
 
+function TempleConsultingIcon() {
+  return (
+    <svg
+      aria-label="Temple Consulting logo"
+      className="mx-auto h-28 w-28 fill-current text-foreground"
+      role="img"
+      viewBox="0 0 512 512"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <polygon points="45.5 281.5 0 324.6 0 348.1 226.8 504.8 286.6 504.8 512 345.2 512 322.5 465.8 281.5 442.3 289.3 273.8 343.8 240.1 343.8 70.2 289.3 45.5 281.5" />
+      <polygon points="146.1 218 247.1 203.8 266.9 203.8 364.8 218 424 266.4 424 281.5 275 312.8 239.9 312.8 90 282.2 90 266.4 146.1 218" />
+      <path d="M272,182.8h-22.2c-17.5,2.8-45.8,7.1-62.8,9.5v-7.6c0,.7,36.4-71.9,37.6-74.5l25-10.4h11.3l24.3,10.4c1.9,3.3,38,73.5,38.7,74.5v7.4c-15.6-2.8-36.4-6.4-52.2-9.2Z" />
+      <path d="M439.4,187.2c0,22-4,38.3-11.6,58.5l-34.3-28.4s4.5-3.8,4.5-30.5-14.7-72.7-41.6-98.9c-27-26.5-62.5-40.9-100.1-40.9-38.1,0-73.3,14.4-100.1,40.9-27,26.7-41.6,72.7-41.6,98.9s4.5,30.5,4.5,30.5l-34.3,28.4c-7.6-20.6-11.6-36.9-11.6-58.5s4.7-47.8,14.2-70.3c9.2-21.8,22.7-40.9,39.5-57.3,16.6-16.3,36.2-29.6,58.2-38.8,22.7-9.5,46.6-14,71.2-14s48.3,4.5,71.2,14c22.5,9.2,41.6,22.5,58.2,38.8,16.8,16.3,30.3,36,39.5,57.3,9.5,22.5,14.2,48.3,14.2,70.3Z" />
+    </svg>
+  )
+}
+
 export function AboutCard() {
   return (
     <Card className="mx-auto max-w-xl rounded-lg">
       <CardContent className="flex flex-col items-center gap-6 p-8 text-center sm:p-10">
         <div className="space-y-4">
-          <img
-            src={templeConsultingIconUrl}
-            alt="Temple Consulting logo"
-            className="mx-auto h-28 w-28"
-          />
+          <TempleConsultingIcon />
           <div>
             <h2 className="text-3xl font-semibold tracking-tight">FEED</h2>
             <p className="mt-1 text-sm font-medium text-muted-foreground">
