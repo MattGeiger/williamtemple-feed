@@ -186,7 +186,7 @@ export function HelpSearch({ index, className }: HelpSearchProps) {
           placeholder="Search help..."
           aria-label="Search help"
           aria-expanded={showPanel}
-          className="h-9 pl-9 pr-9"
+          className="h-9 pl-9 pr-9 [&::-webkit-search-cancel-button]:appearance-none [&::-webkit-search-decoration]:appearance-none"
         />
         {query ? (
           <Button

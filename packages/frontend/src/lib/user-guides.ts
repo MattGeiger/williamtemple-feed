@@ -153,6 +153,33 @@ export function getGuideToc(content: string): GuideTocItem[] {
   return headings
 }
 
+export function getGuideHeadingIdsByLine(content: string): Map<number, string> {
+  const slugger = createGuideSlugger()
+  const headingIds = new Map<number, string>()
+  let inFence = false
+
+  content.split("\n").forEach((line, index) => {
+    if (FENCE_PATTERN.test(line)) {
+      inFence = !inFence
+      return
+    }
+    if (inFence) return
+
+    const match = line.match(HEADING_PATTERN)
+    if (!match) return
+
+    const depth = match[1].length
+    if (depth !== 2 && depth !== 3) return
+
+    const title = cleanHeadingText(match[2])
+    if (!title) return
+
+    headingIds.set(index + 1, slugger.slug(title))
+  })
+
+  return headingIds
+}
+
 function getGuideSearchEntries(guide: UserGuide): GuideSearchEntry[] {
   const slugger = createGuideSlugger()
   const entries: GuideSearchEntry[] = []

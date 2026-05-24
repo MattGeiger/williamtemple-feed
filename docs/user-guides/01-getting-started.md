@@ -1,10 +1,10 @@
 # Getting Started
 
-FEED is the shared workspace for the William Temple House food pantry. It helps staff manage food inventory, translate client documents, and make printable shopping lists.
+FEED is the shared workspace for the William Temple House food pantry. It helps Social Services staff manage food inventory, translate client documents, and make printable shopping lists.
 
 ## Who Uses FEED?
 
-FEED is for pantry staff and trusted volunteers who help with daily food pantry work.
+FEED is for Social Services staff who support daily food pantry operations.
 
 Everyone who signs in sees the same shared information. If one person updates a food item, category, language, template, or document, the change is available to the team.
 

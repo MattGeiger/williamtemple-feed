@@ -63,7 +63,15 @@ export function HelpPage() {
       </div>
 
       <p className="text-sm text-muted-foreground">
-        Need more help? Ask a staff lead or FEED administrator.
+        Need more help?{" "}
+        <a
+          href="https://github.com/MattGeiger/williamtemple-feed#contact"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="font-medium text-foreground underline-offset-4 hover:underline"
+        >
+          Contact FEED's developer.
+        </a>
       </p>
     </div>
   )

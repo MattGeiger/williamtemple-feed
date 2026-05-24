@@ -5,30 +5,20 @@
 // under AGPL-3.0-or-later; see LICENSE. William Temple House branding is
 // not covered by this license; see TRADEMARKS.md.
 
-import type { ReactNode } from "react"
+import { useMemo } from "react"
 import { Link } from "react-router-dom"
 import ReactMarkdown, { type Components } from "react-markdown"
 import remarkGfm from "remark-gfm"
 
 import { cn } from "@/lib/utils"
-import { createGuideSlugger, rewriteGuideLink } from "@/lib/user-guides"
+import { getGuideHeadingIdsByLine, rewriteGuideLink } from "@/lib/user-guides"
 
 type MarkdownGuideProps = {
   content: string
 }
 
-function getReactNodeText(node: ReactNode): string {
-  if (node === null || node === undefined || typeof node === "boolean") return ""
-  if (typeof node === "string" || typeof node === "number") return String(node)
-  if (Array.isArray(node)) return node.map(getReactNodeText).join("")
-  if (typeof node === "object" && "props" in node) {
-    return getReactNodeText((node as { props?: { children?: ReactNode } }).props?.children)
-  }
-  return ""
-}
-
 export function MarkdownGuide({ content }: MarkdownGuideProps) {
-  const slugger = createGuideSlugger()
+  const headingIdsByLine = useMemo(() => getGuideHeadingIdsByLine(content), [content])
 
   const components: Components = {
     a: ({ href, children, node: _node, ...props }) => {
@@ -71,7 +61,8 @@ export function MarkdownGuide({ content }: MarkdownGuideProps) {
       </h1>
     ),
     h2: ({ children, node: _node, ...props }) => {
-      const id = slugger.slug(getReactNodeText(children))
+      const line = _node?.position?.start.line
+      const id = line ? headingIdsByLine.get(line) : undefined
       return (
         <h2
           id={id}
@@ -83,7 +74,8 @@ export function MarkdownGuide({ content }: MarkdownGuideProps) {
       )
     },
     h3: ({ children, node: _node, ...props }) => {
-      const id = slugger.slug(getReactNodeText(children))
+      const line = _node?.position?.start.line
+      const id = line ? headingIdsByLine.get(line) : undefined
       return (
         <h3
           id={id}

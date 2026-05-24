@@ -39,19 +39,20 @@ export function HelpGuidePage() {
   const searchQuery = searchParams.get("q")
 
   return (
-    <section className="mx-auto flex w-full max-w-7xl flex-col gap-6">
-      <div className="grid gap-3 lg:grid-cols-[auto_minmax(18rem,36rem)_auto] lg:items-center">
+    <section className="mx-auto flex w-full max-w-7xl flex-col gap-6 pt-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <Button variant="ghost" size="sm" asChild>
           <Link to="/help">
             <ChevronLeft className="h-4 w-4" aria-hidden="true" />
             All guides
           </Link>
         </Button>
-        <HelpSearch index={searchIndex} className="w-full max-w-2xl lg:justify-self-center" />
-        <span className="text-xs text-muted-foreground lg:justify-self-end">
+        <span className="text-xs text-muted-foreground">
           Guide {guide.order} of {guides.length}
         </span>
       </div>
+
+      <HelpSearch index={searchIndex} className="max-w-2xl" />
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_18rem] xl:grid-cols-[minmax(0,1fr)_20rem]">
         <div className="min-w-0 space-y-4">
