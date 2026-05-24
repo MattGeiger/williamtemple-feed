@@ -14,6 +14,7 @@ const router = Router();
 type PublicInventoryFoodItem = {
   id: number;
   name: string;
+  translations: Record<string, string>;
   limit: number;
   limitType: string;
   statusTags: {
@@ -36,12 +37,19 @@ type PublicInventoryFoodItem = {
 type PublicInventoryCategory = {
   id: number;
   name: string;
+  translations: Record<string, string>;
   icon: string | null;
   limit: number;
   limitType: string;
   itemCount: number;
   items: PublicInventoryFoodItem[];
 };
+
+function mapTranslations(translations: Array<{ language: string; name: string }>) {
+  return Object.fromEntries(
+    translations.map((translation) => [translation.language, translation.name])
+  );
+}
 
 function setPublicInventoryHeaders(res: Response) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -62,10 +70,39 @@ router.options('/inventory.json', (_req: Request, res: Response) => {
 
 router.get('/inventory.json', async (_req: Request, res: Response, next: NextFunction) => {
   try {
+    const enabledLanguages = await prisma.language.findMany({
+      where: { isEnabled: true },
+      orderBy: { sortOrder: 'asc' },
+      select: {
+        name: true,
+      },
+    });
+    const enabledLanguageNames = enabledLanguages.map((language) => language.name);
+
     const categories = await prisma.category.findMany({
       include: {
+        translations: {
+          where: {
+            language: { in: enabledLanguageNames },
+          },
+          select: {
+            language: true,
+            name: true,
+          },
+        },
         foodItems: {
           where: { isInStock: true },
+          include: {
+            translations: {
+              where: {
+                language: { in: enabledLanguageNames },
+              },
+              select: {
+                language: true,
+                name: true,
+              },
+            },
+          },
           orderBy: { name: 'asc' },
         },
       },
@@ -78,6 +115,7 @@ router.get('/inventory.json', async (_req: Request, res: Response, next: NextFun
         const items = category.foodItems.map((item): PublicInventoryFoodItem => ({
           id: item.id,
           name: item.name,
+          translations: mapTranslations(item.translations),
           limit: item.limit,
           limitType: item.limitType,
           statusTags: {
@@ -100,6 +138,7 @@ router.get('/inventory.json', async (_req: Request, res: Response, next: NextFun
         return {
           id: category.id,
           name: category.name,
+          translations: mapTranslations(category.translations),
           icon: category.icon,
           limit: category.limit,
           limitType: category.limitType,
@@ -111,6 +150,7 @@ router.get('/inventory.json', async (_req: Request, res: Response, next: NextFun
     res.json({
       generatedAt: new Date().toISOString(),
       version,
+      languages: enabledLanguageNames,
       categories: publicCategories,
       totals: {
         categories: publicCategories.length,
