@@ -4,7 +4,10 @@
 # ============================================
 # Stage 1: Build Frontend
 # ============================================
-FROM node:20-alpine AS frontend-builder
+# Vite emits static files, so the frontend build does not need to run once per
+# target architecture. Build it on the host platform to avoid QEMU/native-module
+# postinstall failures during multi-arch builds, then copy dist into Nginx.
+FROM --platform=$BUILDPLATFORM node:20-alpine AS frontend-builder
 
 WORKDIR /app/packages/frontend
 
