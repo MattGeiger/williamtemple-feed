@@ -5,6 +5,16 @@ All notable changes to FEED are documented here. This project adheres to
 
 ## [Unreleased]
 
+## [1.2.2] — 2026-05-24
+
+Public inventory feed documentation. No runtime behavior changes.
+
+### Added
+
+- **Public inventory technical notes** in `docs/PUBLIC_INVENTORY.md`, covering
+  the endpoint URL, public access model, update behavior, response shape,
+  translation behavior, and LOTTO consumer guidance.
+
 ## [1.2.1] — 2026-05-24
 
 Public inventory feed for LOTTO. No frontend UI changes.
