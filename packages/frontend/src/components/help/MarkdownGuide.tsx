@@ -31,9 +31,19 @@ export function MarkdownGuideContent({ content }: MarkdownGuideContentProps) {
   const headingIdsByLine = useMemo(() => getGuideHeadingIdsByLine(content), [content])
 
   const components: Components = {
-    a: ({ href, children, node: _node, ...props }) => {
+    a: ({ href, children, className, node: _node, title, ...props }) => {
+      const shouldUnderline = title === "underline"
+      const linkClassName = cn(
+        shouldUnderline && "underline underline-offset-4",
+        className
+      )
+
       if (!href) {
-        return <a {...props}>{children}</a>
+        return (
+          <a className={linkClassName} {...props}>
+            {children}
+          </a>
+        )
       }
 
       const rewrittenHref = rewriteGuideLink(href)
@@ -42,7 +52,13 @@ export function MarkdownGuideContent({ content }: MarkdownGuideContentProps) {
 
       if (isExternal) {
         return (
-          <a href={rewrittenHref} target="_blank" rel="noopener noreferrer" {...props}>
+          <a
+            className={linkClassName}
+            href={rewrittenHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            {...props}
+          >
             {children}
           </a>
         )
@@ -50,14 +66,14 @@ export function MarkdownGuideContent({ content }: MarkdownGuideContentProps) {
 
       if (rewrittenHref.startsWith("mailto:") || rewrittenHref.startsWith("#")) {
         return (
-          <a href={rewrittenHref} {...props}>
+          <a className={linkClassName} href={rewrittenHref} {...props}>
             {children}
           </a>
         )
       }
 
       return (
-        <Link to={rewrittenHref} {...props}>
+        <Link className={linkClassName} to={rewrittenHref} {...props}>
           {children}
         </Link>
       )
