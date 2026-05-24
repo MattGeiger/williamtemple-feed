@@ -45,7 +45,7 @@ The Find Missing Translations dialog scans FEED for translation gaps.
 
 Retry a translation when it failed or appears stuck.
 
-If the same language fails more than once, check AI Configuration or **[contact the developer](https://github.com/MattGeiger/williamtemple-feed#contact)** for help.
+If the same language fails more than once, check AI Configuration or **[contact the developer](https://github.com/MattGeiger/williamtemple-feed#contact "underline")** for help.
 
 ## Tip: Improving Translations
 

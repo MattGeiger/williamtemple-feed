@@ -45,7 +45,7 @@ If you are not sure, use the basic workflow first.
 
 1. Wait a moment and try again.
 2. Check whether other languages worked.
-3. If only one language keeps failing, **[ask the developer](https://github.com/MattGeiger/williamtemple-feed#contact)** to review the issue.
+3. If only one language keeps failing, **[ask the developer](https://github.com/MattGeiger/williamtemple-feed#contact "underline")** to review the issue.
 
 Some failures are temporary provider problems. Your original document is not lost.
 
