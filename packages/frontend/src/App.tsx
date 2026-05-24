@@ -4,7 +4,7 @@
 // FEED — Food Equity & Efficient Delivery. Application code licensed
 // under AGPL-3.0-or-later; see LICENSE. William Temple House branding is
 // not covered by this license; see TRADEMARKS.md.
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, Navigate, useParams } from 'react-router-dom'
 import { QueryClientProvider, useQueryClient } from '@tanstack/react-query'
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import { useEffect } from 'react'
@@ -40,6 +40,7 @@ import LogoutPage from './components/pages/logout-page'
 import { AIConfiguration } from './components/ai-configuration'
 import { HelpGuidePage } from './components/help/HelpGuidePage'
 import { HelpPage } from './components/help/HelpPage'
+import { getUserGuideBySlug } from './lib/user-guides'
 import DashboardErrorBoundary from './components/dashboard/dashboard-error-boundary'
 // Removed PrintView and in-browser print route (deprecated)
 
@@ -300,13 +301,16 @@ function HelpIndexPage() {
 }
 
 function HelpDetailPage() {
+  const { slug } = useParams<{ slug: string }>()
+  const guide = slug ? getUserGuideBySlug(slug) : null
+
   return (
     <RootLayout
       breadcrumbs={[
         { title: "Dashboard (Home)", href: "/" },
         { title: "Information"},
         { title: "Help", href: "/help" },
-        { title: "Guide" }
+        { title: guide?.title ?? "Guide" }
       ]}
     >
       <HelpGuidePage />
