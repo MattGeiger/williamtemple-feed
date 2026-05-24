@@ -10,6 +10,10 @@ Most daily pantry work does not require changing AI Configuration.
 
 ## What It Controls
 
+AI Configuration lists the prompts, provider keys, and model settings FEED uses for translation work.
+
+![AI Configuration table with active prompt and API key records](/help-screenshots/ai-configuration-list.png)
+
 - Which AI provider FEED uses.
 - Which model is selected.
 - Translation prompts.

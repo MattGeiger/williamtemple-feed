@@ -6,7 +6,7 @@
 // not covered by this license; see TRADEMARKS.md.
 
 import { useMemo, useState } from "react"
-import { useNavigate } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
 
 import { ChevronRight, FileText, Search, X } from "@/components/ui/icons"
 import { Button } from "@/components/ui/button"
@@ -222,31 +222,37 @@ export function HelpSearch({ index, className }: HelpSearchProps) {
                       <CommandItem
                         key={result.id}
                         value={`${result.guideTitle} ${result.sectionTitle}`}
-                        className="group flex items-start gap-3 px-3 py-2.5"
+                        className="group p-0"
                         onSelect={() => {
                           setIsFocused(false)
                           navigate(href)
                         }}
                       >
-                        <FileText
-                          className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground"
-                          aria-hidden="true"
-                        />
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate text-sm font-medium">
-                            <HighlightMatches text={result.sectionTitle} terms={terms} />
+                        <Link
+                          to={href}
+                          className="flex w-full items-start gap-3 px-3 py-2.5"
+                          onClick={() => setIsFocused(false)}
+                        >
+                          <FileText
+                            className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground"
+                            aria-hidden="true"
+                          />
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-sm font-medium">
+                              <HighlightMatches text={result.sectionTitle} terms={terms} />
+                            </span>
+                            <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+                              {result.guideTitle}
+                            </span>
+                            <span className="mt-1 line-clamp-2 block text-xs leading-relaxed text-muted-foreground">
+                              <HighlightMatches text={result.snippet} terms={terms} />
+                            </span>
                           </span>
-                          <span className="mt-0.5 block truncate text-xs text-muted-foreground">
-                            {result.guideTitle}
-                          </span>
-                          <span className="mt-1 line-clamp-2 block text-xs leading-relaxed text-muted-foreground">
-                            <HighlightMatches text={result.snippet} terms={terms} />
-                          </span>
-                        </span>
-                        <ChevronRight
-                          className="mt-1 h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-foreground"
-                          aria-hidden="true"
-                        />
+                          <ChevronRight
+                            className="mt-1 h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-foreground"
+                            aria-hidden="true"
+                          />
+                        </Link>
                       </CommandItem>
                     )
                   })}

@@ -12,6 +12,8 @@ Enable only the languages your team needs. More languages can mean more translat
 
 The Translations page shows translated text stored in FEED.
 
+![Translations table with filter controls and translation records](/help-screenshots/translations-table.png)
+
 Use it to:
 
 - Review translations.
@@ -27,6 +29,10 @@ Enable a language when staff need client-facing documents or shopping lists in t
 After a language is enabled, FEED may need time to prepare translations for existing content.
 
 ## How To Find Missing Translations
+
+The Find Missing Translations dialog scans FEED for translation gaps.
+
+![Find Missing Translations dialog with scan explanation](/help-screenshots/translations-find-missing-dialog.png)
 
 1. Open Translations.
 2. Select Find Missing Translations.
