@@ -1,5 +1,11 @@
 # Release Notes
 
+## Version 1.2.2 — 2026-05-24
+
+- Added technical notes for the public inventory JSON feed.
+- Documented the endpoint URL, access model, update behavior, and response shape.
+- Documented how LOTTO should use translated category and food item names.
+
 ## Version 1.2.1 — 2026-05-24
 
 - Added a public read-only inventory JSON feed for LOTTO.
