@@ -5,6 +5,21 @@ All notable changes to FEED are documented here. This project adheres to
 
 ## [Unreleased]
 
+## [1.2.1] — 2026-05-24
+
+Public inventory feed for LOTTO. No frontend UI changes.
+
+### Added
+
+- **Public inventory JSON** at `/api/public/inventory.json` for read-only use
+  by LOTTO and other external tools.
+- The feed includes categories, available food items, category and item limits,
+  stock status tags, clearance tags, and dietary flags.
+
+### Changed
+
+- Out-of-stock food items are intentionally omitted from the public feed.
+
 ## [1.2.0] — 2026-05-24
 
 Help screenshots and release notes. No backend or database changes.
