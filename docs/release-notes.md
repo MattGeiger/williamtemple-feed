@@ -1,5 +1,11 @@
 # Release Notes
 
+## Version 1.2.1 — 2026-05-24
+
+- Added a public read-only inventory JSON feed for LOTTO.
+- Included categories, available food items, limits, status tags, and dietary flags.
+- Omitted out-of-stock items from the public feed.
+
 ## Version 1.2.0 — 2026-05-24
 
 - Added Help screenshots for each guide section.

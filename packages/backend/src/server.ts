@@ -25,6 +25,7 @@ import shoppingListBuilderRouter from './routes/shopping-list-builder';
 import aiConfigRouter from './routes/ai-config';
 import systemPromptsRouter from './routes/system-prompts';
 import systemRouter from './routes/system';
+import publicInventoryRouter from './routes/public-inventory';
 import authTestRouter from './routes/auth-test';
 import authRouter from './routes/auth';
 import { errorHandler } from './middleware/error-handler';
@@ -44,6 +45,11 @@ export const createServer = () => {
   };
 
   app.use(compression({ threshold: 1024, filter: shouldCompress })); // Compress responses > 1KB
+
+  // Public read-only inventory feed for external tools like LOTTO. This must
+  // stay before the credentialed CORS and authentication middleware.
+  app.use('/api/public', publicInventoryRouter);
+
   app.use(cors({
     origin: process.env.APP_URL || 'http://localhost:5173',
     credentials: true,
