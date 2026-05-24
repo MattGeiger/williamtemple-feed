@@ -4,6 +4,7 @@
 
 - Added a public read-only inventory JSON feed for LOTTO.
 - Included categories, available food items, limits, status tags, and dietary flags.
+- Included enabled-language translations for category and food item names.
 - Omitted out-of-stock items from the public feed.
 
 ## Version 1.2.0 — 2026-05-24
