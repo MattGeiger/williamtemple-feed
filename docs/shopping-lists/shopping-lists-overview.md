@@ -2,7 +2,7 @@
 
 ## Business Purpose
 
-The Shopping Lists feature enables William Temple House food pantry staff to generate standardized, multilingual shopping lists for clients based on current inventory data. This system replaces manual list creation with automated, consistent, and culturally accessible documentation.
+The Shopping Lists feature enables William Temple House food Social Services staff to generate standardized, multilingual shopping lists for clients based on current inventory data. This system replaces manual list creation with automated, consistent, and culturally accessible documentation.
 
 ## Core Value Propositions
 
@@ -33,7 +33,7 @@ The Shopping Lists feature enables William Temple House food pantry staff to gen
 ## User Workflows
 
 ### Primary Users
-- **Food Pantry Staff**: Create templates, generate lists, print documents
+- **Food Social Services Staff**: Create templates, generate lists, print documents
 - **Volunteers**: Generate lists for client appointments
 - **Administrative Staff**: Manage templates and system configuration
 

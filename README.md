@@ -32,7 +32,7 @@ software. FEED supports the common operational reality of food pantries:
   per-category limits, in-stock / out-of-stock / clearance status.
 - **Shopping list builder** — an interactive canvas-based template
   editor that produces printable, multi-page, multi-language shopping
-  lists. Pantry staff design templates once; the system generates
+  lists. Social Services staff design templates once; the system generates
   current-inventory-aware PDFs on demand.
 - **AI-powered document translation** — staff can upload English forms
   and announcements (DOCX) and get back native-quality translations in

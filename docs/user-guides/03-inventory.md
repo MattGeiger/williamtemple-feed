@@ -4,7 +4,7 @@ Inventory is where FEED tracks pantry food categories, food items, limits, and s
 
 ## Who Uses Inventory?
 
-Inventory is mainly for pantry staff who keep food lists accurate for clients and volunteers.
+Inventory is mainly for Social Services staff who keep food lists accurate for clients and volunteers.
 
 ## Why Limits Matter
 
