@@ -160,7 +160,7 @@ export function FoodItemForm({
           <TabsTrigger value="dietary">Dietary</TabsTrigger>
         </TabsList>
 
-        <TabsContents>
+        <TabsContents className="px-1 pb-2 pt-1">
         <TabsContent value="basic" className="space-y-4">
           {/* Name Input */}
           <div className="space-y-2">
