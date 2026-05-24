@@ -40,7 +40,7 @@ If the language is not available, check the Languages page first.
 
 Try again once. Some failures are temporary.
 
-If it fails again, note the document name and language, then **[contact the developer](https://github.com/MattGeiger/williamtemple-feed#contact)** for help.
+If it fails again, note the document name and language, then **[contact the developer](https://github.com/MattGeiger/williamtemple-feed#contact "underline")** for help.
 
 ## A Shopping List PDF Looks Wrong
 
@@ -57,7 +57,7 @@ Export again after saving changes.
 
 ## Found a bug? 🪳
 
-### [Send a message to the developer](mailto:matt@templepdx.com)
+**[Send a message to the developer](mailto:matt@templepdx.com "underline")**
 
 **Include details:**
 
@@ -67,4 +67,4 @@ Export again after saving changes.
 - Have a screenshot?
 - Can the bug be reproduced? List the steps.
 
-Have ideas for making FEED better? **This project is open source [on GitHub](https://github.com/MattGeiger/williamtemple-feed)**
+Have ideas for making FEED better? **This project is open source [on GitHub](https://github.com/MattGeiger/williamtemple-feed "underline")**
