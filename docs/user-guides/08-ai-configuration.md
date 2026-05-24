@@ -28,7 +28,6 @@ Change AI Configuration when:
 - A provider key changes.
 - Translation quality needs adjustment.
 - Cost limits need review.
-- An administrator asks you to update a setting.
 
 ## API Key Warnings
 
@@ -41,6 +40,10 @@ A warning does not always block saving. It is a reminder to double-check before 
 Cost limits help prevent surprise spending.
 
 If translations stop unexpectedly, ask whether a cost or usage limit has been reached.
+
+## Active and Inactive AI Model Settings
+
+If more than one AI model is set to *Active*, only the model most recently set will be used for translation. At least one AI model must be set to *Active* for translation and classification features to work.
 
 ## What To Read Next
 

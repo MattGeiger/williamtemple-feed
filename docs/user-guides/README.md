@@ -4,7 +4,7 @@ These Markdown files are the source for FEED's in-app Help section.
 
 ## Audience
 
-Write for pantry staff, volunteers, and administrators who need to do real
+Write for Social Services staff, volunteers, and administrators who need to do real
 work quickly. Assume readers are comfortable helping people, not reading
 technical manuals.
 
