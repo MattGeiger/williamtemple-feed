@@ -10,11 +10,13 @@ Use Help search when you are not sure which guide has the answer.
 
 Check your email address first.
 
-If the code or magic link does not arrive:
+If the code does not arrive:
 
 1. Check spam or junk mail.
 2. Wait a minute and try again.
 3. Ask a staff lead or administrator for help.
+
+**NOTE:** Always sign in with One-Time Passcode. William Temple House's IT Administrators do not allow Magic Links. This is a known issue. 
 
 ## A Food Item Looks Wrong
 
@@ -38,7 +40,7 @@ If the language is not available, check the Languages page first.
 
 Try again once. Some failures are temporary.
 
-If it fails again, note the document name and language, then ask an administrator to review it.
+If it fails again, note the document name and language, then **[contact the developer](https://github.com/MattGeiger/williamtemple-feed#contact)** for help.
 
 ## A Shopping List PDF Looks Wrong
 
@@ -53,11 +55,29 @@ Look for:
 
 Export again after saving changes.
 
-## When To Ask For Help
+## Found a bug?
 
-Ask an administrator when:
+Send a message to the developer: **[https://github.com/MattGeiger/williamtemple-feed](https://github.com/MattGeiger/williamtemple-feed#contact)**
 
-- You cannot sign in.
-- Translation failures repeat.
-- AI Configuration needs a key or cost-limit change.
-- A list prints incorrectly after the template has been checked.
+Include details:
+
+- When did it happen?
+- What were you trying to do when it happened?
+- What's working and what's not working?
+- Have a screenshot?
+- Can the bug be reproduced? List the steps.
+
+Have ideas for making FEED better? Share your thoughts! The project is open source.
+
+        <div className="flex flex-col gap-2 sm:flex-row sm:justify-center">
+          <Button asChild variant="secondary">
+            <a
+              href="https://github.com/MattGeiger/williamtemple-feed"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <Github className="h-4 w-4" aria-hidden="true" />
+              Source Code on GitHub
+            </a>
+          </Button>
+        </div>

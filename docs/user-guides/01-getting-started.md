@@ -1,6 +1,6 @@
 # Getting Started
 
-FEED is the shared workspace for the William Temple House food pantry. It helps Social Services staff manage food inventory, translate client documents, and make printable shopping lists.
+FEED is a shared digital workspace for the William Temple House food pantry. It helps Social Services staff manage food inventory, translate client documents, and make printable multilingual shopping lists.
 
 ## Who Uses FEED?
 
@@ -14,17 +14,20 @@ Everyone who signs in sees the same shared information. If one person updates a 
 - Add or update food items and categories.
 - Translate documents for clients.
 - Manage supported languages.
-- Build and print shopping lists.
-- Review translation cost and activity.
+- Build and print shopping lists from templates.
+- Monitor translation cost and activity.
+- Configure AI models to enhance the quality of translations and classifications
 
 ## How To Sign In
 
-1. Open the FEED website.
-2. Enter your email address.
-3. Use the one-time code or magic link sent to your email.
+1. Open the FEED website https://feed.williamtemple.app.
+2. Enter your valid williamtemple.org email address.
+3. Use the one-time code sent to your email.
 4. After sign-in, FEED opens to the Dashboard.
 
-If the email does not arrive, check spam or junk mail first. Then ask a staff lead or administrator for help.
+**NOTE:** FEED supports Magic Link sign-in, but this feature *does not work* due to email security policies set by William Temple House's IT Admin.
+
+If the OTP email does not arrive, check spam or junk mail first. Then ask Social Services staff or your IT administrator for help.
 
 ## Where To Start
 
@@ -40,7 +43,7 @@ Use the left sidebar to move through FEED.
 
 ## Before You Make Changes
 
-FEED is shared by the whole organization. Changes are not private.
+FEED is shared by the whole organization. **Changes are not private.**
 
 Before deleting or changing something important, make sure it is not still needed by another staff member.
 

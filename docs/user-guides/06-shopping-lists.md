@@ -1,6 +1,6 @@
 # Shopping Lists
 
-Shopping Lists lets staff find saved templates and export current, printable lists for pantry clients.
+Shopping Lists lets Social Services staff access saved templates and export current, printable shopping lists for food pantry clients.
 
 ## What Shopping Lists Are
 

@@ -6,7 +6,9 @@ Languages and Translations help FEED create client materials in the languages yo
 
 The Languages page controls which languages are available for translation.
 
-Enable only the languages your team needs. More languages can mean more translation work and higher AI cost.
+Enable only the languages your team needs.
+
+**IMPORTANT NOTE:** More languages can mean slower translation speeds and higher AI cost.
 
 ## What Translations Does
 
@@ -36,17 +38,16 @@ The Find Missing Translations dialog scans FEED for translation gaps.
 
 1. Open Translations.
 2. Select Find Missing Translations.
-3. Choose the content and languages to check.
-4. Review what FEED finds.
-5. Start the missing translation work if needed.
+3. Review what the utility finds.
+4. Start the missing translation work if needed.
 
 ## When To Retry A Translation
 
 Retry a translation when it failed or appears stuck.
 
-If the same language fails more than once, check AI Configuration or ask an administrator for help.
+If the same language fails more than once, check AI Configuration or **[contact the developer](https://github.com/MattGeiger/williamtemple-feed#contact)** for help.
 
-## Plain-English Tip
+## Tip: Improving Translations
 
 Translations are shared. If you improve a translation, everyone benefits from that correction.
 
