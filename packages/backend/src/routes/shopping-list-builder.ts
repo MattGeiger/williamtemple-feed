@@ -260,8 +260,10 @@ interface SectionTableBuilderComponent extends BuilderComponentBase {
   showStatusIcons?: boolean;
   // B3: when on, rows with no item-level limit ("No Limit") display the
   // current Global Limit value in the Limit column instead of a blank cell.
-  // Optional; default false (read as `=== true`). Mirrors the frontend. The
-  // value itself is resolved live at render time, never baked into rows.
+  // Optional; default ON (read as `!== false`, ISSUES.md #39) so the org-wide
+  // Global Limit caps "No Limit" items by default; an explicit `false` opts a
+  // table out. Mirrors the frontend. The value itself is resolved live at
+  // render time, never baked into rows.
   showGlobalLimit?: boolean;
   limitHeader: string;
   wantHeader: string;
@@ -1793,7 +1795,13 @@ const buildInventorySectionComponent = (category: {
       : null;
 
   const rows = category.foodItems.map((item) => {
-    const foodItemLimit = item.isLimited && item.limit !== NO_LIMIT_SENTINEL ? item.limit : null;
+    // The Limit column reflects the item's request cap (`limit`), where the
+    // NO_LIMIT_SENTINEL (100) means "No Limit". This is INDEPENDENT of the
+    // `isLimited` status flag, which means "low/limited stock" and only drives
+    // the optional A2 status icon -- an item can be low-stock yet uncapped, or
+    // capped yet well-stocked. (See ISSUES.md #39.) This matches how Food Item
+    // Management displays the limit; the two views must agree.
+    const foodItemLimit = item.limit !== NO_LIMIT_SENTINEL ? item.limit : null;
 
     return {
       id: `inventory-item-${item.id}`,
@@ -2843,9 +2851,10 @@ const builderCategoryIconSvg = (iconName: string | null | undefined): string => 
 };
 
 // B3: resolve the text shown in a row's Limit cell. Each row carries only its
-// own item-level limit; when a row has none ("No Limit") and the table opts
-// into `showGlobalLimit`, fall back to the org-wide Global Limit value. The
-// value is supplied live at render time and never baked into the saved rows.
+// own item-level limit; when a row has none ("No Limit") and the table has not
+// opted out of `showGlobalLimit` (default ON, ISSUES.md #39), fall back to the
+// org-wide Global Limit value. The value is supplied live at render time and
+// never baked into the saved rows.
 // MUST mirror `resolveRowLimitText` in the frontend ShoppingListBuilder.
 const resolveRowLimitText = (
   rowLimit: string,
@@ -3009,7 +3018,7 @@ const sectionTableComponentHtml = (
                 ? `<div class="builder-table-text-cell builder-table-item-cell" dir="auto">${builderRowStatusIconsHtml(row)}<span class="builder-item-text">${itemHtml}</span></div>`
                 : `<div class="builder-table-text-cell" dir="auto">${itemHtml}</div>`;
             })()}
-            ${component.showLimit ? `<div class="builder-table-text-cell builder-table-cell-left-border builder-table-center" dir="auto">${escapeHtml(resolveRowLimitText(row.limit, component.showGlobalLimit === true, options.globalLimit))}</div>` : ''}
+            ${component.showLimit ? `<div class="builder-table-text-cell builder-table-cell-left-border builder-table-center" dir="auto">${escapeHtml(resolveRowLimitText(row.limit, component.showGlobalLimit !== false, options.globalLimit))}</div>` : ''}
             ${showWant ? `<div class="builder-table-cell-left-border builder-table-want-cell">${row.wantControl === 'checkbox' ? '<span class="builder-want-checkbox"></span>' : ''}</div>` : ''}
           </div>
         `;
@@ -4091,20 +4100,22 @@ router.put('/inventory-items/:id/limit', async (req: Request, res: Response, nex
       throw createRouteError('Food item not found.', 404);
     }
 
+    // Editing the limit here only sets the request cap; clearing it means
+    // "No Limit" (the NO_LIMIT_SENTINEL value). The `isLimited` low-stock
+    // status flag is intentionally NOT touched -- the two are independent
+    // (ISSUES.md #39), so editing a cap in the builder must not flip the
+    // item's stock badge. This keeps builder edits bidirectional with Food
+    // Item Management without side effects.
     const updated = await prisma.foodItem.update({
       where: { id },
-      data: parsedLimit == null
-        ? { isLimited: false }
-        : { limit: parsedLimit, isLimited: true },
+      data: { limit: parsedLimit == null ? NO_LIMIT_SENTINEL : parsedLimit },
       include: { category: true },
     });
 
-    // Row-level effective limit only reflects the food item's own override.
+    // Row-level effective limit only reflects the food item's own cap.
     // Category limits are surfaced in the section table title, not copied onto
     // each row.
-    const itemLimit = updated.isLimited && updated.limit !== NO_LIMIT_SENTINEL
-      ? updated.limit
-      : null;
+    const itemLimit = updated.limit !== NO_LIMIT_SENTINEL ? updated.limit : null;
 
     res.json({
       foodItem: {
@@ -4195,7 +4206,7 @@ router.post('/preview-pdf', async (req: Request, res: Response, next: NextFuncti
     // live (never baked into the template) so it always reflects the current
     // org-wide setting at export time.
     const needsGlobalLimit = refreshedTemplate.components.some(
-      (component) => component.type === 'section-table' && component.showGlobalLimit === true,
+      (component) => component.type === 'section-table' && component.showGlobalLimit !== false,
     );
     const globalLimit = needsGlobalLimit
       ? (await prisma.globalLimit.findFirst())?.value ?? DEFAULT_GLOBAL_LIMIT

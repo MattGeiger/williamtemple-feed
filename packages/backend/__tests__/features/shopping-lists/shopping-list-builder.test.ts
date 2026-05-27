@@ -10,6 +10,9 @@ const mockPrisma = vi.hoisted(() => ({
     findUnique: vi.fn(),
     update: vi.fn(),
   },
+  globalLimit: {
+    findFirst: vi.fn(),
+  },
   shoppingListBuilderComponent: {
     findMany: vi.fn(),
     findFirst: vi.fn(),
@@ -124,6 +127,9 @@ describe('Shopping List Builder API', () => {
     vi.clearAllMocks();
     mockPrisma.shoppingListBuilderComponent.findMany.mockResolvedValue([]);
     mockPrisma.shoppingListBuilderTemplate.findMany.mockResolvedValue([]);
+    // Global Limit defaults ON for section tables (ISSUES.md #39), so the
+    // preview-pdf renderer queries it whenever a table doesn't opt out.
+    mockPrisma.globalLimit.findFirst.mockResolvedValue({ id: 1, value: 10 });
 
     app = express();
     app.use(express.json());
@@ -139,7 +145,7 @@ describe('Shopping List Builder API', () => {
     });
   });
 
-  test('inventory section rows show only food-item overrides while category limits are surfaced at the section level', async () => {
+  test('inventory section row limits reflect the item cap independently of the isLimited (low-stock) flag (ISSUES.md #39)', async () => {
     mockPrisma.category.findMany.mockResolvedValue([
       {
         id: 2,
@@ -147,8 +153,16 @@ describe('Shopping List Builder API', () => {
         limit: 4,
         limitType: 'household',
         foodItems: [
+          // Capped AND flagged low-stock: shows the cap.
           { id: 7, name: 'Black Beans', limit: 2, isLimited: true },
+          // No cap (sentinel) and not low-stock: blank ("No Limit").
           { id: 8, name: 'Pinto Beans', limit: 100, isLimited: false },
+          // Capped but NOT low-stock: must STILL show the cap. This is the
+          // regression case -- previously gated on isLimited and rendered blank.
+          { id: 9, name: 'Garbanzo Beans', limit: 5, isLimited: false },
+          // Low-stock but uncapped ("No Limit"): the low-stock flag must NOT
+          // invent a cap, so the limit cell stays blank.
+          { id: 10, name: 'Kidney Beans', limit: 100, isLimited: true },
         ],
       },
     ]);
@@ -160,6 +174,8 @@ describe('Shopping List Builder API', () => {
     expect(response.body.sections[0].component.rows).toMatchObject([
       { foodItemId: 7, item: 'Black Beans', limit: '2', limitSource: 'food-item' },
       { foodItemId: 8, item: 'Pinto Beans', limit: '', limitSource: 'none' },
+      { foodItemId: 9, item: 'Garbanzo Beans', limit: '5', limitSource: 'food-item' },
+      { foodItemId: 10, item: 'Kidney Beans', limit: '', limitSource: 'none' },
     ]);
     expect(response.body.sections[0].component).toMatchObject({
       width: 267,
@@ -277,13 +293,13 @@ describe('Shopping List Builder API', () => {
     });
   });
 
-  test('updating an inventory row limit writes the related food item limit', async () => {
+  test('updating an inventory row limit writes the item cap without touching the isLimited low-stock flag (ISSUES.md #39)', async () => {
     mockPrisma.foodItem.findUnique.mockResolvedValue({ id: 7 });
     mockPrisma.foodItem.update.mockResolvedValue({
       id: 7,
       name: 'Rice',
       limit: 5,
-      isLimited: true,
+      isLimited: false,
       category: { limit: 2 },
     });
 
@@ -292,9 +308,11 @@ describe('Shopping List Builder API', () => {
       .send({ limit: '5' })
       .expect(200);
 
+    // Only the cap is written; isLimited is left untouched (the builder must
+    // not flip the low-stock badge as a side effect of editing the cap).
     expect(mockPrisma.foodItem.update).toHaveBeenCalledWith({
       where: { id: 7 },
-      data: { limit: 5, isLimited: true },
+      data: { limit: 5 },
       include: { category: true },
     });
     expect(response.body.foodItem).toMatchObject({
@@ -304,13 +322,13 @@ describe('Shopping List Builder API', () => {
     });
   });
 
-  test('blank inventory row limits leave the row empty so the category limit stays at the section level', async () => {
+  test('clearing an inventory row limit sets the item to No Limit without touching the isLimited flag (ISSUES.md #39)', async () => {
     mockPrisma.foodItem.findUnique.mockResolvedValue({ id: 8 });
     mockPrisma.foodItem.update.mockResolvedValue({
       id: 8,
       name: 'Pinto Beans',
       limit: 100,
-      isLimited: false,
+      isLimited: true,
       category: { limit: 4 },
     });
 
@@ -319,9 +337,11 @@ describe('Shopping List Builder API', () => {
       .send({ limit: '' })
       .expect(200);
 
+    // Clearing the cap means "No Limit" (the sentinel), and leaves the
+    // low-stock flag (here true) alone.
     expect(mockPrisma.foodItem.update).toHaveBeenCalledWith({
       where: { id: 8 },
-      data: { isLimited: false },
+      data: { limit: 100 },
       include: { category: true },
     });
     expect(response.body.foodItem).toMatchObject({
@@ -329,6 +349,57 @@ describe('Shopping List Builder API', () => {
       effectiveLimit: '',
       limitSource: 'none',
     });
+  });
+
+  test('preview-pdf resolves the Global Limit by default for section tables (ISSUES.md #39)', async () => {
+    // A section table that has NOT opted out (showGlobalLimit undefined) must
+    // trigger the live Global Limit query so "No Limit" rows can be capped.
+    // inventorySource omitted so the refresh step skips the category rebuild.
+    const response = await request(app)
+      .post('/api/shopping-list-builder/preview-pdf')
+      .send({
+        template: {
+          ...template,
+          components: [
+            {
+              ...inventoryTable,
+              inventorySource: undefined,
+              rows: [
+                { id: 'row-1', item: 'Black Beans', limit: '2' },
+                { id: 'row-2', item: 'Pinto Beans', limit: '' },
+              ],
+            },
+          ],
+        },
+      })
+      .expect(200);
+
+    expect(response.body.subarray(0, 4).toString()).toBe('%PDF');
+    expect(mockPrisma.globalLimit.findFirst).toHaveBeenCalled();
+  });
+
+  test('preview-pdf skips the Global Limit query when a table opts out (showGlobalLimit: false)', async () => {
+    await request(app)
+      .post('/api/shopping-list-builder/preview-pdf')
+      .send({
+        template: {
+          ...template,
+          components: [
+            {
+              ...inventoryTable,
+              inventorySource: undefined,
+              showGlobalLimit: false,
+              rows: [
+                { id: 'row-1', item: 'Black Beans', limit: '2' },
+                { id: 'row-2', item: 'Pinto Beans', limit: '' },
+              ],
+            },
+          ],
+        },
+      })
+      .expect(200);
+
+    expect(mockPrisma.globalLimit.findFirst).not.toHaveBeenCalled();
   });
 
   test('saved component delete looks up by id only (org-wide shared scope)', async () => {
