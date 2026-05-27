@@ -45,10 +45,46 @@ type PublicInventoryCategory = {
   items: PublicInventoryFoodItem[];
 };
 
-function mapTranslations(translations: Array<{ language: string; name: string }>) {
-  return Object.fromEntries(
-    translations.map((translation) => [translation.language, translation.name])
-  );
+// Index generic `Translation` rows as englishName -> (language -> translatedText)
+// so feed entries can fall back to the canonical translation store for any
+// enabled language the denormalized tables are missing.
+function indexGenericTranslations(
+  rows: Array<{ originalText: string; language: string; translatedText: string | null }>
+): Map<string, Map<string, string>> {
+  const byName = new Map<string, Map<string, string>>();
+  for (const row of rows) {
+    if (typeof row.translatedText !== 'string' || row.translatedText.length === 0) continue;
+    let byLanguage = byName.get(row.originalText);
+    if (!byLanguage) {
+      byLanguage = new Map<string, string>();
+      byName.set(row.originalText, byLanguage);
+    }
+    byLanguage.set(row.language, row.translatedText);
+  }
+  return byName;
+}
+
+// Denormalized CategoryTranslation/FoodItemTranslation rows win; any enabled
+// language still missing is filled from the generic `Translation` cache. The
+// denormalized tables can have gaps (translations completed via a path that
+// only wrote the generic table), so the generic store is the backstop. See
+// ISSUES.md #41 (this fix) and #42 (the underlying two-store drift).
+function resolveTranslations(
+  denormalized: Array<{ language: string; name: string }>,
+  fallbackByLanguage: Map<string, string> | undefined
+): Record<string, string> {
+  const result: Record<string, string> = {};
+  for (const translation of denormalized) {
+    result[translation.language] = translation.name;
+  }
+  if (fallbackByLanguage) {
+    for (const [language, translatedText] of fallbackByLanguage) {
+      if (!(language in result)) {
+        result[language] = translatedText;
+      }
+    }
+  }
+  return result;
 }
 
 function setPublicInventoryHeaders(res: Response) {
@@ -109,13 +145,52 @@ router.get('/inventory.json', async (_req: Request, res: Response, next: NextFun
       orderBy: { name: 'asc' },
     });
 
-    const publicCategories: PublicInventoryCategory[] = categories
-      .filter((category) => category.foodItems.length > 0)
+    const inStockCategories = categories.filter((category) => category.foodItems.length > 0);
+
+    // Backstop the denormalized translations with the generic `Translation`
+    // cache for any enabled-language gap. Names are unique (Category.nameSearch
+    // and FoodItem.nameSearch are @unique), so matching on the English name is
+    // unambiguous. Only completed rows are read so failed-row error strings
+    // never reach the public feed.
+    const categoryNames = Array.from(new Set(inStockCategories.map((category) => category.name)));
+    const foodItemNames = Array.from(
+      new Set(inStockCategories.flatMap((category) => category.foodItems.map((item) => item.name)))
+    );
+
+    const [genericCategoryRows, genericFoodItemRows] = await Promise.all([
+      categoryNames.length > 0
+        ? prisma.translation.findMany({
+          where: {
+            type: 'Category',
+            status: 'completed',
+            language: { in: enabledLanguageNames },
+            originalText: { in: categoryNames },
+          },
+          select: { originalText: true, language: true, translatedText: true },
+        })
+        : Promise.resolve([]),
+      foodItemNames.length > 0
+        ? prisma.translation.findMany({
+          where: {
+            type: 'FoodItem',
+            status: 'completed',
+            language: { in: enabledLanguageNames },
+            originalText: { in: foodItemNames },
+          },
+          select: { originalText: true, language: true, translatedText: true },
+        })
+        : Promise.resolve([]),
+    ]);
+
+    const genericCategoryByName = indexGenericTranslations(genericCategoryRows);
+    const genericFoodItemByName = indexGenericTranslations(genericFoodItemRows);
+
+    const publicCategories: PublicInventoryCategory[] = inStockCategories
       .map((category) => {
         const items = category.foodItems.map((item): PublicInventoryFoodItem => ({
           id: item.id,
           name: item.name,
-          translations: mapTranslations(item.translations),
+          translations: resolveTranslations(item.translations, genericFoodItemByName.get(item.name)),
           limit: item.limit,
           limitType: item.limitType,
           statusTags: {
@@ -138,7 +213,7 @@ router.get('/inventory.json', async (_req: Request, res: Response, next: NextFun
         return {
           id: category.id,
           name: category.name,
-          translations: mapTranslations(category.translations),
+          translations: resolveTranslations(category.translations, genericCategoryByName.get(category.name)),
           icon: category.icon,
           limit: category.limit,
           limitType: category.limitType,

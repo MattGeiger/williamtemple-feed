@@ -1,5 +1,11 @@
 # Release Notes
 
+## Version 1.2.4 — 2026-05-27
+
+- Fixed the public inventory feed so translated category and item names that already exist in the app now appear in the feed.
+- Some categories (such as "Canned Goods") were missing their translations in the feed even though Translation Management showed them.
+- The feed now reads the same translations the rest of the app uses, falling back to the main translation store when needed.
+
 ## Version 1.2.3 — 2026-05-26
 
 - Fixed Shopping List Builder so food item limits show automatically from inventory, without re-entering them in the builder.

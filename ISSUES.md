@@ -1,6 +1,6 @@
 # FEED — Known Issues & Future Work
 
-**Last Updated**: May 21, 2026
+**Last Updated**: May 27, 2026
 **Status**: v1.0.0 release prep in progress (see `docs/V1-RELEASE-PLAN.md`)
 **Production**: https://feed.williamtemple.app
 
@@ -674,6 +674,118 @@ also not reliably detectable from JS, so we cannot compensate precisely.
 **Workaround for users**: view the builder canvas in Safari at 100% page zoom,
 or use Chrome. Revisit only if it surfaces in Safari at 100% or in another
 browser.
+
+---
+
+### #41 — Public Inventory Feed Omits Translations That Exist in the App
+**Priority**: Medium · **Status**: Fixed (May 27, 2026) — pending deploy
+**Bucket**: v1.x
+**Component**: `packages/backend/src/routes/public-inventory.ts`
+
+**Observed**: The public feed at `/api/public/inventory.json` omitted translated
+names for some categories/items (e.g. "Canned Goods") even though those
+translations exist — they show as **Completed / Category** in Translation
+Management and render correctly in the Shopping List Builder.
+
+**Root cause**: FEED stores category/item name translations in **two** places:
+1. The generic `Translation` table (`type` `Category` / `FoodItem`), keyed by
+   English `originalText` + language. This is the de-facto source of truth that
+   Translation Management reads/writes.
+2. The denormalized `CategoryTranslation` / `FoodItemTranslation` tables, keyed
+   by entity id + language, written only by the translation-trigger service.
+
+The public feed read **only** the denormalized tables (via the Prisma
+`translations` relation include) with **no fallback**. Those tables have gaps
+(see #42), so any translation living only in the generic table was absent from
+the feed. The Shopping List Builder already worked around the same gap with a
+generic-table fallback in `lookupInventoryBuilderTranslations`; the feed never
+replicated it, so it was the one consumer that surfaced the drift directly.
+
+**Resolution**: Mirror the builder's fallback in the feed. After loading the
+denormalized translations, fill any missing (entity, enabled-language) pair from
+the generic `Translation` table by English name + `type` + `status='completed'`,
+**denormalized winning** on conflict. Name matching is unambiguous
+(`Category.nameSearch` / `FoodItem.nameSearch` are `@unique`, and `Translation`
+is unique per `originalText`+`language`+`type`); only `completed` rows are read,
+so failed-row error strings (stored in `translatedText`) never reach the public
+feed. Added a route test for gap-fill, denormalized-wins, the null-`translatedText`
+guard, and the completed-only query. Focused test (2/2) + backend `tsc` clean.
+
+**Remaining**: ships with the next image/deploy. This is a read-side backstop,
+not a cure for the underlying drift — see #42.
+
+---
+
+### #42 — Translation Storage Drift: Generic `Translation` vs Denormalized Tables
+**Priority**: Medium (architectural tech debt) · **Status**: Open — deferred
+(documented May 27, 2026)
+**Bucket**: v2 (architecture)
+**Component**: `packages/backend/src/services/translation-trigger.ts`,
+`packages/backend/src/routes/categories.ts`,
+`packages/backend/src/routes/translations.ts`,
+`packages/backend/src/services/translation-auditor.ts`,
+`packages/backend/src/db.ts`
+
+This is the root cause behind #41 and behind the builder's existing fallback. It
+is filed as deliberate, deferred tech debt — **not** something to fix under
+hotfix pressure, because it touches the sensitive translation pipeline (#5, #17)
+and runs against archived backend tests (#9).
+
+**The drift**: Category/food-item name translations live in two stores that fall
+out of sync:
+- **Generic `Translation` table** — the de-facto source of truth. Written by
+  `categories.ts` (seeds `pending` rows), `translations.ts` (manual add / Find
+  Missing / retry completions), and the trigger (writes it first). This is what
+  Translation Management shows.
+- **Denormalized `CategoryTranslation` / `FoodItemTranslation`** — the id-keyed
+  fast store for inventory rendering. Written in exactly **one** place:
+  `translation-trigger.ts` `applyBatchResults`.
+
+**Why the denormalized tables develop gaps**: the trigger only writes them for a
+translation it **freshly** performs, and two things routinely prevent that:
+1. `prepareBatchTranslations` **skips** any generic row that already exists and
+   is not `failed` (`status !== 'failed'` → `continue`). So once a generic row
+   is `pending` or `completed`, the trigger never (re)translates it and never
+   writes the denormalized row.
+2. `categories.ts` create/update **pre-seeds** generic `Translation` rows as
+   `pending` for every enabled language. The `db.ts` Prisma middleware also
+   queues a trigger translation on the same write, but by the time it runs the
+   `pending` rows already exist → the skip-guard fires → the denormalized
+   `CategoryTranslation` row is never written. Those pending rows are later
+   completed by the Find Missing / auditor path in `translations.ts`, which
+   writes **only** the generic table.
+3. Manual add / edit / retry in `translations.ts` likewise never touch the
+   denormalized tables (confirmed: they are referenced only in
+   `translation-trigger.ts` and `shopping-list-builder.ts`).
+
+Net effect: an entity can have complete translations in the generic table and
+none/partial in the denormalized tables. Whether a given category/item has
+denormalized rows is a historical accident of *how* its translations were
+completed — which is why only some categories were missing from the feed.
+
+**Current mitigations are read-side backstops, not cures**: the Shopping List
+Builder (`lookupInventoryBuilderTranslations`) and now the public feed (#41)
+both read denormalized-first then fall back to the generic table. The logic is
+**duplicated** in two places; a third consumer reading the denormalized tables
+directly would hit the same bug unless it copies the fallback again.
+
+**Long-term options (pick deliberately)**:
+- **Option C — fix the write path.** Stop `categories.ts` pre-seeding `pending`
+  rows that poison the skip-guard, and/or have `translations.ts` + the auditor
+  write the denormalized rows whenever a generic row completes. Largest blast
+  radius; does **not** fix existing data on its own.
+- **Option D — one-time backfill.** Migration/script to populate the
+  denormalized tables from completed generic rows by English name. Fixes
+  existing data; without C, drift returns for new content.
+- **Option (consolidate) — remove the second store.** Reconsider whether the
+  denormalized tables should exist at all, or whether inventory rendering should
+  resolve translations from the generic table directly. Eliminates the drift
+  class entirely; biggest change.
+
+**Recommended when picked up**: C + D together (prevent future drift *and* repair
+existing data), then delete the now-redundant read-side fallbacks in the builder
+and feed (or consolidate them into one shared resolver). Until then, the
+#41/builder fallbacks keep consumers correct.
 
 ---
 

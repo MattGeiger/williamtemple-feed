@@ -5,6 +5,24 @@ All notable changes to FEED are documented here. This project adheres to
 
 ## [Unreleased]
 
+## [1.2.4] — 2026-05-27
+
+Public inventory feed translation fix. No database changes.
+
+### Fixed
+
+- **Public inventory feed now includes category and item translations that
+  appeared to be missing** (ISSUES.md #41). The feed at
+  `/api/public/inventory.json` read translated names only from the denormalized
+  translation tables, which can lag the app's canonical translation store; some
+  categories (e.g. "Canned Goods") therefore showed no translations in the feed
+  even though their translations exist and are visible in Translation Management.
+  The feed now falls back to the canonical translation store for any
+  enabled-language name a denormalized row is missing — matching what the
+  Shopping List Builder already does — and uses only completed translations.
+  This is a read-side backstop; the underlying two-store translation drift is
+  tracked as tech debt (ISSUES.md #42).
+
 ## [1.2.3] — 2026-05-26
 
 Shopping List Builder limit handling. No database changes.
