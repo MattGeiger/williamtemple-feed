@@ -1,5 +1,11 @@
 # Release Notes
 
+## Version 1.2.3 — 2026-05-26
+
+- Fixed Shopping List Builder so food item limits show automatically from inventory, without re-entering them in the builder.
+- Separated a food item's request limit from its "Limited" low-stock status, so changing one no longer affects the other.
+- Made the Global Limit apply to "No Limit" items by default on shopping lists, with an option to turn it off per table.
+
 ## Version 1.2.2 — 2026-05-24
 
 - Added technical notes for the public inventory JSON feed.
