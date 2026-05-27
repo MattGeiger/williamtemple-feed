@@ -5,6 +5,10 @@ All notable changes to FEED are documented here. This project adheres to
 
 ## [Unreleased]
 
+## [1.2.3] — 2026-05-26
+
+Shopping List Builder limit handling. No database changes.
+
 ### Fixed
 
 - **Shopping List Builder now shows food-item request limits automatically**
@@ -17,6 +21,13 @@ All notable changes to FEED are documented here. This project adheres to
   Section-table rows with no per-item limit display the org-wide Global Limit
   value in the Limit column. Previously this was an off-by-default per-table
   toggle; it is now on by default, with an opt-out per table.
+
+### Known issues
+
+- **Builder canvas can wrap long item names in Safari at non-100% browser
+  zoom** (ISSUES.md #40). A Safari-only sub-pixel rounding quirk under page
+  zoom; the exported PDF and other browsers are unaffected. View the canvas at
+  100% zoom in Safari, or use Chrome. Documented as a known limitation.
 
 ## [1.2.2] — 2026-05-24
 

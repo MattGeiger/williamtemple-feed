@@ -632,6 +632,51 @@ begin applying the Global Limit to their "No Limit" rows (the intended fix).
 
 ---
 
+### #40 — Builder Canvas Wraps Long Names in Safari at Non-100% Browser Zoom
+**Priority**: Low (cosmetic, preview-only, Safari-only) · **Status**: Known limitation — not fixing (May 26, 2026)
+**Bucket**: v1.x watchpoint
+**Component**: `packages/frontend/src/components/shopping-lists/builder/ShoppingListBuilder.tsx`
+
+**Observed**: In the preview canvas, some long section-table item names
+(e.g. "Great Northern Beans (Dried)", "Hot Dog & Hamburger Buns",
+"Chickpeas/Garbanzo Beans", "Fruit Flavored Greek Yogurt") wrap to a second
+line that overflows into the row below, because the row stays at single-line
+height. The **exported PDF renders the same template correctly**, so the
+deliverable is unaffected — only the on-screen preview misleads.
+
+**Reproduction is browser- and zoom-specific** (user-confirmed): the overlap
+appears **only in Safari on macOS** and **only when Safari's page zoom is set
+to something other than 100%** (e.g. 75%). At 100% Safari zoom it renders
+correctly, and Chrome is unaffected at any zoom.
+
+**Root cause**: a Safari sub-pixel rounding quirk. The builder canvas scales
+the whole page via CSS `transform: scale(...)` (`ShoppingListBuilder.tsx`
+~line 5060) and section-table columns are fixed-pixel widths. When Safari's
+own page zoom is applied on top of that transform, Safari rounds the scaled
+sub-pixel cell widths differently than at 100%, shaving a fraction of a pixel
+off the item cell's usable width — just enough to tip a name that *exactly*
+fits onto a second line. The row height comes from the Noto-Sans-calibrated
+typography engine (which assumes the unrounded width), so it stays single-line
+and the wrapped line overflows. Chrome's rounding doesn't hit this, and the
+PDF is rendered by server-side Chromium with no browser zoom, so neither is
+affected. (An earlier font-mismatch hypothesis was investigated and
+**disproven** — the canvas paper already pins the Noto Sans stack via
+`.shopping-list-print-page` in `index.css`, matching the PDF; live inspection
+of a real cell confirmed it computes Noto Sans.)
+
+**Decision — not fixing**: any mitigation would require shaving sub-pixel
+slack into the item-cell width or the row-height math, which is the delicately
+calibrated typography engine that canvas/PDF parity depends on (see #26, #33 —
+"change one constant and you may break the schedule"). That risk is not worth
+trading for a cosmetic glitch confined to one browser at a non-default zoom,
+especially when the PDF deliverable is always correct. Browser page zoom is
+also not reliably detectable from JS, so we cannot compensate precisely.
+**Workaround for users**: view the builder canvas in Safari at 100% page zoom,
+or use Chrome. Revisit only if it surfaces in Safari at 100% or in another
+browser.
+
+---
+
 ### #6 — Shopping List Feature Incomplete (OBSOLETE)
 **Status**: Superseded by Shopping List Builder; closed in v1.0.0 release prep
 
