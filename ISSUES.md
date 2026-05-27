@@ -579,6 +579,59 @@ as "Hot Dog & Buns".
 
 ---
 
+### #39 — Builder Section Tables Ignore Food-Item Limits and the Global Limit
+**Priority**: High · **Status**: Fixed (May 26, 2026) — pending deploy
+**Bucket**: v1.x
+**Component**: `packages/backend/src/routes/shopping-list-builder.ts`,
+`packages/frontend/src/components/shopping-lists/builder/ShoppingListBuilder.tsx`,
+`packages/frontend/src/components/shopping-lists/builder/types.ts`
+
+Two related bugs in how Inventory Section tables surface request-limit
+values. Both stem from confusing two **independent** food-item fields:
+
+- `limit` (Int; `100` = the `NO_LIMIT_SENTINEL` "No Limit") — the cap on how
+  much a client may request. Set in the Food Item form's **Basic** tab.
+- `isLimited` (Bool) — a **low-stock** status flag that only drives the
+  optional Limited status icon. Set in the **Status** tab. An item can be
+  low-stock yet uncapped, or capped yet well-stocked.
+
+**Bug 1 — food-item limits not shown.** `buildInventorySectionComponent`
+derived the row limit as `item.isLimited && item.limit !== 100 ? item.limit
+: null`, gating the displayed cap on the unrelated low-stock flag. So an item
+with `limit = 5` but `isLimited = false` showed **"5"** in Food Item
+Management ([data-table/columns.tsx](packages/frontend/src/components/food-item-management/data-table/columns.tsx)
+never gates on `isLimited`) but a **blank** Limit cell in the builder. It
+only appeared after editing the cap in the Content tab — because the
+write-back route (`PUT /inventory-items/:id/limit`) force-set
+`isLimited = true` as a side effect, which also silently flipped the
+low-stock badge.
+
+**Bug 2 — Global Limit ignored.** The Global-Limit fallback for "No Limit"
+rows was wired through canvas and PDF via `resolveRowLimitText`, but gated on
+a per-table `showGlobalLimit` flag that **defaulted off** (`=== true`). So by
+default the org-wide cap never constrained "No Limit" items.
+
+**Resolution:**
+1. Row limit now reads `item.limit !== NO_LIMIT_SENTINEL ? item.limit : null`
+   — independent of `isLimited`, matching Food Item Management. `isLimited` /
+   `isClearance` are still passed through for the A2 status icons.
+2. The write-back route writes only the cap (`{ limit }` on a value,
+   `{ limit: NO_LIMIT_SENTINEL }` on clear) and no longer touches `isLimited`,
+   so builder edits are bidirectional with Food Item Management without
+   side effects.
+3. `showGlobalLimit` now defaults **ON**, read as `!== false` in all four
+   call sites (canvas render, Properties checkbox, PDF render, and the
+   backend `needsGlobalLimit` query). An explicit `false` opts a table out.
+4. Tests: added decoupled-limit and default-on / opt-out cases to
+   `shopping-list-builder.test.ts`; updated the write-back assertions; added
+   the `globalLimit` Prisma mock to both shopping-list test files. Full
+   suite (121 tests) passes.
+
+**Remaining**: ships with the next image/deploy. Existing saved templates
+begin applying the Global Limit to their "No Limit" rows (the intended fix).
+
+---
+
 ### #6 — Shopping List Feature Incomplete (OBSOLETE)
 **Status**: Superseded by Shopping List Builder; closed in v1.0.0 release prep
 

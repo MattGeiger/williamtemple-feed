@@ -27,6 +27,7 @@ const mockPrisma = vi.hoisted(() => ({
   foodItemTranslation: { findMany: vi.fn() },
   category: { findMany: vi.fn() },
   foodItem: { findUnique: vi.fn(), update: vi.fn() },
+  globalLimit: { findFirst: vi.fn() },
   shoppingListBuilderComponent: { findMany: vi.fn(), findFirst: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn() },
   shoppingListBuilderTemplate: { findMany: vi.fn(), findFirst: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn() },
 }));
@@ -103,6 +104,9 @@ describe('Shopping List Builder translation routes', () => {
     mockPrisma.translation.updateMany.mockResolvedValue({ count: 0 });
     mockPrisma.categoryTranslation.findMany.mockResolvedValue([]);
     mockPrisma.foodItemTranslation.findMany.mockResolvedValue([]);
+    // Global Limit defaults ON for section tables (ISSUES.md #39), so the
+    // preview-pdf renderer queries it whenever a table doesn't opt out.
+    mockPrisma.globalLimit.findFirst.mockResolvedValue({ id: 1, value: 10 });
 
     app = express();
     app.use(express.json());

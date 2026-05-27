@@ -409,9 +409,11 @@ export interface SectionTableBuilderComponent extends BuilderComponentBase {
   showStatusIcons?: boolean;
   // B3: when on, rows with no item-level limit ("No Limit") display the
   // current Global Limit value in the Limit column instead of a blank cell.
-  // Optional; default `false` (read as `=== true`). The value is resolved
-  // live at render time (canvas: context; PDF: backend query), never baked
-  // into the saved rows. Mirrored in the backend route.
+  // Optional; default ON (read as `!== false`, ISSUES.md #39) so the org-wide
+  // Global Limit caps "No Limit" items by default; an explicit `false` opts a
+  // table out. The value is resolved live at render time (canvas: context;
+  // PDF: backend query), never baked into the saved rows. Mirrored in the
+  // backend route.
   showGlobalLimit?: boolean;
   limitHeader: string;
   wantHeader: string;
