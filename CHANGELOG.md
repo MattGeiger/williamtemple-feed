@@ -5,6 +5,19 @@ All notable changes to FEED are documented here. This project adheres to
 
 ## [Unreleased]
 
+### Fixed
+
+- **Shopping List Builder now shows food-item request limits automatically**
+  (ISSUES.md #39). Inventory Section tables read each item's limit straight
+  from inventory, so a cap set in Food Item Management appears in the Limit
+  column without re-entering it in the builder. The limit (a request cap) is
+  now fully independent of the "Limited" low-stock status — editing one no
+  longer changes the other, in either direction.
+- **The Global Limit now caps "No Limit" items by default** (ISSUES.md #39).
+  Section-table rows with no per-item limit display the org-wide Global Limit
+  value in the Limit column. Previously this was an off-by-default per-table
+  toggle; it is now on by default, with an opt-out per table.
+
 ## [1.2.2] — 2026-05-24
 
 Public inventory feed documentation. No runtime behavior changes.

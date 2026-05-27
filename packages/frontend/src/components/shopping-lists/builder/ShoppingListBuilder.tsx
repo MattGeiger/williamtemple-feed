@@ -2023,9 +2023,10 @@ const cloneComponentForCanvas = (
 };
 
 // B3: resolve the text shown in a row's Limit cell. A row carries only its own
-// item-level limit; when it has none ("No Limit") and the table opts into
-// `showGlobalLimit`, fall back to the live org-wide Global Limit value. MUST
-// mirror `resolveRowLimitText` in the backend route.
+// item-level limit; when it has none ("No Limit") and the table has not opted
+// out of `showGlobalLimit` (default ON, ISSUES.md #39), fall back to the live
+// org-wide Global Limit value. MUST mirror `resolveRowLimitText` in the
+// backend route.
 function resolveRowLimitText(
   rowLimit: string,
   showGlobalLimit: boolean,
@@ -2385,7 +2386,7 @@ function PreviewSectionTable({ component, rows = component.rows, rowHeights, inc
                   lineHeight: BUILDER_LINE_HEIGHT_MULTIPLIER,
                 }}
               >
-                {resolveRowLimitText(row.limit, component.showGlobalLimit === true, globalLimit)}
+                {resolveRowLimitText(row.limit, component.showGlobalLimit !== false, globalLimit)}
               </div>
             )}
             {showWant && (
@@ -5940,7 +5941,7 @@ export function ShoppingListBuilder() {
                         <div className="ml-6 flex items-center gap-2">
                           <Checkbox
                             id="table-show-global-limit"
-                            checked={selectedComponent.showGlobalLimit === true}
+                            checked={selectedComponent.showGlobalLimit !== false}
                             onCheckedChange={(checked) => updateSelectedComponent({ showGlobalLimit: checked === true })}
                           />
                           <Label htmlFor="table-show-global-limit">
