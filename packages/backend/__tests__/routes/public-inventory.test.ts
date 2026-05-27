@@ -8,6 +8,9 @@ const mockPrisma = vi.hoisted(() => ({
   category: {
     findMany: vi.fn(),
   },
+  translation: {
+    findMany: vi.fn(),
+  },
 }));
 
 vi.mock('../../src/db', () => ({ default: mockPrisma }));
@@ -62,6 +65,7 @@ describe('GET /api/public/inventory.json', () => {
         foodItems: [],
       },
     ]);
+    mockPrisma.translation.findMany.mockResolvedValue([]);
 
     const { default: createServer } = await import('../../src/server');
     const app = createServer();
@@ -74,7 +78,6 @@ describe('GET /api/public/inventory.json', () => {
     expect(response.headers['access-control-allow-origin']).toBe('*');
     expect(response.headers['cache-control']).toContain('no-store');
     expect(response.body).toMatchObject({
-      version: '1.2.1',
       languages: ['Spanish', 'Arabic'],
       totals: {
         categories: 1,
@@ -123,6 +126,7 @@ describe('GET /api/public/inventory.json', () => {
       ],
     });
     expect(response.body.generatedAt).toEqual(expect.any(String));
+    expect(response.body.version).toEqual(expect.any(String));
     expect(mockPrisma.language.findMany).toHaveBeenCalledWith({
       where: { isEnabled: true },
       orderBy: { sortOrder: 'asc' },
@@ -159,5 +163,95 @@ describe('GET /api/public/inventory.json', () => {
       },
       orderBy: { name: 'asc' },
     });
+  });
+
+  test('fills denormalized translation gaps from the completed generic Translation cache, denormalized winning', async () => {
+    mockPrisma.language.findMany.mockResolvedValue([
+      { name: 'Spanish' },
+      { name: 'Arabic' },
+    ]);
+    mockPrisma.category.findMany.mockResolvedValue([
+      {
+        id: 1,
+        name: 'Canned Goods',
+        // Denormalized CategoryTranslation has only Spanish; Arabic is a gap.
+        translations: [{ language: 'Spanish', name: 'Productos enlatados (denorm)' }],
+        icon: 'package',
+        limit: 2,
+        limitType: 'household',
+        foodItems: [
+          {
+            id: 10,
+            name: 'Black Beans',
+            // No denormalized rows at all; both must come from the generic cache.
+            translations: [],
+            limit: 100,
+            limitType: 'person',
+            isLimited: false,
+            isClearance: false,
+            vegan: true,
+            vegetarian: true,
+            glutenFree: true,
+            organic: false,
+            halal: false,
+            kosher: false,
+            readyToEat: false,
+            updatedAt: new Date('2026-05-24T12:00:00.000Z'),
+          },
+        ],
+      },
+    ]);
+    mockPrisma.translation.findMany.mockImplementation((args: { where: { type: string } }) => {
+      if (args.where.type === 'Category') {
+        return Promise.resolve([
+          { originalText: 'Canned Goods', language: 'Arabic', translatedText: 'معلبات' },
+          // Spanish exists in the generic cache too, but the denormalized row must win.
+          { originalText: 'Canned Goods', language: 'Spanish', translatedText: 'GENERIC SHOULD LOSE' },
+        ]);
+      }
+      if (args.where.type === 'FoodItem') {
+        return Promise.resolve([
+          { originalText: 'Black Beans', language: 'Spanish', translatedText: 'Frijoles negros' },
+          // Null translatedText must be skipped, so Arabic stays absent for this item.
+          { originalText: 'Black Beans', language: 'Arabic', translatedText: null },
+        ]);
+      }
+      return Promise.resolve([]);
+    });
+
+    const { default: createServer } = await import('../../src/server');
+    const app = createServer();
+
+    const response = await request(app).get('/api/public/inventory.json').expect(200);
+
+    const category = response.body.categories[0];
+    expect(category.translations).toEqual({
+      Spanish: 'Productos enlatados (denorm)',
+      Arabic: 'معلبات',
+    });
+    expect(category.items[0].translations).toEqual({
+      Spanish: 'Frijoles negros',
+    });
+
+    // Only completed rows are queried, so failed/pending error strings cannot leak.
+    expect(mockPrisma.translation.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          type: 'Category',
+          status: 'completed',
+          language: { in: ['Spanish', 'Arabic'] },
+          originalText: { in: ['Canned Goods'] },
+        }),
+      })
+    );
+    expect(mockPrisma.translation.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          type: 'FoodItem',
+          status: 'completed',
+          originalText: { in: ['Black Beans'] },
+        }),
+      })
+    );
   });
 });
