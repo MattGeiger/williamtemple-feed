@@ -2037,6 +2037,23 @@ function resolveRowLimitText(
   return rowLimit;
 }
 
+// A6: resolve the effective Want-column control for a section table. The
+// table-level `component.wantControl` is the source of truth; when unset, fall
+// back to legacy per-row `wantControl` ('checkbox' if ANY row carries it) so
+// older saved templates render correctly. Lifted from per-row to table-level
+// because the row-level setting never reliably persisted on inventory-backed
+// tables (the refresh-inventory rebuild wipes per-row fields) and the use case
+// is "apply to all rows" anyway. See ISSUES.md #43.
+// MUST mirror `resolveSectionTableWantControl` in the backend route.
+function resolveSectionTableWantControl(
+  component: SectionTableBuilderComponent,
+): 'blank' | 'checkbox' {
+  if (component.wantControl === 'checkbox') return 'checkbox';
+  if (component.wantControl === 'blank') return 'blank';
+  if (component.rows.some((row) => row.wantControl === 'checkbox')) return 'checkbox';
+  return 'blank';
+}
+
 function PreviewText({ component }: { component: TextBuilderComponent }) {
   // Pull the canvas-wide preview language + cache map from context. When
   // language === '' the canvas is in its default English state and we
@@ -2164,6 +2181,9 @@ function PreviewSectionTable({ component, rows = component.rows, rowHeights, inc
     : DEFAULT_SECTION_TABLE_ROW_HEIGHT;
   const limitWidth = component.showLimit ? component.limitWidth : 0;
   const showWant = component.showWant !== false;
+  // A6: table-level toggle (with legacy per-row fallback). Same value on every
+  // row, computed once outside the row loop below.
+  const wantCheckbox = resolveSectionTableWantControl(component) === 'checkbox';
   const wantWidth = showWant ? component.wantWidth : 0;
   const itemWidth = component.width - limitWidth - wantWidth;
   const measurement = language ? { language, translations, inventoryTranslations } : undefined;
@@ -2391,7 +2411,7 @@ function PreviewSectionTable({ component, rows = component.rows, rowHeights, inc
             )}
             {showWant && (
               <div className={cn('flex items-center justify-center border-[#cfcfcf]', colDivider)}>
-                {row.wantControl === 'checkbox' && (
+                {wantCheckbox && (
                   <span
                     className="inline-block border border-[#555555]"
                     style={{ width: 9, height: 9, borderRadius: 1 }}
@@ -5957,6 +5977,18 @@ export function ShoppingListBuilder() {
                         />
                         <Label htmlFor="table-show-want">Show want column</Label>
                       </div>
+                      {selectedComponent.showWant !== false && (
+                        <div className="ml-6 flex items-center gap-2">
+                          <Checkbox
+                            id="table-want-checkbox"
+                            checked={resolveSectionTableWantControl(selectedComponent) === 'checkbox'}
+                            onCheckedChange={(checked) =>
+                              updateSelectedComponent({ wantControl: checked === true ? 'checkbox' : 'blank' })
+                            }
+                          />
+                          <Label htmlFor="table-want-checkbox">Checkbox in Want column</Label>
+                        </div>
+                      )}
                       <div className="flex items-center gap-2">
                         <Checkbox
                           id="table-show-dividers"
@@ -6146,22 +6178,6 @@ export function ShoppingListBuilder() {
                                     <Badge variant={row.foodItemId ? 'secondary' : 'outline'} className="shrink-0">
                                       {limitSourceLabel(row)}
                                     </Badge>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <Checkbox
-                                      id={`row-want-checkbox-${row.id}`}
-                                      checked={row.wantControl === 'checkbox'}
-                                      onCheckedChange={(checked) =>
-                                        updateSelectedComponent({
-                                          rows: selectedComponent.rows.map((current) =>
-                                            current.id === row.id
-                                              ? { ...current, wantControl: checked === true ? 'checkbox' : 'blank' }
-                                              : current,
-                                          ),
-                                        })
-                                      }
-                                    />
-                                    <Label htmlFor={`row-want-checkbox-${row.id}`} className="text-xs">Checkbox in Want column</Label>
                                   </div>
                                 </div>
                               </div>

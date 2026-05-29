@@ -376,9 +376,11 @@ export interface SectionTableRow {
   limit: string;
   foodItemId?: number;
   limitSource?: 'food-item' | 'category' | 'none';
-  // A6: render an empty checkbox in the Want column for this row instead of
-  // the blank fill-in space. Optional; default 'blank'. Only visible when the
-  // table's Want column is shown.
+  // A6 LEGACY: per-row checkbox control, superseded by the table-level
+  // `SectionTableBuilderComponent.wantControl`. Still read by
+  // `resolveSectionTableWantControl` as a fallback when the table-level
+  // field is unset, so older saved templates render correctly. No UI surface
+  // remains; do not set on new rows. See ISSUES.md #43.
   wantControl?: 'blank' | 'checkbox';
   // A2: per-row status, populated from inventory when the section is generated.
   // Drives the optional Limited/Clearance status icons (component.showStatusIcons).
@@ -399,6 +401,14 @@ export interface SectionTableBuilderComponent extends BuilderComponentBase {
   // `component.showWant !== false` so undefined means "show"; never read raw.
   // The backend route mirrors this field and convention.
   showWant?: boolean;
+  // A6: when 'checkbox', the Want column renders an empty checkbox in every
+  // row instead of the blank fill-in space. Optional; default 'blank' (read
+  // via `resolveSectionTableWantControl`, which falls back to legacy per-row
+  // `SectionTableRow.wantControl` for back-compat). Lifted from per-row to
+  // table-level: the row-level setting was tedious and never reliably persisted
+  // on inventory-backed tables — the refresh-inventory rebuild wiped per-row
+  // fields. See ISSUES.md #43. Mirrored in the backend route.
+  wantControl?: 'blank' | 'checkbox';
   // A1/A3: show/hide the vertical column dividers and the table/cell borders
   // (outer box + horizontal row rules) respectively. Optional; default `true`
   // (read as `!== false`) for back-compat. Mirrored in the backend route.

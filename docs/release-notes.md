@@ -1,5 +1,11 @@
 # Release Notes
 
+## Version 1.2.5 — 2026-05-28
+
+- Moved the Shopping List Builder's "Checkbox in Want column" setting to apply to the whole section table at once.
+- Previously the setting was per-row, which was tedious to apply and never actually stuck — saving the template cleared the checkboxes back to blank, and PDFs printed without them.
+- Turn it on once per table and every row in that table renders a checkbox in the Want column; the setting now persists across saves, PDF downloads, and reloads.
+
 ## Version 1.2.4 — 2026-05-27
 
 - Fixed the public inventory feed so translated category and item names that already exist in the app now appear in the feed.

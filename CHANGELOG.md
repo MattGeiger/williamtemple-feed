@@ -5,6 +5,29 @@ All notable changes to FEED are documented here. This project adheres to
 
 ## [Unreleased]
 
+## [1.2.5] — 2026-05-28
+
+Shopping List Builder: Want-column checkbox lifted to table level. No database
+changes.
+
+### Changed
+
+- **Shopping List Builder: "Checkbox in Want column" is now a table-level
+  setting** (ISSUES.md #43). Previously it was per-row, which was tedious to
+  apply across a table and didn't reflect the real use case (if you want
+  checkboxes, you want them for every row). The toggle now lives next to
+  "Show want column" in the section-table Properties panel and applies to
+  every row. Older saved templates that carried the legacy per-row value are
+  read transparently — no migration needed.
+
+### Fixed
+
+- **Shopping List Builder: Want-column checkboxes now persist across saves and
+  PDF downloads** (ISSUES.md #43). The previous per-row setting was wiped on
+  every save and every PDF render by the refresh-inventory step that rebuilds
+  inventory-backed rows from the database. Moving the setting to the section-
+  table itself lets it ride through the refresh untouched, so it sticks.
+
 ## [1.2.4] — 2026-05-27
 
 Public inventory feed translation fix. No database changes.
