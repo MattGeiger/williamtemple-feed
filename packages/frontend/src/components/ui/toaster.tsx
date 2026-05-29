@@ -20,9 +20,14 @@ export function Toaster() {
 
   return (
     <ToastProvider>
-      {toasts.map(function ({ id, title, description, action, ...props }) {
+      {toasts.map(function ({ id, title, description, action, duration: _duration, ...props }) {
+        // duration={Infinity} disables Radix Toast's own auto-dismiss timer so
+        // it never starts (and therefore never pauses on hover/focus/tap). The
+        // app's wall-clock timer in use-toast.ts is the single source of toast
+        // visibility duration. We drop the stored `duration` prop here so it
+        // can't override this. See ISSUES.md #44.
         return (
-          <Toast key={id} {...props}>
+          <Toast key={id} duration={Infinity} {...props}>
             <div className="grid gap-1">
               {title && <ToastTitle>{title}</ToastTitle>}
               {description && (

@@ -30,16 +30,31 @@ export interface MessageOptions {
 }
 
 /**
- * Default durations for different message types (in milliseconds)
- * Based on accessibility research: 5-6 seconds optimal, minimum 6 seconds for WCAG compliance
- * Radix Toast automatically pauses on hover, focus, and window blur
+ * Length-aware toast duration (ISSUES.md #44).
+ *
+ * Toast visibility is now purely time-based and scales with how much there is
+ * to read. Target: enough time to read the message through three times.
+ *
+ *   duration = chars × 50ms/char × 3 reads, clamped to [3s, 12s]
+ *
+ * 50ms/char ≈ 20 chars/sec comfortable reading; ×3 honors the "read it three
+ * times" goal. The 3s floor keeps short toasts ("Marked in stock.") on screen
+ * long enough to register; the 12s ceiling stops long messages from camping.
+ *
+ * This replaced the previous per-message-type fixed durations (4–8s), which
+ * ignored message length entirely. Hover/focus/tap no longer extend a toast —
+ * see `components/ui/use-toast.ts` for the time-only dismissal mechanism.
  */
-export const DEFAULT_DURATIONS: Record<MessageType, number> = {
-  success: 6000,  // Increased from 4000ms for accessibility
-  error: 8000,    // Increased from 6000ms for critical messages
-  info: 6000,     // Increased from 4000ms for accessibility
-  warning: 7000   // Increased from 5000ms for important warnings
-} as const;
+export const MIN_MESSAGE_DURATION_MS = 3000;
+export const MAX_MESSAGE_DURATION_MS = 12000;
+const MESSAGE_MS_PER_CHAR = 50;
+const MESSAGE_READS = 3;
+
+export function computeMessageDuration(text: string): number {
+  const length = typeof text === 'string' ? text.trim().length : 0;
+  const raw = length * MESSAGE_MS_PER_CHAR * MESSAGE_READS;
+  return Math.min(MAX_MESSAGE_DURATION_MS, Math.max(MIN_MESSAGE_DURATION_MS, raw));
+}
 
 /**
  * Default titles for different message types
