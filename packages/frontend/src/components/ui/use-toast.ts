@@ -11,9 +11,19 @@ import type {
   ToastActionElement,
   ToastProps,
 } from "@/components/ui/toast"
+import { computeMessageDuration } from "@/services/message/types"
 
 const TOAST_LIMIT = 3
-const TOAST_REMOVE_DELAY = 1000000
+// Delay between a toast being dismissed (open=false → slide-out animation
+// starts) and it being removed from state. Just long enough to cover the
+// exit animation. The Shadcn stock value was 1_000_000ms (~16 min), which
+// leaked dismissed toasts in memory; visibility is governed by the
+// length-aware auto-dismiss timer below, not this cleanup delay.
+const TOAST_REMOVE_DELAY = 1000
+
+// Fallback when a toast has no explicit duration and no readable text to
+// measure (e.g. a non-string ReactNode description).
+const FALLBACK_TOAST_DURATION_MS = 6000
 
 type ToasterToast = ToastProps & {
   id: string
@@ -62,6 +72,23 @@ interface State {
 
 const toastTimeouts = new Map<string, ReturnType<typeof setTimeout>>()
 
+// Wall-clock auto-dismiss timers, keyed by toast id. This is the SINGLE source
+// of toast visibility duration (ISSUES.md #44). It runs independently of Radix
+// Toast's own timer — which we disable (duration={Infinity} in toaster.tsx) —
+// because Radix pauses its timer on hover/focus/pointer-down and never resumes
+// after a touch tap, leaving tapped toasts stuck open indefinitely. A plain
+// setTimeout cannot be paused by pointer events, so a toast lives for exactly
+// its duration regardless of clicks, taps, or hover.
+const dismissTimeouts = new Map<string, ReturnType<typeof setTimeout>>()
+
+const clearDismissTimer = (toastId: string) => {
+  const timer = dismissTimeouts.get(toastId)
+  if (timer) {
+    clearTimeout(timer)
+    dismissTimeouts.delete(toastId)
+  }
+}
+
 const addToRemoveQueue = (toastId: string) => {
   if (toastTimeouts.has(toastId)) {
     return
@@ -100,9 +127,11 @@ export const reducer = (state: State, action: Action): State => {
       // ! Side effects ! - This could be extracted into a dismissToast() action,
       // but I'll keep it here for simplicity
       if (toastId) {
+        clearDismissTimer(toastId)
         addToRemoveQueue(toastId)
       } else {
         state.toasts.forEach((toast) => {
+          clearDismissTimer(toast.id)
           addToRemoveQueue(toast.id)
         })
       }
@@ -167,6 +196,28 @@ function toast({ ...props }: Toast) {
       },
     },
   })
+
+  // Start the single, time-only auto-dismiss timer (ISSUES.md #44).
+  // - duration === null            → persist until manually dismissed
+  // - duration is a finite number  → use it verbatim
+  // - duration is undefined        → length-aware default from the message text
+  // Infinity / non-finite values also persist (defensive).
+  if (props.duration !== null) {
+    let ms: number
+    if (typeof props.duration === "number" && Number.isFinite(props.duration)) {
+      ms = props.duration
+    } else if (props.duration === undefined) {
+      ms = typeof props.description === "string"
+        ? computeMessageDuration(props.description)
+        : FALLBACK_TOAST_DURATION_MS
+    } else {
+      ms = Number.POSITIVE_INFINITY
+    }
+
+    if (Number.isFinite(ms)) {
+      dismissTimeouts.set(id, setTimeout(dismiss, ms))
+    }
+  }
 
   return {
     id: id,

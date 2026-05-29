@@ -866,6 +866,73 @@ frontend `tsc && vite build` clean.
 
 ---
 
+### #44 — Toast Messages Too Sticky: Time-Only Dismissal + Length-Aware Duration
+**Priority**: Medium (UX) · **Status**: Fixed (May 28, 2026) — pending deploy
+**Bucket**: v1.x
+**Component**: `packages/frontend/src/components/ui/use-toast.ts`,
+`packages/frontend/src/components/ui/toaster.tsx`,
+`packages/frontend/src/services/message/index.ts`,
+`packages/frontend/src/services/message/types.ts`
+
+**Observed**:
+1. Toasts stayed on screen too long. Durations were fixed per message *type*
+   (success 6s, error 8s, info 6s, warning 7s) and ignored how much text there
+   was to read — a 16-character toast got the same 6s as a 78-character one.
+2. **Bug**: tapping/clicking a toast made it persist **indefinitely**.
+
+**Root cause of the bug**: Radix Toast's built-in auto-dismiss timer pauses on
+hover, focus, and pointer-down, and resumes on pointer-up/leave. On touch there
+is no `pointerleave`, so a tap paused the timer with nothing to resume it — the
+toast stuck open forever. On desktop, resting the cursor over a toast paused it
+the same way. This is documented Radix behavior, not a Provider option. (The
+old `types.ts` comment even noted "Radix Toast automatically pauses on hover,
+focus, and window blur" — that pause was the defect.)
+
+**Resolution — make visibility purely time-based**:
+1. **Disable Radix's timer**: `toaster.tsx` now renders every `<Toast>` with
+   `duration={Infinity}`, so Radix never starts (and therefore never pauses)
+   its own timer. The stored `duration` prop is stripped before the spread so
+   it can't override this.
+2. **Single wall-clock timer**: `use-toast.ts` starts a plain `setTimeout` per
+   toast that dismisses it after its resolved duration. A `setTimeout` cannot
+   be paused by pointer events, so a toast lives exactly its duration
+   regardless of clicks, taps, or hover. The timer is cleared on manual
+   dismissal (X button, action click, or programmatic `dismiss()`). Also
+   lowered the dismissed→removed cleanup delay from the Shadcn-stock
+   1,000,000ms (~16 min memory leak) to 1,000ms (covers the exit animation).
+3. **Length-aware duration** (`computeMessageDuration` in `types.ts`):
+   `chars × 50ms × 3 reads`, clamped to **[3s, 12s]** — enough time to read the
+   message through about three times. Replaces the per-type fixed table.
+   `messageService` uses it as the default; an explicit `duration` still wins,
+   and `persist: true` (→ `duration: null`) still means manual-dismiss-only
+   (used by `retryableError` / `systemError`).
+4. **Action clicks close the toast** (per the spec: only *time*, or an explicit
+   close affordance, ends a toast). `messageService` wraps the action button's
+   `onClick` to run the user's handler and then dismiss. The X close button
+   already closed via Radix `onOpenChange`; swipe-to-dismiss is unaffected.
+
+**Dead-code cleanup**: removed two verified-unused Shadcn-stock forks that
+duplicated the toast store and would have bypassed this fix if imported:
+`packages/frontend/src/hooks/use-toast.ts` and
+`packages/frontend/src/contexts/ToastContext.tsx`. The live path is
+`components/ui/use-toast.ts` → `messageService` / `Toaster` (mounted in
+`App.tsx`).
+
+**Tests**: 13 new frontend tests — `computeMessageDuration` boundaries
+(`message-duration.test.ts`), time-only dismissal incl. persist + manual-cancel
+(`toast-dismissal.test.ts`), and messageService action-close + duration wiring
+(`message-service-action.test.ts`). Full frontend suite 137/137 passes;
+`tsc && vite build` clean.
+
+**Manual smoke (recommended post-deploy)**: on a touch device, tap a toast and
+confirm it still auto-dismisses on time; on desktop, hover a toast and confirm
+the same. Verify a long error message stays ~12s and a short success ~3s, and
+that clicking a Retry/Reload action button closes the toast immediately.
+
+**Remaining**: ships with the next image/deploy.
+
+---
+
 ### #6 — Shopping List Feature Incomplete (OBSOLETE)
 **Status**: Superseded by Shopping List Builder; closed in v1.0.0 release prep
 

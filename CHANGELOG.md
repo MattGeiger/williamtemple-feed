@@ -5,6 +5,27 @@ All notable changes to FEED are documented here. This project adheres to
 
 ## [Unreleased]
 
+## [1.2.6] — 2026-05-28
+
+Toast notification timing. No database changes.
+
+### Changed
+
+- **Toast messages now stay on screen for a length-aware time** (ISSUES.md
+  #44). Instead of a fixed duration per message type, a toast is shown long
+  enough to read it through about three times — roughly 3 seconds for a short
+  confirmation up to a 12-second cap for a long message. Action toasts (Retry,
+  Reload) still persist until you act on them.
+
+### Fixed
+
+- **Toast messages no longer get stuck open when clicked or tapped** (ISSUES.md
+  #44). Previously, tapping a toast on a touch device — or resting the cursor
+  over one on desktop — paused its dismissal timer and left it on screen
+  indefinitely. Toast visibility is now purely time-based: only the timer, the
+  (×) close button, or clicking an embedded action button dismisses a toast.
+  Clicking an action button now also closes the toast.
+
 ## [1.2.5] — 2026-05-28
 
 Shopping List Builder: Want-column checkbox lifted to table level. No database
