@@ -1,6 +1,6 @@
 # FEED — Known Issues & Future Work
 
-**Last Updated**: May 27, 2026
+**Last Updated**: May 28, 2026
 **Status**: v1.0.0 release prep in progress (see `docs/V1-RELEASE-PLAN.md`)
 **Production**: https://feed.williamtemple.app
 
@@ -786,6 +786,83 @@ directly would hit the same bug unless it copies the fallback again.
 existing data), then delete the now-redundant read-side fallbacks in the builder
 and feed (or consolidate them into one shared resolver). Until then, the
 #41/builder fallbacks keep consumers correct.
+
+---
+
+### #43 — Section Table "Checkbox in Want Column" — UX Lift to Table Level + Persistence Bug
+**Priority**: Medium (UX + correctness) · **Status**: Fixed (May 28, 2026) — pending deploy
+**Bucket**: v1.x
+**Component**: `packages/frontend/src/components/shopping-lists/builder/types.ts`,
+`packages/frontend/src/components/shopping-lists/builder/ShoppingListBuilder.tsx`,
+`packages/backend/src/routes/shopping-list-builder.ts`
+
+**Observed**:
+1. **UX**: The "Checkbox in Want column" toggle in the section-table Properties
+   panel was per-row. The realistic use case is "apply to the whole table" — per-row
+   toggling was tedious without offering value, and no user wanted a table where
+   only some rows had checkboxes and others had blank fill-in space.
+2. **Bug**: After enabling the per-row checkbox on every row of an inventory-backed
+   section table and saving the template, the checkboxes reverted immediately. The
+   same revert happened on PDF download.
+
+**Root cause of the bug**: `refreshInventoryBackedTemplate`
+([packages/backend/src/routes/shopping-list-builder.ts](packages/backend/src/routes/shopping-list-builder.ts),
+the `refreshInventoryBackedTemplate` export) rebuilds inventory-backed section
+tables from the live DB:
+
+```ts
+return {
+  ...component,         // preserves component-level fields
+  rows: refreshed.rows, // OVERWRITES rows — fresh rows have no wantControl
+  ...
+};
+```
+
+The refresh is invoked in three places: `saveCurrentTemplate` in the builder
+(before each save), `POST /preview-pdf` (before PDF render), and
+`POST /translate-missing-strings`. So the per-row `wantControl` was wiped on
+**every** save, every PDF, every translate-missing run — it never reliably
+persisted on inventory-backed tables. The realistic "did any user ever ship
+this?" answer is "almost no one, because saving immediately wiped it."
+
+**Resolution — elevate to the component level**: `wantControl?: 'blank' |
+'checkbox'` is now a property of `SectionTableBuilderComponent` itself, alongside
+`showWant`/`showLimit`/`showColumnDividers`/`showBorders`/`showStatusIcons`/
+`showGlobalLimit`. It rides through the refresh path's `...component` spread for
+free, so the persistence regression cannot recur.
+
+**Back-compat shim** (read-side, transparent): a mirrored helper
+`resolveSectionTableWantControl(component)` returns the component-level value if
+set; otherwise falls back to legacy per-row `wantControl` ('checkbox' if ANY row
+carries it) so older saved templates render correctly without any migration.
+Legacy per-row values are left in place (the few that exist are harmless once
+ignored by the renderer; no quiet cleanup pass).
+
+**Changes**:
+- `SectionTableBuilderComponent.wantControl?: 'blank' | 'checkbox'` added to both
+  the frontend type and the mirrored backend interface. `SectionTableRow.wantControl`
+  marked LEGACY in both files; documented as fallback-only.
+- `resolveSectionTableWantControl` helper added to both
+  `packages/frontend/src/components/shopping-lists/builder/ShoppingListBuilder.tsx`
+  and `packages/backend/src/routes/shopping-list-builder.ts`, alongside
+  `resolveRowLimitText`. Backend helper is `export`ed for unit testing.
+- Canvas `PreviewSectionTable` and the backend `sectionTableComponentHtml`
+  renderer compute `wantCheckbox` once outside the row loop and use it for every
+  row, replacing the previous `row.wantControl === 'checkbox'` per-row check.
+- Properties panel: the per-row "Checkbox in Want column" toggle in the Rows
+  tab is removed. A new table-level "Checkbox in Want column" toggle is nested
+  under "Show want column" in the Layout/Display section (same pattern as
+  "Show Global Limit" nests under "Show limit column"). The toggle is hidden
+  when `showWant === false`, because there is no Want column to check.
+
+**Tests**: five new cases in `shopping-list-builder.test.ts` cover the
+resolver precedence (explicit checkbox / explicit blank overrides legacy /
+unset + legacy / unset + no legacy) and a `POST /refresh-inventory` test proving
+that table-level `wantControl` survives the row rebuild that wiped per-row
+values. 126/126 shopping-list tests pass (was 121); backend `tsc` clean;
+frontend `tsc && vite build` clean.
+
+**Remaining**: ships with the next image/deploy.
 
 ---
 

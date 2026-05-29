@@ -1,6 +1,7 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
 import express from 'express';
+import { resolveSectionTableWantControl } from '../../../src/routes/shopping-list-builder';
 
 const mockPrisma = vi.hoisted(() => ({
   category: {
@@ -400,6 +401,92 @@ describe('Shopping List Builder API', () => {
       .expect(200);
 
     expect(mockPrisma.globalLimit.findFirst).not.toHaveBeenCalled();
+  });
+
+  describe('Want column checkbox — table-level (ISSUES.md #43)', () => {
+    type WantInput = Parameters<typeof resolveSectionTableWantControl>[0];
+
+    test('explicit table-level wantControl:checkbox resolves to checkbox', () => {
+      expect(
+        resolveSectionTableWantControl({
+          ...inventoryTable,
+          wantControl: 'checkbox',
+          rows: [{ id: 'r1', item: 'Beans', limit: '' }],
+        } as unknown as WantInput),
+      ).toBe('checkbox');
+    });
+
+    test('explicit table-level wantControl:blank overrides legacy per-row checkbox', () => {
+      // A saved template carrying legacy row-level 'checkbox' must still respect
+      // an explicit table-level 'blank' set by the user (opt-out).
+      expect(
+        resolveSectionTableWantControl({
+          ...inventoryTable,
+          wantControl: 'blank',
+          rows: [{ id: 'r1', item: 'Beans', limit: '', wantControl: 'checkbox' }],
+        } as unknown as WantInput),
+      ).toBe('blank');
+    });
+
+    test('unset table-level falls back to legacy per-row checkbox when ANY row has it', () => {
+      // Back-compat for v1.1.0-v1.2.4 saved templates: if a user managed to
+      // persist row-level 'checkbox' (rare — the persistence bug usually wiped
+      // it), the table-level reader treats it as an active table-level setting.
+      expect(
+        resolveSectionTableWantControl({
+          ...inventoryTable,
+          rows: [
+            { id: 'r1', item: 'Beans', limit: '' },
+            { id: 'r2', item: 'Lentils', limit: '', wantControl: 'checkbox' },
+          ],
+        } as unknown as WantInput),
+      ).toBe('checkbox');
+    });
+
+    test('unset table-level with no legacy rows resolves to blank', () => {
+      expect(
+        resolveSectionTableWantControl({
+          ...inventoryTable,
+          rows: [{ id: 'r1', item: 'Beans', limit: '' }],
+        } as unknown as WantInput),
+      ).toBe('blank');
+    });
+
+    test('refresh-inventory preserves table-level wantControl across the row rebuild (the persistence bug fix)', async () => {
+      // The persistence bug: refreshInventoryBackedTemplate rebuilds rows from
+      // the DB, wiping any per-row wantControl. Elevating to the component
+      // level lets the value ride through the `...component` spread in the
+      // refresh path so saves and PDF downloads no longer revert it.
+      mockPrisma.category.findMany.mockResolvedValue([
+        {
+          id: 2,
+          name: 'Beans',
+          limit: 3,
+          limitType: 'household',
+          foodItems: [
+            { id: 10, name: 'Navy Beans', limit: 100, isLimited: false },
+          ],
+        },
+      ]);
+
+      const response = await request(app)
+        .post('/api/shopping-list-builder/refresh-inventory')
+        .send({
+          template: {
+            ...template,
+            components: [{ ...inventoryTable, wantControl: 'checkbox' }],
+          },
+        })
+        .expect(200);
+
+      const refreshedTable = response.body.template.components[0];
+      expect(refreshedTable.wantControl).toBe('checkbox');
+      // The rebuilt rows carry no per-row wantControl — proving the elevation
+      // is the right shape: the data belongs at the table level.
+      expect(
+        refreshedTable.rows.every((row: { wantControl?: string }) => row.wantControl === undefined),
+      ).toBe(true);
+    });
   });
 
   test('saved component delete looks up by id only (org-wide shared scope)', async () => {

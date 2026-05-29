@@ -240,8 +240,11 @@ interface SectionTableBuilderComponent extends BuilderComponentBase {
     limit: string;
     foodItemId?: number;
     limitSource?: 'food-item' | 'category' | 'none';
-    // A6: 'checkbox' renders an empty checkbox in the Want cell instead of
-    // blank fill-in space. Optional; default 'blank'. Mirrors the frontend.
+    // A6 LEGACY: per-row checkbox control, superseded by the table-level
+    // `SectionTableBuilderComponent.wantControl`. Still read by
+    // `resolveSectionTableWantControl` as a back-compat fallback when the
+    // table-level field is unset. No UI surface remains. Mirrors the frontend.
+    // See ISSUES.md #43.
     wantControl?: 'blank' | 'checkbox';
     // A2: per-row status for the optional Limited/Clearance icons.
     isLimited?: boolean;
@@ -251,6 +254,14 @@ interface SectionTableBuilderComponent extends BuilderComponentBase {
   // Show/hide the Want column (A5). Optional for back-compat; always read as
   // `component.showWant !== false` (undefined = show). Mirrors the frontend.
   showWant?: boolean;
+  // A6: when 'checkbox', the Want column renders an empty checkbox in every
+  // row instead of the blank fill-in space. Optional; default 'blank' (read
+  // via `resolveSectionTableWantControl`, which falls back to legacy per-row
+  // `wantControl` for back-compat). Lifted from per-row because the row-level
+  // setting was tedious and never reliably persisted on inventory-backed
+  // tables — refresh-inventory rebuild wiped per-row fields. See ISSUES.md
+  // #43. Mirrors the frontend.
+  wantControl?: 'blank' | 'checkbox';
   // A1/A3: show/hide column dividers and table/cell borders. Optional;
   // default true (read as `!== false`). Mirrors the frontend.
   showColumnDividers?: boolean;
@@ -2866,6 +2877,23 @@ const resolveRowLimitText = (
   return rowLimit;
 };
 
+// A6: resolve the effective Want-column control for a section table. The
+// table-level `component.wantControl` is the source of truth; when unset, fall
+// back to legacy per-row `wantControl` ('checkbox' if ANY row carries it) so
+// older saved templates render correctly. Lifted from per-row to table-level
+// because the row-level setting never reliably persisted on inventory-backed
+// tables — the refresh-inventory rebuild wipes per-row fields — and the use
+// case is "apply to all rows" anyway. See ISSUES.md #43.
+// MUST mirror `resolveSectionTableWantControl` in the frontend ShoppingListBuilder.
+export const resolveSectionTableWantControl = (
+  component: SectionTableBuilderComponent,
+): 'blank' | 'checkbox' => {
+  if (component.wantControl === 'checkbox') return 'checkbox';
+  if (component.wantControl === 'blank') return 'blank';
+  if (component.rows.some((row) => row.wantControl === 'checkbox')) return 'checkbox';
+  return 'blank';
+};
+
 const sectionTableComponentHtml = (
   component: SectionTableBuilderComponent,
   options: {
@@ -2888,6 +2916,9 @@ const sectionTableComponentHtml = (
   const rowBaseHeight = asNumber(component.rowHeight, DEFAULT_SECTION_TABLE_ROW_HEIGHT);
   const limitWidth = component.showLimit ? asNumber(component.limitWidth, DEFAULT_SECTION_TABLE_LIMIT_WIDTH) : 0;
   const showWant = component.showWant !== false;
+  // A6: table-level toggle (with legacy per-row fallback). Same value on every
+  // row, computed once outside the row loop below.
+  const wantCheckbox = resolveSectionTableWantControl(component) === 'checkbox';
   const wantWidth = showWant ? asNumber(component.wantWidth, DEFAULT_SECTION_TABLE_WANT_WIDTH) : 0;
   const itemWidth = component.width - limitWidth - wantWidth;
   const fontSize = asNumber(component.fontSize, 10);
@@ -3019,7 +3050,7 @@ const sectionTableComponentHtml = (
                 : `<div class="builder-table-text-cell" dir="auto">${itemHtml}</div>`;
             })()}
             ${component.showLimit ? `<div class="builder-table-text-cell builder-table-cell-left-border builder-table-center" dir="auto">${escapeHtml(resolveRowLimitText(row.limit, component.showGlobalLimit !== false, options.globalLimit))}</div>` : ''}
-            ${showWant ? `<div class="builder-table-cell-left-border builder-table-want-cell">${row.wantControl === 'checkbox' ? '<span class="builder-want-checkbox"></span>' : ''}</div>` : ''}
+            ${showWant ? `<div class="builder-table-cell-left-border builder-table-want-cell">${wantCheckbox ? '<span class="builder-want-checkbox"></span>' : ''}</div>` : ''}
           </div>
         `;
       }).join('')}
