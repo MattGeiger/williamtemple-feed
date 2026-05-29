@@ -1,5 +1,11 @@
 # Release Notes
 
+## Version 1.2.6 — 2026-05-28
+
+- Pop-up notifications ("toasts") now stay on screen just long enough to read them — about three reads' worth — instead of lingering.
+- Fixed a problem where tapping or clicking a notification could leave it stuck on screen indefinitely.
+- Notifications now close purely on a timer, or when you click their close (×) button or an action button (like Retry).
+
 ## Version 1.2.5 — 2026-05-28
 
 - Moved the Shopping List Builder's "Checkbox in Want column" setting to apply to the whole section table at once.

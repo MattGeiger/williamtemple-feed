@@ -9,29 +9,40 @@ import { ToastAction } from '@/components/ui/toast'
 import { toast } from '@/components/ui/use-toast'
 import React from 'react'
 import type { MessageType, MessageOptions } from './types'
-import { DEFAULT_DURATIONS, DEFAULT_TITLES, VARIANT_MAPPINGS } from './types'
+import { computeMessageDuration, DEFAULT_TITLES, VARIANT_MAPPINGS } from './types'
 
 class MessageService {
   private show(message: string, type: MessageType, options?: MessageOptions) {
-    const duration = options?.duration ?? DEFAULT_DURATIONS[type]
+    // Length-aware default (ISSUES.md #44): scale the on-screen time with how
+    // much there is to read. An explicit options.duration still wins.
+    const duration = options?.duration ?? computeMessageDuration(message)
     const title = DEFAULT_TITLES[type]
-    
+
+    // Forward reference to the toast's dismiss(), populated below. Clicking an
+    // embedded action button runs the user's handler and then closes the toast
+    // (ISSUES.md #44: action clicks are an explicit close, like the X button).
+    let dismissToast: (() => void) | undefined
     const actionComponent = options?.action ? React.createElement(
       ToastAction,
-      { 
+      {
         altText: options.action.label,
-        onClick: options.action.onClick 
+        onClick: () => {
+          options.action!.onClick()
+          dismissToast?.()
+        }
       },
       options.action.label
     ) : undefined
 
-    return toast({
+    const handle = toast({
       title,
       description: message,
       variant: VARIANT_MAPPINGS[type],
       duration: options?.persist ? null : duration,
       action: actionComponent
     })
+    dismissToast = handle.dismiss
+    return handle
   }
 
   /**
