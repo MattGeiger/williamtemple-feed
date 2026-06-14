@@ -1,6 +1,6 @@
 # FEED — Known Issues & Future Work
 
-**Last Updated**: May 28, 2026
+**Last Updated**: June 13, 2026
 **Status**: v1.0.0 release prep in progress (see `docs/V1-RELEASE-PLAN.md`)
 **Production**: https://feed.williamtemple.app
 
@@ -930,6 +930,88 @@ the same. Verify a long error message stays ~12s and a short success ~3s, and
 that clicking a Retry/Reload action button closes the toast immediately.
 
 **Remaining**: ships with the next image/deploy.
+
+---
+
+### #45 — Cloudflare Bot Challenge Blocks the "Public" Inventory Feed for Datacenter / VPN Clients
+**Priority**: Medium (blocks the documented LOTTO interconnect) · **Status**: Open — needs Cloudflare config change (diagnosed June 13, 2026)
+**Bucket**: v1.x (infra / Cloudflare)
+**Component**: Cloudflare zone config for `feed.williamtemple.app` (WAF / Bot
+Fight Mode), affecting `packages/backend/src/routes/public-inventory.ts` and the
+contract in `docs/PUBLIC_INVENTORY.md`
+
+**Observed**: LOTTO consumes `GET /api/public/inventory.json` to translate
+pantry inventory names into languages FEED's own feed doesn't carry. LOTTO's
+**server-side** fetch (Vercel serverless function) to the feed fails **every
+time**, and LOTTO's **browser-side** fetch fails **when the admin is on a VPN**.
+The failing response body is Cloudflare's interstitial:
+
+```html
+<!DOCTYPE html><html lang="en-US"><head><title>Just a moment...</title>
+<meta http-equiv="X-UA-Compatible" ... HTTP 403
+```
+
+The same feed returns `200` from an ordinary residential/secured browser
+connection (FEED's own `/inventory` page and LOTTO's public inventory page both
+render fine on normal connections).
+
+**Root cause**: `feed.williamtemple.app` sits behind Cloudflare, and Cloudflare's
+managed challenge / Bot Fight Mode serves a **403 "Just a moment..." JS-challenge
+page** to clients it scores as automated — specifically those from **datacenter
+or VPN egress IPs** and **non-browser HTTP clients** (Node/undici, which has no
+browser fingerprint and cannot solve the JS challenge). This is independent of
+FEED's application code: the request never reaches the Express handler, so the
+intentional `Access-Control-Allow-Origin: *` / no-auth / `no-store` headers
+(`server.ts` mounts `/api/public` before auth) are irrelevant — Cloudflare
+answers first.
+
+This **directly contradicts** the documented design of the feed. `docs/PUBLIC_INVENTORY.md`
+states the path "must remain public and unauthenticated so browser-based clients
+outside FEED can fetch it." Cloudflare's bot challenge on `/api/public/*` breaks
+that contract for exactly the two cases that matter to the interconnect:
+1. **LOTTO's server (Vercel) — always.** Serverless functions always egress from
+   datacenter IPs, so the server-to-server path is permanently 403'd. This is the
+   real reason LOTTO never sees inventory server-side (previously misattributed to
+   IP allowlists, missing User-Agent, and deploy lag — all disproven).
+2. **LOTTO's admin browser behind a VPN.** A flagged VPN egress IP gets the same
+   403; and because the challenge page carries **no CORS headers**, the
+   cross-origin `fetch()` is blocked before the status is even readable, so the
+   bridge falls back to the (also-403'd) server fetch.
+
+**Evidence / how it was isolated**:
+- Server-side fetch from Vercel returns `HTTP 403` with the Cloudflare
+  "Just a moment..." body (LOTTO captures status + body snippet).
+- Admin browser **with VPN active** → Find Missing reports zero inventory (403).
+- Admin browser **with VPN disabled** (residential/secured wifi) → Find Missing
+  finds the inventory strings and queues them successfully. No code change.
+- Repeated cross-origin browser fetches from a clean connection: `200` every time.
+
+**Operational impact / current workaround**: On William Temple House's admin
+device (an iPad mini on secured wifi with **no VPN**), the LOTTO Find Missing
+flow works today, because the residential/secured connection passes Cloudflare.
+The **server-side** path stays blocked regardless — LOTTO's design now sources
+inventory names from the admin browser and bridges them to its server precisely
+so it doesn't depend on the (Cloudflare-blocked) server-to-server fetch. So the
+interconnect is functional in practice, but it is **fragile**: any admin on a
+VPN, or any future attempt to fetch the feed from a backend/cron, will be 403'd.
+
+**Resolution (Cloudflare-side — pick one)**:
+- **Option A — exempt the public path (matches the documented intent).** In the
+  `feed.williamtemple.app` zone, add a WAF Custom Rule / Configuration Rule:
+  *When `URI Path starts with /api/public/` → Skip → Super Bot Fight Mode / Bot
+  Fight Mode / Browser Integrity Check / Managed Challenge.* Restores `200` for
+  the server, the browser (incl. VPN), and FEED's own `/inventory` page in one
+  change. Simplest and aligns Cloudflare with `PUBLIC_INVENTORY.md`.
+- **Option B — shared-secret bypass (keeps the path bot-protected otherwise).**
+  Cloudflare rule: skip the challenge only when a header (e.g.
+  `X-LOTTO-Feed-Key: <secret>`) is present; LOTTO's server sends it. Keeps the
+  feed challenged for the open internet while letting the LOTTO interconnect
+  through deterministically. Requires a shared secret in both apps' env.
+
+**Remaining**: Cloudflare dashboard change on the FEED zone; no FEED application
+code change required for Option A. Option B additionally needs LOTTO to send the
+agreed header on its server fetch. Recommend Option A unless the feed must stay
+bot-challenged for the broader internet.
 
 ---
 
