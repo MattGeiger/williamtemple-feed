@@ -30,6 +30,7 @@ interface FoodItemContextType {
     categoryId: number;
     statusFlags: StatusFlags;
     dietaryFlags: DietaryFlags;
+    keepTranslations?: boolean;
   }) => Promise<FoodItem>;
   deleteFoodItem: (id: number) => Promise<void>;
   bulkUpdateFoodItems: (
