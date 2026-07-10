@@ -78,6 +78,7 @@ export function useFoodItemData() {
     categoryId: number
     statusFlags: StatusFlags
     dietaryFlags: DietaryFlags
+    keepTranslations?: boolean
   }) => {
     setIsSaving(true)
     setError(null)

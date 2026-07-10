@@ -127,6 +127,7 @@ function FoodItemContent() {
         categoryId: updatedFoodItem.categoryId!,
         statusFlags: updatedFoodItem.statusFlags!,
         dietaryFlags: updatedFoodItem.dietaryFlags!,
+        keepTranslations: updatedFoodItem.keepTranslations,
       });
       await refreshFoodItems(); // Force refresh
       showMessage('Food item updated successfully', 'success');

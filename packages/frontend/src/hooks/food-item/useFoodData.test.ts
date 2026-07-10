@@ -101,6 +101,21 @@ describe('useFoodItemData', () => {
     expect(handleErrorSpy).toHaveBeenCalledWith(error, 'updateFoodItem');
   });
 
+  it('should forward keepTranslations to the service when updating', async () => {
+    const mockedService = FoodItemService as vi.MockedClass<typeof FoodItemService>;
+    mockedService.prototype.updateFoodItem.mockResolvedValue(mockFoodItems[0]);
+
+    const { result } = renderHook(() => useFoodItemData());
+
+    await act(async () => {
+      await result.current.updateFoodItem({ id: 1, name: 'Granny Smith Apple', categoryId: 1, limit: 10, statusFlags: {} as StatusFlags, dietaryFlags: {} as DietaryFlags, keepTranslations: true });
+    });
+
+    expect(mockedService.prototype.updateFoodItem).toHaveBeenCalledWith(
+      expect.objectContaining({ keepTranslations: true })
+    );
+  });
+
   it('should handle errors when deleting a food item', async () => {
     const error = new Error('Deletion failed');
     const mockedService = FoodItemService as vi.MockedClass<typeof FoodItemService>;
