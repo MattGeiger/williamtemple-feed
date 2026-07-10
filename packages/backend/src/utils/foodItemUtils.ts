@@ -27,6 +27,15 @@ export interface DietaryFlags {
   readyToEat: boolean;
 }
 
+// Logistics request payload (docs/reports/logistics.md §1). All values are
+// already-parsed integers: the client converts the currency string to
+// cents (never float math). null price = Unknown, 0 = Donated/Free.
+export interface LogisticsPayload {
+  purchasePriceCents?: number | null;
+  unitsPerPurchase?: number;
+  estimatedQuantity?: number | null;
+}
+
 export interface FoodItemBase {
   name: string;
   limit?: number;
@@ -34,7 +43,80 @@ export interface FoodItemBase {
   categoryId: number;
   statusFlags?: StatusFlags;
   dietaryFlags?: DietaryFlags;
+  logistics?: LogisticsPayload;
 }
+
+/**
+ * Validates the optional logistics block and normalizes it into the shape
+ * the mutation service consumes, capturing whether estimatedQuantity was
+ * explicitly provided (a quick status action omits it; the edit form sends
+ * it, possibly as null = Unknown).
+ */
+export const parseLogisticsPayload = (
+  logistics: unknown
+):
+  | {
+      purchasePriceCents?: number | null;
+      unitsPerPurchase?: number;
+      estimatedQuantity?: number | null;
+      estimatedQuantityProvided: boolean;
+    }
+  | undefined => {
+  if (logistics === undefined || logistics === null) return undefined;
+  if (typeof logistics !== 'object' || Array.isArray(logistics)) {
+    const error = new Error('Invalid logistics payload') as Error & { statusCode?: number };
+    error.statusCode = 400;
+    throw error;
+  }
+  const source = logistics as Record<string, unknown>;
+  const errors: string[] = [];
+  const result: {
+    purchasePriceCents?: number | null;
+    unitsPerPurchase?: number;
+    estimatedQuantity?: number | null;
+    estimatedQuantityProvided: boolean;
+  } = { estimatedQuantityProvided: false };
+
+  if ('purchasePriceCents' in source) {
+    const value = source.purchasePriceCents;
+    if (value === null) {
+      result.purchasePriceCents = null;
+    } else if (typeof value === 'number' && Number.isSafeInteger(value) && value >= 0) {
+      result.purchasePriceCents = value;
+    } else {
+      errors.push('Purchase price must be a nonnegative whole number of cents or null');
+    }
+  }
+
+  if ('unitsPerPurchase' in source) {
+    const value = source.unitsPerPurchase;
+    if (typeof value === 'number' && Number.isSafeInteger(value) && value >= 1) {
+      result.unitsPerPurchase = value;
+    } else {
+      errors.push('Units per purchase must be a whole number of at least 1');
+    }
+  }
+
+  if ('estimatedQuantity' in source) {
+    result.estimatedQuantityProvided = true;
+    const value = source.estimatedQuantity;
+    if (value === null) {
+      result.estimatedQuantity = null;
+    } else if (typeof value === 'number' && Number.isSafeInteger(value) && value >= 0) {
+      result.estimatedQuantity = value;
+    } else {
+      errors.push('Estimated quantity must be a nonnegative whole number or null');
+    }
+  }
+
+  if (errors.length > 0) {
+    const error = new Error(errors.join(', ')) as Error & { statusCode?: number };
+    error.statusCode = 400;
+    throw error;
+  }
+
+  return result;
+};
 
 export const validateFoodItem = (data: any): void => {
   const errors: string[] = [];
@@ -73,6 +155,11 @@ export const transformFoodItem = (item: any) => ({
   categoryId: item.categoryId,
   createdAt: item.createdAt,
   updatedAt: item.updatedAt,
+  logistics: {
+    purchasePriceCents: item.purchasePriceCents ?? null,
+    unitsPerPurchase: item.unitsPerPurchase ?? 1,
+    estimatedQuantity: item.estimatedQuantity ?? null,
+  },
   statusFlags: {
     isInStock: item.isInStock,
     isLimited: item.isLimited,

@@ -10,6 +10,7 @@ import {
   FoodItemStatus,
   DietaryFlags,
   StatusFlags,
+  FoodItemLogistics,
   FOOD_ITEM_VALIDATION,
   DEFAULT_DIETARY_FLAGS,
   DEFAULT_STATUS_FLAGS
@@ -18,12 +19,22 @@ import { BaseApiService } from '../base';
 import config from '@/config/config';
 
 // Data interfaces for creating and updating items.
+//
+// `logisticsUpdate` is intentionally NOT named `logistics`: quick status
+// actions spread a whole FoodItem (which carries `logistics`) into these
+// calls, and the backend treats an explicit `estimatedQuantity` key as a
+// real count observation. Only the add/edit form supplies
+// `logisticsUpdate`, so quick "Mark In Stock" keeps its no-count semantics
+// (the backend sets the restored quantity to Unknown). The request bodies
+// below are built from whitelisted fields for the same reason.
 interface CreateFoodItemData {
   name: string;
   limit: number;
+  limitType?: FoodItem['limitType'];
   categoryId: number;
   statusFlags: StatusFlags;
   dietaryFlags: DietaryFlags;
+  logisticsUpdate?: FoodItemLogistics;
 }
 
 interface UpdateFoodItemData extends CreateFoodItemData {
@@ -101,7 +112,10 @@ export class FoodItemService extends BaseApiService {
       // getFoodItems(). Returning the raw envelope would store an item with
       // no statusFlags in state and crash the list/filter render.
       const response = await this.post<{ foodItem: FoodItem }>('', {
-        ...data,
+        name: data.name,
+        limit: data.limit,
+        limitType: data.limitType,
+        categoryId: data.categoryId,
         status: this.deriveStatus(data.statusFlags),
         statusFlags: {
           ...DEFAULT_STATUS_FLAGS,
@@ -110,7 +124,8 @@ export class FoodItemService extends BaseApiService {
         dietaryFlags: {
           ...DEFAULT_DIETARY_FLAGS,
           ...data.dietaryFlags
-        }
+        },
+        ...(data.logisticsUpdate ? { logistics: data.logisticsUpdate } : {})
       });
       return response.foodItem;
     } catch (error) {
@@ -137,7 +152,11 @@ export class FoodItemService extends BaseApiService {
       // no statusFlags in state and crash the list/filter render
       // (Cannot read properties of undefined (reading 'isInStock')).
       const response = await this.put<{ foodItem: FoodItem }>(`/${data.id}`, {
-        ...data,
+        name: data.name,
+        limit: data.limit,
+        limitType: data.limitType,
+        categoryId: data.categoryId,
+        keepTranslations: data.keepTranslations,
         status: this.deriveStatus(data.statusFlags),
         statusFlags: {
           ...DEFAULT_STATUS_FLAGS,
@@ -146,7 +165,8 @@ export class FoodItemService extends BaseApiService {
         dietaryFlags: {
           ...DEFAULT_DIETARY_FLAGS,
           ...data.dietaryFlags
-        }
+        },
+        ...(data.logisticsUpdate ? { logistics: data.logisticsUpdate } : {})
       });
       return response.foodItem;
     } catch (error) {

@@ -8,9 +8,8 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { Prisma } from '@prisma/client';
 import fs from 'node:fs/promises';
-import os from 'node:os';
 import path from 'node:path';
-import puppeteer from 'puppeteer';
+import { renderHtmlToPdf } from '../services/pdf/chromium';
 import prisma from '../db';
 import { FOOD_ICON_SVG_PATHS } from '../lib/icon-svgs';
 import {
@@ -3598,58 +3597,15 @@ const renderBuilderTemplateToPdf = async (
     printModeOverride,
     globalLimit,
   );
-  const userDataDir = await fs.mkdtemp(path.join(os.tmpdir(), 'wth-builder-pdf-'));
-  const browser = await puppeteer.launch({
-    headless: true,
-    userDataDir,
-    // Default protocolTimeout is 30s, which is not enough for the
-    // ~36 MB Noto Sans CJK fonts to parse + embed in the PDF. Bumped
-    // to 120s so CJK renders complete reliably; English / Latin /
-    // RTL renders still finish in a couple of seconds and don't pay
-    // the higher ceiling.
+  // Shared Chromium lifecycle (services/pdf/chromium). The 120s
+  // protocolTimeout is required for the ~36 MB Noto Sans CJK fonts to
+  // parse + embed; English / Latin / RTL renders still finish in a couple
+  // of seconds and don't pay the higher ceiling.
+  return renderHtmlToPdf(html, {
+    width: '8.5in',
+    height: '11in',
     protocolTimeout: 120000,
-    args: [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage',
-      '--disable-crash-reporter',
-      '--disable-crashpad',
-    ],
-    ...(process.env.PUPPETEER_EXECUTABLE_PATH
-      ? { executablePath: process.env.PUPPETEER_EXECUTABLE_PATH }
-      : {}),
   });
-
-  try {
-    const page = await browser.newPage();
-    // Wait only for the DOM to parse, then explicitly wait for the CSS
-    // Font Loading API to report all @font-face rules ready. The default
-    // `networkidle0` wait hangs indefinitely when CJK fonts are inlined
-    // as huge data URLs because Chromium's resource loader treats those
-    // data URLs as in-flight network requests that never reach idle.
-    // `domcontentloaded` skips that trap; `document.fonts.ready` then
-    // gives us deterministic confirmation that fonts are usable before
-    // page.pdf() runs.
-    await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: 120000 });
-    // page.evaluate runs in the browser context where `document` is defined.
-    // Cast through any to satisfy the Node-typed compiler.
-    await page.evaluate('document.fonts.ready');
-    return await page.pdf({
-      printBackground: true,
-      preferCSSPageSize: true,
-      width: '8.5in',
-      height: '11in',
-      margin: {
-        top: '0in',
-        right: '0in',
-        bottom: '0in',
-        left: '0in',
-      },
-    });
-  } finally {
-    await browser.close();
-    await fs.rm(userDataDir, { recursive: true, force: true });
-  }
 };
 
 /**
