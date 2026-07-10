@@ -16,6 +16,9 @@ import { Prisma } from '@prisma/client';
 const mockTx = vi.hoisted(() => ({
   category: { findUnique: vi.fn() },
   foodItem: { create: vi.fn() },
+  // The mutation service writes a 'created' ledger event in the same
+  // transaction as the item create.
+  foodItemInventoryEvent: { create: vi.fn().mockResolvedValue({}) },
 }));
 
 const mockPrisma = vi.hoisted(() => ({
@@ -135,7 +138,11 @@ describe('POST /food-items duplicate-name handling', () => {
       isInStock: true, isLimited: false, isClearance: false,
       vegan: false, vegetarian: false, glutenFree: false,
       organic: false, halal: false, kosher: false, readyToEat: false,
+      purchasePriceCents: 0, unitsPerPurchase: 1, estimatedQuantity: null,
       createdAt: new Date(), updatedAt: new Date(),
+      // The service creates with include: { category: true } so the ledger
+      // event can denormalize the category name.
+      category: { id: 6, name: 'Dry Goods' },
     });
 
     const response = await request(app)

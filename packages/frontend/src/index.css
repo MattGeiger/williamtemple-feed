@@ -882,3 +882,27 @@
     font-weight: 400;
   }
 }
+
+/* Reports selection mode (Reports initiative §3): eligible cards get a
+   subtle staggered wiggle; selected cards stop moving and show a
+   token-based ring + checkmark + order number. Reduced-motion users get
+   the static ring/check affordances only. */
+@keyframes report-card-wiggle {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-0.3deg); }
+  75% { transform: rotate(0.3deg); }
+}
+
+.report-selectable {
+  animation: report-card-wiggle 1.6s ease-in-out infinite;
+}
+
+.report-selectable-selected {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .report-selectable {
+    animation: none;
+  }
+}

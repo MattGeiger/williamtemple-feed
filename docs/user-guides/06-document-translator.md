@@ -51,4 +51,4 @@ Some failures are temporary provider problems. Your original document is not los
 
 ## What To Read Next
 
-- To manage translated text directly, read [Languages & Translations](04-languages-translations.md).
+- To manage translated text directly, read [Languages & Translations](05-languages-translations.md).

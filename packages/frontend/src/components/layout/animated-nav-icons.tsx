@@ -10,6 +10,7 @@ import type * as React from "react";
 import { BotIcon } from "@/components/animate-ui/icons/bot";
 import { CircleHelpIcon } from "@/components/animate-ui/icons/circle-help";
 import { ClipboardListIcon } from "@/components/animate-ui/icons/clipboard-list";
+import { FileChartColumnIcon } from "@/components/animate-ui/icons/file-chart-column";
 import { GaugeIcon } from "@/components/animate-ui/icons/gauge";
 import { InfoIcon } from "@/components/animate-ui/icons/info";
 import { BridgedAnimatedIcon } from "@/components/animate-ui/bridge";
@@ -28,6 +29,16 @@ function animatedIconClassName(className?: string) {
 export function DashboardNavIcon({ className, ...props }: NavIconProps) {
   return (
     <GaugeIcon
+      size={16}
+      className={animatedIconClassName(className)}
+      {...props}
+    />
+  );
+}
+
+export function ReportsNavIcon({ className, ...props }: NavIconProps) {
+  return (
+    <FileChartColumnIcon
       size={16}
       className={animatedIconClassName(className)}
       {...props}

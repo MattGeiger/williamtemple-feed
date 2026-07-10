@@ -54,26 +54,83 @@ model CategoryTranslation {
 }
 
 model FoodItem {
-  id                Int                   @id @default(autoincrement())
-  name              String
-  nameSearch        String                @unique
-  limit             Int                   @default(10)
-  limitType         String                @default("household")
-  isInStock         Boolean               @default(true)
-  isLimited         Boolean               @default(false)
-  isClearance       Boolean               @default(false)
-  categoryId        Int
-  vegan             Boolean               @default(false)
-  vegetarian        Boolean               @default(false)
-  glutenFree        Boolean               @default(false)
-  organic           Boolean               @default(false)
-  halal             Boolean               @default(false)
-  kosher            Boolean               @default(false)
-  readyToEat        Boolean               @default(false)
-  createdAt         DateTime              @default(now())
-  updatedAt         DateTime              @updatedAt
-  category          Category              @relation(fields: [categoryId], references: [id])
-  translations      FoodItemTranslation[]
+  id                 Int                      @id @default(autoincrement())
+  name               String
+  nameSearch         String                   @unique
+  limit              Int                      @default(10)
+  limitType          String                   @default("household")
+  isInStock          Boolean                  @default(true)
+  isLimited          Boolean                  @default(false)
+  isClearance        Boolean                  @default(false)
+  categoryId         Int
+  vegan              Boolean                  @default(false)
+  vegetarian         Boolean                  @default(false)
+  glutenFree         Boolean                  @default(false)
+  organic            Boolean                  @default(false)
+  halal              Boolean                  @default(false)
+  kosher             Boolean                  @default(false)
+  readyToEat         Boolean                  @default(false)
+  // Logistics (docs/reports/logistics.md): NULL price = Unknown, 0 =
+  // Donated/Free, positive = Purchased. NULL estimatedQuantity = Unknown.
+  purchasePriceCents Int?
+  unitsPerPurchase   Int                      @default(1)
+  estimatedQuantity  Int?
+  createdAt          DateTime                 @default(now())
+  updatedAt          DateTime                 @updatedAt
+  category           Category                 @relation(fields: [categoryId], references: [id])
+  translations       FoodItemTranslation[]
+  inventoryEvents    FoodItemInventoryEvent[]
+}
+
+// Organization-wide shared report templates (Reports initiative §3). No
+// owner/user scoping — every authenticated user sees the same set (the
+// shared-environment principle, AGENTS.md). `source` is immutable and
+// binds the template to 'reports' or 'dashboard' cards; names are unique
+// per source (normalized). templateData is versioned JSON holding ordered
+// card ids, range preset or exact custom dates, timezone, filters, and
+// horizon — never computed data or generated files.
+model ReportTemplate {
+  id           Int      @id @default(autoincrement())
+  name         String
+  nameSearch   String
+  source       String
+  templateData Json
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([source, nameSearch])
+}
+
+// Append-only inventory ledger. Events survive food-item deletion:
+// `foodItemId` detaches via SetNull while the immutable `sourceFoodItemId`
+// plus denormalized name/category keep historical analytics intact. Rows
+// are never updated or deleted by the app.
+model FoodItemInventoryEvent {
+  id                 Int       @id @default(autoincrement())
+  foodItemId         Int?
+  sourceFoodItemId   Int
+  itemName           String
+  categoryId         Int
+  categoryName       String
+  isInStock          Boolean
+  isLimited          Boolean
+  isClearance        Boolean
+  purchasePriceCents Int?
+  unitsPerPurchase   Int
+  estimatedQuantity  Int?
+  // migration_baseline | created | updated | deleted
+  eventKind          String
+  recordsQuantity    Boolean   @default(false)
+  recordsPrice       Boolean   @default(false)
+  recordsStatus      Boolean   @default(false)
+  recordsIdentity    Boolean   @default(false)
+  recordedAt         DateTime  @default(now())
+  foodItem           FoodItem? @relation(fields: [foodItemId], references: [id], onDelete: SetNull)
+
+  @@index([sourceFoodItemId, recordedAt])
+  @@index([foodItemId, recordedAt])
+  @@index([categoryId, recordedAt])
+  @@index([recordedAt])
 }
 
 model FoodItemTranslation {

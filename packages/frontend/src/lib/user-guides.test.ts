@@ -78,5 +78,15 @@ describe("user guide parsing", () => {
     expect(entry).toBeTruthy()
     expect(entry?.sectionId).toBe("translation-settings")
     expect(entry?.content).toMatch(/translated text/i)
+
+    const reportsEntry = index.find(
+      (item) =>
+        item.guideSlug === "inventory-reports" &&
+        item.sectionTitle === "Generate A PDF And CSV Package"
+    )
+
+    expect(reportsEntry).toBeTruthy()
+    expect(reportsEntry?.sectionId).toBe("generate-a-pdf-and-csv-package")
+    expect(reportsEntry?.content).toMatch(/select up to eight report blocks/i)
   })
 })

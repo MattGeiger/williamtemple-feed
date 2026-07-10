@@ -27,6 +27,9 @@ telling the reader what to do.
 | Medium | Dashboard & Alerts | How To Review Alerts | Where are alerts? | Alert bell and alerts dialog | Show one safe example alert | Planned |
 | High | Inventory | How To Update Stock Status | How do I mark an item in stock? | Food Items table with status filter and row menu | Captured authenticated dev data; row menu screenshot can be added later if needed | Added |
 | Medium | Inventory | Categories | Where do limits change? | Category edit dialog | Use common category example | Planned |
+| High | Inventory Reports | Choose A Report View | Where do I review stock risk and replenishment needs? | Reports workspace with date range, planning horizon, and report tabs | Use representative inventory data without client information | Planned |
+| High | Inventory Reports | Generate A PDF And CSV Package | How do I choose and order report blocks? | Report selection and confirmation workflow | Show several selected blocks and both export formats | Planned |
+| Medium | Inventory Reports | Save A Shared Report Template | Where do shared report templates live? | Report Templates management table | Show Apply, Generate, and row actions | Planned |
 | High | Languages & Translations | What Translations Does | Where do translations live? | Translations table | Captured authenticated dev data | Added |
 | High | Languages & Translations | How To Find Missing Translations | How do I repair gaps? | Find Missing Translations dialog | Captured authenticated dev data | Added |
 | High | Document Translator | How To Translate A Document | How do I start a translation? | Upload dialog and document table | Captured authenticated dev data | Added |

@@ -6,7 +6,7 @@
 // not covered by this license; see TRADEMARKS.md.
 
 import React, { useEffect } from 'react'
-import { FoodItem, DietaryFlags, StatusFlags } from "@/types/food-item"
+import { FoodItem, DietaryFlags, StatusFlags, FoodItemLogistics } from "@/types/food-item"
 import { useFoodItemContext } from '@/contexts/FoodItemContext'
 import { useDialogState } from '@/hooks/dialog/useDialogState'
 import { FoodItemList } from './FoodItemList'
@@ -88,14 +88,19 @@ function FoodItemContent() {
   const handleCreateFoodItem = async (data: {
     name: string;
     limit: number;
+    limitType?: FoodItem['limitType'];
     categoryId: number;
     statusFlags: StatusFlags;
     dietaryFlags: DietaryFlags;
+    logistics?: FoodItemLogistics;
   }) => {
     try {
       await createFoodItem({
         ...data,
-        categoryId: parseInt(data.categoryId.toString(), 10)
+        categoryId: parseInt(data.categoryId.toString(), 10),
+        // The form's logistics block is passed explicitly; see the
+        // `logisticsUpdate` naming note in services/food-item.
+        logisticsUpdate: data.logistics
       });
       await refreshFoodItems(); // Force refresh to get latest data
       showMessage('Food item created successfully', 'success');
@@ -124,9 +129,13 @@ function FoodItemContent() {
         id: editDialog.data.id,
         name: updatedFoodItem.name!,
         limit: updatedFoodItem.limit!,
+        limitType: updatedFoodItem.limitType,
         categoryId: updatedFoodItem.categoryId!,
         statusFlags: updatedFoodItem.statusFlags!,
         dietaryFlags: updatedFoodItem.dietaryFlags!,
+        // The edit form always submits a full logistics block, so this save
+        // counts as a real quantity observation (or explicit Unknown).
+        logisticsUpdate: updatedFoodItem.logistics,
       });
       await refreshFoodItems(); // Force refresh
       showMessage('Food item updated successfully', 'success');

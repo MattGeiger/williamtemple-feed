@@ -6,7 +6,7 @@
 // not covered by this license; see TRADEMARKS.md.
 
 import { useState, useCallback, useMemo } from 'react'
-import { FoodItem, StatusMessage, DietaryFlags, StatusFlags } from '@/types/food-item'
+import { FoodItem, StatusMessage, DietaryFlags, StatusFlags, FoodItemLogistics } from '@/types/food-item'
 import { FoodItemService } from '@/services/food-item'
 import { isDuplicateFoodItemNameError } from '@/services/food-item/duplicate-name-notification'
 import { ErrorHandlerService } from '@/services/error/ErrorHandlerService'
@@ -45,9 +45,11 @@ export function useFoodItemData() {
   const createFoodItem = useCallback(async (data: {
     name: string
     limit: number
+    limitType?: FoodItem['limitType']
     categoryId: number
     statusFlags: StatusFlags
     dietaryFlags: DietaryFlags
+    logisticsUpdate?: FoodItemLogistics
   }) => {
     setIsSaving(true)
     setError(null)
@@ -78,6 +80,7 @@ export function useFoodItemData() {
     categoryId: number
     statusFlags: StatusFlags
     dietaryFlags: DietaryFlags
+    logisticsUpdate?: FoodItemLogistics
   }) => {
     setIsSaving(true)
     setError(null)

@@ -26,12 +26,14 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs"
 import { useEffect } from "react"
-import { StatusFlags, DietaryFlags } from "@/types/food-item"
+import { StatusFlags, DietaryFlags, FoodItemLogistics } from "@/types/food-item"
 import { Category } from "@/types/category"
 import { useCategoryContext } from "@/contexts/CategoryContext"
 import { useFoodForm } from "@/hooks/food-item/form/useFoodForm"
+import { useLogisticsForm } from "@/hooks/food-item/form/useLogisticsForm"
 import { useMessage } from "@/hooks/message/useMessage"
 import { useStatusFlags } from "@/hooks/food-item/form/flags"
+import { parseCurrencyToCents, formatUnitCostForDisplay } from "@/lib/formatting/currency"
 
 interface FoodItemFormProps {
   onSubmit: (data: {
@@ -41,6 +43,7 @@ interface FoodItemFormProps {
     categoryId: number;
     statusFlags: StatusFlags;
     dietaryFlags: DietaryFlags;
+    logistics: FoodItemLogistics;
   }) => Promise<void>;
   error?: { message: string } | null;
   isSaving?: boolean;
@@ -50,6 +53,7 @@ interface FoodItemFormProps {
   initialCategoryId?: string;
   initialStatusFlags?: StatusFlags;
   initialDietaryFlags?: DietaryFlags;
+  initialLogistics?: FoodItemLogistics;
   onCancel?: () => void;
 }
 
@@ -63,6 +67,7 @@ export function FoodItemForm({
   initialCategoryId = '',
   initialStatusFlags,
   initialDietaryFlags,
+  initialLogistics,
   onCancel
 }: FoodItemFormProps) {
   const {
@@ -92,9 +97,22 @@ export function FoodItemForm({
     error: statusError
   } = useStatusFlags(initialStatusFlags);
 
+  const {
+    priceText,
+    unitsText,
+    quantityText,
+    handlePriceChange,
+    handleUnitsChange,
+    handleQuantityChange,
+    resetLogistics,
+    validateLogistics,
+    getLogisticsPayload
+  } = useLogisticsForm(initialLogistics);
+
   const handleFormReset = () => {
     resetForm();
     resetStatusFlags();
+    resetLogistics();
   };
 
   const { categories, isLoading: isCategoriesLoading } = useCategoryContext();
@@ -125,6 +143,12 @@ export function FoodItemForm({
       return;
     }
 
+    const logisticsError = validateLogistics();
+    if (logisticsError) {
+      showMessage(logisticsError, 'error');
+      return;
+    }
+
     try {
       const submitData = {
         // Title-Case enforcement happens here at submit, not per keystroke,
@@ -134,7 +158,8 @@ export function FoodItemForm({
         limitType,
         categoryId: parseInt(categoryId, 10),
         statusFlags,
-        dietaryFlags
+        dietaryFlags,
+        logistics: getLogisticsPayload()
       };
 
       await onSubmit(submitData);
@@ -150,14 +175,32 @@ export function FoodItemForm({
     return value === 'no-limit' ? 'No Limit' : value
   }
 
+  // Live logistics hints: price kind and the derived unit-cost line. Only
+  // purchase cents + units are stored; the rounded unit cost is display-only.
+  const parsedPriceCents = parseCurrencyToCents(priceText)
+  const priceKindLabel =
+    parsedPriceCents === undefined
+      ? 'Invalid price'
+      : parsedPriceCents === null
+        ? 'Unknown'
+        : parsedPriceCents === 0
+          ? 'Donated/Free'
+          : 'Purchased'
+  const unitsNumber = parseInt(unitsText, 10) || 0
+  const unitCostDisplay =
+    parsedPriceCents !== undefined && parsedPriceCents !== null && unitsNumber >= 1
+      ? formatUnitCostForDisplay(parsedPriceCents, unitsNumber)
+      : null
+
   return (
     <div className="space-y-6">
       <Tabs defaultValue="basic" className="w-full">
         <div className="min-h-[420px]">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="basic">Basic</TabsTrigger>
           <TabsTrigger value="status">Status</TabsTrigger>
           <TabsTrigger value="dietary">Dietary</TabsTrigger>
+          <TabsTrigger value="logistics">Logistics</TabsTrigger>
         </TabsList>
 
         <TabsContents className="px-1 pb-2 pt-1">
@@ -251,6 +294,71 @@ export function FoodItemForm({
               onChange={handleDietaryFlagChange}
               disabled={isSaving}
             />
+          </div>
+        </TabsContent>
+
+        <TabsContent value="logistics" className="space-y-4 py-2">
+          {/* Purchase Price */}
+          <div className="space-y-2">
+            <Label htmlFor="purchase-price">Purchase Price</Label>
+            <div className="relative">
+              <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm text-muted-foreground">
+                $
+              </span>
+              <Input
+                id="purchase-price"
+                inputMode="decimal"
+                value={priceText}
+                onChange={(e) => handlePriceChange(e.target.value)}
+                disabled={isSaving}
+                placeholder="Unknown"
+                className="pl-7"
+              />
+            </div>
+            <p className="text-sm text-muted-foreground">
+              {priceKindLabel}
+              {priceKindLabel === 'Unknown' && ' — leave blank when the price has not been recorded. Enter 0.00 for donated items.'}
+            </p>
+          </div>
+
+          {/* Units per Purchase */}
+          <div className="space-y-2">
+            <Label htmlFor="units-per-purchase">Units per Purchase</Label>
+            <Input
+              id="units-per-purchase"
+              inputMode="numeric"
+              value={unitsText}
+              onChange={(e) => handleUnitsChange(e.target.value)}
+              disabled={isSaving}
+              placeholder="1"
+            />
+            <p className="text-sm text-muted-foreground">
+              {unitsText === '1' ? 'Each' : 'Base units included in one purchase.'}
+            </p>
+          </div>
+
+          {/* Estimated Quantity */}
+          <div className="space-y-2">
+            <Label htmlFor="estimated-quantity">Estimated Quantity</Label>
+            <Input
+              id="estimated-quantity"
+              inputMode="numeric"
+              value={quantityText}
+              onChange={(e) => handleQuantityChange(e.target.value)}
+              disabled={isSaving}
+              placeholder="Unknown"
+            />
+            <p className="text-sm text-muted-foreground">
+              Base units on hand. Leave blank when the count is Unknown; 0 marks the item Out of Stock.
+            </p>
+          </div>
+
+          {/* Derived unit cost */}
+          <div className="rounded-md border px-3 py-2 text-sm">
+            <span className="text-muted-foreground">Unit cost: </span>
+            <span className="font-medium">
+              {unitCostDisplay ?? 'Unknown'}
+            </span>
           </div>
         </TabsContent>
         </TabsContents>

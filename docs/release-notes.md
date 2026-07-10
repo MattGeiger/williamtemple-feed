@@ -1,5 +1,14 @@
 # Release Notes
 
+## Version 1.3.6 — 2026-07-10
+
+- Added a Logistics tab to Food Items for purchase price, units per purchase, and estimated quantity.
+- Added inventory history so FEED can estimate burn rates, days of cover, stockout risk, scarcity, and replenishment needs without inventing earlier data.
+- Added the Reports workspace with Inventory Outlook, Unit Prices, Scarcity & Availability, Replenishment Planning, and Data Coverage views.
+- Added quick CSV downloads and ordered report packages containing a landscape PDF, one CSV per selected report block, and a manifest.
+- Added organization-wide shared report templates with Apply, Generate, Rename, Duplicate, and Delete actions.
+- Added an Inventory Reports guide to Help with the complete report-generation workflow and guidance for reading Unknown or incomplete results.
+
 ## Version 1.2.6 — 2026-05-28
 
 - Pop-up notifications ("toasts") now stay on screen just long enough to read them — about three reads' worth — instead of lingering.

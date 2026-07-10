@@ -6,7 +6,7 @@ Shopping List Builder is where staff design printable shopping list templates.
 
 Use the Builder if you are responsible for how the printed list looks or what information appears on it.
 
-If you only need to print an existing list, use [Shopping Lists](06-shopping-lists.md).
+If you only need to print an existing list, use [Shopping Lists](07-shopping-lists.md).
 
 ## What You Build
 

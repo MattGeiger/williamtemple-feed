@@ -14,6 +14,9 @@ import { ShoppingListBuilder } from './components/shopping-lists/builder/Shoppin
 import { DocumentTranslator } from './components/document-translator'
 import { CategoryManagement } from './components/category-management'
 import { FoodItemManagement } from './components/food-item-management'
+import { ReportsWorkspace, ApplyTemplateState } from './components/reports'
+import { ReportTemplatesPage } from './components/reports/templates-page'
+import { useLocation } from 'react-router-dom'
 import { CategoryProvider } from './contexts/CategoryContext'
 import { FoodItemProvider } from './contexts/FoodItemContext'
 import { Toaster } from './components/ui/toaster'
@@ -74,6 +77,38 @@ function FoodItemPage() {
           <FoodItemManagement />
         </FoodItemProvider>
       </CategoryProvider>
+    </RootLayout>
+  )
+}
+
+function ReportsPage() {
+  // A template applied from /reports/templates arrives via router state.
+  const location = useLocation()
+  const applyTemplate = (location.state as ApplyTemplateState | null)?.applyTemplate
+  return (
+    <RootLayout
+      breadcrumbs={[
+        { title: "Dashboard (Home)", href: "/" },
+        { title: "Inventory"},
+        { title: "Reports" }
+      ]}
+    >
+      <ReportsWorkspace applyTemplate={applyTemplate} />
+    </RootLayout>
+  )
+}
+
+function ReportTemplatesRoutePage() {
+  return (
+    <RootLayout
+      breadcrumbs={[
+        { title: "Dashboard (Home)", href: "/" },
+        { title: "Inventory"},
+        { title: "Reports", href: "/reports" },
+        { title: "Templates" }
+      ]}
+    >
+      <ReportTemplatesPage />
     </RootLayout>
   )
 }
@@ -335,6 +370,8 @@ function App() {
                   <Route path="/" element={<HomePage />} />
                   <Route path="/categories" element={<CategoryPage />} />
                   <Route path="/food-items" element={<FoodItemPage />} />
+                  <Route path="/reports" element={<ReportsPage />} />
+                  <Route path="/reports/templates" element={<ReportTemplatesRoutePage />} />
                   <Route path="/languages" element={<LanguagePage />} />
                   <Route path="/translations" element={<TranslationPage />} />
                   <Route path="/shopping-lists" element={<ShoppingListsPage />} />

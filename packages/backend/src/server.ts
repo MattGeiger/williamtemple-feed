@@ -12,6 +12,7 @@ import path from 'path';
 import globalLimitRouter from './routes/global-limit';
 import categoriesRouter from './routes/categories';
 import foodItemsRouter from './routes/food-items';
+import reportsRouter from './routes/reports';
 import languagesRouter from './routes/languages';
 import translationsRouter from './routes/translations';
 import alertsRouter from './routes/alerts';
@@ -84,6 +85,7 @@ export const createServer = () => {
   app.use('/api/global-limit', globalLimitRouter);
   app.use('/api/categories', categoriesRouter);
   app.use('/api/food-items', foodItemsRouter);
+  app.use('/api/reports', reportsRouter);
   app.use('/api/languages', languagesRouter);
   app.use('/api/translations', translationsRouter);
   app.use('/api/alerts', alertsRouter);

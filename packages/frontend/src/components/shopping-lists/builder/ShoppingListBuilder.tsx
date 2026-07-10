@@ -99,7 +99,7 @@ import { EditDialog as CategoryEditDialog } from '@/components/category-manageme
 import { useCategoryContext } from '@/contexts/CategoryContext';
 import { useFoodItemContext } from '@/contexts/FoodItemContext';
 import { Category } from '@/types/category';
-import { DietaryFlags, FoodItem, StatusFlags } from '@/types/food-item';
+import { DietaryFlags, FoodItem, FoodItemLogistics, StatusFlags } from '@/types/food-item';
 import { useMessage } from '@/hooks/message/useMessage';
 import { ErrorHandlerService } from '@/services/error/ErrorHandlerService';
 import { notifyFoodItemCreateError } from '@/services/food-item/duplicate-name-notification';
@@ -4092,6 +4092,9 @@ export function ShoppingListBuilder() {
         categoryId: update.categoryId ?? editingFoodItem.categoryId,
         statusFlags: update.statusFlags ?? editingFoodItem.statusFlags,
         dietaryFlags: update.dietaryFlags ?? editingFoodItem.dietaryFlags,
+        // Full edit form: its logistics block is an explicit observation
+        // (see the `logisticsUpdate` naming note in services/food-item).
+        logisticsUpdate: update.logistics,
       });
       await Promise.all([refreshFoodItems(), loadInventorySections(), refreshTemplateInventoryFromServer()]);
       setEditingFoodItem(null);
@@ -4108,9 +4111,12 @@ export function ShoppingListBuilder() {
     categoryId: number;
     statusFlags: StatusFlags;
     dietaryFlags: DietaryFlags;
+    logistics: FoodItemLogistics;
   }) => {
     try {
-      await createFoodItem(data);
+      // The shared add form's logistics block rides along explicitly (see
+      // the `logisticsUpdate` naming note in services/food-item).
+      await createFoodItem({ ...data, logisticsUpdate: data.logistics });
       await Promise.all([refreshFoodItems(), loadInventorySections(), refreshTemplateInventoryFromServer()]);
       showSuccess(`${data.name} added to inventory.`);
       return true;

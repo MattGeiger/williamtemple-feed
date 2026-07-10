@@ -42,4 +42,4 @@ Use it when staff need consistent filenames that include details such as date, l
 
 ## What To Read Next
 
-- To design or edit a template, read [Shopping List Builder](07-shopping-list-builder.md).
+- To design or edit a template, read [Shopping List Builder](08-shopping-list-builder.md).
