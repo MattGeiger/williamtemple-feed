@@ -47,5 +47,5 @@ If more than one AI model is set to *Active*, only the model most recently set w
 
 ## What To Read Next
 
-- For translation workflows, read [Languages & Translations](04-languages-translations.md).
-- For document translation, read [Document Translator](05-document-translator.md).
+- For translation workflows, read [Languages & Translations](05-languages-translations.md).
+- For document translation, read [Document Translator](06-document-translator.md).

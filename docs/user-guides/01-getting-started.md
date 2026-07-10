@@ -50,5 +50,6 @@ Before deleting or changing something important, make sure it is not still neede
 ## What To Read Next
 
 - New to inventory work? Read [Inventory](03-inventory.md).
-- Translating documents? Read [Document Translator](05-document-translator.md).
-- Printing pantry lists? Read [Shopping Lists](06-shopping-lists.md).
+- Building an inventory report? Read [Inventory Reports](04-inventory-reports.md).
+- Translating documents? Read [Document Translator](06-document-translator.md).
+- Printing pantry lists? Read [Shopping Lists](07-shopping-lists.md).

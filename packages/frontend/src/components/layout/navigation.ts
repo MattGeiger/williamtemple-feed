@@ -12,6 +12,7 @@ import {
   DashboardNavIcon,
   DocumentTranslatorNavIcon,
   FoodItemsNavIcon,
+  ReportsNavIcon,
   HelpNavIcon,
   LanguagesNavIcon,
   ShoppingListsNavIcon,
@@ -47,6 +48,11 @@ export const navigationItems: NavItem[] = [
         title: "Food Items",
         href: "/food-items",
         icon: FoodItemsNavIcon,
+      },
+      {
+        title: "Reports",
+        href: "/reports",
+        icon: ReportsNavIcon,
       }
     ]
   },

@@ -53,5 +53,5 @@ Translations are shared. If you improve a translation, everyone benefits from th
 
 ## What To Read Next
 
-- For document translation workflows, read [Document Translator](05-document-translator.md).
-- For translated shopping lists, read [Shopping Lists](06-shopping-lists.md).
+- For document translation workflows, read [Document Translator](06-document-translator.md).
+- For translated shopping lists, read [Shopping Lists](07-shopping-lists.md).

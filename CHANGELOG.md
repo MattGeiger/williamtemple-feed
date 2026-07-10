@@ -5,6 +5,63 @@ All notable changes to FEED are documented here. This project adheres to
 
 ## [Unreleased]
 
+## [1.3.6] — 2026-07-10
+
+Inventory logistics, historical analytics, and downloadable Reports. This
+release adds two additive database migrations:
+`20260709000000_add_food_item_logistics_ledger` and
+`20260710000000_add_report_templates`.
+
+### Added
+
+- **Shared inventory-analytics service** (`POST /api/reports/query`,
+  `POST /api/reports/cards/:cardId/csv`): burn rates from ledger history
+  (decrease intervals only; replenishments never count as negative burn),
+  days of cover, projected stockout dates, and whole-package replenishment
+  cost projections, with timezone-validated date ranges.
+- **Full Reports workspace**: all five tabs are live — Inventory Outlook,
+  Unit Prices, Scarcity & Availability, Replenishment Planning, and Data
+  Coverage — 20 selectable blocks in total. Date-range presets default to
+  Last 90 Days, planning horizons cover 14/30/60/90 days, and every block
+  has a one-click CSV export. Unknown and insufficient-history values remain
+  distinct from zero. Deleted items keep contributing to history while they
+  existed.
+- **Report generation**: "Generate Report" enters a cross-tab selection
+  mode (up to 8 blocks; order becomes export order; reduced-motion
+  friendly affordances). The confirmation dialog offers reordering, a
+  report title, and PDF/CSV options; the download is a ZIP with a
+  landscape PDF (server-rendered SVG charts, Page X of Y), numbered
+  per-card CSVs, and a manifest. The generic Chromium PDF engine was
+  extracted from the Shopping List Builder and is now shared by both
+  pipelines.
+- **Shared report templates** (`/reports/templates`): organization-wide
+  saved report configurations with Apply, Generate, Rename, Duplicate,
+  and Delete. Relative date presets resolve fresh on every run; templates
+  whose blocks no longer exist are flagged "needs attention" instead of
+  being silently altered. New `ReportTemplate` table (additive migration
+  `20260710000000_add_report_templates`).
+- **Food item logistics fields**: purchase price (Unknown / Donated-Free /
+  Purchased, stored as integer cents), units per purchase (1 = "Each"), and
+  estimated quantity (blank = Unknown). The Add/Edit Food Item dialog gains a
+  fourth **Logistics** tab with a live derived unit-cost line. Currency is
+  parsed from its string form straight to cents — no floating-point rounding.
+- **Append-only inventory event ledger** (`FoodItemInventoryEvent`): every
+  effective change to a food item's quantity, price, status, or identity
+  writes a snapshot event atomically with the item. Deletions record a final
+  event first, so historical analytics survive item removal. The migration
+  seeds one baseline event per existing item; earlier history is treated as
+  untracked.
+- **Centralized stock/count consistency rules** applied on every mutation
+  pathway (edit form, row quick actions, bulk actions, duplicate-name
+  recovery, Shopping List Builder inventory actions): Out of Stock or a zero
+  count forces quantity 0 and clears Limited/Clearance; a positive count
+  restores plain In Stock on a previously-out item; quick "Mark In Stock"
+  without a count records the quantity as Unknown.
+- **Inventory Reports Help guide**: new in-app workflow guidance for choosing
+  report views, generating ordered PDF/CSV packages, exporting one block,
+  saving shared report templates, and interpreting Unknown or incomplete
+  planning data.
+
 ## [1.2.6] — 2026-05-28
 
 Toast notification timing. No database changes.

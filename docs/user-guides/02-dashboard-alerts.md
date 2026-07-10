@@ -42,4 +42,5 @@ On a new setup, FEED may not have enough activity yet to show usage or cost hist
 ## What To Read Next
 
 - For stock and category changes, read [Inventory](03-inventory.md).
-- For failed or missing translations, read [Languages & Translations](04-languages-translations.md).
+- For inventory trends and planning, read [Inventory Reports](04-inventory-reports.md).
+- For failed or missing translations, read [Languages & Translations](05-languages-translations.md).

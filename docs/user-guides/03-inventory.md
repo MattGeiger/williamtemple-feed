@@ -35,6 +35,16 @@ Use Food Items when you need to:
 - Set an item limit.
 - Add dietary labels like vegan, halal, kosher, or gluten free.
 
+### Logistics Information
+
+Use the Logistics tab when adding or editing a Food Item to record:
+
+- **Purchase Price**: blank means Unknown, $0.00 means Donated/Free, and a positive amount means Purchased.
+- **Units per Purchase**: the number of base units in the purchased package. One means Each.
+- **Estimated Quantity**: a whole-number estimate of the base units currently on hand.
+
+FEED uses quantity changes to estimate burn rates. Marking an item Out of Stock records its estimated quantity as zero.
+
 ## How To Update Stock Status
 
 The Food Items table shows each item, its category, stock status, limit, and row action menu.
@@ -59,4 +69,5 @@ Before deleting a category or food item, make sure it is not still used by curre
 
 ## What To Read Next
 
-- To see how inventory becomes a printable list, read [Shopping List Builder](07-shopping-list-builder.md).
+- To review quantities, burn rates, scarcity, and replenishment needs, read [Inventory Reports](04-inventory-reports.md).
+- To see how inventory becomes a printable list, read [Shopping List Builder](08-shopping-list-builder.md).

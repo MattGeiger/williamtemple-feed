@@ -48,6 +48,30 @@ export class ApiError extends Error {
 }
 
 /**
+ * Extracts the suggested filename from an RFC 6266 `Content-Disposition`
+ * header. Prefers the RFC 5987 `filename*=UTF-8''…` form, then the quoted
+ * or bare `filename=` form. Returns null when absent or malformed.
+ */
+export function parseContentDispositionFilename(
+  header: string | null
+): string | null {
+  if (!header) return null;
+  const extended = /filename\*=UTF-8''([^;]+)/i.exec(header);
+  if (extended) {
+    try {
+      return decodeURIComponent(extended[1].trim());
+    } catch {
+      // fall through to the plain form
+    }
+  }
+  const plain = /filename=("([^"]*)"|[^;]+)/i.exec(header);
+  if (plain) {
+    return (plain[2] ?? plain[1]).trim();
+  }
+  return null;
+}
+
+/**
  * Base class for all API services providing common functionality
  */
 export abstract class BaseApiService {
@@ -270,6 +294,58 @@ export abstract class BaseApiService {
       return data;
     } catch (error) {
       this.logError('Request failed', error);
+      throw this.handleError(error);
+    }
+  }
+
+  /**
+   * Makes an authenticated request whose response body is binary (CSV,
+   * ZIP, PDF). Shares the credential, 401-redirect, and structured
+   * `ApiError` handling with `request`, and parses the server-suggested
+   * filename from the RFC 6266 `Content-Disposition` header.
+   *
+   * Callers own the returned Blob's lifecycle: create an object URL,
+   * trigger the download, then revoke the URL.
+   */
+  protected async requestBinary(
+    path: string = '',
+    options?: RequestInit
+  ): Promise<{ blob: Blob; filename: string | null }> {
+    try {
+      const response = await fetch(`${this.baseUrl}${path}`, {
+        ...options,
+        credentials: options?.credentials ?? 'include',
+        headers: {
+          ...this.getHeaders(),
+          ...(options?.headers ?? {}),
+        },
+      });
+
+      if (response.status === 401) {
+        window.location.href = '/login';
+        throw new Error('Your session has expired. Please log in again to continue.');
+      }
+
+      if (!response.ok) {
+        const { message, code, details } = await this.parseErrorPayload(response);
+        this.logError('Binary request failed', {
+          status: response.status,
+          url: `${this.baseUrl}${path}`,
+          method: options?.method || 'GET',
+          error: message
+        });
+        throw new ApiError(message, { status: response.status, code, details });
+      }
+
+      const blob = await response.blob();
+      return {
+        blob,
+        filename: parseContentDispositionFilename(
+          response.headers.get('Content-Disposition')
+        ),
+      };
+    } catch (error) {
+      this.logError('Binary request failed', error);
       throw this.handleError(error);
     }
   }

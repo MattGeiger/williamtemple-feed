@@ -148,6 +148,7 @@ export function EditDialog({
               initialCategoryId={foodItem.categoryId.toString()}
               initialStatusFlags={foodItem.statusFlags}
               initialDietaryFlags={foodItem.dietaryFlags}
+              initialLogistics={foodItem.logistics}
               onCancel={() => onOpenChange(false)}
             />
           )}
