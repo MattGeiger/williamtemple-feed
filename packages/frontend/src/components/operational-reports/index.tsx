@@ -42,6 +42,12 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { ErrorHandlerService } from '@/services/error/ErrorHandlerService';
 import { operationalReportsService } from '@/services/operational-reports';
 import {
@@ -89,6 +95,28 @@ const pressureConfig = {
     theme: { light: getChartColor(4, 'light'), dark: getChartColor(4, 'dark') },
   },
 } satisfies ChartConfig;
+
+// Plain-language explanations for the Availability Summary KPIs, surfaced
+// as hover tooltips. Keep these aligned with the backend definitions in
+// packages/backend/src/services/operational-analytics.
+const KPI_HELP: Record<string, string> = {
+  'Available Now':
+    'Tracked items currently in stock, including items marked Limited Supply or Clearance.',
+  'Unavailable Now':
+    'Tracked items currently out of stock.',
+  'Limited Supply':
+    'In-stock items staff have flagged as Limited Supply (supply pressure recorded, item still available).',
+  'Clearance':
+    'In-stock items staff have flagged as Clearance.',
+  'Tracked Availability':
+    'Availability across the whole selected period: of all the days each tracked item could have been available, the share it actually was.',
+  'Item Limits':
+    'Food items that currently have a per-person or per-household limit — anything other than No Limit.',
+  'Category Limits':
+    'Categories that currently have a per-person or per-household limit — anything other than No Limit.',
+  'Median Restoration':
+    'Typical time for an out-of-stock item to come back in stock during the selected period. Half of restorations were faster, half slower.',
+};
 
 const formatPercent = (value: number | null) =>
   value === null ? 'Unknown' : `${value.toFixed(0)}%`;
@@ -144,12 +172,15 @@ export function OperationalReportsWorkspace() {
   };
 
   return (
-    <div className="min-w-0 space-y-6">
-      <SectionHeader
-        title="Reports"
-        description="Availability, service pressure, and rationing history from everyday inventory updates."
-        icon={PageTitleReportsIcon}
-      />
+    <TooltipProvider>
+    <div className="space-y-6 min-w-0 w-full pt-6">
+      <div className="w-full min-w-0">
+        <SectionHeader
+          title="Reports"
+          description="Availability, service pressure, and rationing history from everyday inventory updates."
+          icon={PageTitleReportsIcon}
+        />
+      </div>
 
       <div className="flex min-w-0 flex-wrap items-end justify-between gap-3">
         <div className="w-full space-y-2 sm:w-auto">
@@ -186,7 +217,19 @@ export function OperationalReportsWorkspace() {
               <div>
                 <CardTitle>Availability Summary</CardTitle>
                 <CardDescription>
-                  Five-minute correction sampling; raw events remain exportable
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span tabIndex={0} className="w-fit cursor-help underline decoration-dotted underline-offset-4">
+                        Five-minute correction sampling; raw events remain exportable
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-72">
+                      When the same item is edited several times within five
+                      minutes, reports count only the final result, so quick
+                      fixes to a mistake don&apos;t read as real activity.
+                      Every edit is still saved and included in raw exports.
+                    </TooltipContent>
+                  </Tooltip>
                 </CardDescription>
               </div>
               <CsvButton cardId="availability-summary" onExport={exportCard} />
@@ -262,11 +305,27 @@ export function OperationalReportsWorkspace() {
         </>
       ) : null}
     </div>
+    </TooltipProvider>
   );
 }
 
 function Kpi({ label, value }: { label: string; value: string }) {
-  return <div className="space-y-1"><p className="text-sm text-muted-foreground">{label}</p><p className="text-2xl font-semibold">{value}</p></div>;
+  const help = KPI_HELP[label];
+  return (
+    <div className="space-y-1">
+      {help ? (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <p tabIndex={0} className="w-fit cursor-help text-sm text-muted-foreground underline decoration-dotted underline-offset-4">{label}</p>
+          </TooltipTrigger>
+          <TooltipContent className="max-w-64">{help}</TooltipContent>
+        </Tooltip>
+      ) : (
+        <p className="text-sm text-muted-foreground">{label}</p>
+      )}
+      <p className="text-2xl font-semibold">{value}</p>
+    </div>
+  );
 }
 
 function DetailHeader({ title, description, cardId, onExport }: { title: string; description: string; cardId: string; onExport: (id: string) => void }) {
