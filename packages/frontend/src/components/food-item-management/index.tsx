@@ -134,6 +134,7 @@ function FoodItemContent() {
         statusFlags: updatedFoodItem.statusFlags!,
         dietaryFlags: updatedFoodItem.dietaryFlags!,
         supplyUpdate: updatedFoodItem.supply,
+        keepTranslations: updatedFoodItem.keepTranslations,
       });
       await refreshFoodItems(); // Force refresh
       showMessage('Food item updated successfully', 'success');
