@@ -83,6 +83,27 @@ describe('FoodItemService — unwraps the { foodItem } envelope on mutations', (
     expect((result as unknown as { foodItem?: unknown }).foodItem).toBeUndefined();
   });
 
+  it('updateFoodItem includes keepTranslations in the PUT body', async () => {
+    fetchMock.mockResolvedValue(okEnvelope({ foodItem: serverFoodItem }));
+
+    await service.updateFoodItem({
+      id: 1,
+      name: 'Albacore Tuna',
+      limit: 1,
+      categoryId: 11,
+      statusFlags: serverFoodItem.statusFlags,
+      dietaryFlags: serverFoodItem.dietaryFlags,
+      keepTranslations: true,
+    });
+
+    // The backend deletes the old translations on rename unless the body
+    // carries keepTranslations: true, so dropping it here silently discards
+    // the user's "Keep Current Translations" choice.
+    const [, requestInit] = fetchMock.mock.calls[0];
+    const body = JSON.parse((requestInit as RequestInit).body as string);
+    expect(body.keepTranslations).toBe(true);
+  });
+
   it('createFoodItem returns the inner item with statusFlags, not the envelope', async () => {
     const created = { ...serverFoodItem, id: 2, name: 'New Item' };
     fetchMock.mockResolvedValue(okEnvelope({ foodItem: created }));

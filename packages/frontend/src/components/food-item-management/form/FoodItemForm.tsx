@@ -7,7 +7,7 @@
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { formatText } from "@/lib/formatting/text"
+import { resolveSubmittedName } from "@/lib/formatting/text"
 import { StatusFlagsGroup, DietaryFlagsGroup } from './components'
 import {
   Select,
@@ -142,8 +142,10 @@ export function FoodItemForm({
     try {
       const submitData = {
         // Title-Case enforcement happens here at submit, not per keystroke,
-        // so the caret stays put while typing/editing (ISSUES.md #38).
-        name: formatText(name).trim(),
+        // so the caret stays put while typing/editing (ISSUES.md #38). An
+        // untouched name is submitted verbatim so the edit dialog does not
+        // mistake reformatting for a rename.
+        name: resolveSubmittedName(name, initialName),
         limit: getFormattedLimit(),
         limitType,
         categoryId: parseInt(categoryId, 10),
