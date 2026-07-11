@@ -35,15 +35,20 @@ Use Food Items when you need to:
 - Set an item limit.
 - Add dietary labels like vegan, halal, kosher, or gluten free.
 
-### Logistics Information
+### Optional Supply Information
 
-Use the Logistics tab when adding or editing a Food Item to record:
+The **Supply** tab offers two optional annotations:
 
-- **Purchase Price**: blank means Unknown, $0.00 means Donated/Free, and a positive amount means Purchased.
-- **Units per Purchase**: the number of base units in the purchased package. One means Each.
-- **Estimated Quantity**: a whole-number estimate of the base units currently on hand.
+- **Estimated Quantity**: a nonnegative whole-number estimate that is useful
+  for this particular item. Leave it blank when no useful estimate is
+  available.
+- **Source**: Donated, Purchased, or Mixed/Other. Leave it unselected when the
+  source is unknown.
 
-FEED uses quantity changes to estimate burn rates. Marking an item Out of Stock records its estimated quantity as zero.
+The quantity is intentionally an informal estimate. FEED does not ask what
+its unit means, compare it with quantities for other foods, or use it to
+calculate consumption or depletion. The fields are available when they help;
+they are never required to finish adding or updating an item.
 
 ## How To Update Stock Status
 
@@ -57,6 +62,10 @@ The Food Items table shows each item, its category, stock status, limit, and row
 4. Choose the update you need.
 5. Check that the table shows the new status.
 
+**Mark Out of Stock** is a one-action update. It records that the item became
+unavailable to clients. It does not ask for a count and does not change an
+existing estimated quantity.
+
 ## When To Edit A Category Instead
 
 Edit the category when the rule applies to a whole group of food.
@@ -69,5 +78,6 @@ Before deleting a category or food item, make sure it is not still used by curre
 
 ## What To Read Next
 
-- To review quantities, burn rates, scarcity, and replenishment needs, read [Inventory Reports](04-inventory-reports.md).
+- To review availability, Limited Supply, Clearance, and rationing history,
+  read [Operational Reports](04-inventory-reports.md).
 - To see how inventory becomes a printable list, read [Shopping List Builder](08-shopping-list-builder.md).

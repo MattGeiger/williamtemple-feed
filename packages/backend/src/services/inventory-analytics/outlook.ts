@@ -105,8 +105,10 @@ export function computeItemOutlooks(context: AnalyticsContext): ItemOutlook[] {
     const quantity = item.estimatedQuantity;
     const cover = daysOfCover(quantity, daily);
     const required = requiredUnits(daily, context.horizonDays, quantity);
-    const purchases = purchasesNeeded(required, item.unitsPerPurchase);
-    const cost = projectedCostCents(purchases, item.purchasePriceCents);
+    // Prototype calculator is retained dormant while operational reports are
+    // rebuilt. Its former package/cost inputs no longer exist on FoodItem.
+    const purchases = purchasesNeeded(required, 1);
+    const cost = projectedCostCents(purchases, null);
 
     let dataStatus: ItemOutlook['dataStatus'] = 'ok';
     if (!item.isInStock) dataStatus = 'out-of-stock';
@@ -120,9 +122,9 @@ export function computeItemOutlooks(context: AnalyticsContext): ItemOutlook[] {
       categoryName: item.category.name,
       isInStock: item.isInStock,
       estimatedQuantity: quantity,
-      priceType: priceTypeOf(item.purchasePriceCents),
-      purchasePriceCents: item.purchasePriceCents,
-      unitsPerPurchase: item.unitsPerPurchase,
+      priceType: priceTypeOf(null),
+      purchasePriceCents: null,
+      unitsPerPurchase: 1,
       dailyBurn: daily,
       weeklyBurn: weeklyBurn(daily),
       daysOfCover: cover,

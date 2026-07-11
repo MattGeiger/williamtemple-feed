@@ -84,8 +84,9 @@ export function buildCoverage(
     .filter((label, index, all) => all.indexOf(label) === index)
     .map((label) => ({ status: label, itemCount: statusCounts.get(label) ?? 0 }));
 
-  // Chart 2: recording activity per local week across the range (live and
-  // deleted items both count — activity is activity).
+  // Chart 2: recording activity per local week across the range. Migration
+  // baselines and deletion snapshots establish history/lifetime boundaries;
+  // they are not user recording activity.
   const weekOf = (date: string): string => {
     // Weeks anchor to the range start date.
     const daysFromStart = Math.floor(
@@ -113,6 +114,12 @@ export function buildCoverage(
   for (const timeline of context.timelines) {
     for (const event of timeline.events) {
       if (event.recordedAt < range.startUtc) continue;
+      if (
+        event.eventKind === 'migration_baseline' ||
+        event.eventKind === 'deleted'
+      ) {
+        continue;
+      }
       eventsInRange += 1;
       const localDate = localDateOf(event.recordedAt, range.timeZone);
       const week = activityByWeek.get(weekOf(localDate));

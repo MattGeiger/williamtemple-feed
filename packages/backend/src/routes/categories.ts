@@ -10,6 +10,14 @@ import { NextFunction, Request, Response } from 'express';
 import { Prisma } from '@prisma/client';
 import prisma from '../db';
 import { AIServiceFactory } from '../services/ai/factory/AIServiceFactory';
+import {
+  categoryEventFlags,
+  createCategoryWithEvent,
+  deleteCategoryWithEvent,
+  hasCategoryEventChange,
+  updateCategoryWithEvent,
+  writeCategoryInventoryEvent,
+} from '../services/category';
 
 const router = Router();
 
@@ -181,18 +189,12 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
     const nameSearch = normalizedName.toLowerCase();
 
     try {
-      // Use a shorter transaction just for DB operations
-      const category = await prisma.$transaction(async (tx) => {
-        // Create the category
-        return await tx.category.create({
-          data: {
-            name: normalizedName,
-            nameSearch,
-            limit,
-            icon: icon || undefined,
-            ...(limitType && { limitType })
-          }
-        });
+      const category = await createCategoryWithEvent({
+        name: normalizedName,
+        nameSearch,
+        limit,
+        icon: icon || undefined,
+        ...(limitType && { limitType })
       });
 
       // Queue translations outside of the transaction
@@ -290,18 +292,12 @@ router.put('/:id', async (req: Request, res: Response, next: NextFunction) => {
 
     // Use a shorter transaction just for the DB update
     try {
-      const category = await prisma.$transaction(async (tx) => {
-        // Update category
-        return await tx.category.update({
-          where: { id: categoryId },
-          data: {
-            name: normalizedName,
-            nameSearch,
-            limit,
-            icon: icon || undefined,
-            ...(limitType && { limitType })
-          }
-        });
+      const { category } = await updateCategoryWithEvent(categoryId, {
+        name: normalizedName,
+        nameSearch,
+        limit,
+        icon: icon || undefined,
+        ...(limitType && { limitType })
       });
 
       // Handle translations outside the transaction
@@ -414,15 +410,20 @@ router.put('/bulk', async (req: Request, res: Response, next: NextFunction) => {
           updateData.icon = updates.icon || undefined;
         }
 
-        // Update all categories
-        const updatePromises = validIds.map(id =>
-          tx.category.update({
-            where: { id },
+        const updatedCategories = [];
+        for (const before of existingCategories) {
+          const category = await tx.category.update({
+            where: { id: before.id },
             data: updateData
-          })
-        );
+          });
+          const flags = categoryEventFlags(before, category);
+          if (hasCategoryEventChange(flags)) {
+            await writeCategoryInventoryEvent(tx, category, 'updated', flags);
+          }
+          updatedCategories.push(category);
+        }
 
-        return await Promise.all(updatePromises);
+        return updatedCategories;
       });
 
       res.json({ categories: updatedCategories });
@@ -503,6 +504,16 @@ router.delete('/bulk', async (req: Request, res: Response, next: NextFunction) =
             }
           });
 
+          for (const category of categoriesToDelete) {
+            await writeCategoryInventoryEvent(
+              tx,
+              category,
+              'deleted',
+              { recordsLimit: false, recordsIdentity: false },
+              true
+            );
+          }
+
           // Then delete the categories
           await tx.category.deleteMany({
             where: { id: { in: categoriesToDelete.map(c => c.id) } }
@@ -570,45 +581,7 @@ router.delete('/:id', async (req: Request, res: Response, next: NextFunction) =>
       throw error;
     }
 
-    // Use transaction to check for food items and handle deletion
-    await prisma.$transaction(async (tx) => {
-      const category = await tx.category.findUnique({
-        where: { id: categoryId },
-        include: {
-          foodItems: {
-            select: {
-              id: true
-            }
-          }
-        }
-      });
-
-      if (!category) {
-        const error = new Error('Category not found') as Error & { statusCode?: number };
-        error.statusCode = 404;
-        throw error;
-      }
-
-      // Check if category has food items
-      if (category.foodItems.length > 0) {
-        const itemCount = category.foodItems.length;
-        const error = new Error(`${category.name} cannot be deleted because ${itemCount} food item${itemCount === 1 ? ' is' : 's are'} still assigned. Please delete or reassign the item${itemCount === 1 ? '' : 's'} and try again.`) as Error & { statusCode?: number };
-        error.statusCode = 409; // Conflict status code
-        throw error;
-      }
-
-      // If no food items, cleanup translations and delete category
-      await tx.translation.deleteMany({
-        where: {
-          originalText: category.name,
-          type: 'Category'
-        }
-      });
-
-      await tx.category.delete({
-        where: { id: categoryId }
-      });
-    });
+    await deleteCategoryWithEvent(categoryId);
 
     res.status(204).end();
   } catch (error) {

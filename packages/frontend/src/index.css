@@ -888,13 +888,28 @@
    token-based ring + checkmark + order number. Reduced-motion users get
    the static ring/check affordances only. */
 @keyframes report-card-wiggle {
-  0%, 100% { transform: rotate(0deg); }
-  25% { transform: rotate(-0.3deg); }
-  75% { transform: rotate(0.3deg); }
+  0% {
+    transform: translate3d(-2px, 0, 0) rotate(-1.6deg);
+  }
+  25% {
+    transform: translate3d(2px, 0, 0) rotate(1.6deg);
+  }
+  50% {
+    transform: translate3d(-1px, 0, 0) rotate(-1deg);
+  }
+  75% {
+    transform: translate3d(1px, 0, 0) rotate(1deg);
+  }
+  100% {
+    transform: translate3d(-2px, 0, 0) rotate(-1.6deg);
+  }
 }
 
 .report-selectable {
-  animation: report-card-wiggle 1.6s ease-in-out infinite;
+  animation: report-card-wiggle var(--report-wiggle-duration, 970ms)
+    ease-in-out var(--report-wiggle-delay, 0ms) infinite;
+  transform-origin: center;
+  will-change: transform;
 }
 
 .report-selectable-selected {

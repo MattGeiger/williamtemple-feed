@@ -30,10 +30,20 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { messageService } from "@/services/message";
 import { reportsService } from "@/services/reports";
 import {
   PlanningHorizon,
+  ReportFilters,
+  ReportCardOptionsMap,
+  ReportSource,
   REPORT_CARD_TITLES,
   ReportsRangeRequest,
   ReportTemplateData,
@@ -50,7 +60,11 @@ export function GenerateReportDialog({
   rangeSummary,
   horizonDays,
   categoryIds,
+  filters,
+  cardOptions,
+  onCardOptionsChange,
   onGenerated,
+  source = "reports",
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -58,7 +72,11 @@ export function GenerateReportDialog({
   rangeSummary: string;
   horizonDays: PlanningHorizon;
   categoryIds?: number[];
+  filters?: ReportFilters;
+  cardOptions: ReportCardOptionsMap;
+  onCardOptionsChange: (options: ReportCardOptionsMap) => void;
   onGenerated: () => void;
+  source?: ReportSource;
 }) {
   const { selectedIds, moveCard, removeCard } = useReportSelection();
   const [title, setTitle] = React.useState("Inventory Report");
@@ -92,22 +110,24 @@ export function GenerateReportDialog({
         const name = (templateName.trim() || trimmedTitle).replace(/\s+/g, " ");
         const templateData: ReportTemplateData = {
           schemaVersion: 1,
-          source: "reports",
+          source,
           cardIds: selectedIds,
           range,
           horizonDays,
-          categoryIds,
+          filters: filters ?? (categoryIds ? { categoryIds } : {}),
+          cardOptions,
         };
         await reportsService.saveTemplate(name, templateData);
         messageService.success(`Template "${name}" saved for everyone.`);
       }
       await reportsService.downloadExportZip({
-        source: "reports",
+        source,
         title: trimmedTitle,
         cardIds: selectedIds,
         range,
         horizonDays,
-        categoryIds,
+        filters: filters ?? (categoryIds ? { categoryIds } : {}),
+        cardOptions,
         includePdf,
         includeCsv,
       });
@@ -140,12 +160,34 @@ export function GenerateReportDialog({
               {selectedIds.map((cardId, index) => (
                 <li
                   key={cardId}
-                  className="flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm"
+                  className="flex flex-wrap items-center gap-2 rounded-md border px-3 py-1.5 text-sm"
                 >
                   <span className="w-5 text-muted-foreground">{index + 1}.</span>
-                  <span className="flex-1">
+                  <span className="min-w-[140px] flex-1">
                     {REPORT_CARD_TITLES[cardId] ?? cardId}
                   </span>
+                  {MAX_ROW_OPTION_CARDS.has(cardId) && (
+                    <Select
+                      value={String(cardOptions[cardId]?.maxRows ?? 10)}
+                      onValueChange={(value) => onCardOptionsChange({
+                        ...cardOptions,
+                        [cardId]: { maxRows: Number(value) as 5 | 10 },
+                      })}
+                      disabled={isGenerating}
+                    >
+                      <SelectTrigger
+                        className="h-7 w-[82px]"
+                        aria-label={`Rows for ${REPORT_CARD_TITLES[cardId] ?? cardId}`}
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="5">Top 5</SelectItem>
+                        <SelectItem value="10">Top 10</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                  <div className="ml-auto flex items-center gap-1">
                   <Button
                     variant="ghost"
                     size="icon"
@@ -176,6 +218,7 @@ export function GenerateReportDialog({
                   >
                     <X className="h-4 w-4" />
                   </Button>
+                  </div>
                 </li>
               ))}
             </ol>
@@ -201,7 +244,7 @@ export function GenerateReportDialog({
           </div>
 
           {/* Output formats */}
-          <div className="flex items-center gap-6">
+          <div className="flex flex-wrap items-center gap-4 sm:gap-6">
             <div className="flex items-center gap-2">
               <Checkbox
                 id="include-pdf"
@@ -267,3 +310,10 @@ export function GenerateReportDialog({
     </Dialog>
   );
 }
+
+const MAX_ROW_OPTION_CARDS = new Set([
+  "unit-prices-cost-trends",
+  "unit-prices-cost-impact",
+  "scarcity-stockout-frequency",
+  "replenishment-reorder-priority",
+]);

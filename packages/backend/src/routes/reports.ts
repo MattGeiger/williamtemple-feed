@@ -28,19 +28,27 @@ import {
 import {
   isValidLocalDate,
   isValidTimeZone,
+  localDateOf,
   resolveRange,
 } from '../services/inventory-analytics/timezone';
 import {
   getReportCard,
   isValidCardSelection,
   REPORT_CARDS,
+  validateCardOptions,
 } from '../services/reports/card-registry';
+import { applyCardOptions } from '../services/reports/card-options';
 import { buildCardCsv, toCsv } from '../services/reports/csv';
 import { renderReportPdf } from '../services/reports/pdf';
+import {
+  buildDashboardSnapshot,
+  DashboardSnapshot,
+} from '../services/reports/dashboard';
 import {
   normalizeTemplateName,
   staleCardIds,
   templateDataSchema,
+  reportFiltersSchema,
   templateNameSearch,
   TEMPLATE_NAME_MAX,
   TEMPLATE_NAME_MIN,
@@ -77,25 +85,36 @@ const rangeSchema = z
   );
 
 const querySchema = z.object({
-  source: z.literal('reports'),
+  source: z.enum(['reports', 'dashboard']),
   tab: z.enum(REPORT_TAB_IDS as [ReportTabId, ...ReportTabId[]]).default('inventory-outlook'),
   range: rangeSchema,
   horizonDays: z
     .union([z.literal(14), z.literal(30), z.literal(60), z.literal(90)])
     .default(30),
-  categoryIds: z.array(z.number().int().positive()).max(200).optional(),
+  filters: reportFiltersSchema.optional().default({}),
+  cardOptions: z.record(z.string(), z.unknown()).optional().default({}),
   cardIds: z.array(z.string()).max(32).optional(),
 });
 
 function resolveValidatedRange(input: z.infer<typeof rangeSchema>) {
-  return resolveRange(
-    input.preset,
-    input.timeZone,
-    new Date(),
-    input.preset === 'custom'
-      ? { startDate: input.startDate!, endDate: input.endDate! }
-      : undefined
-  );
+  const now = new Date();
+  try {
+    const resolved = resolveRange(
+      input.preset,
+      input.timeZone,
+      now,
+      input.preset === 'custom'
+        ? { startDate: input.startDate!, endDate: input.endDate! }
+        : undefined
+    );
+    if (resolved.endDate > localDateOf(now, input.timeZone)) {
+      throw badRequest('Report date ranges cannot include future dates.');
+    }
+    return resolved;
+  } catch (error) {
+    if ((error as { statusCode?: number }).statusCode === 400) throw error;
+    throw badRequest(error instanceof Error ? error.message : 'Invalid report date range.');
+  }
 }
 
 // Interactive query for the Reports workspace. Returns the requested tab's
@@ -106,19 +125,48 @@ router.post('/query', async (req: Request, res: Response, next: NextFunction) =>
     if (!parsed.success) {
       throw badRequest(parsed.error.issues.map((issue) => issue.message).join(', '));
     }
-    const { tab, range, horizonDays, categoryIds, cardIds } = parsed.data;
+    const { source, tab, range, horizonDays, filters, cardIds, cardOptions } = parsed.data;
+    if (source === 'dashboard' && horizonDays !== 30) {
+      throw badRequest('Dashboard reports use a 30-day planning horizon.');
+    }
 
     if (cardIds) {
-      const selection = isValidCardSelection('reports', cardIds);
+      const selection = isValidCardSelection(source, cardIds);
       if (!selection.ok) throw badRequest(selection.message);
+      const options = validateCardOptions(source, cardIds, cardOptions);
+      if (!options.ok) throw badRequest(options.message);
     }
 
     const resolved = resolveValidatedRange(range);
-    const result = await computeReportsTab(tab, {
+    if (source === 'dashboard') {
+      const result = await buildDashboardSnapshot({ range: resolved, filters });
+      return res.json({
+        source,
+        range: {
+          preset: resolved.preset,
+          startDate: resolved.startDate,
+          endDate: resolved.endDate,
+          timeZone: resolved.timeZone,
+        },
+        horizonDays: 30,
+        result,
+      });
+    }
+    const canonicalResult = await computeReportsTab(tab, {
       range: resolved,
       horizonDays,
-      categoryIds,
+      filters,
     });
+    const optionResult = validateCardOptions(
+      'reports',
+      cardIds ?? [],
+      cardIds ? cardOptions : {}
+    );
+    if (!optionResult.ok) throw badRequest(optionResult.message);
+    const result = (applyCardOptions(
+      { [tab]: canonicalResult },
+      optionResult.value
+    ) as Record<string, typeof canonicalResult>)[tab];
 
     res.json({
       range: {
@@ -141,7 +189,7 @@ router.post('/cards/:cardId/csv', async (req: Request, res: Response, next: Next
   try {
     const { cardId } = req.params;
     const card = getReportCard(cardId);
-    if (!card || card.source !== 'reports') {
+    if (!card) {
       throw badRequest(`Unknown report block: ${cardId}`);
     }
 
@@ -149,16 +197,36 @@ router.post('/cards/:cardId/csv', async (req: Request, res: Response, next: Next
     if (!parsed.success) {
       throw badRequest(parsed.error.issues.map((issue) => issue.message).join(', '));
     }
-    const { range, horizonDays, categoryIds } = parsed.data;
+    const { source, range, horizonDays, filters, cardOptions } = parsed.data;
+    if (card.source !== source) throw badRequest(`${cardId} does not belong to ${source}.`);
+    const options = validateCardOptions(
+      source,
+      [cardId],
+      cardOptions[cardId] ? { [cardId]: cardOptions[cardId] } : {}
+    );
+    if (!options.ok) throw badRequest(options.message);
 
     const resolved = resolveValidatedRange(range);
+    if (source === 'dashboard') {
+      const dashboard = await buildDashboardSnapshot({ range: resolved, filters });
+      const { headers, rows } = buildCardCsv(cardId, {}, dashboard);
+      const csv = toCsv(headers, rows);
+      const filename = `${cardId}-${resolved.startDate}-to-${resolved.endDate}.csv`;
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      return res.send(csv);
+    }
     // The card's registry entry names the tab whose dataset feeds it.
     const tab = card.tab as ReportTabId;
-    const result = await computeReportsTab(tab, {
+    const canonicalResult = await computeReportsTab(tab, {
       range: resolved,
       horizonDays,
-      categoryIds,
+      filters,
     });
+    const result = (applyCardOptions(
+      { [tab]: canonicalResult },
+      options.value
+    ) as Record<string, typeof canonicalResult>)[tab];
 
     const { headers, rows } = buildCardCsv(cardId, { [tab]: result });
     const csv = toCsv(headers, rows);
@@ -179,7 +247,7 @@ router.post('/cards/:cardId/csv', async (req: Request, res: Response, next: Next
 
 const exportSchema = z
   .object({
-    source: z.literal('reports'),
+    source: z.enum(['reports', 'dashboard']),
     title: z
       .string()
       .transform((value) => value.trim().replace(/\s+/g, ' '))
@@ -189,7 +257,8 @@ const exportSchema = z
     horizonDays: z
       .union([z.literal(14), z.literal(30), z.literal(60), z.literal(90)])
       .default(30),
-    categoryIds: z.array(z.number().int().positive()).max(200).optional(),
+    filters: reportFiltersSchema.optional().default({}),
+    cardOptions: z.record(z.string(), z.unknown()).optional().default({}),
     includePdf: z.boolean().default(true),
     includeCsv: z.boolean().default(true),
   })
@@ -211,40 +280,58 @@ router.post('/export', async (req: Request, res: Response, next: NextFunction) =
     if (!parsed.success) {
       throw badRequest(parsed.error.issues.map((issue) => issue.message).join(', '));
     }
-    const { title, cardIds, range, horizonDays, categoryIds, includePdf, includeCsv } = parsed.data;
+    const { source, title, cardIds, range, horizonDays, filters, cardOptions, includePdf, includeCsv } = parsed.data;
+    if (source === 'dashboard' && horizonDays !== 30) {
+      throw badRequest('Dashboard reports use a 30-day planning horizon.');
+    }
 
-    const selection = isValidCardSelection('reports', cardIds);
+    const selection = isValidCardSelection(source, cardIds);
     if (!selection.ok) throw badRequest(selection.message);
+    const validatedOptions = validateCardOptions(source, cardIds, cardOptions);
+    if (!validatedOptions.ok) throw badRequest(validatedOptions.message);
     const cards = cardIds.map((id) => getReportCard(id)!);
 
     // One server dataAsOf; every selected block computes from this single
     // canonical context, then all artifacts render from that result.
     const dataAsOf = new Date();
     const resolved = resolveValidatedRange(range);
-    const context = await loadAnalyticsContext({
-      range: resolved,
-      horizonDays,
-      categoryIds,
-      asOf: dataAsOf,
-    });
-    const neededTabs = [...new Set(cards.map((card) => card.tab as ReportTabId))];
-    const tabs: Partial<TabResults> = {};
-    for (const tab of neededTabs) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (tabs as any)[tab] = buildTab(tab, context);
+    let tabs: Partial<TabResults> = {};
+    let dashboard: DashboardSnapshot | undefined;
+    if (source === 'reports') {
+      const context = await loadAnalyticsContext({
+        range: resolved,
+        horizonDays,
+        filters,
+        asOf: dataAsOf,
+      });
+      const neededTabs = [...new Set(cards.map((card) => card.tab as ReportTabId))];
+      for (const tab of neededTabs) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (tabs as any)[tab] = buildTab(tab, context);
+      }
+      tabs = applyCardOptions(tabs, validatedOptions.value);
+    } else {
+      dashboard = await buildDashboardSnapshot({
+        range: resolved,
+        filters,
+        asOf: dataAsOf,
+      });
     }
 
     const rangeLabel = `${resolved.startDate} – ${resolved.endDate}` +
       (resolved.preset !== 'custom' ? ` (${resolved.preset})` : '');
-    const filtersSummary = categoryIds?.length
-      ? `${categoryIds.length} categories filtered`
-      : 'All categories';
+    const filterParts: string[] = [];
+    if (filters.categoryIds?.length) filterParts.push(`${filters.categoryIds.length} categories`);
+    if (filters.stockStatuses?.length) filterParts.push(filters.stockStatuses.join(', '));
+    if (filters.priceTypes?.length) filterParts.push(filters.priceTypes.join(', '));
+    if (filters.search) filterParts.push(`matching “${filters.search}”`);
+    const filtersSummary = filterParts.length > 0 ? filterParts.join(' · ') : 'All inventory';
 
     const zip = new JSZip();
 
     if (includeCsv) {
       cards.forEach((card, index) => {
-        const { headers, rows } = buildCardCsv(card.id, tabs);
+        const { headers, rows } = buildCardCsv(card.id, tabs, dashboard);
         const number = String(index + 1).padStart(2, '0');
         zip.file(`${number}-${card.id}.csv`, toCsv(headers, rows));
       });
@@ -252,9 +339,9 @@ router.post('/export', async (req: Request, res: Response, next: NextFunction) =
 
     if (includePdf) {
       const outlook = tabs['inventory-outlook'];
-      const notices: string[] = [
-        'History before an item’s first ledger event is untracked; no earlier values are estimated.',
-      ];
+      const notices: string[] = source === 'reports'
+        ? ['History before an item’s first ledger event is untracked; no earlier values are estimated.']
+        : ['Logistics cards use tracked inventory history; unknown quantities, costs, and burn rates remain excluded rather than treated as zero.'];
       if (outlook) {
         notices.push(
           `${outlook.kpis.itemsWithComputableCover} of ${outlook.kpis.inStockItems} in-stock items have burn-ready history.`
@@ -269,6 +356,7 @@ router.post('/export', async (req: Request, res: Response, next: NextFunction) =
         dataAsOf: dataAsOf.toISOString(),
         cards,
         tabs,
+        dashboard,
         notices,
       });
       zip.file(`${filenameSlug(title)}.pdf`, pdf);
@@ -278,6 +366,7 @@ router.post('/export', async (req: Request, res: Response, next: NextFunction) =
       'manifest.json',
       JSON.stringify(
         {
+          source,
           title,
           generatedAt: new Date().toISOString(),
           dataAsOf: dataAsOf.toISOString(),
@@ -288,7 +377,8 @@ router.post('/export', async (req: Request, res: Response, next: NextFunction) =
             timeZone: resolved.timeZone,
           },
           horizonDays,
-          filters: { categoryIds: categoryIds ?? [] },
+          filters,
+          cardOptions: validatedOptions.value,
           selectedCardIds: cardIds,
           calculationVersion: CALCULATION_VERSION,
           templateSchemaVersion: 1,
@@ -369,6 +459,12 @@ router.post('/templates', async (req: Request, res: Response, next: NextFunction
     const { name, templateData } = parsed.data;
     const selection = isValidCardSelection(templateData.source, templateData.cardIds);
     if (!selection.ok) throw badRequest(selection.message);
+    const options = validateCardOptions(
+      templateData.source,
+      templateData.cardIds,
+      templateData.cardOptions
+    );
+    if (!options.ok) throw badRequest(options.message);
 
     const template = await prisma.reportTemplate.upsert({
       where: {
@@ -426,6 +522,12 @@ router.put('/templates/:id', async (req: Request, res: Response, next: NextFunct
       }
       const selection = isValidCardSelection(templateData.source, templateData.cardIds);
       if (!selection.ok) throw badRequest(selection.message);
+      const options = validateCardOptions(
+        templateData.source,
+        templateData.cardIds,
+        templateData.cardOptions
+      );
+      if (!options.ok) throw badRequest(options.message);
     }
 
     try {

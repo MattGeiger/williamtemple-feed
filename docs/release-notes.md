@@ -1,5 +1,24 @@
 # Release Notes
 
+## In Development
+
+- Reframed the experimental Logistics tab as an optional **Supply** tab with
+  only Estimated Quantity and Source. Both may be left Unknown.
+- Restored one-action Out of Stock updates. Changing availability no longer
+  asks for or changes an estimated quantity.
+- Added history for the operational choices staff already make: availability,
+  Limited Supply, Clearance, and Food Item or Category limits.
+- Replaced the experimental planning reports with focused availability and
+  service-pressure reports. Burn rate, projected depletion, price, and
+  replenishment claims are no longer shown.
+- Added direct spreadsheet exports for every supported report block and a raw
+  operational-history export for auditing.
+- Added five-minute correction sampling so a quickly corrected edit does not
+  become a false operational episode while the complete raw history remains
+  available.
+- Added Unavailable Items and Limited Supply shortcuts to Dashboard.
+- Updated Help with the Supply and operational-report workflows.
+
 ## Version 1.3.6 — 2026-07-10
 
 - Added a Logistics tab to Food Items for purchase price, units per purchase, and estimated quantity.
@@ -8,6 +27,11 @@
 - Added quick CSV downloads and ordered report packages containing a landscape PDF, one CSV per selected report block, and a manifest.
 - Added organization-wide shared report templates with Apply, Generate, Rename, Duplicate, and Delete actions.
 - Added an Inventory Reports guide to Help with the complete report-generation workflow and guidance for reading Unknown or incomplete results.
+- Matched report-selection motion to the faster ZEV reference style while preserving reduced-motion accessibility.
+- Added four inventory-logistics cards to Dashboard and report generation for eleven trusted Dashboard cards.
+- Added report filters for item/category text, category, stock status, and price type, plus Top 5/Top 10 ranking options.
+- Fixed future time being counted in Scarcity, lifecycle snapshots inflating activity, and out-of-stock items disappearing from replenishment urgency.
+- Improved Reports on phones and hardened PDF/Docker cleanup after repeated exports.
 
 ## Version 1.2.6 — 2026-05-28
 

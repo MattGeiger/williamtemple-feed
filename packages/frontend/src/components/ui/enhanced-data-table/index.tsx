@@ -25,6 +25,7 @@ import { TableSelectionOptions } from "@/types/table"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { TranslationType } from "@/types/translation"
 import type { LucideIcon } from "lucide-react";
+import { calculateVisibleColumnWidths } from "@/lib/table"
 
 const mobileResponsiveColumnIds = [
   'lastUpdated',
@@ -145,6 +146,21 @@ export const EnhancedDataTable = React.forwardRef(function EnhancedDataTable<TDa
     }
   }
 
+  const compactColumnStyles = isMobile
+    ? calculateVisibleColumnWidths(
+        table.getVisibleLeafColumns().map((column) => ({
+          id: column.id,
+          size: column.columnDef.size ?? 100,
+          isFixed: column.id === 'select' || column.id === 'actions',
+        }))
+      )
+    : null
+
+  const columnStyle = (
+    column: ReturnType<typeof table.getVisibleLeafColumns>[number]
+  ) =>
+    compactColumnStyles?.[column.id] ?? column.columnDef.meta?.style
+
   if (isLoading) {
     return (
       <div className={cn("space-y-4 w-full", className)} data-testid="enhanced-table-container">
@@ -208,7 +224,7 @@ export const EnhancedDataTable = React.forwardRef(function EnhancedDataTable<TDa
               {table.getHeaderGroups().map((headerGroup) => (
                 <TableRow key={headerGroup.id}>
                   {headerGroup.headers.map((header) => (
-                    <TableHead key={header.id} style={header.column.columnDef.meta?.style}>
+                    <TableHead key={header.id} style={columnStyle(header.column)}>
                       {header.isPlaceholder
                         ? null
                         : flexRender(
@@ -231,7 +247,7 @@ export const EnhancedDataTable = React.forwardRef(function EnhancedDataTable<TDa
                     )}
                   >
                     {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id} style={cell.column.columnDef.meta?.style}>
+                      <TableCell key={cell.id} style={columnStyle(cell.column)}>
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </TableCell>
                     ))}

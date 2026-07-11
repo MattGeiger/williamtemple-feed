@@ -58,9 +58,8 @@ const existingItem = {
   halal: false,
   kosher: false,
   readyToEat: true,
-  purchasePriceCents: 10000,
-  unitsPerPurchase: 50,
   estimatedQuantity: 100,
+  supplySource: null,
   createdAt: new Date(),
   updatedAt: new Date(),
   category,
@@ -76,7 +75,7 @@ beforeEach(() => {
 });
 
 describe('createFoodItemWithEvent', () => {
-  test('applies Donated/Free + Each + Unknown defaults and writes a created event', async () => {
+  test('applies Unknown Supply defaults and writes a created event', async () => {
     mockTx.foodItem.create.mockImplementation(async ({ data }: any) => ({
       ...existingItem,
       ...data,
@@ -93,9 +92,8 @@ describe('createFoodItemWithEvent', () => {
     });
 
     const createArgs = mockTx.foodItem.create.mock.calls[0][0];
-    expect(createArgs.data.purchasePriceCents).toBe(0);
-    expect(createArgs.data.unitsPerPurchase).toBe(1);
     expect(createArgs.data.estimatedQuantity).toBeNull();
+    expect(createArgs.data.supplySource).toBeNull();
 
     const eventArgs = mockTx.foodItemInventoryEvent.create.mock.calls[0][0];
     expect(eventArgs.data.eventKind).toBe('created');
@@ -105,7 +103,7 @@ describe('createFoodItemWithEvent', () => {
     expect(eventArgs.data.recordsIdentity).toBe(true);
   });
 
-  test('an item created as Out of Stock gets quantity 0', async () => {
+  test('an item created as Out of Stock keeps its quantity Unknown', async () => {
     mockTx.foodItem.create.mockImplementation(async ({ data }: any) => ({
       ...existingItem,
       ...data,
@@ -123,7 +121,9 @@ describe('createFoodItemWithEvent', () => {
 
     const createArgs = mockTx.foodItem.create.mock.calls[0][0];
     expect(createArgs.data.isInStock).toBe(false);
-    expect(createArgs.data.estimatedQuantity).toBe(0);
+    // No count was given, so none is fabricated (out-of-stock may carry an
+    // Unknown or held quantity; see stock-consistency.ts).
+    expect(createArgs.data.estimatedQuantity).toBeNull();
   });
 });
 
@@ -137,7 +137,7 @@ describe('updateFoodItemWithEvent', () => {
 
     const result = await updateFoodItemWithEvent(7, {
       statusFlags: { isInStock: true, isLimited: false, isClearance: false },
-      logistics: { estimatedQuantity: 60, estimatedQuantityProvided: true },
+      supply: { estimatedQuantity: 60, estimatedQuantityProvided: true },
     });
 
     expect(result.nameChanged).toBe(false);
@@ -145,8 +145,9 @@ describe('updateFoodItemWithEvent', () => {
     expect(eventArgs.data.eventKind).toBe('updated');
     expect(eventArgs.data.estimatedQuantity).toBe(60);
     expect(eventArgs.data.recordsQuantity).toBe(true);
-    expect(eventArgs.data.recordsPrice).toBe(false);
+    expect(eventArgs.data.recordsSupply).toBe(false);
     expect(eventArgs.data.recordsStatus).toBe(false);
+    expect(eventArgs.data.recordsLimit).toBe(false);
     expect(eventArgs.data.recordsIdentity).toBe(false);
   });
 
@@ -156,7 +157,7 @@ describe('updateFoodItemWithEvent', () => {
 
     await updateFoodItemWithEvent(7, {
       statusFlags: { isInStock: true, isLimited: false, isClearance: false },
-      logistics: { estimatedQuantity: 100, estimatedQuantityProvided: true },
+      supply: { estimatedQuantity: 100, estimatedQuantityProvided: true },
     });
 
     expect(mockTx.foodItemInventoryEvent.create).not.toHaveBeenCalled();
@@ -195,5 +196,10 @@ describe('deleteFoodItemWithEvent', () => {
     expect(eventArgs.data.foodItemId).toBeNull();
     expect(eventArgs.data.sourceFoodItemId).toBe(7);
     expect(eventArgs.data.itemName).toBe('Tuna');
+    expect(eventArgs.data.recordsQuantity).toBe(false);
+    expect(eventArgs.data.recordsSupply).toBe(false);
+    expect(eventArgs.data.recordsStatus).toBe(false);
+    expect(eventArgs.data.recordsLimit).toBe(false);
+    expect(eventArgs.data.recordsIdentity).toBe(false);
   });
 });

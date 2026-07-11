@@ -10,7 +10,7 @@ import {
   FoodItemStatus,
   DietaryFlags,
   StatusFlags,
-  FoodItemLogistics,
+  FoodItemSupply,
   FOOD_ITEM_VALIDATION,
   DEFAULT_DIETARY_FLAGS,
   DEFAULT_STATUS_FLAGS
@@ -20,13 +20,12 @@ import config from '@/config/config';
 
 // Data interfaces for creating and updating items.
 //
-// `logisticsUpdate` is intentionally NOT named `logistics`: quick status
-// actions spread a whole FoodItem (which carries `logistics`) into these
+// `supplyUpdate` is intentionally NOT named `supply`: quick status actions
+// spread a whole FoodItem (which carries `supply`) into these
 // calls, and the backend treats an explicit `estimatedQuantity` key as a
 // real count observation. Only the add/edit form supplies
-// `logisticsUpdate`, so quick "Mark In Stock" keeps its no-count semantics
-// (the backend sets the restored quantity to Unknown). The request bodies
-// below are built from whitelisted fields for the same reason.
+// `supplyUpdate`. Request bodies are built from whitelisted fields so status
+// actions never become quantity/source observations.
 interface CreateFoodItemData {
   name: string;
   limit: number;
@@ -34,7 +33,7 @@ interface CreateFoodItemData {
   categoryId: number;
   statusFlags: StatusFlags;
   dietaryFlags: DietaryFlags;
-  logisticsUpdate?: FoodItemLogistics;
+  supplyUpdate?: FoodItemSupply;
 }
 
 interface UpdateFoodItemData extends CreateFoodItemData {
@@ -125,7 +124,7 @@ export class FoodItemService extends BaseApiService {
           ...DEFAULT_DIETARY_FLAGS,
           ...data.dietaryFlags
         },
-        ...(data.logisticsUpdate ? { logistics: data.logisticsUpdate } : {})
+        ...(data.supplyUpdate ? { supply: data.supplyUpdate } : {})
       });
       return response.foodItem;
     } catch (error) {
@@ -166,7 +165,7 @@ export class FoodItemService extends BaseApiService {
           ...DEFAULT_DIETARY_FLAGS,
           ...data.dietaryFlags
         },
-        ...(data.logisticsUpdate ? { logistics: data.logisticsUpdate } : {})
+        ...(data.supplyUpdate ? { supply: data.supplyUpdate } : {})
       });
       return response.foodItem;
     } catch (error) {
