@@ -56,6 +56,18 @@ export const formatText = (text: string, options: TextFormattingOptions = defaul
 };
 
 /**
+ * Resolves the name an edit form should submit. An untouched name is
+ * returned verbatim: stored names that predate the current Title-Case
+ * rules would otherwise be silently reformatted, which reads as a rename
+ * and falsely triggers translation management on unrelated edits (e.g. a
+ * limit-only change). An edited name gets the standard submit-time
+ * formatting (ISSUES.md #38).
+ */
+export const resolveSubmittedName = (name: string, initialName: string): string => {
+  return name === initialName ? initialName : formatText(name).trim();
+};
+
+/**
  * Validates if text meets minimum length requirement
  */
 export const validateMinLength = (text: string, minLength: number = 3): boolean => {
