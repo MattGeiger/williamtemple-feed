@@ -1,4 +1,10 @@
-# Inventory Analytics & Reports — Phase 2 (Inventory Outlook slice)
+# Inventory Analytics & Reports
+
+> **Prototype history — superseded.** This document describes the July 2026
+> planning-analytics prototype and is retained only as implementation history.
+> Its burn, price, coverage, stockout-projection, and replenishment claims are
+> not part of the current product. See [Operational Analytics, Supply
+> Annotations, and Data Export](operational-analytics-design.md).
 
 Phase 2 of the Reports initiative: the shared analytics service, the
 `/reports` workspace with a live Inventory Outlook tab, and per-card CSV
@@ -90,10 +96,12 @@ preset resolution, CSV rules, registry validation.
   ordered selection (cap 8, client+server), wiggle for eligible cards
   (static under `prefers-reduced-motion`), ring/check/order badges,
   Enter/Space toggling, nested controls made inert during selection.
-  Keyframes live in `index.css` (`report-card-wiggle`).
+  Keyframes live in `index.css` (`report-card-wiggle`) and use the agreed
+  ZEV-derived pacing: 820–1,120 ms loops with 60 ms hash-based staggering.
 - **Generate dialog** (`generate-report-dialog.tsx`): ordered list with
   Move Up/Down/Remove, 3–48-char title, PDF/CSV toggles (≥1 required),
-  optional Save/Update Shared Template.
+  optional Save/Update Shared Template, and validated Top 5/Top 10 options
+  for ranking cards.
 - **Export** (`POST /api/reports/export`): one `dataAsOf` snapshot, every
   selected block computed once, ZIP (JSZip 3.10.1, direct dependency)
   containing a Letter-landscape PDF, numbered per-card CSVs, and
@@ -104,23 +112,32 @@ preset resolution, CSV rules, registry validation.
   direct value labels, two-column blocks + full-width tables with
   repeated headers, Chromium-native Page X of Y footer. The generic
   Chromium lifecycle was extracted to `services/pdf/chromium.ts` and the
-  Shopping List Builder now uses it (its 126-test suite passes).
+  Shopping List Builder now uses it. Request interception permits only
+  `about:blank` and inline `data:` resources; external network and local-file
+  requests are aborted before render.
 - **Shared templates**: `ReportTemplate` model (source-bound, unique
   normalized name per source, versioned JSON config), CRUD under
   `/api/reports/templates` with same-name upsert, stale-card-id
   surfacing, and the `/reports/templates` management page (Apply/Edit,
   Generate, Rename, Duplicate, Delete). Apply restores controls and
   selection on `/reports` via router state.
+- **Filters**: item/category text, multiple categories, current stock status,
+  and price type are validated server-side and persist in templates and the
+  export manifest. Custom range end dates cannot be in the future.
+- **Observed-time semantics**: all ledger reads stop at the export/query
+  `dataAsOf`. Scarcity clips open status segments to that instant. Migration
+  baselines and deletion snapshots establish state/lifetime boundaries but do
+  not count as recording activity.
 
-## Remaining phases
+## Dashboard rollout — landed
 
-4. Dashboard: four logistics KPI cards + selection/export for
-   report-ready cards (shared provider, same 8-card cap).
-5. Deferred Dashboard metric repair before enabling the remaining five
-   cards for export.
+Four shared-analytics cards are live: Projected Stockouts, Quantity Coverage,
+Median Days of Cover, and Known 30-Day Replenishment Cost. Dashboard uses the
+same ordered selection provider and eight-card cap. The four overview KPIs,
+Inventory Status Distribution, Category Distribution, Translation Success,
+and the four logistics cards are selectable and have server-authored PDF/CSV
+serializers. Dashboard templates are source-bound and apply back to `/`.
 
-Deferred validation (spec items not yet run locally): Poppler multi-page
-PDF image inspection (Poppler is not installed; page 1 was verified via
-`sips`), phone/tablet-width and light-theme browser smokes for the new
-pages, and the Docker/ARM64 Raspberry Pi smoke (Chromium, ZIP memory,
-concurrent exports).
+Response Times, Multi-Service AI Usage, Cost Analysis, Usage Summary, and
+Translation Performance remain normal Dashboard cards but non-selectable
+until their separate metric-correction milestone.

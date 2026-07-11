@@ -40,6 +40,15 @@ interface ReportSelectionContextValue {
 const ReportSelectionContext =
   React.createContext<ReportSelectionContextValue | null>(null);
 
+const hashString = (value: string): number => {
+  let hash = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    hash = (hash << 5) - hash + value.charCodeAt(index);
+    hash |= 0;
+  }
+  return hash;
+};
+
 export function useReportSelection(): ReportSelectionContextValue {
   const context = React.useContext(ReportSelectionContext);
   if (!context) {
@@ -130,6 +139,7 @@ export function SelectableBlock({
   const contentRef = React.useRef<HTMLDivElement>(null);
   const selectedIndex = selectedIds.indexOf(cardId);
   const isSelected = selectedIndex >= 0;
+  const wiggleHash = Math.abs(hashString(cardId));
 
   // Nested controls (export buttons, table paging, chart tooltips) become
   // inert only during selection so the card itself is one big target.
@@ -142,7 +152,7 @@ export function SelectableBlock({
   }, [isSelecting]);
 
   if (!isSelecting) {
-    return <div className={className}>{children}</div>;
+    return <div className={cn("min-w-0", className)}>{children}</div>;
   }
 
   return (
@@ -159,7 +169,7 @@ export function SelectableBlock({
         }
       }}
       className={cn(
-        "relative cursor-pointer rounded-lg outline-none",
+        "relative min-w-0 cursor-pointer rounded-lg outline-none",
         "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
         variant === "card" && !isSelected && "report-selectable",
         isSelected &&
@@ -168,8 +178,14 @@ export function SelectableBlock({
       )}
       style={
         variant === "card" && !isSelected
-          ? // Staggered wiggle start so cards don't move in lockstep.
-            { animationDelay: `${(cardId.length % 5) * 0.12}s` }
+          ? ({
+              // Match ZEV's rapid, organic selection motion: short loops
+              // with small per-card duration and start-time differences.
+              "--report-wiggle-delay": `${(wiggleHash % 6) * 60}ms`,
+              "--report-wiggle-duration": `${
+                820 + (wiggleHash % 5) * 75
+              }ms`,
+            } as React.CSSProperties)
           : undefined
       }
     >
@@ -183,7 +199,7 @@ export function SelectableBlock({
           </span>
         </span>
       )}
-      <div ref={contentRef}>{children}</div>
+      <div ref={contentRef} className="min-w-0">{children}</div>
     </div>
   );
 }

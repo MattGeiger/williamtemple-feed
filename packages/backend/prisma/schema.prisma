@@ -39,6 +39,7 @@ model Category {
   translations CategoryTranslation[]
   foodItems    FoodItem[]
   shoppingListSections ShoppingListSection[]
+  inventoryEvents CategoryInventoryEvent[]
 }
 
 model CategoryTranslation {
@@ -70,11 +71,10 @@ model FoodItem {
   halal              Boolean                  @default(false)
   kosher             Boolean                  @default(false)
   readyToEat         Boolean                  @default(false)
-  // Logistics (docs/reports/logistics.md): NULL price = Unknown, 0 =
-  // Donated/Free, positive = Purchased. NULL estimatedQuantity = Unknown.
-  purchasePriceCents Int?
-  unitsPerPurchase   Int                      @default(1)
+  // Optional Supply annotations. They never drive availability or imply a
+  // unit of measure (docs/reports/operational-analytics-design.md).
   estimatedQuantity  Int?
+  supplySource       String?
   createdAt          DateTime                 @default(now())
   updatedAt          DateTime                 @updatedAt
   category           Category                 @relation(fields: [categoryId], references: [id])
@@ -115,20 +115,44 @@ model FoodItemInventoryEvent {
   isInStock          Boolean
   isLimited          Boolean
   isClearance        Boolean
-  purchasePriceCents Int?
-  unitsPerPurchase   Int
+  limit              Int
+  limitType          String
   estimatedQuantity  Int?
+  supplySource       String?
   // migration_baseline | created | updated | deleted
   eventKind          String
   recordsQuantity    Boolean   @default(false)
-  recordsPrice       Boolean   @default(false)
+  recordsSupply      Boolean   @default(false)
   recordsStatus      Boolean   @default(false)
+  recordsLimit       Boolean   @default(false)
   recordsIdentity    Boolean   @default(false)
   recordedAt         DateTime  @default(now())
   foodItem           FoodItem? @relation(fields: [foodItemId], references: [id], onDelete: SetNull)
 
   @@index([sourceFoodItemId, recordedAt])
   @@index([foodItemId, recordedAt])
+  @@index([categoryId, recordedAt])
+  @@index([recordedAt])
+}
+
+// Append-only Category operational history. Category limit changes are
+// independent shopping-list policy observations and survive deletion.
+model CategoryInventoryEvent {
+  id               Int       @id @default(autoincrement())
+  categoryId       Int?
+  sourceCategoryId Int
+  categoryName     String
+  limit            Int
+  limitType        String
+  icon             String?
+  // migration_baseline | created | updated | deleted
+  eventKind        String
+  recordsLimit     Boolean   @default(false)
+  recordsIdentity  Boolean   @default(false)
+  recordedAt       DateTime  @default(now())
+  category         Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  @@index([sourceCategoryId, recordedAt])
   @@index([categoryId, recordedAt])
   @@index([recordedAt])
 }

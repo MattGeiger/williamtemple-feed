@@ -86,12 +86,21 @@ export function ReportTemplatesPage() {
     // Source-bound: reports templates open the Reports workspace with the
     // template's controls and selection restored. (Dashboard templates
     // will navigate to the Dashboard once Phase 4 lands.)
-    navigate("/reports", {
+    const usableCards = template.templateData.cardIds.filter(
+      (id) => !template.staleCardIds.includes(id)
+    );
+    navigate(template.source === "dashboard" ? "/" : "/reports", {
       state: {
         applyTemplate: {
-          cardIds: template.templateData.cardIds,
+          cardIds: usableCards,
           range: template.templateData.range,
           horizonDays: template.templateData.horizonDays,
+          filters: template.templateData.filters ?? (
+            template.templateData.categoryIds
+              ? { categoryIds: template.templateData.categoryIds }
+              : {}
+          ),
+          cardOptions: template.templateData.cardOptions ?? {},
         },
       },
     });
@@ -115,12 +124,17 @@ export function ReportTemplatesPage() {
     try {
       // Relative presets resolve fresh at generation time on the server.
       await reportsService.downloadExportZip({
-        source: "reports",
+        source: template.source,
         title: template.name,
         cardIds: usableCards,
         range: template.templateData.range,
         horizonDays: template.templateData.horizonDays,
-        categoryIds: template.templateData.categoryIds,
+        filters: template.templateData.filters ?? (
+          template.templateData.categoryIds
+            ? { categoryIds: template.templateData.categoryIds }
+            : {}
+        ),
+        cardOptions: template.templateData.cardOptions ?? {},
         includePdf: true,
         includeCsv: true,
       });

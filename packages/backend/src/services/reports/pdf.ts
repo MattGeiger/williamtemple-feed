@@ -23,6 +23,7 @@ import {
 } from '../pdf/chromium';
 import { TabResults } from '../inventory-analytics';
 import { ReportCardDefinition } from './card-registry';
+import type { DashboardSnapshot } from './dashboard';
 
 // ---- shared print formatting (mirrors the frontend display helpers) --------
 
@@ -199,6 +200,7 @@ function areaChartSvg(
 interface RenderContext {
   tabs: Partial<TabResults>;
   horizonDays: number;
+  dashboard?: DashboardSnapshot;
 }
 
 function requireTab<K extends keyof TabResults>(
@@ -377,10 +379,12 @@ function cardBodyHtml(card: ReportCardDefinition, context: RenderContext): strin
       const result = requireTab(context, 'replenishment', card.id);
       return hBarChartSvg(
         result.reorderPriority.map((row) => ({
-          label: row.name,
-          value: Number(row.daysOfCover.toFixed(1)),
+          label: row.isInStock ? row.name : `${row.name} (Out)`,
+          value: row.isInStock && row.daysOfCover !== null
+            ? Number(row.daysOfCover.toFixed(1))
+            : 0,
         })),
-        { format: (v) => `${v} d` }
+        { format: (v) => v === 0 ? 'Out' : `${v} d` }
       );
     }
     case 'replenishment-spend-by-category': {
@@ -449,9 +453,75 @@ function cardBodyHtml(card: ReportCardDefinition, context: RenderContext): strin
       );
     }
 
+    case 'dashboard-overview-categories': {
+      const data = requireDashboard(context, card.id);
+      return kpiGrid([
+        { label: 'Categories', value: String(data.overview.categories.total) },
+        { label: 'Assigned No Limit', value: fmtPercent(data.overview.categories.noLimitPercentage) },
+      ]);
+    }
+    case 'dashboard-overview-food-items': {
+      const data = requireDashboard(context, card.id);
+      return kpiGrid([
+        { label: 'Food Items', value: String(data.overview.foodItems.total) },
+        { label: 'In Stock', value: String(data.overview.foodItems.inStock), hint: fmtPercent(data.overview.foodItems.inStockPercentage) },
+      ]);
+    }
+    case 'dashboard-overview-languages': {
+      const data = requireDashboard(context, card.id);
+      return kpiGrid([
+        { label: 'Languages', value: String(data.overview.languages.total) },
+        { label: 'Active', value: String(data.overview.languages.active) },
+      ]);
+    }
+    case 'dashboard-overview-translations': {
+      const data = requireDashboard(context, card.id);
+      return kpiGrid([
+        { label: 'Translations', value: String(data.overview.translations.total) },
+        { label: 'Success Rate', value: fmtPercent(data.overview.translations.successRate) },
+      ]);
+    }
+    case 'dashboard-inventory-status': {
+      const data = requireDashboard(context, card.id);
+      return barChartSvg(data.inventoryStatus.map((row) => ({ label: row.status, value: row.itemCount })));
+    }
+    case 'dashboard-category-distribution': {
+      const data = requireDashboard(context, card.id);
+      return hBarChartSvg(data.categoryDistribution.slice(0, 10).map((row) => ({ label: row.categoryName, value: row.itemCount })));
+    }
+    case 'dashboard-translation-success': {
+      const data = requireDashboard(context, card.id);
+      return barChartSvg([
+        { label: 'Completed', value: data.translationSuccess.completed },
+        { label: 'Pending', value: data.translationSuccess.pending },
+        { label: 'Failed', value: data.translationSuccess.failed },
+      ]);
+    }
+    case 'dashboard-projected-stockouts': {
+      const data = requireDashboard(context, card.id);
+      return kpiGrid([{ label: 'Within 30 Days', value: String(data.logistics.projectedStockouts) }]);
+    }
+    case 'dashboard-quantity-coverage': {
+      const data = requireDashboard(context, card.id);
+      return kpiGrid([{ label: 'Quantity Coverage', value: fmtPercent(data.logistics.quantityCoveragePercent), hint: `${data.logistics.quantityKnownItems} of ${data.logistics.totalItems} items` }]);
+    }
+    case 'dashboard-median-cover': {
+      const data = requireDashboard(context, card.id);
+      return kpiGrid([{ label: 'Median Days of Cover', value: fmtDays(data.logistics.medianDaysOfCover), hint: `${data.logistics.coverReadyItems} calculable items` }]);
+    }
+    case 'dashboard-replenishment-cost': {
+      const data = requireDashboard(context, card.id);
+      return kpiGrid([{ label: 'Known 30-Day Cost', value: fmtCents(data.logistics.knownReplenishmentCostCents), hint: `${data.logistics.donatedDemandItems} donated and ${data.logistics.unknownCostDemandItems} unknown-cost items excluded` }]);
+    }
+
     default:
       throw new Error(`No PDF renderer for report card: ${card.id}`);
   }
+}
+
+function requireDashboard(context: RenderContext, cardId: string): DashboardSnapshot {
+  if (!context.dashboard) throw new Error(`Missing dashboard data for report card ${cardId}`);
+  return context.dashboard;
 }
 
 // ---- document shell -----------------------------------------------------------
@@ -465,6 +535,7 @@ export interface ReportPdfOptions {
   dataAsOf: string;
   cards: ReportCardDefinition[];
   tabs: Partial<TabResults>;
+  dashboard?: DashboardSnapshot;
   /** Data-quality notices printed under the header. */
   notices: string[];
 }
@@ -476,6 +547,7 @@ export async function renderReportPdfHtml(
   const context: RenderContext = {
     tabs: options.tabs,
     horizonDays: options.horizonDays,
+    dashboard: options.dashboard,
   };
 
   const blocks = options.cards

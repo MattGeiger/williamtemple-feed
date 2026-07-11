@@ -30,6 +30,7 @@ type AnimatedIconComponent = React.ForwardRefExoticComponent<
 
 interface StatsCardProps {
   title: string
+  cardId: string
   value: string | number
   description?: string
   icon: AnimatedIconComponent
@@ -74,8 +75,7 @@ function StatsCard({ title, value, description, icon: Icon, href, trend }: Stats
     </Card>
   )
 
-  if (!href) return card
-  return (
+  const content = !href ? card : (
     <Link
       to={href}
       className="block rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
@@ -84,6 +84,7 @@ function StatsCard({ title, value, description, icon: Icon, href, trend }: Stats
       {card}
     </Link>
   )
+  return content
 }
 
 function StatsCardSkeleton() {
@@ -119,6 +120,7 @@ export function StatsCards() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <StatsCard
           title="Total Categories"
+          cardId="dashboard-overview-categories"
           value="--"
           description="Error loading data"
           icon={ShapesIcon as AnimatedIconComponent}
@@ -126,6 +128,7 @@ export function StatsCards() {
         />
         <StatsCard
           title="Food Items"
+          cardId="dashboard-overview-food-items"
           value="--"
           description="Error loading data"
           icon={AppleIcon as AnimatedIconComponent}
@@ -133,6 +136,7 @@ export function StatsCards() {
         />
         <StatsCard
           title="Languages"
+          cardId="dashboard-overview-languages"
           value="--"
           description="Error loading data"
           icon={GlobeIcon as AnimatedIconComponent}
@@ -140,6 +144,7 @@ export function StatsCards() {
         />
         <StatsCard
           title="Translations"
+          cardId="dashboard-overview-translations"
           value="--"
           description="Error loading data"
           icon={LanguagesIcon as AnimatedIconComponent}
@@ -153,6 +158,7 @@ export function StatsCards() {
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
       <StatsCard
         title="Total Categories"
+        cardId="dashboard-overview-categories"
         value={data.categories.total}
         description={`${data.categories.noLimitPercentage}% assigned "No Limit"`}
         icon={ShapesIcon as AnimatedIconComponent}
@@ -160,6 +166,7 @@ export function StatsCards() {
       />
       <StatsCard
         title="Food Items"
+        cardId="dashboard-overview-food-items"
         value={data.foodItems.total}
         description={`${data.foodItems.inStockPercentage}% in stock`}
         icon={AppleIcon as AnimatedIconComponent}
@@ -167,6 +174,7 @@ export function StatsCards() {
       />
       <StatsCard
         title="Languages"
+        cardId="dashboard-overview-languages"
         value={data.languages.active}
         description={`${data.languages.total - data.languages.active} more languages available`}
         icon={GlobeIcon as AnimatedIconComponent}
@@ -174,6 +182,7 @@ export function StatsCards() {
       />
       <StatsCard
         title="Translations"
+        cardId="dashboard-overview-translations"
         value={data.translations.total}
         description={`${data.translations.languageCount} languages`}
         icon={LanguagesIcon as AnimatedIconComponent}

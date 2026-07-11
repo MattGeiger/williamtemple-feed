@@ -24,6 +24,11 @@ export interface ReportCardDefinition {
   title: string;
 }
 
+export interface ReportCardOptions {
+  /** Ranking charts may be reduced for a more focused generated report. */
+  maxRows?: 5 | 10;
+}
+
 export const MAX_REPORT_SELECTION = 8;
 
 export const REPORT_CARDS: ReportCardDefinition[] = [
@@ -52,12 +57,75 @@ export const REPORT_CARDS: ReportCardDefinition[] = [
   { id: 'data-coverage-burn-readiness', source: 'reports', tab: 'data-coverage', type: 'chart', title: 'Burn-Rate Readiness' },
   { id: 'data-coverage-recording-activity', source: 'reports', tab: 'data-coverage', type: 'chart', title: 'Recording Activity' },
   { id: 'data-coverage-gaps-table', source: 'reports', tab: 'data-coverage', type: 'table', title: 'Item-Level Data Gaps' },
+  // Dashboard — only metrics already judged authoritative are selectable.
+  { id: 'dashboard-overview-categories', source: 'dashboard', tab: 'overview', type: 'kpi', title: 'Categories' },
+  { id: 'dashboard-overview-food-items', source: 'dashboard', tab: 'overview', type: 'kpi', title: 'Food Items' },
+  { id: 'dashboard-overview-languages', source: 'dashboard', tab: 'overview', type: 'kpi', title: 'Languages' },
+  { id: 'dashboard-overview-translations', source: 'dashboard', tab: 'overview', type: 'kpi', title: 'Translations' },
+  { id: 'dashboard-inventory-status', source: 'dashboard', tab: 'inventory', type: 'chart', title: 'Inventory Status Distribution' },
+  { id: 'dashboard-category-distribution', source: 'dashboard', tab: 'inventory', type: 'chart', title: 'Category Distribution' },
+  { id: 'dashboard-translation-success', source: 'dashboard', tab: 'translation', type: 'chart', title: 'Translation Success' },
+  { id: 'dashboard-projected-stockouts', source: 'dashboard', tab: 'logistics', type: 'kpi', title: 'Projected Stockouts' },
+  { id: 'dashboard-quantity-coverage', source: 'dashboard', tab: 'logistics', type: 'kpi', title: 'Quantity Coverage' },
+  { id: 'dashboard-median-cover', source: 'dashboard', tab: 'logistics', type: 'kpi', title: 'Median Days of Cover' },
+  { id: 'dashboard-replenishment-cost', source: 'dashboard', tab: 'logistics', type: 'kpi', title: 'Known 30-Day Replenishment Cost' },
 ];
 
 const cardsById = new Map(REPORT_CARDS.map((card) => [card.id, card]));
 
+const RANKING_CARD_IDS = new Set([
+  'unit-prices-cost-trends',
+  'unit-prices-cost-impact',
+  'scarcity-stockout-frequency',
+  'replenishment-reorder-priority',
+]);
+
 export function getReportCard(id: string): ReportCardDefinition | undefined {
   return cardsById.get(id);
+}
+
+/** Runtime validation for source-bound, selected-card-specific options. */
+export function validateCardOptions(
+  source: ReportSource,
+  cardIds: string[],
+  value: unknown
+): { ok: true; value: Record<string, ReportCardOptions> } | { ok: false; message: string } {
+  if (value === undefined) return { ok: true, value: {} };
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return { ok: false, message: 'cardOptions must be an object.' };
+  }
+  const selected = new Set(cardIds);
+  const parsed: Record<string, ReportCardOptions> = {};
+  for (const [cardId, rawOptions] of Object.entries(value)) {
+    const card = cardsById.get(cardId);
+    if (!card || card.source !== source || !selected.has(cardId)) {
+      return { ok: false, message: `Options reference an unavailable report block: ${cardId}` };
+    }
+    if (!rawOptions || typeof rawOptions !== 'object' || Array.isArray(rawOptions)) {
+      return { ok: false, message: `Options for ${cardId} must be an object.` };
+    }
+    const keys = Object.keys(rawOptions);
+    if (!RANKING_CARD_IDS.has(cardId)) {
+      if (keys.length > 0) {
+        return { ok: false, message: `${cardId} does not support card options.` };
+      }
+      parsed[cardId] = {};
+      continue;
+    }
+    if (keys.some((key) => key !== 'maxRows')) {
+      return { ok: false, message: `${cardId} has an unsupported card option.` };
+    }
+    const maxRows = (rawOptions as { maxRows?: unknown }).maxRows;
+    if (maxRows !== undefined && maxRows !== 5 && maxRows !== 10) {
+      return { ok: false, message: `${cardId} maxRows must be 5 or 10.` };
+    }
+    parsed[cardId] = maxRows === undefined ? {} : { maxRows };
+  }
+  return { ok: true, value: parsed };
+}
+
+export function cardSupportsMaxRows(cardId: string): boolean {
+  return RANKING_CARD_IDS.has(cardId);
 }
 
 export function isValidCardSelection(

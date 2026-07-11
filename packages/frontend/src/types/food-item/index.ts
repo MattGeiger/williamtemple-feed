@@ -41,13 +41,13 @@ export interface DietaryFlags {
   readyToEat: boolean
 }
 
-// Logistics fields (docs/reports/logistics.md). purchasePriceCents:
-// null = Unknown, 0 = Donated/Free, positive = Purchased. unitsPerPurchase
-// of 1 displays as "Each". estimatedQuantity: null = Unknown count.
-export interface FoodItemLogistics {
-  purchasePriceCents: number | null
-  unitsPerPurchase: number
+export type SupplySource = 'donated' | 'purchased' | 'mixed_other'
+
+// Optional Supply annotations
+// (docs/reports/operational-analytics-design.md).
+export interface FoodItemSupply {
   estimatedQuantity: number | null
+  supplySource: SupplySource | null
 }
 
 export interface FoodItem {
@@ -58,7 +58,7 @@ export interface FoodItem {
   statusFlags: StatusFlags
   categoryId: number
   dietaryFlags: DietaryFlags
-  logistics: FoodItemLogistics
+  supply: FoodItemSupply
   createdAt: string
   updatedAt: string
 }
@@ -96,11 +96,9 @@ export const DEFAULT_DIETARY_FLAGS: DietaryFlags = {
   readyToEat: false
 }
 
-// New-item logistics defaults: $0.00 Donated/Free, 1 (Each), Unknown count
-export const DEFAULT_LOGISTICS: FoodItemLogistics = {
-  purchasePriceCents: 0,
-  unitsPerPurchase: 1,
-  estimatedQuantity: null
+export const DEFAULT_SUPPLY: FoodItemSupply = {
+  estimatedQuantity: null,
+  supplySource: null,
 }
 
 // Default values for status flags

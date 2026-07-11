@@ -150,7 +150,9 @@ export class CategoryAggregator extends BaseAggregationService {
       categoryId: cat.categoryId,
       categoryName: cat.categoryName,
       itemCount: Number(cat.itemCount),
-      isNoLimit: cat.limit === 0,
+      // FEED's persisted No Limit sentinel is 100 (shared with category and
+      // food-item forms plus Shopping List generation).
+      isNoLimit: cat.limit === 100,
       globalLimit: cat.limit,
       createdAt: cat.createdAt.toISOString()
     }));

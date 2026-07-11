@@ -8,8 +8,8 @@
 "use client";
 
 import * as React from "react";
-import { Link } from "react-router-dom";
-import { CalendarIcon } from "lucide-react";
+import { Link, useSearchParams } from "react-router-dom";
+import { CalendarIcon, ChevronDown, ListFilter } from "lucide-react";
 import { format } from "date-fns";
 import type { DateRange } from "react-day-picker";
 
@@ -19,6 +19,15 @@ import { FileChartColumnIcon } from "@/components/ui/file-chart-column";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Popover,
   PopoverContent,
@@ -40,12 +49,17 @@ import {
 } from "@/components/ui/tabs";
 import { messageService } from "@/services/message";
 import { reportsService } from "@/services/reports";
+import { useCategoryContext } from "@/contexts/CategoryContext";
+import { useIsMobile } from "@/hooks/use-mobile";
 import {
   PLANNING_HORIZONS,
   PlanningHorizon,
+  PriceType,
   RANGE_PRESET_LABELS,
   RangePreset,
   ReportsQueryRequest,
+  ReportFilters,
+  ReportCardOptionsMap,
   ReportTabId,
   TabResults,
 } from "@/types/reports";
@@ -80,6 +94,8 @@ export interface ApplyTemplateState {
     cardIds: string[];
     range: ReportsQueryRequest["range"];
     horizonDays: PlanningHorizon;
+    filters?: ReportFilters;
+    cardOptions?: ReportCardOptionsMap;
   };
 }
 
@@ -100,11 +116,21 @@ function ReportsWorkspaceInner({
     () => Intl.DateTimeFormat().resolvedOptions().timeZone,
     []
   );
+  const [searchParams] = useSearchParams();
+  const isMobile = useIsMobile();
+  const { categories } = useCategoryContext();
 
-  const [activeTab, setActiveTab] = React.useState<ReportTabId>("inventory-outlook");
+  const requestedTab = searchParams.get("tab") as ReportTabId | null;
+  const [activeTab, setActiveTab] = React.useState<ReportTabId>(
+    REPORT_TABS.some((tab) => tab.value === requestedTab)
+      ? requestedTab as ReportTabId
+      : "inventory-outlook"
+  );
   const [preset, setPreset] = React.useState<RangePreset>("last-90-days");
   const [customRange, setCustomRange] = React.useState<DateRange | undefined>();
   const [horizon, setHorizon] = React.useState<PlanningHorizon>(30);
+  const [filters, setFilters] = React.useState<ReportFilters>({});
+  const [cardOptions, setCardOptions] = React.useState<ReportCardOptionsMap>({});
   const [tabData, setTabData] = React.useState<TabDataState>({});
   const [isLoading, setIsLoading] = React.useState(true);
   const [loadFailed, setLoadFailed] = React.useState(false);
@@ -128,6 +154,8 @@ function ReportsWorkspaceInner({
       });
     }
     setHorizon(applyTemplate.horizonDays);
+    setFilters(applyTemplate.filters ?? {});
+    setCardOptions(applyTemplate.cardOptions ?? {});
     applySelection(applyTemplate.cardIds);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [applyTemplate]);
@@ -146,6 +174,8 @@ function ReportsWorkspaceInner({
             endDate: format(customRange.to, "yyyy-MM-dd"),
           },
           horizonDays: horizon,
+          filters,
+          cardOptions,
         };
       }
       return {
@@ -153,15 +183,44 @@ function ReportsWorkspaceInner({
         tab,
         range: { preset, timeZone },
         horizonDays: horizon,
+        filters,
+        cardOptions,
       };
     },
-    [preset, customRange, horizon, timeZone]
+    [preset, customRange, horizon, timeZone, filters, cardOptions]
   );
 
   // Controls invalidate every tab's cache; the active tab refetches below.
   React.useEffect(() => {
     setTabData({});
-  }, [preset, customRange, horizon]);
+  }, [preset, customRange, horizon, filters, cardOptions]);
+
+  const selectedCategoryIds = new Set(filters.categoryIds ?? []);
+  const categoryFilterLabel = selectedCategoryIds.size === 0
+    ? "All Categories"
+    : selectedCategoryIds.size === 1
+      ? categories.find((category) => selectedCategoryIds.has(category.id))?.name ?? "1 Category"
+      : `${selectedCategoryIds.size} Categories`;
+
+  const toggleCategory = (categoryId: number, checked: boolean) => {
+    const next = new Set(filters.categoryIds ?? []);
+    if (checked) next.add(categoryId);
+    else next.delete(categoryId);
+    setFilters((current) => ({
+      ...current,
+      categoryIds: next.size > 0 ? [...next] : undefined,
+    }));
+  };
+
+  const setSingleFilter = <K extends "stockStatuses" | "priceTypes">(
+    key: K,
+    value: string
+  ) => {
+    setFilters((current) => ({
+      ...current,
+      [key]: value === "all" ? undefined : [value],
+    }));
+  };
 
   React.useEffect(() => {
     if (tabData[activeTab]) return; // cached for current controls
@@ -221,7 +280,7 @@ function ReportsWorkspaceInner({
   });
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-6">
       <SectionHeader
         title="Reports"
         description="Live inventory analytics: coverage, burn rates, and replenishment outlook."
@@ -229,14 +288,14 @@ function ReportsWorkspaceInner({
       />
 
       {/* Range + horizon controls apply to every tab */}
-      <div className="flex flex-wrap items-end gap-4">
-        <div className="space-y-2">
+      <div className="flex min-w-0 flex-wrap items-end gap-4">
+        <div className="w-full space-y-2 sm:w-auto">
           <Label htmlFor="report-range">Date Range</Label>
           <Select
             value={preset}
             onValueChange={(value) => setPreset(value as RangePreset)}
           >
-            <SelectTrigger id="report-range" className="w-[180px]">
+            <SelectTrigger id="report-range" className="w-full sm:w-[180px]">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -250,11 +309,11 @@ function ReportsWorkspaceInner({
         </div>
 
         {preset === "custom" && (
-          <div className="space-y-2">
+          <div className="w-full space-y-2 sm:w-auto">
             <Label>Custom Dates</Label>
             <Popover>
               <PopoverTrigger asChild>
-                <Button variant="outline" className="w-[260px] justify-start font-normal">
+                <Button variant="outline" className="w-full justify-start font-normal sm:w-[260px]">
                   <CalendarIcon className="mr-2 h-4 w-4" />
                   {customRange?.from && customRange?.to
                     ? `${format(customRange.from, "MMM d, yyyy")} – ${format(customRange.to, "MMM d, yyyy")}`
@@ -266,7 +325,7 @@ function ReportsWorkspaceInner({
                   mode="range"
                   selected={customRange}
                   onSelect={setCustomRange}
-                  numberOfMonths={2}
+                  numberOfMonths={isMobile ? 1 : 2}
                   defaultMonth={customRange?.from}
                 />
               </PopoverContent>
@@ -274,7 +333,7 @@ function ReportsWorkspaceInner({
           </div>
         )}
 
-        <div className="space-y-2">
+        <div className="w-full space-y-2 sm:w-auto">
           <Label htmlFor="report-horizon">Planning Horizon</Label>
           <Select
             value={String(horizon)}
@@ -282,7 +341,7 @@ function ReportsWorkspaceInner({
               setHorizon(Number(value) as PlanningHorizon)
             }
           >
-            <SelectTrigger id="report-horizon" className="w-[140px]">
+            <SelectTrigger id="report-horizon" className="w-full sm:w-[140px]">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -296,7 +355,7 @@ function ReportsWorkspaceInner({
         </div>
 
         {/* Selection mode controls stay available on every tab */}
-        <div className="ml-auto flex items-end gap-2">
+        <div className="flex w-full flex-wrap items-center justify-end gap-2 sm:ml-auto sm:w-auto">
           {!isSelecting ? (
             <>
               <Button variant="outline" asChild>
@@ -323,14 +382,86 @@ function ReportsWorkspaceInner({
         </div>
       </div>
 
+      <div className="flex min-w-0 flex-wrap items-end gap-2">
+        <div className="w-full space-y-2 sm:w-[220px]">
+          <Label htmlFor="report-search">Item or Category</Label>
+          <Input
+            id="report-search"
+            value={filters.search ?? ""}
+            onChange={(event) => setFilters((current) => ({
+              ...current,
+              search: event.target.value || undefined,
+            }))}
+            placeholder="Filter inventory..."
+          />
+        </div>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" className="w-full justify-between sm:w-auto">
+              <span className="flex min-w-0 items-center gap-2">
+                <ListFilter className="h-4 w-4 shrink-0" />
+                <span className="truncate">{categoryFilterLabel}</span>
+              </span>
+              <ChevronDown className="h-4 w-4 shrink-0" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="max-h-72 overflow-y-auto">
+            <DropdownMenuItem onSelect={() => setFilters((current) => ({ ...current, categoryIds: undefined }))}>
+              All Categories
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            {categories.map((category) => (
+              <DropdownMenuCheckboxItem
+                key={category.id}
+                checked={selectedCategoryIds.has(category.id)}
+                onCheckedChange={(checked) => toggleCategory(category.id, checked === true)}
+                onSelect={(event) => event.preventDefault()}
+              >
+                {category.name}
+              </DropdownMenuCheckboxItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <Select
+          value={filters.stockStatuses?.[0] ?? "all"}
+          onValueChange={(value) => setSingleFilter("stockStatuses", value)}
+        >
+          <SelectTrigger className="w-full sm:w-[160px]" aria-label="Stock status filter">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Stock Status</SelectItem>
+            <SelectItem value="in-stock">In Stock</SelectItem>
+            <SelectItem value="out-of-stock">Out of Stock</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select
+          value={filters.priceTypes?.[0] ?? "all"}
+          onValueChange={(value) => setSingleFilter("priceTypes", value as PriceType | "all")}
+        >
+          <SelectTrigger className="w-full sm:w-[160px]" aria-label="Price type filter">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Price Types</SelectItem>
+            <SelectItem value="paid">Purchased</SelectItem>
+            <SelectItem value="donated">Donated/Free</SelectItem>
+            <SelectItem value="unknown">Unknown Cost</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
       <Tabs
         value={activeTab}
         onValueChange={(value) => setActiveTab(value as ReportTabId)}
         className="w-full"
       >
-        <TabsList className="grid w-full grid-cols-2 md:grid-cols-5">
+        <TabsList className="grid h-auto w-full grid-cols-2 gap-1 md:grid-cols-5">
           {REPORT_TABS.map((tab) => (
-            <TabsTrigger key={tab.value} value={tab.value}>
+            <TabsTrigger key={tab.value} value={tab.value} className="min-w-0 whitespace-normal py-2 text-center leading-tight">
               {tab.label}
             </TabsTrigger>
           ))}
@@ -367,6 +498,9 @@ function ReportsWorkspaceInner({
             : RANGE_PRESET_LABELS[preset]
         }
         horizonDays={horizon}
+        filters={filters}
+        cardOptions={cardOptions}
+        onCardOptionsChange={setCardOptions}
         onGenerated={cancelSelecting}
       />
     </div>

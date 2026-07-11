@@ -27,13 +27,11 @@ export interface DietaryFlags {
   readyToEat: boolean;
 }
 
-// Logistics request payload (docs/reports/logistics.md §1). All values are
-// already-parsed integers: the client converts the currency string to
-// cents (never float math). null price = Unknown, 0 = Donated/Free.
-export interface LogisticsPayload {
-  purchasePriceCents?: number | null;
-  unitsPerPurchase?: number;
+// Optional Supply annotations
+// (docs/reports/operational-analytics-design.md).
+export interface SupplyPayload {
   estimatedQuantity?: number | null;
+  supplySource?: 'donated' | 'purchased' | 'mixed_other' | null;
 }
 
 export interface FoodItemBase {
@@ -43,59 +41,37 @@ export interface FoodItemBase {
   categoryId: number;
   statusFlags?: StatusFlags;
   dietaryFlags?: DietaryFlags;
-  logistics?: LogisticsPayload;
+  supply?: SupplyPayload;
 }
 
 /**
- * Validates the optional logistics block and normalizes it into the shape
+ * Validates the optional Supply block and normalizes it into the shape
  * the mutation service consumes, capturing whether estimatedQuantity was
  * explicitly provided (a quick status action omits it; the edit form sends
  * it, possibly as null = Unknown).
  */
-export const parseLogisticsPayload = (
-  logistics: unknown
+export const parseSupplyPayload = (
+  supply: unknown
 ):
   | {
-      purchasePriceCents?: number | null;
-      unitsPerPurchase?: number;
       estimatedQuantity?: number | null;
+      supplySource?: 'donated' | 'purchased' | 'mixed_other' | null;
       estimatedQuantityProvided: boolean;
     }
   | undefined => {
-  if (logistics === undefined || logistics === null) return undefined;
-  if (typeof logistics !== 'object' || Array.isArray(logistics)) {
-    const error = new Error('Invalid logistics payload') as Error & { statusCode?: number };
+  if (supply === undefined || supply === null) return undefined;
+  if (typeof supply !== 'object' || Array.isArray(supply)) {
+    const error = new Error('Invalid Supply payload') as Error & { statusCode?: number };
     error.statusCode = 400;
     throw error;
   }
-  const source = logistics as Record<string, unknown>;
+  const source = supply as Record<string, unknown>;
   const errors: string[] = [];
   const result: {
-    purchasePriceCents?: number | null;
-    unitsPerPurchase?: number;
     estimatedQuantity?: number | null;
+    supplySource?: 'donated' | 'purchased' | 'mixed_other' | null;
     estimatedQuantityProvided: boolean;
   } = { estimatedQuantityProvided: false };
-
-  if ('purchasePriceCents' in source) {
-    const value = source.purchasePriceCents;
-    if (value === null) {
-      result.purchasePriceCents = null;
-    } else if (typeof value === 'number' && Number.isSafeInteger(value) && value >= 0) {
-      result.purchasePriceCents = value;
-    } else {
-      errors.push('Purchase price must be a nonnegative whole number of cents or null');
-    }
-  }
-
-  if ('unitsPerPurchase' in source) {
-    const value = source.unitsPerPurchase;
-    if (typeof value === 'number' && Number.isSafeInteger(value) && value >= 1) {
-      result.unitsPerPurchase = value;
-    } else {
-      errors.push('Units per purchase must be a whole number of at least 1');
-    }
-  }
 
   if ('estimatedQuantity' in source) {
     result.estimatedQuantityProvided = true;
@@ -106,6 +82,17 @@ export const parseLogisticsPayload = (
       result.estimatedQuantity = value;
     } else {
       errors.push('Estimated quantity must be a nonnegative whole number or null');
+    }
+  }
+
+  if ('supplySource' in source) {
+    const value = source.supplySource;
+    if (value === null) {
+      result.supplySource = null;
+    } else if (value === 'donated' || value === 'purchased' || value === 'mixed_other') {
+      result.supplySource = value;
+    } else {
+      errors.push('Supply source must be Donated, Purchased, Mixed/Other, or Unknown');
     }
   }
 
@@ -155,10 +142,9 @@ export const transformFoodItem = (item: any) => ({
   categoryId: item.categoryId,
   createdAt: item.createdAt,
   updatedAt: item.updatedAt,
-  logistics: {
-    purchasePriceCents: item.purchasePriceCents ?? null,
-    unitsPerPurchase: item.unitsPerPurchase ?? 1,
+  supply: {
     estimatedQuantity: item.estimatedQuantity ?? null,
+    supplySource: item.supplySource ?? null,
   },
   statusFlags: {
     isInStock: item.isInStock,

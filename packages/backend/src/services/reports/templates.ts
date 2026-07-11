@@ -30,6 +30,13 @@ export const TEMPLATE_SCHEMA_VERSION = 1;
 export const TEMPLATE_NAME_MIN = 3;
 export const TEMPLATE_NAME_MAX = 48;
 
+export const reportFiltersSchema = z.object({
+  categoryIds: z.array(z.number().int().positive()).max(200).optional(),
+  stockStatuses: z.array(z.enum(['in-stock', 'out-of-stock'])).max(2).optional(),
+  priceTypes: z.array(z.enum(['unknown', 'donated', 'paid'])).max(3).optional(),
+  search: z.string().trim().max(100).optional(),
+}).strict();
+
 export const templateRangeSchema = z
   .object({
     preset: z.enum([
@@ -64,7 +71,19 @@ export const templateDataSchema = z.object({
     z.literal(60),
     z.literal(90),
   ]),
+  filters: reportFiltersSchema.optional().default({}),
+  cardOptions: z.record(z.string(), z.unknown()).optional().default({}),
+  // Read compatibility for templates created before the nested filter
+  // contract landed. New writes use `filters.categoryIds`.
   categoryIds: z.array(z.number().int().positive()).max(200).optional(),
+}).superRefine((data, context) => {
+  if (data.source === 'dashboard' && data.horizonDays !== 30) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['horizonDays'],
+      message: 'Dashboard templates use a 30-day planning horizon',
+    });
+  }
 });
 
 export type ReportTemplateData = z.infer<typeof templateDataSchema>;

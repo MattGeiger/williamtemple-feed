@@ -57,7 +57,7 @@ export function RootLayout({ children, breadcrumbs = [] }: RootLayoutProps) {
         onOpenChange={handleSidebarChange}
       >
         <AppSidebar />
-        <SidebarInset className="relative z-10 bg-transparent">
+        <SidebarInset className="relative z-10 min-w-0 bg-transparent">
           <Header 
             breadcrumbs={breadcrumbs} 
             rightContent={
@@ -70,12 +70,12 @@ export function RootLayout({ children, breadcrumbs = [] }: RootLayoutProps) {
           <main
             id="main-content"
             className="
-              flex flex-1 flex-col gap-4 px-6 pt-0 pb-6
+              flex min-w-0 flex-1 flex-col gap-4 px-4 pt-0 pb-6 sm:px-6
               focus:outline-none
-              tabIndex={-1}
             "
+            tabIndex={-1}
           >
-            <div className="flex flex-col gap-4">
+            <div className="flex min-w-0 flex-col gap-4">
               {children}
             </div>
           </main>

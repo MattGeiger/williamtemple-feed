@@ -17,6 +17,7 @@
 
 import { TabResults } from '../inventory-analytics';
 import { getReportCard } from './card-registry';
+import type { DashboardSnapshot } from './dashboard';
 
 export type CsvValue = string | number | boolean | null | undefined;
 
@@ -86,7 +87,8 @@ function requireTab<K extends keyof TabResults>(
  */
 export function buildCardCsv(
   cardId: string,
-  tabs: Partial<TabResults>
+  tabs: Partial<TabResults>,
+  dashboard?: DashboardSnapshot
 ): CardCsv {
   const card = getReportCard(cardId);
   if (!card) throw new Error(`No CSV serializer for report card: ${cardId}`);
@@ -286,12 +288,12 @@ export function buildCardCsv(
       const result = requireTab(tabs, 'replenishment', cardId);
       return {
         headers: [
-          'food_item_id', 'name', 'days_of_cover', 'required_units',
+          'food_item_id', 'name', 'in_stock', 'days_of_cover', 'required_units',
           'purchases_needed',
         ],
         rows: result.reorderPriority.map((row) => [
-          row.foodItemId, row.name, num(row.daysOfCover), row.requiredUnits,
-          row.purchasesNeeded,
+          row.foodItemId, row.name, row.isInStock, num(row.daysOfCover),
+          row.requiredUnits, row.purchasesNeeded,
         ]),
       };
     }
@@ -312,13 +314,14 @@ export function buildCardCsv(
       const result = requireTab(tabs, 'replenishment', cardId);
       return {
         headers: [
-          'food_item_id', 'name', 'category', 'estimated_quantity',
+          'food_item_id', 'name', 'category', 'in_stock', 'estimated_quantity',
           'daily_burn', 'days_of_cover', 'required_units',
           'units_per_purchase', 'purchases_needed', 'price_type',
           'purchase_price_cents', 'projected_cost_cents', 'missing_inputs',
         ],
         rows: result.plan.map((row) => [
-          row.foodItemId, row.name, row.categoryName, row.estimatedQuantity,
+          row.foodItemId, row.name, row.categoryName, row.isInStock,
+          row.estimatedQuantity,
           num(row.dailyBurn), num(row.daysOfCover), row.requiredUnits,
           row.unitsPerPurchase, row.purchasesNeeded, row.priceType,
           row.purchasePriceCents, row.projectedCostCents,
@@ -377,7 +380,97 @@ export function buildCardCsv(
       };
     }
 
+    // ---- Dashboard --------------------------------------------------------
+    case 'dashboard-overview-categories':
+      return dashboardKpi(dashboard, cardId, [
+        ['total_categories', dashboard!.overview.categories.total],
+        ['no_limit_percent', num(dashboard!.overview.categories.noLimitPercentage)],
+      ]);
+    case 'dashboard-overview-food-items':
+      return dashboardKpi(dashboard, cardId, [
+        ['total_food_items', dashboard!.overview.foodItems.total],
+        ['in_stock_items', dashboard!.overview.foodItems.inStock],
+        ['in_stock_percent', num(dashboard!.overview.foodItems.inStockPercentage)],
+      ]);
+    case 'dashboard-overview-languages':
+      return dashboardKpi(dashboard, cardId, [
+        ['total_languages', dashboard!.overview.languages.total],
+        ['active_languages', dashboard!.overview.languages.active],
+      ]);
+    case 'dashboard-overview-translations':
+      return dashboardKpi(dashboard, cardId, [
+        ['total_translations', dashboard!.overview.translations.total],
+        ['success_rate_percent', num(dashboard!.overview.translations.successRate)],
+        ['language_count', dashboard!.overview.translations.languageCount],
+      ]);
+    case 'dashboard-inventory-status':
+      requireDashboard(dashboard, cardId);
+      return {
+        headers: ['status', 'item_count'],
+        rows: dashboard.inventoryStatus.map((row) => [row.status, row.itemCount]),
+      };
+    case 'dashboard-category-distribution':
+      requireDashboard(dashboard, cardId);
+      return {
+        headers: ['category_id', 'category', 'item_count'],
+        rows: dashboard.categoryDistribution.map((row) => [
+          row.categoryId, row.categoryName, row.itemCount,
+        ]),
+      };
+    case 'dashboard-translation-success':
+      requireDashboard(dashboard, cardId);
+      return {
+        headers: ['completed', 'pending', 'failed', 'total', 'data_as_of'],
+        rows: [[
+          dashboard.translationSuccess.completed,
+          dashboard.translationSuccess.pending,
+          dashboard.translationSuccess.failed,
+          dashboard.translationSuccess.total,
+          dashboard.dataAsOf,
+        ]],
+      };
+    case 'dashboard-projected-stockouts':
+      return dashboardKpi(dashboard, cardId, [
+        ['projected_stockouts_within_30_days', dashboard!.logistics.projectedStockouts],
+      ]);
+    case 'dashboard-quantity-coverage':
+      return dashboardKpi(dashboard, cardId, [
+        ['quantity_coverage_percent', num(dashboard!.logistics.quantityCoveragePercent)],
+        ['known_quantity_items', dashboard!.logistics.quantityKnownItems],
+        ['total_items', dashboard!.logistics.totalItems],
+      ]);
+    case 'dashboard-median-cover':
+      return dashboardKpi(dashboard, cardId, [
+        ['median_days_of_cover', num(dashboard!.logistics.medianDaysOfCover)],
+        ['cover_ready_items', dashboard!.logistics.coverReadyItems],
+      ]);
+    case 'dashboard-replenishment-cost':
+      return dashboardKpi(dashboard, cardId, [
+        ['known_30_day_replenishment_cost_cents', dashboard!.logistics.knownReplenishmentCostCents],
+        ['donated_demand_items_excluded', dashboard!.logistics.donatedDemandItems],
+        ['unknown_cost_demand_items_excluded', dashboard!.logistics.unknownCostDemandItems],
+      ]);
+
     default:
       throw new Error(`No CSV serializer for report card: ${cardId}`);
   }
+}
+
+function requireDashboard(
+  dashboard: DashboardSnapshot | undefined,
+  cardId: string
+): asserts dashboard is DashboardSnapshot {
+  if (!dashboard) throw new Error(`Missing dashboard data for report card ${cardId}`);
+}
+
+function dashboardKpi(
+  dashboard: DashboardSnapshot | undefined,
+  cardId: string,
+  fields: Array<[string, CsvValue]>
+): CardCsv {
+  requireDashboard(dashboard, cardId);
+  return {
+    headers: [...fields.map(([header]) => header), 'data_as_of'],
+    rows: [[...fields.map(([, value]) => value), dashboard.dataAsOf]],
+  };
 }

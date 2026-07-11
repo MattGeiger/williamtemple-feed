@@ -14,7 +14,7 @@ import {
   transformFoodItem,
   validateIds,
   handlePrismaError,
-  parseLogisticsPayload,
+  parseSupplyPayload,
   StatusFlags,
   DietaryFlags
 } from '../utils/foodItemUtils';
@@ -209,7 +209,7 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const foodItemData = req.body;
     validateFoodItem(foodItemData);
-    const logistics = parseLogisticsPayload(foodItemData.logistics);
+    const supply = parseSupplyPayload(foodItemData.supply);
     try {
       const item = await createFoodItemWithEvent({
         name: foodItemData.name,
@@ -218,7 +218,7 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
         categoryId: foodItemData.categoryId,
         statusFlags: foodItemData.statusFlags,
         dietaryFlags: foodItemData.dietaryFlags,
-        logistics,
+        supply,
       });
       const newItem = transformFoodItem(item);
 
@@ -277,7 +277,7 @@ router.put('/:id', async (req: Request, res: Response, next: NextFunction) => {
     if (updateData.limitType !== undefined && !['person', 'household'].includes(updateData.limitType)) {
       throw badRequest('Limit type must be either "person" or "household"');
     }
-    const logistics = parseLogisticsPayload(updateData.logistics);
+    const supply = parseSupplyPayload(updateData.supply);
     try {
       const { item, nameChanged, originalName } = await updateFoodItemWithEvent(numId, {
         name: updateData.name,
@@ -286,7 +286,7 @@ router.put('/:id', async (req: Request, res: Response, next: NextFunction) => {
         categoryId: updateData.categoryId,
         statusFlags: updateData.statusFlags,
         dietaryFlags: updateData.dietaryFlags,
-        logistics,
+        supply,
       });
       const updatedItem = transformFoodItem(item);
 

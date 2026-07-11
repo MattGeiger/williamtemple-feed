@@ -13,11 +13,25 @@ import {
   ReportTabId,
   ReportTemplate,
   ReportTemplateData,
+  DashboardSnapshot,
 } from '@/types/reports';
 
 export class ReportsService extends BaseApiService {
   constructor() {
     super('/api/reports');
+  }
+
+  async queryDashboard(
+    request: ReportsQueryRequest & { source: 'dashboard' }
+  ): Promise<{ source: 'dashboard'; result: DashboardSnapshot }> {
+    try {
+      return await this.post<{ source: 'dashboard'; result: DashboardSnapshot }>(
+        '/query',
+        request
+      );
+    } catch (error) {
+      throw this.handleError(error);
+    }
   }
 
   /** Interactive query powering the Reports workspace tabs. */

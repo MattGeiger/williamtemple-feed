@@ -16,7 +16,7 @@
 
 import { median } from './calculations';
 import { AnalyticsContext, ItemTimeline } from './data';
-import { localDateStartUtc, shiftLocalDate } from './timezone';
+import { localDateOf, localDateStartUtc, shiftLocalDate } from './timezone';
 
 const MS_PER_DAY = 86_400_000;
 
@@ -89,9 +89,13 @@ function statusSegments(
   context: AnalyticsContext
 ): StatusSegment[] {
   const { startUtc, endUtc } = context.range;
-  const lifetimeEnd = timeline.deletedAt && timeline.deletedAt < endUtc
+  const observedEnd = new Date(
+    Math.min(endUtc.getTime(), context.asOf.getTime())
+  );
+  if (observedEnd <= startUtc) return [];
+  const lifetimeEnd = timeline.deletedAt && timeline.deletedAt < observedEnd
     ? timeline.deletedAt
-    : endUtc;
+    : observedEnd;
 
   const segments: StatusSegment[] = [];
   let currentStatus: boolean | null = null;
@@ -196,12 +200,20 @@ export function buildScarcity(context: AnalyticsContext): ScarcityResult {
   // Chart 1: availability over time, sampled at local midnights (weekly
   // for long ranges to keep the series readable).
   const availabilityOverTime: AvailabilityPoint[] = [];
-  const rangeDays =
-    (range.endUtc.getTime() - range.startUtc.getTime()) / MS_PER_DAY;
+  const observedEnd = new Date(
+    Math.min(range.endUtc.getTime(), asOf.getTime())
+  );
+  const observedEndDate = observedEnd <= range.startUtc
+    ? null
+    : localDateOfObservedEnd(observedEnd, range.timeZone);
+  const rangeDays = Math.max(
+    0,
+    (observedEnd.getTime() - range.startUtc.getTime()) / MS_PER_DAY
+  );
   const stepDays = rangeDays > DAILY_SAMPLING_LIMIT ? 7 : 1;
   for (
     let date = range.startDate;
-    date <= range.endDate;
+    observedEndDate !== null && date <= observedEndDate;
     date = shiftLocalDate(date, stepDays)
   ) {
     const instant = localDateStartUtc(date, range.timeZone);
@@ -242,4 +254,9 @@ export function buildScarcity(context: AnalyticsContext): ScarcityResult {
     episodes,
     dataAsOf: asOf.toISOString(),
   };
+}
+
+/** Last local date containing observed time in the half-open snapshot. */
+function localDateOfObservedEnd(observedEnd: Date, timeZone: string): string {
+  return localDateOf(new Date(observedEnd.getTime() - 1), timeZone);
 }

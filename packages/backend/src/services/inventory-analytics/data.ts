@@ -17,6 +17,7 @@
 import { Prisma, PrismaClient } from '@prisma/client';
 import prisma from '../../db';
 import { QuantityObservation } from './calculations';
+import { priceTypeOf, PriceType } from './calculations';
 import { ResolvedRange } from './timezone';
 
 export type FoodItemWithCategory = Prisma.FoodItemGetPayload<{
@@ -32,12 +33,15 @@ export interface LedgerEvent {
   isInStock: boolean;
   isLimited: boolean;
   isClearance: boolean;
-  purchasePriceCents: number | null;
-  unitsPerPurchase: number;
+  /** @deprecated Prototype-only field; reports route is disabled. */
+  purchasePriceCents?: number | null;
+  /** @deprecated Prototype-only field; reports route is disabled. */
+  unitsPerPurchase?: number;
   estimatedQuantity: number | null;
   eventKind: string;
   recordsQuantity: boolean;
-  recordsPrice: boolean;
+  /** @deprecated Prototype-only field; reports route is disabled. */
+  recordsPrice?: boolean;
   recordsStatus: boolean;
   recordsIdentity: boolean;
   recordedAt: Date;
@@ -72,8 +76,18 @@ export interface LoadAnalyticsContextOptions {
   range: ResolvedRange;
   horizonDays: number;
   categoryIds?: number[];
+  filters?: AnalyticsFilters;
   asOf?: Date;
   client?: PrismaClient;
+}
+
+export type StockStatusFilter = 'in-stock' | 'out-of-stock';
+
+export interface AnalyticsFilters {
+  categoryIds?: number[];
+  stockStatuses?: StockStatusFilter[];
+  priceTypes?: PriceType[];
+  search?: string;
 }
 
 export async function loadAnalyticsContext(
@@ -82,6 +96,9 @@ export async function loadAnalyticsContext(
   const client = options.client ?? prisma;
   const asOf = options.asOf ?? new Date();
   const { range, horizonDays } = options;
+  const snapshotEnd = new Date(
+    Math.min(range.endUtc.getTime(), asOf.getTime())
+  );
 
   const [liveItems, events] = await Promise.all([
     client.foodItem.findMany({
@@ -89,7 +106,7 @@ export async function loadAnalyticsContext(
       orderBy: { name: 'asc' },
     }),
     client.foodItemInventoryEvent.findMany({
-      where: { recordedAt: { lt: range.endUtc } },
+      where: { recordedAt: { lt: snapshotEnd } },
       orderBy: [{ recordedAt: 'asc' }, { id: 'asc' }],
     }),
   ]);
@@ -147,16 +164,53 @@ export async function loadAnalyticsContext(
     }
   }
 
-  if (options.categoryIds?.length) {
-    const allowed = new Set(options.categoryIds);
-    timelines = timelines.filter((timeline) => allowed.has(timeline.categoryId));
-  }
+  const filters: AnalyticsFilters = {
+    ...options.filters,
+    categoryIds: options.filters?.categoryIds ?? options.categoryIds,
+  };
+  const allowedCategories = filters.categoryIds?.length
+    ? new Set(filters.categoryIds)
+    : null;
+  const allowedStatuses = filters.stockStatuses?.length
+    ? new Set(filters.stockStatuses)
+    : null;
+  const allowedPriceTypes = filters.priceTypes?.length
+    ? new Set(filters.priceTypes)
+    : null;
+  const search = filters.search?.trim().toLocaleLowerCase() || null;
+
+  const timelineMatches = (timeline: ItemTimeline): boolean => {
+    if (allowedCategories && !allowedCategories.has(timeline.categoryId)) return false;
+    if (
+      search &&
+      !timeline.name.toLocaleLowerCase().includes(search) &&
+      !timeline.categoryName.toLocaleLowerCase().includes(search)
+    ) return false;
+    const latest = timeline.liveItem ?? timeline.events[timeline.events.length - 1];
+    if (!latest) return false;
+    if (allowedStatuses) {
+      const status: StockStatusFilter = latest.isInStock
+        ? 'in-stock'
+        : 'out-of-stock';
+      if (!allowedStatuses.has(status)) return false;
+    }
+    if (
+      allowedPriceTypes &&
+      !allowedPriceTypes.has(
+        priceTypeOf('purchasePriceCents' in latest ? latest.purchasePriceCents ?? null : null)
+      )
+    ) return false;
+    return true;
+  };
+
+  timelines = timelines.filter(timelineMatches);
 
   timelines.sort((a, b) => a.name.localeCompare(b.name));
 
-  const filteredLive = options.categoryIds?.length
-    ? liveItems.filter((item) => new Set(options.categoryIds).has(item.categoryId))
-    : liveItems;
+  const allowedTimelineIds = new Set(
+    timelines.filter((timeline) => timeline.isLive).map((timeline) => timeline.sourceFoodItemId)
+  );
+  const filteredLive = liveItems.filter((item) => allowedTimelineIds.has(item.id));
 
   return { range, horizonDays, asOf, timelines, liveItems: filteredLive };
 }
@@ -172,6 +226,7 @@ export function quantityObservations(
   let anchor: QuantityObservation | null = null;
   const inRange: QuantityObservation[] = [];
   for (const event of timeline.events) {
+    if (event.eventKind === 'deleted') continue;
     if (!event.recordsQuantity) continue;
     if (event.recordedAt < range.startUtc) {
       anchor = { at: event.recordedAt, quantity: event.estimatedQuantity };
@@ -206,11 +261,11 @@ export interface PricePoint {
 /** Price-recording history (anchor included), ascending. */
 export function pricePoints(timeline: ItemTimeline): PricePoint[] {
   return timeline.events
-    .filter((event) => event.recordsPrice)
+    .filter((event) => event.recordsPrice && event.eventKind !== 'deleted')
     .map((event) => ({
       at: event.recordedAt,
-      purchasePriceCents: event.purchasePriceCents,
-      unitsPerPurchase: event.unitsPerPurchase,
+      purchasePriceCents: event.purchasePriceCents ?? null,
+      unitsPerPurchase: event.unitsPerPurchase ?? 1,
       eventKind: event.eventKind,
     }));
 }

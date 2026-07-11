@@ -7,6 +7,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate, useParams } from 'react-router-dom'
 import { QueryClientProvider, useQueryClient } from '@tanstack/react-query'
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
+import * as React from 'react'
 import { useEffect } from 'react'
 import { queryClient } from './lib/react-query'
 import { ShoppingLists } from './components/shopping-lists'
@@ -14,15 +15,14 @@ import { ShoppingListBuilder } from './components/shopping-lists/builder/Shoppin
 import { DocumentTranslator } from './components/document-translator'
 import { CategoryManagement } from './components/category-management'
 import { FoodItemManagement } from './components/food-item-management'
-import { ReportsWorkspace, ApplyTemplateState } from './components/reports'
-import { ReportTemplatesPage } from './components/reports/templates-page'
-import { useLocation } from 'react-router-dom'
+import { OperationalReportsWorkspace } from './components/operational-reports'
 import { CategoryProvider } from './contexts/CategoryContext'
 import { FoodItemProvider } from './contexts/FoodItemContext'
 import { Toaster } from './components/ui/toaster'
 import { RootLayout } from './components/layout'
 import wthLogo from './assets/WTH_Logo_Horizontal.png'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './components/ui/card'
+import { Button } from './components/ui/button'
 import { TranslationManagement } from './components/translation-management'
 import { LanguageManagement } from './components/language-management'
 import { LanguageProvider } from './contexts/LanguageContext'
@@ -31,6 +31,7 @@ import { InventoryChart } from './components/dashboard/inventory-chart'
 import { CategoryChart } from './components/dashboard/category-chart'
 import { TranslationMetrics } from './components/dashboard/translation-metrics'
 import { TranslationPerformance } from './components/dashboard/translation-performance'
+import { DashboardOperationalCards } from './components/dashboard/operational-cards'
 import { CostForecast } from './components/dashboard/cost-forecasting/cost-forecast'
 import { UsageSummary } from './components/dashboard/usage-stats/usage-summary'
 import { TokenUsageMetrics } from './components/dashboard/token-usage'
@@ -82,38 +83,24 @@ function FoodItemPage() {
 }
 
 function ReportsPage() {
-  // A template applied from /reports/templates arrives via router state.
-  const location = useLocation()
-  const applyTemplate = (location.state as ApplyTemplateState | null)?.applyTemplate
   return (
     <RootLayout
       breadcrumbs={[
         { title: "Dashboard (Home)", href: "/" },
-        { title: "Inventory"},
-        { title: "Reports" }
+        { title: "Inventory" },
+        { title: "Reports" },
       ]}
     >
-      <ReportsWorkspace applyTemplate={applyTemplate} />
-    </RootLayout>
-  )
-}
-
-function ReportTemplatesRoutePage() {
-  return (
-    <RootLayout
-      breadcrumbs={[
-        { title: "Dashboard (Home)", href: "/" },
-        { title: "Inventory"},
-        { title: "Reports", href: "/reports" },
-        { title: "Templates" }
-      ]}
-    >
-      <ReportTemplatesPage />
+      <OperationalReportsWorkspace />
     </RootLayout>
   )
 }
 
 function HomePage() {
+  return <HomePageInner />
+}
+
+function HomePageInner() {
   // React Query 5 Native Refetch Pattern - Dashboard invalidation
   const queryClient = useQueryClient();
   
@@ -161,7 +148,11 @@ function HomePage() {
         <div className="mb-4">
             <StatsCards />
           </div>
-          
+
+          <div className="mb-4">
+            <DashboardOperationalCards />
+          </div>
+
           {/* Charts with consistent spacing */}
         <div className="space-y-4">
           {/* Two-column charts */}
@@ -371,7 +362,6 @@ function App() {
                   <Route path="/categories" element={<CategoryPage />} />
                   <Route path="/food-items" element={<FoodItemPage />} />
                   <Route path="/reports" element={<ReportsPage />} />
-                  <Route path="/reports/templates" element={<ReportTemplatesRoutePage />} />
                   <Route path="/languages" element={<LanguagePage />} />
                   <Route path="/translations" element={<TranslationPage />} />
                   <Route path="/shopping-lists" element={<ShoppingListsPage />} />

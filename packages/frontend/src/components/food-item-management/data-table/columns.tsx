@@ -342,7 +342,7 @@ export const columns = ({ onEdit, onDelete, categories, onCategoryChange, onUpda
     id: "actions",
     size: 100, // Fixed width for actions column
     enableHiding: false,
-    header: "Actions",
+    header: () => <div className="flex justify-end">Actions</div>,
     cell: ({ row }) => {
       const item = row.original
       const { statusFlags } = item
@@ -447,11 +447,13 @@ export const columns = ({ onEdit, onDelete, categories, onCategoryChange, onUpda
       })
 
       return (
-        <TableActionMenu
-          actions={actions}
-          triggerLabel="Open food item actions"
-          size="sm"
-        />
+        <div className="flex justify-end">
+          <TableActionMenu
+            actions={actions}
+            triggerLabel="Open food item actions"
+            size="sm"
+          />
+        </div>
       )
     },
   },

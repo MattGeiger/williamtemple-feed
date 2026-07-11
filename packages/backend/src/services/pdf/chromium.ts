@@ -94,6 +94,10 @@ export interface ChromiumPdfOptions {
   protocolTimeout?: number;
 }
 
+/** Only self-contained resources may load while rendering print HTML. */
+export const isAllowedPdfResourceUrl = (url: string): boolean =>
+  url === 'about:blank' || url.startsWith('data:');
+
 /**
  * Renders self-contained HTML to a PDF buffer. The HTML must not reference
  * external resources; inline everything (styles, SVG, data-URL fonts).
@@ -121,6 +125,14 @@ export async function renderHtmlToPdf(
 
   try {
     const page = await browser.newPage();
+    await page.setRequestInterception(true);
+    page.on('request', (request) => {
+      if (isAllowedPdfResourceUrl(request.url())) {
+        void request.continue();
+      } else {
+        void request.abort('blockedbyclient');
+      }
+    });
     // Wait only for the DOM to parse, then explicitly wait for the CSS
     // Font Loading API. `networkidle0` hangs indefinitely when fonts are
     // inlined as huge data URLs (Chromium treats them as in-flight

@@ -38,6 +38,31 @@ Everything else in this file. The application is shippable today.
 
 ## Open Issues
 
+### #46 — Dormant Reports/Export Infrastructure Audit
+**Priority**: Medium · **Status**: Active watchpoint
+**Bucket**: operational analytics reframe
+
+The July 2026 inventory-logistics prototype proved the report selection,
+template, CSV/ZIP/PDF, server-authored SVG, Chromium, and range/timezone
+infrastructure, but its price, burn, projected-stockout, replenishment, and
+quantity-coverage product claims were rejected after RITE review. The visible
+prototype is being rolled back and validated operational analytics will be
+reintroduced incrementally.
+
+Generic infrastructure is intentionally retained while domain-specific routes
+and cards are disabled. At each analytics milestone and release boundary,
+audit every retained module: connect it to a validated consumer with focused
+tests, keep it clearly isolated, or remove it. The accepted semantics and
+delivery sequence are in `docs/reports/operational-analytics-design.md`.
+
+Watchpoints:
+
+- no hidden endpoint may continue making abandoned analytical claims;
+- raw atomic history must remain distinct from five-minute sampled analysis;
+- templates/card ids must surface stale selections rather than silently map to
+  new semantics;
+- dormant export code must not silently drift as active consumers change.
+
 ### #5 — Translation Request Batching for RPM Efficiency
 **Priority**: Medium · **Status**: Implementation landed Dec 2025;
 Chinese DOCX sub-issue tracked separately as #17

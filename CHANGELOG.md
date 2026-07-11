@@ -5,6 +5,55 @@ All notable changes to FEED are documented here. This project adheres to
 
 ## [Unreleased]
 
+### Added
+
+- **Deterministic 90-day operational-history fixture**: development environments
+  can now populate Availability & Service Pressure reports from the restored
+  production catalog, OFB weekly staple presence, the Tuesday–Thursday service
+  schedule, and recurring Trader Joe's/Fred Meyer donation patterns. The
+  guarded fixture never invents quantities or consumption and cannot run in
+  production.
+- **Operational history for service-catalog decisions**: Food Item availability,
+  Limited Supply, Clearance, and item-limit changes now write append-only
+  snapshots atomically with the live item. Category creation, deletion, and
+  limit-policy changes have their own append-only history.
+- **Availability and Service Pressure reports**: the selectively reintroduced
+  Reports workspace shows a literal availability summary, availability over
+  time, separate Limited/Clearance/item-rationing series, unavailable episodes,
+  and Food Item/Category rationing history. Each validated block has direct CSV
+  export, and staff can export the complete atomic event history.
+- **Five-minute correction sampling**: rapid edits are retained in raw history
+  but collapse to their final effective state for analytics. Lifecycle events
+  remain hard boundaries, and exports identify which atomic events contributed
+  to sampled results.
+- **Dashboard operational shortcuts**: Unavailable Items and Limited Supply
+  show current literal counts and link to Reports.
+
+### Changed
+
+- **Logistics is now optional Supply annotation**: the fourth Food Item tab
+  contains only Estimated Quantity and Source (Donated, Purchased, or
+  Mixed/Other). Both default to Unknown. Price, package size, derived unit cost,
+  completeness pressure, burn rate, and projected depletion have been removed.
+  Prototype logistics values are cleared by migration.
+- **Availability and quantity are independent**: Mark Out of Stock is again a
+  one-action workflow. It records only the availability transition, clears
+  conflicting Limited/Clearance flags, and never prompts for or changes an
+  estimated quantity. Quantity zero likewise makes no automatic stock-status
+  claim.
+- **Prototype report surfaces narrowed to supported evidence**: price, burn,
+  coverage, projected-stockout, replenishment, data-gap, report-template, and
+  report-selection UI/routes are disabled. Generic CSV/PDF/ZIP/Chromium and
+  selection infrastructure remains isolated for later validated consumers and
+  is tracked as auditable technical debt in `AGENTS.md` and `ISSUES.md` #46.
+
+### Fixed
+
+- Dates before the migration baseline are untracked rather than rendered as
+  zero availability, and baseline/deletion snapshots do not inflate
+  unavailable-episode counts.
+- Reports and shared page layout no longer overflow at phone width.
+
 ## [1.3.6] — 2026-07-10
 
 Inventory logistics, historical analytics, and downloadable Reports. This
@@ -61,6 +110,37 @@ release adds two additive database migrations:
   report views, generating ordered PDF/CSV packages, exporting one block,
   saving shared report templates, and interpreting Unknown or incomplete
   planning data.
+
+### Fixed
+
+- **Report-selection motion now matches the ZEV reference pace**: selectable
+  report cards use rapid 820–1,120 ms wiggle loops, stronger rotation and
+  horizontal movement, and compact hash-based staggering instead of the
+  previous slow 1.6-second drift. Reduced-motion users continue to receive
+  static selection affordances.
+- **Inventory analytics no longer count unobserved or lifecycle-only data**:
+  Scarcity stops at the report snapshot instead of a future custom-range end,
+  and migration/deletion snapshots no longer inflate recording activity.
+- **Out-of-stock replenishment urgency stays visible without burn history**:
+  these items now remain in the urgency count, priority chart, and plan with
+  Unknown numeric projections rather than disappearing.
+- **Report export hardening**: Chromium blocks all network/file requests while
+  rendering self-contained PDFs, and Docker now runs the backend with an init
+  process so Chromium children are reaped after exports.
+- **Phone-width Reports layout**: filters, date controls, actions, tabs, and
+  the single-month custom calendar now fit narrow screens without horizontal
+  overflow.
+
+### Changed
+
+- **Dashboard logistics and report selection**: Projected Stockouts, Quantity
+  Coverage, Median Days of Cover, and Known 30-Day Replenishment Cost now use
+  the shared analytics service. Eleven authoritative Dashboard cards support
+  ordered PDF/CSV report generation; five existing AI cost/performance cards
+  remain intentionally non-selectable pending metric repair.
+- **Expanded report configuration**: item/category search, category, stock
+  status, and price-type filters now persist through templates and manifests.
+  Ranking cards support validated Top 5/Top 10 options.
 
 ## [1.2.6] — 2026-05-28
 

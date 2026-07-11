@@ -1,74 +1,71 @@
-# Inventory Reports
+# Operational Reports
 
-Inventory Reports turns FEED's shared inventory history into live summaries, planning tables, charts, PDFs, and CSV data.
+Reports turns the inventory updates staff already make into availability and
+service-pressure history. It does not require a separate counting workflow.
 
-## Before You Generate A Report
+## What Reports Can Safely Show
 
-Reports use the information staff record on Food Items.
+FEED remembers effective changes to:
 
-For the clearest results:
+- In Stock and Out of Stock availability.
+- Limited Supply and Clearance status.
+- Food Item and Category limits, including returning to No Limit.
 
-- Keep stock status current.
-- Add an estimated quantity when a useful count is available.
-- Record a purchase price and units per purchase when the item is purchased.
-- Leave a value Unknown when it has not been measured. Do not enter zero unless the value is truly zero.
+These are operational observations, not explanations. Out of Stock means an
+item was unavailable to clients; it does not prove that its physical count was
+zero. Limited Supply indicates staff recorded supply pressure, but FEED does
+not guess whether low supply, high demand, or another cause produced it.
 
-FEED starts calculating history when inventory tracking begins. It does not invent earlier quantities, prices, or stock changes.
+## Choose A Date Range
 
-## Choose A Report View
+Open **Reports** under **Inventory** in the sidebar. Reports starts with the
+last 90 days. Use **Date Range** to switch to 30 days, 6 months, 12 months, or
+the year to date.
 
-Open **Reports** under **Inventory** in the sidebar. Reports opens to the last 90 days with a 30-day planning horizon.
+History begins when operational tracking was introduced. Earlier dates are
+untracked and are not displayed as zero availability.
 
-Use the controls at the top to choose another date range or planning horizon. The five tabs answer different questions:
+## Read The Report
 
-- **Inventory Outlook** shows current stock, estimated quantities, burn rates, days of cover, and projected stockout dates.
-- **Unit Prices** separates purchased, donated, and Unknown costs and shows recorded price changes.
-- **Scarcity & Availability** shows stockout frequency, availability, and time to restock.
-- **Replenishment Planning** shows priority items, packages needed, known paid cost, and missing information.
-- **Data Coverage** shows which items have enough quantity, price, and history data for planning.
+- **Availability Summary** shows the current available, unavailable, Limited
+  Supply, Clearance, item-limit, and category-limit counts. It also summarizes
+  the share of tracked item-days that were available.
+- **Availability Over Time** shows the percentage of the tracked catalog that
+  was available to clients.
+- **Operational Pressure** shows Limited Supply, Clearance, and explicit item
+  rationing as separate lines. FEED does not combine them into an invented
+  score.
+- **Unavailable Episodes** lists recorded unavailable periods and their
+  duration.
+- **Rationing History** lists changes to Food Item and Category limits.
 
-Unknown or insufficient-history results are intentionally left blank or labeled. They are not treated as zero.
+Rapid edits made within five minutes are treated as one correction session in
+the charts and summaries. FEED keeps every original event in the raw history.
 
-## Generate A PDF And CSV Package
+## Export Report Data
 
-1. Choose the date range and planning horizon.
-2. Select **Generate Report**.
-3. Move through any of the five tabs and select up to eight report blocks.
-4. Select **Continue**.
-5. Review the selected blocks and use Move Up or Move Down to set their export order.
-6. Enter a report title.
-7. Choose PDF, CSV, or both. At least one format must remain selected.
-8. Select **Generate**.
+Select **Export CSV** beside any summary, chart, or table to download the data
+behind that block. Select **Export Raw History** to download every atomic Food
+Item and Category event in the chosen range.
 
-When PDF and CSV are both selected, FEED downloads one ZIP package containing:
+Raw history identifies whether an event contributed to the five-minute
+sampled analysis. This makes it possible to audit a result without losing the
+record of a quick staff correction.
 
-- A landscape PDF with the selected summaries, charts, and tables.
-- One numbered CSV file for each selected block.
-- A manifest with the report range, timezone, filters, selected blocks, and generation time.
+CSV exports are spreadsheet-ready. Unknown values remain blank instead of
+being silently changed to zero.
 
-The PDF and CSV files use the same inventory snapshot so their values agree.
+## Dashboard Shortcuts
 
-## Export One CSV Quickly
+Dashboard shows two literal operational counts:
 
-Outside report-selection mode, use **Export CSV** on any report block to download only that block's underlying data.
+- **Unavailable Items**
+- **Limited Supply**
 
-Use this when you need to sort, filter, or share one table or chart series without building a full report package.
-
-## Save A Shared Report Template
-
-In the Generate Report confirmation window, turn on **Save/Update Shared Template** before generating.
-
-Saved report templates are shared across FEED. Any authenticated staff member can apply, generate, rename, duplicate, or delete them from **Reports → Templates**.
-
-- Relative ranges such as Last 90 Days are recalculated each time the template is used.
-- Custom start and end dates stay fixed.
-- A template marked **Needs attention** contains a report block that is no longer available. Edit the selection before relying on it.
-
-## Read Planning Numbers Carefully
-
-Burn rates are estimates based on decreases between known quantities. A delivery, correction, or other quantity increase starts a new interval instead of becoming negative use.
-
-Projected costs include only items with a known paid price. Donated items remain separate, and items with an Unknown price are not silently counted as free.
+Each card links to Reports for the full history. FEED does not currently show
+burn rate, projected depletion, replenishment cost, or quantity-completeness
+cards because ordinary service-catalog updates cannot support those claims
+reliably.
 
 ## What To Read Next
 

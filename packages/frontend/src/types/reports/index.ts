@@ -19,6 +19,7 @@ export type RangePreset =
   | 'custom';
 
 export type PlanningHorizon = 14 | 30 | 60 | 90;
+export type ReportSource = 'reports' | 'dashboard';
 
 export interface ReportsRangeRequest {
   preset: RangePreset;
@@ -26,6 +27,21 @@ export interface ReportsRangeRequest {
   startDate?: string;
   endDate?: string;
 }
+
+export type StockStatusFilter = 'in-stock' | 'out-of-stock';
+
+export interface ReportFilters {
+  categoryIds?: number[];
+  stockStatuses?: StockStatusFilter[];
+  priceTypes?: PriceType[];
+  search?: string;
+}
+
+export interface ReportCardOptions {
+  maxRows?: 5 | 10;
+}
+
+export type ReportCardOptionsMap = Record<string, ReportCardOptions>;
 
 export type ReportTabId =
   | 'inventory-outlook'
@@ -35,12 +51,37 @@ export type ReportTabId =
   | 'data-coverage';
 
 export interface ReportsQueryRequest {
-  source: 'reports';
+  source: ReportSource;
   tab?: ReportTabId;
   range: ReportsRangeRequest;
   horizonDays: PlanningHorizon;
-  categoryIds?: number[];
+  filters?: ReportFilters;
+  cardOptions?: ReportCardOptionsMap;
   cardIds?: string[];
+}
+
+export interface DashboardSnapshot {
+  overview: {
+    categories: { total: number; noLimitPercentage: number };
+    foodItems: { total: number; inStock: number; inStockPercentage: number };
+    languages: { total: number; active: number };
+    translations: { total: number; successRate: number; languageCount: number };
+  };
+  inventoryStatus: Array<{ status: string; itemCount: number }>;
+  categoryDistribution: Array<{ categoryId: number; categoryName: string; itemCount: number }>;
+  translationSuccess: { completed: number; pending: number; failed: number; total: number };
+  logistics: {
+    projectedStockouts: number;
+    quantityCoveragePercent: number | null;
+    quantityKnownItems: number;
+    totalItems: number;
+    medianDaysOfCover: number | null;
+    coverReadyItems: number;
+    knownReplenishmentCostCents: number;
+    donatedDemandItems: number;
+    unknownCostDemandItems: number;
+  };
+  dataAsOf: string;
 }
 
 export type PriceType = 'unknown' | 'donated' | 'paid';
@@ -196,6 +237,7 @@ export interface ReplenishmentPlanRow {
   foodItemId: number;
   name: string;
   categoryName: string;
+  isInStock: boolean;
   estimatedQuantity: number | null;
   dailyBurn: number | null;
   daysOfCover: number | null;
@@ -211,9 +253,10 @@ export interface ReplenishmentPlanRow {
 export interface ReorderPriorityRow {
   foodItemId: number;
   name: string;
-  daysOfCover: number;
-  requiredUnits: number;
-  purchasesNeeded: number;
+  isInStock: boolean;
+  daysOfCover: number | null;
+  requiredUnits: number | null;
+  purchasesNeeded: number | null;
 }
 
 export interface CategorySpendRow {
@@ -360,15 +403,27 @@ export const REPORT_CARD_TITLES: Record<string, string> = {
   'data-coverage-burn-readiness': 'Burn-Rate Readiness',
   'data-coverage-recording-activity': 'Recording Activity',
   'data-coverage-gaps-table': 'Item-Level Data Gaps',
+  'dashboard-overview-categories': 'Categories',
+  'dashboard-overview-food-items': 'Food Items',
+  'dashboard-overview-languages': 'Languages',
+  'dashboard-overview-translations': 'Translations',
+  'dashboard-inventory-status': 'Inventory Status Distribution',
+  'dashboard-category-distribution': 'Category Distribution',
+  'dashboard-translation-success': 'Translation Success',
+  'dashboard-projected-stockouts': 'Projected Stockouts',
+  'dashboard-quantity-coverage': 'Quantity Coverage',
+  'dashboard-median-cover': 'Median Days of Cover',
+  'dashboard-replenishment-cost': 'Known 30-Day Replenishment Cost',
 };
 
 export interface ReportsExportRequest {
-  source: 'reports';
+  source: ReportSource;
   title: string;
   cardIds: string[];
   range: ReportsRangeRequest;
   horizonDays: PlanningHorizon;
-  categoryIds?: number[];
+  filters?: ReportFilters;
+  cardOptions?: ReportCardOptionsMap;
   includePdf: boolean;
   includeCsv: boolean;
 }
@@ -380,6 +435,9 @@ export interface ReportTemplateData {
   cardIds: string[];
   range: ReportsRangeRequest;
   horizonDays: PlanningHorizon;
+  filters?: ReportFilters;
+  cardOptions?: ReportCardOptionsMap;
+  /** Compatibility with templates saved before filters were nested. */
   categoryIds?: number[];
 }
 

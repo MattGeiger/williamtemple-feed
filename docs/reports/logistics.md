@@ -1,5 +1,10 @@
 # Food Item Logistics & Inventory Ledger
 
+> **Prototype history — superseded.** This document describes the July 2026
+> logistics prototype and is retained only as implementation history. Current
+> Supply fields, event semantics, sampling, and analytics decisions are defined
+> in [Operational Analytics, Supply Annotations, and Data Export](operational-analytics-design.md).
+
 Phase 1 of the Logistics, Inventory Analytics, and Reports initiative. This
 document is the source of truth for the logistics fields, the append-only
 inventory event ledger, and the centralized stock/count consistency rules.
@@ -36,8 +41,10 @@ logistics/status state at that moment plus:
   denormalized identity so deleted items keep contributing to history.
 - `eventKind`: `migration_baseline | created | updated | deleted`.
 - `recordsQuantity` / `recordsPrice` / `recordsStatus` / `recordsIdentity` —
-  which tracked dimensions this event actually changed (`updated` events)
-  or fully records (all other kinds).
+  which tracked dimensions the event records. Created/baseline snapshots seed
+  tracked state, updated events flag only effective changes, and deletion
+  snapshots set all four flags false because deletion is a lifetime boundary,
+  not a new quantity/price/status/identity observation.
 - `recordedAt` — server-generated.
 
 Indexes: source item/time, live item/time, category/time, recorded time.
@@ -62,18 +69,36 @@ the consistency rules and the ledger.
 Implemented in `services/food-item/stock-consistency.ts`
 (`resolveStockAndQuantity`) and enforced on every pathway — edit form, row
 quick actions, bulk status actions, duplicate-name "Mark In Stock"
-recovery, and Shopping List Builder inventory actions:
+recovery, and Shopping List Builder inventory actions.
 
-1. An explicit move to Out of Stock, or an explicit quantity of `0`, sets
-   quantity `0`, clears Limited/Clearance, and sets Out of Stock. The
-   explicit out-transition wins over a positive quantity in the same
-   request.
-2. A positive quantity restores plain In Stock when the item was
-   previously out (covers the edit form, whose Status tab still carries the
-   stale out-of-stock flags).
-3. Unknown quantity (`null`) may coexist with an in-stock status.
-4. Quick "Mark In Stock" actions **without a count** set quantity to
-   `null` (Unknown) — never a fabricated number.
+**Out of Stock is a distribution status, not a count.** Staff mark items
+out as a *rationing hold* — e.g. 150 units split across three distribution
+days gets marked out after 50 are given out, holding 100 for later.
+Zeroing the count on that action would fabricate burn history (150 → 0
+reads as 150 consumed in one day), so an out-of-stock item may carry a
+positive **held quantity**, or an Unknown one. The rules:
+
+1. An explicit quantity of `0` means fully depleted: it forces Out of
+   Stock and clears Limited/Clearance.
+2. Moving to Out of Stock keeps the provided quantity (the "Mark Out of
+   Stock" prompt's answer) or, when none is provided, the current
+   quantity unchanged — never a fabricated `0`. Limited/Clearance are
+   still cleared.
+3. A positive quantity restores plain In Stock **only when the item was
+   out with nothing on hand** (quantity `0` or Unknown) — the
+   "type a count to restock" convenience for depleted items. Correcting
+   the count of a *held* item (current quantity > 0) does not un-hold it.
+4. Quick "Mark In Stock" actions **without a count** resume a held
+   quantity as-is; when nothing was on hand they set quantity to `null`
+   (Unknown) — never a stale `0`.
+5. Unknown quantity (`null`) may coexist with either status.
+
+The "Mark Out of Stock" quick action (Food Item Management rows and the
+Shopping List Builder) opens a prompt
+(`components/food-item-management/mark-out-of-stock-dialog.tsx`) asking
+for the remaining count, prefilled with the current one; blank = Unknown,
+`0` = depleted. Bulk "Mark Out of Stock" actions do not prompt — they
+keep each item's quantity unchanged.
 
 ### The `estimatedQuantity`-presence contract
 

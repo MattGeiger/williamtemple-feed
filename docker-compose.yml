@@ -3,6 +3,10 @@ services:
   # Backend Service
   # ============================================
   backend:
+    # Chromium forks helper processes during PDF export. Docker's tiny init
+    # reaps them after Chromium exits so repeated exports cannot accumulate
+    # zombie processes inside the long-running backend container.
+    init: true
     build:
       context: .
       dockerfile: Dockerfile

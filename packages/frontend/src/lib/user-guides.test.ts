@@ -82,11 +82,11 @@ describe("user guide parsing", () => {
     const reportsEntry = index.find(
       (item) =>
         item.guideSlug === "inventory-reports" &&
-        item.sectionTitle === "Generate A PDF And CSV Package"
+        item.sectionTitle === "Export Report Data"
     )
 
     expect(reportsEntry).toBeTruthy()
-    expect(reportsEntry?.sectionId).toBe("generate-a-pdf-and-csv-package")
-    expect(reportsEntry?.content).toMatch(/select up to eight report blocks/i)
+    expect(reportsEntry?.sectionId).toBe("export-report-data")
+    expect(reportsEntry?.content).toMatch(/export raw history/i)
   })
 })
