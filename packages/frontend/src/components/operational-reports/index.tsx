@@ -219,7 +219,7 @@ export function OperationalReportsWorkspace() {
                 <CardDescription>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <span tabIndex={0} className="w-fit cursor-help underline decoration-dotted underline-offset-4">
+                      <span tabIndex={0} className="w-fit cursor-help">
                         Five-minute correction sampling; raw events remain exportable
                       </span>
                     </TooltipTrigger>
@@ -316,7 +316,7 @@ function Kpi({ label, value }: { label: string; value: string }) {
       {help ? (
         <Tooltip>
           <TooltipTrigger asChild>
-            <p tabIndex={0} className="w-fit cursor-help text-sm text-muted-foreground underline decoration-dotted underline-offset-4">{label}</p>
+            <p tabIndex={0} className="w-fit cursor-help text-sm text-muted-foreground">{label}</p>
           </TooltipTrigger>
           <TooltipContent className="max-w-64">{help}</TooltipContent>
         </Tooltip>
