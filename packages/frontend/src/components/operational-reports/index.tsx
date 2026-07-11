@@ -15,6 +15,7 @@ import {
 } from 'recharts';
 import { Download } from 'lucide-react';
 
+import { ArrowUpDown } from '@/components/ui/icons';
 import { SectionHeader } from '@/components/shared/section-header';
 import { createPageTitleIcon } from '@/components/layout/page-title-icon';
 import { FileChartColumnIcon } from '@/components/ui/file-chart-column';
@@ -332,20 +333,40 @@ function DetailHeader({ title, description, cardId, onExport }: { title: string;
   return <div className="flex flex-wrap items-start justify-between gap-2"><div><h3 className="text-lg font-semibold">{title}</h3><p className="text-sm text-muted-foreground">{description}</p></div><CsvButton cardId={cardId} onExport={onExport} /></div>;
 }
 
+// Sortable header, matching the ghost-button + ArrowUpDown pattern used by
+// the management tables (e.g. category-management/data-table/columns.tsx).
+function sortableHeader<TData>(label: string): ColumnDef<TData>['header'] {
+  return ({ column }) => (
+    <Button
+      variant="ghost"
+      onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+    >
+      {label}
+      <ArrowUpDown className="ml-2 h-4 w-4" />
+    </Button>
+  );
+}
+
 const episodeColumns: ColumnDef<UnavailableEpisode>[] = [
-  { accessorKey: 'itemName', header: 'Name' },
-  { accessorKey: 'categoryName', header: 'Category' },
-  { accessorKey: 'startedAt', header: 'Unavailable Since', cell: ({ row }) => format(new Date(row.original.startedAt), 'MMM d, yyyy h:mm a') },
-  { accessorKey: 'endedAt', header: 'Available Again', cell: ({ row }) => row.original.endedAt ? format(new Date(row.original.endedAt), 'MMM d, yyyy h:mm a') : 'Ongoing' },
-  { accessorKey: 'durationHours', header: 'Duration', cell: ({ row }) => formatDuration(row.original.durationHours) },
-  { accessorKey: 'resolution', header: 'Resolution', cell: ({ row }) => ({ restored: 'Restored', deleted: 'Item deleted', open_at_range_end: 'Ongoing' }[row.original.resolution]) },
+  { accessorKey: 'itemName', header: sortableHeader('Name') },
+  { accessorKey: 'categoryName', header: sortableHeader('Category') },
+  { accessorKey: 'startedAt', header: sortableHeader('Unavailable Since'), cell: ({ row }) => format(new Date(row.original.startedAt), 'MMM d, yyyy h:mm a') },
+  {
+    accessorKey: 'endedAt',
+    header: sortableHeader('Available Again'),
+    cell: ({ row }) => row.original.endedAt ? format(new Date(row.original.endedAt), 'MMM d, yyyy h:mm a') : 'Ongoing',
+    // Ongoing episodes (null endedAt) sort as the most recent end.
+    sortingFn: (a, b) => (a.original.endedAt ?? '￿').localeCompare(b.original.endedAt ?? '￿'),
+  },
+  { accessorKey: 'durationHours', header: sortableHeader('Duration'), cell: ({ row }) => formatDuration(row.original.durationHours) },
+  { accessorKey: 'resolution', header: sortableHeader('Resolution'), cell: ({ row }) => ({ restored: 'Restored', deleted: 'Item deleted', open_at_range_end: 'Ongoing' }[row.original.resolution]) },
 ];
 
 const limitColumns: ColumnDef<LimitChange>[] = [
-  { accessorKey: 'entityName', header: 'Name' },
-  { accessorKey: 'entityType', header: 'Type', cell: ({ row }) => row.original.entityType === 'food_item' ? 'Food Item' : 'Category' },
-  { accessorKey: 'categoryName', header: 'Category', cell: ({ row }) => row.original.categoryName ?? '—' },
-  { accessorKey: 'limit', header: 'Limit', cell: ({ row }) => row.original.isNoLimit ? 'No Limit' : row.original.limit },
-  { accessorKey: 'limitType', header: 'Applies To', cell: ({ row }) => row.original.isNoLimit ? '—' : row.original.limitType === 'person' ? 'Per Person' : 'Per Household' },
-  { accessorKey: 'recordedAt', header: 'Changed', cell: ({ row }) => format(new Date(row.original.recordedAt), 'MMM d, yyyy h:mm a') },
+  { accessorKey: 'entityName', header: sortableHeader('Name') },
+  { accessorKey: 'entityType', header: sortableHeader('Type'), cell: ({ row }) => row.original.entityType === 'food_item' ? 'Food Item' : 'Category' },
+  { accessorKey: 'categoryName', header: sortableHeader('Category'), cell: ({ row }) => row.original.categoryName ?? '—' },
+  { accessorKey: 'limit', header: sortableHeader('Limit'), cell: ({ row }) => row.original.isNoLimit ? 'No Limit' : row.original.limit },
+  { accessorKey: 'limitType', header: sortableHeader('Applies To'), cell: ({ row }) => row.original.isNoLimit ? '—' : row.original.limitType === 'person' ? 'Per Person' : 'Per Household' },
+  { accessorKey: 'recordedAt', header: sortableHeader('Changed'), cell: ({ row }) => format(new Date(row.original.recordedAt), 'MMM d, yyyy h:mm a') },
 ];

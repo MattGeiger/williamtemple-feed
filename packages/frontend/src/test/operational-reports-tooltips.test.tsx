@@ -38,7 +38,26 @@ const result: OperationalAnalyticsResult = {
     medianRestorationHours: 30,
   },
   timeline: [],
-  episodes: [],
+  episodes: [
+    {
+      itemId: 1,
+      itemName: 'Tuna',
+      categoryName: 'Canned Goods',
+      startedAt: '2026-07-01T10:00:00.000Z',
+      endedAt: '2026-07-03T10:00:00.000Z',
+      durationHours: 48,
+      resolution: 'restored',
+    },
+    {
+      itemId: 2,
+      itemName: 'Rice',
+      categoryName: 'Grains',
+      startedAt: '2026-07-10T10:00:00.000Z',
+      endedAt: null,
+      durationHours: 3,
+      resolution: 'open_at_range_end',
+    },
+  ],
   limitChanges: [],
 };
 
@@ -95,6 +114,24 @@ describe('OperationalReportsWorkspace tooltips and layout', () => {
       // tooltip triggers with the cursor-help affordance.
       expect(element.className).toContain('cursor-help');
     }
+  });
+
+  test('episode table headers sort like the management tables', async () => {
+    const { container } = render(<OperationalReportsWorkspace />);
+
+    const durationHeader = await screen.findByRole('button', { name: 'Duration' });
+
+    const rowNames = () =>
+      [...container.querySelectorAll('tbody tr')]
+        .map((row) => row.textContent ?? '')
+        .filter((text) => /Tuna|Rice/.test(text))
+        .map((text) => (text.includes('Tuna') ? 'Tuna' : 'Rice'));
+
+    fireEvent.click(durationHeader); // ascending
+    expect(rowNames()).toEqual(['Rice', 'Tuna']);
+
+    fireEvent.click(durationHeader); // descending
+    expect(rowNames()).toEqual(['Tuna', 'Rice']);
   });
 
   test('page wrapper matches the established section layout (w-full pt-6)', async () => {
