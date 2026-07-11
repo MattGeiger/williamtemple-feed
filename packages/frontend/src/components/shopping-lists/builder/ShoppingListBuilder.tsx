@@ -4095,6 +4095,7 @@ export function ShoppingListBuilder() {
         statusFlags: update.statusFlags ?? editingFoodItem.statusFlags,
         dietaryFlags: update.dietaryFlags ?? editingFoodItem.dietaryFlags,
         supplyUpdate: update.supply,
+        keepTranslations: update.keepTranslations,
       });
       await Promise.all([refreshFoodItems(), loadInventorySections(), refreshTemplateInventoryFromServer()]);
       setEditingFoodItem(null);

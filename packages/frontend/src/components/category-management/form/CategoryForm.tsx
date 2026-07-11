@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
-import { formatText } from "@/lib/formatting/text"
+import { resolveSubmittedName } from "@/lib/formatting/text"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useCategoryForm } from "@/hooks/category/form/useCategoryForm"
@@ -91,7 +91,9 @@ export function CategoryForm({
 
     try {
       // Title-Case enforced at submit, not per keystroke (ISSUES.md #38).
-      const trimmedName = formatText(categoryName).trim();
+      // An untouched name is submitted verbatim so the edit dialog does not
+      // mistake reformatting for a rename.
+      const trimmedName = resolveSubmittedName(categoryName, initialName);
       // Use the default icon if none is selected
       const iconValue = icon || DEFAULT_ICON;
       console.log('Submitting with data:', { name: trimmedName, limit: getFormattedLimit(), icon: iconValue });
