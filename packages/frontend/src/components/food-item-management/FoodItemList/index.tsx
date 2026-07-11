@@ -6,7 +6,7 @@
 // not covered by this license; see TRADEMARKS.md.
 
 import { useCallback, useMemo, useState, useRef } from "react"
-import { FoodItem, FoodItemStatus, OUT_OF_STOCK_FLAGS } from "@/types/food-item"
+import { FoodItem, FoodItemSupply, FoodItemStatus } from "@/types/food-item"
 import { columns } from "../data-table/columns"
 import { DataList } from "@/components/shared/data-list/DataList"
 import { TooltipProvider } from "@/components/ui/tooltip"
@@ -44,7 +44,9 @@ interface FoodItemListProps {
   isLoading: boolean
   onEdit: (item: FoodItem) => void
   onDelete: (item: FoodItem) => void
-  onUpdate: (updatedItem: FoodItem) => Promise<void>
+  onUpdate: (
+    updatedItem: FoodItem & { supplyUpdate?: FoodItemSupply }
+  ) => Promise<void>
   onCategoryChange?: (item: FoodItem, categoryId: number) => Promise<void>
 }
 
@@ -409,6 +411,7 @@ export function FoodItemList({
           onError={handleError}
           isLoading={isLoading}
         />
+
       </TooltipProvider>
     </div>
   )

@@ -26,6 +26,7 @@ import { buildScarcity, ScarcityResult } from './scarcity';
 import { buildReplenishment, ReplenishmentResult } from './replenishment';
 import { buildCoverage, CoverageResult } from './coverage';
 import { ResolvedRange } from './timezone';
+import type { AnalyticsFilters } from './data';
 
 export * from './outlook';
 export * from './unit-prices';
@@ -62,6 +63,7 @@ export interface ComputeOptions {
   range: ResolvedRange;
   horizonDays: number;
   categoryIds?: number[];
+  filters?: AnalyticsFilters;
   asOf?: Date;
   client?: PrismaClient;
 }

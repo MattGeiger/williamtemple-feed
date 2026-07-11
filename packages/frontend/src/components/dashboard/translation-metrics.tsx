@@ -6,6 +6,7 @@
 // not covered by this license; see TRADEMARKS.md.
 
 "use client";
+import type { ReactNode } from "react";
 import { Timer, Zap, AlertTriangle } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, LabelList, XAxis, YAxis, RadialBar, RadialBarChart, PolarRadiusAxis, Label } from "recharts"
 import {
@@ -28,6 +29,10 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { useTranslationMetricsData } from "@/hooks/dashboard/useTranslationMetricsData"
 import { useMultiServiceUsage } from "@/hooks/dashboard/useMultiServiceUsage"
+
+function TranslationSuccessCard({ children }: { children: ReactNode }) {
+  return <Card className="flex h-full flex-col">{children}</Card>;
+}
 
 const successConfig = {
   success: {
@@ -76,7 +81,7 @@ export function TranslationMetrics() {
   if (isLoading || multiServiceLoading) {
     return (
       <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
-        <Card className="flex flex-col">
+        <TranslationSuccessCard>
           <CardHeader className="items-center pb-0">
             <div className="flex items-center justify-between w-full">
               <div>
@@ -92,7 +97,7 @@ export function TranslationMetrics() {
           <CardFooter>
             <Skeleton className="h-[40px] w-full" />
           </CardFooter>
-        </Card>
+        </TranslationSuccessCard>
 
         <Card>
           <CardHeader>
@@ -124,7 +129,7 @@ export function TranslationMetrics() {
   if (error) {
     return (
       <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
-        <Card className="flex flex-col">
+        <TranslationSuccessCard>
           <CardHeader>
             <div className="flex items-center justify-between w-full">
               <div>
@@ -139,7 +144,7 @@ export function TranslationMetrics() {
               Failed to load success data
             </div>
           </CardContent>
-        </Card>
+        </TranslationSuccessCard>
 
         <Card>
           <CardHeader>
@@ -165,7 +170,7 @@ export function TranslationMetrics() {
   if (!multiServiceData || multiServiceData.configurations.length === 0) {
     return (
       <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
-        <Card className="flex flex-col">
+        <TranslationSuccessCard>
           <CardHeader>
             <div className="flex items-center justify-between w-full">
               <div>
@@ -184,7 +189,7 @@ export function TranslationMetrics() {
               </AlertDescription>
             </Alert>
           </CardContent>
-        </Card>
+        </TranslationSuccessCard>
 
         <Card>
           <CardHeader>
@@ -214,7 +219,7 @@ export function TranslationMetrics() {
   if (!data || data.responseTimes.length === 0) {
     return (
       <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
-        <Card className="flex flex-col">
+        <TranslationSuccessCard>
           <CardHeader>
             <div className="flex items-center justify-between w-full">
               <div>
@@ -233,7 +238,7 @@ export function TranslationMetrics() {
               </AlertDescription>
             </Alert>
           </CardContent>
-        </Card>
+        </TranslationSuccessCard>
 
         <Card>
           <CardHeader>
@@ -289,7 +294,7 @@ export function TranslationMetrics() {
   return (
     <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
       {/* Success Rate Gauge */}
-      <Card className="flex flex-col">
+      <TranslationSuccessCard>
         <CardHeader className="items-center pb-0">
           <div className="flex items-center justify-between w-full">
             <div>
@@ -378,7 +383,7 @@ export function TranslationMetrics() {
             </div>
           )}
         </CardFooter>
-      </Card>
+      </TranslationSuccessCard>
 
       {/* Response Time Chart */}
       <Card>

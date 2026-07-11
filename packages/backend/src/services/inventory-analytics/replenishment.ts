@@ -18,6 +18,7 @@ export interface ReplenishmentPlanRow {
   foodItemId: number;
   name: string;
   categoryName: string;
+  isInStock: boolean;
   estimatedQuantity: number | null;
   dailyBurn: number | null;
   daysOfCover: number | null;
@@ -34,9 +35,10 @@ export interface ReplenishmentPlanRow {
 export interface ReorderPriorityRow {
   foodItemId: number;
   name: string;
-  daysOfCover: number;
-  requiredUnits: number;
-  purchasesNeeded: number;
+  isInStock: boolean;
+  daysOfCover: number | null;
+  requiredUnits: number | null;
+  purchasesNeeded: number | null;
 }
 
 export interface CategorySpendRow {
@@ -83,6 +85,7 @@ export function buildReplenishment(
       foodItemId: item.foodItemId,
       name: item.name,
       categoryName: item.categoryName,
+      isInStock: item.isInStock,
       estimatedQuantity: item.estimatedQuantity,
       dailyBurn: item.dailyBurn,
       daysOfCover: item.daysOfCover,
@@ -99,8 +102,8 @@ export function buildReplenishment(
   // The plan surfaces items that need purchases first (soonest stockout at
   // the top), then incomplete rows so the gaps stay visible, then the rest.
   plan.sort((a, b) => {
-    const aNeeds = (a.requiredUnits ?? 0) > 0 ? 0 : a.missingInputs.length > 0 ? 1 : 2;
-    const bNeeds = (b.requiredUnits ?? 0) > 0 ? 0 : b.missingInputs.length > 0 ? 1 : 2;
+    const aNeeds = !a.isInStock ? 0 : (a.requiredUnits ?? 0) > 0 ? 1 : a.missingInputs.length > 0 ? 2 : 3;
+    const bNeeds = !b.isInStock ? 0 : (b.requiredUnits ?? 0) > 0 ? 1 : b.missingInputs.length > 0 ? 2 : 3;
     if (aNeeds !== bNeeds) return aNeeds - bNeeds;
     const aCover = a.daysOfCover ?? Infinity;
     const bCover = b.daysOfCover ?? Infinity;
@@ -108,28 +111,30 @@ export function buildReplenishment(
   });
 
   const needingPurchase = items.filter(
-    (item) => (item.requiredUnits ?? 0) > 0
+    (item) => !item.isInStock || (item.requiredUnits ?? 0) > 0
   );
 
-  // Chart 1: reorder priority — soonest-out items with a computable plan.
+  // Chart 1: reorder priority — out-of-stock items remain visible even
+  // when missing burn history prevents a numeric reorder calculation.
   const reorderPriority: ReorderPriorityRow[] = needingPurchase
-    .filter(
-      (item): item is ItemOutlook & { daysOfCover: number } =>
-        item.daysOfCover !== null
-    )
-    .sort((a, b) => a.daysOfCover - b.daysOfCover)
+    .sort((a, b) => {
+      if (a.isInStock !== b.isInStock) return a.isInStock ? 1 : -1;
+      return (a.daysOfCover ?? Infinity) - (b.daysOfCover ?? Infinity) ||
+        a.name.localeCompare(b.name);
+    })
     .slice(0, PRIORITY_ROW_LIMIT)
     .map((item) => ({
       foodItemId: item.foodItemId,
       name: item.name,
+      isInStock: item.isInStock,
       daysOfCover: item.daysOfCover,
-      requiredUnits: item.requiredUnits ?? 0,
-      purchasesNeeded: item.purchasesNeeded ?? 0,
+      requiredUnits: item.requiredUnits,
+      purchasesNeeded: item.purchasesNeeded,
     }));
 
   // Chart 2: projected paid spend by category (dollars aggregate).
   const spendByCategory = new Map<number, CategorySpendRow>();
-  for (const item of needingPurchase) {
+  for (const item of needingPurchase.filter((candidate) => candidate.requiredUnits !== null)) {
     const row = spendByCategory.get(item.categoryId) ?? {
       categoryId: item.categoryId,
       categoryName: item.categoryName,
@@ -154,7 +159,8 @@ export function buildReplenishment(
     itemsNeedingPurchase: needingPurchase.length,
     urgentItems: items.filter(
       (item) =>
-        item.daysOfCover !== null && item.daysOfCover <= URGENT_COVER_DAYS
+        !item.isInStock ||
+        (item.daysOfCover !== null && item.daysOfCover <= URGENT_COVER_DAYS)
     ).length,
     knownSpendCents: needingPurchase.reduce(
       (sum, item) =>
@@ -164,7 +170,7 @@ export function buildReplenishment(
       0
     ),
     donatedDemandItems: needingPurchase.filter(
-      (item) => item.priceType === 'donated'
+      (item) => item.requiredUnits !== null && item.priceType === 'donated'
     ).length,
     missingInputItems: plan.filter((row) => row.missingInputs.length > 0)
       .length,

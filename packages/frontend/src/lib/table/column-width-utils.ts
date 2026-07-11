@@ -98,6 +98,53 @@ export function getColumnWidthStyle(width: string): React.CSSProperties {
 }
 
 /**
+ * Recalculate widths from only the columns that remain visible on a compact
+ * table. Percentage widths calculated from the full desktop column set leave
+ * unused percentages behind when responsive columns are hidden; fixed columns
+ * then expand to consume that space. Subtracting each flexible column's share
+ * of the fixed pixel total keeps the final widths at exactly 100%.
+ */
+export function calculateVisibleColumnWidths(
+  columns: ColumnSizeConfig[]
+): Record<string, React.CSSProperties> {
+  const fixedColumns = columns.filter(
+    (column) => column.id === 'select' || column.id === 'actions' || column.isFixed
+  )
+  const flexibleColumns = columns.filter(
+    (column) => column.id !== 'select' && column.id !== 'actions' && !column.isFixed
+  )
+  const fixedWidth = (column: ColumnSizeConfig) => {
+    if (column.id === 'select') return Number.parseInt(FIXED_COLUMN_WIDTHS.selection, 10)
+    if (column.id === 'actions') return Number.parseInt(FIXED_COLUMN_WIDTHS.actions, 10)
+    return column.size
+  }
+  const fixedTotal = fixedColumns.reduce(
+    (total, column) => total + fixedWidth(column),
+    0
+  )
+  const flexibleTotal = flexibleColumns.reduce(
+    (total, column) => total + column.size,
+    0
+  )
+  const styles: Record<string, React.CSSProperties> = {}
+
+  fixedColumns.forEach((column) => {
+    const width = `${fixedWidth(column)}px`
+    styles[column.id] = getColumnWidthStyle(width)
+  })
+
+  flexibleColumns.forEach((column) => {
+    const ratio = flexibleTotal === 0 ? 0 : column.size / flexibleTotal
+    const percentage = ratio * 100
+    const fixedShare = ratio * fixedTotal
+    const width = `calc(${percentage.toFixed(2)}% - ${fixedShare.toFixed(2)}px)`
+    styles[column.id] = getColumnWidthStyle(width)
+  })
+
+  return styles
+}
+
+/**
  * Generate CSS classes for proper text truncation in table cells
  */
 export function getTruncationClasses(): string {

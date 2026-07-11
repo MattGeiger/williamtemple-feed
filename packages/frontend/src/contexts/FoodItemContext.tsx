@@ -6,7 +6,7 @@
 // not covered by this license; see TRADEMARKS.md.
 
 import React, { createContext, useContext } from 'react';
-import { FoodItem, StatusMessage, DietaryFlags, StatusFlags, FoodItemLogistics } from '@/types/food-item';
+import { FoodItem, StatusMessage, DietaryFlags, StatusFlags, FoodItemSupply } from '@/types/food-item';
 import { useFoodItemData } from '@/hooks/food-item/useFoodData';
 
 interface FoodItemContextType {
@@ -22,7 +22,7 @@ interface FoodItemContextType {
     categoryId: number;
     statusFlags: StatusFlags;
     dietaryFlags: DietaryFlags;
-    logisticsUpdate?: FoodItemLogistics;
+    supplyUpdate?: FoodItemSupply;
   }) => Promise<FoodItem>;
   updateFoodItem: (data: {
     id: number;
@@ -32,7 +32,7 @@ interface FoodItemContextType {
     categoryId: number;
     statusFlags: StatusFlags;
     dietaryFlags: DietaryFlags;
-    logisticsUpdate?: FoodItemLogistics;
+    supplyUpdate?: FoodItemSupply;
   }) => Promise<FoodItem>;
   deleteFoodItem: (id: number) => Promise<void>;
   bulkUpdateFoodItems: (

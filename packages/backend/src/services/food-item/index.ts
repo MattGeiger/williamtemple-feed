@@ -6,7 +6,8 @@
 // not covered by this license; see TRADEMARKS.md.
 
 /**
- * Centralized food-item mutation service (docs/reports/logistics.md §1).
+ * Centralized food-item mutation service
+ * (docs/reports/operational-analytics-design.md).
  *
  * All FoodItem writes flow through here so that (a) the stock/count
  * consistency rules in `stock-consistency.ts` apply on every pathway and
@@ -38,10 +39,9 @@ export type InventoryEventKind =
   | 'updated'
   | 'deleted';
 
-export interface LogisticsRequest {
-  purchasePriceCents?: number | null;
-  unitsPerPurchase?: number;
+export interface SupplyRequest {
   estimatedQuantity?: number | null;
+  supplySource?: 'donated' | 'purchased' | 'mixed_other' | null;
   /** True when the request explicitly carried an estimatedQuantity key. */
   estimatedQuantityProvided: boolean;
 }
@@ -53,7 +53,7 @@ export interface CreateFoodItemInput {
   categoryId: number;
   statusFlags?: Partial<StatusFlags>;
   dietaryFlags?: Partial<DietaryFlags>;
-  logistics?: LogisticsRequest;
+  supply?: SupplyRequest;
 }
 
 export interface UpdateFoodItemInput {
@@ -63,7 +63,7 @@ export interface UpdateFoodItemInput {
   categoryId?: number;
   statusFlags?: Partial<StatusFlags>;
   dietaryFlags?: Partial<DietaryFlags>;
-  logistics?: LogisticsRequest;
+  supply?: SupplyRequest;
 }
 
 type FoodItemWithCategory = Prisma.FoodItemGetPayload<{
@@ -82,16 +82,28 @@ const trackedState = (item: FoodItemWithCategory): TrackedItemState => ({
   isInStock: item.isInStock,
   isLimited: item.isLimited,
   isClearance: item.isClearance,
-  purchasePriceCents: item.purchasePriceCents,
-  unitsPerPurchase: item.unitsPerPurchase,
+  limit: item.limit,
+  limitType: item.limitType,
   estimatedQuantity: item.estimatedQuantity,
+  supplySource: item.supplySource,
 });
 
 const ALL_RECORD_FLAGS: EventRecordFlags = {
   recordsQuantity: true,
-  recordsPrice: true,
+  recordsSupply: true,
   recordsStatus: true,
+  recordsLimit: true,
   recordsIdentity: true,
+};
+
+// A deletion preserves the final state for historical lifetime boundaries,
+// but it is not itself a quantity, price, status, or identity observation.
+const NO_RECORD_FLAGS: EventRecordFlags = {
+  recordsQuantity: false,
+  recordsSupply: false,
+  recordsStatus: false,
+  recordsLimit: false,
+  recordsIdentity: false,
 };
 
 async function writeInventoryEvent(
@@ -114,9 +126,10 @@ async function writeInventoryEvent(
       isInStock: item.isInStock,
       isLimited: item.isLimited,
       isClearance: item.isClearance,
-      purchasePriceCents: item.purchasePriceCents,
-      unitsPerPurchase: item.unitsPerPurchase,
+      limit: item.limit,
+      limitType: item.limitType,
       estimatedQuantity: item.estimatedQuantity,
+      supplySource: item.supplySource,
       eventKind,
       ...flags,
     },
@@ -134,9 +147,7 @@ async function requireCategory(tx: Tx, categoryId: number) {
 /**
  * Create a food item plus its 'created' ledger event.
  *
- * New-item logistics defaults: $0.00 Donated/Free, 1 (Each) per purchase,
- * Unknown quantity — then the consistency rules run (e.g. an item created
- * as Out of Stock gets quantity 0).
+ * New-item Supply defaults are Unknown quantity and Unknown source.
  */
 export async function createFoodItemWithEvent(
   input: CreateFoodItemInput,
@@ -147,8 +158,8 @@ export async function createFoodItemWithEvent(
 
     const resolved = resolveStockAndQuantity(
       {
-        // A brand-new item has no prior state; treat the request itself as
-        // authoritative and only normalize contradictions (qty 0 ⇒ out).
+        // A brand-new item has no prior state; treat the requested availability
+        // and optional quantity as independent annotations.
         isInStock: input.statusFlags?.isInStock ?? true,
         isLimited: input.statusFlags?.isLimited ?? false,
         isClearance: input.statusFlags?.isClearance ?? false,
@@ -156,9 +167,9 @@ export async function createFoodItemWithEvent(
       },
       {
         statusFlags: input.statusFlags,
-        estimatedQuantity: input.logistics?.estimatedQuantity ?? null,
+        estimatedQuantity: input.supply?.estimatedQuantity ?? null,
         estimatedQuantityProvided:
-          input.logistics?.estimatedQuantityProvided ?? false,
+          input.supply?.estimatedQuantityProvided ?? false,
       }
     );
 
@@ -174,8 +185,7 @@ export async function createFoodItemWithEvent(
         isLimited: resolved.isLimited,
         isClearance: resolved.isClearance,
         estimatedQuantity: resolved.estimatedQuantity,
-        purchasePriceCents: input.logistics?.purchasePriceCents ?? 0,
-        unitsPerPurchase: input.logistics?.unitsPerPurchase ?? 1,
+        supplySource: input.supply?.supplySource ?? null,
         vegan: input.dietaryFlags?.vegan ?? false,
         vegetarian: input.dietaryFlags?.vegetarian ?? false,
         glutenFree: input.dietaryFlags?.glutenFree ?? false,
@@ -200,7 +210,7 @@ export interface UpdateFoodItemResult {
 
 /**
  * Update a food item; writes an 'updated' ledger event only when a tracked
- * dimension (quantity, price, status, identity) effectively changed.
+ * operational dimension effectively changed.
  */
 export async function updateFoodItemWithEvent(
   id: number,
@@ -221,9 +231,9 @@ export async function updateFoodItemWithEvent(
 
     const resolved = resolveStockAndQuantity(trackedState(existing), {
       statusFlags: input.statusFlags,
-      estimatedQuantity: input.logistics?.estimatedQuantity,
+      estimatedQuantity: input.supply?.estimatedQuantity,
       estimatedQuantityProvided:
-        input.logistics?.estimatedQuantityProvided ?? false,
+        input.supply?.estimatedQuantityProvided ?? false,
     });
 
     const data: Prisma.FoodItemUpdateInput = {
@@ -243,13 +253,8 @@ export async function updateFoodItemWithEvent(
     if (input.categoryId !== undefined) {
       data.category = { connect: { id: input.categoryId } };
     }
-    if (input.logistics) {
-      if (input.logistics.purchasePriceCents !== undefined) {
-        data.purchasePriceCents = input.logistics.purchasePriceCents;
-      }
-      if (input.logistics.unitsPerPurchase !== undefined) {
-        data.unitsPerPurchase = input.logistics.unitsPerPurchase;
-      }
+    if (input.supply?.supplySource !== undefined) {
+      data.supplySource = input.supply.supplySource;
     }
     if (input.dietaryFlags) {
       data.vegan = input.dietaryFlags.vegan ?? existing.vegan;
@@ -382,7 +387,7 @@ export async function deleteFoodItemWithEvent(
     if (!existing) {
       throw routeError('Food item not found', 404);
     }
-    await writeInventoryEvent(tx, existing, 'deleted', ALL_RECORD_FLAGS, {
+    await writeInventoryEvent(tx, existing, 'deleted', NO_RECORD_FLAGS, {
       detached: true,
     });
     await tx.foodItem.delete({ where: { id } });
@@ -404,7 +409,7 @@ export async function bulkDeleteFoodItemsWithEvents(
       throw routeError('One or more food items not found', 404);
     }
     for (const item of existingItems) {
-      await writeInventoryEvent(tx, item, 'deleted', ALL_RECORD_FLAGS, {
+      await writeInventoryEvent(tx, item, 'deleted', NO_RECORD_FLAGS, {
         detached: true,
       });
     }

@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { FoodItemForm } from './form/FoodItemForm'
-import { StatusFlags, DietaryFlags, FoodItemLogistics } from '@/types/food-item'
+import { StatusFlags, DietaryFlags, FoodItemSupply } from '@/types/food-item'
 import { LimitType } from '@/types/category'
 
 interface AddDialogProps {
@@ -28,7 +28,7 @@ interface AddDialogProps {
     categoryId: number
     statusFlags: StatusFlags
     dietaryFlags: DietaryFlags
-    logistics: FoodItemLogistics
+    supply: FoodItemSupply
   }) => Promise<boolean>
   isLoading?: boolean
   initialCategoryId?: number
@@ -48,7 +48,7 @@ export function AddFoodItemDialog({
     categoryId: number
     statusFlags: StatusFlags
     dietaryFlags: DietaryFlags
-    logistics: FoodItemLogistics
+    supply: FoodItemSupply
   }) => {
     const success = await onSave(data);
     // Only close the dialog on successful save

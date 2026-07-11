@@ -6,7 +6,7 @@
 // not covered by this license; see TRADEMARKS.md.
 
 import React, { useEffect } from 'react'
-import { FoodItem, DietaryFlags, StatusFlags, FoodItemLogistics } from "@/types/food-item"
+import { FoodItem, DietaryFlags, StatusFlags, FoodItemSupply } from "@/types/food-item"
 import { useFoodItemContext } from '@/contexts/FoodItemContext'
 import { useDialogState } from '@/hooks/dialog/useDialogState'
 import { FoodItemList } from './FoodItemList'
@@ -73,8 +73,10 @@ function FoodItemContent() {
   const deleteDialog = useDialogState<FoodItem>()
   const addDialog = useDialogState()
 
-  // Handle food item update
-  const handleUpdate = async (updatedItem: FoodItem) => {
+  // Quick status actions never supply optional Supply annotations.
+  const handleUpdate = async (
+    updatedItem: FoodItem & { supplyUpdate?: FoodItemSupply }
+  ) => {
     try {
       await updateFoodItem(updatedItem)
       await refreshFoodItems()
@@ -92,15 +94,13 @@ function FoodItemContent() {
     categoryId: number;
     statusFlags: StatusFlags;
     dietaryFlags: DietaryFlags;
-    logistics?: FoodItemLogistics;
+    supply?: FoodItemSupply;
   }) => {
     try {
       await createFoodItem({
         ...data,
         categoryId: parseInt(data.categoryId.toString(), 10),
-        // The form's logistics block is passed explicitly; see the
-        // `logisticsUpdate` naming note in services/food-item.
-        logisticsUpdate: data.logistics
+        supplyUpdate: data.supply
       });
       await refreshFoodItems(); // Force refresh to get latest data
       showMessage('Food item created successfully', 'success');
@@ -133,9 +133,7 @@ function FoodItemContent() {
         categoryId: updatedFoodItem.categoryId!,
         statusFlags: updatedFoodItem.statusFlags!,
         dietaryFlags: updatedFoodItem.dietaryFlags!,
-        // The edit form always submits a full logistics block, so this save
-        // counts as a real quantity observation (or explicit Unknown).
-        logisticsUpdate: updatedFoodItem.logistics,
+        supplyUpdate: updatedFoodItem.supply,
       });
       await refreshFoodItems(); // Force refresh
       showMessage('Food item updated successfully', 'success');

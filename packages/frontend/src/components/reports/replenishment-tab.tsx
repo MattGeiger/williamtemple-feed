@@ -40,7 +40,7 @@ import {
 } from "./shared";
 import { SelectableBlock } from "./selection";
 
-const priorityConfig = seriesChartConfig("daysOfCover", "Days of cover", 3);
+const priorityConfig = seriesChartConfig("priorityValue", "Days of cover", 3);
 const spendConfig = seriesChartConfig("knownSpendCents", "Known spend (¢)", 0);
 
 const MISSING_INPUT_LABELS: Record<
@@ -121,19 +121,29 @@ export function ReplenishmentTab(props: ReportTabProps<ReplenishmentResult>) {
                   </p>
                 ) : (
                   <ChartContainer config={priorityConfig} className="h-64 w-full">
-                    <BarChart data={result.reorderPriority} layout="vertical">
+                    <BarChart
+                      data={result.reorderPriority.map((row) => ({
+                        ...row,
+                        displayName: row.isInStock ? row.name : `${row.name} (Out)`,
+                        // Out-of-stock is a real zero-stock urgency signal;
+                        // daysOfCover remains null in the canonical data when
+                        // burn history is insufficient.
+                        priorityValue: row.isInStock ? row.daysOfCover : 0,
+                      }))}
+                      layout="vertical"
+                    >
                       <CartesianGrid horizontal={false} />
                       <XAxis type="number" tickLine={false} axisLine={false} />
                       <YAxis
                         type="category"
-                        dataKey="name"
+                        dataKey="displayName"
                         tickLine={false}
                         axisLine={false}
                         width={130}
                         fontSize={12}
                       />
                       <ChartTooltip content={<ChartTooltipContent />} />
-                      <Bar dataKey="daysOfCover" fill="var(--color-daysOfCover)" radius={4} />
+                      <Bar dataKey="priorityValue" fill="var(--color-priorityValue)" radius={4} />
                     </BarChart>
                   </ChartContainer>
                 )}
@@ -202,6 +212,11 @@ export function ReplenishmentTab(props: ReportTabProps<ReplenishmentResult>) {
 
 const planColumns: ColumnDef<ReplenishmentPlanRow>[] = [
   { accessorKey: "name", header: "Name" },
+  {
+    accessorKey: "isInStock",
+    header: "Status",
+    cell: ({ row }) => row.original.isInStock ? "In Stock" : "Out of Stock",
+  },
   { accessorKey: "categoryName", header: "Category" },
   {
     accessorKey: "estimatedQuantity",
