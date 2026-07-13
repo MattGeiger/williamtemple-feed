@@ -69,17 +69,41 @@ vi.mock('@/services/operational-reports', () => ({
   },
 }));
 
+// The embedded dashboard Inventory Distribution card fetches via react-query;
+// mock its data hook so the workspace renders without a QueryClientProvider.
+vi.mock('@/hooks/dashboard/useInventoryChartData', () => ({
+  useInventoryChartData: () => ({
+    distribution: [
+      { status: 'inStock', items: 30, fill: '#22c55e' },
+      { status: 'outOfStock', items: 10, fill: '#ef4444' },
+    ],
+    totalItems: 40,
+    isLoading: false,
+    error: null,
+  }),
+}));
+
 describe('OperationalReportsWorkspace tooltips and layout', () => {
   test('KPI labels expose plain-language explanations on focus/hover', async () => {
     render(<OperationalReportsWorkspace />);
 
-    const label = await screen.findByText('Available Now');
+    const label = await screen.findByText('Tracked Availability');
     fireEvent.focus(label);
 
     const tooltips = await screen.findAllByText(
-      /Tracked items currently in stock, including items marked Limited Supply or Clearance\./
+      /Availability across the whole selected period/
     );
     expect(tooltips.length).toBeGreaterThan(0);
+  });
+
+  test('the top row pairs Inventory Distribution with the trimmed summary', async () => {
+    render(<OperationalReportsWorkspace />);
+
+    expect(await screen.findByText('Inventory Distribution')).toBeTruthy();
+    expect(screen.getByText('Current stock status overview')).toBeTruthy();
+    // The four "now" status counts moved into the distribution card.
+    expect(screen.queryByText('Available Now')).toBeNull();
+    expect(screen.queryByText('Unavailable Now')).toBeNull();
   });
 
   test('the correction-sampling description explains the five-minute window', async () => {
@@ -100,10 +124,6 @@ describe('OperationalReportsWorkspace tooltips and layout', () => {
     render(<OperationalReportsWorkspace />);
 
     for (const label of [
-      'Available Now',
-      'Unavailable Now',
-      'Limited Supply',
-      'Clearance',
       'Tracked Availability',
       'Item Limits',
       'Category Limits',
@@ -136,7 +156,7 @@ describe('OperationalReportsWorkspace tooltips and layout', () => {
 
   test('page wrapper matches the established section layout (w-full pt-6)', async () => {
     const { container } = render(<OperationalReportsWorkspace />);
-    await screen.findByText('Available Now');
+    await screen.findByText('Tracked Availability');
 
     const wrapper = container.firstElementChild as HTMLElement;
     expect(wrapper.className).toContain('pt-6');
