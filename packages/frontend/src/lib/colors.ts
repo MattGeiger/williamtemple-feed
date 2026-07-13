@@ -80,6 +80,113 @@ export function getChartStatusColor(status: StatusColor, scheme: ColorScheme = '
   return chartColors.status[scheme][status];
 }
 
+/**
+ * IBM Carbon Design System data-visualization palette.
+ *
+ * Carbon's colors meet WCAG 2.1 contrast requirements for data viz
+ * (3.5:1 minimum), are tested for deuteranopia/protanopia/tritanopia,
+ * and pair each light value with an equivalent-weight dark variant:
+ * - https://medium.com/carbondesign/color-palettes-and-accessibility-features-for-data-visualization-7869f4874fca
+ * - https://v10.carbondesignsystem.com/guidelines/accessibility/color/
+ *
+ * Ten hue families, two grades each. Light mode uses mid grades
+ * (50/60-range tokens); dark mode uses lighter grades (30/40-range) for
+ * visibility on dark backgrounds. For multi-series charts, pick
+ * non-adjacent hue families rather than walking one family's grades —
+ * {@link CARBON_CATEGORICAL_ORDER} encodes that ordering.
+ */
+export type CarbonFamily =
+  | 'blue' | 'cyan' | 'teal' | 'green' | 'magenta'
+  | 'purple' | 'red' | 'orange' | 'yellow' | 'warmGray';
+export type CarbonGrade = 'primary' | 'secondary';
+
+export const carbonChartColors: Record<
+  CarbonFamily,
+  Record<CarbonGrade, Record<ColorScheme, string>>
+> = {
+  blue: {
+    primary: { light: '#0f62fe', dark: '#78a9ff' },
+    secondary: { light: '#0043ce', dark: '#a6c8ff' },
+  },
+  cyan: {
+    primary: { light: '#1192e8', dark: '#33b1ff' },
+    secondary: { light: '#0072c3', dark: '#82cfff' },
+  },
+  teal: {
+    primary: { light: '#009d9a', dark: '#3ddbd9' },
+    secondary: { light: '#007d79', dark: '#9ef0f0' },
+  },
+  green: {
+    primary: { light: '#24a148', dark: '#42be65' },
+    secondary: { light: '#198038', dark: '#6fdc8c' },
+  },
+  magenta: {
+    primary: { light: '#ee5396', dark: '#ff7eb6' },
+    secondary: { light: '#d02670', dark: '#ffafd2' },
+  },
+  purple: {
+    primary: { light: '#a56eff', dark: '#be95ff' },
+    secondary: { light: '#8a3ffc', dark: '#d4bbff' },
+  },
+  red: {
+    primary: { light: '#fa4d56', dark: '#ff8389' },
+    secondary: { light: '#da1e28', dark: '#ffb3b8' },
+  },
+  orange: {
+    primary: { light: '#ff832b', dark: '#ffb784' },
+    secondary: { light: '#eb6200', dark: '#ffd9be' },
+  },
+  yellow: {
+    primary: { light: '#f1c21b', dark: '#fddc69' },
+    secondary: { light: '#d2a106', dark: '#fcf4d6' },
+  },
+  warmGray: {
+    primary: { light: '#8f8b8b', dark: '#cac5c4' },
+    secondary: { light: '#726e6e', dark: '#e5e0df' },
+  },
+} as const;
+
+/**
+ * Hue-hopping order for categorical series: each family sits far from its
+ * neighbors on the color wheel, so adjacent chart series stay
+ * distinguishable (including under color-vision deficiency).
+ */
+export const CARBON_CATEGORICAL_ORDER: readonly CarbonFamily[] = [
+  'blue', 'magenta', 'teal', 'orange', 'purple',
+  'green', 'yellow', 'cyan', 'red', 'warmGray',
+];
+
+export function getCarbonChartColor(
+  family: CarbonFamily,
+  grade: CarbonGrade = 'primary',
+  scheme: ColorScheme = 'light'
+): string {
+  return carbonChartColors[family][grade][scheme];
+}
+
+/** ChartConfig-ready light/dark theme for a Carbon family. */
+export function carbonTheme(
+  family: CarbonFamily,
+  grade: CarbonGrade = 'primary'
+): Record<ColorScheme, string> {
+  return {
+    light: carbonChartColors[family][grade].light,
+    dark: carbonChartColors[family][grade].dark,
+  };
+}
+
+/**
+ * Nth categorical series color: first cycle uses each family's primary
+ * grade, second cycle the secondary grade (20 distinct colors total).
+ */
+export function carbonCategoricalTheme(index: number): Record<ColorScheme, string> {
+  const families = CARBON_CATEGORICAL_ORDER;
+  const family = families[index % families.length];
+  const grade: CarbonGrade =
+    Math.floor(index / families.length) % 2 === 0 ? 'primary' : 'secondary';
+  return carbonTheme(family, grade);
+}
+
 export const chartConfigPresets = {
   categoryChart: {
     items: {
