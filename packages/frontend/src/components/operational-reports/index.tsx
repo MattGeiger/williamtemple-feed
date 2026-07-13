@@ -16,6 +16,7 @@ import {
 import { Download } from 'lucide-react';
 
 import { ArrowUpDown } from '@/components/ui/icons';
+import { InventoryChart } from '@/components/dashboard/inventory-chart';
 import { SectionHeader } from '@/components/shared/section-header';
 import { createPageTitleIcon } from '@/components/layout/page-title-icon';
 import { FileChartColumnIcon } from '@/components/ui/file-chart-column';
@@ -101,14 +102,6 @@ const pressureConfig = {
 // as hover tooltips. Keep these aligned with the backend definitions in
 // packages/backend/src/services/operational-analytics.
 const KPI_HELP: Record<string, string> = {
-  'Available Now':
-    'Tracked items currently in stock, including items marked Limited Supply or Clearance.',
-  'Unavailable Now':
-    'Tracked items currently out of stock.',
-  'Limited Supply':
-    'In-stock items staff have flagged as Limited Supply (supply pressure recorded, item still available).',
-  'Clearance':
-    'In-stock items staff have flagged as Clearance.',
   'Tracked Availability':
     'Availability across the whole selected period: of all the days each tracked item could have been available, the share it actually was.',
   'Item Limits':
@@ -213,44 +206,46 @@ export function OperationalReportsWorkspace() {
         </div>
       ) : result ? (
         <>
-          <Card className="min-w-0">
-            <CardHeader className="flex flex-col items-start justify-between gap-2 space-y-0 sm:flex-row">
-              <div>
-                <CardTitle>Availability Summary</CardTitle>
-                <CardDescription>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <span tabIndex={0} className="w-fit cursor-help">
-                        Five-minute correction sampling; raw events remain exportable
-                      </span>
-                    </TooltipTrigger>
-                    <TooltipContent className="max-w-72">
-                      When the same item is edited several times within five
-                      minutes, reports count only the final result, so quick
-                      fixes to a mistake don&apos;t read as real activity.
-                      Every edit is still saved and included in raw exports.
-                    </TooltipContent>
-                  </Tooltip>
-                </CardDescription>
-              </div>
-              <CsvButton cardId="availability-summary" onExport={exportCard} />
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-                <Kpi label="Available Now" value={String(result.summary.availableNow)} />
-                <Kpi label="Unavailable Now" value={String(result.summary.unavailableNow)} />
-                <Kpi label="Limited Supply" value={String(result.summary.limitedSupplyNow)} />
-                <Kpi label="Clearance" value={String(result.summary.clearanceNow)} />
-                <Kpi label="Tracked Availability" value={formatPercent(result.summary.trackedAvailabilityPercent)} />
-                <Kpi label="Item Limits" value={String(result.summary.itemRationedNow)} />
-                <Kpi label="Category Limits" value={String(result.summary.categoryRationedNow)} />
-                <Kpi
-                  label="Median Restoration"
-                  value={result.summary.medianRestorationHours === null ? 'Unknown' : formatDuration(result.summary.medianRestorationHours)}
-                />
-              </div>
-            </CardContent>
-          </Card>
+          <div className="grid min-w-0 gap-4 md:grid-cols-2">
+            {/* Current stock status lives in the shared dashboard card; the
+                summary card keeps the range-based and rationing KPIs. */}
+            <InventoryChart />
+
+            <Card className="min-w-0 h-full">
+              <CardHeader className="flex flex-col items-start justify-between gap-2 space-y-0 sm:flex-row">
+                <div>
+                  <CardTitle>Availability Summary</CardTitle>
+                  <CardDescription>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span tabIndex={0} className="w-fit cursor-help">
+                          Five-minute correction sampling; raw events remain exportable
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-72">
+                        When the same item is edited several times within five
+                        minutes, reports count only the final result, so quick
+                        fixes to a mistake don&apos;t read as real activity.
+                        Every edit is still saved and included in raw exports.
+                      </TooltipContent>
+                    </Tooltip>
+                  </CardDescription>
+                </div>
+                <CsvButton cardId="availability-summary" onExport={exportCard} />
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 gap-4">
+                  <Kpi label="Tracked Availability" value={formatPercent(result.summary.trackedAvailabilityPercent)} />
+                  <Kpi label="Item Limits" value={String(result.summary.itemRationedNow)} />
+                  <Kpi label="Category Limits" value={String(result.summary.categoryRationedNow)} />
+                  <Kpi
+                    label="Median Restoration"
+                    value={result.summary.medianRestorationHours === null ? 'Unknown' : formatDuration(result.summary.medianRestorationHours)}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
 
           <div className="grid min-w-0 gap-4 md:grid-cols-2">
             <Card className="min-w-0">
