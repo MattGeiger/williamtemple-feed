@@ -61,7 +61,12 @@ import {
   RationedLimitSeries,
   UnavailableEpisode,
 } from '@/types/operational-reports';
-import { getChartColor, getChartStatusColor } from '@/lib/colors';
+import {
+  CARBON_CATEGORICAL_ORDER,
+  CarbonFamily,
+  carbonTheme,
+  getChartStatusColor,
+} from '@/lib/colors';
 
 const PageTitleReportsIcon = createPageTitleIcon(FileChartColumnIcon);
 
@@ -83,19 +88,35 @@ const availabilityConfig = {
   },
 } satisfies ChartConfig;
 
+// Operational Pressure uses the IBM Carbon data-viz palette (see
+// carbonChartColors in @/lib/colors): WCAG-compliant, color-blind tested,
+// with equal-weight dark variants. Limited Supply keeps a warning-adjacent
+// orange and Clearance a fixed purple; the adaptive limit series draw from
+// the remaining hue families so every line stays distinct.
 const basePressureConfig = {
   limitedSupply: {
     label: 'Limited Supply',
-    theme: {
-      light: getChartStatusColor('warning', 'light'),
-      dark: getChartStatusColor('warning', 'dark'),
-    },
+    theme: carbonTheme('orange'),
   },
   clearance: {
     label: 'Clearance',
-    theme: { light: getChartColor(2, 'light'), dark: getChartColor(2, 'dark') },
+    theme: carbonTheme('purple'),
   },
 } satisfies ChartConfig;
+
+const PRESSURE_SERIES_FAMILIES: readonly CarbonFamily[] =
+  CARBON_CATEGORICAL_ORDER.filter(
+    (family) => family !== 'orange' && family !== 'purple'
+  );
+
+const pressureSeriesTheme = (index: number) => {
+  const family = PRESSURE_SERIES_FAMILIES[index % PRESSURE_SERIES_FAMILIES.length];
+  const grade =
+    Math.floor(index / PRESSURE_SERIES_FAMILIES.length) % 2 === 0
+      ? ('primary' as const)
+      : ('secondary' as const);
+  return carbonTheme(family, grade);
+};
 
 // ChartContainer turns config keys into CSS variables, so the series key
 // "1|household" needs a variable-safe form.
@@ -115,10 +136,7 @@ export function buildPressureChart(result: OperationalAnalyticsResult) {
   result.rationedLimitSeries.forEach((series, index) => {
     config[limitSeriesChartKey(series)] = {
       label: limitSeriesLabel(series),
-      theme: {
-        light: getChartColor(3 + index, 'light'),
-        dark: getChartColor(3 + index, 'dark'),
-      },
+      theme: pressureSeriesTheme(index),
     };
   });
   const data = result.timeline.map((point) => ({
