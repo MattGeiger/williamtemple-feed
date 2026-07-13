@@ -87,7 +87,20 @@ export interface AvailabilityTimelinePoint {
   limitedSupply: number;
   clearance: number;
   itemRationed: number;
+  /**
+   * Rationed-item counts keyed by limit configuration ("<limit>|<limitType>",
+   * e.g. "1|household"). Every key in {@link OperationalAnalyticsResult.rationedLimitSeries}
+   * is present on every point (zero-filled) so chart lines stay continuous.
+   */
+  rationedByLimit: Record<string, number>;
   availabilityPercent: number | null;
+}
+
+/** One distinct limit configuration observed in the range's timeline. */
+export interface RationedLimitSeries {
+  key: string;
+  limit: number;
+  limitType: string;
 }
 
 export interface UnavailableEpisode {
@@ -134,6 +147,8 @@ export interface OperationalAnalyticsResult {
     medianRestorationHours: number | null;
   };
   timeline: AvailabilityTimelinePoint[];
+  /** Distinct limit configurations in the timeline, ordered by type then limit. */
+  rationedLimitSeries: RationedLimitSeries[];
   episodes: UnavailableEpisode[];
   limitChanges: LimitChange[];
   sampledStatusEventIds: number[];
@@ -261,6 +276,12 @@ export async function computeOperationalAnalytics(
       // Dates before the first baseline are untracked, not zero-availability
       // observations. Omit them from both charts and item-day denominators.
       if (statuses.length > 0) {
+        const rationedByLimit: Record<string, number> = {};
+        for (const event of limits) {
+          if (event.limit === NO_LIMIT_SENTINEL) continue;
+          const key = `${event.limit}|${event.limitType}`;
+          rationedByLimit[key] = (rationedByLimit[key] ?? 0) + 1;
+        }
         timeline.push({
           date,
           trackedItems: statuses.length,
@@ -269,12 +290,32 @@ export async function computeOperationalAnalytics(
           limitedSupply: statuses.filter((event) => event.isLimited).length,
           clearance: statuses.filter((event) => event.isClearance).length,
           itemRationed: limits.filter((event) => event.limit !== NO_LIMIT_SENTINEL).length,
+          rationedByLimit,
           availabilityPercent: (available / statuses.length) * 100,
         });
       }
     }
     date = shiftLocalDate(date, 1);
     if (localDateStartUtc(date, range.timeZone) >= analysisEnd) break;
+  }
+
+  // The chart draws one line per limit configuration seen anywhere in the
+  // range; zero-fill every point so a configuration that appears mid-range
+  // still plots a continuous line (and CSV rows stay rectangular).
+  const rationedLimitSeries: RationedLimitSeries[] = [
+    ...new Set(timeline.flatMap((point) => Object.keys(point.rationedByLimit))),
+  ]
+    .map((key) => {
+      const [limit, limitType] = key.split('|');
+      return { key, limit: Number(limit), limitType };
+    })
+    .sort(
+      (a, b) => a.limitType.localeCompare(b.limitType) || a.limit - b.limit
+    );
+  for (const point of timeline) {
+    for (const series of rationedLimitSeries) {
+      point.rationedByLimit[series.key] ??= 0;
+    }
   }
 
   const episodes: UnavailableEpisode[] = [];
@@ -440,6 +481,7 @@ export async function computeOperationalAnalytics(
       medianRestorationHours: median(restorationDurations),
     },
     timeline,
+    rationedLimitSeries,
     episodes: episodes.sort((a, b) => b.startedAt.localeCompare(a.startedAt)),
     limitChanges,
     sampledStatusEventIds: [...sampledStatusIds],

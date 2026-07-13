@@ -18,7 +18,16 @@ export interface AvailabilityTimelinePoint {
   limitedSupply: number;
   clearance: number;
   itemRationed: number;
+  /** Rationed-item counts keyed by "<limit>|<limitType>", zero-filled. */
+  rationedByLimit: Record<string, number>;
   availabilityPercent: number | null;
+}
+
+/** One distinct limit configuration observed in the timeline. */
+export interface RationedLimitSeries {
+  key: string;
+  limit: number;
+  limitType: string;
 }
 
 export interface UnavailableEpisode {
@@ -61,6 +70,7 @@ export interface OperationalAnalyticsResult {
     medianRestorationHours: number | null;
   };
   timeline: AvailabilityTimelinePoint[];
+  rationedLimitSeries: RationedLimitSeries[];
   episodes: UnavailableEpisode[];
   limitChanges: LimitChange[];
 }
