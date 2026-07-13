@@ -191,6 +191,29 @@ describe('OperationalReportsWorkspace tooltips and layout', () => {
     expect(point['limit_2_person']).toBe(1);
   });
 
+  test('every pressure line gets a distinct Carbon color in both schemes', () => {
+    // Eight series exhausts the primary-grade pool (ten Carbon families
+    // minus the orange/purple reserved for Limited Supply and Clearance).
+    const chart = buildPressureChart({
+      ...result,
+      rationedLimitSeries: Array.from({ length: 8 }, (_, i) => ({
+        key: `${i + 1}|household`,
+        limit: i + 1,
+        limitType: 'household',
+      })),
+      timeline: [],
+    });
+
+    for (const scheme of ['light', 'dark'] as const) {
+      const colors = Object.values(chart.config).map(
+        (entry) => (entry as { theme: Record<string, string> }).theme[scheme]
+      );
+      // 2 base lines + 8 series, no color reused.
+      expect(colors).toHaveLength(10);
+      expect(new Set(colors).size).toBe(10);
+    }
+  });
+
   test('limit series labels read as rationing policy', () => {
     expect(limitSeriesLabel({ key: '1|household', limit: 1, limitType: 'household' })).toBe('1 Per Household');
     expect(limitSeriesLabel({ key: '3|person', limit: 3, limitType: 'person' })).toBe('3 Per Person');
