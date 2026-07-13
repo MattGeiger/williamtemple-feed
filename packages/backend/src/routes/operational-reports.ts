@@ -88,7 +88,6 @@ function cardCsv(cardId: typeof CARD_IDS[number], result: OperationalAnalyticsRe
         ]]
       );
     case 'availability-over-time':
-    case 'operational-pressure':
       return csv(
         [
           'date', 'tracked_items', 'available', 'unavailable',
@@ -99,6 +98,24 @@ function cardCsv(cardId: typeof CARD_IDS[number], result: OperationalAnalyticsRe
           point.date, point.trackedItems, point.available, point.unavailable,
           point.limitedSupply, point.clearance, point.itemRationed,
           point.availabilityPercent,
+        ])
+      );
+    case 'operational-pressure':
+      // One column per limit configuration, mirroring the chart's lines.
+      return csv(
+        [
+          'date', 'tracked_items', 'limited_supply', 'clearance',
+          'item_rationed',
+          ...result.rationedLimitSeries.map(
+            (series) => `item_limit_${series.limit}_per_${series.limitType}`
+          ),
+        ],
+        result.timeline.map((point) => [
+          point.date, point.trackedItems, point.limitedSupply,
+          point.clearance, point.itemRationed,
+          ...result.rationedLimitSeries.map(
+            (series) => point.rationedByLimit[series.key] ?? 0
+          ),
         ])
       );
     case 'unavailable-episodes':

@@ -176,4 +176,46 @@ describe('operational analytics semantics', () => {
     });
     expect(result.sampledFoodLimitEventIds).toContain(2);
   });
+
+  test('breaks the rationed timeline down by limit configuration', async () => {
+    const result = await computeOperationalAnalytics(
+      range,
+      now,
+      analyticsClient([
+        foodEvent(1, '2026-07-09T12:00:00.000Z', {
+          eventKind: 'migration_baseline', recordsStatus: true, recordsLimit: true,
+          limit: 1, limitType: 'household',
+        }),
+        foodEvent(2, '2026-07-09T12:00:00.000Z', {
+          foodItemId: 11, sourceFoodItemId: 11, itemName: 'Rice',
+          eventKind: 'migration_baseline', recordsStatus: true, recordsLimit: true,
+          limit: 2, limitType: 'person',
+        }),
+        // No Limit (sentinel 100): rationed in no series.
+        foodEvent(3, '2026-07-09T12:00:00.000Z', {
+          foodItemId: 12, sourceFoodItemId: 12, itemName: 'Beans',
+          eventKind: 'migration_baseline', recordsStatus: true, recordsLimit: true,
+        }),
+        // Rice moves from 2-per-person to 1-per-household the next day.
+        foodEvent(4, '2026-07-10T12:00:00.000Z', {
+          foodItemId: 11, sourceFoodItemId: 11, itemName: 'Rice',
+          limit: 1, limitType: 'household', recordsLimit: true,
+        }),
+      ]) as never
+    );
+
+    expect(result.rationedLimitSeries.map((series) => series.key)).toEqual([
+      '1|household',
+      '2|person',
+    ]);
+
+    const first = result.timeline[0];
+    expect(first.rationedByLimit).toEqual({ '1|household': 1, '2|person': 1 });
+
+    // After the change, both rationed items share 1-per-household and the
+    // vacated 2-per-person series is zero-filled, not dropped.
+    const last = result.timeline[result.timeline.length - 1];
+    expect(last.rationedByLimit).toEqual({ '1|household': 2, '2|person': 0 });
+    expect(last.itemRationed).toBe(2);
+  });
 });

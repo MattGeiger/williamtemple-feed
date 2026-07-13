@@ -31,6 +31,8 @@ import {
 import {
   ChartConfig,
   ChartContainer,
+  ChartLegend,
+  ChartLegendContent,
   ChartTooltip,
   ChartTooltipContent,
 } from '@/components/ui/chart';
@@ -56,6 +58,7 @@ import {
   LimitChange,
   OperationalAnalyticsResult,
   OperationalRangePreset,
+  RationedLimitSeries,
   UnavailableEpisode,
 } from '@/types/operational-reports';
 import { getChartColor, getChartStatusColor } from '@/lib/colors';
@@ -80,7 +83,7 @@ const availabilityConfig = {
   },
 } satisfies ChartConfig;
 
-const pressureConfig = {
+const basePressureConfig = {
   limitedSupply: {
     label: 'Limited Supply',
     theme: {
@@ -92,11 +95,43 @@ const pressureConfig = {
     label: 'Clearance',
     theme: { light: getChartColor(2, 'light'), dark: getChartColor(2, 'dark') },
   },
-  itemRationed: {
-    label: 'Item Limit',
-    theme: { light: getChartColor(4, 'light'), dark: getChartColor(4, 'dark') },
-  },
 } satisfies ChartConfig;
+
+// ChartContainer turns config keys into CSS variables, so the series key
+// "1|household" needs a variable-safe form.
+export const limitSeriesChartKey = (series: RationedLimitSeries) =>
+  `limit_${series.limit}_${series.limitType}`;
+
+export const limitSeriesLabel = (series: RationedLimitSeries) =>
+  `${series.limit} Per ${series.limitType === 'person' ? 'Person' : 'Household'}`;
+
+/**
+ * The Operational Pressure chart draws one line per limit configuration
+ * present in the range (e.g. "1 Per Household"), alongside Limited Supply
+ * and Clearance. Series colors start past the base config's palette slots.
+ */
+export function buildPressureChart(result: OperationalAnalyticsResult) {
+  const config: ChartConfig = { ...basePressureConfig };
+  result.rationedLimitSeries.forEach((series, index) => {
+    config[limitSeriesChartKey(series)] = {
+      label: limitSeriesLabel(series),
+      theme: {
+        light: getChartColor(3 + index, 'light'),
+        dark: getChartColor(3 + index, 'dark'),
+      },
+    };
+  });
+  const data = result.timeline.map((point) => ({
+    ...point,
+    ...Object.fromEntries(
+      result.rationedLimitSeries.map((series) => [
+        limitSeriesChartKey(series),
+        point.rationedByLimit[series.key] ?? 0,
+      ])
+    ),
+  }));
+  return { config, data };
+}
 
 // Plain-language explanations for the Availability Summary KPIs, surfaced
 // as hover tooltips. Keep these aligned with the backend definitions in
@@ -138,6 +173,11 @@ export function OperationalReportsWorkspace() {
     []
   );
   const request = React.useMemo(() => ({ preset, timeZone }), [preset, timeZone]);
+  const pressureChart = React.useMemo(
+    () =>
+      result ? buildPressureChart(result) : { config: basePressureConfig, data: [] },
+    [result]
+  );
 
   React.useEffect(() => {
     let active = true;
@@ -278,15 +318,23 @@ export function OperationalReportsWorkspace() {
                 <CsvButton cardId="operational-pressure" onExport={exportCard} />
               </CardHeader>
               <CardContent>
-                <ChartContainer config={pressureConfig} className="h-64 min-w-0 w-full">
-                  <LineChart data={result.timeline}>
+                <ChartContainer config={pressureChart.config} className="h-64 min-w-0 w-full">
+                  <LineChart data={pressureChart.data}>
                     <CartesianGrid vertical={false} />
                     <XAxis dataKey="date" tickLine={false} axisLine={false} tickFormatter={(value: string) => format(new Date(`${value}T00:00:00`), 'MMM d')} />
                     <YAxis allowDecimals={false} width={34} tickLine={false} axisLine={false} />
                     <ChartTooltip content={<ChartTooltipContent />} />
+                    <ChartLegend content={<ChartLegendContent />} />
                     <Line dataKey="limitedSupply" stroke="var(--color-limitedSupply)" dot={false} />
                     <Line dataKey="clearance" stroke="var(--color-clearance)" dot={false} />
-                    <Line dataKey="itemRationed" stroke="var(--color-itemRationed)" dot={false} />
+                    {result.rationedLimitSeries.map((series) => (
+                      <Line
+                        key={series.key}
+                        dataKey={limitSeriesChartKey(series)}
+                        stroke={`var(--color-${limitSeriesChartKey(series)})`}
+                        dot={false}
+                      />
+                    ))}
                   </LineChart>
                 </ChartContainer>
               </CardContent>

@@ -8,7 +8,11 @@
 import React from 'react';
 import { describe, test, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { OperationalReportsWorkspace } from '@/components/operational-reports';
+import {
+  OperationalReportsWorkspace,
+  buildPressureChart,
+  limitSeriesLabel,
+} from '@/components/operational-reports';
 import type { OperationalAnalyticsResult } from '@/types/operational-reports';
 
 // Charts and tables measure themselves with ResizeObserver, which jsdom lacks.
@@ -38,6 +42,7 @@ const result: OperationalAnalyticsResult = {
     medianRestorationHours: 30,
   },
   timeline: [],
+  rationedLimitSeries: [],
   episodes: [
     {
       itemId: 1,
@@ -152,6 +157,43 @@ describe('OperationalReportsWorkspace tooltips and layout', () => {
 
     fireEvent.click(durationHeader); // descending
     expect(rowNames()).toEqual(['Tuna', 'Rice']);
+  });
+
+  test('the pressure chart grows one labeled series per limit configuration', () => {
+    const chart = buildPressureChart({
+      ...result,
+      rationedLimitSeries: [
+        { key: '1|household', limit: 1, limitType: 'household' },
+        { key: '2|person', limit: 2, limitType: 'person' },
+      ],
+      timeline: [
+        {
+          date: '2026-07-10',
+          trackedItems: 3,
+          available: 2,
+          unavailable: 1,
+          limitedSupply: 1,
+          clearance: 0,
+          itemRationed: 2,
+          rationedByLimit: { '1|household': 1, '2|person': 1 },
+          availabilityPercent: 66.7,
+        },
+      ],
+    });
+
+    expect(chart.config['limit_1_household']?.label).toBe('1 Per Household');
+    expect(chart.config['limit_2_person']?.label).toBe('2 Per Person');
+    // Base series stay alongside the adaptive ones.
+    expect(chart.config['limitedSupply']?.label).toBe('Limited Supply');
+
+    const point = chart.data[0] as Record<string, unknown>;
+    expect(point['limit_1_household']).toBe(1);
+    expect(point['limit_2_person']).toBe(1);
+  });
+
+  test('limit series labels read as rationing policy', () => {
+    expect(limitSeriesLabel({ key: '1|household', limit: 1, limitType: 'household' })).toBe('1 Per Household');
+    expect(limitSeriesLabel({ key: '3|person', limit: 3, limitType: 'person' })).toBe('3 Per Person');
   });
 
   test('page wrapper matches the established section layout (w-full pt-6)', async () => {
