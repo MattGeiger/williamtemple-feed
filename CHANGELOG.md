@@ -7,6 +7,32 @@ All notable changes to FEED are documented here. This project adheres to
 
 ### Added
 
+- **Procurement Data Management foundation**: a new Data Management destination
+  under Information imports standardized Oregon Food Bank CSV exports entirely
+  in memory, stores normalized organization-wide source-order revisions and
+  provenance, reconciles source versus calculated totals, and discards uploaded
+  bytes. Import History follows the standard management-table pattern with
+  details, row and bulk rollback, and restoration.
+- **Procurement Analytics vertical slice**: Analytics now separates Operations
+  and Procurement into Shadcn tabs. The Procurement lens includes inbound
+  weight, source-order and receiving-date KPIs; acquisition and channel mix;
+  recorded charge reconciliation; monthly and year-over-year seasonal trends;
+  recurrence distribution; a Procurement Pattern Matrix; and sortable Product
+  Continuity. Shared 7/30/90-day, YTD, All, and custom-date controls apply to
+  Operations and Procurement; procurement-channel and acquisition-class
+  filters remain independent, with an empty-state path to Data Management and
+  a warning when the latest active delivery is more than 30 calendar days old.
+- **Shared authenticated multipart transport**: `BaseApiService` now handles
+  FormData requests with the same credentials, 401 behavior, structured
+  `ApiError`, logging, and response parsing as JSON requests. Document
+  Translator uploads now use this path too.
+
+- **Organization Operating Hours**: a new Settings page under Information lets
+  staff maintain the shared seven-day pantry schedule and IANA timezone using
+  the established Shadcn workflow. The backend strictly validates times and
+  seeds Tuesday–Thursday, 11:00 a.m.–2:00 p.m. Pacific. Effective-dated,
+  append-only revisions preserve the schedule that governed each historical
+  service date without adding work to the save flow.
 - **Deterministic 90-day operational-history fixture**: development environments
   can now populate Availability & Service Pressure reports from the restored
   production catalog, OFB weekly staple presence, the Tuesday–Thursday service
@@ -17,20 +43,74 @@ All notable changes to FEED are documented here. This project adheres to
   Limited Supply, Clearance, and item-limit changes now write append-only
   snapshots atomically with the live item. Category creation, deletion, and
   limit-policy changes have their own append-only history.
-- **Availability and Service Pressure reports**: the selectively reintroduced
-  Reports workspace shows a literal availability summary, availability over
-  time, separate Limited/Clearance/item-rationing series, unavailable episodes,
-  and Food Item/Category rationing history. Each validated block has direct CSV
+- **Availability and Service Pressure analytics**: the selectively
+  reintroduced Analytics workspace shows a literal availability summary,
+  available assortment over time, recurring availability, separate
+  Limited/Clearance/item/category-rationing series, unavailable episodes, and
+  Food Item/Category rationing history. Each validated block has direct CSV
   export, and staff can export the complete atomic event history.
 - **Five-minute correction sampling**: rapid edits are retained in raw history
   but collapse to their final effective state for analytics. Lifecycle events
   remain hard boundaries, and exports identify which atomic events contributed
   to sampled results.
 - **Dashboard operational shortcuts**: Unavailable Items and Limited Supply
-  show current literal counts and link to Reports.
+  show current literal counts and link to Analytics.
+- **Reports Management placeholder**: a new Reports destination under
+  Information establishes the future home for reusable report templates. It
+  uses FEED's standard management-table layout but intentionally exposes no
+  template or generation actions yet.
 
 ### Changed
 
+- **Analytics filters now follow the PRISM quick-range pattern**: visible
+  Shadcn preset tabs and an Apply-only custom Calendar replace the hidden range
+  dropdown. The range persists across Operations and Procurement and in the
+  URL, uses FEED's organization timezone, and defaults to 90 days. The shared
+  Calendar wrapper now uses React DayPicker 9 class contracts so month controls,
+  weekdays, and range selection remain aligned at phone width.
+
+- **External supply remains a separate analytical domain**: normalized OFB
+  procurement observations are not mapped to Food Items and do not alter
+  availability, quantity, or operational-history calculations.
+- **Direct OFB exports define order identity and channels**: authoritative
+  corpus validation replaced the prototype delivery-date boundary with stable
+  source-order revisions, treats multiple same-day orders as normal, accepts
+  observed four-to-six-digit product identifiers, and classifies `4xxxx`
+  Donated products as Fresh Alliance without semantic Food Item mapping.
+- **Order-level adjustments remain unallocated**: service fees and grants are
+  included in whole-order and year-only totals. Channel or acquisition-class
+  filters show filtered gross product charges while marking fees, grants, and
+  net recorded cost as not attributable.
+
+- **Reports workspace renamed Analytics**: the live availability and
+  service-pressure workspace now appears as Analytics under Inventory at
+  `/analytics`. Reports now refers to reproducible report artifacts and their
+  future management surface under Information.
+- **Available assortment now includes Category trends**: the Analytics card
+  retains the combined service-window assortment, adds weighted range and
+  latest-window averages, and draws every tracked Category as a separate trend.
+  A Shadcn selector switches between all Category trends and one isolated
+  Category while preserving the combined KPIs; CSV export follows the
+  selection.
+- **Recurring Availability now exposes the repeat-cycling cohort**: Analytics
+  shows recurring-item, repeat-episode, currently-unavailable, and cohort
+  restoration metrics with an item ranking; Category Pressure carries the
+  separate Category ranking. One-time rotating items remain outside the
+  cohort. CSV export contains every matching item and the Category aggregates
+  behind the visualization.
+- **Category pressure remains comparable without a composite score**:
+  Analytics now shows the share of each Category's observed service time with
+  Limited Supply, Clearance, a Food Item limit, or a Category limit active.
+  Recurring-item and unavailable-entry counts remain in a separate adjacent
+  chart, and the same Category rows are available through direct CSV export.
+- **Availability analytics now separate assortment from recurrence**: Analytics
+  show the average distinct Food Item records available during configured
+  service windows without dividing by an ever-growing catalog. A separate
+  Recurring Availability lens counts only observed Available → Unavailable
+  transitions and identifies items with at least two entries in the selected
+  range. Initial/migration states do not count. The top summary now shows
+  Repeat Unavailability beside Item Limits, Category Limits, and Median
+  Restoration.
 - **Logistics is now optional Supply annotation**: the fourth Food Item tab
   contains only Estimated Quantity and Source (Donated, Purchased, or
   Mixed/Other). Both default to Unknown. Price, package size, derived unit cost,
@@ -49,10 +129,26 @@ All notable changes to FEED are documented here. This project adheres to
 
 ### Fixed
 
+- Report chart colors now use contrast-tested Carbon grades that maintain at
+  least 4.5:1 contrast against FEED's actual light and dark card surfaces.
+  Documentation no longer makes an unsupported blanket palette claim, and a
+  regression test reads the theme tokens to protect future theme changes.
+- Operational Pressure now includes a distinct, service-hour-weighted
+  Categories with Limits series and matching CSV column. Category policies
+  remain counts of categories and are never expanded into implied Food Item
+  counts.
+- Dashboard inventory distribution now describes its combined In Stock,
+  Limited Supply, and Clearance percentage as “available,” rather than the
+  inaccurate “fully stocked.”
 - Dates before the migration baseline are untracked rather than rendered as
   zero availability, and baseline/deletion snapshots do not inflate
   unavailable-episode counts.
-- Reports and shared page layout no longer overflow at phone width.
+- The active Analytics workspace no longer overflows at phone width: dynamic
+  Operational Pressure legends wrap within their card, and the responsive
+  regression test now exercises the mounted operational workspace.
+- Availability Summary once again owns and displays all eight values exported
+  by its CSV. It no longer embeds the independently fetched Dashboard
+  distribution card or hides four exported current-state values.
 
 ## [1.3.6] — 2026-07-10
 

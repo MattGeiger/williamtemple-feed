@@ -62,6 +62,10 @@ interface ApiConfig {
       byId: (id: number) => string;
       bulk: string;
     };
+    settings: {
+      base: string;
+      operatingHours: string;
+    };
   };
 }
 
@@ -126,6 +130,10 @@ const config: AppConfig = {
         base: '/api/system-prompts',
         byId: (id: number) => `/api/system-prompts/${id}`,
         bulk: '/api/system-prompts/bulk'
+      },
+      settings: {
+        base: '/api/settings',
+        operatingHours: '/operating-hours'
       }
     }
   }

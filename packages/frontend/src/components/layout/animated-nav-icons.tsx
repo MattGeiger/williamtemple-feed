@@ -10,9 +10,12 @@ import type * as React from "react";
 import { BotIcon } from "@/components/animate-ui/icons/bot";
 import { CircleHelpIcon } from "@/components/animate-ui/icons/circle-help";
 import { ClipboardListIcon } from "@/components/animate-ui/icons/clipboard-list";
+import { ChartNoAxesCombinedIcon } from "@/components/animate-ui/icons/chart-no-axes-combined";
+import { DatabaseIcon } from "@/components/animate-ui/icons/database";
 import { FileChartColumnIcon } from "@/components/animate-ui/icons/file-chart-column";
 import { GaugeIcon } from "@/components/animate-ui/icons/gauge";
 import { InfoIcon } from "@/components/animate-ui/icons/info";
+import { SettingsIcon } from "@/components/animate-ui/icons/settings";
 import { BridgedAnimatedIcon } from "@/components/animate-ui/bridge";
 import { AppleIcon } from "@/components/ui/apple";
 import { FileTextIcon } from "@/components/ui/file-text";
@@ -39,6 +42,16 @@ export function DashboardNavIcon({ className, ...props }: NavIconProps) {
 export function ReportsNavIcon({ className, ...props }: NavIconProps) {
   return (
     <FileChartColumnIcon
+      size={16}
+      className={animatedIconClassName(className)}
+      {...props}
+    />
+  );
+}
+
+export function AnalyticsNavIcon({ className, ...props }: NavIconProps) {
+  return (
+    <ChartNoAxesCombinedIcon
       size={16}
       className={animatedIconClassName(className)}
       {...props}
@@ -127,6 +140,26 @@ export function AIConfigurationNavIcon({ className, ...props }: NavIconProps) {
 export function HelpNavIcon({ className, ...props }: NavIconProps) {
   return (
     <CircleHelpIcon
+      size={16}
+      className={animatedIconClassName(className)}
+      {...props}
+    />
+  );
+}
+
+export function SettingsNavIcon({ className, ...props }: NavIconProps) {
+  return (
+    <SettingsIcon
+      size={16}
+      className={animatedIconClassName(className)}
+      {...props}
+    />
+  );
+}
+
+export function DataManagementNavIcon({ className, ...props }: NavIconProps) {
+  return (
+    <DatabaseIcon
       size={16}
       className={animatedIconClassName(className)}
       {...props}

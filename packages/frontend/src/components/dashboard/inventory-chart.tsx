@@ -194,7 +194,7 @@ export function InventoryChart() {
           {availabilityMessage} <TrendingUp className="h-4 w-4" />
         </div>
         <div className="leading-none text-muted-foreground">
-          {inStockPercentage}% of items are fully stocked
+          {inStockPercentage}% of items are available
         </div>
       </CardFooter>
     </Card>

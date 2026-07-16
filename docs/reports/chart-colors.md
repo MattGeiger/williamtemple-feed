@@ -6,11 +6,14 @@ Dashboard project.
 
 ## Why Carbon
 
-- All colors meet WCAG 2.1 contrast requirements for data visualization
-  (3.5:1 minimum against the chart background).
-- Tested for deuteranopia, protanopia, and tritanopia.
-- Every light-mode value has an equivalent-weight dark-mode variant, so
-  theme switching needs no per-chart tuning.
+- Carbon provides a broad set of hue families designed with color-vision
+  accessibility in mind.
+- FEED selects specific grades that achieve at least **4.5:1 contrast** against
+  the actual light and dark card surfaces. This exceeds the 3:1 WCAG threshold
+  for meaningful non-text graphics.
+- Every light-mode value has a paired dark-mode grade, and automated tests read
+  FEED's theme tokens and verify every configured pair.
+- Charts retain legends and tooltips so meaning never depends on color alone.
 
 References:
 
@@ -24,8 +27,7 @@ References:
 - `carbonChartColors` — ten hue families (blue, cyan, teal, green,
   magenta, purple, red, orange, yellow, warm gray), each with a
   `primary` and `secondary` grade and light/dark values. Light mode uses
-  mid grades (50/60-range Carbon tokens); dark mode uses lighter grades
-  (30/40-range).
+  darker 60/70-range Carbon tokens; dark mode uses lighter 40/30-range tokens.
 - `CARBON_CATEGORICAL_ORDER` — a hue-hopping order for categorical
   series so adjacent lines sit far apart on the color wheel.
 - `carbonTheme(family, grade)` — a ChartConfig-ready `{ light, dark }`
@@ -35,17 +37,17 @@ References:
 
 ## Usage: Operational Pressure (Reports)
 
-- **Limited Supply** is fixed to Carbon orange (warning-adjacent) and
-  **Clearance** to Carbon purple.
+- **Limited Supply** is fixed to Carbon orange (warning-adjacent),
+  **Clearance** to Carbon purple, and **Categories with Limits** to teal.
 - The adaptive per-limit series ("1 Per Household", "2 Per Person", …)
-  draw from the remaining eight families in hue-hopping order, then
-  their secondary grades — so up to 16 limit configurations render
+  draw from the remaining seven families in hue-hopping order, then
+  their secondary grades — so up to 14 limit configurations render
   before any color repeats, and no series ever collides with the two
-  fixed lines.
+  fixed Food Item status lines or the category-policy line.
 
-A regression test
-(`packages/frontend/src/test/operational-reports-tooltips.test.tsx`)
-asserts every line color is distinct in both light and dark schemes.
+Regression tests assert that pressure-chart lines remain distinct and that
+every palette color maintains at least 4.5:1 contrast against the corresponding
+FEED card surface in both themes.
 
 ## Adding a new multi-series chart
 

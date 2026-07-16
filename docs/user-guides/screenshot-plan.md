@@ -27,8 +27,8 @@ telling the reader what to do.
 | Medium | Dashboard & Alerts | How To Review Alerts | Where are alerts? | Alert bell and alerts dialog | Show one safe example alert | Planned |
 | High | Inventory | How To Update Stock Status | How do I mark an item in stock? | Food Items table with status filter and row menu | Captured authenticated dev data; row menu screenshot can be added later if needed | Added |
 | Medium | Inventory | Categories | Where do limits change? | Category edit dialog | Use common category example | Planned |
-| High | Operational Reports | Read The Report | Where do I review availability and service pressure? | Reports workspace with date range, summary, charts, and history tables | Use representative inventory data without client information | Planned |
-| High | Operational Reports | Export Report Data | How do I export one block or the audit history? | Per-block Export CSV and Export Raw History controls | Avoid showing locally downloaded files or identifying data | Planned |
+| High | Inventory Analytics | Read The Analytics | Where do I review availability and service pressure? | Analytics workspace with date range, summary, charts, and history tables | Use representative inventory data without client information | Planned |
+| High | Inventory Analytics | Export Analytics Data | How do I export one block or the audit history? | Per-block Export CSV and Export Raw History controls | Avoid showing locally downloaded files or identifying data | Planned |
 | Medium | Inventory | Optional Supply Information | Where can I add an optional estimate or supply source? | Food Item editor with Supply tab selected | Show Unknown defaults and no client information | Planned |
 | High | Languages & Translations | What Translations Does | Where do translations live? | Translations table | Captured authenticated dev data | Added |
 | High | Languages & Translations | How To Find Missing Translations | How do I repair gaps? | Find Missing Translations dialog | Captured authenticated dev data | Added |

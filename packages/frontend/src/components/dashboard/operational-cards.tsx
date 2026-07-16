@@ -12,18 +12,14 @@ import { OperationalAnalyticsResult } from '@/types/operational-reports';
 
 export function DashboardOperationalCards() {
   const [data, setData] = React.useState<OperationalAnalyticsResult | null>(null);
-  const timeZone = React.useMemo(
-    () => Intl.DateTimeFormat().resolvedOptions().timeZone,
-    []
-  );
 
   React.useEffect(() => {
     let active = true;
-    operationalReportsService.query({ preset: 'last-90-days', timeZone })
+    operationalReportsService.query({ preset: 'last-90-days' })
       .then((result) => active && setData(result))
       .catch(() => undefined);
     return () => { active = false; };
-  }, [timeZone]);
+  }, []);
 
   if (!data) {
     return <div className="grid gap-4 sm:grid-cols-2"><Skeleton className="h-32" /><Skeleton className="h-32" /></div>;
@@ -31,7 +27,7 @@ export function DashboardOperationalCards() {
 
   return (
     <div className="grid gap-4 sm:grid-cols-2">
-      <Link to="/reports" className="rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+      <Link to="/analytics" className="rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
         <Card className="h-full transition-colors hover:bg-muted/30">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Unavailable Items</CardTitle>
@@ -43,7 +39,7 @@ export function DashboardOperationalCards() {
           </CardContent>
         </Card>
       </Link>
-      <Link to="/reports" className="rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+      <Link to="/analytics" className="rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
         <Card className="h-full transition-colors hover:bg-muted/30">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Limited Supply</CardTitle>
