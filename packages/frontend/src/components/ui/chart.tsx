@@ -243,7 +243,7 @@ const ChartTooltipContent = React.forwardRef<
                           {itemConfig?.label || item.name}
                         </span>
                       </div>
-                      {item.value && (
+                      {item.value !== undefined && item.value !== null && (
                         <span className="font-mono font-medium tabular-nums text-slate-950 dark:text-slate-50">
                           {item.value.toLocaleString()}
                         </span>
@@ -262,6 +262,9 @@ const ChartTooltipContent = React.forwardRef<
 ChartTooltipContent.displayName = "ChartTooltip"
 
 const ChartLegend = RechartsPrimitive.Legend
+
+export const CHART_LEGEND_LAYOUT_CLASS =
+  "flex w-full min-w-0 flex-wrap items-center justify-center gap-x-4 gap-y-1"
 
 const ChartLegendContent = React.forwardRef<
   HTMLDivElement,
@@ -285,7 +288,7 @@ const ChartLegendContent = React.forwardRef<
       <div
         ref={ref}
         className={cn(
-          "flex items-center justify-center gap-4",
+          CHART_LEGEND_LAYOUT_CLASS,
           verticalAlign === "top" ? "pb-3" : "pt-3",
           className
         )}
@@ -298,7 +301,7 @@ const ChartLegendContent = React.forwardRef<
             <div
               key={item.value}
               className={cn(
-                "flex items-center gap-1.5 [&>svg]:h-3 [&>svg]:w-3 [&>svg]:text-slate-500 dark:[&>svg]:text-slate-400"
+                "flex shrink-0 items-center gap-1.5 whitespace-nowrap [&>svg]:h-3 [&>svg]:w-3 [&>svg]:text-slate-500 dark:[&>svg]:text-slate-400"
               )}
             >
               {itemConfig?.icon && !hideIcon ? (

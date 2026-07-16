@@ -34,6 +34,11 @@ food-pantry.code-workspace
 *.db
 data/
 
+# Internal source data supplied for local analytics research. Keep the working
+# copy available to developers, but never publish it with the open-source repo.
+/docs/OFB_Orders.xlsx
+/docs/reports/OFB_*.csv
+
 # Generated local artifacts
 output/
 tmp/

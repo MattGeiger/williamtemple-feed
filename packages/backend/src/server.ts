@@ -27,6 +27,8 @@ import systemPromptsRouter from './routes/system-prompts';
 import systemRouter from './routes/system';
 import publicInventoryRouter from './routes/public-inventory';
 import operationalReportsRouter from './routes/operational-reports';
+import settingsRouter from './routes/settings';
+import procurementRouter from './routes/procurement';
 import authTestRouter from './routes/auth-test';
 import authRouter from './routes/auth';
 import { errorHandler } from './middleware/error-handler';
@@ -86,6 +88,8 @@ export const createServer = () => {
   app.use('/api/categories', categoriesRouter);
   app.use('/api/food-items', foodItemsRouter);
   app.use('/api/reports', operationalReportsRouter);
+  app.use('/api/settings', settingsRouter);
+  app.use('/api/procurement', procurementRouter);
   app.use('/api/languages', languagesRouter);
   app.use('/api/translations', translationsRouter);
   app.use('/api/alerts', alertsRouter);

@@ -6,8 +6,9 @@
  *
  * This script intentionally models operational observations rather than
  * consumption. It uses FEED's production catalog, the April–July 2026 OFB
- * delivery cadence in docs/OFB_Orders.xlsx, and the pantry schedule documented
- * in docs/reports/development-history-fixture.md.
+ * delivery cadence derived from the intentionally untracked internal workbook
+ * docs/OFB_Orders.xlsx, and the pantry schedule documented in
+ * docs/reports/development-history-fixture.md.
  *
  * Usage:
  *   NODE_ENV=development DATABASE_URL=file:/path/to/dev.db \
@@ -61,9 +62,11 @@ const deterministic = (itemId: number, week: number, salt: number) => {
 };
 
 /**
- * The presence matrix is derived from OFB_Orders.xlsx. Workbook dates are
- * predominantly Mondays; each entry controls the following Tuesday restock.
- * No item-level quantity or causation is inferred from the workbook.
+ * The presence matrix is derived from the intentionally untracked internal
+ * OFB workbook. Workbook dates are predominantly Mondays; each entry controls
+ * the following Tuesday restock. No item-level quantity or causation is
+ * inferred from the workbook, and the source workbook is not needed at run
+ * time.
  */
 const OFB_STAPLE_AVAILABILITY: Record<string, Set<string>> = {
   '2026-04-14': new Set(['egg', 'milk', 'bread', 'rice', 'pasta', 'soup', 'tuna']),

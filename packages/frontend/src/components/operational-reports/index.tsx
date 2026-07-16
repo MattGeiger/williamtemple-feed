@@ -6,8 +6,10 @@ import { ColumnDef } from '@tanstack/react-table';
 import { format } from 'date-fns';
 import {
   Area,
-  AreaChart,
+  Bar,
+  BarChart,
   CartesianGrid,
+  ComposedChart,
   Line,
   LineChart,
   XAxis,
@@ -16,10 +18,9 @@ import {
 import { Download } from 'lucide-react';
 
 import { ArrowUpDown } from '@/components/ui/icons';
-import { InventoryChart } from '@/components/dashboard/inventory-chart';
 import { SectionHeader } from '@/components/shared/section-header';
 import { createPageTitleIcon } from '@/components/layout/page-title-icon';
-import { FileChartColumnIcon } from '@/components/ui/file-chart-column';
+import { ChartNoAxesCombinedIcon } from '@/components/ui/chart-no-axes-combined';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -37,7 +38,6 @@ import {
   ChartTooltipContent,
 } from '@/components/ui/chart';
 import { EnhancedDataTable } from '@/components/ui/enhanced-data-table';
-import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -57,30 +57,77 @@ import { operationalReportsService } from '@/services/operational-reports';
 import {
   LimitChange,
   OperationalAnalyticsResult,
-  OperationalRangePreset,
   RationedLimitSeries,
   UnavailableEpisode,
 } from '@/types/operational-reports';
+import type { AnalyticsDateRange } from '@/types/analytics';
+import { DEFAULT_ANALYTICS_RANGE } from '@/types/analytics';
 import {
   CARBON_CATEGORICAL_ORDER,
   CarbonFamily,
+  carbonCategoricalTheme,
   carbonTheme,
   getChartStatusColor,
 } from '@/lib/colors';
 
-const PageTitleReportsIcon = createPageTitleIcon(FileChartColumnIcon);
+const PageTitleAnalyticsIcon = createPageTitleIcon(ChartNoAxesCombinedIcon);
 
-const RANGE_LABELS: Record<OperationalRangePreset, string> = {
-  'last-30-days': 'Last 30 Days',
-  'last-90-days': 'Last 90 Days',
-  'last-6-months': 'Last 6 Months',
-  'last-12-months': 'Last 12 Months',
-  ytd: 'Year to Date',
-};
+const baseAssortmentConfig = {
+  available: {
+    label: 'Combined Assortment',
+    theme: {
+      light: 'hsl(var(--foreground))',
+      dark: 'hsl(var(--foreground))',
+    },
+  },
+} satisfies ChartConfig;
 
-const availabilityConfig = {
-  availabilityPercent: {
-    label: 'Availability',
+export const assortmentCategoryChartKey = (categoryId: number) =>
+  `assortment_category_${categoryId}`;
+
+export function buildAssortmentChart(
+  result: OperationalAnalyticsResult,
+  selectedCategoryId: number | null = null
+) {
+  const selectedSeries = selectedCategoryId === null
+    ? result.assortmentCategorySeries
+    : result.assortmentCategorySeries.filter(
+        (series) => series.categoryId === selectedCategoryId
+      );
+  const config: ChartConfig = selectedCategoryId === null
+    ? { ...baseAssortmentConfig }
+    : {};
+  selectedSeries.forEach((series) => {
+    const index = result.assortmentCategorySeries.findIndex(
+      (candidate) => candidate.categoryId === series.categoryId
+    );
+    config[assortmentCategoryChartKey(series.categoryId)] = {
+      label: series.categoryName,
+      theme: carbonCategoricalTheme(index),
+    };
+  });
+  const data = result.timeline.map((point) => ({
+    ...point,
+    ...Object.fromEntries(
+      selectedSeries.map((series) => [
+        assortmentCategoryChartKey(series.categoryId),
+        point.availableByCategory[String(series.categoryId)] ?? 0,
+      ])
+    ),
+  }));
+  return { config, data, series: selectedSeries };
+}
+
+const recurringAvailabilityConfig = {
+  unavailableEntries: {
+    label: 'Unavailable Entries',
+    theme: {
+      light: getChartStatusColor('error', 'light'),
+      dark: getChartStatusColor('error', 'dark'),
+    },
+  },
+  restorations: {
+    label: 'Restorations',
     theme: {
       light: getChartStatusColor('success', 'light'),
       dark: getChartStatusColor('success', 'dark'),
@@ -88,11 +135,62 @@ const availabilityConfig = {
   },
 } satisfies ChartConfig;
 
+const categoryRecurrenceConfig = {
+  recurringItems: {
+    label: 'Recurring Items',
+    theme: carbonTheme('blue'),
+  },
+  recurringUnavailableEntries: {
+    label: 'Unavailable Entries',
+    theme: carbonTheme('red'),
+  },
+} satisfies ChartConfig;
+
+const categoryPressureConfig = {
+  limitedSupplyServicePercent: {
+    label: 'Limited Supply Active (%)',
+    theme: carbonTheme('orange'),
+  },
+  clearanceServicePercent: {
+    label: 'Clearance Active (%)',
+    theme: carbonTheme('purple'),
+  },
+  itemRationedServicePercent: {
+    label: 'Item Limit Active (%)',
+    theme: carbonTheme('blue'),
+  },
+  categoryRationedServicePercent: {
+    label: 'Category Limit Active (%)',
+    theme: carbonTheme('teal'),
+  },
+} satisfies ChartConfig;
+
+const summaryChartConfig = {
+  availableNow: {
+    label: 'Available Now',
+    theme: {
+      light: getChartStatusColor('success', 'light'),
+      dark: getChartStatusColor('success', 'dark'),
+    },
+  },
+  unavailableNow: {
+    label: 'Unavailable Now',
+    theme: {
+      light: getChartStatusColor('error', 'light'),
+      dark: getChartStatusColor('error', 'dark'),
+    },
+  },
+  limitedSupplyNow: {
+    label: 'Limited Supply',
+    theme: carbonTheme('orange'),
+  },
+} satisfies ChartConfig;
+
 // Operational Pressure uses the IBM Carbon data-viz palette (see
 // carbonChartColors in @/lib/colors): WCAG-compliant, color-blind tested,
-// with equal-weight dark variants. Limited Supply keeps a warning-adjacent
-// orange and Clearance a fixed purple; the adaptive limit series draw from
-// the remaining hue families so every line stays distinct.
+// with paired dark variants. Limited Supply keeps a warning-adjacent orange,
+// Clearance a fixed purple, and the separate category-policy count a fixed
+// teal. Adaptive Food Item limit series draw from the remaining hue families.
 const basePressureConfig = {
   limitedSupply: {
     label: 'Limited Supply',
@@ -102,11 +200,16 @@ const basePressureConfig = {
     label: 'Clearance',
     theme: carbonTheme('purple'),
   },
+  categoryRationed: {
+    label: 'Categories with Limits',
+    theme: carbonTheme('teal'),
+  },
 } satisfies ChartConfig;
 
 const PRESSURE_SERIES_FAMILIES: readonly CarbonFamily[] =
   CARBON_CATEGORICAL_ORDER.filter(
-    (family) => family !== 'orange' && family !== 'purple'
+    (family) =>
+      family !== 'orange' && family !== 'purple' && family !== 'teal'
   );
 
 const pressureSeriesTheme = (index: number) => {
@@ -128,8 +231,9 @@ export const limitSeriesLabel = (series: RationedLimitSeries) =>
 
 /**
  * The Operational Pressure chart draws one line per limit configuration
- * present in the range (e.g. "1 Per Household"), alongside Limited Supply
- * and Clearance. Series colors start past the base config's palette slots.
+ * present in the range (e.g. "1 Per Household"), alongside Limited Supply,
+ * Clearance, and a distinct count of categories with limits. Category rules
+ * are never expanded into implied Food Item counts.
  */
 export function buildPressureChart(result: OperationalAnalyticsResult) {
   const config: ChartConfig = { ...basePressureConfig };
@@ -155,8 +259,28 @@ export function buildPressureChart(result: OperationalAnalyticsResult) {
 // as hover tooltips. Keep these aligned with the backend definitions in
 // packages/backend/src/services/operational-analytics.
 const KPI_HELP: Record<string, string> = {
-  'Tracked Availability':
-    'Availability across the whole selected period: of all the days each tracked item could have been available, the share it actually was.',
+  'Available Now':
+    'Tracked items currently available to clients, including items marked Limited Supply or Clearance.',
+  'Unavailable Now':
+    'Tracked items currently marked Out of Stock and unavailable to clients.',
+  'Limited Supply':
+    'Available items staff have flagged as Limited Supply. This records supply pressure without guessing its cause.',
+  'Clearance':
+    'Available items staff have flagged for accelerated distribution.',
+  'Repeat Unavailability':
+    'Items that moved from Available to Unavailable at least twice during the selected period. Initial and migration states do not count.',
+  'Recurring Items':
+    'Items with at least two observed Available to Unavailable transitions. A restoration must occur between transitions, so one-time rotating items stay outside this lens.',
+  'Repeat Episodes':
+    'All observed Available to Unavailable transitions belonging to items in the recurring cohort.',
+  'Currently Unavailable':
+    'Recurring-cohort episodes that remained open at the end of the selected period.',
+  'Recurring Median Restoration':
+    'Typical restoration time across completed episodes for recurring items only. Deleted items do not count as restored.',
+  'Range Average':
+    'The service-minute-weighted average number of distinct Food Item records available across the selected date range.',
+  'Latest Service Window':
+    'The average number of distinct Food Item records available during the most recent observed pantry service window.',
   'Item Limits':
     'Food items that currently have a per-person or per-household limit — anything other than No Limit.',
   'Category Limits':
@@ -164,9 +288,6 @@ const KPI_HELP: Record<string, string> = {
   'Median Restoration':
     'Typical time for an out-of-stock item to come back in stock during the selected period. Half of restorations were faster, half slower.',
 };
-
-const formatPercent = (value: number | null) =>
-  value === null ? 'Unknown' : `${value.toFixed(0)}%`;
 
 const formatDuration = (hours: number) => {
   if (hours < 24) return `${hours.toFixed(1)} hr`;
@@ -182,18 +303,36 @@ function CsvButton({ cardId, onExport }: { cardId: string; onExport: (id: string
   );
 }
 
-export function OperationalReportsWorkspace() {
-  const [preset, setPreset] = React.useState<OperationalRangePreset>('last-90-days');
+interface OperationalAnalyticsWorkspaceProps {
+  showHeader?: boolean;
+  range?: AnalyticsDateRange;
+}
+
+export function OperationalAnalyticsWorkspace({
+  showHeader = true,
+  range = DEFAULT_ANALYTICS_RANGE,
+}: OperationalAnalyticsWorkspaceProps = {}) {
+  const [assortmentCategory, setAssortmentCategory] = React.useState('all');
   const [result, setResult] = React.useState<OperationalAnalyticsResult | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
-  const timeZone = React.useMemo(
-    () => Intl.DateTimeFormat().resolvedOptions().timeZone,
-    []
-  );
-  const request = React.useMemo(() => ({ preset, timeZone }), [preset, timeZone]);
+  const request = React.useMemo(() => ({ ...range }), [range]);
   const pressureChart = React.useMemo(
     () =>
       result ? buildPressureChart(result) : { config: basePressureConfig, data: [] },
+    [result]
+  );
+  const assortmentChart = React.useMemo(
+    () =>
+      result
+        ? buildAssortmentChart(
+            result,
+            assortmentCategory === 'all' ? null : Number(assortmentCategory)
+          )
+        : { config: baseAssortmentConfig, data: [], series: [] },
+    [assortmentCategory, result]
+  );
+  const recurringAvailability = React.useMemo(
+    () => result?.recurringAvailability.slice(0, 8) ?? [],
     [result]
   );
 
@@ -207,9 +346,26 @@ export function OperationalReportsWorkspace() {
     return () => { active = false; };
   }, [request]);
 
+  React.useEffect(() => {
+    if (
+      result &&
+      assortmentCategory !== 'all' &&
+      !result.assortmentCategorySeries.some(
+        (series) => String(series.categoryId) === assortmentCategory
+      )
+    ) {
+      setAssortmentCategory('all');
+    }
+  }, [assortmentCategory, result]);
+
   const exportCard = async (cardId: string) => {
     try {
-      await operationalReportsService.downloadCardCsv(cardId, request);
+      await operationalReportsService.downloadCardCsv(
+        cardId,
+        cardId === 'available-assortment' && assortmentCategory !== 'all'
+          ? { ...request, assortmentCategoryId: Number(assortmentCategory) }
+          : request
+      );
     } catch (error) {
       ErrorHandlerService.handleError(error, 'operationalReportsCsv');
     }
@@ -225,29 +381,23 @@ export function OperationalReportsWorkspace() {
 
   return (
     <TooltipProvider>
-    <div className="space-y-6 min-w-0 w-full pt-6">
-      <div className="w-full min-w-0">
-        <SectionHeader
-          title="Reports"
-          description="Availability, service pressure, and rationing history from everyday inventory updates."
-          icon={PageTitleReportsIcon}
-        />
-      </div>
+    <div className={showHeader ? 'space-y-6 min-w-0 w-full pt-6' : 'space-y-6 min-w-0 w-full'}>
+      {showHeader && (
+        <div className="w-full min-w-0">
+          <SectionHeader
+            title="Analytics"
+            description="Availability, service pressure, and rationing history from everyday inventory updates."
+            icon={PageTitleAnalyticsIcon}
+          />
+        </div>
+      )}
 
       <div className="flex min-w-0 flex-wrap items-end justify-between gap-3">
-        <div className="w-full space-y-2 sm:w-auto">
-          <Label htmlFor="operational-report-range">Date Range</Label>
-          <Select value={preset} onValueChange={(value) => setPreset(value as OperationalRangePreset)}>
-            <SelectTrigger id="operational-report-range" className="w-full sm:w-[180px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {Object.entries(RANGE_LABELS).map(([value, label]) => (
-                <SelectItem key={value} value={value}>{label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        <p className="text-sm text-muted-foreground">
+          {result
+            ? `${format(new Date(`${result.range.startDate}T00:00:00`), 'MMM d, yyyy')} – ${format(new Date(`${result.range.endDate}T00:00:00`), 'MMM d, yyyy')}`
+            : 'Loading selected date range…'}
+        </p>
         <Button variant="outline" onClick={() => void exportRaw()}>
           <Download className="mr-2 h-4 w-4" />
           Export Raw History
@@ -264,36 +414,61 @@ export function OperationalReportsWorkspace() {
         </div>
       ) : result ? (
         <>
-          <div className="grid min-w-0 gap-4 md:grid-cols-2">
-            {/* Current stock status lives in the shared dashboard card; the
-                summary card keeps the range-based and rationing KPIs. */}
-            <InventoryChart />
-
-            <Card className="min-w-0 h-full">
-              <CardHeader className="flex flex-col items-start justify-between gap-2 space-y-0 sm:flex-row">
-                <div>
-                  <CardTitle>Availability Summary</CardTitle>
-                  <CardDescription>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <span tabIndex={0} className="w-fit cursor-help">
-                          Five-minute correction sampling; raw events remain exportable
-                        </span>
-                      </TooltipTrigger>
-                      <TooltipContent className="max-w-72">
-                        When the same item is edited several times within five
-                        minutes, reports count only the final result, so quick
-                        fixes to a mistake don&apos;t read as real activity.
-                        Every edit is still saved and included in raw exports.
-                      </TooltipContent>
-                    </Tooltip>
-                  </CardDescription>
+          <Card className="min-w-0">
+            <CardHeader className="flex flex-col items-start justify-between gap-2 space-y-0 sm:flex-row">
+              <div>
+                <CardTitle>Availability Summary</CardTitle>
+                <CardDescription>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span tabIndex={0} className="w-fit cursor-help">
+                        Five-minute correction sampling; raw events remain exportable
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-72">
+                      When the same item is edited several times within five
+                      minutes, reports count only the final result, so quick
+                      fixes to a mistake don&apos;t read as real activity.
+                      Every edit is still saved and included in raw exports.
+                    </TooltipContent>
+                  </Tooltip>
+                </CardDescription>
+              </div>
+              <CsvButton cardId="availability-summary" onExport={exportCard} />
+            </CardHeader>
+            <CardContent>
+              <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:items-center">
+                <div className="min-w-0 space-y-2">
+                  <p className="text-sm text-muted-foreground">
+                    Current recorded state; Limited Supply is included in Available Now.
+                  </p>
+                  <ChartContainer config={summaryChartConfig} className="h-44 min-w-0 w-full">
+                    <BarChart
+                      accessibilityLayer
+                      data={[
+                        { metric: 'Available Now', value: result.summary.availableNow, fill: 'var(--color-availableNow)' },
+                        { metric: 'Unavailable Now', value: result.summary.unavailableNow, fill: 'var(--color-unavailableNow)' },
+                        { metric: 'Limited Supply', value: result.summary.limitedSupplyNow, fill: 'var(--color-limitedSupplyNow)' },
+                      ]}
+                      layout="vertical"
+                      margin={{ left: 8, right: 16 }}
+                    >
+                      <CartesianGrid horizontal={false} />
+                      <XAxis type="number" allowDecimals={false} tickLine={false} axisLine={false} />
+                      <YAxis dataKey="metric" type="category" width={104} tickLine={false} axisLine={false} />
+                      <ChartTooltip content={<ChartTooltipContent hideLabel />} />
+                      <Bar dataKey="value" radius={4} />
+                    </BarChart>
+                  </ChartContainer>
+                  <dl className="sr-only">
+                    <div><dt>Available Now</dt><dd>{result.summary.availableNow}</dd></div>
+                    <div><dt>Unavailable Now</dt><dd>{result.summary.unavailableNow}</dd></div>
+                    <div><dt>Limited Supply</dt><dd>{result.summary.limitedSupplyNow}</dd></div>
+                  </dl>
                 </div>
-                <CsvButton cardId="availability-summary" onExport={exportCard} />
-              </CardHeader>
-              <CardContent>
+
                 <div className="grid grid-cols-2 gap-4">
-                  <Kpi label="Tracked Availability" value={formatPercent(result.summary.trackedAvailabilityPercent)} />
+                  <Kpi label="Repeat Unavailability" value={String(result.summary.repeatUnavailableItems)} />
                   <Kpi label="Item Limits" value={String(result.summary.itemRationedNow)} />
                   <Kpi label="Category Limits" value={String(result.summary.categoryRationedNow)} />
                   <Kpi
@@ -301,50 +476,159 @@ export function OperationalReportsWorkspace() {
                     value={result.summary.medianRestorationHours === null ? 'Unknown' : formatDuration(result.summary.medianRestorationHours)}
                   />
                 </div>
-              </CardContent>
-            </Card>
-          </div>
+              </div>
+            </CardContent>
+          </Card>
 
           <div className="grid min-w-0 gap-4 md:grid-cols-2">
-            <Card className="min-w-0">
+            <Card className="min-w-0 md:col-span-2">
               <CardHeader className="flex flex-col items-start justify-between gap-2 space-y-0 sm:flex-row">
                 <div>
-                  <CardTitle>Availability Over Time</CardTitle>
-                  <CardDescription>Share of the tracked catalog available to clients</CardDescription>
+                  <CardTitle>Available Assortment Over Time</CardTitle>
+                  <CardDescription>Combined service-window averages with all-Category or isolated Category trends</CardDescription>
                 </div>
-                <CsvButton cardId="availability-over-time" onExport={exportCard} />
+                <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+                  <Select value={assortmentCategory} onValueChange={setAssortmentCategory}>
+                    <SelectTrigger aria-label="Assortment Category" className="w-full sm:w-[200px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Categories</SelectItem>
+                      {result.assortmentCategorySeries.map((series) => (
+                        <SelectItem key={series.categoryId} value={String(series.categoryId)}>
+                          {series.categoryName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <CsvButton cardId="available-assortment" onExport={exportCard} />
+                </div>
               </CardHeader>
-              <CardContent>
-                <ChartContainer config={availabilityConfig} className="h-64 min-w-0 w-full">
-                  <AreaChart data={result.timeline}>
+              <CardContent className="space-y-5">
+                <div className="grid max-w-xl grid-cols-2 gap-4">
+                  <Kpi
+                    label="Range Average"
+                    value={result.summary.averageAvailableAssortment === null
+                      ? 'Unknown'
+                      : result.summary.averageAvailableAssortment.toFixed(1)}
+                  />
+                  <Kpi
+                    label="Latest Service Window"
+                    value={result.summary.latestAvailableAssortment === null
+                      ? 'Unknown'
+                      : result.summary.latestAvailableAssortment.toFixed(1)}
+                  />
+                </div>
+                <ChartContainer config={assortmentChart.config} className="h-[36rem] min-w-0 w-full sm:h-[30rem]">
+                  <ComposedChart data={assortmentChart.data}>
                     <CartesianGrid vertical={false} />
                     <XAxis dataKey="date" tickLine={false} axisLine={false} tickFormatter={(value: string) => format(new Date(`${value}T00:00:00`), 'MMM d')} />
-                    <YAxis domain={[0, 100]} width={34} tickLine={false} axisLine={false} />
+                    <YAxis width={34} tickLine={false} axisLine={false} />
                     <ChartTooltip content={<ChartTooltipContent />} />
-                    <Area dataKey="availabilityPercent" type="monotone" stroke="var(--color-availabilityPercent)" fill="var(--color-availabilityPercent)" fillOpacity={0.2} />
-                  </AreaChart>
+                    <ChartLegend content={<ChartLegendContent />} />
+                    {assortmentCategory === 'all' ? (
+                      <Area
+                        dataKey="available"
+                        type="monotone"
+                        stroke="var(--color-available)"
+                        strokeWidth={3}
+                        fill="var(--color-available)"
+                        fillOpacity={0.08}
+                        dot={false}
+                      />
+                    ) : null}
+                    {assortmentChart.series.map((series) => {
+                      const key = assortmentCategoryChartKey(series.categoryId);
+                      return (
+                        <Line
+                          key={series.categoryId}
+                          dataKey={key}
+                          type="monotone"
+                          stroke={`var(--color-${key})`}
+                          strokeWidth={2}
+                          dot={false}
+                        />
+                      );
+                    })}
+                  </ComposedChart>
                 </ChartContainer>
               </CardContent>
             </Card>
 
-            <Card className="min-w-0">
+            <Card className="min-w-0 md:col-span-2">
               <CardHeader className="flex flex-col items-start justify-between gap-2 space-y-0 sm:flex-row">
                 <div>
-                  <CardTitle>Operational Pressure</CardTitle>
-                  <CardDescription>Recorded states shown separately without a composite score</CardDescription>
+                  <CardTitle>Recurring Availability</CardTitle>
+                  <CardDescription>Repeated item cycles; one-time unavailable items remain outside this lens</CardDescription>
                 </div>
-                <CsvButton cardId="operational-pressure" onExport={exportCard} />
+                <CsvButton cardId="recurring-availability" onExport={exportCard} />
               </CardHeader>
-              <CardContent>
-                <ChartContainer config={pressureChart.config} className="h-64 min-w-0 w-full">
-                  <LineChart data={pressureChart.data}>
+              <CardContent className="space-y-6">
+                {recurringAvailability.length > 0 ? (
+                  <>
+                    <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+                      <Kpi label="Recurring Items" value={String(result.summary.repeatUnavailableItems)} />
+                      <Kpi label="Repeat Episodes" value={String(result.summary.recurringUnavailableEntries)} />
+                      <Kpi label="Currently Unavailable" value={String(result.summary.recurringOngoingEpisodes)} />
+                      <Kpi
+                        label="Recurring Median Restoration"
+                        value={result.summary.recurringMedianRestorationHours === null
+                          ? 'Unknown'
+                          : formatDuration(result.summary.recurringMedianRestorationHours)}
+                      />
+                    </div>
+
+                    <div className="min-w-0 max-w-4xl space-y-3 border-t pt-6">
+                        <div>
+                          <h3 className="font-medium">Items Cycling Most Often</h3>
+                          <p className="text-sm text-muted-foreground">Up to eight recurring items, ranked by unavailable entries</p>
+                        </div>
+                        <ChartContainer config={recurringAvailabilityConfig} className="h-72 min-w-0 w-full">
+                          <BarChart
+                            accessibilityLayer
+                            data={recurringAvailability}
+                            layout="vertical"
+                            margin={{ left: 8, right: 16 }}
+                          >
+                            <CartesianGrid horizontal={false} />
+                            <XAxis type="number" allowDecimals={false} tickLine={false} axisLine={false} />
+                            <YAxis dataKey="itemName" type="category" width={112} tickLine={false} axisLine={false} />
+                            <ChartTooltip content={<ChartTooltipContent />} />
+                            <ChartLegend content={<ChartLegendContent />} />
+                            <Bar dataKey="unavailableEntries" fill="var(--color-unavailableEntries)" radius={3} />
+                            <Bar dataKey="restorations" fill="var(--color-restorations)" radius={3} />
+                          </BarChart>
+                        </ChartContainer>
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex h-64 items-center justify-center rounded-md border border-dashed p-4 text-center text-sm text-muted-foreground">
+                    No items completed enough availability cycles to enter the recurring cohort in this date range.
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card className="min-w-0">
+            <CardHeader className="flex flex-col items-start justify-between gap-2 space-y-0 sm:flex-row">
+              <div>
+                <CardTitle>Operational Pressure</CardTitle>
+                <CardDescription>Food Item pressure and separate category-policy counts during scheduled service hours</CardDescription>
+              </div>
+              <CsvButton cardId="operational-pressure" onExport={exportCard} />
+            </CardHeader>
+            <CardContent>
+              <ChartContainer config={pressureChart.config} className="h-64 min-w-0 w-full">
+                <LineChart data={pressureChart.data}>
                     <CartesianGrid vertical={false} />
                     <XAxis dataKey="date" tickLine={false} axisLine={false} tickFormatter={(value: string) => format(new Date(`${value}T00:00:00`), 'MMM d')} />
-                    <YAxis allowDecimals={false} width={34} tickLine={false} axisLine={false} />
+                    <YAxis width={34} tickLine={false} axisLine={false} />
                     <ChartTooltip content={<ChartTooltipContent />} />
                     <ChartLegend content={<ChartLegendContent />} />
                     <Line dataKey="limitedSupply" stroke="var(--color-limitedSupply)" dot={false} />
                     <Line dataKey="clearance" stroke="var(--color-clearance)" dot={false} />
+                    <Line dataKey="categoryRationed" stroke="var(--color-categoryRationed)" dot={false} />
                     {result.rationedLimitSeries.map((series) => (
                       <Line
                         key={series.key}
@@ -353,11 +637,83 @@ export function OperationalReportsWorkspace() {
                         dot={false}
                       />
                     ))}
-                  </LineChart>
-                </ChartContainer>
-              </CardContent>
-            </Card>
-          </div>
+                </LineChart>
+              </ChartContainer>
+            </CardContent>
+          </Card>
+
+          <Card className="min-w-0">
+            <CardHeader className="flex flex-col items-start justify-between gap-2 space-y-0 sm:flex-row">
+              <div>
+                <CardTitle>Category Pressure</CardTitle>
+                <CardDescription>Independent service-pressure signals and recurring unavailability by Category</CardDescription>
+              </div>
+              <CsvButton cardId="category-pressure" onExport={exportCard} />
+            </CardHeader>
+            <CardContent>
+              {result.categoryPressure.length > 0 ? (
+                <div className="grid min-w-0 gap-6 xl:grid-cols-2">
+                  <div className="min-w-0 space-y-3">
+                    <div>
+                      <h3 className="font-medium">Recorded Service Pressure</h3>
+                      <p className="text-sm text-muted-foreground">Share of each Category&apos;s observed service time with each signal active</p>
+                    </div>
+                    <ChartContainer config={categoryPressureConfig} className="h-[34rem] min-w-0 w-full">
+                      <BarChart
+                        accessibilityLayer
+                        data={result.categoryPressure}
+                        layout="vertical"
+                        margin={{ left: 8, right: 16 }}
+                      >
+                        <CartesianGrid horizontal={false} />
+                        <XAxis
+                          type="number"
+                          domain={[0, 100]}
+                          tickLine={false}
+                          axisLine={false}
+                          tickFormatter={(value: number) => `${value}%`}
+                        />
+                        <YAxis dataKey="categoryName" type="category" width={112} tickLine={false} axisLine={false} />
+                        <ChartTooltip content={<ChartTooltipContent />} />
+                        <ChartLegend content={<ChartLegendContent />} />
+                        <Bar dataKey="limitedSupplyServicePercent" fill="var(--color-limitedSupplyServicePercent)" radius={2} />
+                        <Bar dataKey="clearanceServicePercent" fill="var(--color-clearanceServicePercent)" radius={2} />
+                        <Bar dataKey="itemRationedServicePercent" fill="var(--color-itemRationedServicePercent)" radius={2} />
+                        <Bar dataKey="categoryRationedServicePercent" fill="var(--color-categoryRationedServicePercent)" radius={2} />
+                      </BarChart>
+                    </ChartContainer>
+                  </div>
+
+                  <div className="min-w-0 space-y-3">
+                    <div>
+                      <h3 className="font-medium">Recurring Unavailability</h3>
+                      <p className="text-sm text-muted-foreground">Repeat-cycling items and their unavailable entries remain event counts</p>
+                    </div>
+                    <ChartContainer config={categoryRecurrenceConfig} className="h-[34rem] min-w-0 w-full">
+                      <BarChart
+                        accessibilityLayer
+                        data={result.categoryPressure}
+                        layout="vertical"
+                        margin={{ left: 8, right: 16 }}
+                      >
+                        <CartesianGrid horizontal={false} />
+                        <XAxis type="number" allowDecimals={false} tickLine={false} axisLine={false} />
+                        <YAxis dataKey="categoryName" type="category" width={112} tickLine={false} axisLine={false} />
+                        <ChartTooltip content={<ChartTooltipContent />} />
+                        <ChartLegend content={<ChartLegendContent />} />
+                        <Bar dataKey="recurringItems" fill="var(--color-recurringItems)" radius={3} />
+                        <Bar dataKey="recurringUnavailableEntries" fill="var(--color-recurringUnavailableEntries)" radius={3} />
+                      </BarChart>
+                    </ChartContainer>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex h-64 items-center justify-center rounded-md border border-dashed p-4 text-center text-sm text-muted-foreground">
+                  No Category pressure observations are available in this date range.
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
           <DetailHeader title="Unavailable Episodes" description="Each recorded period when an item was unavailable" cardId="unavailable-episodes" onExport={exportCard} />
           <EnhancedDataTable columns={episodeColumns} data={result.episodes} isLoading={isLoading} filterColumn="itemName" filterPlaceholder="Filter items..." />

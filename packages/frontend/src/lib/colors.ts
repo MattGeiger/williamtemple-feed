@@ -83,15 +83,16 @@ export function getChartStatusColor(status: StatusColor, scheme: ColorScheme = '
 /**
  * IBM Carbon Design System data-visualization palette.
  *
- * Carbon's colors meet WCAG 2.1 contrast requirements for data viz
- * (3.5:1 minimum), are tested for deuteranopia/protanopia/tritanopia,
- * and pair each light value with an equivalent-weight dark variant:
+ * FEED uses contrast-tested Carbon grades rather than assuming every Carbon
+ * token is suitable on every background. The chart-color regression suite
+ * enforces at least 4.5:1 against FEED's light and dark card surfaces. Carbon
+ * hue families are designed for color-vision accessibility, but charts still
+ * retain direct legend and tooltip labels rather than relying on color alone:
  * - https://medium.com/carbondesign/color-palettes-and-accessibility-features-for-data-visualization-7869f4874fca
  * - https://v10.carbondesignsystem.com/guidelines/accessibility/color/
  *
- * Ten hue families, two grades each. Light mode uses mid grades
- * (50/60-range tokens); dark mode uses lighter grades (30/40-range) for
- * visibility on dark backgrounds. For multi-series charts, pick
+ * Ten hue families, two grades each. Light mode uses darker 60/70-range
+ * tokens; dark mode uses lighter 40/30-range tokens. For multi-series charts, pick
  * non-adjacent hue families rather than walking one family's grades —
  * {@link CARBON_CATEGORICAL_ORDER} encodes that ordering.
  */
@@ -109,40 +110,40 @@ export const carbonChartColors: Record<
     secondary: { light: '#0043ce', dark: '#a6c8ff' },
   },
   cyan: {
-    primary: { light: '#1192e8', dark: '#33b1ff' },
-    secondary: { light: '#0072c3', dark: '#82cfff' },
+    primary: { light: '#0072c3', dark: '#33b1ff' },
+    secondary: { light: '#00539a', dark: '#82cfff' },
   },
   teal: {
-    primary: { light: '#009d9a', dark: '#3ddbd9' },
-    secondary: { light: '#007d79', dark: '#9ef0f0' },
+    primary: { light: '#007d79', dark: '#3ddbd9' },
+    secondary: { light: '#005d5d', dark: '#9ef0f0' },
   },
   green: {
-    primary: { light: '#24a148', dark: '#42be65' },
-    secondary: { light: '#198038', dark: '#6fdc8c' },
+    primary: { light: '#198038', dark: '#42be65' },
+    secondary: { light: '#0e6027', dark: '#6fdc8c' },
   },
   magenta: {
-    primary: { light: '#ee5396', dark: '#ff7eb6' },
-    secondary: { light: '#d02670', dark: '#ffafd2' },
+    primary: { light: '#d02670', dark: '#ff7eb6' },
+    secondary: { light: '#9f1853', dark: '#ffafd2' },
   },
   purple: {
-    primary: { light: '#a56eff', dark: '#be95ff' },
-    secondary: { light: '#8a3ffc', dark: '#d4bbff' },
+    primary: { light: '#8a3ffc', dark: '#be95ff' },
+    secondary: { light: '#6929c4', dark: '#d4bbff' },
   },
   red: {
-    primary: { light: '#fa4d56', dark: '#ff8389' },
-    secondary: { light: '#da1e28', dark: '#ffb3b8' },
+    primary: { light: '#da1e28', dark: '#ff8389' },
+    secondary: { light: '#a2191f', dark: '#ffb3b8' },
   },
   orange: {
-    primary: { light: '#ff832b', dark: '#ffb784' },
-    secondary: { light: '#eb6200', dark: '#ffd9be' },
+    primary: { light: '#ba4e00', dark: '#ff832b' },
+    secondary: { light: '#8a3800', dark: '#ffb784' },
   },
   yellow: {
-    primary: { light: '#f1c21b', dark: '#fddc69' },
-    secondary: { light: '#d2a106', dark: '#fcf4d6' },
+    primary: { light: '#8e6a00', dark: '#d2a106' },
+    secondary: { light: '#684e00', dark: '#f1c21b' },
   },
   warmGray: {
-    primary: { light: '#8f8b8b', dark: '#cac5c4' },
-    secondary: { light: '#726e6e', dark: '#e5e0df' },
+    primary: { light: '#726e6e', dark: '#ada8a8' },
+    secondary: { light: '#565151', dark: '#cac5c4' },
   },
 } as const;
 

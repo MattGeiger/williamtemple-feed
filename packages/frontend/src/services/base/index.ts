@@ -299,6 +299,56 @@ export abstract class BaseApiService {
   }
 
   /**
+   * Makes an authenticated multipart request without setting Content-Type so
+   * the browser can supply the FormData boundary. Uses the same credentials,
+   * session-expiry redirect, structured ApiError, and development logging as
+   * JSON requests. This is the shared path for transient imports and retained
+   * document uploads.
+   */
+  protected async requestFormData<T>(
+    path: string = '',
+    formData: FormData,
+    options?: Omit<RequestInit, 'body'>
+  ): Promise<T> {
+    try {
+      const headers = new Headers(options?.headers);
+      headers.delete('Content-Type');
+      const response = await fetch(`${this.baseUrl}${path}`, {
+        ...options,
+        method: options?.method ?? 'POST',
+        body: formData,
+        credentials: options?.credentials ?? 'include',
+        headers,
+      });
+
+      if (response.status === 401) {
+        window.location.href = '/login';
+        throw new Error('Your session has expired. Please log in again to continue.');
+      }
+
+      if (response.status === 204) {
+        return {} as T;
+      }
+
+      if (!response.ok) {
+        const { message, code, details } = await this.parseErrorPayload(response);
+        this.logError('Multipart request failed', {
+          status: response.status,
+          url: `${this.baseUrl}${path}`,
+          method: options?.method ?? 'POST',
+          error: message,
+        });
+        throw new ApiError(message, { status: response.status, code, details });
+      }
+
+      return await response.json();
+    } catch (error) {
+      this.logError('Multipart request failed', error);
+      throw this.handleError(error);
+    }
+  }
+
+  /**
    * Makes an authenticated request whose response body is binary (CSV,
    * ZIP, PDF). Shares the credential, 401-redirect, and structured
    * `ApiError` handling with `request`, and parses the server-suggested

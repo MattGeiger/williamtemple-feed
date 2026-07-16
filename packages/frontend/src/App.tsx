@@ -15,7 +15,8 @@ import { ShoppingListBuilder } from './components/shopping-lists/builder/Shoppin
 import { DocumentTranslator } from './components/document-translator'
 import { CategoryManagement } from './components/category-management'
 import { FoodItemManagement } from './components/food-item-management'
-import { OperationalReportsWorkspace } from './components/operational-reports'
+import { AnalyticsWorkspace } from './components/analytics'
+import { ReportsManagementWorkspace } from './components/reports-management'
 import { CategoryProvider } from './contexts/CategoryContext'
 import { FoodItemProvider } from './contexts/FoodItemContext'
 import { Toaster } from './components/ui/toaster'
@@ -44,6 +45,8 @@ import LogoutPage from './components/pages/logout-page'
 import { AIConfiguration } from './components/ai-configuration'
 import { HelpGuidePage } from './components/help/HelpGuidePage'
 import { HelpPage } from './components/help/HelpPage'
+import { SettingsWorkspace } from './components/settings'
+import { DataManagementWorkspace } from './components/data-management'
 import { getUserGuideBySlug } from './lib/user-guides'
 import DashboardErrorBoundary from './components/dashboard/dashboard-error-boundary'
 // Removed PrintView and in-browser print route (deprecated)
@@ -82,16 +85,44 @@ function FoodItemPage() {
   )
 }
 
-function ReportsPage() {
+function AnalyticsPage() {
   return (
     <RootLayout
       breadcrumbs={[
         { title: "Dashboard (Home)", href: "/" },
         { title: "Inventory" },
+        { title: "Analytics" },
+      ]}
+    >
+      <AnalyticsWorkspace />
+    </RootLayout>
+  )
+}
+
+function ReportsManagementPage() {
+  return (
+    <RootLayout
+      breadcrumbs={[
+        { title: "Dashboard (Home)", href: "/" },
+        { title: "Information" },
         { title: "Reports" },
       ]}
     >
-      <OperationalReportsWorkspace />
+      <ReportsManagementWorkspace />
+    </RootLayout>
+  )
+}
+
+function DataManagementPage() {
+  return (
+    <RootLayout
+      breadcrumbs={[
+        { title: "Dashboard (Home)", href: "/" },
+        { title: "Information" },
+        { title: "Data Management" },
+      ]}
+    >
+      <DataManagementWorkspace />
     </RootLayout>
   )
 }
@@ -326,6 +357,20 @@ function HelpIndexPage() {
   )
 }
 
+function SettingsPage() {
+  return (
+    <RootLayout
+      breadcrumbs={[
+        { title: "Dashboard (Home)", href: "/" },
+        { title: "Information" },
+        { title: "Settings" },
+      ]}
+    >
+      <SettingsWorkspace />
+    </RootLayout>
+  )
+}
+
 function HelpDetailPage() {
   const { slug } = useParams<{ slug: string }>()
   const guide = slug ? getUserGuideBySlug(slug) : null
@@ -361,7 +406,8 @@ function App() {
                   <Route path="/" element={<HomePage />} />
                   <Route path="/categories" element={<CategoryPage />} />
                   <Route path="/food-items" element={<FoodItemPage />} />
-                  <Route path="/reports" element={<ReportsPage />} />
+                  <Route path="/analytics" element={<AnalyticsPage />} />
+                  <Route path="/reports" element={<ReportsManagementPage />} />
                   <Route path="/languages" element={<LanguagePage />} />
                   <Route path="/translations" element={<TranslationPage />} />
                   <Route path="/shopping-lists" element={<ShoppingListsPage />} />
@@ -369,6 +415,8 @@ function App() {
                   {/** In-browser PrintView removed; use server-side React-PDF export instead */}
                   <Route path="/document-translator" element={<DocumentTranslatorPage />} />
                   <Route path="/ai-configuration" element={<AIConfigurationPage />} />
+                  <Route path="/settings" element={<SettingsPage />} />
+                  <Route path="/data-management" element={<DataManagementPage />} />
                   <Route path="/help" element={<HelpIndexPage />} />
                   <Route path="/help/:slug" element={<HelpDetailPage />} />
                   

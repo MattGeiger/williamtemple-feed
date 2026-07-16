@@ -42,5 +42,5 @@ On a new setup, FEED may not have enough activity yet to show usage or cost hist
 ## What To Read Next
 
 - For stock and category changes, read [Inventory](03-inventory.md).
-- For availability and service-pressure history, read [Operational Reports](04-inventory-reports.md).
+- For availability and service-pressure history, read [Inventory Analytics](04-inventory-reports.md).
 - For failed or missing translations, read [Languages & Translations](05-languages-translations.md).

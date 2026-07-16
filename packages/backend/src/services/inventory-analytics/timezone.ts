@@ -96,6 +96,44 @@ export function localDateStartUtc(dateStr: string, timeZone: string): Date {
   return new Date(utcMs);
 }
 
+const TIME_PATTERN = /^(\d{2}):(\d{2})$/;
+
+/** UTC instant for a local calendar date and 24-hour HH:mm time. */
+export function localDateTimeUtc(
+  dateStr: string,
+  time: string,
+  timeZone: string
+): Date {
+  const dateMatch = DATE_PATTERN.exec(dateStr);
+  const timeMatch = TIME_PATTERN.exec(time);
+  if (!dateMatch || !timeMatch) {
+    throw new Error(`Invalid local date/time: ${dateStr} ${time}`);
+  }
+  const [, y, m, d] = dateMatch.map(Number);
+  const [, hour, minute] = timeMatch.map(Number);
+  if (hour > 23 || minute > 59) {
+    throw new Error(`Invalid local time: ${time}`);
+  }
+
+  const targetUtcLike = Date.UTC(y, m - 1, d, hour, minute, 0);
+  let utcMs = targetUtcLike;
+  for (let i = 0; i < 3; i++) {
+    const parts = getZonedParts(new Date(utcMs), timeZone);
+    const seenUtcLike = Date.UTC(
+      parts.year,
+      parts.month - 1,
+      parts.day,
+      parts.hour,
+      parts.minute,
+      parts.second
+    );
+    const diff = seenUtcLike - targetUtcLike;
+    if (diff === 0) break;
+    utcMs -= diff;
+  }
+  return new Date(utcMs);
+}
+
 /** Local calendar date ('YYYY-MM-DD') of `instant` in `timeZone`. */
 export function localDateOf(instant: Date, timeZone: string): string {
   const parts = getZonedParts(instant, timeZone);
@@ -123,13 +161,22 @@ export function shiftLocalDateMonths(dateStr: string, months: number): string {
   return shifted.toISOString().slice(0, 10);
 }
 
+export const ANALYTICS_RANGE_PRESETS = [
+  'last-7-days',
+  'last-30-days',
+  'last-90-days',
+  'ytd',
+  'all',
+  'custom',
+] as const;
+
+export type AnalyticsRangePreset = typeof ANALYTICS_RANGE_PRESETS[number];
+
+// The dormant logistics-report prototype still accepts these longer presets.
 export type RangePreset =
-  | 'last-30-days'
-  | 'last-90-days'
+  | AnalyticsRangePreset
   | 'last-6-months'
-  | 'last-12-months'
-  | 'ytd'
-  | 'custom';
+  | 'last-12-months';
 
 export interface ResolvedRange {
   /** Inclusive local calendar dates the range covers. */
@@ -150,13 +197,18 @@ export function resolveRange(
   preset: RangePreset,
   timeZone: string,
   now: Date,
-  custom?: { startDate: string; endDate: string }
+  custom?: { startDate: string; endDate: string },
+  allStartDate?: string
 ): ResolvedRange {
   const today = localDateOf(now, timeZone);
   let startDate: string;
   let endDate: string;
 
   switch (preset) {
+    case 'last-7-days':
+      startDate = shiftLocalDate(today, -6);
+      endDate = today;
+      break;
     case 'last-30-days':
       startDate = shiftLocalDate(today, -29);
       endDate = today;
@@ -175,6 +227,10 @@ export function resolveRange(
       break;
     case 'ytd':
       startDate = `${today.slice(0, 4)}-01-01`;
+      endDate = today;
+      break;
+    case 'all':
+      startDate = allStartDate ?? today;
       endDate = today;
       break;
     case 'custom': {

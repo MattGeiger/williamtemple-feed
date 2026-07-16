@@ -27,19 +27,33 @@ model ExportSettings {
   updatedAt           DateTime @updatedAt
 }
 
+// Append-only organization-wide pantry schedules. The latest revision whose
+// effectiveDate is on or before a local service date governs that date.
+// Multiple same-day corrections are retained; the last recorded one applies.
+model OperatingHoursRevision {
+  id            Int      @id @default(autoincrement())
+  effectiveDate String
+  timezone      String
+  hours         Json
+  revisionKind  String   @default("updated")
+  recordedAt    DateTime @default(now())
+
+  @@index([effectiveDate, recordedAt])
+}
+
 model Category {
-  id           Int                     @id @default(autoincrement())
-  name         String
-  nameSearch   String                  @unique
-  limit        Int                     @default(10)
-  limitType    String                  @default("household")
-  createdAt    DateTime                @default(now())
-  updatedAt    DateTime                @updatedAt
-  icon         String?                 @default("package")
-  translations CategoryTranslation[]
-  foodItems    FoodItem[]
+  id                   Int                      @id @default(autoincrement())
+  name                 String
+  nameSearch           String                   @unique
+  limit                Int                      @default(10)
+  limitType            String                   @default("household")
+  createdAt            DateTime                 @default(now())
+  updatedAt            DateTime                 @updatedAt
+  icon                 String?                  @default("package")
+  translations         CategoryTranslation[]
+  foodItems            FoodItem[]
   shoppingListSections ShoppingListSection[]
-  inventoryEvents CategoryInventoryEvent[]
+  inventoryEvents      CategoryInventoryEvent[]
 }
 
 model CategoryTranslation {
@@ -55,31 +69,31 @@ model CategoryTranslation {
 }
 
 model FoodItem {
-  id                 Int                      @id @default(autoincrement())
-  name               String
-  nameSearch         String                   @unique
-  limit              Int                      @default(10)
-  limitType          String                   @default("household")
-  isInStock          Boolean                  @default(true)
-  isLimited          Boolean                  @default(false)
-  isClearance        Boolean                  @default(false)
-  categoryId         Int
-  vegan              Boolean                  @default(false)
-  vegetarian         Boolean                  @default(false)
-  glutenFree         Boolean                  @default(false)
-  organic            Boolean                  @default(false)
-  halal              Boolean                  @default(false)
-  kosher             Boolean                  @default(false)
-  readyToEat         Boolean                  @default(false)
+  id                Int                      @id @default(autoincrement())
+  name              String
+  nameSearch        String                   @unique
+  limit             Int                      @default(10)
+  limitType         String                   @default("household")
+  isInStock         Boolean                  @default(true)
+  isLimited         Boolean                  @default(false)
+  isClearance       Boolean                  @default(false)
+  categoryId        Int
+  vegan             Boolean                  @default(false)
+  vegetarian        Boolean                  @default(false)
+  glutenFree        Boolean                  @default(false)
+  organic           Boolean                  @default(false)
+  halal             Boolean                  @default(false)
+  kosher            Boolean                  @default(false)
+  readyToEat        Boolean                  @default(false)
   // Optional Supply annotations. They never drive availability or imply a
   // unit of measure (docs/reports/operational-analytics-design.md).
-  estimatedQuantity  Int?
-  supplySource       String?
-  createdAt          DateTime                 @default(now())
-  updatedAt          DateTime                 @updatedAt
-  category           Category                 @relation(fields: [categoryId], references: [id])
-  translations       FoodItemTranslation[]
-  inventoryEvents    FoodItemInventoryEvent[]
+  estimatedQuantity Int?
+  supplySource      String?
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime                 @updatedAt
+  category          Category                 @relation(fields: [categoryId], references: [id])
+  translations      FoodItemTranslation[]
+  inventoryEvents   FoodItemInventoryEvent[]
 }
 
 // Organization-wide shared report templates (Reports initiative §3). No
@@ -101,33 +115,132 @@ model ReportTemplate {
   @@unique([source, nameSearch])
 }
 
+// Organization-wide provenance for transient external-data imports. Uploaded
+// source files are parsed from memory and discarded; only normalized records,
+// hashes, validation summaries, and reversible lifecycle state are retained.
+model ProcurementImport {
+  id            Int                        @id @default(autoincrement())
+  source        String
+  fileHash      String
+  schemaVersion Int                        @default(1)
+  status        String                     @default("active")
+  rowCount      Int
+  orderCount    Int
+  warningCount  Int                        @default(0)
+  warnings      Json                       @default("[]")
+  rangeStart    String
+  rangeEnd      String
+  importedBy    String?
+  importedAt    DateTime                   @default(now())
+  rolledBackBy  String?
+  rolledBackAt  DateTime?
+  restoredBy    String?
+  restoredAt    DateTime?
+  orders        ProcurementOrderRevision[]
+
+  @@index([source, importedAt])
+  @@index([fileHash])
+  @@index([status, importedAt])
+}
+
+// One immutable source snapshot for one OFB source order reference. Direct
+// exporter reconciliation established that the reference is stable while
+// multiple orders on one receiving date are normal. A later snapshot appends
+// a revision; its delivery date may change without manufacturing a second
+// order identity.
+model ProcurementOrderRevision {
+  id                   Int               @id @default(autoincrement())
+  importId             Int
+  source               String
+  sourceOrderReference String
+  deliveryDate         String
+  revision             Int
+  snapshotHash         String
+  warningCodes         Json
+  isCurrent            Boolean           @default(true)
+  createdAt            DateTime          @default(now())
+  import               ProcurementImport @relation(fields: [importId], references: [id])
+  lines                ProcurementLine[]
+
+  @@unique([source, sourceOrderReference, revision])
+  @@index([source, sourceOrderReference, isCurrent])
+  @@index([source, deliveryDate, isCurrent])
+  @@index([importId])
+  @@index([snapshotHash])
+}
+
+// Stable identity supplied by the source system. Descriptions remain on each
+// line because OFB text changes and contains historical spelling variations.
+model ProcurementProduct {
+  id               Int               @id @default(autoincrement())
+  source           String
+  productCode      String
+  acquisitionClass String
+  createdAt        DateTime          @default(now())
+  lines            ProcurementLine[]
+
+  @@unique([source, productCode])
+  @@index([acquisitionClass])
+}
+
+// Immutable normalized line observation. Monetary values use integer cents;
+// quantity and weight use integer hundredths to match the exporter contract.
+// The source and calculated price totals are both retained so deterministic
+// reconciliation never overwrites provenance.
+model ProcurementLine {
+  id                        Int                      @id @default(autoincrement())
+  orderRevisionId           Int
+  productId                 Int
+  sourceRowNumber           Int
+  sourceOrderReference      String
+  sourcePeriod              String
+  sourceDescription         String
+  acquisitionClass          String
+  procurementChannel        String
+  quantityHundredths        Int
+  weightHundredths          Int
+  unitPriceCents            Int
+  sourcePriceTotalCents     Int
+  calculatedPriceTotalCents Int
+  priceTotalMatches         Boolean
+  serviceFeeCents           Int
+  grantsAppliedCents        Int
+  orderRevision             ProcurementOrderRevision @relation(fields: [orderRevisionId], references: [id])
+  product                   ProcurementProduct       @relation(fields: [productId], references: [id])
+
+  @@unique([orderRevisionId, sourceRowNumber])
+  @@index([productId, orderRevisionId])
+  @@index([acquisitionClass])
+  @@index([procurementChannel])
+}
+
 // Append-only inventory ledger. Events survive food-item deletion:
 // `foodItemId` detaches via SetNull while the immutable `sourceFoodItemId`
 // plus denormalized name/category keep historical analytics intact. Rows
 // are never updated or deleted by the app.
 model FoodItemInventoryEvent {
-  id                 Int       @id @default(autoincrement())
-  foodItemId         Int?
-  sourceFoodItemId   Int
-  itemName           String
-  categoryId         Int
-  categoryName       String
-  isInStock          Boolean
-  isLimited          Boolean
-  isClearance        Boolean
-  limit              Int
-  limitType          String
-  estimatedQuantity  Int?
-  supplySource       String?
+  id                Int       @id @default(autoincrement())
+  foodItemId        Int?
+  sourceFoodItemId  Int
+  itemName          String
+  categoryId        Int
+  categoryName      String
+  isInStock         Boolean
+  isLimited         Boolean
+  isClearance       Boolean
+  limit             Int
+  limitType         String
+  estimatedQuantity Int?
+  supplySource      String?
   // migration_baseline | created | updated | deleted
-  eventKind          String
-  recordsQuantity    Boolean   @default(false)
-  recordsSupply      Boolean   @default(false)
-  recordsStatus      Boolean   @default(false)
-  recordsLimit       Boolean   @default(false)
-  recordsIdentity    Boolean   @default(false)
-  recordedAt         DateTime  @default(now())
-  foodItem           FoodItem? @relation(fields: [foodItemId], references: [id], onDelete: SetNull)
+  eventKind         String
+  recordsQuantity   Boolean   @default(false)
+  recordsSupply     Boolean   @default(false)
+  recordsStatus     Boolean   @default(false)
+  recordsLimit      Boolean   @default(false)
+  recordsIdentity   Boolean   @default(false)
+  recordedAt        DateTime  @default(now())
+  foodItem          FoodItem? @relation(fields: [foodItemId], references: [id], onDelete: SetNull)
 
   @@index([sourceFoodItemId, recordedAt])
   @@index([foodItemId, recordedAt])
@@ -193,7 +306,7 @@ model Translation {
   updatedAt              DateTime      @updatedAt
   documentId             Int?
   skipTranslation        Boolean       @default(false)
-  classificationAction   String?       // 'skip', 'include', 'normal', or null
+  classificationAction   String? // 'skip', 'include', 'normal', or null
   classificationPromptId Int?
   document               Document?     @relation(fields: [documentId], references: [id])
   classificationPrompt   SystemPrompt? @relation("ClassificationPrompt", fields: [classificationPromptId], references: [id])
@@ -237,7 +350,7 @@ model Document {
   translations       TranslatedDocument[]
   cachedTranslations Translation[]
   formattingChoices  FormattingChoice[]
-  usageRecords       UsageRecord[]       // Add relation to usage records
+  usageRecords       UsageRecord[] // Add relation to usage records
 }
 
 model TranslatedDocument {
@@ -254,14 +367,14 @@ model TranslatedDocument {
 }
 
 model ShoppingListTemplate {
-  id          Int                     @id @default(autoincrement())
+  id          Int                    @id @default(autoincrement())
   name        String
   description String?
-  language    String                  @default("en")
-  layoutType  String                  @default("full-page")
-  paperSize   String                  @default("letter")
-  createdAt   DateTime                @default(now())
-  updatedAt   DateTime                @updatedAt
+  language    String                 @default("en")
+  layoutType  String                 @default("full-page")
+  paperSize   String                 @default("letter")
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
   sections    ShoppingListSection[]
   instances   ShoppingListInstance[]
 
@@ -269,19 +382,19 @@ model ShoppingListTemplate {
 }
 
 model ShoppingListSection {
-  id             Int                    @id @default(autoincrement())
-  templateId     Int
-  sectionType    String                 // 'custom-text', 'form', 'category'
-  categoryId     Int?
-  displayOrder   Int
-  isEnabled      Boolean                @default(true)
-  title          String?
-  subtitle       String?                // Subtitle text for title sections
-  configuration  Json?                  // Section-specific settings
-  createdAt      DateTime               @default(now())
-  updatedAt      DateTime               @updatedAt
-  template       ShoppingListTemplate   @relation(fields: [templateId], references: [id], onDelete: Cascade)
-  category       Category?              @relation(fields: [categoryId], references: [id])
+  id            Int                  @id @default(autoincrement())
+  templateId    Int
+  sectionType   String // 'custom-text', 'form', 'category'
+  categoryId    Int?
+  displayOrder  Int
+  isEnabled     Boolean              @default(true)
+  title         String?
+  subtitle      String? // Subtitle text for title sections
+  configuration Json? // Section-specific settings
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+  template      ShoppingListTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  category      Category?            @relation(fields: [categoryId], references: [id])
 
   @@index([templateId])
   @@index([categoryId])
@@ -289,31 +402,31 @@ model ShoppingListSection {
 }
 
 model ShoppingListInstance {
-  id            Int                    @id @default(autoincrement())
+  id            Int                  @id @default(autoincrement())
   templateId    Int
-  generatedData Json                   // Complete rendered shopping list
+  generatedData Json // Complete rendered shopping list
   title         String
-  generatedAt   DateTime               @default(now())
+  generatedAt   DateTime             @default(now())
   generatedBy   String?
-  template      ShoppingListTemplate   @relation(fields: [templateId], references: [id])
-  pdf           ShoppingListPDF?       // Optional relation to PDF
+  template      ShoppingListTemplate @relation(fields: [templateId], references: [id])
+  pdf           ShoppingListPDF? // Optional relation to PDF
 
   @@index([templateId])
   @@index([generatedAt])
 }
 
 model ShoppingListPDF {
-  id               Int                    @id @default(autoincrement())
-  instanceId       Int                    @unique
-  uuid             String                 @unique @default(uuid())
-  storagePath      String
-  fileSize         Int
-  layoutType       String
-  generationTime   Int?                   // Milliseconds to generate
-  metadata         Json?                  // PDFGenerationMetadata
-  createdAt        DateTime               @default(now())
-  updatedAt        DateTime               @updatedAt
-  instance         ShoppingListInstance   @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  id             Int                  @id @default(autoincrement())
+  instanceId     Int                  @unique
+  uuid           String               @unique @default(uuid())
+  storagePath    String
+  fileSize       Int
+  layoutType     String
+  generationTime Int? // Milliseconds to generate
+  metadata       Json? // PDFGenerationMetadata
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+  instance       ShoppingListInstance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
 
   @@index([instanceId])
   @@index([createdAt])
@@ -367,7 +480,7 @@ model AIConfiguration {
   requestsPerMinute Int?
   requestsPerDay    Int?
   isActive          Boolean       @default(true)
-  deletedAt         DateTime?     // Soft delete timestamp
+  deletedAt         DateTime? // Soft delete timestamp
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
   salt              String?
@@ -391,47 +504,47 @@ model EncryptionKey {
 }
 
 model SystemPrompt {
-  id                       Int                @id @default(autoincrement())
-  name                     String             @unique
-  promptType               String
-  isActive                 Boolean            @default(true)
-  isDefault                Boolean            @default(false)
-  description              String?
-  serviceDescription       String?
-  translationApproach      String?
-  contextGuidance          String?
-  additionalGuidance       String?
-  skipTranslation          String?
-  includeEnglish           String?
-  createdAt                DateTime           @default(now())
-  updatedAt                DateTime           @updatedAt
-  includeEnglishThreshold  Float?             @default(0.7)
-  skipTranslationThreshold Float?             @default(0.7)
-  temperature              Float?             @default(0.7)
-  topP                     Float?             @default(1.0)
-  rememberFormattingChoices Boolean           @default(true)
-  cachedClassifications    Translation[]      @relation("ClassificationPrompt")
-  formattingChoices        FormattingChoice[]
+  id                        Int                @id @default(autoincrement())
+  name                      String             @unique
+  promptType                String
+  isActive                  Boolean            @default(true)
+  isDefault                 Boolean            @default(false)
+  description               String?
+  serviceDescription        String?
+  translationApproach       String?
+  contextGuidance           String?
+  additionalGuidance        String?
+  skipTranslation           String?
+  includeEnglish            String?
+  createdAt                 DateTime           @default(now())
+  updatedAt                 DateTime           @updatedAt
+  includeEnglishThreshold   Float?             @default(0.7)
+  skipTranslationThreshold  Float?             @default(0.7)
+  temperature               Float?             @default(0.7)
+  topP                      Float?             @default(1.0)
+  rememberFormattingChoices Boolean            @default(true)
+  cachedClassifications     Translation[]      @relation("ClassificationPrompt")
+  formattingChoices         FormattingChoice[]
 }
 
 model FormattingChoice {
-  id               Int          @id @default(autoincrement())
-  originalText     String
-  classificationAction String   // 'skip', 'include', 'normal'
-  source           String       @default("ai") // 'ai' | 'manual' - NEW FIELD
-  confidence       Float?       // AI confidence score  
-  textHash         String?      // For faster lookups
-  systemPromptId   Int
-  documentId       Int?
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt  // NEW FIELD for tracking manual overrides
-  systemPrompt     SystemPrompt @relation(fields: [systemPromptId], references: [id], onDelete: Cascade)
-  document         Document?    @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  
+  id                   Int          @id @default(autoincrement())
+  originalText         String
+  classificationAction String // 'skip', 'include', 'normal'
+  source               String       @default("ai") // 'ai' | 'manual' - NEW FIELD
+  confidence           Float? // AI confidence score
+  textHash             String? // For faster lookups
+  systemPromptId       Int
+  documentId           Int?
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt // NEW FIELD for tracking manual overrides
+  systemPrompt         SystemPrompt @relation(fields: [systemPromptId], references: [id], onDelete: Cascade)
+  document             Document?    @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
   @@unique([originalText, systemPromptId])
   @@index([textHash, systemPromptId])
   @@index([systemPromptId])
-  @@index([source])  // NEW INDEX for source-based filtering
+  @@index([source]) // NEW INDEX for source-based filtering
 }
 
 model SavedCustomText {
@@ -443,33 +556,33 @@ model SavedCustomText {
 }
 
 model UsageRecord {
-  id                    Int             @id @default(autoincrement())
+  id                    Int      @id @default(autoincrement())
   aiConfigurationId     Int
-  configurationSnapshot String          // JSON snapshot of AI config pricing/limits
-  timestamp             DateTime        @default(now())
-  operationType         String          // 'translation', 'classification', 'batch'
-  
+  configurationSnapshot String // JSON snapshot of AI config pricing/limits
+  timestamp             DateTime @default(now())
+  operationType         String // 'translation', 'classification', 'batch'
+
   // Usage metrics
-  promptTokens          Int
-  completionTokens      Int
-  totalCost             Float
-  success               Boolean         @default(true) // Track operation success/failure
-  duration              Int?            // Response time in milliseconds
-  
+  promptTokens     Int
+  completionTokens Int
+  totalCost        Float
+  success          Boolean @default(true) // Track operation success/failure
+  duration         Int? // Response time in milliseconds
+
   // Optional business entity references (nullable if entity deleted)
-  translationId         Int?
-  documentId            Int?
-  
+  translationId Int?
+  documentId    Int?
+
   // Service details
-  modelUsed             String
-  serviceProvider       String          // 'OpenAI', 'Anthropic', 'Google'
-  language              String?         // Target language for language-specific analytics
-  
+  modelUsed       String
+  serviceProvider String // 'OpenAI', 'Anthropic', 'Google'
+  language        String? // Target language for language-specific analytics
+
   // Relations
-  aiConfiguration       AIConfiguration @relation(fields: [aiConfigurationId], references: [id])
-  translation           Translation?    @relation(fields: [translationId], references: [id])
-  document              Document?       @relation(fields: [documentId], references: [id])
-  
+  aiConfiguration AIConfiguration @relation(fields: [aiConfigurationId], references: [id])
+  translation     Translation?    @relation(fields: [translationId], references: [id])
+  document        Document?       @relation(fields: [documentId], references: [id])
+
   @@index([aiConfigurationId])
   @@index([timestamp])
   @@index([serviceProvider])
@@ -488,28 +601,28 @@ model User {
   emailVerified DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
-  
+
   @@index([email])
 }
 
 model VerificationToken {
-  identifier String   // email address
-  token      String   // hashed token or OTP
-  type       String   // "magic_link" or "otp"
+  identifier String // email address
+  token      String // hashed token or OTP
+  type       String // "magic_link" or "otp"
   expires    DateTime
   createdAt  DateTime @default(now())
-  
+
   @@unique([identifier, token])
   @@index([identifier])
   @@index([expires])
 }
 
 model OtpFailure {
-  email       String   @id
-  attempts    Int      @default(0)
+  email       String    @id
+  attempts    Int       @default(0)
   lockedUntil DateTime?
-  lastRequest DateTime @default(now())
-  
+  lastRequest DateTime  @default(now())
+
   @@index([email])
   @@index([lockedUntil])
 }

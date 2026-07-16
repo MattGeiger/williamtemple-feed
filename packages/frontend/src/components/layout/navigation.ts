@@ -8,12 +8,15 @@
 import { Info, Package, Globe2, Settings } from "@/components/ui/icons";
 import {
   AIConfigurationNavIcon,
+  AnalyticsNavIcon,
   CategoriesNavIcon,
   DashboardNavIcon,
   DocumentTranslatorNavIcon,
   FoodItemsNavIcon,
   ReportsNavIcon,
   HelpNavIcon,
+  SettingsNavIcon,
+  DataManagementNavIcon,
   LanguagesNavIcon,
   ShoppingListsNavIcon,
   TranslationsNavIcon,
@@ -50,9 +53,9 @@ export const navigationItems: NavItem[] = [
         icon: FoodItemsNavIcon,
       },
       {
-        title: "Reports",
-        href: "/reports",
-        icon: ReportsNavIcon,
+        title: "Analytics",
+        href: "/analytics",
+        icon: AnalyticsNavIcon,
       }
     ]
   },
@@ -100,6 +103,21 @@ export const navigationItems: NavItem[] = [
     href: "#",
     icon: Info,
     items: [
+      {
+        title: "Settings",
+        href: "/settings",
+        icon: SettingsNavIcon,
+      },
+      {
+        title: "Data Management",
+        href: "/data-management",
+        icon: DataManagementNavIcon,
+      },
+      {
+        title: "Reports",
+        href: "/reports",
+        icon: ReportsNavIcon,
+      },
       {
         title: "Help",
         href: "/help",

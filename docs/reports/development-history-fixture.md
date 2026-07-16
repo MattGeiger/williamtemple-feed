@@ -12,7 +12,9 @@ The fixture combines:
 
 - the Food Item and Category catalog from
   `docs/backup_20260709_103507.db`;
-- weekly staple presence and delivery dates from `docs/OFB_Orders.xlsx`;
+- weekly staple presence and delivery dates derived from the internal local
+  workbook `docs/OFB_Orders.xlsx` (intentionally ignored and not distributed
+  with the public repository);
 - the pantry's Tuesday–Thursday, 11am–2pm service schedule;
 - routine inventory updates near 9am on service days;
 - Tuesday Trader Joe's donations and smaller Thursday Fred Meyer donations.
@@ -21,6 +23,10 @@ The workbook is used only to establish delivery cadence and whether eggs,
 milk, bread, rice, pasta, soup, and tuna appeared in a delivery week. FEED does
 not convert workbook weight to Food Item counts, infer consumption, or claim
 that an OFB row caused a particular availability transition.
+
+The source workbook is not required to run the fixture. The narrow,
+non-transactional presence matrix needed by the fixture is embedded in the
+development script so private source rows are never published.
 
 ## Generated behavior
 
