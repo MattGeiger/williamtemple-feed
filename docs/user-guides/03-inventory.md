@@ -79,5 +79,5 @@ Before deleting a category or food item, make sure it is not still used by curre
 ## What To Read Next
 
 - To review availability, Limited Supply, Clearance, and rationing history,
-  read [Operational Reports](04-inventory-reports.md).
+  read [Inventory Analytics](04-inventory-reports.md).
 - To see how inventory becomes a printable list, read [Shopping List Builder](08-shopping-list-builder.md).

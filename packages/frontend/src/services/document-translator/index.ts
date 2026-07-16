@@ -101,7 +101,9 @@ class DocumentApiService extends BaseApiService {
     }
   }
   
-  // Upload a document file - this needs special handling for FormData
+  // Upload through the shared authenticated multipart path. The backend keeps
+  // DOCX files in storage; transient data imports use the same transport but
+  // deliberately discard their source buffers after normalization.
   async upload(file: File, name: string): Promise<Document> {
     try {
       const formData = new FormData();
@@ -109,42 +111,7 @@ class DocumentApiService extends BaseApiService {
       if (name) {
         formData.append('name', name);
       }
-      
-      // For FormData, we need to use fetch directly with credentials
-      // Create a clean set of headers without the Content-Type
-      const headers = this.getHeaders();
-      delete headers['Content-Type']; // Properly remove the Content-Type header
-      
-      // Log what we're sending for debugging
-      console.log('Uploading document file:', {
-        name,
-        fileSize: file.size,
-        fileType: file.type,
-        fileName: file.name,
-        endpoint: `${this.baseUrl}/upload`,
-        headersKeys: Object.keys(headers)
-      });
-      
-      const response = await fetch(`${this.baseUrl}/upload`, {
-        method: 'POST',
-        headers,
-        body: formData,
-        credentials: 'include'
-      });
-      
-      // Handle 401 Unauthorized - redirect to login
-      if (response.status === 401) {
-        window.location.href = '/login';
-        throw new Error('Your session has expired. Please log in again to continue.');
-      }
-      
-      if (!response.ok) {
-        // Use the enhanced error parsing from BaseApiService
-        const errorMessage = await this.parseErrorResponse(response);
-        throw new Error(errorMessage);
-      }
-      
-      const data = await response.json();
+      const data = await this.requestFormData<any>('/upload', formData);
       
       return {
         ...data,

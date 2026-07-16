@@ -1,6 +1,6 @@
 # FEED — Known Issues & Future Work
 
-**Last Updated**: June 13, 2026
+**Last Updated**: July 14, 2026
 **Status**: v1.0.0 release prep in progress (see `docs/V1-RELEASE-PLAN.md`)
 **Production**: https://feed.williamtemple.app
 
@@ -38,7 +38,76 @@ Everything else in this file. The application is shippable today.
 
 ## Open Issues
 
-### #46 — Dormant Reports/Export Infrastructure Audit
+### #51 — Frontend lint command is not runnable
+**Priority**: Medium · **Status**: Open
+**Bucket**: developer tooling
+
+`packages/frontend` uses a flat `eslint.config.js`, but its `lint` script still
+passes the legacy `--ext` flag, which ESLint rejects when flat configuration is
+active. Running ESLint without that flag then fails because the configuration
+imports `typescript-eslint`, which is not declared in the frontend package.
+Builds and tests remain available, but they are not a substitute for the lint
+gate. Repair the script and declare a compatible `typescript-eslint` dependency
+before treating frontend lint as part of release validation.
+
+### #50 — Administrator authority and sanitized in-app backups
+**Priority**: High · **Status**: Design approved; implementation deferred
+**Bucket**: Data Management / authorization
+
+FEED's shared organization-wide data model does not imply that every signed-in
+user should be able to change privileges, download sensitive configuration, or
+replace the database. The approved direction is to make the first verified user
+on a fresh installation an Administrator through an atomic bootstrap rule, add
+Staff and Administrator roles, hide the future Admin page from Staff, and—more
+importantly—enforce authorization on every privileged backend endpoint. Hiding
+navigation is not a security boundary.
+
+Database backup terminology also needs care. A transactionally consistent raw
+SQLite snapshot necessarily contains encrypted API-key material, encryption-key
+records, authentication records, and other sensitive configuration. A browser-
+downloadable artifact that excludes those records is therefore a **sanitized
+logical backup**, not a byte-for-byte database snapshot. Full disaster-recovery
+snapshots remain an operator-controlled deployment concern. The in-app restore
+design must build a fresh compatible database from the sanitized artifact and
+require fresh encryption/API-key configuration afterward.
+
+The accepted authority, bootstrap, backup, and restore boundaries are recorded
+in `docs/auth/administrator-authorization.md` and
+`docs/data-management/backup-and-restore.md`. Implementation is intentionally
+deferred until the Data Management and OFB import pilot is complete.
+
+### #49 — Document Translator upload UI bypasses current component standards
+**Priority**: Medium · **Status**: Open
+**Bucket**: Document Translator UX consistency
+
+The established DOCX upload interaction remains a useful model, but its current
+`FileUpload` implementation has legacy deviations that should not be copied:
+
+- it calls native `alert()` when no file is selected instead of using the
+  centralized message/error service;
+- success, error, and neutral states use hard-coded `green-*`, `red-*`, and
+  `gray-*` classes rather than FEED theme tokens and Shadcn Alert variants;
+- the Document Translator error boundary also uses hard-coded red classes.
+
+The procurement importer preserves the interaction shape while using Shadcn
+components, theme tokens, definite-height `ScrollArea`, centralized messages,
+and the shared authenticated `BaseApiService` multipart transport. A later
+Document Translator cleanup should migrate the legacy component toward that
+same standard without changing its staff workflow.
+
+### #47 — One-day operating-hours exceptions
+**Priority**: Low · **Status**: Deferred
+**Bucket**: operational analytics reframe
+
+Recurring Operating Hours now use effective-dated, append-only revisions, so a
+schedule change does not reinterpret earlier reports. The intentionally narrow
+remaining gap is one-day exceptions such as holidays, weather closures, or a
+special service day. Do not model an exception by briefly changing the weekly
+schedule; that would imply a recurring change. If real use demonstrates the
+need, add a separate dated-override model with the same shared-data and audit
+semantics. See `docs/settings/operating-hours.md`.
+
+### #46 — Dormant Report/Export Infrastructure Audit
 **Priority**: Medium · **Status**: Active watchpoint
 **Bucket**: operational analytics reframe
 
@@ -54,6 +123,12 @@ and cards are disabled. At each analytics milestone and release boundary,
 audit every retained module: connect it to a validated consumer with focused
 tests, keep it clearly isolated, or remove it. The accepted semantics and
 delivery sequence are in `docs/reports/operational-analytics-design.md`.
+
+The active operational workspace is **Analytics** at `/analytics`. The
+**Reports** route at `/reports` is currently only a nonfunctional management
+placeholder under Information. Do not mount the dormant template manager,
+selection provider, generation dialogs, or export pipeline there until a
+validated report-template contract is approved.
 
 Watchpoints:
 
@@ -1052,6 +1127,11 @@ flow in git history or older docs.
 ---
 
 ## Recently Resolved
+
+### July 2026
+- **#48** (Jul 13 2026): Replaced the catalog-wide availability
+  percentage with separate service-hour assortment and recurring-transition
+  lenses. Initial and migration states do not inflate recurrence.
 
 ### v1.0.0 release prep (May 18–19, 2026)
 - Created `release/v1.0.0` branch off `main`

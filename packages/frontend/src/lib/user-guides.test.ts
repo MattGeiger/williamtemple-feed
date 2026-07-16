@@ -82,11 +82,20 @@ describe("user guide parsing", () => {
     const reportsEntry = index.find(
       (item) =>
         item.guideSlug === "inventory-reports" &&
-        item.sectionTitle === "Export Report Data"
+        item.sectionTitle === "Export Analytics Data"
     )
 
     expect(reportsEntry).toBeTruthy()
-    expect(reportsEntry?.sectionId).toBe("export-report-data")
+    expect(reportsEntry?.sectionId).toBe("export-analytics-data")
     expect(reportsEntry?.content).toMatch(/export raw history/i)
+
+    const dataManagementEntry = index.find(
+      (item) =>
+        item.guideSlug === "data-management" &&
+        item.sectionTitle === "Import Oregon Food Bank Data"
+    )
+
+    expect(dataManagementEntry).toBeTruthy()
+    expect(dataManagementEntry?.content).toMatch(/discards the uploaded file/i)
   })
 })
