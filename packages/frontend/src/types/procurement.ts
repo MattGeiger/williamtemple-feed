@@ -5,11 +5,13 @@ import type { AnalyticsRangePreset } from '@/types/analytics';
 
 export type ProcurementImportStatus = 'active' | 'rolled_back';
 export type ProcurementChannel = 'ofb_warehouse' | 'fresh_alliance';
+export type ProcurementEventKind = 'ofb_warehouse_order' | 'fresh_alliance_receipt';
 export type AcquisitionClass = 'DONATED' | 'PURCH-DON' | 'GOVERNMENT' | 'PURCHASED';
 
 export interface ProcurementOrderSummary {
   id: number;
   sourceOrderReference: string;
+  eventKind: ProcurementEventKind;
   deliveryDate: string;
   revision: number;
   warningCodes: string[];
@@ -69,19 +71,36 @@ export interface ProcurementAnalyticsFilters {
   acquisitionClass?: AcquisitionClass;
 }
 
-export interface ProcurementProductContinuity {
+export interface ProcurementWarehouseProductSummary {
   productCode: string;
   description: string;
   acquisitionClass: AcquisitionClass;
   procurementChannel: ProcurementChannel;
   receiptDateCount: number;
-  activeMonthCount: number;
-  observedMonthSpan: number;
-  activeMonthShare: number;
-  receiptsPerActiveMonth: number;
   totalWeightHundredths: number;
   averageWeightPerReceiptHundredths: number;
   medianGapDays: number | null;
+  firstReceivedDate: string;
+  lastReceivedDate: string;
+}
+
+export interface FreshAllianceCategorySummary {
+  productCode: string;
+  description: string;
+  receiptEventCount: number;
+  receivingDateCount: number;
+  totalWeightHundredths: number;
+  firstReceivedDate: string;
+  lastReceivedDate: string;
+}
+
+export interface PaidProcurementProductSummary {
+  productCode: string;
+  description: string;
+  receiptDateCount: number;
+  totalSpendCents: number;
+  paidWeightHundredths: number;
+  costPerPaidPoundCents: number | null;
   firstReceivedDate: string;
   lastReceivedDate: string;
 }
@@ -102,15 +121,17 @@ export interface ProcurementAnalytics {
   availableYears: string[];
   summary: {
     totalWeightHundredths: number;
-    sourceOrderCount: number;
+    sourceEventCount: number;
+    warehouseOrderCount: number;
+    freshAllianceReceiptCount: number;
     receivingDateCount: number;
-    medianOrderWeightHundredths: number | null;
-    lowerQuartileOrderWeightHundredths: number | null;
-    upperQuartileOrderWeightHundredths: number | null;
-    medianLinesPerOrder: number | null;
-    supplierProductCodes: number;
-    productsReceivedOnce: number;
-    productsReceivedTenOrMore: number;
+    medianReceivingGapDays: number | null;
+    medianEventWeightHundredths: number | null;
+    lowerQuartileEventWeightHundredths: number | null;
+    upperQuartileEventWeightHundredths: number | null;
+    medianLinesPerEvent: number | null;
+    warehouseProductCodes: number;
+    freshAllianceCategoryCodes: number;
     zeroInboundLineCount: number;
     calculatedGrossProductChargesCents: number;
     sourceReportedProductChargesCents: number;
@@ -142,6 +163,7 @@ export interface ProcurementAnalytics {
     month: number;
     weightHundredths: number;
   }>;
-  recurrenceDistribution: Array<{ label: string; productCount: number }>;
-  productContinuity: ProcurementProductContinuity[];
+  warehouseProducts: ProcurementWarehouseProductSummary[];
+  paidProducts: PaidProcurementProductSummary[];
+  freshAllianceCategories: FreshAllianceCategorySummary[];
 }

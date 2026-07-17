@@ -39,6 +39,10 @@ data/
 /docs/OFB_Orders.xlsx
 /docs/reports/OFB_*.csv
 
+# Real operational exports and historical records. These files may contain
+# sensitive organization data and must never be committed or published.
+/docs/reports/RealData/
+
 # Generated local artifacts
 output/
 tmp/

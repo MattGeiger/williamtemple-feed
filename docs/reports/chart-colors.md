@@ -49,6 +49,20 @@ Regression tests assert that pressure-chart lines remain distinct and that
 every palette color maintains at least 4.5:1 contrast against the corresponding
 FEED card surface in both themes.
 
+## Usage: Seasonal Inbound Weight (Analytics)
+
+- The current calendar year always uses the first Carbon categorical color.
+  Each preceding year advances one position through the 20-color sequence.
+- A year's color is derived from its distance from the current year, not its
+  position in the selected subset. Selecting or clearing years therefore never
+  recolors the series that remain visible.
+- The current-year line uses a wider stroke and a restrained glow derived from
+  the same light/dark chart color. The legend and tooltip retain explicit year
+  labels so the emphasis does not make color the only means of identification.
+- The sequence repeats after 20 years. This keeps the mapping deterministic for
+  longer histories while preserving distinct colors throughout FEED's current
+  imported procurement range.
+
 ## Adding a new multi-series chart
 
 1. Fix semantically meaningful series to a family with

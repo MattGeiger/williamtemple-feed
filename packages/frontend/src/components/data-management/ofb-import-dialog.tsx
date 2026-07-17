@@ -77,7 +77,7 @@ export function OfbImportDialog({
       }
       if (imported.warningCount === 0) {
         messageService.success(
-          `Imported ${imported.rowCount.toLocaleString()} rows across ${imported.orderCount} source order${imported.orderCount === 1 ? '' : 's'}.`,
+          `Imported ${imported.rowCount.toLocaleString()} rows across ${imported.orderCount} source event${imported.orderCount === 1 ? '' : 's'}.`,
           imported.importId === null ? undefined : {
             action: {
               label: 'Undo Import',
@@ -112,7 +112,7 @@ export function OfbImportDialog({
         <DialogHeader>
           <DialogTitle>Import OFB Data</DialogTitle>
           <DialogDescription>
-            FEED imports the order records and discards the source CSV. The file is never retained.
+            FEED imports OFB Warehouse orders and Fresh Food Alliance receipts, then discards the source CSV. The file is never retained.
           </DialogDescription>
         </DialogHeader>
 
@@ -123,7 +123,7 @@ export function OfbImportDialog({
               <div>
                 <AlertTitle>Imported with source warnings</AlertTitle>
                 <AlertDescription>
-                  FEED imported {result.rowCount.toLocaleString()} rows across {result.orderCount} source orders and preserved {result.warningCount} warning{result.warningCount === 1 ? '' : 's'} for review.
+                  FEED imported {result.rowCount.toLocaleString()} rows across {result.orderCount} source events and preserved {result.warningCount} warning{result.warningCount === 1 ? '' : 's'} for review.
                 </AlertDescription>
               </div>
             </Alert>

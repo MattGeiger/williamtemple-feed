@@ -51,6 +51,10 @@ type LifecycleAction = {
 
 const sourceLabel = (source: string) => source === 'ofb' ? 'Oregon Food Bank' : source;
 const dateLabel = (date: string) => format(parseISO(date), 'MMM d, yyyy');
+const eventLabel = (kind: ProcurementImportRecord['orders'][number]['eventKind']) =>
+  kind === 'fresh_alliance_receipt'
+    ? 'Fresh Food Alliance Receipt'
+    : 'OFB Warehouse Order';
 
 export function DataManagementWorkspace() {
   const [imports, setImports] = React.useState<ProcurementImportRecord[]>([]);
@@ -139,7 +143,7 @@ export function DataManagementWorkspace() {
     },
     {
       accessorKey: 'orderCount',
-      header: 'Orders',
+      header: 'Events',
       size: 110,
     },
     {
@@ -312,7 +316,7 @@ export function DataManagementWorkspace() {
                   {detailTarget.orders.map((order) => (
                     <div key={order.id} className="flex flex-wrap items-start justify-between gap-2 border-b pb-3 last:border-0 last:pb-0">
                       <div>
-                        <p className="font-medium">Order {order.sourceOrderReference}</p>
+                        <p className="font-medium">{eventLabel(order.eventKind)} {order.sourceOrderReference}</p>
                         <p className="text-sm text-muted-foreground">
                           {dateLabel(order.deliveryDate)} · {order.lineCount} lines · Revision {order.revision}
                         </p>
@@ -340,8 +344,8 @@ export function DataManagementWorkspace() {
             </AlertDialogTitle>
             <AlertDialogDescription>
               {lifecycleAction?.mode === 'rollback'
-                ? 'The normalized records remain in audit history, but their order revisions will stop contributing to Analytics. Previous active revisions are restored automatically.'
-                : 'The selected import records will become active again. Newer active order revisions continue to take precedence.'}
+                ? 'The normalized records remain in audit history, but their event revisions will stop contributing to Analytics. Previous active revisions are restored automatically.'
+                : 'The selected import records will become active again. Newer active event revisions continue to take precedence.'}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
