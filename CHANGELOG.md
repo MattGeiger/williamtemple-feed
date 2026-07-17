@@ -17,8 +17,8 @@ All notable changes to FEED are documented here. This project adheres to
   and Procurement into Shadcn tabs. The Procurement lens includes inbound
   weight, source-order and receiving-date KPIs; acquisition and channel mix;
   recorded charge reconciliation; monthly and year-over-year seasonal trends;
-  recurrence distribution; a Procurement Pattern Matrix; and sortable Product
-  Continuity. Shared 7/30/90-day, YTD, All, and custom-date controls apply to
+  paid-product spending; and sortable Warehouse Product History. Shared
+  7/30/90-day, YTD, All, and custom-date controls apply to
   Operations and Procurement; procurement-channel and acquisition-class
   filters remain independent, with an empty-state path to Data Management and
   a warning when the latest active delivery is more than 30 calendar days old.
@@ -26,6 +26,12 @@ All notable changes to FEED are documented here. This project adheres to
   FormData requests with the same credentials, 401 behavior, structured
   `ApiError`, logging, and response parsing as JSON requests. Document
   Translator uploads now use this path too.
+- **Channel-aware OFB event semantics**: OFB portal imports now distinguish
+  OFB Warehouse Orders from Fresh Food Alliance Receipts at the source-reference
+  level. Procurement Analytics combines only
+  compatible weight totals, keeps Warehouse product observations separate from
+  Fresh Food Alliance reporting categories, and never infers grocery-partner
+  identity from the OFB export.
 
 - **Organization Operating Hours**: a new Settings page under Information lets
   staff maintain the shared seven-day pantry schedule and IANA timezone using
@@ -62,6 +68,31 @@ All notable changes to FEED are documented here. This project adheres to
 
 ### Changed
 
+- **Warehouse product analytics now remain factual**: the arbitrary recurrence
+  and continuity visualization cards—and their occasional, recurring, and core
+  classifications—have been removed. The supporting table is now Warehouse
+  Product History and retains only direct receiving-date, weight, and timing
+  observations.
+- **Analytics now progresses from observation to detail**: Procurement places
+  inbound summary and monthly change before mix, seasonal, and product-pattern
+  diagnostics. A new exact-product paid-spending visualization and table show
+  where recorded OFB Warehouse product charges went without inferring demand,
+  donation shortfalls, or organizational priorities. Operations continues to
+  report literal availability, pressure, recurrence, and recovery without an
+  added staple-item classification or composite resilience score.
+- **Paid-product spending exposes more of the long tail**: the spending chart
+  now shows the top 15 OFB Warehouse products, grows to preserve readable row
+  spacing, quantifies the remaining product-code count, and reports dollars and
+  percentage of paid charges in its tooltip. A product-name and OFB-code search
+  replaces the aggregate view with individually ranked matching products while
+  preserving each result's share of total paid procurement.
+- **Complete seasonal comparison by default**: Seasonal Inbound Weight now
+  displays every calendar year in the resolved date range initially, while the
+  year menu supports select-all, clear-all, and individual-year filtering.
+- **Stable seasonal year colors**: Seasonal Inbound Weight now anchors its
+  deterministic Carbon color sequence on the current calendar year, preserves
+  each visible year's color while filters change, and emphasizes the current
+  year with a wider, token-aware glow.
 - **Analytics filters now follow the PRISM quick-range pattern**: visible
   Shadcn preset tabs and an Apply-only custom Calendar replace the hidden range
   dropdown. The range persists across Operations and Procurement and in the
@@ -74,13 +105,15 @@ All notable changes to FEED are documented here. This project adheres to
   availability, quantity, or operational-history calculations.
 - **Direct OFB exports define order identity and channels**: authoritative
   corpus validation replaced the prototype delivery-date boundary with stable
-  source-order revisions, treats multiple same-day orders as normal, accepts
-  observed four-to-six-digit product identifiers, and classifies `4xxxx`
-  Donated products as Fresh Alliance without semantic Food Item mapping.
+  source-event revisions, treats multiple same-day events as normal, accepts
+  observed four-to-six-digit product identifiers, and classifies references
+  ending in `AGPCKUP` as Fresh Food Alliance receipts. Product-code prefixes
+  remain source catalog metadata and never determine an event's channel.
+  Deprecated `DON'T USE` descriptions are retained with provenance warnings.
 - **Order-level adjustments remain unallocated**: service fees and grants are
-  included in whole-order and year-only totals. Channel or acquisition-class
-  filters show filtered gross product charges while marking fees, grants, and
-  net recorded cost as not attributable.
+  included in whole-event and channel totals. An acquisition-class filter may
+  divide an event, so it shows filtered gross product charges while marking
+  fees, grants, and net recorded cost as not attributable.
 
 - **Reports workspace renamed Analytics**: the live availability and
   service-pressure workspace now appears as Analytics under Inventory at
@@ -129,6 +162,8 @@ All notable changes to FEED are documented here. This project adheres to
 
 ### Fixed
 
+- Animated tab content no longer clips the edge shadows of full-width controls,
+  analytics cards, or management tables.
 - Report chart colors now use contrast-tested Carbon grades that maintain at
   least 4.5:1 contrast against FEED's actual light and dark card surfaces.
   Documentation no longer makes an unsupported blanket palette claim, and a

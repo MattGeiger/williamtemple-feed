@@ -159,6 +159,26 @@ remain Procurement-only controls. The Available Assortment Category selector
 remains card-local and does not alter other cards or the shared URL range.
 Every visible card and CSV must use the same resolved range.
 
+## Evidence hierarchy
+
+Analytics follows the same Actionable, Specific, and Kind standard as FEED's
+message system, without turning observations into prescriptive scores. Each tab
+progresses from current state, to change over time, to recurrence and duration,
+then to contributing records and exports. Staff retain responsibility for
+deciding which foods or sources are most important.
+
+FEED does not add an `isStaple` or essential-item classification in this
+milestone. Operations reports literal Food Item and Category observations;
+Procurement reports source events, weight, channel, acquisition class, exact
+supplier products, and recorded cost. Policy classifications should be added
+only when a specific decision cannot be supported by the existing evidence.
+
+Procurement therefore begins with inbound summary and monthly change, followed
+by paid activity and source/acquisition composition. Seasonal comparisons and
+exact-product history tables appear later as supporting explanation.
+Paid-product rankings remain exact-code observations and never claim that a
+purchase occurred because donated supply was insufficient.
+
 ## Initial analytics vertical slice
 
 The first supported analytics domain is **Availability & Service Pressure**.

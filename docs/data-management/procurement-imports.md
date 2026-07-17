@@ -50,6 +50,9 @@ Examples include:
 
 - `Price Total` differing from `Qty × Unit Price`;
 - a Period label disagreeing with the delivery date;
+- a supplier description marking its product code as `DON'T USE` or
+  `DO NOT USE`. FEED retains the historical weight and flags the deprecated
+  catalog metadata;
 - a source order appearing on more than one receiving date in the same export.
 
 Multiple source orders on one receiving date are normal and do not produce a
@@ -63,31 +66,50 @@ reconciliation, not an assertion that FEED knows why the source differs.
 
 ## Procurement channels
 
-OFB exports contain two procurement channels that must remain distinguishable:
+The **source system** is the OFB portal. The portal aggregates two procurement
+channels that must remain distinguishable:
 
-- **OFB Warehouse** covers ordinary four-to-six digit product identifiers.
-- **Fresh Alliance** covers the five-digit `4xxxx` product family. These lines
-  are Donated supply received through participating grocery partners.
+- **OFB Warehouse** covers source references that do not end in `AGPCKUP`.
+- **Fresh Food Alliance** covers source references ending in `AGPCKUP`. These
+  receipts are Donated supply reported through participating grocery partners.
 
-Both channels contribute to combined procurement totals when the user selects
-All Channels. They remain filterable because their sourcing patterns and
-cadence are materially different. This channel classification is deterministic
-source metadata; it is not semantic mapping to FEED Food Items.
+Both channels contribute to combined inbound-weight totals when the user
+selects All Channels. They remain filterable because their sourcing patterns,
+event meanings, and cadence are materially different. This channel
+classification is deterministic source metadata; it is not semantic mapping
+to FEED Food Items.
+
+The source-reference suffix is the event classifier. Product-code prefixes are
+supplier catalog families, not event provenance. Historic numeric OFB orders
+contain `4xxxx` and `FA`-described products, frequently with OFB service fees;
+those lines remain part of their OFB Warehouse Order. FEED preserves the raw
+code and description without reclassifying the event.
+
+### Event kinds
+
+FEED records one immutable event kind per source reference:
+
+- `ofb_warehouse_order` — the reference does not end in `AGPCKUP`;
+- `fresh_alliance_receipt` — the reference ends in `AGPCKUP`.
+
+There is no Mixed Legacy Event kind. The prototype's earlier 400-event count
+was an artifact of classifying lines from their product-code prefix. The
+complete direct-export corpus disproved that interpretation.
 
 ## Revision and rollback model
 
-The source order reference is the stable observation boundary established by
-the direct exporter corpus. Each normalized order snapshot receives a
+The source `Order #` reference is the stable event boundary established by the
+direct exporter corpus. Each normalized event snapshot receives a
 deterministic hash; source row order is excluded from that hash.
 
 - An identical active snapshot is a no-op.
-- A changed snapshot for the same source order appends a new revision.
+- A changed snapshot for the same source reference appends a new revision.
 - A revised snapshot may correct its receiving date without manufacturing a
   second order identity.
 - Only the newest revision belonging to an active import contributes to
   Analytics.
 - Rolling back an import preserves its data and audit history, then restores
-  the preceding active revision for each affected source order.
+  the preceding active revision for each affected source event.
 - Restoring an import makes its revisions eligible again; the newest active
   revision still wins.
 
@@ -111,67 +133,86 @@ it must not be presented as a data-quality score.
 The Procurement lens safely reports:
 
 - total OFB inbound weight;
-- source-order count and distinct receiving-date count as separate metrics;
-- median order weight, interquartile range, and median source lines per order;
+- source-event count and distinct receiving-date count as separate metrics;
+- OFB Warehouse Order and Fresh Food Alliance Receipt counts;
+- median event weight, interquartile range, and median source lines only inside
+  a selected channel, never as one blended comparison of unlike event types;
 - OFB acquisition mix by inbound weight;
-- OFB Warehouse and Fresh Alliance channel mix by inbound weight;
+- OFB Warehouse and Fresh Food Alliance channel mix by inbound weight;
 - calculated gross product charges, service fees, grants, and net recorded
   charges;
+- paid product charges ranked within exact OFB Warehouse product codes, with
+  paid weight, receiving-date count, and mix-sensitive cost per paid pound;
 - monthly inbound weight by acquisition class;
 - year-over-year seasonal weight with shared date-range, channel, and
   acquisition filters;
-- supplier-product recurrence by distinct receiving date;
-- product continuity and a recurrence-versus-coverage pattern matrix.
+- searchable OFB Warehouse product history with receiving-date count, inbound
+  weight, median receiving gap, and first/last receiving dates;
+- Fresh Food Alliance pounds and receipt counts by broad OFB reporting category.
 
-Supplier products are identified by OFB product code. Descriptions remain
-source observations and may change. Price trends must stay within one supplier
-product code. Product continuity is procurement continuity, not proof that a
-Food Item was available to clients.
+Warehouse supplier products are identified by OFB product code. Within an
+`AGPCKUP` receipt, `4xxxx` codes are broad Fresh Food Alliance reporting
+categories, not products. Historic numeric Warehouse Orders may also contain
+`4xxxx` catalog products; their raw codes remain Warehouse product observations.
+Descriptions remain source observations and may change. Price trends must stay
+within one Warehouse supplier product code. Product history does not establish
+that a Food Item was available to clients.
+
+Paid-product analytics answer where recorded procurement dollars went within
+the selected range. They do not claim that a product was purchased because
+donations were insufficient. Category-level paid-dependency claims remain
+deferred until FEED has a separately reviewed, trustworthy classification or
+mapping contract.
 
 The Analytics date control is shared with Operations: 7 days, 30 days, 90 days
 (default), year to date, all active procurement history, or an inclusive custom
 date range. Channel and acquisition class remain independent Procurement
-filters. All Procurement cards—including recurrence, the pattern matrix, and
-Product Continuity—use the same resolved range. Staleness remains based on the
-latest active delivery in the complete corpus rather than the selected range.
+filters. All Procurement cards use the same resolved range. Exact-product
+history is Warehouse-only. Fresh Food Alliance uses category mix and
+category-detail views. Staleness remains based on the latest
+active delivery in the complete corpus rather than the selected range.
 
 Seasonal Inbound Weight compares selectable calendar-year series only when the
-resolved range spans more than one calendar year. A single-year range shows the
-monthly trend inside that range and disables the year overlay control; it never
-quietly reaches outside the shared date filter.
+resolved range spans more than one calendar year. Every year in the resolved
+range is selected by default. Users can select all years, clear the selection,
+or choose individual years for a focused comparison. A single-year range shows
+the monthly trend inside that range and disables the year overlay control; it
+never quietly reaches outside the shared date filter.
 
 Completed source lines with zero quantity or zero weight remain in provenance
 and the Import Quality count, but are not evidence that supply was received.
-They do not contribute to recurrence or Product Continuity.
+They do not contribute to Warehouse product history or Fresh Alliance category
+receipt observations.
 
-OFB places order-level service fees and grants on individual source rows.
-Whole-order and year-only totals may include those adjustments. When a channel
-or acquisition-class filter divides an order, FEED reports the filtered gross
+OFB places event-level service fees and grants on individual source rows.
+Whole-event and year-only totals may include those adjustments. When a channel
+or acquisition-class filter divides an event, FEED reports the filtered gross
 product charges but marks fees, grants, and net cost as **Not attributable**.
-It never assigns an order-level adjustment to the product row on which the
+It never assigns an event-level adjustment to the product row on which the
 exporter happened to place it.
 
 ## Authoritative corpus validation
 
-The direct exporter corpus was validated on July 14, 2026. The approved union
-uses five broad exports covering January 3, 2011 through July 13, 2026. Narrower
+The direct exporter corpus was validated on July 15, 2026. The approved union
+uses six broad exports covering November 9, 2009 through July 13, 2026. Narrower
 overlapping exports are accepted as no-ops. The file named
 `OFB_Completed_Orders_2026-06-01_to_2026-06-02.csv` was explicitly excluded
 because it is a synthetic conflict fixture rather than source history.
 
 The production-shaped import produced:
 
-- 36,679 normalized source rows;
-- 2,050 source orders across 1,566 receiving dates;
-- 1,584 stored supplier product codes, of which 1,583 have positive inbound
+- 38,348 normalized source rows;
+- 2,147 source events across 1,635 receiving dates: 1,321 OFB Warehouse Orders
+  and 826 Fresh Food Alliance Receipts;
+- 1,623 stored supplier product codes;
   observations;
-- 3,625,094.50 pounds of inbound supply;
-- $342,857.70 calculated gross product charges;
-- $255.40 in service fees and $22,953.87 in grants;
-- $320,159.23 in net recorded charges.
+- 3,722,217.97 pounds of inbound supply;
+- $355,840.09 calculated gross product charges;
+- $316.11 in service fees and $25,709.79 in grants;
+- $330,446.41 in net recorded charges.
 
-The overlapping May–July 2026 export skipped all 69 source orders as exact
-duplicates. Rollback restored the preceding active order revisions, restore
+The overlapping May–July 2026 export skipped all 69 source events as exact
+duplicates. Rollback restored the preceding active event revisions, restore
 reinstated the latest snapshot, and an intentionally modified order appended
 revision 2 without altering the source identity. These checks were repeated on
 a production-shaped database copy after applying every migration.
@@ -179,3 +220,16 @@ a production-shaped database copy after applying every migration.
 This validation does not authorize semantic mapping, category synthesis, or
 AI-assisted links to FEED Food Items. Exact supplier-product price history and
 direct analytics export remain later, separately reviewed increments.
+
+## Future agency partner-data ingestion
+
+OFB exports do not identify the grocery partner behind a Fresh Food Alliance
+receipt. FEED must not infer Amazon, Fred Meyer, Trader Joe's, or another
+partner from dates, reference numbers, category mixes, or operational history.
+
+William Temple House tracks partner identity in separate agency-authored XLSX
+files. Supporting partner-level analytics requires a separate, versioned XLSX
+ingestion pipeline with its own source contract, validation, revision, and
+rollback rules. Those observations may later aggregate with OFB procurement by
+weight, date, and defensible category, while retaining their independent
+provenance. The OFB importer must never manufacture partner identity.

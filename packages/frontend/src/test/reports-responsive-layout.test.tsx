@@ -91,7 +91,9 @@ describe('Operational Analytics phone-width layout contract', () => {
     expect(screen.getAllByRole('tablist')).toHaveLength(2);
 
     const wrapper = container.firstElementChild as HTMLElement;
+    const tabsContents = container.querySelector('[data-slot="tabs-contents"]') as HTMLElement;
     expect(wrapper).toHaveClass('min-w-0', 'w-full');
+    expect(tabsContents).toHaveStyle({ overflow: 'visible' });
     expect(CHART_LEGEND_LAYOUT_CLASS).toContain('flex-wrap');
     expect(CHART_LEGEND_LAYOUT_CLASS).toContain('min-w-0');
   });
