@@ -75,15 +75,14 @@ function TabsTrigger({ className, ...props }: TabsTriggerProps) {
 type TabsContentsProps = TabsContentsPrimitiveProps
 
 function TabsContents({ style, ...props }: TabsContentsProps) {
-  // Primitive defaults to `overflow: hidden` to keep height animation tidy,
-  // but that clips child component shadows (cards, inputs, switches).
-  // `overflow: clip` + `overflow-clip-margin` keeps the same animation
-  // behavior while letting shadows escape the box by ~20px.
+  // The Shadcn wrapper deliberately lets visual effects escape the animated
+  // height box. `overflow-clip-margin` does not reliably preserve descendant
+  // shadows in Chromium, so `visible` prevents full-width controls from losing
+  // their edge shadows while AutoHeight continues to animate the measured box.
   return (
     <TabsContentsPrimitive
       style={{
-        overflow: "clip",
-        overflowClipMargin: "20px",
+        overflow: "visible",
         ...style,
       }}
       {...props}

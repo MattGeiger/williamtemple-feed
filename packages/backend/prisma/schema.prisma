@@ -143,16 +143,16 @@ model ProcurementImport {
   @@index([status, importedAt])
 }
 
-// One immutable source snapshot for one OFB source order reference. Direct
-// exporter reconciliation established that the reference is stable while
-// multiple orders on one receiving date are normal. A later snapshot appends
-// a revision; its delivery date may change without manufacturing a second
-// order identity.
+// One immutable source-event snapshot for one OFB Order # reference. References
+// ending in AGPCKUP are Fresh Food Alliance Receipts; all other OFB references
+// are Warehouse Orders. A later snapshot appends a revision without
+// manufacturing a second identity.
 model ProcurementOrderRevision {
   id                   Int               @id @default(autoincrement())
   importId             Int
   source               String
   sourceOrderReference String
+  eventKind             String            @default("ofb_warehouse_order")
   deliveryDate         String
   revision             Int
   snapshotHash         String
@@ -164,6 +164,7 @@ model ProcurementOrderRevision {
 
   @@unique([source, sourceOrderReference, revision])
   @@index([source, sourceOrderReference, isCurrent])
+  @@index([source, eventKind, deliveryDate, isCurrent])
   @@index([source, deliveryDate, isCurrent])
   @@index([importId])
   @@index([snapshotHash])

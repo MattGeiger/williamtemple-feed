@@ -2,12 +2,15 @@
 // Copyright (C) 2026 Matt Geiger
 
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 import {
   AnalyticsWorkspace,
+  buildPaidProductSpendData,
+  buildPaidProductSearchResult,
+  buildSeasonalYearChartConfig,
   ProcurementAnalyticsWorkspace,
 } from '@/components/analytics';
 import { analyticsRangeFromSearchParams } from '@/components/analytics/range-control';
@@ -42,15 +45,17 @@ const emptyAnalytics: ProcurementAnalytics = {
   availableYears: [],
   summary: {
     totalWeightHundredths: 0,
-    sourceOrderCount: 0,
+    sourceEventCount: 0,
+    warehouseOrderCount: 0,
+    freshAllianceReceiptCount: 0,
     receivingDateCount: 0,
-    medianOrderWeightHundredths: null,
-    lowerQuartileOrderWeightHundredths: null,
-    upperQuartileOrderWeightHundredths: null,
-    medianLinesPerOrder: null,
-    supplierProductCodes: 0,
-    productsReceivedOnce: 0,
-    productsReceivedTenOrMore: 0,
+    medianReceivingGapDays: null,
+    medianEventWeightHundredths: null,
+    lowerQuartileEventWeightHundredths: null,
+    upperQuartileEventWeightHundredths: null,
+    medianLinesPerEvent: null,
+    warehouseProductCodes: 0,
+    freshAllianceCategoryCodes: 0,
     zeroInboundLineCount: 0,
     calculatedGrossProductChargesCents: 0,
     sourceReportedProductChargesCents: 0,
@@ -64,8 +69,9 @@ const emptyAnalytics: ProcurementAnalytics = {
   channelMix: [],
   monthlyWeight: [],
   seasonalWeight: [],
-  recurrenceDistribution: [],
-  productContinuity: [],
+  warehouseProducts: [],
+  paidProducts: [],
+  freshAllianceCategories: [],
 };
 
 const { getAnalyticsMock } = vi.hoisted(() => ({ getAnalyticsMock: vi.fn() }));
@@ -88,6 +94,22 @@ describe('Analytics dataset separation', () => {
   beforeEach(() => {
     getAnalyticsMock.mockReset();
     getAnalyticsMock.mockResolvedValue(emptyAnalytics);
+  });
+
+  test('keeps seasonal year colors stable when the selected years change', () => {
+    const completeConfig = buildSeasonalYearChartConfig(
+      ['2026', '2025', '2024'],
+      2026
+    );
+    const filteredConfig = buildSeasonalYearChartConfig(['2025'], 2026);
+
+    expect(completeConfig['2026']).toEqual({
+      label: '2026',
+      theme: { light: '#0f62fe', dark: '#78a9ff' },
+    });
+    expect(filteredConfig['2025']).toEqual(completeConfig['2025']);
+    expect(completeConfig['2025']).not.toEqual(completeConfig['2026']);
+    expect(completeConfig['2024']).not.toEqual(completeConfig['2025']);
   });
 
   test('keeps Operations and Procurement in distinct tabs', () => {
@@ -140,7 +162,7 @@ describe('Analytics dataset separation', () => {
     expect(screen.getByRole('button', { name: 'Manage Procurement Data' })).toBeVisible();
   });
 
-  test('presents order-level, channel, seasonal, pattern, and continuity analytics', async () => {
+  test('presents channel, seasonal, spending, and factual product analytics', async () => {
     getAnalyticsMock.mockResolvedValueOnce({
       ...emptyAnalytics,
       status: {
@@ -153,14 +175,17 @@ describe('Analytics dataset separation', () => {
       summary: {
         ...emptyAnalytics.summary,
         totalWeightHundredths: 120000,
-        sourceOrderCount: 2,
+        sourceEventCount: 2,
+        warehouseOrderCount: 1,
+        freshAllianceReceiptCount: 1,
         receivingDateCount: 1,
-        medianOrderWeightHundredths: 60000,
-        lowerQuartileOrderWeightHundredths: 50000,
-        upperQuartileOrderWeightHundredths: 70000,
-        medianLinesPerOrder: 4,
-        supplierProductCodes: 1,
-        productsReceivedOnce: 1,
+        medianReceivingGapDays: null,
+        medianEventWeightHundredths: 60000,
+        lowerQuartileEventWeightHundredths: 50000,
+        upperQuartileEventWeightHundredths: 70000,
+        medianLinesPerEvent: 4,
+        warehouseProductCodes: 1,
+        freshAllianceCategoryCodes: 1,
         calculatedGrossProductChargesCents: 1000,
         grantsAppliedCents: 200,
         netRecordedCostCents: 800,
@@ -185,20 +210,34 @@ describe('Analytics dataset separation', () => {
         freshAllianceWeightHundredths: 20000,
       }],
       seasonalWeight: [{ year: '2026', month: 7, weightHundredths: 120000 }],
-      recurrenceDistribution: [{ label: 'One receipt date', productCount: 1 }],
-      productContinuity: [{
-        productCode: '40000',
-        description: 'Fresh Alliance Bread',
-        acquisitionClass: 'DONATED',
-        procurementChannel: 'fresh_alliance',
+      warehouseProducts: [{
+        productCode: '90001',
+        description: 'Rice',
+        acquisitionClass: 'PURCHASED',
+        procurementChannel: 'ofb_warehouse',
         receiptDateCount: 1,
-        activeMonthCount: 1,
-        observedMonthSpan: 1,
-        activeMonthShare: 1,
-        receiptsPerActiveMonth: 1,
-        totalWeightHundredths: 20000,
-        averageWeightPerReceiptHundredths: 20000,
+        totalWeightHundredths: 100000,
+        averageWeightPerReceiptHundredths: 100000,
         medianGapDays: null,
+        firstReceivedDate: '2026-07-13',
+        lastReceivedDate: '2026-07-13',
+      }],
+      paidProducts: [{
+        productCode: '90001',
+        description: 'Rice',
+        receiptDateCount: 1,
+        totalSpendCents: 1000,
+        paidWeightHundredths: 100000,
+        costPerPaidPoundCents: 1,
+        firstReceivedDate: '2026-07-13',
+        lastReceivedDate: '2026-07-13',
+      }],
+      freshAllianceCategories: [{
+        productCode: '40000',
+        description: 'Bread & Bakery (Fresh Alliance)',
+        receiptEventCount: 1,
+        receivingDateCount: 1,
+        totalWeightHundredths: 20000,
         firstReceivedDate: '2026-07-13',
         lastReceivedDate: '2026-07-13',
       }],
@@ -211,14 +250,211 @@ describe('Analytics dataset separation', () => {
     );
 
     expect(await screen.findByText('Inbound Supply Summary')).toBeVisible();
-    expect(screen.getByText('Source Orders')).toBeVisible();
+    expect(screen.getByText('Source Events')).toBeVisible();
+    expect(screen.getByText('OFB Warehouse Orders')).toBeVisible();
+    expect(screen.getByText('Fresh Food Alliance Receipts')).toBeVisible();
+    const summaryGrid = screen.getByText('Total Inbound Weight').parentElement?.parentElement;
+    expect(summaryGrid).toHaveClass('xl:grid-cols-4');
+    expect(summaryGrid?.children[4]).toHaveTextContent('Receiving Dates');
     expect(screen.getByText('Procurement Channels')).toBeVisible();
     expect(screen.getByText('Seasonal Inbound Weight')).toBeVisible();
-    expect(screen.getByText('Procurement Pattern Matrix')).toBeVisible();
-    expect(screen.getByRole('heading', { name: 'Product Continuity' })).toBeVisible();
-    expect(screen.getByText('Fresh Alliance Bread')).toBeVisible();
+    expect(screen.getByText('Where Paid Procurement Dollars Went')).toBeVisible();
+    const paidProductSearch = screen.getByRole('searchbox', { name: 'Search paid products' });
+    expect(paidProductSearch).toBeVisible();
+    fireEvent.change(paidProductSearch, { target: { value: '90001' } });
+    expect(screen.getByText('1 matching product code.')).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'Paid OFB Warehouse Products' })).toBeVisible();
+    expect(screen.queryByText('Warehouse Product Recurrence')).not.toBeInTheDocument();
+    expect(screen.queryByText('Warehouse Product Continuity')).not.toBeInTheDocument();
+    expect(screen.queryByText('Range Coverage')).not.toBeInTheDocument();
+    expect(screen.queryByText('unspecified', { exact: false })).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'OFB Warehouse Product History' })).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'Fresh Food Alliance Receipt Categories' })).toBeVisible();
+    expect(screen.getByText('Bread & Bakery (Fresh Alliance)')).toBeVisible();
+    const pageText = document.body.textContent ?? '';
+    expect(pageText.indexOf('Inbound Supply Summary')).toBeLessThan(pageText.indexOf('Inbound Weight Over Time'));
+    expect(pageText.indexOf('Inbound Weight Over Time')).toBeLessThan(pageText.indexOf('Where Paid Procurement Dollars Went'));
+    expect(pageText.indexOf('Seasonal Inbound Weight')).toBeLessThan(pageText.indexOf('OFB Warehouse Product History'));
     expect(getAnalyticsMock).toHaveBeenCalledWith(expect.objectContaining({
       preset: 'last-90-days',
     }));
+  });
+
+  test('shows fifteen paid products and quantifies the remaining long tail', async () => {
+    const paidProducts = Array.from({ length: 17 }, (_, index) => ({
+      productCode: `90${String(index).padStart(3, '0')}`,
+      description: `Paid Product ${index + 1}`,
+      receiptDateCount: 1,
+      totalSpendCents: 1700 - index * 50,
+      paidWeightHundredths: 10000,
+      costPerPaidPoundCents: 10,
+      firstReceivedDate: '2026-07-13',
+      lastReceivedDate: '2026-07-13',
+    }));
+    const chartData = buildPaidProductSpendData(paidProducts);
+
+    expect(chartData).toHaveLength(16);
+    expect(chartData[14]).toMatchObject({
+      product: 'Paid Product 15',
+      productCount: 1,
+    });
+    expect(chartData[15]).toMatchObject({
+      product: 'Other paid products (2 codes)',
+      fullDescription: 'All remaining 2 paid OFB Warehouse product codes',
+      productCount: 2,
+    });
+    expect(chartData.reduce((sum, product) => sum + product.spendShare, 0)).toBeCloseTo(1);
+  });
+
+  test('searches paid products by description or OFB code without aggregating matches', () => {
+    const paidProducts = [
+      {
+        productCode: '90680',
+        description: 'Meat, Tuna, Cans 48/5 oz',
+        receiptDateCount: 3,
+        totalSpendCents: 3000,
+        paidWeightHundredths: 10000,
+        costPerPaidPoundCents: 30,
+        firstReceivedDate: '2026-01-01',
+        lastReceivedDate: '2026-07-13',
+      },
+      {
+        productCode: '90021',
+        description: 'Dairy, Milk 1% Shelf Stable',
+        receiptDateCount: 2,
+        totalSpendCents: 2000,
+        paidWeightHundredths: 10000,
+        costPerPaidPoundCents: 20,
+        firstReceivedDate: '2026-01-01',
+        lastReceivedDate: '2026-07-13',
+      },
+      {
+        productCode: '84020',
+        description: 'Dairy, Milk 1% UHT Fluid',
+        receiptDateCount: 1,
+        totalSpendCents: 1000,
+        paidWeightHundredths: 10000,
+        costPerPaidPoundCents: 10,
+        firstReceivedDate: '2026-01-01',
+        lastReceivedDate: '2026-07-13',
+      },
+    ];
+
+    const milkResults = buildPaidProductSearchResult(paidProducts, 'milk');
+    const codeResult = buildPaidProductSearchResult(paidProducts, '90680');
+
+    expect(milkResults.matchCount).toBe(2);
+    expect(milkResults.data.map((product) => product.fullDescription)).toEqual([
+      'Dairy, Milk 1% Shelf Stable (90021)',
+      'Dairy, Milk 1% UHT Fluid (84020)',
+    ]);
+    expect(milkResults.data.some((product) => product.product.startsWith('Other'))).toBe(false);
+    expect(milkResults.data[0].spendShare).toBeCloseTo(1 / 3);
+    expect(codeResult.data).toHaveLength(1);
+    expect(codeResult.data[0].fullDescription).toContain('Meat, Tuna');
+    expect(codeResult.data[0].spendShare).toBeCloseTo(0.5);
+  });
+
+  test('shows every available seasonal year by default and allows focused filtering', async () => {
+    const availableYears = ['2026', '2025', '2024', '2023', '2022', '2021', '2020', '2019'];
+    getAnalyticsMock.mockResolvedValueOnce({
+      ...emptyAnalytics,
+      status: {
+        ...emptyAnalytics.status,
+        hasData: true,
+      },
+      range: {
+        ...emptyAnalytics.range,
+        preset: 'all',
+        startDate: '2019-01-01',
+      },
+      availableYears,
+      seasonalWeight: availableYears.map((year) => ({
+        year,
+        month: 1,
+        weightHundredths: 10000,
+      })),
+    } satisfies ProcurementAnalytics);
+
+    render(
+      <MemoryRouter>
+        <ProcurementAnalyticsWorkspace range={{ preset: 'all' }} />
+      </MemoryRouter>
+    );
+
+    const yearFilter = await screen.findByRole('button', { name: /All years/i });
+    expect(yearFilter).toBeVisible();
+
+    fireEvent.keyDown(yearFilter, { key: 'Enter' });
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Clear all years' }));
+    expect(screen.getByText('Choose at least one year.')).toBeVisible();
+
+    const year2026 = screen.getByRole('menuitemcheckbox', { name: '2026' });
+    fireEvent.click(year2026);
+    expect(year2026).toHaveAttribute('aria-checked', 'true');
+  });
+
+  test('uses receipt and category semantics for the Fresh Food Alliance channel', async () => {
+    getAnalyticsMock.mockResolvedValue({
+      ...emptyAnalytics,
+      status: {
+        ...emptyAnalytics.status,
+        hasData: true,
+        latestDeliveryDate: '2026-07-13',
+        daysSinceLatestDelivery: 1,
+      },
+      filters: { channel: 'fresh_alliance', acquisitionClass: null },
+      availableYears: ['2026'],
+      summary: {
+        ...emptyAnalytics.summary,
+        totalWeightHundredths: 20000,
+        sourceEventCount: 2,
+        freshAllianceReceiptCount: 1,
+        receivingDateCount: 1,
+        medianEventWeightHundredths: 10000,
+        lowerQuartileEventWeightHundredths: 8000,
+        upperQuartileEventWeightHundredths: 12000,
+        medianLinesPerEvent: 3,
+        freshAllianceCategoryCodes: 1,
+      },
+      channelMix: [
+        { channel: 'ofb_warehouse', weightHundredths: 0 },
+        { channel: 'fresh_alliance', weightHundredths: 20000 },
+      ],
+      monthlyWeight: [{
+        month: '2026-07',
+        donatedWeightHundredths: 20000,
+        purchDonWeightHundredths: 0,
+        governmentWeightHundredths: 0,
+        purchasedWeightHundredths: 0,
+        ofbWarehouseWeightHundredths: 0,
+        freshAllianceWeightHundredths: 20000,
+      }],
+      seasonalWeight: [{ year: '2026', month: 7, weightHundredths: 20000 }],
+      freshAllianceCategories: [{
+        productCode: '41000',
+        description: 'Produce (Fresh Alliance)',
+        receiptEventCount: 2,
+        receivingDateCount: 1,
+        totalWeightHundredths: 20000,
+        firstReceivedDate: '2026-07-13',
+        lastReceivedDate: '2026-07-13',
+      }],
+    } satisfies ProcurementAnalytics);
+
+    render(
+      <MemoryRouter initialEntries={['/analytics?tab=procurement&channel=fresh_alliance']}>
+        <ProcurementAnalyticsWorkspace />
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText('Fresh Food Alliance Category Mix')).toBeVisible();
+    expect(screen.getByText('Fresh Food Alliance Receipts')).toBeVisible();
+    expect(screen.queryByText('Mixed Legacy Events')).not.toBeInTheDocument();
+    expect(screen.getByText('Fresh Food Alliance Weight Over Time')).toBeVisible();
+    expect(screen.queryByText('Paid Procurement Summary')).not.toBeInTheDocument();
+    expect(screen.queryByText('Where Paid Procurement Dollars Went')).not.toBeInTheDocument();
+    expect(screen.queryByText('Warehouse Product Recurrence')).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'OFB Warehouse Product History' })).not.toBeInTheDocument();
   });
 });

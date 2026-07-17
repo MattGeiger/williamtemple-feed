@@ -32,7 +32,7 @@ describe('Data Management', () => {
     expect(screen.getByPlaceholderText('Filter imports...')).toBeVisible();
     expect(screen.getByRole('button', { name: 'Import OFB Data' })).toBeVisible();
     expect(screen.getByRole('columnheader', { name: 'Source' })).toBeVisible();
-    expect(screen.getByRole('columnheader', { name: 'Orders' })).toBeVisible();
+    expect(screen.getByRole('columnheader', { name: 'Events' })).toBeVisible();
     expect(screen.getByRole('columnheader', { name: 'Actions' })).toBeVisible();
     expect(screen.getByTestId('pagination-controls')).toBeVisible();
   });

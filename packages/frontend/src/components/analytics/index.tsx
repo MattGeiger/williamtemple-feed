@@ -10,11 +10,8 @@ import {
   CartesianGrid,
   Line,
   LineChart,
-  Scatter,
-  ScatterChart,
   XAxis,
   YAxis,
-  ZAxis,
 } from 'recharts';
 import {
   AlertTriangle,
@@ -51,10 +48,14 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from '@/components/ui/chart';
+import { Input } from '@/components/ui/input';
+import { SearchIcon, type SearchIconHandle } from '@/components/ui/search';
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { EnhancedDataTable } from '@/components/ui/enhanced-data-table';
@@ -75,19 +76,19 @@ import {
 } from '@/components/ui/tabs';
 import { carbonCategoricalTheme, carbonTheme } from '@/lib/colors';
 import { ErrorHandlerService } from '@/services/error/ErrorHandlerService';
-import { messageService } from '@/services/message';
 import { procurementService } from '@/services/procurement';
 import type {
   AcquisitionClass,
+  FreshAllianceCategorySummary,
+  PaidProcurementProductSummary,
   ProcurementAnalytics,
   ProcurementChannel,
-  ProcurementProductContinuity,
+  ProcurementWarehouseProductSummary,
 } from '@/types/procurement';
 import type { AnalyticsDateRange } from '@/types/analytics';
 import { DEFAULT_ANALYTICS_RANGE } from '@/types/analytics';
 
 const PageTitleAnalyticsIcon = createPageTitleIcon(ChartNoAxesCombinedIcon);
-const MAX_SEASONAL_YEARS = 6;
 
 const acquisitionMixConfig = {
   weight: { label: 'Inbound Weight', theme: carbonTheme('blue') },
@@ -104,16 +105,17 @@ const monthlyWeightConfig = {
   purchasedWeight: { label: 'Purchased', theme: carbonTheme('orange') },
 } satisfies ChartConfig;
 
-const recurrenceConfig = {
-  productCount: { label: 'Supplier Products', theme: carbonTheme('magenta') },
+const channelMonthlyWeightConfig = {
+  ofbWarehouseWeight: { label: 'OFB Warehouse', theme: carbonTheme('blue') },
+  freshAllianceWeight: { label: 'Fresh Food Alliance', theme: carbonTheme('green') },
 } satisfies ChartConfig;
 
-const patternConfig = {
-  activeMonthPercent: { label: 'Active-month coverage', theme: carbonTheme('blue') },
-  receiptsPerActiveMonth: { label: 'Receipts per active month', theme: carbonTheme('purple') },
-  totalWeight: { label: 'Total inbound pounds', theme: carbonTheme('teal') },
-  ofbWarehouse: { label: 'OFB Warehouse', theme: carbonTheme('blue') },
-  freshAlliance: { label: 'Fresh Alliance', theme: carbonTheme('green') },
+const freshAllianceCategoryConfig = {
+  weight: { label: 'Inbound Weight', theme: carbonTheme('green') },
+} satisfies ChartConfig;
+
+const paidProductSpendConfig = {
+  spendDollars: { label: 'Paid Product Charges', theme: carbonTheme('blue') },
 } satisfies ChartConfig;
 
 const acquisitionLabels: Record<AcquisitionClass, string> = {
@@ -125,7 +127,7 @@ const acquisitionLabels: Record<AcquisitionClass, string> = {
 
 const channelLabels: Record<ProcurementChannel, string> = {
   ofb_warehouse: 'OFB Warehouse',
-  fresh_alliance: 'Fresh Alliance',
+  fresh_alliance: 'Fresh Food Alliance',
 };
 
 const monthLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -138,6 +140,161 @@ const dollars = (cents: number) =>
   (cents / 100).toLocaleString(undefined, { style: 'currency', currency: 'USD' });
 const attributableDollars = (cents: number | null) =>
   cents === null ? 'Not attributable' : dollars(cents);
+const shortenedProductName = (description: string) =>
+  description.length > 34 ? `${description.slice(0, 31)}…` : description;
+const MAX_PAID_PRODUCT_SEARCH_RESULTS = 25;
+
+export function buildSeasonalYearChartConfig(
+  years: string[],
+  currentYear: number
+): ChartConfig {
+  const paletteSize = 20;
+
+  return Object.fromEntries(years.map((year) => {
+    const numericYear = Number.parseInt(year, 10);
+    const yearOffset = Number.isFinite(numericYear) ? currentYear - numericYear : 0;
+    const colorIndex = ((yearOffset % paletteSize) + paletteSize) % paletteSize;
+
+    return [year, { label: year, theme: carbonCategoricalTheme(colorIndex) }];
+  })) satisfies ChartConfig;
+}
+
+export interface PaidProductSpendDatum {
+  product: string;
+  fullDescription: string;
+  spendDollars: number;
+  spendShare: number;
+  productCount: number;
+}
+
+export interface PaidProductSearchResult {
+  data: PaidProductSpendDatum[];
+  matchCount: number;
+}
+
+function toPaidProductSpendDatum(
+  product: PaidProcurementProductSummary,
+  totalSpendCents: number
+): PaidProductSpendDatum {
+  return {
+    product: shortenedProductName(product.description),
+    fullDescription: `${product.description} (${product.productCode})`,
+    spendDollars: product.totalSpendCents / 100,
+    spendShare: totalSpendCents > 0
+      ? product.totalSpendCents / totalSpendCents
+      : 0,
+    productCount: 1,
+  };
+}
+
+export function buildPaidProductSpendData(
+  paidProducts: PaidProcurementProductSummary[]
+): PaidProductSpendDatum[] {
+  const totalSpendCents = paidProducts.reduce(
+    (sum, product) => sum + product.totalSpendCents,
+    0
+  );
+  const topProducts = paidProducts
+    .slice(0, 15)
+    .map((product) => toPaidProductSpendDatum(product, totalSpendCents));
+  const remainingProducts = paidProducts.slice(15);
+  const remainingSpendCents = remainingProducts.reduce(
+    (sum, product) => sum + product.totalSpendCents,
+    0
+  );
+
+  if (remainingSpendCents > 0) {
+    const productCountLabel = remainingProducts.length === 1 ? 'code' : 'codes';
+    topProducts.push({
+      product: `Other paid products (${remainingProducts.length} ${productCountLabel})`,
+      fullDescription: `All remaining ${remainingProducts.length} paid OFB Warehouse product ${productCountLabel}`,
+      spendDollars: remainingSpendCents / 100,
+      spendShare: totalSpendCents > 0
+        ? remainingSpendCents / totalSpendCents
+        : 0,
+      productCount: remainingProducts.length,
+    });
+  }
+
+  return topProducts;
+}
+
+export function buildPaidProductSearchResult(
+  paidProducts: PaidProcurementProductSummary[],
+  query: string,
+  limit = MAX_PAID_PRODUCT_SEARCH_RESULTS
+): PaidProductSearchResult {
+  const normalizedQuery = query.trim().toLocaleLowerCase();
+  const totalSpendCents = paidProducts.reduce(
+    (sum, product) => sum + product.totalSpendCents,
+    0
+  );
+  const matches = paidProducts.filter((product) =>
+    product.description.toLocaleLowerCase().includes(normalizedQuery) ||
+    product.productCode.toLocaleLowerCase().includes(normalizedQuery)
+  );
+
+  return {
+    data: matches
+      .slice(0, limit)
+      .map((product) => toPaidProductSpendDatum(product, totalSpendCents)),
+    matchCount: matches.length,
+  };
+}
+
+function PaidProductSearch({
+  value,
+  onChange,
+  matchCount,
+  displayedCount,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  matchCount: number;
+  displayedCount: number;
+}) {
+  const searchIconRef = React.useRef<SearchIconHandle>(null);
+  const hasQuery = value.trim().length > 0;
+
+  React.useEffect(() => {
+    searchIconRef.current?.startAnimation();
+  }, []);
+
+  const playSearchIcon = React.useCallback(() => {
+    searchIconRef.current?.startAnimation();
+  }, []);
+
+  return (
+    <div className="flex w-full flex-col gap-2 sm:max-w-md">
+      <div
+        className="relative"
+        onMouseEnter={playSearchIcon}
+        onClick={playSearchIcon}
+      >
+        <SearchIcon
+          ref={searchIconRef}
+          size={16}
+          className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-muted-foreground"
+        />
+        <Input
+          type="search"
+          aria-label="Search paid products"
+          placeholder="Search product name or OFB code..."
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          className="pl-9"
+        />
+      </div>
+      {hasQuery && (
+        <p className="text-xs text-muted-foreground" aria-live="polite">
+          {matchCount > displayedCount
+            ? `Showing the top ${displayedCount.toLocaleString()} of ${matchCount.toLocaleString()} matching product codes.`
+            : `${matchCount.toLocaleString()} matching product ${matchCount === 1 ? 'code' : 'codes'}.`}
+        </p>
+      )}
+    </div>
+  );
+}
 
 export function AnalyticsWorkspace() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -211,6 +368,7 @@ export function ProcurementAnalyticsWorkspace({
   const [analytics, setAnalytics] = React.useState<ProcurementAnalytics | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
   const [selectedSeasonalYears, setSelectedSeasonalYears] = React.useState<string[]>([]);
+  const [paidProductSearch, setPaidProductSearch] = React.useState('');
   const selectedChannel = searchParams.get('channel') === 'ofb_warehouse' ||
     searchParams.get('channel') === 'fresh_alliance'
     ? searchParams.get('channel')!
@@ -238,10 +396,7 @@ export function ProcurementAnalyticsWorkspace({
       .then((result) => {
         if (!active) return;
         setAnalytics(result);
-        setSelectedSeasonalYears((current) => {
-          const valid = current.filter((year) => result.availableYears.includes(year));
-          return valid.length > 0 ? valid : result.availableYears.slice(0, 5).reverse();
-        });
+        setSelectedSeasonalYears(result.availableYears);
       })
       .catch((error) => ErrorHandlerService.handleError(error, 'procurementAnalytics'))
       .finally(() => {
@@ -258,12 +413,13 @@ export function ProcurementAnalyticsWorkspace({
   const seasonalYears = canCompareSeasons
     ? selectedSeasonalYears
     : analytics?.availableYears.slice(0, 1) ?? [];
+  const currentCalendarYear = new Date().getFullYear();
   const seasonalConfig = React.useMemo(
-    () => Object.fromEntries(seasonalYears.map((year, index) => [
-      year,
-      { label: year, theme: carbonCategoricalTheme(index) },
-    ])) satisfies ChartConfig,
-    [seasonalYears]
+    () => buildSeasonalYearChartConfig(
+      analytics?.availableYears ?? [],
+      currentCalendarYear
+    ),
+    [analytics?.availableYears, currentCalendarYear]
   );
   const seasonalData = React.useMemo(() => {
     const rows = monthLabels.map((month, index) => ({ month, monthNumber: index + 1 } as Record<string, string | number>));
@@ -282,6 +438,8 @@ export function ProcurementAnalyticsWorkspace({
       purchDonWeight: toPounds(row.purchDonWeightHundredths),
       governmentWeight: toPounds(row.governmentWeightHundredths),
       purchasedWeight: toPounds(row.purchasedWeightHundredths),
+      ofbWarehouseWeight: toPounds(row.ofbWarehouseWeightHundredths),
+      freshAllianceWeight: toPounds(row.freshAllianceWeightHundredths),
     })),
     [analytics]
   );
@@ -299,16 +457,28 @@ export function ProcurementAnalyticsWorkspace({
     })),
     [analytics]
   );
-  const patternData = React.useMemo(
-    () => (analytics?.productContinuity ?? []).map((product) => ({
-      ...product,
-      activeMonthPercent: Number((product.activeMonthShare * 100).toFixed(1)),
-      receiptsPerActiveMonth: Number(product.receiptsPerActiveMonth.toFixed(2)),
-      totalWeight: toPounds(product.totalWeightHundredths),
+  const paidProductSearchResult = React.useMemo(
+    () => buildPaidProductSearchResult(
+      analytics?.paidProducts ?? [],
+      paidProductSearch
+    ),
+    [analytics, paidProductSearch]
+  );
+  const paidProductSpendData = React.useMemo(
+    () => paidProductSearch.trim().length > 0
+      ? paidProductSearchResult.data
+      : buildPaidProductSpendData(analytics?.paidProducts ?? []),
+    [analytics, paidProductSearch, paidProductSearchResult.data]
+  );
+  const paidProductChartHeight = Math.max(320, paidProductSpendData.length * 36 + 96);
+  const freshAllianceCategoryMix = React.useMemo(
+    () => (analytics?.freshAllianceCategories ?? []).slice(0, 10).map((category) => ({
+      category: category.description.replace(/\s*\(Fresh Alliance\)\s*$/i, ''),
+      weight: toPounds(category.totalWeightHundredths),
     })),
     [analytics]
   );
-  const continuityColumns = React.useMemo<ColumnDef<ProcurementProductContinuity>[]>(() => [
+  const warehouseProductColumns = React.useMemo<ColumnDef<ProcurementWarehouseProductSummary>[]>(() => [
     {
       accessorKey: 'description',
       header: ({ column }) => (
@@ -320,12 +490,6 @@ export function ProcurementAnalyticsWorkspace({
       cell: ({ row }) => <span className="font-medium">{row.original.description}</span>,
     },
     { accessorKey: 'productCode', header: 'Code', size: 90 },
-    {
-      accessorKey: 'procurementChannel',
-      header: 'Channel',
-      size: 130,
-      cell: ({ row }) => channelLabels[row.original.procurementChannel],
-    },
     {
       accessorKey: 'acquisitionClass',
       header: 'Acquisition',
@@ -340,12 +504,6 @@ export function ProcurementAnalyticsWorkspace({
         </Button>
       ),
       size: 135,
-    },
-    {
-      accessorKey: 'activeMonthShare',
-      header: 'Active Months',
-      size: 120,
-      cell: ({ row }) => `${(row.original.activeMonthShare * 100).toFixed(1)}%`,
     },
     {
       accessorKey: 'totalWeightHundredths',
@@ -365,6 +523,89 @@ export function ProcurementAnalyticsWorkspace({
         ? 'Insufficient history'
         : `${row.original.medianGapDays.toLocaleString(undefined, { maximumFractionDigits: 1 })} days`,
     },
+    {
+      accessorKey: 'lastReceivedDate',
+      header: 'Last Received',
+      size: 130,
+      cell: ({ row }) => format(parseISO(row.original.lastReceivedDate), 'MMM d, yyyy'),
+    },
+  ], []);
+  const freshAllianceCategoryColumns = React.useMemo<ColumnDef<FreshAllianceCategorySummary>[]>(() => [
+    {
+      accessorKey: 'description',
+      header: ({ column }) => (
+        <Button variant="ghost" className="-ml-3" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
+          Category <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      ),
+      size: 300,
+      cell: ({ row }) => <span className="font-medium">{row.original.description}</span>,
+    },
+    { accessorKey: 'productCode', header: 'Source Code', size: 110 },
+    {
+      accessorKey: 'receiptEventCount',
+      header: 'Receipt Events',
+      size: 125,
+    },
+    {
+      accessorKey: 'receivingDateCount',
+      header: 'Receiving Dates',
+      size: 130,
+    },
+    {
+      accessorKey: 'totalWeightHundredths',
+      header: ({ column }) => (
+        <Button variant="ghost" className="-ml-3" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
+          Total Weight <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      ),
+      size: 145,
+      cell: ({ row }) => pounds(row.original.totalWeightHundredths),
+    },
+    {
+      accessorKey: 'lastReceivedDate',
+      header: 'Last Received',
+      size: 130,
+      cell: ({ row }) => format(parseISO(row.original.lastReceivedDate), 'MMM d, yyyy'),
+    },
+  ], []);
+  const paidProductColumns = React.useMemo<ColumnDef<PaidProcurementProductSummary>[]>(() => [
+    {
+      accessorKey: 'description',
+      header: ({ column }) => (
+        <Button variant="ghost" className="-ml-3" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
+          Product <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      ),
+      size: 300,
+      cell: ({ row }) => <span className="font-medium">{row.original.description}</span>,
+    },
+    { accessorKey: 'productCode', header: 'Code', size: 90 },
+    {
+      accessorKey: 'totalSpendCents',
+      header: ({ column }) => (
+        <Button variant="ghost" className="-ml-3" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
+          Paid Charges <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      ),
+      size: 145,
+      cell: ({ row }) => dollars(row.original.totalSpendCents),
+    },
+    {
+      accessorKey: 'paidWeightHundredths',
+      header: 'Paid Weight',
+      size: 130,
+      cell: ({ row }) => pounds(row.original.paidWeightHundredths),
+    },
+    {
+      accessorKey: 'costPerPaidPoundCents',
+      header: 'Cost / Paid lb',
+      size: 140,
+      cell: ({ row }) => row.original.costPerPaidPoundCents === null
+        ? 'Unknown'
+        : dollars(row.original.costPerPaidPoundCents),
+    },
+    { accessorKey: 'receiptDateCount', header: 'Receiving Dates', size: 135 },
     {
       accessorKey: 'lastReceivedDate',
       header: 'Last Received',
@@ -393,7 +634,7 @@ export function ProcurementAnalyticsWorkspace({
           <div className="max-w-lg space-y-2">
             <h3 className="text-lg font-semibold">No procurement data yet</h3>
             <p className="text-sm text-muted-foreground">
-              Import a standardized Oregon Food Bank CSV to begin analyzing inbound weight, acquisition mix, and product recurrence. FEED discards the source file after import.
+              Import a standardized Oregon Food Bank CSV to analyze inbound weight, OFB Warehouse Orders, and Fresh Food Alliance receipts. FEED discards the source file after import.
             </p>
           </div>
           <Button onClick={() => navigate('/data-management')}>
@@ -406,20 +647,19 @@ export function ProcurementAnalyticsWorkspace({
   }
 
   const summary = analytics.summary;
-  const middleRange = summary.lowerQuartileOrderWeightHundredths === null || summary.upperQuartileOrderWeightHundredths === null
+  const middleRange = summary.lowerQuartileEventWeightHundredths === null || summary.upperQuartileEventWeightHundredths === null
     ? 'Unknown'
-    : `${pounds(summary.lowerQuartileOrderWeightHundredths)}–${pounds(summary.upperQuartileOrderWeightHundredths)}`;
+    : `${pounds(summary.lowerQuartileEventWeightHundredths)}–${pounds(summary.upperQuartileEventWeightHundredths)}`;
   const acquisitionWeightTotal = analytics.acquisitionMix.reduce((sum, row) => sum + row.weightHundredths, 0);
   const channelWeightTotal = analytics.channelMix.reduce((sum, row) => sum + row.weightHundredths, 0);
+  const includesWarehouse = selectedChannel !== 'fresh_alliance';
+  const includesFreshAlliance = selectedChannel !== 'ofb_warehouse';
+  const allChannels = selectedChannel === 'all';
 
   const toggleSeasonalYear = (year: string, checked: boolean) => {
     setSelectedSeasonalYears((current) => {
       if (!checked) return current.filter((value) => value !== year);
       if (current.includes(year)) return current;
-      if (current.length >= MAX_SEASONAL_YEARS) {
-        messageService.info(`Choose up to ${MAX_SEASONAL_YEARS} years so the seasonal comparison remains readable.`);
-        return current;
-      }
       return [...current, year].sort();
     });
   };
@@ -445,7 +685,7 @@ export function ProcurementAnalyticsWorkspace({
           <SelectContent>
             <SelectItem value="all">All Channels</SelectItem>
             <SelectItem value="ofb_warehouse">OFB Warehouse</SelectItem>
-            <SelectItem value="fresh_alliance">Fresh Alliance</SelectItem>
+            <SelectItem value="fresh_alliance">Fresh Food Alliance</SelectItem>
           </SelectContent>
         </Select>
         <Select value={selectedAcquisition} onValueChange={(value) => setProcurementFilter('acquisition', value)}>
@@ -474,31 +714,111 @@ export function ProcurementAnalyticsWorkspace({
       <Card>
         <CardHeader>
           <CardTitle>Inbound Supply Summary</CardTitle>
-          <CardDescription>Source orders, receiving dates, inbound weight, and received-product recurrence</CardDescription>
+          <CardDescription>
+            {allChannels
+              ? 'OFB Warehouse orders and Fresh Food Alliance receipts remain distinct'
+              : selectedChannel === 'fresh_alliance'
+                ? 'Grocery-partner donation receipts reported through Fresh Food Alliance'
+                : 'Requested acquisitions fulfilled through the OFB warehouse'}
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 gap-x-6 gap-y-5 md:grid-cols-3 xl:grid-cols-5">
-            <ProcurementKpi label="Total Inbound Weight" value={pounds(summary.totalWeightHundredths)} />
-            <ProcurementKpi label="Source Orders" value={summary.sourceOrderCount.toLocaleString()} />
+          <div className="grid grid-cols-2 gap-x-6 gap-y-5 md:grid-cols-3 xl:grid-cols-4">
+            <ProcurementKpi
+              label={selectedChannel === 'fresh_alliance' ? 'Partner Donation Weight' : 'Total Inbound Weight'}
+              value={pounds(summary.totalWeightHundredths)}
+            />
+            {allChannels && <ProcurementKpi label="Source Events" value={summary.sourceEventCount.toLocaleString()} />}
+            {!allChannels && (
+              <ProcurementKpi
+                label={selectedChannel === 'fresh_alliance' ? 'Fresh Food Alliance Receipts' : 'OFB Warehouse Orders'}
+                value={summary.sourceEventCount.toLocaleString()}
+              />
+            )}
+            {allChannels && <ProcurementKpi label="OFB Warehouse Orders" value={summary.warehouseOrderCount.toLocaleString()} />}
+            {allChannels && <ProcurementKpi label="Fresh Food Alliance Receipts" value={summary.freshAllianceReceiptCount.toLocaleString()} />}
             <ProcurementKpi label="Receiving Dates" value={summary.receivingDateCount.toLocaleString()} />
-            <ProcurementKpi label="Typical Order" value={pounds(summary.medianOrderWeightHundredths)} />
-            <ProcurementKpi label="Middle 50% of Orders" value={middleRange} />
-            <ProcurementKpi label="Typical Source Lines" value={summary.medianLinesPerOrder?.toLocaleString() ?? 'Unknown'} />
-            <ProcurementKpi label="Supplier Products Received" value={summary.supplierProductCodes.toLocaleString()} />
-            <ProcurementKpi label="Received Once" value={summary.productsReceivedOnce.toLocaleString()} />
-            <ProcurementKpi label="Received on 10+ Dates" value={summary.productsReceivedTenOrMore.toLocaleString()} />
-            <ProcurementKpi label="Zero-Inbound Lines" value={summary.zeroInboundLineCount.toLocaleString()} />
+            {!allChannels && (
+              <>
+                <ProcurementKpi
+                  label={selectedChannel === 'fresh_alliance' ? 'Typical Fresh Food Alliance Event' : 'Typical OFB Warehouse Event'}
+                  value={pounds(summary.medianEventWeightHundredths)}
+                />
+                <ProcurementKpi
+                  label={selectedChannel === 'fresh_alliance' ? 'Middle 50% of Fresh Events' : 'Middle 50% of Warehouse Events'}
+                  value={middleRange}
+                />
+                <ProcurementKpi
+                  label={selectedChannel === 'fresh_alliance' ? 'Typical Category Lines' : 'Typical Order Lines'}
+                  value={summary.medianLinesPerEvent?.toLocaleString(undefined, { maximumFractionDigits: 1 }) ?? 'Unknown'}
+                />
+              </>
+            )}
+            {includesWarehouse && <ProcurementKpi label="Warehouse Products" value={summary.warehouseProductCodes.toLocaleString()} />}
+            {includesFreshAlliance && <ProcurementKpi label="Fresh Food Alliance Categories" value={summary.freshAllianceCategoryCodes.toLocaleString()} />}
+            <ProcurementKpi
+              label="Median Receiving Gap"
+              value={summary.medianReceivingGapDays === null
+                ? 'Insufficient history'
+                : `${summary.medianReceivingGapDays.toLocaleString(undefined, { maximumFractionDigits: 1 })} days`}
+            />
           </div>
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="min-w-0">
         <CardHeader>
-          <CardTitle>Recorded Cost Summary</CardTitle>
+          <CardTitle>
+            {allChannels
+              ? 'Inbound Weight Over Time'
+              : selectedChannel === 'fresh_alliance'
+                ? 'Fresh Food Alliance Weight Over Time'
+                : 'Warehouse Weight by Acquisition Class'}
+          </CardTitle>
+          <CardDescription>
+            {allChannels
+              ? 'Monthly inbound pounds with OFB Warehouse and Fresh Food Alliance kept separate'
+              : selectedChannel === 'fresh_alliance'
+                ? 'Monthly pounds reported through grocery-partner donation receipts'
+                : 'Monthly warehouse pounds with OFB acquisition classes kept separate'}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ChartContainer
+            config={selectedChannel === 'ofb_warehouse' ? monthlyWeightConfig : channelMonthlyWeightConfig}
+            className="h-80 min-w-0 w-full"
+          >
+            <LineChart accessibilityLayer data={monthlyWeight} margin={{ left: 8, right: 16 }}>
+              <CartesianGrid vertical={false} />
+              <XAxis dataKey="month" tickLine={false} axisLine={false} tickFormatter={(month: string) => format(parseISO(`${month}-01`), 'MMM yy')} />
+              <YAxis width={52} tickLine={false} axisLine={false} />
+              <ChartTooltip content={<ChartTooltipContent />} />
+              <ChartLegend content={<ChartLegendContent />} />
+              {selectedChannel === 'ofb_warehouse' ? (
+                <>
+                  <Line dataKey="donatedWeight" stroke="var(--color-donatedWeight)" strokeWidth={2} dot={false} />
+                  <Line dataKey="purchDonWeight" stroke="var(--color-purchDonWeight)" strokeWidth={2} dot={false} />
+                  <Line dataKey="governmentWeight" stroke="var(--color-governmentWeight)" strokeWidth={2} dot={false} />
+                  <Line dataKey="purchasedWeight" stroke="var(--color-purchasedWeight)" strokeWidth={2} dot={false} />
+                </>
+              ) : (
+                <>
+                  {allChannels && <Line dataKey="ofbWarehouseWeight" stroke="var(--color-ofbWarehouseWeight)" strokeWidth={2} dot={false} />}
+                  <Line dataKey="freshAllianceWeight" stroke="var(--color-freshAllianceWeight)" strokeWidth={2} dot={false} />
+                </>
+              )}
+            </LineChart>
+          </ChartContainer>
+        </CardContent>
+      </Card>
+
+      {selectedChannel !== 'fresh_alliance' && <Card>
+        <CardHeader>
+          <CardTitle>Paid Procurement Summary</CardTitle>
           <CardDescription>
             {summary.costAdjustmentsAttributable
               ? 'Charges and credits remain separate; net values are never allocated across products'
-              : 'Product charges follow the active filter; order-level fees, grants, and net cost cannot be attributed to one channel or acquisition class'}
+              : 'Product charges follow the active acquisition filter; order-level fees, grants, and net cost cannot be attributed to one acquisition class'}
           </CardDescription>
         </CardHeader>
         <CardContent className="grid grid-cols-2 gap-x-6 gap-y-5 lg:grid-cols-4">
@@ -507,10 +827,83 @@ export function ProcurementAnalyticsWorkspace({
           <ProcurementKpi label="Grants Applied" value={attributableDollars(summary.grantsAppliedCents)} />
           <ProcurementKpi label="Net Recorded Charge" value={attributableDollars(summary.netRecordedCostCents)} />
         </CardContent>
-      </Card>
+      </Card>}
 
-      <div className="grid min-w-0 gap-4 lg:grid-cols-2">
+      {selectedChannel !== 'fresh_alliance' && (
         <Card className="min-w-0">
+          <CardHeader>
+            <CardTitle>Where Paid Procurement Dollars Went</CardTitle>
+            <CardDescription>
+              Exact OFB Warehouse product codes ranked by calculated product charges in the selected range
+            </CardDescription>
+            <PaidProductSearch
+              value={paidProductSearch}
+              onChange={setPaidProductSearch}
+              matchCount={paidProductSearchResult.matchCount}
+              displayedCount={paidProductSearchResult.data.length}
+            />
+          </CardHeader>
+          <CardContent>
+            {paidProductSpendData.length === 0 ? (
+              <div className="flex h-56 items-center justify-center text-sm text-muted-foreground">
+                {paidProductSearch.trim().length > 0
+                  ? `No paid OFB Warehouse products match “${paidProductSearch.trim()}” in this range.`
+                  : 'No paid OFB Warehouse product charges match this range and filter.'}
+              </div>
+            ) : (
+              <ChartContainer
+                config={paidProductSpendConfig}
+                className="min-w-0 w-full"
+                style={{ height: paidProductChartHeight }}
+              >
+                <BarChart
+                  accessibilityLayer
+                  data={paidProductSpendData}
+                  layout="vertical"
+                  margin={{ left: 8, right: 24 }}
+                >
+                  <CartesianGrid horizontal={false} />
+                  <XAxis
+                    type="number"
+                    tickLine={false}
+                    axisLine={false}
+                    tickFormatter={(value: number) => dollars(Math.round(value * 100))}
+                  />
+                  <YAxis dataKey="product" type="category" width={190} tickLine={false} axisLine={false} />
+                  <ChartTooltip
+                    content={(
+                      <ChartTooltipContent
+                        labelFormatter={(_, payload) => payload[0]?.payload.fullDescription}
+                        formatter={(value, _name, _item, _index, payload) => (
+                          <div className="grid w-full gap-1">
+                            <div className="flex w-full justify-between gap-3">
+                              <span className="text-muted-foreground">Paid Product Charges</span>
+                              <span className="font-mono font-medium tabular-nums">{dollars(Math.round(Number(value) * 100))}</span>
+                            </div>
+                            <div className="flex w-full justify-between gap-3">
+                              <span className="text-muted-foreground">Share of Paid Charges</span>
+                              <span className="font-mono font-medium tabular-nums">{(Number(payload.spendShare) * 100).toFixed(1)}%</span>
+                            </div>
+                            <div className="flex w-full justify-between gap-3">
+                              <span className="text-muted-foreground">Product Codes</span>
+                              <span className="font-mono font-medium tabular-nums">{Number(payload.productCount).toLocaleString()}</span>
+                            </div>
+                          </div>
+                        )}
+                      />
+                    )}
+                  />
+                  <Bar dataKey="spendDollars" fill="var(--color-spendDollars)" radius={3} />
+                </BarChart>
+              </ChartContainer>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {(includesWarehouse || allChannels) && (
+        <div className={`grid min-w-0 gap-4 ${allChannels ? 'lg:grid-cols-2' : ''}`}>
+        {includesWarehouse && <Card className="min-w-0">
           <CardHeader><CardTitle>Acquisition Mix</CardTitle><CardDescription>Inbound pounds by OFB acquisition class</CardDescription></CardHeader>
           <CardContent>
             <ChartContainer config={acquisitionMixConfig} className="h-72 min-w-0 w-full">
@@ -524,10 +917,10 @@ export function ProcurementAnalyticsWorkspace({
             </ChartContainer>
             <MixDetails total={acquisitionWeightTotal} rows={analytics.acquisitionMix.map((row) => ({ label: acquisitionLabels[row.acquisitionClass], weight: row.weightHundredths }))} />
           </CardContent>
-        </Card>
+        </Card>}
 
-        <Card className="min-w-0">
-          <CardHeader><CardTitle>Procurement Channels</CardTitle><CardDescription>Fresh Alliance remains distinct from OFB warehouse supply</CardDescription></CardHeader>
+        {allChannels && <Card className="min-w-0">
+          <CardHeader><CardTitle>Procurement Channels</CardTitle><CardDescription>Fresh Food Alliance remains distinct from OFB warehouse supply</CardDescription></CardHeader>
           <CardContent>
             <ChartContainer config={channelMixConfig} className="h-72 min-w-0 w-full">
               <BarChart accessibilityLayer data={channelMix} layout="vertical" margin={{ left: 8, right: 16 }}>
@@ -540,65 +933,37 @@ export function ProcurementAnalyticsWorkspace({
             </ChartContainer>
             <MixDetails total={channelWeightTotal} rows={analytics.channelMix.map((row) => ({ label: channelLabels[row.channel], weight: row.weightHundredths }))} />
           </CardContent>
-        </Card>
-      </div>
+        </Card>}
+        </div>
+      )}
 
-      <div className="grid min-w-0 gap-4 lg:grid-cols-2">
+      {includesFreshAlliance && (
         <Card className="min-w-0">
-          <CardHeader><CardTitle>Product Recurrence Distribution</CardTitle><CardDescription>Only positive-quantity, positive-weight receipt dates contribute</CardDescription></CardHeader>
+          <CardHeader>
+            <CardTitle>Fresh Food Alliance Category Mix</CardTitle>
+            <CardDescription>
+              Broad OFB reporting categories—not individual products or inferred grocery partners
+            </CardDescription>
+          </CardHeader>
           <CardContent>
-            <ChartContainer config={recurrenceConfig} className="h-72 min-w-0 w-full">
-              <BarChart accessibilityLayer data={analytics.recurrenceDistribution} margin={{ left: 8, right: 16 }}>
-                <CartesianGrid vertical={false} />
-                <XAxis dataKey="label" tickLine={false} axisLine={false} />
-                <YAxis allowDecimals={false} width={38} tickLine={false} axisLine={false} />
-                <ChartTooltip content={<ChartTooltipContent />} />
-                <Bar dataKey="productCount" fill="var(--color-productCount)" radius={3} />
-              </BarChart>
-            </ChartContainer>
+            {freshAllianceCategoryMix.length === 0 ? (
+              <div className="flex h-56 items-center justify-center text-sm text-muted-foreground">
+                No Fresh Food Alliance receipts match this range and filter.
+              </div>
+            ) : (
+              <ChartContainer config={freshAllianceCategoryConfig} className="h-80 min-w-0 w-full">
+                <BarChart accessibilityLayer data={freshAllianceCategoryMix} layout="vertical" margin={{ left: 8, right: 16 }}>
+                  <CartesianGrid horizontal={false} />
+                  <XAxis type="number" tickLine={false} axisLine={false} />
+                  <YAxis dataKey="category" type="category" width={150} tickLine={false} axisLine={false} />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <Bar dataKey="weight" fill="var(--color-weight)" radius={3} />
+                </BarChart>
+              </ChartContainer>
+            )}
           </CardContent>
         </Card>
-
-        <Card className="min-w-0">
-          <CardHeader><CardTitle>Procurement Pattern Matrix</CardTitle><CardDescription>Coverage across observed months versus receipt frequency; point size represents inbound weight</CardDescription></CardHeader>
-          <CardContent>
-            <ChartContainer config={patternConfig} className="h-72 min-w-0 w-full">
-              <ScatterChart accessibilityLayer margin={{ left: 8, right: 18, top: 10 }}>
-                <CartesianGrid />
-                <XAxis type="number" dataKey="activeMonthPercent" domain={[0, 100]} unit="%" tickLine={false} axisLine={false} />
-                <YAxis type="number" dataKey="receiptsPerActiveMonth" width={42} tickLine={false} axisLine={false} />
-                <ZAxis type="number" dataKey="totalWeight" range={[35, 220]} />
-                <ChartTooltip
-                  cursor={{ strokeDasharray: '3 3' }}
-                  content={<ChartTooltipContent labelFormatter={(_, payload) => payload[0]?.payload.description} />}
-                />
-                <Scatter name="OFB Warehouse" data={patternData.filter((row) => row.procurementChannel === 'ofb_warehouse')} fill="var(--color-ofbWarehouse)" />
-                <Scatter name="Fresh Alliance" data={patternData.filter((row) => row.procurementChannel === 'fresh_alliance')} fill="var(--color-freshAlliance)" />
-                <ChartLegend content={<ChartLegendContent />} />
-              </ScatterChart>
-            </ChartContainer>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card className="min-w-0">
-        <CardHeader><CardTitle>Inbound Weight Over Time</CardTitle><CardDescription>Monthly inbound pounds with acquisition classes kept separate</CardDescription></CardHeader>
-        <CardContent>
-          <ChartContainer config={monthlyWeightConfig} className="h-80 min-w-0 w-full">
-            <LineChart accessibilityLayer data={monthlyWeight} margin={{ left: 8, right: 16 }}>
-              <CartesianGrid vertical={false} />
-              <XAxis dataKey="month" tickLine={false} axisLine={false} tickFormatter={(month: string) => format(parseISO(`${month}-01`), 'MMM yy')} />
-              <YAxis width={52} tickLine={false} axisLine={false} />
-              <ChartTooltip content={<ChartTooltipContent />} />
-              <ChartLegend content={<ChartLegendContent />} />
-              <Line dataKey="donatedWeight" stroke="var(--color-donatedWeight)" strokeWidth={2} dot={false} />
-              <Line dataKey="purchDonWeight" stroke="var(--color-purchDonWeight)" strokeWidth={2} dot={false} />
-              <Line dataKey="governmentWeight" stroke="var(--color-governmentWeight)" strokeWidth={2} dot={false} />
-              <Line dataKey="purchasedWeight" stroke="var(--color-purchasedWeight)" strokeWidth={2} dot={false} />
-            </LineChart>
-          </ChartContainer>
-        </CardContent>
-      </Card>
+      )}
 
       <Card className="min-w-0">
         <CardHeader className="flex flex-col items-start justify-between gap-3 space-y-0 sm:flex-row sm:items-center">
@@ -613,11 +978,33 @@ export function ProcurementAnalyticsWorkspace({
           <DropdownMenu>
             <DropdownMenuTrigger asChild disabled={!canCompareSeasons}>
               <Button variant="outline" className="w-full justify-between sm:w-auto">
-                {seasonalYears.length === 1 ? seasonalYears[0] : `${seasonalYears.length} years`}
+                {seasonalYears.length === analytics.availableYears.length
+                  ? 'All years'
+                  : seasonalYears.length === 1
+                    ? seasonalYears[0]
+                    : `${seasonalYears.length} years`}
                 <ChevronDown className="ml-2 h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
+            {/* DropdownMenu owns this overflow; bound long histories to its available popper height. */}
+            <DropdownMenuContent align="end" className="max-h-[var(--radix-dropdown-menu-content-available-height)] overflow-y-auto">
+              <DropdownMenuItem
+                onSelect={(event) => {
+                  event.preventDefault();
+                  setSelectedSeasonalYears(analytics.availableYears);
+                }}
+              >
+                Select all years
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onSelect={(event) => {
+                  event.preventDefault();
+                  setSelectedSeasonalYears([]);
+                }}
+              >
+                Clear all years
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
               {analytics.availableYears.map((year) => (
                 <DropdownMenuCheckboxItem
                   key={year}
@@ -642,29 +1029,80 @@ export function ProcurementAnalyticsWorkspace({
                 <YAxis width={52} tickLine={false} axisLine={false} />
                 <ChartTooltip content={<ChartTooltipContent />} />
                 <ChartLegend content={<ChartLegendContent />} />
-                {seasonalYears.map((year) => (
-                  <Line key={year} dataKey={year} stroke={`var(--color-${year})`} strokeWidth={2} dot={seasonalYears.length === 1} connectNulls={false} />
-                ))}
+                {seasonalYears.map((year) => {
+                  const isCurrentYear = year === String(currentCalendarYear);
+
+                  return (
+                    <Line
+                      key={year}
+                      dataKey={year}
+                      stroke={`var(--color-${year})`}
+                      strokeWidth={isCurrentYear ? 3 : 2}
+                      strokeLinecap="round"
+                      dot={seasonalYears.length === 1}
+                      connectNulls={false}
+                      style={isCurrentYear
+                        ? {
+                            filter: `drop-shadow(0 0 2px var(--color-${year})) drop-shadow(0 0 5px var(--color-${year}))`,
+                          }
+                        : undefined}
+                    />
+                  );
+                })}
               </LineChart>
             </ChartContainer>
           )}
         </CardContent>
       </Card>
 
-      <section className="space-y-3">
+      {includesWarehouse && analytics.paidProducts.length > 0 && <section className="space-y-3">
         <div>
-          <h3 className="text-lg font-semibold">Product Continuity</h3>
-          <p className="text-sm text-muted-foreground">Supplier-product recurrence and observed-month coverage; this describes procurement continuity, not client availability.</p>
+          <h3 className="text-lg font-semibold">Paid OFB Warehouse Products</h3>
+          <p className="text-sm text-muted-foreground">
+            Exact supplier products with calculated charges; this does not infer why the organization purchased them.
+          </p>
         </div>
         <EnhancedDataTable
-          columns={continuityColumns}
-          data={analytics.productContinuity}
+          columns={paidProductColumns}
+          data={analytics.paidProducts}
+          filterColumn="description"
+          filterPlaceholder="Filter paid products..."
+          enableColumnVisibility
+          defaultPageSize={10}
+        />
+      </section>}
+
+      {includesWarehouse && <section className="space-y-3">
+        <div>
+          <h3 className="text-lg font-semibold">OFB Warehouse Product History</h3>
+          <p className="text-sm text-muted-foreground">Exact supplier products with receiving dates, inbound weight, and timing; Fresh Food Alliance categories are excluded.</p>
+        </div>
+        <EnhancedDataTable
+          columns={warehouseProductColumns}
+          data={analytics.warehouseProducts}
           filterColumn="description"
           filterPlaceholder="Filter supplier products..."
           enableColumnVisibility
           defaultPageSize={10}
         />
-      </section>
+      </section>}
+
+      {includesFreshAlliance && <section className="space-y-3">
+        <div>
+          <h3 className="text-lg font-semibold">Fresh Food Alliance Receipt Categories</h3>
+          <p className="text-sm text-muted-foreground">
+            Broad categories reported through OFB. Partner identity is unavailable in this source and is never inferred.
+          </p>
+        </div>
+        <EnhancedDataTable
+          columns={freshAllianceCategoryColumns}
+          data={analytics.freshAllianceCategories}
+          filterColumn="description"
+          filterPlaceholder="Filter receipt categories..."
+          enableColumnVisibility
+          defaultPageSize={10}
+        />
+      </section>}
     </div>
   );
 }

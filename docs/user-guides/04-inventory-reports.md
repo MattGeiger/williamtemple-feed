@@ -76,29 +76,48 @@ including morning updates before service. Current “Available Now” and
 
 ## Read Procurement Analytics
 
-The Procurement tab uses completed Oregon Food Bank orders imported under
-**Information → Data Management**.
+The Procurement tab uses Oregon Food Bank portal exports imported under
+**Information → Data Management**. The portal contains both requested OFB
+Warehouse Orders and agency-reported Fresh Food Alliance grocery-partner receipts.
 
-- **Inbound Supply Summary** keeps source orders, distinct receiving dates,
-  inbound weight, and supplier-product recurrence separate.
-- **Recorded Cost Summary** shows product charges, service fees, grants, and
-  the resulting net recorded charge. If a channel or acquisition filter splits
-  an order, fees, grants, and net cost display as **Not attributable** rather
-  than being assigned to an unrelated product row.
+- **Inbound Supply Summary** keeps OFB Warehouse Orders, Fresh Food Alliance
+  Receipts, receiving dates, and inbound weight separate.
+- **Inbound Weight Over Time** shows monthly inbound pounds immediately after
+  the summary, keeping Warehouse and Fresh Food Alliance channels separate.
+- **Paid Procurement Summary** shows product charges, service fees, grants, and
+  the resulting net recorded charge. If an acquisition-class filter splits an
+  order, fees, grants, and net cost display as **Not attributable** rather than
+  being assigned to an unrelated product row.
+- **Where Paid Procurement Dollars Went** ranks exact OFB Warehouse product
+  codes by calculated product charges. The chart shows the top 15 products and
+  identifies how many remaining codes contribute to the **Other paid products**
+  total. Search by product description or OFB product code to replace the
+  summary with individually ranked matching products; no matching product is
+  folded into **Other**. Broad searches show the top 25 results and report the
+  complete match count. Tooltips show dollars, share of all paid charges, and
+  product-code count.
+  It reports where money was recorded; it does not infer why the organization
+  purchased a product or whether donated supply was sufficient.
 - **Acquisition Mix** compares Donated, Purch-Don, Government, and Purchased
   inbound pounds.
-- **Procurement Channels** keeps OFB Warehouse and Fresh Alliance grocery
+- **Procurement Channels** keeps OFB Warehouse and Fresh Food Alliance grocery
   partnership supply distinct.
-- **Product Recurrence Distribution** shows how much of the supplier catalog
-  appears once, occasionally, or repeatedly. It describes dependable versus
-  opportunistic inbound supply; it is not a staff-performance score.
-- **Procurement Pattern Matrix** compares observed-month coverage and receipt
-  frequency. Larger points represent more total inbound weight.
-- **Inbound Weight Over Time** shows monthly acquisition-class trends.
-- **Seasonal Inbound Weight** overlays calendar years month by month. Use the
-  year selector to keep the comparison readable.
-- **Product Continuity** provides the sortable supplier-product detail behind
-  the recurrence views.
+- **Fresh Food Alliance Category Mix** shows broad OFB reporting categories. These
+  are not individual products and do not identify the grocery partner.
+- **Seasonal Inbound Weight** overlays every calendar year in the selected date
+  range by default. Use the year selector to show all years, clear the chart, or
+  isolate individual years for a focused comparison. Year colors remain stable
+  while filtering; the current calendar year starts the color sequence and uses
+  a stronger line and glow for quick comparison with prior years.
+- **OFB Warehouse Product History** provides sortable factual observations for
+  exact supplier products, including receiving-date count, inbound weight,
+  median receiving gap, and the last receiving date. FEED does not classify
+  products as occasional, recurring, or core supply.
+- **Paid OFB Warehouse Products** provides the complete filtered product-level
+  charge, paid-weight, receiving-date, and cost-per-paid-pound detail behind
+  the paid-spending visualization.
+- **Fresh Food Alliance Receipt Categories** provides sortable weight and event
+  totals for broad Fresh Food Alliance reporting categories.
 
 Use the year, procurement-channel, and acquisition-class filters independently.
 Select **Manage Procurement Data** to import a fresh export or review import

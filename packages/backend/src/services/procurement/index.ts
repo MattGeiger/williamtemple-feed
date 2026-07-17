@@ -14,12 +14,17 @@ import {
 import { getOperatingHoursSettings } from '../operating-hours';
 
 export const OFB_SOURCE = 'ofb';
-export const OFB_IMPORT_SCHEMA_VERSION = 2;
+export const OFB_IMPORT_SCHEMA_VERSION = 4;
 export const PROCUREMENT_STALE_AFTER_DAYS = 30;
 
 export const PROCUREMENT_CHANNELS = ['ofb_warehouse', 'fresh_alliance'] as const;
+export const PROCUREMENT_EVENT_KINDS = [
+  'ofb_warehouse_order',
+  'fresh_alliance_receipt',
+] as const;
 export const ACQUISITION_CLASSES = ['DONATED', 'PURCH-DON', 'GOVERNMENT', 'PURCHASED'] as const;
 export type ProcurementChannel = typeof PROCUREMENT_CHANNELS[number];
+export type ProcurementEventKind = typeof PROCUREMENT_EVENT_KINDS[number];
 export type AcquisitionClass = typeof ACQUISITION_CLASSES[number];
 
 export const OFB_HEADERS = [
@@ -39,7 +44,8 @@ export const OFB_HEADERS = [
 
 export type ProcurementWarningCode =
   | 'PRICE_TOTAL_MISMATCH'
-  | 'PERIOD_MISMATCH';
+  | 'PERIOD_MISMATCH'
+  | 'DEPRECATED_PRODUCT_CODE';
 
 export interface ProcurementWarning {
   code: ProcurementWarningCode;
@@ -69,8 +75,10 @@ export interface NormalizedOfbLine {
 
 export interface NormalizedOfbOrder {
   sourceOrderReference: string;
+  eventKind: ProcurementEventKind;
   deliveryDate: string;
   snapshotHash: string;
+  legacySnapshotHash: string;
   warningCodes: ProcurementWarningCode[];
   lines: NormalizedOfbLine[];
 }
@@ -114,8 +122,8 @@ function expectedAcquisitionClass(productCode: string): AcquisitionClass | null 
   return acquisitionClassByPrefix[productCode[0]] ?? null;
 }
 
-function procurementChannel(productCode: string): ProcurementChannel {
-  return /^4\d{4}$/.test(productCode) ? 'fresh_alliance' : 'ofb_warehouse';
+function procurementChannel(sourceOrderReference: string): ProcurementChannel {
+  return /AGPCKUP$/i.test(sourceOrderReference) ? 'fresh_alliance' : 'ofb_warehouse';
 }
 
 const monthNames = [
@@ -184,6 +192,19 @@ function orderSnapshotHash(lines: NormalizedOfbLine[]): string {
     .map(({ sourceRowNumber: _row, ...line }) => line)
     .sort((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right)));
   return createHash('sha256').update(JSON.stringify(canonical)).digest('hex');
+}
+
+// Schema versions 1–3 derived channel from the product-code prefix. Accepting
+// that historical hash prevents a semantically corrected no-op import from
+// manufacturing a new revision. New revisions always store the source-based
+// schema-v4 hash.
+function legacyOrderSnapshotHash(lines: NormalizedOfbLine[]): string {
+  return orderSnapshotHash(lines.map((line) => ({
+    ...line,
+    procurementChannel: /^4\d{4}$/.test(line.productCode)
+      ? 'fresh_alliance'
+      : 'ofb_warehouse',
+  })));
 }
 
 export function parseOfbCsv(buffer: Buffer): ParsedOfbImport {
@@ -263,6 +284,14 @@ export function parseOfbCsv(buffer: Buffer): ParsedOfbImport {
     }
     const sourceDescription = record['Product Description'].trim();
     if (!sourceDescription) invalidRow(rowNumber, 'Product Description', 'Export the order again and retry.');
+    if (/\b(?:DO NOT USE|DON'T USE)\b/i.test(sourceDescription)) {
+      warnings.push({
+        code: 'DEPRECATED_PRODUCT_CODE',
+        message: `Row ${rowNumber} uses supplier product code ${productCode}, which the source description marks as deprecated. FEED retained the historical observation.`,
+        deliveryDate: parsedDate.iso,
+        rowNumbers: [rowNumber],
+      });
+    }
     const acquisitionClass = record.Category.trim() as AcquisitionClass;
     const expectedClass = expectedAcquisitionClass(productCode);
     if (!expectedClass || acquisitionClass !== expectedClass) {
@@ -294,7 +323,7 @@ export function parseOfbCsv(buffer: Buffer): ParsedOfbImport {
       productCode,
       sourceDescription,
       acquisitionClass,
-      procurementChannel: procurementChannel(productCode),
+      procurementChannel: procurementChannel(sourceOrderReference),
       quantityHundredths,
       weightHundredths,
       unitPriceCents,
@@ -334,6 +363,9 @@ export function parseOfbCsv(buffer: Buffer): ParsedOfbImport {
     .sort(([left], [right]) => left.localeCompare(right))
     .map(([sourceOrderReference, orderLines]): NormalizedOfbOrder => {
       const deliveryDate = orderLines[0].deliveryDate;
+      const eventKind: ProcurementEventKind = procurementChannel(sourceOrderReference) === 'fresh_alliance'
+        ? 'fresh_alliance_receipt'
+        : 'ofb_warehouse_order';
       const orderRowNumbers = new Set(orderLines.map((line) => line.sourceRowNumber));
       const warningCodes = [...new Set(
         warnings
@@ -342,8 +374,10 @@ export function parseOfbCsv(buffer: Buffer): ParsedOfbImport {
       )];
       return {
         sourceOrderReference,
+        eventKind,
         deliveryDate,
         snapshotHash: orderSnapshotHash(orderLines),
+        legacySnapshotHash: legacyOrderSnapshotHash(orderLines),
         warningCodes,
         lines: orderLines,
       };
@@ -393,9 +427,10 @@ export async function importOfbCsv(
     const currentByOrder = new Map(
       currentSnapshots.map((snapshot) => [snapshot.sourceOrderReference, snapshot.snapshotHash])
     );
-    const changedOrders = parsed.orders.filter(
-      (order) => currentByOrder.get(order.sourceOrderReference) !== order.snapshotHash
-    );
+    const changedOrders = parsed.orders.filter((order) => {
+      const currentHash = currentByOrder.get(order.sourceOrderReference);
+      return currentHash !== order.snapshotHash && currentHash !== order.legacySnapshotHash;
+    });
 
     if (changedOrders.length === 0) {
       return {
@@ -459,6 +494,7 @@ export async function importOfbCsv(
           importId: importRecord.id,
           source: OFB_SOURCE,
           sourceOrderReference: order.sourceOrderReference,
+          eventKind: order.eventKind,
           deliveryDate: order.deliveryDate,
           revision: (previous?.revision ?? 0) + 1,
           snapshotHash: order.snapshotHash,
@@ -589,6 +625,7 @@ export async function listProcurementImports(client = prisma) {
         select: {
           id: true,
           sourceOrderReference: true,
+          eventKind: true,
           deliveryDate: true,
           revision: true,
           warningCodes: true,
@@ -616,6 +653,7 @@ export async function listProcurementImports(client = prisma) {
     orders: record.orders.map((order) => ({
       id: order.id,
       sourceOrderReference: order.sourceOrderReference,
+      eventKind: order.eventKind,
       deliveryDate: order.deliveryDate,
       revision: order.revision,
       warningCodes: order.warningCodes,
@@ -690,16 +728,29 @@ interface ProductObservation {
   acquisitionClass: AcquisitionClass;
   procurementChannel: ProcurementChannel;
   receiptDates: Set<string>;
-  activeMonths: Set<string>;
   totalWeightHundredths: number;
   firstReceivedDate: string;
   lastReceivedDate: string;
 }
 
-function monthSpanInclusive(firstMonth: string, lastMonth: string): number {
-  const [firstYear, first] = firstMonth.split('-').map(Number);
-  const [lastYear, last] = lastMonth.split('-').map(Number);
-  return (lastYear - firstYear) * 12 + last - first + 1;
+interface FreshAllianceCategoryObservation {
+  productCode: string;
+  latestDescription: string;
+  receiptReferences: Set<string>;
+  receiptDates: Set<string>;
+  totalWeightHundredths: number;
+  firstReceivedDate: string;
+  lastReceivedDate: string;
+}
+
+interface PaidProductObservation {
+  productCode: string;
+  latestDescription: string;
+  receiptDates: Set<string>;
+  totalSpendCents: number;
+  paidWeightHundredths: number;
+  firstReceivedDate: string;
+  lastReceivedDate: string;
 }
 
 export async function getProcurementAnalytics(
@@ -711,15 +762,18 @@ export async function getProcurementAnalytics(
     ...(filters.channel ? { procurementChannel: filters.channel } : {}),
     ...(filters.acquisitionClass ? { acquisitionClass: filters.acquisitionClass } : {}),
   };
-  const baseWhere: Prisma.ProcurementOrderRevisionWhereInput = {
+  const corpusWhere: Prisma.ProcurementOrderRevisionWhereInput = {
     source: OFB_SOURCE,
     isCurrent: true,
     import: { status: 'active' },
   };
+  const baseWhere: Prisma.ProcurementOrderRevisionWhereInput = {
+    ...corpusWhere,
+  };
 
   const [allOrderDates, settings] = await Promise.all([
     client.procurementOrderRevision.findMany({
-      where: baseWhere,
+      where: corpusWhere,
       select: { deliveryDate: true },
     }),
     getOperatingHoursSettings(client as never),
@@ -774,15 +828,21 @@ export async function getProcurementAnalytics(
     getProcurementDataStatus(now, client, settings.timezone),
   ]);
 
-  const orderWeights = orders.map((order) =>
+  const eventWeights = orders.map((order) =>
     order.lines.reduce((sum, line) => sum + line.weightHundredths, 0)
   );
   const receivingDates = new Set(orders.map((order) => order.deliveryDate));
+  const orderedReceivingDates = [...receivingDates].sort();
+  const receivingDateGaps = orderedReceivingDates.slice(1).map((date, index) =>
+    calendarDayDifference(orderedReceivingDates[index], date)
+  );
   const acquisitionWeights = new Map<AcquisitionClass, number>();
   const channelWeights = new Map<ProcurementChannel, number>();
   const monthly = new Map<string, Record<string, number>>();
   const seasonal = new Map<string, number>();
   const products = new Map<string, ProductObservation>();
+  const freshAllianceCategories = new Map<string, FreshAllianceCategoryObservation>();
+  const paidProducts = new Map<string, PaidProductObservation>();
   let totalWeightHundredths = 0;
   let calculatedGrossProductChargesCents = 0;
   let sourceReportedProductChargesCents = 0;
@@ -790,7 +850,7 @@ export async function getProcurementAnalytics(
   let grantsAppliedCents = 0;
   let priceMismatchLineCount = 0;
   let zeroInboundLineCount = 0;
-  const costAdjustmentsAttributable = !filters.channel && !filters.acquisitionClass;
+  const costAdjustmentsAttributable = !filters.acquisitionClass;
 
   for (const order of orders) {
     const month = order.deliveryDate.slice(0, 7);
@@ -808,10 +868,9 @@ export async function getProcurementAnalytics(
       totalWeightHundredths += line.weightHundredths;
       calculatedGrossProductChargesCents += line.calculatedPriceTotalCents;
       sourceReportedProductChargesCents += line.sourcePriceTotalCents;
-      // OFB exports place order-level fees and grants on individual source
-      // rows. They can be totaled for whole orders, but a channel or
-      // acquisition-class filter must not imply that the adjustment belongs
-      // to the product row on which the exporter happened to place it.
+      // OFB exports place event-level fees and grants on individual source
+      // rows. A channel filter retains whole source events; an acquisition
+      // filter may divide one event, making its adjustments unattributable.
       if (costAdjustmentsAttributable) {
         serviceFeesCents += line.serviceFeeCents;
         grantsAppliedCents += line.grantsAppliedCents;
@@ -842,10 +901,66 @@ export async function getProcurementAnalytics(
         (seasonal.get(`${order.deliveryDate.slice(0, 4)}-${order.deliveryDate.slice(5, 7)}`) ?? 0) + line.weightHundredths
       );
 
+      // Paid-product analysis stays within exact OFB Warehouse product codes.
+      // It does not infer a FEED category or claim that purchasing occurred
+      // because donated supply was insufficient.
+      if (channel === 'ofb_warehouse' && line.calculatedPriceTotalCents > 0) {
+        const productCode = line.product.productCode;
+        const existingPaidProduct = paidProducts.get(productCode);
+        if (!existingPaidProduct) {
+          paidProducts.set(productCode, {
+            productCode,
+            latestDescription: line.sourceDescription,
+            receiptDates: new Set([order.deliveryDate]),
+            totalSpendCents: line.calculatedPriceTotalCents,
+            paidWeightHundredths: line.weightHundredths,
+            firstReceivedDate: order.deliveryDate,
+            lastReceivedDate: order.deliveryDate,
+          });
+        } else {
+          existingPaidProduct.receiptDates.add(order.deliveryDate);
+          existingPaidProduct.totalSpendCents += line.calculatedPriceTotalCents;
+          existingPaidProduct.paidWeightHundredths += line.weightHundredths;
+          if (order.deliveryDate >= existingPaidProduct.lastReceivedDate) {
+            existingPaidProduct.lastReceivedDate = order.deliveryDate;
+            existingPaidProduct.latestDescription = line.sourceDescription;
+          }
+          if (order.deliveryDate < existingPaidProduct.firstReceivedDate) {
+            existingPaidProduct.firstReceivedDate = order.deliveryDate;
+          }
+        }
+      }
+
       // A completed source line with zero quantity/weight is retained for
       // provenance but is not evidence that supply was received.
       if (line.weightHundredths <= 0 || line.quantityHundredths <= 0) continue;
       const productCode = line.product.productCode;
+      if (channel === 'fresh_alliance') {
+        const existingCategory = freshAllianceCategories.get(productCode);
+        if (!existingCategory) {
+          freshAllianceCategories.set(productCode, {
+            productCode,
+            latestDescription: line.sourceDescription,
+            receiptReferences: new Set([order.sourceOrderReference]),
+            receiptDates: new Set([order.deliveryDate]),
+            totalWeightHundredths: line.weightHundredths,
+            firstReceivedDate: order.deliveryDate,
+            lastReceivedDate: order.deliveryDate,
+          });
+        } else {
+          existingCategory.receiptReferences.add(order.sourceOrderReference);
+          existingCategory.receiptDates.add(order.deliveryDate);
+          existingCategory.totalWeightHundredths += line.weightHundredths;
+          if (order.deliveryDate >= existingCategory.lastReceivedDate) {
+            existingCategory.lastReceivedDate = order.deliveryDate;
+            existingCategory.latestDescription = line.sourceDescription;
+          }
+          if (order.deliveryDate < existingCategory.firstReceivedDate) {
+            existingCategory.firstReceivedDate = order.deliveryDate;
+          }
+        }
+        continue;
+      }
       const existing = products.get(productCode);
       if (!existing) {
         products.set(productCode, {
@@ -854,14 +969,12 @@ export async function getProcurementAnalytics(
           acquisitionClass,
           procurementChannel: channel,
           receiptDates: new Set([order.deliveryDate]),
-          activeMonths: new Set([month]),
           totalWeightHundredths: line.weightHundredths,
           firstReceivedDate: order.deliveryDate,
           lastReceivedDate: order.deliveryDate,
         });
       } else {
         existing.receiptDates.add(order.deliveryDate);
-        existing.activeMonths.add(month);
         existing.totalWeightHundredths += line.weightHundredths;
         if (order.deliveryDate >= existing.lastReceivedDate) {
           existing.lastReceivedDate = order.deliveryDate;
@@ -875,24 +988,17 @@ export async function getProcurementAnalytics(
     monthly.set(month, monthValues);
   }
 
-  const continuity = [...products.values()].map((product) => {
+  const warehouseProductSummary = [...products.values()].map((product) => {
     const receiptDates = [...product.receiptDates].sort();
     const gaps = receiptDates.slice(1).map((date, index) =>
       calendarDayDifference(receiptDates[index], date)
     );
-    const firstMonth = product.firstReceivedDate.slice(0, 7);
-    const lastMonth = product.lastReceivedDate.slice(0, 7);
-    const observedMonthSpan = monthSpanInclusive(firstMonth, lastMonth);
     return {
       productCode: product.productCode,
       description: product.latestDescription,
       acquisitionClass: product.acquisitionClass,
       procurementChannel: product.procurementChannel,
       receiptDateCount: product.receiptDates.size,
-      activeMonthCount: product.activeMonths.size,
-      observedMonthSpan,
-      activeMonthShare: product.activeMonths.size / observedMonthSpan,
-      receiptsPerActiveMonth: product.receiptDates.size / product.activeMonths.size,
       totalWeightHundredths: product.totalWeightHundredths,
       averageWeightPerReceiptHundredths: Math.round(
         product.totalWeightHundredths / product.receiptDates.size
@@ -906,7 +1012,43 @@ export async function getProcurementAnalytics(
     right.totalWeightHundredths - left.totalWeightHundredths ||
     left.productCode.localeCompare(right.productCode)
   );
-  const frequencies = continuity.map((product) => product.receiptDateCount);
+  const freshAllianceCategorySummary = [...freshAllianceCategories.values()]
+    .map((category) => ({
+      productCode: category.productCode,
+      description: category.latestDescription,
+      receiptEventCount: category.receiptReferences.size,
+      receivingDateCount: category.receiptDates.size,
+      totalWeightHundredths: category.totalWeightHundredths,
+      firstReceivedDate: category.firstReceivedDate,
+      lastReceivedDate: category.lastReceivedDate,
+    }))
+    .sort((left, right) =>
+      right.totalWeightHundredths - left.totalWeightHundredths ||
+      left.productCode.localeCompare(right.productCode)
+    );
+  const paidProductSummary = [...paidProducts.values()]
+    .map((product) => ({
+      productCode: product.productCode,
+      description: product.latestDescription,
+      receiptDateCount: product.receiptDates.size,
+      totalSpendCents: product.totalSpendCents,
+      paidWeightHundredths: product.paidWeightHundredths,
+      costPerPaidPoundCents: product.paidWeightHundredths > 0
+        ? Math.round(product.totalSpendCents * 100 / product.paidWeightHundredths)
+        : null,
+      firstReceivedDate: product.firstReceivedDate,
+      lastReceivedDate: product.lastReceivedDate,
+    }))
+    .sort((left, right) =>
+      right.totalSpendCents - left.totalSpendCents ||
+      left.productCode.localeCompare(right.productCode)
+    );
+  const warehouseOrderCount = orders.filter(
+    (order) => order.eventKind === 'ofb_warehouse_order'
+  ).length;
+  const freshAllianceReceiptCount = orders.filter(
+    (order) => order.eventKind === 'fresh_alliance_receipt'
+  ).length;
 
   return {
     dataAsOf: now.toISOString(),
@@ -925,15 +1067,17 @@ export async function getProcurementAnalytics(
       .sort((left, right) => right.localeCompare(left)),
     summary: {
       totalWeightHundredths,
-      sourceOrderCount: orders.length,
+      sourceEventCount: orders.length,
+      warehouseOrderCount,
+      freshAllianceReceiptCount,
       receivingDateCount: receivingDates.size,
-      medianOrderWeightHundredths: quantile(orderWeights, 0.5),
-      lowerQuartileOrderWeightHundredths: quantile(orderWeights, 0.25),
-      upperQuartileOrderWeightHundredths: quantile(orderWeights, 0.75),
-      medianLinesPerOrder: quantile(orders.map((order) => order.lines.length), 0.5),
-      supplierProductCodes: products.size,
-      productsReceivedOnce: frequencies.filter((frequency) => frequency === 1).length,
-      productsReceivedTenOrMore: frequencies.filter((frequency) => frequency >= 10).length,
+      medianReceivingGapDays: quantile(receivingDateGaps, 0.5),
+      medianEventWeightHundredths: quantile(eventWeights, 0.5),
+      lowerQuartileEventWeightHundredths: quantile(eventWeights, 0.25),
+      upperQuartileEventWeightHundredths: quantile(eventWeights, 0.75),
+      medianLinesPerEvent: quantile(orders.map((order) => order.lines.length), 0.5),
+      warehouseProductCodes: products.size,
+      freshAllianceCategoryCodes: freshAllianceCategorySummary.length,
       zeroInboundLineCount,
       calculatedGrossProductChargesCents,
       sourceReportedProductChargesCents,
@@ -963,12 +1107,8 @@ export async function getProcurementAnalytics(
         month: Number(yearMonth.slice(5, 7)),
         weightHundredths,
       })),
-    recurrenceDistribution: [
-      { label: 'One receipt date', productCount: frequencies.filter((value) => value === 1).length },
-      { label: '2–4 receipt dates', productCount: frequencies.filter((value) => value >= 2 && value <= 4).length },
-      { label: '5–9 receipt dates', productCount: frequencies.filter((value) => value >= 5 && value <= 9).length },
-      { label: '10+ receipt dates', productCount: frequencies.filter((value) => value >= 10).length },
-    ],
-    productContinuity: continuity,
+    warehouseProducts: warehouseProductSummary,
+    paidProducts: paidProductSummary,
+    freshAllianceCategories: freshAllianceCategorySummary,
   };
 }
