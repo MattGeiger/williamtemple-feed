@@ -176,6 +176,23 @@ describe('Fresh Alliance pickup import normalization', () => {
     expect(moved).not.toBe(base);
   });
 
+  test('summarizes repeated notes into one entry per code', () => {
+    const parsed = parseFreshAllianceCsv(csv(
+      row({ donorValue: '0.00' }),
+      row({ pickupLineId: '1847708', productCode: '41000', description: 'Produce (Fresh Alliance)', donorValue: '0.00' })
+    ));
+
+    expect(parsed.warnings).toHaveLength(1);
+    expect(parsed.warnings[0]).toMatchObject({
+      code: 'MISSING_DONOR_VALUATION',
+      rowNumbers: [2, 3],
+      deliveryDate: '2026-01-06',
+    });
+    expect(parsed.warnings[0].message).toContain('2 rows');
+    // The pickup still knows which codes touched it.
+    expect(parsed.pickups[0].warningCodes).toEqual(['MISSING_DONOR_VALUATION']);
+  });
+
   test('rejects structural mismatches rather than guessing', () => {
     expect(() => parseFreshAllianceCsv(Buffer.from('Date,Period,Order #\r\n1/6/26,1-Jan,1')))
       .toThrowError(ProcurementImportError);
@@ -242,6 +259,16 @@ describe.skipIf(!existsSync(corpusPath))('Fresh Alliance authoritative corpus', 
 
     const codes = new Set(parsed.warnings.map((warning) => warning.code));
     expect([...codes].sort()).toEqual(['MISSING_DONOR_VALUATION', 'UNKNOWN_PICKUP_TIME']);
+
+    // Per-row notes are summarized, so a full-history import returns two
+    // entries rather than 1,170. Every affected row is still addressable.
+    expect(parsed.warnings).toHaveLength(2);
+    const byCode = new Map(parsed.warnings.map((warning) => [warning.code, warning]));
+    expect(byCode.get('MISSING_DONOR_VALUATION')!.rowNumbers).toHaveLength(1108);
+    expect(byCode.get('UNKNOWN_PICKUP_TIME')!.rowNumbers).toHaveLength(62);
+    expect(byCode.get('MISSING_DONOR_VALUATION')!.message).toBe(
+      '1,108 rows record no donor value per pound. FEED retained their weight and excluded them from in-kind value.'
+    );
   });
 });
 

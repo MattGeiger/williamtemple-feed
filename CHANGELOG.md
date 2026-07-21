@@ -46,6 +46,10 @@ All notable changes to FEED are documented here. This project adheres to
   confirmation says which export was recognized, and an Agency Pickups import
   states how many Completed Orders receipts it replaced so weight is counted
   once.
+- **Import notes are summarized**: repeated per-row observations — such as an
+  absent donor valuation — are reported once per kind with a count, while every
+  affected row number is retained. A full-history import returns two notes
+  instead of 1,170.
 - **Per-channel coverage in Data Management**: a coverage strip shows the
   observed window and event count for OFB Warehouse and Fresh Food Alliance
   separately. The two channels are reported on different schedules — Fresh
