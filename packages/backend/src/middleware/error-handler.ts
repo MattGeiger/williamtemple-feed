@@ -121,12 +121,32 @@ export const errorHandler = (
   const statusCode = err.statusCode || 500;
   const message = err.message || 'Internal Server Error';
 
-  // Get actionable friendly message based on status code
-  let friendlyMessage = message;
-  
-  if (statusCode === 500 && (!err.message || err.message === 'Internal Server Error')) {
-    friendlyMessage = 'Something went wrong on our end. Please try again later or contact support at github.com/MattGeiger';
-  } else if (statusCode === 404 && (!err.message || err.message === 'Not Found')) {
+  // Only messages the application deliberately wrote for a user are safe to
+  // send to the browser. An error that reaches here without an explicit
+  // statusCode is an internal failure -- a Prisma validation error, a
+  // TypeError, a driver fault -- and its message is a developer artifact that
+  // can carry absolute server paths, query structure, and schema details.
+  // Those are unhelpful to staff and should not leave the server, so they are
+  // logged and replaced rather than forwarded.
+  const carriesUserFacingMessage =
+    typeof err.statusCode === 'number' && err.statusCode >= 400 && err.statusCode < 500;
+
+  let friendlyMessage = carriesUserFacingMessage
+    ? message
+    : 'FEED could not complete that request. Please try again, and let Matt know if it keeps happening.';
+
+  if (!carriesUserFacingMessage) {
+    console.error('[Error] Internal failure withheld from client', {
+      ...errorInfo,
+      stack: err.stack,
+    });
+  }
+
+  // Status-code defaults for errors whose message is a bare HTTP phrase.
+  // A 500 needs no branch here: the withheld-message default above already
+  // covers it, and pointing pantry staff at a source repository is not a next
+  // step they can act on.
+  if (statusCode === 404 && (!err.message || err.message === 'Not Found')) {
     friendlyMessage = 'The requested resource could not be found. It may have been moved or deleted.';
   } else if (statusCode === 401 && (!err.message || err.message === 'Unauthorized')) {
     friendlyMessage = 'Please log in to access this feature.';

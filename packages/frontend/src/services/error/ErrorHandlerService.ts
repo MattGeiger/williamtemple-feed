@@ -287,6 +287,22 @@ export class ErrorHandlerService {
     if (/^Request failed with status code \d+$/i.test(trimmed)) return false;
     // Should read like a sentence, not a token/identifier.
     if (!/\s/.test(trimmed)) return false;
+
+    // Defense in depth. The backend withholds internal failure messages, but a
+    // leak from any other source must not reach a toast either. These are the
+    // shapes a terminal dump takes:
+    // multi-line blobs, ORM invocation traces, filesystem paths, SQL, and
+    // anything far longer than a sentence a person would want to read.
+    if (/\r|\n/.test(trimmed)) return false;
+    if (trimmed.length > 240) return false;
+    if (/\bprisma\.\w+\.\w+\(\)|\bInvalid `/i.test(trimmed)) return false;
+    if (/Unknown argument|Argument `\w+`|available options are marked/i.test(trimmed)) return false;
+    if (/(^|\s)(\/[\w.-]+){2,}\/?/.test(trimmed)) return false;
+    if (/[A-Za-z]:\\[\w\\.-]+/.test(trimmed)) return false;
+    if (/\b(SELECT|INSERT INTO|UPDATE \w+ SET|DELETE FROM)\b/.test(trimmed)) return false;
+    if (/\b(ECONNREFUSED|ETIMEDOUT|ENOTFOUND|EADDRINUSE|SQLITE_\w+)\b/.test(trimmed)) return false;
+    if (/node_modules|\.ts:\d+|\.js:\d+/.test(trimmed)) return false;
+
     return true;
   }
 
