@@ -1,11 +1,20 @@
 import { existsSync, readFileSync } from 'fs';
 import path from 'path';
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
 import {
   FRESH_ALLIANCE_HEADERS,
+  importFreshAllianceCsv,
   parseFreshAllianceCsv,
 } from '../../../src/services/procurement/fresh-alliance';
-import { ProcurementImportError } from '../../../src/services/procurement';
+import {
+  FRESH_ALLIANCE_SOURCE,
+  OFB_HEADERS,
+  OFB_SOURCE,
+  ProcurementImportError,
+  importOfbCsv,
+  rollbackProcurementImports,
+  restoreProcurementImports,
+} from '../../../src/services/procurement';
 
 const csv = (...rows: string[]) => Buffer.from([
   FRESH_ALLIANCE_HEADERS.join(','),
@@ -232,5 +241,204 @@ describe.skipIf(!existsSync(corpusPath))('Fresh Alliance authoritative corpus', 
 
     const codes = new Set(parsed.warnings.map((warning) => warning.code));
     expect([...codes].sort()).toEqual(['MISSING_DONOR_VALUATION', 'UNKNOWN_PICKUP_TIME']);
+  });
+});
+
+describe('Fresh Alliance persistence and supersede lifecycle', () => {
+  const singlePickup = () => csv(row());
+
+  /** Minimal transaction double shaped like the Prisma client the service uses. */
+  const makeTx = (overrides: Record<string, unknown> = {}) => ({
+    procurementOrderRevision: {
+      findMany: vi.fn().mockResolvedValue([]),
+      findFirst: vi.fn().mockResolvedValue(null),
+      updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+      update: vi.fn().mockResolvedValue({}),
+      create: vi.fn().mockResolvedValue({ id: 55 }),
+    },
+    procurementImport: {
+      create: vi.fn().mockResolvedValue({ id: 7 }),
+      findMany: vi.fn().mockResolvedValue([]),
+      updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+    },
+    procurementProduct: { upsert: vi.fn().mockResolvedValue({ id: 3 }) },
+    procurementLine: { createMany: vi.fn().mockResolvedValue({ count: 1 }) },
+    ...overrides,
+  });
+
+  const asClient = (tx: ReturnType<typeof makeTx>) => ({
+    $transaction: vi.fn(async (operation: (value: typeof tx) => unknown) => operation(tx)),
+  } as never);
+
+  test('persists donor identity and pickup provenance on the revision', async () => {
+    const tx = makeTx();
+    await importFreshAllianceCsv(singlePickup(), 'staff@example.org', asClient(tx));
+
+    expect(tx.procurementOrderRevision.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          source: FRESH_ALLIANCE_SOURCE,
+          sourceOrderReference: '1155954AGPCKUP',
+          eventKind: 'fresh_alliance_receipt',
+          deliveryDate: '2026-01-06',
+          donorCode: 'RTJ146',
+          donorName: "Trader Joe's - Northwest",
+          sourcePickupId: '445624',
+          pickupTime: '09:00',
+          submittedAt: '2026-01-06T14:33',
+        }),
+      })
+    );
+  });
+
+  test('records donated lines with factual zero cost and full received detail', async () => {
+    const tx = makeTx();
+    await importFreshAllianceCsv(singlePickup(), undefined, asClient(tx));
+
+    const [{ data }] = tx.procurementLine.createMany.mock.calls[0] as [{ data: Record<string, unknown>[] }];
+    expect(data[0]).toMatchObject({
+      procurementChannel: 'fresh_alliance',
+      weightHundredths: 2000,
+      receivedWeightHundredths: 2000,
+      receivedMatchesRequested: true,
+      donorValuePerPoundCents: 145,
+      hasDonorValuation: true,
+      unitPriceCents: 0,
+      calculatedPriceTotalCents: 0,
+      serviceFeeCents: 0,
+      grantsAppliedCents: 0,
+    });
+  });
+
+  test('supersedes only Completed Orders Fresh Alliance events inside the imported window', async () => {
+    const tx = makeTx();
+    await importFreshAllianceCsv(singlePickup(), undefined, asClient(tx));
+
+    const supersedeCall = tx.procurementOrderRevision.updateMany.mock.calls.find(
+      ([arg]) => (arg as { data?: Record<string, unknown> }).data?.supersededByImportId === 7
+    );
+    expect(supersedeCall).toBeDefined();
+    expect(supersedeCall![0]).toMatchObject({
+      where: {
+        source: OFB_SOURCE,
+        eventKind: 'fresh_alliance_receipt',
+        deliveryDate: { gte: '2026-01-06', lte: '2026-01-06' },
+        // Only unclaimed events, so overlapping imports stay deterministic.
+        supersededByImportId: null,
+      },
+    });
+  });
+
+  test('an unchanged re-import is a no-op that supersedes nothing', async () => {
+    const parsed = parseFreshAllianceCsv(singlePickup());
+    const tx = makeTx({
+      procurementOrderRevision: {
+        findMany: vi.fn().mockResolvedValue([{
+          sourceOrderReference: '1155954AGPCKUP',
+          snapshotHash: parsed.pickups[0].snapshotHash,
+        }]),
+        findFirst: vi.fn(),
+        updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+        update: vi.fn(),
+        create: vi.fn(),
+      },
+    });
+
+    await expect(importFreshAllianceCsv(singlePickup(), undefined, asClient(tx)))
+      .resolves.toMatchObject({
+        outcome: 'duplicate',
+        pickupCount: 0,
+        skippedPickupCount: 1,
+        supersededEventCount: 0,
+      });
+    expect(tx.procurementImport.create).not.toHaveBeenCalled();
+    expect(tx.procurementOrderRevision.updateMany).not.toHaveBeenCalled();
+  });
+
+  test('rolling back a Fresh Alliance import releases exactly what it claimed', async () => {
+    const tx = makeTx({
+      procurementImport: {
+        create: vi.fn(),
+        findMany: vi.fn().mockResolvedValue([{
+          id: 7,
+          source: FRESH_ALLIANCE_SOURCE,
+          rangeStart: '2026-01-06',
+          rangeEnd: '2026-01-06',
+          orders: [{ source: FRESH_ALLIANCE_SOURCE, sourceOrderReference: '1155954AGPCKUP' }],
+        }]),
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+      },
+    });
+
+    await rollbackProcurementImports([7], 'staff@example.org', asClient(tx));
+
+    expect(tx.procurementOrderRevision.updateMany).toHaveBeenCalledWith({
+      where: { supersededByImportId: 7 },
+      data: { supersededByImportId: null },
+    });
+  });
+
+  test('restoring a Fresh Alliance import reclaims its recorded window', async () => {
+    const tx = makeTx({
+      procurementImport: {
+        create: vi.fn(),
+        findMany: vi.fn().mockResolvedValue([{
+          id: 7,
+          source: FRESH_ALLIANCE_SOURCE,
+          rangeStart: '2023-06-01',
+          rangeEnd: '2026-06-30',
+          orders: [{ source: FRESH_ALLIANCE_SOURCE, sourceOrderReference: '1155954AGPCKUP' }],
+        }]),
+        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+      },
+    });
+
+    await restoreProcurementImports([7], undefined, asClient(tx));
+
+    expect(tx.procurementOrderRevision.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          source: OFB_SOURCE,
+          eventKind: 'fresh_alliance_receipt',
+          deliveryDate: { gte: '2023-06-01', lte: '2026-06-30' },
+          supersededByImportId: null,
+        }),
+        data: { supersededByImportId: 7 },
+      })
+    );
+  });
+
+  test('re-importing Completed Orders cannot reintroduce double counting', async () => {
+    // Fresh AGPCKUP revisions land unclaimed, so every active Fresh Alliance
+    // import must reassert its window after the orders import writes.
+    const tx = makeTx({
+      procurementImport: {
+        create: vi.fn().mockResolvedValue({ id: 9 }),
+        findMany: vi.fn().mockResolvedValue([
+          { id: 7, rangeStart: '2023-06-01', rangeEnd: '2026-06-30' },
+        ]),
+        updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+      },
+    });
+
+    const ofbCsv = Buffer.from([
+      OFB_HEADERS.join(','),
+      '1/6/26,1-Jan,790541AGPCKUP,40000,Fresh Alliance Bread,DONATED,20.00,20.00,$0.00,$0.00,$0.00,$0.00',
+    ].join('\r\n'));
+
+    await importOfbCsv(ofbCsv, undefined, asClient(tx));
+
+    expect(tx.procurementImport.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { source: FRESH_ALLIANCE_SOURCE, status: 'active' } })
+    );
+    expect(tx.procurementOrderRevision.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          deliveryDate: { gte: '2023-06-01', lte: '2026-06-30' },
+          supersededByImportId: null,
+        }),
+        data: { supersededByImportId: 7 },
+      })
+    );
   });
 });

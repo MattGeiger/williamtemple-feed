@@ -10,6 +10,14 @@
 export const ACQUISITION_CLASSES = ['DONATED', 'PURCH-DON', 'GOVERNMENT', 'PURCHASED'] as const;
 export type AcquisitionClass = typeof ACQUISITION_CLASSES[number];
 
+// The OFB portal publishes the same supply through two exports. Each persists
+// under its own source namespace so references can never collide and each has
+// an independent revision lineage. Both are the same source *system*, so they
+// share one supplier product catalog under `OFB_SOURCE`.
+export const OFB_SOURCE = 'ofb';
+export const FRESH_ALLIANCE_SOURCE = 'ofb_pickup';
+export const PROCUREMENT_SOURCES = [OFB_SOURCE, FRESH_ALLIANCE_SOURCE] as const;
+
 export class ProcurementImportError extends Error {
   statusCode: number;
   code: string;
