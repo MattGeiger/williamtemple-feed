@@ -350,6 +350,28 @@ extension v2.0.0 work:
   desktop and mobile width, light and dark theme, and with the Custom Range
   popover open while scrolled (no z-index conflict).
 
+**Fixed family colors, plus a legend, landed 2026-07-20.** Bar colors were
+previously assigned by rank (`carbonCategoricalTheme(index)` over
+`paidProductSeries.families`, sorted by spend in the current view) — a color
+meant whichever family happened to be Nth by spend in *that* render, so the
+same color could mean "Meat" on one date range and "Rice" on another. A fixed
+`FAMILY_COLOR_ASSIGNMENTS` table now keys color by family label instead: 9
+Carbon hues (hue-hopped for adjacent contrast) at `primary` grade cover the
+9 most distinct known families, the remaining 5 repeat those hues at
+`secondary` grade, and `Unclassified` is pinned to `warmGray` — reserved,
+never assigned to a real family, so a muted color visually marks "not a real
+category." A description prefix outside the profiled 14 still gets a
+deterministic hash-based color rather than colliding with an existing family
+or the reserved gray.
+
+A companion legend renders beneath the chart, one swatch per family present
+in the current view, resolved directly via `useTheme()` + a hex lookup rather
+than the CSS custom properties `ChartContainer` injects — Recharts constrains
+`ChartContainer`'s only child to the chart itself, so there's no way to mount
+a legend as a descendant of the `[data-chart=id]` scope those variables are
+declared on. Same pattern already used in `dashboard/category-chart.tsx` for
+the identical reason.
+
 A real frontend typecheck regression was found and fixed during this pass —
 see the AGENTS.md "Lessons From Recent Work" entry on `tsc --noEmit` silently
 checking nothing when invoked without `--project tsconfig.app.json`. The
