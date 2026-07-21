@@ -14,6 +14,12 @@ const csv = (...rows: string[]) => Buffer.from([
   ...rows,
 ].join('\r\n'));
 
+const emptyCoverage = () => ({
+  _min: { deliveryDate: null },
+  _max: { deliveryDate: null },
+  _count: { _all: 0 },
+});
+
 describe('OFB procurement import normalization', () => {
   test('preserves observed product identifiers and groups observations by source order', () => {
     const parsed = parseOfbCsv(csv(
@@ -166,7 +172,7 @@ describe('OFB procurement import normalization', () => {
         recordedAt: new Date('2026-01-01T00:00:00Z'),
       });
     const client = {
-      procurementOrderRevision: { findFirst },
+      procurementOrderRevision: { findFirst, aggregate: vi.fn(async () => emptyCoverage()) },
       operatingHoursRevision: { findFirst },
     } as never;
 
@@ -255,6 +261,7 @@ describe('OFB procurement import normalization', () => {
       procurementOrderRevision: {
         findMany,
         findFirst: vi.fn().mockResolvedValue({ deliveryDate: '2026-01-05' }),
+        aggregate: vi.fn(async () => emptyCoverage()),
       },
       operatingHoursRevision: {
         findFirst: vi.fn().mockResolvedValue({
@@ -341,6 +348,7 @@ describe('OFB procurement import normalization', () => {
       procurementOrderRevision: {
         findMany: filteredFindMany,
         findFirst: vi.fn().mockResolvedValue({ deliveryDate: '2026-01-05' }),
+        aggregate: vi.fn(async () => emptyCoverage()),
       },
       operatingHoursRevision: {
         findFirst: vi.fn().mockResolvedValue({

@@ -639,21 +639,51 @@ export async function getProcurementDataStatus(
   client = prisma,
   resolvedTimeZone?: string
 ) {
-  const [latest, settings] = await Promise.all([
+  const activeCorpus = {
+    source: { in: [...PROCUREMENT_SOURCES] },
+    isCurrent: true,
+    supersededByImportId: null,
+    import: { status: 'active' as const },
+  };
+  const [latest, warehouseCoverage, freshAllianceCoverage, settings] = await Promise.all([
     client.procurementOrderRevision.findFirst({
-      where: {
-        source: { in: [...PROCUREMENT_SOURCES] },
-        isCurrent: true,
-        supersededByImportId: null,
-        import: { status: 'active' },
-      },
+      where: activeCorpus,
       orderBy: { deliveryDate: 'desc' },
       select: { deliveryDate: true },
+    }),
+    // Each channel is reported on its own schedule, so their windows are read
+    // separately and never assumed equal. See procurement-unification-plan.md
+    // (D12): this describes what FEED can currently see, not how anyone is
+    // performing.
+    client.procurementOrderRevision.aggregate({
+      where: { ...activeCorpus, eventKind: 'ofb_warehouse_order' },
+      _min: { deliveryDate: true },
+      _max: { deliveryDate: true },
+      _count: { _all: true },
+    }),
+    client.procurementOrderRevision.aggregate({
+      where: { ...activeCorpus, eventKind: 'fresh_alliance_receipt' },
+      _min: { deliveryDate: true },
+      _max: { deliveryDate: true },
+      _count: { _all: true },
     }),
     resolvedTimeZone
       ? Promise.resolve(null)
       : getOperatingHoursSettings(client as never),
   ]);
+  const coverage = {
+    warehouse: {
+      eventCount: warehouseCoverage._count._all,
+      earliestDeliveryDate: warehouseCoverage._min.deliveryDate,
+      latestDeliveryDate: warehouseCoverage._max.deliveryDate,
+    },
+    freshAlliance: {
+      eventCount: freshAllianceCoverage._count._all,
+      earliestDeliveryDate: freshAllianceCoverage._min.deliveryDate,
+      latestDeliveryDate: freshAllianceCoverage._max.deliveryDate,
+    },
+  };
+
   if (!latest) {
     return {
       hasData: false,
@@ -661,6 +691,7 @@ export async function getProcurementDataStatus(
       daysSinceLatestDelivery: null,
       isStale: false,
       staleAfterDays: PROCUREMENT_STALE_AFTER_DAYS,
+      coverage,
     };
   }
   const today = localDateOf(now, resolvedTimeZone ?? settings!.timezone);
@@ -671,6 +702,7 @@ export async function getProcurementDataStatus(
     daysSinceLatestDelivery,
     isStale: daysSinceLatestDelivery > PROCUREMENT_STALE_AFTER_DAYS,
     staleAfterDays: PROCUREMENT_STALE_AFTER_DAYS,
+    coverage,
   };
 }
 

@@ -37,9 +37,10 @@ import { procurementService } from '@/services/procurement';
 import type {
   ProcurementDataStatus,
   ProcurementImportRecord,
-  ProcurementImportResult,
+  DetectedImportResult,
 } from '@/types/procurement';
 import type { TableBulkAction } from '@/types/table';
+import { ProcurementCoverageStrip } from './coverage-strip';
 import { OfbImportDialog } from './ofb-import-dialog';
 
 const PageTitleDataManagementIcon = createPageTitleIcon(DatabaseIcon);
@@ -233,7 +234,7 @@ export function DataManagementWorkspace() {
     },
   ], []);
 
-  const handleImported = async (result: ProcurementImportResult) => {
+  const handleImported = async (result: DetectedImportResult) => {
     if (result.outcome === 'imported') await refresh();
   };
 
@@ -245,13 +246,15 @@ export function DataManagementWorkspace() {
         icon={PageTitleDataManagementIcon}
       />
 
+      <ProcurementCoverageStrip status={status} formatDate={dateLabel} />
+
       {status?.isStale && status.latestDeliveryDate && (
         <Alert variant="warning" className="items-start">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
           <div>
             <AlertTitle>Procurement data may be out of date</AlertTitle>
             <AlertDescription>
-              The latest OFB delivery is {status.daysSinceLatestDelivery} calendar days old ({dateLabel(status.latestDeliveryDate)}). Import a current export to refresh Procurement Analytics.
+              The most recent observation FEED holds is from {dateLabel(status.latestDeliveryDate)}. Importing a current export will refresh Procurement Analytics.
             </AlertDescription>
           </div>
         </Alert>

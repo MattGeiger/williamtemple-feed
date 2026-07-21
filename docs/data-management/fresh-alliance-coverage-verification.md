@@ -150,17 +150,25 @@ Completed Orders export agrees, carrying zero `AGPCKUP` rows in July while
 continuing to report Warehouse orders through 2026-07-13.
 
 June 2026 alone contained 29 Fresh Alliance events, so a two-week gap is a sharp
-departure from cadence. The most likely explanation is that July pickups exist in
-Primarius but are not yet marked completed / System Received, and both exports
-filter on completed status. **Unconfirmed — worth verifying with the agency.**
+departure from cadence.
 
-Either way the structural consequence holds:
+**Confirmed with the agency (2026-07-20): the July pickups happened.** The gap is
+a recording lag — pickup data had not yet been entered into Primarius, because
+the agency is short-staffed and the entry competes with direct service work.
+Both exports filter on completed status, so unentered pickups are invisible to
+FEED until someone has time to record them.
 
 **Decision: Fresh Alliance and Warehouse coverage windows are reported
-separately and must never be assumed equal.** The Phase 4 coverage strip shows a
-window per channel. The 30-day staleness rule must not flag Fresh Alliance as
-stale on the strength of a reporting lag that the agency does not control, and
-must never present the gap as a data-quality or staff-performance score.
+separately and must never be assumed equal.** The coverage strip shows a window
+per channel. The 30-day staleness rule must not flag Fresh Alliance stale on the
+strength of an entry backlog.
+
+**Decision: a coverage gap is never presented as a score, a warning, or a
+performance signal.** The gap measures how much data-entry time staff have had,
+not how well they are doing their jobs. It states what FEED can currently see
+and, where useful, what would extend that view. It never uses language implying
+lateness, incompleteness as fault, or a target to hit. Food arrived and was
+distributed regardless of whether anyone had time to type it in.
 
 ## Donor roster (received pounds)
 
