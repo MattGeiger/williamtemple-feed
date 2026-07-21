@@ -14,6 +14,7 @@ import {
   ProcurementAnalyticsWorkspace,
 } from '@/components/analytics';
 import { analyticsRangeFromSearchParams } from '@/components/analytics/range-control';
+import { DonorAnalytics } from '@/components/analytics/donor-analytics';
 import type { ProcurementAnalytics } from '@/types/procurement';
 
 class ResizeObserverStub {
@@ -456,5 +457,92 @@ describe('Analytics dataset separation', () => {
     expect(screen.queryByText('Where Paid Procurement Dollars Went')).not.toBeInTheDocument();
     expect(screen.queryByText('Warehouse Product Recurrence')).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'OFB Warehouse Product History' })).not.toBeInTheDocument();
+  });
+});
+
+describe('Grocery partner observations', () => {
+  const donors = [
+    {
+      donorCode: 'RAZ100',
+      donorName: 'Amazon - NW Industrial (Prime Now)',
+      pickupCount: 300,
+      receivingDateCount: 250,
+      weightHundredths: 38252300,
+      averageWeightPerPickupHundredths: 127508,
+      valuedWeightHundredths: 30000000,
+      unvaluedWeightHundredths: 8252300,
+      recordedValueCents: 41728300,
+      firstReceivedDate: '2023-06-01',
+      lastReceivedDate: '2026-06-30',
+      categories: [{ productCode: '41000', description: 'Produce (Fresh Alliance)', weightHundredths: 20000000 }],
+    },
+    {
+      donorCode: 'RRD200',
+      donorName: 'Restaurant Depot',
+      pickupCount: 73,
+      receivingDateCount: 70,
+      weightHundredths: 1498300,
+      averageWeightPerPickupHundredths: 20524,
+      valuedWeightHundredths: 1498300,
+      unvaluedWeightHundredths: 0,
+      recordedValueCents: 2172500,
+      firstReceivedDate: '2025-01-07',
+      lastReceivedDate: '2026-06-30',
+      categories: [{ productCode: '42050', description: 'Meat (Fresh Alliance)', weightHundredths: 900000 }],
+    },
+  ];
+
+  const donorValue = {
+    recordedValueCents: 43900800,
+    valuedWeightHundredths: 31498300,
+    totalWeightHundredths: 39750600,
+    unvaluedWeightHundredths: 8252300,
+  };
+
+  test('states in-kind value with its coverage rather than as a total', () => {
+    render(
+      <DonorAnalytics
+        donors={donors}
+        donorValue={donorValue}
+        formatDate={(iso) => iso}
+      />
+    );
+
+    // 31,498,300 of 39,750,600 hundredths carries a recorded rate.
+    expect(screen.getByText(/79% of received pounds/)).toBeVisible();
+    expect(screen.getByText('82,523 lb')).toBeVisible();
+    expect(
+      screen.getByText(/does not estimate a rate for the rest/)
+    ).toBeVisible();
+  });
+
+  test('reports partner cadence without ranking or explaining it', () => {
+    render(
+      <DonorAnalytics
+        donors={donors}
+        donorValue={donorValue}
+        formatDate={(iso) => iso}
+      />
+    );
+
+    // Similar visit counts with very different loads is the observation that
+    // matters operationally; FEED states it and stops there.
+    expect(screen.getByText('1,275 lb')).toBeVisible();
+    expect(screen.getByText('205 lb')).toBeVisible();
+
+    for (const forbidden of [/best/i, /worst/i, /underperform/i, /declin/i, /should/i, /top partner/i]) {
+      expect(document.body.textContent).not.toMatch(forbidden);
+    }
+  });
+
+  test('degrades to an empty state instead of crashing without donor data', () => {
+    render(
+      <DonorAnalytics
+        donors={undefined as never}
+        donorValue={undefined as never}
+        formatDate={(iso) => iso}
+      />
+    );
+    expect(screen.getByText(/No Agency Pickups observations/)).toBeVisible();
   });
 });

@@ -87,6 +87,7 @@ import type {
 } from '@/types/procurement';
 import type { AnalyticsDateRange } from '@/types/analytics';
 import { DEFAULT_ANALYTICS_RANGE } from '@/types/analytics';
+import { DonorAnalytics } from './donor-analytics';
 
 const PageTitleAnalyticsIcon = createPageTitleIcon(ChartNoAxesCombinedIcon);
 
@@ -963,6 +964,14 @@ export function ProcurementAnalyticsWorkspace({
             )}
           </CardContent>
         </Card>
+      )}
+
+      {includesFreshAlliance && (
+        <DonorAnalytics
+          donors={analytics.donors}
+          donorValue={analytics.donorValue}
+          formatDate={(isoDate) => format(parseISO(isoDate), 'MMM d, yyyy')}
+        />
       )}
 
       <Card className="min-w-0">
