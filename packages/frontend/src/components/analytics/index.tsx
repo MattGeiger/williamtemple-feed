@@ -847,7 +847,11 @@ export function ProcurementAnalyticsWorkspace({
     },
     {
       accessorKey: 'lastReceivedDate',
-      header: 'Last Received',
+      header: ({ column }) => (
+        <Button variant="ghost" className="-ml-3" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
+          Last Received <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      ),
       size: 130,
       cell: ({ row }) => format(parseISO(row.original.lastReceivedDate), 'MMM d, yyyy'),
     },
@@ -903,7 +907,11 @@ export function ProcurementAnalyticsWorkspace({
     },
     {
       accessorKey: 'lastReceivedDate',
-      header: 'Last Received',
+      header: ({ column }) => (
+        <Button variant="ghost" className="-ml-3" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
+          Last Received <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      ),
       size: 130,
       cell: ({ row }) => format(parseISO(row.original.lastReceivedDate), 'MMM d, yyyy'),
     },
@@ -947,7 +955,11 @@ export function ProcurementAnalyticsWorkspace({
     { accessorKey: 'receiptDateCount', header: 'Receiving Dates', size: 135 },
     {
       accessorKey: 'lastReceivedDate',
-      header: 'Last Received',
+      header: ({ column }) => (
+        <Button variant="ghost" className="-ml-3" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
+          Last Received <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      ),
       size: 130,
       cell: ({ row }) => format(parseISO(row.original.lastReceivedDate), 'MMM d, yyyy'),
     },
