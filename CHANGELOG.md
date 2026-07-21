@@ -7,6 +7,17 @@ All notable changes to FEED are documented here. This project adheres to
 
 ### Added
 
+- **Seasonal channel breakdown**: the Seasonal Inbound Weight card on
+  Procurement Analytics can now split each year's monthly trend by OFB
+  Warehouse or Fresh Food Alliance. The control only appears when the
+  page-level channel filter is "All Channels"; a narrower page filter already
+  scopes the data, so the card follows it instead of offering an independent
+  choice that could disagree.
+- **Sticky Analytics filters**: the Operations/Procurement tab switcher and
+  date range control stay pinned beneath the app header while scrolling
+  Analytics, so the active range and channel context remain visible across a
+  long page of Procurement cards.
+
 - **Fresh Food Alliance pickup normalization**: FEED now parses the OFB Agency
   Pickups export (19 columns, exporter v1.2.0), which reports donor identity for
   Fresh Food Alliance receipts. Donor code and name, pickup reference and ID,
@@ -83,6 +94,13 @@ All notable changes to FEED are documented here. This project adheres to
 
 ### Fixed
 
+- **Paid procurement family colors now render**: bars in Where Paid
+  Procurement Dollars Went were invisible in one intermediate build (correct
+  data, un-painted geometry) because a 14-series stacked chart produced empty
+  rectangle groups; switched to one series with a per-row color instead. The
+  aggregate row's family breakdown moved from the chart tooltip payload (which
+  a single-series chart never populates with more than one entry) onto the
+  row data itself, where the tooltip now reads it directly.
 - **Error messages no longer expose internal failure detail**: unhandled server
   errors previously reached the browser verbatim, so a database or runtime fault
   could surface a toast containing server file paths, the failing query, and

@@ -300,6 +300,18 @@ describe('OFB procurement import normalization', () => {
       { channel: 'ofb_warehouse', weightHundredths: 1000 },
       { channel: 'fresh_alliance', weightHundredths: 200 },
     ]);
+    // Seasonal weight keeps channels apart in addition to the combined series,
+    // so Seasonal Inbound Weight can offer a per-channel breakdown without a
+    // second query.
+    expect(result.seasonalWeight).toEqual([
+      { year: '2026', month: 1, weightHundredths: 1200 },
+    ]);
+    // Sorted by the composite key "year-month|channel", so fresh_alliance
+    // sorts before ofb_warehouse within the same month.
+    expect(result.seasonalChannelWeight).toEqual([
+      { year: '2026', month: 1, channel: 'fresh_alliance', weightHundredths: 200 },
+      { year: '2026', month: 1, channel: 'ofb_warehouse', weightHundredths: 1000 },
+    ]);
     expect(result.warehouseProducts.map((product) => product.productCode)).toEqual([
       '90001',
     ]);

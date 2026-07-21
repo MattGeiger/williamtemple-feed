@@ -317,6 +317,53 @@ Conditions agreed before Option B is built:
 mostly free — an identical snapshot is a no-op. Incremental fetching is
 politeness toward OFB's servers, not a correctness requirement.
 
+## Phase 6 polish landed so far
+
+Two of the analytics-page requests from review landed as polish, ahead of the
+extension v2.0.0 work:
+
+- **Seasonal channel breakdown.** `seasonalChannelWeight` (added earlier as a
+  computed-but-unwired field — see the Phase 5 note above) now backs a channel
+  `Select` on the Seasonal Inbound Weight card. Same "one source of truth" rule
+  as the donor filter: the card's own control is offered only when the
+  page-level channel filter is "All Channels"; when the page filter narrows,
+  the card follows it and the card-level control disappears rather than risking
+  disagreement with a filter visible elsewhere on the page. Pinned by two
+  frontend tests.
+- **Paid-product family colors and Other breakdown.** Bars in Where Paid
+  Procurement Dollars Went are colored by product family (parsed from the OFB
+  description prefix, e.g. "Meals, Beef Stew" → Meals) instead of one flat
+  color, and the aggregate "Other paid products" row's tooltip breaks itself
+  down by family — grouping is the only way the tail is legible; individually
+  the 144 remaining codes average 0.19% of paid spend each. Rendered with one
+  `Bar` + a `Cell` per row rather than a series-per-family stack, because a
+  14-series stacked `Bar` set produced empty rectangle groups with no painted
+  geometry in this Recharts version — that failure mode is worth knowing before
+  reaching for a per-series stack again on a chart with this many categories.
+- **Sticky top filters.** The tab switcher (Operations/Procurement) and date
+  range control are `position: sticky` beneath the app header on the Analytics
+  page, so they stay reachable across a long scroll of Procurement cards.
+  `position: sticky`, not a `ScrollArea`-wrapped card region — AGENTS.md
+  requires `ScrollArea` to have a definite height, which on a page this long
+  would mean a nested scroll region that traps wheel events and behaves badly
+  on mobile; sticky keeps native page scroll. Verified in the browser at
+  desktop and mobile width, light and dark theme, and with the Custom Range
+  popover open while scrolled (no z-index conflict).
+
+A real frontend typecheck regression was found and fixed during this pass —
+see the AGENTS.md "Lessons From Recent Work" entry on `tsc --noEmit` silently
+checking nothing when invoked without `--project tsconfig.app.json`. The
+concrete bugs it had been hiding: an incomplete `emptyAnalytics` test fixture
+missing `coverage`/`donors`/`donorMonthlyWeight`/`donorValue`/
+`seasonalChannelWeight`, a duplicate import, and a real runtime-adjacent bug
+where `selectedChannel`'s inferred type widened to plain `string`, which would
+have made a `Record<ProcurementChannel, string>` lookup silently return
+`undefined` for the seasonal card's channel label. Confirmed via an isolated
+`git worktree` checkout of the session-start commit that this session's
+frontend work introduced zero net new distinct TypeScript errors once those
+were fixed; the ~10 errors remaining in touched files are the pre-existing
+`ColumnDef`/icon debt category documented in `docs/TSC-DEBT.md`.
+
 ## Tracking progress empirically
 
 Claims about this feature should be checkable, not remembered:

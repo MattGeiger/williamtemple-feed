@@ -225,6 +225,12 @@ export interface ProcurementAnalytics {
     month: number;
     weightHundredths: number;
   }>;
+  seasonalChannelWeight: Array<{
+    year: string;
+    month: number;
+    channel: ProcurementChannel;
+    weightHundredths: number;
+  }>;
   warehouseProducts: ProcurementWarehouseProductSummary[];
   paidProducts: PaidProcurementProductSummary[];
   freshAllianceCategories: FreshAllianceCategorySummary[];

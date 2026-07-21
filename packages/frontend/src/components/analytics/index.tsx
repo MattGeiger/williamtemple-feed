@@ -457,11 +457,17 @@ export function AnalyticsWorkspace() {
       />
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="min-w-0">
-        <TabsList className="grid h-auto w-full grid-cols-2 sm:w-[360px]">
-          <TabsTrigger value="operations">Operations</TabsTrigger>
-          <TabsTrigger value="procurement">Procurement</TabsTrigger>
-        </TabsList>
-        <AnalyticsRangeControl value={range} onChange={setRange} />
+        {/* Sticky beneath the app header (h-16) so the tab switcher and date
+            range stay reachable across a long scroll of Procurement cards.
+            Translucent + blurred to match the one existing sticky-content
+            treatment in the app (GuideToc) rather than an opaque bar. */}
+        <div className="sticky top-16 z-30 -mx-4 space-y-4 border-b border-border/70 bg-background/40 px-4 py-4 backdrop-blur-[14px] backdrop-saturate-150 supports-[backdrop-filter]:bg-background/40 sm:-mx-6 sm:px-6">
+          <TabsList className="grid h-auto w-full grid-cols-2 sm:w-[360px]">
+            <TabsTrigger value="operations">Operations</TabsTrigger>
+            <TabsTrigger value="procurement">Procurement</TabsTrigger>
+          </TabsList>
+          <AnalyticsRangeControl value={range} onChange={setRange} />
+        </div>
         <TabsContents>
           <TabsContent value="operations" className="pt-4">
             <OperationalAnalyticsWorkspace showHeader={false} range={range} />
@@ -486,9 +492,9 @@ export function ProcurementAnalyticsWorkspace({
   const [isLoading, setIsLoading] = React.useState(true);
   const [selectedSeasonalYears, setSelectedSeasonalYears] = React.useState<string[]>([]);
   const [paidProductSearch, setPaidProductSearch] = React.useState('');
-  const selectedChannel = searchParams.get('channel') === 'ofb_warehouse' ||
+  const selectedChannel: 'all' | ProcurementChannel = searchParams.get('channel') === 'ofb_warehouse' ||
     searchParams.get('channel') === 'fresh_alliance'
-    ? searchParams.get('channel')!
+    ? (searchParams.get('channel') as ProcurementChannel)
     : 'all';
   const acquisitionParam = searchParams.get('acquisition');
   const selectedAcquisition = acquisitionParam && acquisitionParam in acquisitionLabels
@@ -524,6 +530,15 @@ export function ProcurementAnalyticsWorkspace({
     };
   }, [range, selectedAcquisition, selectedChannel]);
 
+  // The card's own channel breakdown only applies when the page-level filter
+  // is "All Channels" -- otherwise the analytics payload is already scoped to
+  // one channel, and a second independent control here could disagree with
+  // the filter a user can see at the top of the page. See
+  // procurement-unification-plan.md: one source of truth, no contradictory
+  // filter states.
+  const [selectedSeasonalChannel, setSelectedSeasonalChannel] = React.useState<'all' | ProcurementChannel>('all');
+  const effectiveSeasonalChannel = selectedChannel === 'all' ? selectedSeasonalChannel : selectedChannel;
+
   const canCompareSeasons = Boolean(
     analytics && analytics.range.startDate.slice(0, 4) !== analytics.range.endDate.slice(0, 4)
   );
@@ -540,13 +555,21 @@ export function ProcurementAnalyticsWorkspace({
   );
   const seasonalData = React.useMemo(() => {
     const rows = monthLabels.map((month, index) => ({ month, monthNumber: index + 1 } as Record<string, string | number>));
-    for (const point of analytics?.seasonalWeight ?? []) {
-      if (seasonalYears.includes(point.year)) {
-        rows[point.month - 1][point.year] = toPounds(point.weightHundredths);
+    if (effectiveSeasonalChannel === 'all') {
+      for (const point of analytics?.seasonalWeight ?? []) {
+        if (seasonalYears.includes(point.year)) {
+          rows[point.month - 1][point.year] = toPounds(point.weightHundredths);
+        }
+      }
+    } else {
+      for (const point of analytics?.seasonalChannelWeight ?? []) {
+        if (point.channel !== effectiveSeasonalChannel || !seasonalYears.includes(point.year)) continue;
+        const cell = rows[point.month - 1];
+        cell[point.year] = (Number(cell[point.year]) || 0) + toPounds(point.weightHundredths);
       }
     }
     return rows;
-  }, [analytics, seasonalYears]);
+  }, [analytics, seasonalYears, effectiveSeasonalChannel]);
 
   const monthlyWeight = React.useMemo(
     () => (analytics?.monthlyWeight ?? []).map((row) => ({
@@ -1147,8 +1170,31 @@ export function ProcurementAnalyticsWorkspace({
               {canCompareSeasons
                 ? 'Calendar years within the selected range compared month by month'
                 : 'Monthly inbound weight within the selected date range'}
+              {effectiveSeasonalChannel !== 'all' && (
+                <> &middot; {channelLabels[effectiveSeasonalChannel]} only</>
+              )}
             </CardDescription>
           </div>
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+          {/* Only offered when the page-level channel filter is "All
+              Channels". A narrower page filter already scopes this card's
+              data, so a second independent choice here could contradict the
+              filter visible at the top of the page. */}
+          {selectedChannel === 'all' && (
+            <Select
+              value={selectedSeasonalChannel}
+              onValueChange={(value) => setSelectedSeasonalChannel(value as 'all' | ProcurementChannel)}
+            >
+              <SelectTrigger aria-label="Seasonal channel breakdown" className="w-full sm:w-auto">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Channels</SelectItem>
+                <SelectItem value="ofb_warehouse">OFB Warehouse</SelectItem>
+                <SelectItem value="fresh_alliance">Fresh Food Alliance</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
           <DropdownMenu>
             <DropdownMenuTrigger asChild disabled={!canCompareSeasons}>
               <Button variant="outline" className="w-full justify-between sm:w-auto">
@@ -1191,6 +1237,7 @@ export function ProcurementAnalyticsWorkspace({
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
+          </div>
         </CardHeader>
         <CardContent>
           {seasonalYears.length === 0 ? (
