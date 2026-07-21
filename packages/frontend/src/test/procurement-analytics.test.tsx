@@ -904,31 +904,26 @@ describe('paid product families', () => {
       buildPaidProductSpendData([product('Other Protein, Peanut Butter', 50000)])
     );
 
-    const key = families[0].key;
     expect(families[0].label).toBe('Other Protein');
-    expect(key).toMatch(/^[a-z0-9_]+$/);
-    expect(rows[0][key]).toBe(500);
+    expect(families[0].key).toMatch(/^[a-z0-9_]+$/);
+    expect(rows[0].segments).toEqual([{ family: 'Other Protein', spendDollars: 500 }]);
   });
 
-  test('populates one family per ordinary row and several on the aggregate', () => {
+  test('gives an ordinary row one segment and the aggregate row several', () => {
     const products = [
       ...Array.from({ length: 15 }, (_, index) => product(`Meat, Cut ${index}`, 100000)),
       product('Meals, Beef Stew', 40000),
       product('Cereal, Corn Flakes', 15000),
     ];
-    const { rows, families } = buildPaidProductChartSeries(buildPaidProductSpendData(products));
+    const { rows } = buildPaidProductChartSeries(buildPaidProductSpendData(products));
 
-    const familyKeys = families.map((family) => family.key);
-    const populated = (row: Record<string, unknown>) =>
-      familyKeys.filter((key) => typeof row[key] === 'number');
-
-    // An ordinary product bar is a single segment; the aggregate stacks.
-    expect(populated(rows[0])).toHaveLength(1);
-    expect(populated(rows[rows.length - 1])).toHaveLength(2);
+    // An ordinary product bar is a single segment; the aggregate stacks --
+    // this is what PaidProductBarShape draws one vs. several adjacent rects
+    // from.
+    expect(rows[0].segments).toHaveLength(1);
+    expect(rows[rows.length - 1].segments).toHaveLength(2);
   });
   test('carries the family breakdown onto the aggregate chart row', () => {
-    // The tooltip reads this off the row, not off the chart payload: a single
-    // Bar with per-row Cells only ever yields one payload entry.
     const products = [
       ...Array.from({ length: 15 }, (_, index) => product(`Meat, Cut ${index}`, 100000)),
       product('Meals, Beef Stew', 40000),
@@ -936,8 +931,8 @@ describe('paid product families', () => {
     ];
     const { rows } = buildPaidProductChartSeries(buildPaidProductSpendData(products));
 
-    expect(rows[0].familyBreakdown).toBeUndefined();
-    expect(rows[rows.length - 1].familyBreakdown).toEqual([
+    expect(rows[0].segments).toEqual([{ family: 'Meat', spendDollars: 1000 }]);
+    expect(rows[rows.length - 1].segments).toEqual([
       { family: 'Meals', spendDollars: 400 },
       { family: 'Rice', spendDollars: 100 },
     ]);

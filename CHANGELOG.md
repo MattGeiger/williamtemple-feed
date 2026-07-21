@@ -94,6 +94,14 @@ All notable changes to FEED are documented here. This project adheres to
 
 ### Fixed
 
+- **The "Other paid products" bar is now a real stacked bar**: the aggregate
+  row's family breakdown was previously visible only in its tooltip; it now
+  renders as visually adjacent, proportionally sized, family-colored segments
+  directly in the bar, matching an ordinary product row's single segment. A
+  custom bar shape draws the segments directly rather than using Recharts'
+  native per-series stacking, which renders no geometry at all at this
+  series count — a documented Recharts limitation, not something specific to
+  this data.
 - **Paid procurement family colors are fixed, not rank-based, and explained
   by a legend**: each product family (Meals, Condiment, Meat, Other Protein,
   and the rest of the profiled OFB set) now has one permanent color used

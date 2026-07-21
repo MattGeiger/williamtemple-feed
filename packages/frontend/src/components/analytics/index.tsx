@@ -7,7 +7,6 @@ import { format, parseISO } from 'date-fns';
 import {
   Bar,
   BarChart,
-  Cell,
   CartesianGrid,
   Line,
   LineChart,
@@ -284,78 +283,128 @@ export interface PaidProductSpendDatum {
   familyBreakdown?: Array<{ family: string; spendDollars: number }>;
 }
 
-/**
- * Reshapes spend rows so each product family is its own stacked series.
- *
- * An ordinary product row has exactly one family populated, so it renders as a
- * single bar in that family's color. The aggregate row populates every family
- * it contains, so the same mechanism breaks it down. Families absent from a row
- * are left undefined rather than zero so Recharts omits them from the bar and
- * the tooltip.
- */
-type PaidProductChartRow = Record<
-  string,
-  string | number | PaidProductSpendDatum['familyBreakdown']
->;
+export interface PaidProductChartSegment {
+  family: string;
+  spendDollars: number;
+}
 
+export interface PaidProductChartRow {
+  product: string;
+  fullDescription: string;
+  spendDollars: number;
+  spendShare: number;
+  productCount: number;
+  /** One entry for an ordinary product row; several for the aggregate row. */
+  segments: PaidProductChartSegment[];
+}
+
+/**
+ * Reshapes spend rows into the segments a stacked bar draws.
+ *
+ * Recharts' native per-series `stackId` stacking is unreliable at this
+ * cardinality — a 14-series stack over this data renders no geometry at all,
+ * a documented Recharts bug (recharts/recharts#3883, "Stacked Bar Chart
+ * disappears when stackId is added for complex datasets"), reproduced here
+ * even after eliminating undefined per-series values. Rather than keep
+ * fighting that mechanism, the bar uses a single series with a custom `shape`
+ * that draws each row's segments as adjacent `<rect>`s sized from
+ * `segments` directly — full control, and it never touches Recharts' stack
+ * math at all.
+ */
 export function buildPaidProductChartSeries(data: PaidProductSpendDatum[]): {
   rows: PaidProductChartRow[];
   families: Array<{ key: string; label: string }>;
-  /** Family key a row should be coloured by; the aggregate uses its largest. */
-  familyKeyOf: (row: PaidProductChartRow) => string;
 } {
-  // Chart config keys become CSS custom property names, so a family label like
-  // "Other Protein" has to be slugged before it can be a data key.
   const families: Array<{ key: string; label: string }> = [];
-  const noteFamily = (family: string) => {
-    const key = familyCssKey(family);
-    if (!families.some((entry) => entry.key === key)) families.push({ key, label: family });
-    return key;
+  const noteFamily = (label: string) => {
+    const key = familyCssKey(label);
+    if (!families.some((entry) => entry.key === key)) families.push({ key, label });
   };
 
-  const rows = data.map((datum) => {
-    const row: Record<string, string | number | PaidProductSpendDatum['familyBreakdown']> = {
+  const rows: PaidProductChartRow[] = data.map((datum) => {
+    const segments = datum.familyBreakdown && datum.familyBreakdown.length > 0
+      ? datum.familyBreakdown
+      : [{ family: datum.family, spendDollars: datum.spendDollars }];
+    for (const segment of segments) noteFamily(segment.family);
+    return {
       product: datum.product,
       fullDescription: datum.fullDescription,
       spendDollars: datum.spendDollars,
       spendShare: datum.spendShare,
       productCount: datum.productCount,
-      // Carried through so the tooltip can show what the aggregate contains.
-      familyBreakdown: datum.familyBreakdown,
+      segments,
     };
-    if (datum.familyBreakdown) {
-      for (const entry of datum.familyBreakdown) {
-        row[noteFamily(entry.family)] = entry.spendDollars;
-      }
-    } else {
-      row[noteFamily(datum.family)] = datum.spendDollars;
-    }
-    return row;
   });
 
-  // Order families by total spend so the legend and stack read consistently.
+  // Order families by total spend so the legend and segment order read
+  // consistently with the rest of the chart.
   const totals = new Map<string, number>();
   for (const row of rows) {
-    for (const family of families) {
-      const value = row[family.key];
-      if (typeof value === 'number') {
-        totals.set(family.key, (totals.get(family.key) ?? 0) + value);
-      }
+    for (const segment of row.segments) {
+      totals.set(segment.family, (totals.get(segment.family) ?? 0) + segment.spendDollars);
     }
   }
-  families.sort((left, right) => (totals.get(right.key) ?? 0) - (totals.get(left.key) ?? 0));
+  families.sort((left, right) => (totals.get(right.label) ?? 0) - (totals.get(left.label) ?? 0));
 
-  const familyKeyOf = (row: PaidProductChartRow): string => {
-    let bestKey = families[0]?.key ?? 'fam_unclassified';
-    let bestValue = -1;
-    for (const family of families) {
-      const value = Number(row[family.key] ?? 0);
-      if (value > bestValue) { bestValue = value; bestKey = family.key; }
-    }
-    return bestKey;
-  };
+  return { rows, families };
+}
 
-  return { rows, families, familyKeyOf };
+interface PaidProductBarShapeProps {
+  x?: number;
+  y?: number;
+  width?: number;
+  height?: number;
+  index?: number;
+  payload?: PaidProductChartRow;
+}
+
+/**
+ * Draws a row's segments as adjacent rects instead of relying on Recharts'
+ * per-series stacking (see buildPaidProductChartSeries). Recharts computes
+ * `x`/`width` for the single `spendDollars` series exactly as it did for the
+ * plain single-color bar this replaced, so an ordinary row's one segment
+ * fills the same rect a flat-colored bar would have. A shared rounded
+ * clip path gives the whole bar rounded outer corners while interior
+ * segment boundaries stay square, matching how a real stacked bar reads.
+ */
+// Recharts types its `shape` render-prop input as `unknown` (it is spread
+// from internal state, not a typed public API), so the specific prop shape
+// is asserted here rather than accepted as the parameter type directly.
+function PaidProductBarShape(props: unknown) {
+  const { x = 0, y = 0, width = 0, height = 0, index = 0, payload } = props as PaidProductBarShapeProps;
+  const segments = payload?.segments ?? [];
+  const total = segments.reduce((sum, segment) => sum + segment.spendDollars, 0);
+  // Recharts' shape type requires a returned element, not null, for the
+  // degenerate case (a zero-width bar has nothing to draw).
+  if (width <= 0 || height <= 0 || total <= 0) return <g />;
+
+  const clipId = `paid-product-bar-clip-${index}`;
+  let cursor = x;
+
+  return (
+    <g>
+      <clipPath id={clipId}>
+        <rect x={x} y={y} width={width} height={height} rx={3} ry={3} />
+      </clipPath>
+      <g clipPath={`url(#${clipId})`}>
+        {segments.map((segment) => {
+          const segmentWidth = (segment.spendDollars / total) * width;
+          const rectX = cursor;
+          cursor += segmentWidth;
+          return (
+            <rect
+              key={segment.family}
+              x={rectX}
+              y={y}
+              width={Math.max(segmentWidth, 0)}
+              height={height}
+              fill={`var(--color-${familyCssKey(segment.family)})`}
+            />
+          );
+        })}
+      </g>
+    </g>
+  );
 }
 
 export interface PaidProductSearchResult {
@@ -1215,18 +1264,11 @@ export function ProcurementAnalyticsWorkspace({
                     }}
                   />
                   {/* Colour carries product family, which the axis label does
-                      not already encode. One Bar with a Cell per row rather
-                      than a series per family: a 14-series stack renders
-                      nothing here, and only the aggregate row is ever
-                      multi-family anyway. */}
-                  <Bar dataKey="spendDollars" radius={3}>
-                    {paidProductSeries.rows.map((row) => (
-                      <Cell
-                        key={String(row.product)}
-                        fill={`var(--color-${paidProductSeries.familyKeyOf(row)})`}
-                      />
-                    ))}
-                  </Bar>
+                      not already encode. A custom shape draws each row's
+                      segments directly (see PaidProductBarShape) instead of
+                      Recharts' native stacking, which renders nothing at this
+                      series count. */}
+                  <Bar dataKey="spendDollars" shape={PaidProductBarShape} isAnimationActive={false} />
                 </BarChart>
               </ChartContainer>
             )}
