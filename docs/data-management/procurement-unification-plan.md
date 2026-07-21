@@ -350,6 +350,36 @@ extension v2.0.0 work:
   desktop and mobile width, light and dark theme, and with the Custom Range
   popover open while scrolled (no z-index conflict).
 
+**Fresh Food Alliance Receipt Categories gained donor identity, sortable
+headers, and a donor filter — landed 2026-07-20.** The table's stale
+description ("Partner identity is unavailable in this source and is never
+inferred") predated the Agency Pickups import and was never corrected when it
+started shipping donor identity — the same mistake `procurement-imports.md`
+had, caught the same way: a user re-reading the actual page.
+
+Backend: a new `freshAllianceDonorCategories` aggregation splits the existing
+category-only observations by donor, computed in the same per-line loop as
+`freshAllianceCategories` (donor code and name are already available there
+from the donor-summary work) and kept as a separate field rather than
+replacing the category-only one — the Fresh Food Alliance Category Mix chart
+is legitimately still a donor-agnostic view, and reconciling two derived maps
+against the same source lines is safer than reshaping one map's meaning
+mid-stream. A receipt with no donor on file is bucketed under an explicit
+`donorCode: null` / `"Not Reported"` row rather than guessed or silently
+dropped — the per-donor total must always reconcile to the category-only
+total, and a backend test asserts exactly that. In the current corpus this
+bucket is empty, because the Fresh Alliance import supersedes every AGPCKUP
+event it covers, but a partially superseded window is a real possibility this
+must not misrepresent.
+
+Frontend: the donor filter follows the same multi-select pattern already
+established for seasonal years and the donor-trend chart (`DropdownMenu` +
+`DropdownMenuCheckboxItem`, select-all/clear-all, defaults to every donor
+present). Column sorting was extended to match the level other procurement
+tables provide on their equivalent columns — Donor, Category, Receipt Events,
+and Receiving Dates all gained sort arrows; Source Code and Last Received stay
+plain, consistent with every sibling table's identical columns.
+
 **Fixed family colors, plus a legend, landed 2026-07-20.** Bar colors were
 previously assigned by rank (`carbonCategoricalTheme(index)` over
 `paidProductSeries.families`, sorted by spend in the current view) — a color

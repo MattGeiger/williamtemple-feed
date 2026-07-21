@@ -88,6 +88,7 @@ import { procurementService } from '@/services/procurement';
 import type {
   AcquisitionClass,
   FreshAllianceCategorySummary,
+  FreshAllianceDonorCategorySummary,
   PaidProcurementProductSummary,
   ProcurementAnalytics,
   ProcurementChannel,
@@ -152,6 +153,10 @@ const attributableDollars = (cents: number | null) =>
 const shortenedProductName = (description: string) =>
   description.length > 34 ? `${description.slice(0, 31)}…` : description;
 const MAX_PAID_PRODUCT_SEARCH_RESULTS = 25;
+/** Client-side key for rows with no donor on file, so it can live in a plain
+ *  string[] selection array alongside real donor codes. Never sent to the
+ *  server or presented as a real donor identity. */
+const NOT_REPORTED_DONOR_CODE = '__not_reported__';
 
 export function buildSeasonalYearChartConfig(
   years: string[],
@@ -582,6 +587,7 @@ export function ProcurementAnalyticsWorkspace({
   const [analytics, setAnalytics] = React.useState<ProcurementAnalytics | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
   const [selectedSeasonalYears, setSelectedSeasonalYears] = React.useState<string[]>([]);
+  const [selectedFreshAllianceDonors, setSelectedFreshAllianceDonors] = React.useState<string[]>([]);
   const [paidProductSearch, setPaidProductSearch] = React.useState('');
   const selectedChannel: 'all' | ProcurementChannel = searchParams.get('channel') === 'ofb_warehouse' ||
     searchParams.get('channel') === 'fresh_alliance'
@@ -611,6 +617,9 @@ export function ProcurementAnalyticsWorkspace({
         if (!active) return;
         setAnalytics(result);
         setSelectedSeasonalYears(result.availableYears);
+        setSelectedFreshAllianceDonors([...new Set(
+          result.freshAllianceDonorCategories.map((row) => row.donorCode ?? NOT_REPORTED_DONOR_CODE)
+        )]);
       })
       .catch((error) => ErrorHandlerService.handleError(error, 'procurementAnalytics'))
       .finally(() => {
@@ -722,6 +731,26 @@ export function ProcurementAnalyticsWorkspace({
     })),
     [analytics]
   );
+  // Distinct donors present in the receipt-category breakdown, in the same
+  // weight-descending order the backend already sorted the rows in — no
+  // separate ranking needed here.
+  const freshAllianceDonorOptions = React.useMemo(() => {
+    const seen = new Set<string>();
+    const options: Array<{ code: string; label: string }> = [];
+    for (const row of analytics?.freshAllianceDonorCategories ?? []) {
+      const code = row.donorCode ?? NOT_REPORTED_DONOR_CODE;
+      if (seen.has(code)) continue;
+      seen.add(code);
+      options.push({ code, label: row.donorName });
+    }
+    return options;
+  }, [analytics]);
+  const freshAllianceDonorCategoryRows = React.useMemo(
+    () => (analytics?.freshAllianceDonorCategories ?? []).filter(
+      (row) => selectedFreshAllianceDonors.includes(row.donorCode ?? NOT_REPORTED_DONOR_CODE)
+    ),
+    [analytics, selectedFreshAllianceDonors]
+  );
   const warehouseProductColumns = React.useMemo<ColumnDef<ProcurementWarehouseProductSummary>[]>(() => [
     {
       accessorKey: 'description',
@@ -774,7 +803,17 @@ export function ProcurementAnalyticsWorkspace({
       cell: ({ row }) => format(parseISO(row.original.lastReceivedDate), 'MMM d, yyyy'),
     },
   ], []);
-  const freshAllianceCategoryColumns = React.useMemo<ColumnDef<FreshAllianceCategorySummary>[]>(() => [
+  const freshAllianceDonorCategoryColumns = React.useMemo<ColumnDef<FreshAllianceDonorCategorySummary>[]>(() => [
+    {
+      accessorKey: 'donorName',
+      header: ({ column }) => (
+        <Button variant="ghost" className="-ml-3" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
+          Donor <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      ),
+      size: 220,
+      cell: ({ row }) => <span className="font-medium">{row.original.donorName}</span>,
+    },
     {
       accessorKey: 'description',
       header: ({ column }) => (
@@ -782,19 +821,26 @@ export function ProcurementAnalyticsWorkspace({
           Category <ArrowUpDown className="ml-2 h-4 w-4" />
         </Button>
       ),
-      size: 300,
-      cell: ({ row }) => <span className="font-medium">{row.original.description}</span>,
+      size: 280,
     },
     { accessorKey: 'productCode', header: 'Source Code', size: 110 },
     {
       accessorKey: 'receiptEventCount',
-      header: 'Receipt Events',
-      size: 125,
+      header: ({ column }) => (
+        <Button variant="ghost" className="-ml-3" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
+          Receipt Events <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      ),
+      size: 135,
     },
     {
       accessorKey: 'receivingDateCount',
-      header: 'Receiving Dates',
-      size: 130,
+      header: ({ column }) => (
+        <Button variant="ghost" className="-ml-3" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
+          Receiving Dates <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      ),
+      size: 140,
     },
     {
       accessorKey: 'totalWeightHundredths',
@@ -905,6 +951,14 @@ export function ProcurementAnalyticsWorkspace({
       if (!checked) return current.filter((value) => value !== year);
       if (current.includes(year)) return current;
       return [...current, year].sort();
+    });
+  };
+
+  const toggleFreshAllianceDonor = (donorCode: string, checked: boolean) => {
+    setSelectedFreshAllianceDonors((current) => {
+      if (!checked) return current.filter((value) => value !== donorCode);
+      if (current.includes(donorCode)) return current;
+      return [...current, donorCode];
     });
   };
 
@@ -1415,20 +1469,71 @@ export function ProcurementAnalyticsWorkspace({
       </section>}
 
       {includesFreshAlliance && <section className="space-y-3">
-        <div>
-          <h3 className="text-lg font-semibold">Fresh Food Alliance Receipt Categories</h3>
-          <p className="text-sm text-muted-foreground">
-            Broad categories reported through OFB. Partner identity is unavailable in this source and is never inferred.
-          </p>
+        <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
+          <div>
+            <h3 className="text-lg font-semibold">Fresh Food Alliance Receipt Categories</h3>
+            <p className="text-sm text-muted-foreground">
+              Broad categories reported through OFB, by donor. Donor identity comes from the OFB
+              Agency Pickups export and is never inferred beyond what it reports.
+            </p>
+          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild disabled={freshAllianceDonorOptions.length === 0}>
+              <Button variant="outline" className="w-full justify-between sm:w-auto">
+                {selectedFreshAllianceDonors.length === freshAllianceDonorOptions.length
+                  ? 'All Donors'
+                  : selectedFreshAllianceDonors.length === 1
+                    ? freshAllianceDonorOptions.find((option) => option.code === selectedFreshAllianceDonors[0])?.label ?? 'All Donors'
+                    : `${selectedFreshAllianceDonors.length} donors`}
+                <ChevronDown className="ml-2 h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            {/* DropdownMenu owns this overflow; bound long donor rosters to its available popper height. */}
+            <DropdownMenuContent align="end" className="max-h-[var(--radix-dropdown-menu-content-available-height)] overflow-y-auto">
+              <DropdownMenuItem
+                onSelect={(event) => {
+                  event.preventDefault();
+                  setSelectedFreshAllianceDonors(freshAllianceDonorOptions.map((option) => option.code));
+                }}
+              >
+                Select all donors
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onSelect={(event) => {
+                  event.preventDefault();
+                  setSelectedFreshAllianceDonors([]);
+                }}
+              >
+                Clear all donors
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              {freshAllianceDonorOptions.map((option) => (
+                <DropdownMenuCheckboxItem
+                  key={option.code}
+                  checked={selectedFreshAllianceDonors.includes(option.code)}
+                  onCheckedChange={(checked) => toggleFreshAllianceDonor(option.code, checked === true)}
+                  onSelect={(event) => event.preventDefault()}
+                >
+                  {option.label}
+                </DropdownMenuCheckboxItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
-        <EnhancedDataTable
-          columns={freshAllianceCategoryColumns}
-          data={analytics.freshAllianceCategories}
-          filterColumn="description"
-          filterPlaceholder="Filter receipt categories..."
-          enableColumnVisibility
-          defaultPageSize={10}
-        />
+        {selectedFreshAllianceDonors.length === 0 && freshAllianceDonorOptions.length > 0 ? (
+          <div className="flex h-40 items-center justify-center rounded-lg border text-sm text-muted-foreground">
+            Choose at least one donor.
+          </div>
+        ) : (
+          <EnhancedDataTable
+            columns={freshAllianceDonorCategoryColumns}
+            data={freshAllianceDonorCategoryRows}
+            filterColumn="description"
+            filterPlaceholder="Filter receipt categories..."
+            enableColumnVisibility
+            defaultPageSize={10}
+          />
+        )}
       </section>}
     </div>
   );
