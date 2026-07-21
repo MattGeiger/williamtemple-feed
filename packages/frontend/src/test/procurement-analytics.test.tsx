@@ -2,24 +2,21 @@
 // Copyright (C) 2026 Matt Geiger
 
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 import {
   AnalyticsWorkspace,
+  buildPaidProductChartSeries,
   buildPaidProductSpendData,
   buildPaidProductSearchResult,
   buildSeasonalYearChartConfig,
+  familyCssKey,
+  productFamily,
   ProcurementAnalyticsWorkspace,
 } from '@/components/analytics';
 import { analyticsRangeFromSearchParams } from '@/components/analytics/range-control';
-import {
-  buildPaidProductChartSeries,
-  buildPaidProductSpendData,
-  familyCssKey,
-  productFamily,
-} from '@/components/analytics';
 import { DonorAnalytics } from '@/components/analytics/donor-analytics';
 import type { ProcurementAnalytics } from '@/types/procurement';
 
@@ -29,6 +26,9 @@ class ResizeObserverStub {
   disconnect() {}
 }
 vi.stubGlobal('ResizeObserver', ResizeObserverStub);
+// jsdom has no layout engine, so Radix Select's open-time scrollIntoView call
+// (unlike DropdownMenu, which doesn't call it) throws without this stub.
+Element.prototype.scrollIntoView = vi.fn();
 
 const emptyAnalytics: ProcurementAnalytics = {
   dataAsOf: '2026-07-14T12:00:00.000Z',
@@ -38,6 +38,10 @@ const emptyAnalytics: ProcurementAnalytics = {
     daysSinceLatestDelivery: null,
     isStale: false,
     staleAfterDays: 30,
+    coverage: {
+      warehouse: { eventCount: 0, earliestDeliveryDate: null, latestDeliveryDate: null },
+      freshAlliance: { eventCount: 0, earliestDeliveryDate: null, latestDeliveryDate: null },
+    },
   },
   range: {
     preset: 'last-90-days',
@@ -76,9 +80,18 @@ const emptyAnalytics: ProcurementAnalytics = {
   channelMix: [],
   monthlyWeight: [],
   seasonalWeight: [],
+  seasonalChannelWeight: [],
   warehouseProducts: [],
   paidProducts: [],
   freshAllianceCategories: [],
+  donors: [],
+  donorMonthlyWeight: [],
+  donorValue: {
+    recordedValueCents: 0,
+    valuedWeightHundredths: 0,
+    totalWeightHundredths: 0,
+    unvaluedWeightHundredths: 0,
+  },
 };
 
 const { getAnalyticsMock } = vi.hoisted(() => ({ getAnalyticsMock: vi.fn() }));
@@ -401,6 +414,63 @@ describe('Analytics dataset separation', () => {
     expect(year2026).toHaveAttribute('aria-checked', 'true');
   });
 
+  test('offers a seasonal channel breakdown only when the page-level filter is all channels', async () => {
+    getAnalyticsMock.mockResolvedValueOnce({
+      ...emptyAnalytics,
+      status: { ...emptyAnalytics.status, hasData: true },
+      range: { ...emptyAnalytics.range, preset: 'all', startDate: '2025-01-01', endDate: '2026-12-31' },
+      availableYears: ['2026', '2025'],
+      seasonalWeight: [
+        { year: '2026', month: 5, weightHundredths: 6000000 },
+      ],
+      seasonalChannelWeight: [
+        { year: '2026', month: 5, channel: 'ofb_warehouse', weightHundredths: 4000000 },
+        { year: '2026', month: 5, channel: 'fresh_alliance', weightHundredths: 2000000 },
+      ],
+    } satisfies ProcurementAnalytics);
+
+    render(
+      <MemoryRouter initialEntries={['/analytics?tab=procurement&range=all']}>
+        <ProcurementAnalyticsWorkspace range={{ preset: 'all' }} />
+      </MemoryRouter>
+    );
+
+    // Page-level filter is "All Channels", so the card offers its own
+    // breakdown alongside the existing year control.
+    const channelFilter = await screen.findByRole('combobox', { name: 'Seasonal channel breakdown' });
+    expect(within(channelFilter).getByText('All Channels')).toBeVisible();
+    expect(screen.queryByText(/only$/)).not.toBeInTheDocument();
+
+    fireEvent.click(channelFilter);
+    fireEvent.click(await screen.findByRole('option', { name: 'OFB Warehouse' }));
+    expect(await screen.findByText(/Warehouse only/)).toBeVisible();
+  });
+
+  test('follows the page-level channel filter instead of offering a second choice', async () => {
+    getAnalyticsMock.mockResolvedValueOnce({
+      ...emptyAnalytics,
+      status: { ...emptyAnalytics.status, hasData: true },
+      filters: { channel: 'fresh_alliance', acquisitionClass: null },
+      range: { ...emptyAnalytics.range, preset: 'all', startDate: '2025-01-01', endDate: '2026-12-31' },
+      availableYears: ['2026', '2025'],
+      seasonalChannelWeight: [
+        { year: '2026', month: 5, channel: 'fresh_alliance', weightHundredths: 2000000 },
+      ],
+    } satisfies ProcurementAnalytics);
+
+    render(
+      <MemoryRouter initialEntries={['/analytics?tab=procurement&range=all&channel=fresh_alliance']}>
+        <ProcurementAnalyticsWorkspace range={{ preset: 'all' }} />
+      </MemoryRouter>
+    );
+
+    await screen.findByText('Seasonal Inbound Weight');
+    // The page-level filter already scopes the data; a second, independent
+    // control here could disagree with it, so it is not offered at all.
+    expect(screen.queryByRole('combobox', { name: 'Seasonal channel breakdown' })).not.toBeInTheDocument();
+    expect(screen.getByText(/Fresh Food Alliance only/)).toBeVisible();
+  });
+
   test('uses receipt and category semantics for the Fresh Food Alliance channel', async () => {
     getAnalyticsMock.mockResolvedValue({
       ...emptyAnalytics,
@@ -650,7 +720,7 @@ describe('paid product families', () => {
     const { rows, families } = buildPaidProductChartSeries(buildPaidProductSpendData(products));
 
     const familyKeys = families.map((family) => family.key);
-    const populated = (row: Record<string, string | number>) =>
+    const populated = (row: Record<string, unknown>) =>
       familyKeys.filter((key) => typeof row[key] === 'number');
 
     // An ordinary product bar is a single segment; the aggregate stacks.
