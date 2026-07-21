@@ -14,7 +14,18 @@
 // report what arrived.
 
 import * as React from 'react';
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts';
+import { Bar, BarChart, CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts';
+import { ChevronDown } from 'lucide-react';
+import { format, parseISO } from 'date-fns';
+import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
   Card,
   CardContent,
@@ -36,12 +47,13 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { carbonTheme } from '@/lib/colors';
+import { carbonCategoricalTheme, carbonTheme } from '@/lib/colors';
 import type { DonorSummary, DonorValueSummary } from '@/types/procurement';
 
 interface DonorAnalyticsProps {
   donors: DonorSummary[];
   donorValue: DonorValueSummary;
+  donorMonthlyWeight: Array<{ month: string; donorCode: string; weightHundredths: number }>;
   formatDate: (isoDate: string) => string;
 }
 
@@ -56,7 +68,12 @@ const donorMixConfig = {
   weight: { label: 'Received Pounds', theme: carbonTheme('teal') },
 } satisfies ChartConfig;
 
-export function DonorAnalytics({ donors, donorValue, formatDate }: DonorAnalyticsProps) {
+export function DonorAnalytics({
+  donors,
+  donorValue,
+  donorMonthlyWeight,
+  formatDate,
+}: DonorAnalyticsProps) {
   // Tolerates an analytics payload without donor fields — an older cached
   // response, or a session held open across a backend deploy. A missing
   // section is not worth taking the whole Analytics page down for.
@@ -69,6 +86,53 @@ export function DonorAnalytics({ donors, donorValue, formatDate }: DonorAnalytic
     })),
     [safeDonors]
   );
+
+  const safeMonthly = React.useMemo(() => donorMonthlyWeight ?? [], [donorMonthlyWeight]);
+
+  // Partner selection is a view over data already fetched, so it filters here
+  // rather than through the server. Keeping it client-side also means it never
+  // interacts with the channel and acquisition filters, whose whole-event
+  // semantics would make a combined result hard to reason about.
+  const [hiddenDonors, setHiddenDonors] = React.useState<string[]>([]);
+  const visibleDonors = React.useMemo(
+    () => safeDonors.filter((donor) => !hiddenDonors.includes(donor.donorCode)),
+    [safeDonors, hiddenDonors]
+  );
+
+  const trend = React.useMemo(() => {
+    const months = [...new Set(safeMonthly.map((entry) => entry.month))].sort();
+    const visibleCodes = new Set(visibleDonors.map((donor) => donor.donorCode));
+    return months.map((month) => {
+      const row: Record<string, string | number> = { month };
+      for (const entry of safeMonthly) {
+        if (entry.month !== month || !visibleCodes.has(entry.donorCode)) continue;
+        row[entry.donorCode] = Math.round(entry.weightHundredths / 100);
+      }
+      // Recharts needs an explicit 0 for a month a partner did not deliver in,
+      // otherwise the line bridges the gap and implies a delivery that did not
+      // happen.
+      for (const donor of visibleDonors) {
+        if (row[donor.donorCode] === undefined) row[donor.donorCode] = 0;
+      }
+      return row;
+    });
+  }, [safeMonthly, visibleDonors]);
+
+  const trendConfig = React.useMemo(
+    () => Object.fromEntries(
+      safeDonors.map((donor, index) => [
+        donor.donorCode,
+        { label: donor.donorName, theme: carbonCategoricalTheme(index) },
+      ])
+    ) satisfies ChartConfig,
+    [safeDonors]
+  );
+
+  const toggleDonor = (donorCode: string, visible: boolean) => {
+    setHiddenDonors((current) => visible
+      ? current.filter((code) => code !== donorCode)
+      : [...new Set([...current, donorCode])]);
+  };
 
   const totalWeightHundredths = React.useMemo(
     () => safeDonors.reduce((total, donor) => total + donor.weightHundredths, 0),
@@ -158,6 +222,94 @@ export function DonorAnalytics({ donors, donorValue, formatDate }: DonorAnalytic
             any other. FEED reports the value Oregon Food Bank recorded and does
             not estimate a rate for the rest.
           </p>
+        </CardContent>
+      </Card>
+
+      <Card className="min-w-0">
+        <CardHeader className="flex flex-col items-start justify-between gap-3 space-y-0 sm:flex-row sm:items-center">
+          <div>
+            <CardTitle>Partner Contribution Over Time</CardTitle>
+            <CardDescription>
+              Monthly received pounds per partner within the selected range
+            </CardDescription>
+          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" aria-label="Choose partners">
+                {hiddenDonors.length === 0
+                  ? 'All partners'
+                  : visibleDonors.length === 1
+                    ? visibleDonors[0].donorName
+                    : `${visibleDonors.length} partners`}
+                <ChevronDown className="ml-2 h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            {/* DropdownMenu owns this overflow; bound long rosters to the popper height. */}
+            <DropdownMenuContent align="end" className="max-h-[var(--radix-dropdown-menu-content-available-height)] overflow-y-auto">
+              <DropdownMenuItem
+                onSelect={(event) => {
+                  event.preventDefault();
+                  setHiddenDonors([]);
+                }}
+              >
+                Select all partners
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onSelect={(event) => {
+                  event.preventDefault();
+                  setHiddenDonors(safeDonors.map((donor) => donor.donorCode));
+                }}
+              >
+                Clear all partners
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              {safeDonors.map((donor) => (
+                <DropdownMenuCheckboxItem
+                  key={donor.donorCode}
+                  checked={!hiddenDonors.includes(donor.donorCode)}
+                  onCheckedChange={(checked) => toggleDonor(donor.donorCode, checked === true)}
+                  onSelect={(event) => event.preventDefault()}
+                >
+                  {donor.donorName}
+                </DropdownMenuCheckboxItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </CardHeader>
+        <CardContent>
+          {visibleDonors.length === 0 ? (
+            <div className="flex h-72 items-center justify-center text-sm text-muted-foreground">
+              Choose at least one partner.
+            </div>
+          ) : trend.length === 0 ? (
+            <div className="flex h-72 items-center justify-center text-sm text-muted-foreground">
+              No partner deliveries fall in this range.
+            </div>
+          ) : (
+            <ChartContainer config={trendConfig} className="h-80 min-w-0 w-full">
+              <LineChart accessibilityLayer data={trend} margin={{ left: 8, right: 16 }}>
+                <CartesianGrid vertical={false} />
+                <XAxis
+                  dataKey="month"
+                  tickLine={false}
+                  axisLine={false}
+                  tickFormatter={(month: string) => format(parseISO(`${month}-01`), 'MMM yy')}
+                />
+                <YAxis tickLine={false} axisLine={false} width={64} />
+                <ChartTooltip content={<ChartTooltipContent />} />
+                {visibleDonors.map((donor) => (
+                  <Line
+                    key={donor.donorCode}
+                    type="monotone"
+                    dataKey={donor.donorCode}
+                    stroke={`var(--color-${donor.donorCode})`}
+                    strokeWidth={2}
+                    dot={false}
+                  />
+                ))}
+              </LineChart>
+            </ChartContainer>
+          )}
         </CardContent>
       </Card>
 
