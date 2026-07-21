@@ -94,6 +94,17 @@ All notable changes to FEED are documented here. This project adheres to
 
 ### Fixed
 
+- **Paid procurement family colors are fixed, not rank-based, and explained
+  by a legend**: each product family (Meals, Condiment, Meat, Other Protein,
+  and the rest of the profiled OFB set) now has one permanent color used
+  everywhere it appears — bars, the aggregate row's tooltip breakdown, and a
+  new legend beneath the chart — regardless of which families the current
+  date range, channel, or search happens to include or how they rank by
+  spend. `Unclassified` is pinned to a deliberately muted neutral gray so it
+  reads as "not a real category" rather than blending in with real families.
+  A description prefix this chart has never seen still gets a stable,
+  repeatable color via a deterministic fallback, rather than colliding with
+  an existing family's color or the reserved gray.
 - **Paid procurement family colors now render**: bars in Where Paid
   Procurement Dollars Went were invisible in one intermediate build (correct
   data, un-painted geometry) because a 14-series stacked chart produced empty

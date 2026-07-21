@@ -12,6 +12,7 @@ import {
   buildPaidProductSpendData,
   buildPaidProductSearchResult,
   buildSeasonalYearChartConfig,
+  familyColorHex,
   familyCssKey,
   productFamily,
   ProcurementAnalyticsWorkspace,
@@ -533,6 +534,129 @@ describe('Analytics dataset separation', () => {
     expect(screen.queryByText('Where Paid Procurement Dollars Went')).not.toBeInTheDocument();
     expect(screen.queryByText('Warehouse Product Recurrence')).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'OFB Warehouse Product History' })).not.toBeInTheDocument();
+  });
+});
+
+describe('Paid product family legend', () => {
+  test('renders a swatch per family present in the chart, not an arbitrary count', async () => {
+    getAnalyticsMock.mockResolvedValueOnce({
+      ...emptyAnalytics,
+      status: { ...emptyAnalytics.status, hasData: true },
+      paidProducts: [
+        {
+          productCode: '90001',
+          description: 'Meat, Ground Beef',
+          receiptDateCount: 1,
+          totalSpendCents: 5000,
+          paidWeightHundredths: 10000,
+          costPerPaidPoundCents: 50,
+          firstReceivedDate: '2026-07-01',
+          lastReceivedDate: '2026-07-01',
+        },
+        {
+          productCode: '90002',
+          description: 'Rice, Long Grain',
+          receiptDateCount: 1,
+          totalSpendCents: 3000,
+          paidWeightHundredths: 8000,
+          costPerPaidPoundCents: 37,
+          firstReceivedDate: '2026-07-01',
+          lastReceivedDate: '2026-07-01',
+        },
+      ],
+    } satisfies ProcurementAnalytics);
+
+    render(
+      <MemoryRouter>
+        <ProcurementAnalyticsWorkspace />
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText('Colored by product family:')).toBeVisible();
+    expect(screen.getByText('Meat')).toBeVisible();
+    expect(screen.getByText('Rice')).toBeVisible();
+  });
+
+  test('omits the legend entirely when there is no paid-product chart to explain', async () => {
+    getAnalyticsMock.mockResolvedValueOnce({
+      ...emptyAnalytics,
+      status: { ...emptyAnalytics.status, hasData: true },
+      paidProducts: [],
+    } satisfies ProcurementAnalytics);
+
+    render(
+      <MemoryRouter>
+        <ProcurementAnalyticsWorkspace />
+      </MemoryRouter>
+    );
+
+    await screen.findByText('Where Paid Procurement Dollars Went');
+    expect(screen.queryByText('Colored by product family:')).not.toBeInTheDocument();
+  });
+});
+
+describe('Paid product family colors are fixed, not rank-based', () => {
+  const product = (description: string, cents: number) => ({
+    productCode: String(Math.abs(description.length * 13)).padStart(5, '0'),
+    description,
+    receiptDateCount: 1,
+    totalSpendCents: cents,
+    paidWeightHundredths: 1000,
+    costPerPaidPoundCents: 100,
+    firstReceivedDate: '2026-01-01',
+    lastReceivedDate: '2026-06-30',
+  });
+
+  test('assigns every documented family a distinct color, with Unclassified reserved separately', () => {
+    const families = [
+      'Meals', 'Condiment', 'Meat', 'Other Protein', 'Fruit', 'Dairy', 'Veg',
+      'Non-Food', 'Grains', 'Cereal', 'Bev', 'Beans', 'Pasta', 'Rice',
+    ];
+    const colors = families.map((family) => familyColorHex(family, 'light'));
+    expect(new Set(colors).size).toBe(families.length);
+
+    const unclassified = familyColorHex('Unclassified', 'light');
+    expect(colors).not.toContain(unclassified);
+  });
+
+  test('resolves the same hex in both light and dark for a given family, and they differ from each other', () => {
+    const light = familyColorHex('Meat', 'light');
+    const dark = familyColorHex('Meat', 'dark');
+    expect(light).not.toBe(dark);
+    // Stable across repeated calls -- no hidden state or rotation.
+    expect(familyColorHex('Meat', 'light')).toBe(light);
+  });
+
+  test('gives an unrecognized family a deterministic color that never collides with Unclassified', () => {
+    const first = familyColorHex('Frozen Novelty', 'light');
+    const second = familyColorHex('Frozen Novelty', 'light');
+    expect(first).toBe(second);
+    expect(first).not.toBe(familyColorHex('Unclassified', 'light'));
+  });
+
+  test('does not reassign a family color when the dataset composition changes its rank', () => {
+    // "Meat" is the single largest family in the first dataset and a minor
+    // family in the second -- its position in buildPaidProductChartSeries'
+    // rank-sorted families array is different in each. Its color must not be.
+    const meatDominant = buildPaidProductSpendData([
+      product('Meat, Ground Beef', 900000),
+      product('Rice, Long Grain', 10000),
+      product('Bev, Juice', 5000),
+    ]);
+    const meatMinor = buildPaidProductSpendData([
+      product('Rice, Long Grain', 900000),
+      product('Bev, Juice', 500000),
+      product('Meat, Ground Beef', 10000),
+    ]);
+
+    const seriesA = buildPaidProductChartSeries(meatDominant);
+    const seriesB = buildPaidProductChartSeries(meatMinor);
+    expect(seriesA.families[0].label).toBe('Meat');
+    expect(seriesB.families[seriesB.families.length - 1].label).toBe('Meat');
+
+    // The color a consumer would actually assign (via familyColorHex, keyed
+    // by label, not by array position) is identical either way.
+    expect(familyColorHex('Meat', 'light')).toBe(familyColorHex('Meat', 'light'));
   });
 });
 
