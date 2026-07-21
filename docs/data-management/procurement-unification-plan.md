@@ -1,7 +1,7 @@
 # Procurement Unification Plan
 
 **Started:** 2026-07-20
-**Status:** Phases 1–5 complete — MVP scope delivered; Phase 6+ is polish
+**Status:** Phases 1–5 complete — MVP scope delivered, no dormant surfaces; Phase 6+ is polish
 **Owner doc:** this file is the North Star for procurement data ingestion. Update
 it as each phase lands. Do not rely on session memory for any decision recorded
 here.
@@ -262,10 +262,13 @@ last 90 days Restaurant Depot made 18 pickups averaging 157 lb while Amazon made
 19 averaging 993 lb — near-identical visit counts for six times the load, which
 is a routing and staffing fact rather than a judgement about either partner.
 
-**Deferred from this phase:** a donor filter control and a stacked
-donor-over-time chart. `donorMonthlyWeight` is in the payload and unused, which
-is exactly the dormant-surface pattern `AGENTS.md` warns about — wire it to a
-chart or prune it at the next milestone.
+**Partner Contribution Over Time and the partner filter landed 2026-07-20**,
+retiring the dormant `donorMonthlyWeight` field rather than leaving it unused.
+Partner selection filters client-side over data already fetched, so it never
+interacts with the channel and acquisition filters, whose whole-event semantics
+would make a combined result hard to reason about. Months without a delivery are
+zero-filled so a line never bridges a gap and implies a delivery that did not
+happen.
 
 **Phases 1–5 constitute the production-ready MVP.**
 

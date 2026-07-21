@@ -492,6 +492,12 @@ describe('Grocery partner observations', () => {
     },
   ];
 
+  const monthly = [
+    { month: '2026-05', donorCode: 'RAZ100', weightHundredths: 1200000 },
+    { month: '2026-06', donorCode: 'RAZ100', weightHundredths: 1500000 },
+    { month: '2026-06', donorCode: 'RRD200', weightHundredths: 300000 },
+  ];
+
   const donorValue = {
     recordedValueCents: 43900800,
     valuedWeightHundredths: 31498300,
@@ -504,6 +510,7 @@ describe('Grocery partner observations', () => {
       <DonorAnalytics
         donors={donors}
         donorValue={donorValue}
+        donorMonthlyWeight={monthly}
         formatDate={(iso) => iso}
       />
     );
@@ -521,6 +528,7 @@ describe('Grocery partner observations', () => {
       <DonorAnalytics
         donors={donors}
         donorValue={donorValue}
+        donorMonthlyWeight={monthly}
         formatDate={(iso) => iso}
       />
     );
@@ -535,11 +543,38 @@ describe('Grocery partner observations', () => {
     }
   });
 
+  test('lets staff narrow the trend to specific partners', async () => {
+    render(
+      <DonorAnalytics
+        donors={donors}
+        donorValue={donorValue}
+        donorMonthlyWeight={monthly}
+        formatDate={(iso) => iso}
+      />
+    );
+
+    const trigger = screen.getByRole('button', { name: 'Choose partners' });
+    expect(trigger).toHaveTextContent('All partners');
+
+    fireEvent.keyDown(trigger, { key: 'Enter' });
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Clear all partners' }));
+    expect(screen.getByText('Choose at least one partner.')).toBeVisible();
+
+    // Re-selecting one partner brings the trend back for that partner alone.
+    const amazon = screen.getByRole('menuitemcheckbox', {
+      name: 'Amazon - NW Industrial (Prime Now)',
+    });
+    fireEvent.click(amazon);
+    expect(amazon).toHaveAttribute('aria-checked', 'true');
+    expect(trigger).toHaveTextContent('Amazon - NW Industrial (Prime Now)');
+  });
+
   test('degrades to an empty state instead of crashing without donor data', () => {
     render(
       <DonorAnalytics
         donors={undefined as never}
         donorValue={undefined as never}
+        donorMonthlyWeight={undefined as never}
         formatDate={(iso) => iso}
       />
     );
