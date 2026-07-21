@@ -735,6 +735,20 @@ interface ProductObservation {
   lastReceivedDate: string;
 }
 
+interface DonorObservation {
+  donorCode: string;
+  donorName: string;
+  pickupCount: number;
+  weightHundredths: number;
+  receivingDates: Set<string>;
+  firstReceivedDate: string;
+  lastReceivedDate: string;
+  valuedWeightHundredths: number;
+  unvaluedWeightHundredths: number;
+  recordedValueCents: number;
+  categories: Map<string, { description: string; weightHundredths: number }>;
+}
+
 interface FreshAllianceCategoryObservation {
   productCode: string;
   latestDescription: string;
@@ -850,6 +864,13 @@ export async function getProcurementAnalytics(
   const seasonal = new Map<string, number>();
   const products = new Map<string, ProductObservation>();
   const freshAllianceCategories = new Map<string, FreshAllianceCategoryObservation>();
+
+  // Donor observations come only from the Agency Pickups export, which is the
+  // sole source that reports partner identity. FEED never infers a donor for a
+  // Completed Orders receipt, so those events contribute weight without ever
+  // being attributed to a partner.
+  const donors = new Map<string, DonorObservation>();
+  const donorMonthly = new Map<string, number>();
   const paidProducts = new Map<string, PaidProductObservation>();
   let totalWeightHundredths = 0;
   let calculatedGrossProductChargesCents = 0;
@@ -870,6 +891,34 @@ export async function getProcurementAnalytics(
       ofbWarehouseWeightHundredths: 0,
       freshAllianceWeightHundredths: 0,
     };
+    const donorCode = order.donorCode;
+    const donorObservation = donorCode
+      ? donors.get(donorCode) ?? {
+        donorCode,
+        donorName: order.donorName ?? donorCode,
+        pickupCount: 0,
+        weightHundredths: 0,
+        receivingDates: new Set<string>(),
+        firstReceivedDate: order.deliveryDate,
+        lastReceivedDate: order.deliveryDate,
+        valuedWeightHundredths: 0,
+        unvaluedWeightHundredths: 0,
+        recordedValueCents: 0,
+        categories: new Map<string, { description: string; weightHundredths: number }>(),
+      }
+      : null;
+    if (donorCode && donorObservation) {
+      donorObservation.pickupCount += 1;
+      donorObservation.receivingDates.add(order.deliveryDate);
+      if (order.deliveryDate < donorObservation.firstReceivedDate) {
+        donorObservation.firstReceivedDate = order.deliveryDate;
+      }
+      if (order.deliveryDate > donorObservation.lastReceivedDate) {
+        donorObservation.lastReceivedDate = order.deliveryDate;
+      }
+      donors.set(donorCode, donorObservation);
+    }
+
     for (const line of order.lines) {
       const acquisitionClass = line.acquisitionClass as AcquisitionClass;
       const channel = line.procurementChannel as ProcurementChannel;
@@ -908,6 +957,32 @@ export async function getProcurementAnalytics(
         `${order.deliveryDate.slice(0, 4)}-${order.deliveryDate.slice(5, 7)}`,
         (seasonal.get(`${order.deliveryDate.slice(0, 4)}-${order.deliveryDate.slice(5, 7)}`) ?? 0) + line.weightHundredths
       );
+
+      if (donorObservation) {
+        donorObservation.weightHundredths += line.weightHundredths;
+        // Recorded in-kind value is deliberately partial: OFB leaves the rate
+        // blank on a large share of historical rows. FEED sums only what the
+        // source recorded and reports how much weight that covers. It never
+        // imputes a rate onto unvalued weight.
+        if (line.hasDonorValuation && line.donorValuePerPoundCents) {
+          donorObservation.valuedWeightHundredths += line.weightHundredths;
+          donorObservation.recordedValueCents += Math.round(
+            line.weightHundredths * line.donorValuePerPoundCents / 100
+          );
+        } else {
+          donorObservation.unvaluedWeightHundredths += line.weightHundredths;
+        }
+        const categoryCode = line.product.productCode;
+        const category = donorObservation.categories.get(categoryCode)
+          ?? { description: line.sourceDescription, weightHundredths: 0 };
+        category.weightHundredths += line.weightHundredths;
+        donorObservation.categories.set(categoryCode, category);
+        const donorMonthKey = `${order.deliveryDate.slice(0, 7)}|${donorObservation.donorCode}`;
+        donorMonthly.set(
+          donorMonthKey,
+          (donorMonthly.get(donorMonthKey) ?? 0) + line.weightHundredths
+        );
+      }
 
       // Paid-product analysis stays within exact OFB Warehouse product codes.
       // It does not infer a FEED category or claim that purchasing occurred
@@ -1058,6 +1133,39 @@ export async function getProcurementAnalytics(
     (order) => order.eventKind === 'fresh_alliance_receipt'
   ).length;
 
+  // Donor summaries are descriptive observations of what each partner
+  // delivered. FEED does not rank partners, score them, or explain why a
+  // partner's volume moved.
+  const donorSummary = [...donors.values()]
+    .map((donor) => ({
+      donorCode: donor.donorCode,
+      donorName: donor.donorName,
+      pickupCount: donor.pickupCount,
+      receivingDateCount: donor.receivingDates.size,
+      weightHundredths: donor.weightHundredths,
+      averageWeightPerPickupHundredths: donor.pickupCount === 0
+        ? 0
+        : Math.round(donor.weightHundredths / donor.pickupCount),
+      valuedWeightHundredths: donor.valuedWeightHundredths,
+      unvaluedWeightHundredths: donor.unvaluedWeightHundredths,
+      recordedValueCents: donor.recordedValueCents,
+      firstReceivedDate: donor.firstReceivedDate,
+      lastReceivedDate: donor.lastReceivedDate,
+      categories: [...donor.categories.entries()]
+        .map(([productCode, category]) => ({
+          productCode,
+          description: category.description,
+          weightHundredths: category.weightHundredths,
+        }))
+        .sort((left, right) => right.weightHundredths - left.weightHundredths),
+    }))
+    .sort((left, right) => right.weightHundredths - left.weightHundredths);
+
+  const donorWeightHundredths = donorSummary
+    .reduce((total, donor) => total + donor.weightHundredths, 0);
+  const donorValuedWeightHundredths = donorSummary
+    .reduce((total, donor) => total + donor.valuedWeightHundredths, 0);
+
   return {
     dataAsOf: now.toISOString(),
     status,
@@ -1118,5 +1226,22 @@ export async function getProcurementAnalytics(
     warehouseProducts: warehouseProductSummary,
     paidProducts: paidProductSummary,
     freshAllianceCategories: freshAllianceCategorySummary,
+    donors: donorSummary,
+    donorMonthlyWeight: [...donorMonthly.entries()]
+      .map(([key, weightHundredths]) => {
+        const [month, donorCode] = key.split('|');
+        return { month, donorCode, weightHundredths };
+      })
+      .sort((left, right) => left.month.localeCompare(right.month)
+        || left.donorCode.localeCompare(right.donorCode)),
+    donorValue: {
+      // Stated with its coverage because OFB left the rate blank on a large
+      // share of historical rows. Value is summed only where recorded, and the
+      // uncovered weight is reported alongside it rather than imputed.
+      recordedValueCents: donorSummary.reduce((total, donor) => total + donor.recordedValueCents, 0),
+      valuedWeightHundredths: donorValuedWeightHundredths,
+      totalWeightHundredths: donorWeightHundredths,
+      unvaluedWeightHundredths: donorWeightHundredths - donorValuedWeightHundredths,
+    },
   };
 }

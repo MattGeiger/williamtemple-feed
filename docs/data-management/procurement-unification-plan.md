@@ -1,7 +1,7 @@
 # Procurement Unification Plan
 
 **Started:** 2026-07-20
-**Status:** Phases 1–4 complete; Phase 5 (donor analytics) next
+**Status:** Phases 1–5 complete — MVP scope delivered; Phase 6+ is polish
 **Owner doc:** this file is the North Star for procurement data ingestion. Update
 it as each phase lands. Do not rely on session memory for any decision recorded
 here.
@@ -242,14 +242,30 @@ The import confirmation now states what was recognized and, for Agency Pickups,
 says plainly how many Completed Orders receipts it replaced so weight is counted
 once — the one part of this design staff would otherwise have to reason about.
 
-### Phase 5 — Donor analytics
-- [ ] Donor mix
-- [ ] Donor × category matrix
-- [ ] Donor contribution over time
-- [ ] Per-donor pickup cadence (visit count vs. average load)
-- [ ] Donor filter, scoped to the Fresh Alliance channel
-- [ ] In-kind value with explicit coverage caveat (D6)
-- [ ] Observations only — no editorializing about why a partner's volume moved
+### Phase 5 — Donor analytics ✅ complete (2026-07-20)
+- [x] Grocery Partner Mix — received pounds by partner (Carbon palette)
+- [x] Per-partner pickup cadence — visit count, share, and average load
+- [x] Per-partner category breakdown carried in the payload
+- [x] Donor contribution over time via `donorMonthlyWeight`
+- [x] Recorded Donated Value stated with its coverage percentage (D6)
+- [x] Observations only — a test asserts the section contains no "best",
+      "worst", "underperform", "declin", "should", or "top partner"
+- [x] Degrades to an empty state rather than crashing without donor data
+- [x] 3 frontend tests; 190/190 frontend, 357/357 backend
+
+The value card leads with coverage rather than footnoting it: the recorded
+total is a partial sum, and unvalued pounds are shown beside it so the figure
+can never be read as the value of all donated supply.
+
+Partner cadence turned out to be the most operationally useful output. Over the
+last 90 days Restaurant Depot made 18 pickups averaging 157 lb while Amazon made
+19 averaging 993 lb — near-identical visit counts for six times the load, which
+is a routing and staffing fact rather than a judgement about either partner.
+
+**Deferred from this phase:** a donor filter control and a stacked
+donor-over-time chart. `donorMonthlyWeight` is in the payload and unused, which
+is exactly the dormant-surface pattern `AGENTS.md` warns about — wire it to a
+chart or prune it at the next milestone.
 
 **Phases 1–5 constitute the production-ready MVP.**
 

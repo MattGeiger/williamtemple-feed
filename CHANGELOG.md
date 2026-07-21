@@ -58,6 +58,17 @@ All notable changes to FEED are documented here. This project adheres to
   describes what FEED can currently see; it is never presented as a
   completeness score, a target, or a performance signal.
 
+- **Grocery partner analytics**: Procurement Analytics now reports Fresh Food
+  Alliance supply by partner — received pounds, share, pickup count, average
+  load per pickup, category count, and observed date range. Partner identity
+  comes only from the OFB Agency Pickups export; FEED never infers it. These are
+  descriptive observations, not an assessment: FEED does not rank partners,
+  score them, or explain why a partner's volume moved.
+- **Recorded donated value with stated coverage**: in-kind value is summed only
+  where Oregon Food Bank recorded a rate, and the card leads with the percentage
+  of pounds that covers. Pounds without a recorded rate are shown alongside the
+  total and are never assigned an estimated rate.
+
 ### Changed
 
 - **Procurement analytics read the whole OFB corpus**: inbound weight, channel
