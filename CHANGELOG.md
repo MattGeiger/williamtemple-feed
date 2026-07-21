@@ -64,6 +64,14 @@ All notable changes to FEED are documented here. This project adheres to
   comes only from the OFB Agency Pickups export; FEED never infers it. These are
   descriptive observations, not an assessment: FEED does not rank partners,
   score them, or explain why a partner's volume moved.
+- **Paid procurement colored by product family**: bars in Where Paid
+  Procurement Dollars Went are colored by the product family read from the OFB
+  description, so related products read together instead of the color repeating
+  a label the axis already shows. The aggregate row's tooltip breaks it down by
+  family, answering what the remaining product codes contain — individually they
+  are too small to plot, but grouped they are legible. Family is a display
+  grouping derived from the description, not a category Oregon Food Bank
+  publishes, and a product without a recognizable prefix stays Unclassified.
 - **Partner contribution over time**: a monthly line per grocery partner, with
   a partner filter offering select-all and clear-all. Months without a delivery
   render as zero rather than bridging the gap, so the chart never implies a

@@ -7,6 +7,7 @@ import { format, parseISO } from 'date-fns';
 import {
   Bar,
   BarChart,
+  Cell,
   CartesianGrid,
   Line,
   LineChart,
@@ -160,12 +161,113 @@ export function buildSeasonalYearChartConfig(
   })) satisfies ChartConfig;
 }
 
+/**
+ * Groups a paid product by the family prefix in its OFB description, e.g.
+ * "Meals, Beef Stew 12/24oz" -> "Meals".
+ *
+ * This is a **display grouping derived from the product description**, not a
+ * taxonomy Oregon Food Bank publishes as a field. It exists so the long tail of
+ * paid products can be read at a glance. It must never be presented as an OFB
+ * category, and a description without a recognizable prefix stays
+ * "Unclassified" rather than being forced into a bucket.
+ */
+export function productFamily(description: string): string {
+  const match = /^([^,]{2,40}),/.exec(description.trim());
+  if (!match) return UNCLASSIFIED_FAMILY;
+  const family = match[1].trim();
+  return family.length > 0 ? family : UNCLASSIFIED_FAMILY;
+}
+
+export const UNCLASSIFIED_FAMILY = 'Unclassified';
+
+/** Chart config keys become CSS custom property names, so labels are slugged. */
+export function familyCssKey(family: string): string {
+  return `fam_${family.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '')}`;
+}
+
 export interface PaidProductSpendDatum {
   product: string;
   fullDescription: string;
   spendDollars: number;
   spendShare: number;
   productCount: number;
+  family: string;
+  /** Present only on the aggregate row: spend per family inside it. */
+  familyBreakdown?: Array<{ family: string; spendDollars: number }>;
+}
+
+/**
+ * Reshapes spend rows so each product family is its own stacked series.
+ *
+ * An ordinary product row has exactly one family populated, so it renders as a
+ * single bar in that family's color. The aggregate row populates every family
+ * it contains, so the same mechanism breaks it down. Families absent from a row
+ * are left undefined rather than zero so Recharts omits them from the bar and
+ * the tooltip.
+ */
+type PaidProductChartRow = Record<
+  string,
+  string | number | PaidProductSpendDatum['familyBreakdown']
+>;
+
+export function buildPaidProductChartSeries(data: PaidProductSpendDatum[]): {
+  rows: PaidProductChartRow[];
+  families: Array<{ key: string; label: string }>;
+  /** Family key a row should be coloured by; the aggregate uses its largest. */
+  familyKeyOf: (row: PaidProductChartRow) => string;
+} {
+  // Chart config keys become CSS custom property names, so a family label like
+  // "Other Protein" has to be slugged before it can be a data key.
+  const families: Array<{ key: string; label: string }> = [];
+  const noteFamily = (family: string) => {
+    const key = familyCssKey(family);
+    if (!families.some((entry) => entry.key === key)) families.push({ key, label: family });
+    return key;
+  };
+
+  const rows = data.map((datum) => {
+    const row: Record<string, string | number | PaidProductSpendDatum['familyBreakdown']> = {
+      product: datum.product,
+      fullDescription: datum.fullDescription,
+      spendDollars: datum.spendDollars,
+      spendShare: datum.spendShare,
+      productCount: datum.productCount,
+      // Carried through so the tooltip can show what the aggregate contains.
+      familyBreakdown: datum.familyBreakdown,
+    };
+    if (datum.familyBreakdown) {
+      for (const entry of datum.familyBreakdown) {
+        row[noteFamily(entry.family)] = entry.spendDollars;
+      }
+    } else {
+      row[noteFamily(datum.family)] = datum.spendDollars;
+    }
+    return row;
+  });
+
+  // Order families by total spend so the legend and stack read consistently.
+  const totals = new Map<string, number>();
+  for (const row of rows) {
+    for (const family of families) {
+      const value = row[family.key];
+      if (typeof value === 'number') {
+        totals.set(family.key, (totals.get(family.key) ?? 0) + value);
+      }
+    }
+  }
+  families.sort((left, right) => (totals.get(right.key) ?? 0) - (totals.get(left.key) ?? 0));
+
+  const familyKeyOf = (row: PaidProductChartRow): string => {
+    let bestKey = families[0]?.key ?? 'fam_unclassified';
+    let bestValue = -1;
+    for (const family of families) {
+      const value = Number(row[family.key] ?? 0);
+      if (value > bestValue) { bestValue = value; bestKey = family.key; }
+    }
+    return bestKey;
+  };
+
+  return { rows, families, familyKeyOf };
 }
 
 export interface PaidProductSearchResult {
@@ -185,6 +287,7 @@ function toPaidProductSpendDatum(
       ? product.totalSpendCents / totalSpendCents
       : 0,
     productCount: 1,
+    family: productFamily(product.description),
   };
 }
 
@@ -206,6 +309,15 @@ export function buildPaidProductSpendData(
 
   if (remainingSpendCents > 0) {
     const productCountLabel = remainingProducts.length === 1 ? 'code' : 'codes';
+    // Individually these products are hairlines -- the largest is around 1% of
+    // paid spend and the average is far less -- so stacking them by product
+    // would be unreadable. Grouping the tail by family keeps the bar legible
+    // and answers what the aggregate actually contains.
+    const familySpend = new Map<string, number>();
+    for (const product of remainingProducts) {
+      const family = productFamily(product.description);
+      familySpend.set(family, (familySpend.get(family) ?? 0) + product.totalSpendCents);
+    }
     topProducts.push({
       product: `Other paid products (${remainingProducts.length} ${productCountLabel})`,
       fullDescription: `All remaining ${remainingProducts.length} paid OFB Warehouse product ${productCountLabel}`,
@@ -214,6 +326,10 @@ export function buildPaidProductSpendData(
         ? remainingSpendCents / totalSpendCents
         : 0,
       productCount: remainingProducts.length,
+      family: UNCLASSIFIED_FAMILY,
+      familyBreakdown: [...familySpend.entries()]
+        .map(([family, cents]) => ({ family, spendDollars: cents / 100 }))
+        .sort((left, right) => right.spendDollars - left.spendDollars),
     });
   }
 
@@ -470,6 +586,19 @@ export function ProcurementAnalyticsWorkspace({
       ? paidProductSearchResult.data
       : buildPaidProductSpendData(analytics?.paidProducts ?? []),
     [analytics, paidProductSearch, paidProductSearchResult.data]
+  );
+  const paidProductSeries = React.useMemo(
+    () => buildPaidProductChartSeries(paidProductSpendData),
+    [paidProductSpendData]
+  );
+  const paidProductFamilyConfig = React.useMemo(
+    () => Object.fromEntries(
+      paidProductSeries.families.map((family, index) => [
+        family.key,
+        { label: family.label, theme: carbonCategoricalTheme(index) },
+      ])
+    ) satisfies ChartConfig,
+    [paidProductSeries.families]
   );
   const paidProductChartHeight = Math.max(320, paidProductSpendData.length * 36 + 96);
   const freshAllianceCategoryMix = React.useMemo(
@@ -853,13 +982,13 @@ export function ProcurementAnalyticsWorkspace({
               </div>
             ) : (
               <ChartContainer
-                config={paidProductSpendConfig}
+                config={paidProductFamilyConfig}
                 className="min-w-0 w-full"
                 style={{ height: paidProductChartHeight }}
               >
                 <BarChart
                   accessibilityLayer
-                  data={paidProductSpendData}
+                  data={paidProductSeries.rows}
                   layout="vertical"
                   margin={{ left: 8, right: 24 }}
                 >
@@ -871,30 +1000,65 @@ export function ProcurementAnalyticsWorkspace({
                     tickFormatter={(value: number) => dollars(Math.round(value * 100))}
                   />
                   <YAxis dataKey="product" type="category" width={190} tickLine={false} axisLine={false} />
+                  {/* One row summary rather than one entry per family
+                      series, plus the family split when the bar actually has
+                      more than one. */}
                   <ChartTooltip
-                    content={(
-                      <ChartTooltipContent
-                        labelFormatter={(_, payload) => payload[0]?.payload.fullDescription}
-                        formatter={(value, _name, _item, _index, payload) => (
-                          <div className="grid w-full gap-1">
-                            <div className="flex w-full justify-between gap-3">
-                              <span className="text-muted-foreground">Paid Product Charges</span>
-                              <span className="font-mono font-medium tabular-nums">{dollars(Math.round(Number(value) * 100))}</span>
-                            </div>
-                            <div className="flex w-full justify-between gap-3">
-                              <span className="text-muted-foreground">Share of Paid Charges</span>
-                              <span className="font-mono font-medium tabular-nums">{(Number(payload.spendShare) * 100).toFixed(1)}%</span>
-                            </div>
-                            <div className="flex w-full justify-between gap-3">
-                              <span className="text-muted-foreground">Product Codes</span>
-                              <span className="font-mono font-medium tabular-nums">{Number(payload.productCount).toLocaleString()}</span>
-                            </div>
+                    content={({ active, payload }) => {
+                      if (!active || !payload?.length) return null;
+                      const row = payload[0].payload as Record<string, unknown>;
+                      const breakdown = row.familyBreakdown as
+                        | Array<{ family: string; spendDollars: number }>
+                        | undefined;
+                      return (
+                        <div className="grid min-w-[13rem] gap-1.5 rounded-lg border border-border/50 bg-background px-2.5 py-2 text-xs shadow-xl">
+                          <div className="font-medium">{String(row.fullDescription)}</div>
+                          <div className="flex justify-between gap-3">
+                            <span className="text-muted-foreground">Paid Product Charges</span>
+                            <span className="font-mono font-medium tabular-nums">{dollars(Math.round(Number(row.spendDollars) * 100))}</span>
                           </div>
-                        )}
-                      />
-                    )}
+                          <div className="flex justify-between gap-3">
+                            <span className="text-muted-foreground">Share of Paid Charges</span>
+                            <span className="font-mono font-medium tabular-nums">{(Number(row.spendShare) * 100).toFixed(1)}%</span>
+                          </div>
+                          <div className="flex justify-between gap-3">
+                            <span className="text-muted-foreground">Product Codes</span>
+                            <span className="font-mono font-medium tabular-nums">{Number(row.productCount).toLocaleString()}</span>
+                          </div>
+                          {breakdown && breakdown.length > 0 && (
+                            <div className="mt-1 grid gap-1 border-t border-border/50 pt-1.5">
+                              <span className="text-muted-foreground">By product family</span>
+                              {breakdown.map((entry) => (
+                                <div key={entry.family} className="flex items-center justify-between gap-3">
+                                  <span className="flex items-center gap-1.5 text-muted-foreground">
+                                    <span
+                                      className="h-2 w-2 shrink-0 rounded-[2px]"
+                                      style={{ backgroundColor: `var(--color-${familyCssKey(entry.family)})` }}
+                                    />
+                                    {entry.family}
+                                  </span>
+                                  <span className="font-mono font-medium tabular-nums">{dollars(Math.round(entry.spendDollars * 100))}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    }}
                   />
-                  <Bar dataKey="spendDollars" fill="var(--color-spendDollars)" radius={3} />
+                  {/* Colour carries product family, which the axis label does
+                      not already encode. One Bar with a Cell per row rather
+                      than a series per family: a 14-series stack renders
+                      nothing here, and only the aggregate row is ever
+                      multi-family anyway. */}
+                  <Bar dataKey="spendDollars" radius={3}>
+                    {paidProductSeries.rows.map((row) => (
+                      <Cell
+                        key={String(row.product)}
+                        fill={`var(--color-${paidProductSeries.familyKeyOf(row)})`}
+                      />
+                    ))}
+                  </Bar>
                 </BarChart>
               </ChartContainer>
             )}
