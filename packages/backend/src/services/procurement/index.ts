@@ -862,6 +862,9 @@ export async function getProcurementAnalytics(
   const channelWeights = new Map<ProcurementChannel, number>();
   const monthly = new Map<string, Record<string, number>>();
   const seasonal = new Map<string, number>();
+  // Keyed by year-month and channel so the seasonal view can separate OFB
+  // Warehouse orders from Fresh Food Alliance receipts without a second query.
+  const seasonalByChannel = new Map<string, number>();
   const products = new Map<string, ProductObservation>();
   const freshAllianceCategories = new Map<string, FreshAllianceCategoryObservation>();
 
@@ -953,9 +956,12 @@ export async function getProcurementAnalytics(
         : 'ofbWarehouseWeightHundredths';
       monthValues[acquisitionKey] += line.weightHundredths;
       monthValues[channelKey] += line.weightHundredths;
-      seasonal.set(
-        `${order.deliveryDate.slice(0, 4)}-${order.deliveryDate.slice(5, 7)}`,
-        (seasonal.get(`${order.deliveryDate.slice(0, 4)}-${order.deliveryDate.slice(5, 7)}`) ?? 0) + line.weightHundredths
+      const yearMonth = `${order.deliveryDate.slice(0, 4)}-${order.deliveryDate.slice(5, 7)}`;
+      seasonal.set(yearMonth, (seasonal.get(yearMonth) ?? 0) + line.weightHundredths);
+      const seasonalChannelKey = `${yearMonth}|${channel}`;
+      seasonalByChannel.set(
+        seasonalChannelKey,
+        (seasonalByChannel.get(seasonalChannelKey) ?? 0) + line.weightHundredths
       );
 
       if (donorObservation) {
@@ -1223,6 +1229,17 @@ export async function getProcurementAnalytics(
         month: Number(yearMonth.slice(5, 7)),
         weightHundredths,
       })),
+    seasonalChannelWeight: [...seasonalByChannel.entries()]
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, weightHundredths]) => {
+        const [yearMonth, channel] = key.split('|');
+        return {
+          year: yearMonth.slice(0, 4),
+          month: Number(yearMonth.slice(5, 7)),
+          channel: channel as ProcurementChannel,
+          weightHundredths,
+        };
+      }),
     warehouseProducts: warehouseProductSummary,
     paidProducts: paidProductSummary,
     freshAllianceCategories: freshAllianceCategorySummary,

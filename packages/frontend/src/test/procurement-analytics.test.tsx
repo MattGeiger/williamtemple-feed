@@ -14,6 +14,12 @@ import {
   ProcurementAnalyticsWorkspace,
 } from '@/components/analytics';
 import { analyticsRangeFromSearchParams } from '@/components/analytics/range-control';
+import {
+  buildPaidProductChartSeries,
+  buildPaidProductSpendData,
+  familyCssKey,
+  productFamily,
+} from '@/components/analytics';
 import { DonorAnalytics } from '@/components/analytics/donor-analytics';
 import type { ProcurementAnalytics } from '@/types/procurement';
 
@@ -579,5 +585,98 @@ describe('Grocery partner observations', () => {
       />
     );
     expect(screen.getByText(/No Agency Pickups observations/)).toBeVisible();
+  });
+});
+
+describe('paid product families', () => {
+  const product = (description: string, cents: number) => ({
+    productCode: String(Math.abs(description.length * 7)).padStart(5, '0'),
+    description,
+    receiptDateCount: 1,
+    totalSpendCents: cents,
+    paidWeightHundredths: 1000,
+    costPerPaidPoundCents: 100,
+    firstReceivedDate: '2026-01-01',
+    lastReceivedDate: '2026-06-30',
+  });
+
+  test('reads the family prefix and leaves unrecognizable descriptions unclassified', () => {
+    expect(productFamily('Meals, Beef Stew 12/24oz')).toBe('Meals');
+    expect(productFamily('Veg, Mixed Vegetables 24/15 oz')).toBe('Veg');
+    expect(productFamily('Other Protein, Peanut Butter')).toBe('Other Protein');
+    // No prefix: the product is never forced into a bucket.
+    expect(productFamily('Assorted bakery items')).toBe('Unclassified');
+    expect(productFamily(', leading comma')).toBe('Unclassified');
+  });
+
+  test('breaks the aggregate row down by family instead of by product', () => {
+    // 16 products so the 16th onward falls into the aggregate row.
+    const products = [
+      ...Array.from({ length: 15 }, (_, index) => product(`Meat, Cut ${index}`, 100000)),
+      product('Meals, Beef Stew', 40000),
+      product('Meals, Chili', 20000),
+      product('Cereal, Corn Flakes', 15000),
+      product('Bev, Juice', 5000),
+    ];
+
+    const data = buildPaidProductSpendData(products);
+    const aggregate = data[data.length - 1];
+
+    expect(aggregate.product).toContain('Other paid products (4 codes)');
+    expect(aggregate.familyBreakdown).toEqual([
+      { family: 'Meals', spendDollars: 600 },
+      { family: 'Cereal', spendDollars: 150 },
+      { family: 'Bev', spendDollars: 50 },
+    ]);
+  });
+
+  test('gives every family a CSS-safe key so multi-word families render', () => {
+    const { rows, families } = buildPaidProductChartSeries(
+      buildPaidProductSpendData([product('Other Protein, Peanut Butter', 50000)])
+    );
+
+    const key = families[0].key;
+    expect(families[0].label).toBe('Other Protein');
+    expect(key).toMatch(/^[a-z0-9_]+$/);
+    expect(rows[0][key]).toBe(500);
+  });
+
+  test('populates one family per ordinary row and several on the aggregate', () => {
+    const products = [
+      ...Array.from({ length: 15 }, (_, index) => product(`Meat, Cut ${index}`, 100000)),
+      product('Meals, Beef Stew', 40000),
+      product('Cereal, Corn Flakes', 15000),
+    ];
+    const { rows, families } = buildPaidProductChartSeries(buildPaidProductSpendData(products));
+
+    const familyKeys = families.map((family) => family.key);
+    const populated = (row: Record<string, string | number>) =>
+      familyKeys.filter((key) => typeof row[key] === 'number');
+
+    // An ordinary product bar is a single segment; the aggregate stacks.
+    expect(populated(rows[0])).toHaveLength(1);
+    expect(populated(rows[rows.length - 1])).toHaveLength(2);
+  });
+  test('carries the family breakdown onto the aggregate chart row', () => {
+    // The tooltip reads this off the row, not off the chart payload: a single
+    // Bar with per-row Cells only ever yields one payload entry.
+    const products = [
+      ...Array.from({ length: 15 }, (_, index) => product(`Meat, Cut ${index}`, 100000)),
+      product('Meals, Beef Stew', 40000),
+      product('Rice, Long Grain', 10000),
+    ];
+    const { rows } = buildPaidProductChartSeries(buildPaidProductSpendData(products));
+
+    expect(rows[0].familyBreakdown).toBeUndefined();
+    expect(rows[rows.length - 1].familyBreakdown).toEqual([
+      { family: 'Meals', spendDollars: 400 },
+      { family: 'Rice', spendDollars: 100 },
+    ]);
+  });
+
+  test('slugs family labels identically for bars and tooltip swatches', () => {
+    expect(familyCssKey('Other Protein')).toBe('fam_other_protein');
+    expect(familyCssKey('Non-Food')).toBe('fam_non_food');
+    expect(familyCssKey('Unclassified')).toBe('fam_unclassified');
   });
 });
