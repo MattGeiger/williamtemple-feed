@@ -39,6 +39,20 @@ All notable changes to FEED are documented here. This project adheres to
   bounded to the imported window, so a partial export never suppresses a period
   it does not cover, and re-importing Completed Orders cannot reintroduce a
   duplicate.
+- **One import action for both OFB exports**: FEED identifies a Completed
+  Orders or Agency Pickups CSV from its header row instead of asking staff to
+  declare which report they exported. Detection is exact; a file matching
+  neither export names both accepted formats rather than guessing. The
+  confirmation says which export was recognized, and an Agency Pickups import
+  states how many Completed Orders receipts it replaced so weight is counted
+  once.
+- **Per-channel coverage in Data Management**: a coverage strip shows the
+  observed window and event count for OFB Warehouse and Fresh Food Alliance
+  separately. The two channels are reported on different schedules — Fresh
+  Alliance pickups appear only once they have been entered into the OFB portal
+  — so their windows are stated independently and never assumed equal. Coverage
+  describes what FEED can currently see; it is never presented as a
+  completeness score, a target, or a performance signal.
 
 ### Changed
 
@@ -46,6 +60,9 @@ All notable changes to FEED are documented here. This project adheres to
   mix, seasonal trends, and the staleness prompt now draw on both OFB exports
   and exclude superseded observations, so Fresh Food Alliance supply is reported
   from its donor-attributed source without changing headline totals.
+- **Staleness follows the newest observation FEED holds** and is worded as an
+  offer to refresh rather than a judgement. A channel whose data entry is behind
+  never makes procurement data read as out of date.
 
 - **Procurement Data Management foundation**: a new Data Management destination
   under Information imports standardized Oregon Food Bank CSV exports entirely

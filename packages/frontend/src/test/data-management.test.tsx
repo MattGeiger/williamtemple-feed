@@ -16,10 +16,22 @@ vi.mock('@/services/procurement', () => ({
       daysSinceLatestDelivery: 74,
       isStale: true,
       staleAfterDays: 30,
+      coverage: {
+        warehouse: {
+          eventCount: 2100,
+          earliestDeliveryDate: '2009-01-05',
+          latestDeliveryDate: '2026-05-01',
+        },
+        freshAlliance: {
+          eventCount: 826,
+          earliestDeliveryDate: '2023-06-01',
+          latestDeliveryDate: '2026-04-18',
+        },
+      },
     })),
     rollbackImports: vi.fn(),
     restoreImports: vi.fn(),
-    importOfb: vi.fn(),
+    importOfbExport: vi.fn(),
   },
 }));
 
@@ -35,5 +47,24 @@ describe('Data Management', () => {
     expect(screen.getByRole('columnheader', { name: 'Events' })).toBeVisible();
     expect(screen.getByRole('columnheader', { name: 'Actions' })).toBeVisible();
     expect(screen.getByTestId('pagination-controls')).toBeVisible();
+  });
+  test('reports each channel window separately without implying fault', async () => {
+    render(<DataManagementWorkspace />);
+
+    expect(await screen.findByText('OFB Warehouse')).toBeVisible();
+    expect(screen.getByText('Fresh Food Alliance')).toBeVisible();
+
+    // The windows differ because Fresh Alliance entry lags; both are stated
+    // plainly rather than compared.
+    expect(screen.getByText('Jan 5, 2009 – May 1, 2026')).toBeVisible();
+    expect(screen.getByText('Jun 1, 2023 – Apr 18, 2026')).toBeVisible();
+    expect(screen.getByText('2,100 events')).toBeVisible();
+    expect(screen.getByText('826 events')).toBeVisible();
+
+    // A coverage gap measures available data-entry time, not performance, so
+    // no surface may frame it as lateness or fault. See plan D12.
+    for (const forbidden of [/overdue/i, /behind/i, /incomplete/i, /missing data/i, /failed to/i]) {
+      expect(document.body.textContent).not.toMatch(forbidden);
+    }
   });
 });

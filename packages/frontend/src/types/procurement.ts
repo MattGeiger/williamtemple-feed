@@ -55,13 +55,47 @@ export interface ProcurementImportResult {
   warnings: ProcurementWarning[];
 }
 
+export interface ProcurementChannelCoverage {
+  eventCount: number;
+  earliestDeliveryDate: string | null;
+  latestDeliveryDate: string | null;
+}
+
 export interface ProcurementDataStatus {
   hasData: boolean;
   latestDeliveryDate: string | null;
   daysSinceLatestDelivery: number | null;
   isStale: boolean;
   staleAfterDays: number;
+  /**
+   * Each channel is reported on its own schedule and their windows are never
+   * assumed equal. This describes what FEED can currently see — it is not a
+   * completeness score or a performance signal.
+   */
+  coverage: {
+    warehouse: ProcurementChannelCoverage;
+    freshAlliance: ProcurementChannelCoverage;
+  };
 }
+
+export type OfbExportKind = 'completed_orders' | 'agency_pickups';
+
+export interface FreshAllianceImportResult {
+  outcome: 'imported' | 'duplicate';
+  importId: number | null;
+  rowCount: number;
+  pickupCount: number;
+  skippedPickupCount: number;
+  supersededEventCount: number;
+  warningCount: number;
+  rangeStart: string;
+  rangeEnd: string;
+  warnings: ProcurementWarning[];
+}
+
+export type DetectedImportResult =
+  | ({ exportKind: 'completed_orders' } & ProcurementImportResult)
+  | ({ exportKind: 'agency_pickups' } & FreshAllianceImportResult);
 
 export interface ProcurementAnalyticsFilters {
   preset?: AnalyticsRangePreset;

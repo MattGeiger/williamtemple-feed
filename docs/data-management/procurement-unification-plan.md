@@ -1,7 +1,7 @@
 # Procurement Unification Plan
 
 **Started:** 2026-07-20
-**Status:** Phases 1–3 complete; Phase 4 next
+**Status:** Phases 1–4 complete; Phase 5 (donor analytics) next
 **Owner doc:** this file is the North Star for procurement data ingestion. Update
 it as each phase lands. Do not rely on session memory for any decision recorded
 here.
@@ -101,6 +101,17 @@ Server-side credentialed fetch and extension-to-FEED push are both viable and
 both deferred. See "Transport, deferred" below. The MVP blocker is correctness,
 not convenience.
 
+### D12 — Coverage is descriptive, never a score
+Channels report on different lags. Confirmed 2026-07-20: Fresh Alliance pickups
+happen and are entered into Primarius later, because the agency is short-staffed
+and data entry competes with direct service.
+
+Coverage UI states what FEED can currently see and what would extend that view.
+It never implies lateness, fault, or a target — no "overdue", no "incomplete",
+no progress bars toward a coverage goal, no red. A gap measures available
+data-entry time, not performance. The food arrived and was distributed whether
+or not anyone had time to type it in.
+
 ## Phases
 
 Each phase is independently shippable. Check items off in place.
@@ -178,10 +189,31 @@ Alliance import would silently restore double counting. Covered by
 dropped ~570,000 lb from reports, so `corpusWhere` gained both the source list
 and the superseded filter together.
 
-### Phase 4 — Coverage visibility
-- [ ] Coverage strip in Data Management: `Warehouse: … · Fresh Alliance: …`
-- [ ] Mismatched windows surface as a calm prompt, not a score
-- [ ] This is what makes an incomplete import visible instead of silently under-reporting
+### Phase 4 — Coverage visibility ✅ complete (2026-07-20)
+- [x] `getProcurementDataStatus` returns a per-channel window — event count,
+      earliest and latest receiving date — excluding superseded and inactive rows
+- [x] Coverage strip in Data Management showing both windows side by side
+      — `packages/frontend/src/components/data-management/coverage-strip.tsx`
+- [x] Descriptive framing only, enforced by test (D12): no "overdue", "behind",
+      "incomplete", "missing data", or "failed to" anywhere on the page
+- [x] Staleness follows the newest observation FEED holds, so a lagging channel
+      never makes the corpus read as stale
+- [x] Stale prompt reworded from a judgement to an offer
+- [x] Resilient to a status payload without `coverage` — an older cached
+      response should not take the page down
+- [x] 4 backend coverage tests, 1 frontend coverage test
+
+**Import became one action instead of two.** Rather than adding a second button
+and asking staff to declare which OFB export they were holding — a choice they
+could get wrong, on two files that look alike, mid-task — FEED reads the header
+row and routes the file itself (`services/procurement/detect.ts`). Detection is
+exact-match only and never guesses at a near-miss; an unrecognized file names
+both accepted exports. `POST /imports/ofb` and `POST /imports/fresh-alliance`
+were replaced by a single `POST /imports`.
+
+The import confirmation now states what was recognized and, for Agency Pickups,
+says plainly how many Completed Orders receipts it replaced so weight is counted
+once — the one part of this design staff would otherwise have to reason about.
 
 ### Phase 5 — Donor analytics
 - [ ] Donor mix

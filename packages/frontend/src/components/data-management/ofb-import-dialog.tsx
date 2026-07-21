@@ -20,14 +20,34 @@ import { cn } from '@/lib/utils';
 import { ErrorHandlerService } from '@/services/error/ErrorHandlerService';
 import { messageService } from '@/services/message';
 import { procurementService } from '@/services/procurement';
-import type { ProcurementImportResult } from '@/types/procurement';
+import type { DetectedImportResult } from '@/types/procurement';
 
 const MAX_FILE_BYTES = 5 * 1024 * 1024;
+
+/** Names the export FEED recognized, so the confirmation is specific. */
+function exportLabel(exportKind: DetectedImportResult['exportKind']): string {
+  return exportKind === 'agency_pickups' ? 'Agency Pickups' : 'Completed Orders';
+}
+
+function importedSummary(result: DetectedImportResult): string {
+  const rows = result.rowCount.toLocaleString();
+  if (result.exportKind === 'agency_pickups') {
+    const pickups = `${result.pickupCount} pickup${result.pickupCount === 1 ? '' : 's'}`;
+    // Superseding is the part staff would otherwise have to reason about, so
+    // the confirmation says plainly that weight was not counted twice.
+    const superseded = result.supersededEventCount > 0
+      ? `, replacing ${result.supersededEventCount} matching Completed Orders receipt${result.supersededEventCount === 1 ? '' : 's'} so weight is counted once`
+      : '';
+    return `Imported ${rows} rows across ${pickups} with donor detail${superseded}`;
+  }
+  const orders = `${result.orderCount} source event${result.orderCount === 1 ? '' : 's'}`;
+  return `Imported ${rows} rows across ${orders}`;
+}
 
 interface OfbImportDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onImported: (result: ProcurementImportResult) => Promise<void> | void;
+  onImported: (result: DetectedImportResult) => Promise<void> | void;
 }
 
 export function OfbImportDialog({
@@ -38,7 +58,7 @@ export function OfbImportDialog({
   const [file, setFile] = React.useState<File | null>(null);
   const [isDragging, setIsDragging] = React.useState(false);
   const [isImporting, setIsImporting] = React.useState(false);
-  const [result, setResult] = React.useState<ProcurementImportResult | null>(null);
+  const [result, setResult] = React.useState<DetectedImportResult | null>(null);
   const inputRef = React.useRef<HTMLInputElement>(null);
 
   React.useEffect(() => {
@@ -68,16 +88,18 @@ export function OfbImportDialog({
     if (!file) return;
     try {
       setIsImporting(true);
-      const imported = await procurementService.importOfb(file);
+      const imported = await procurementService.importOfbExport(file);
       await onImported(imported);
       if (imported.outcome === 'duplicate') {
-        messageService.info('This OFB data is already current. No changes were made.');
+        messageService.info(
+          `This ${exportLabel(imported.exportKind)} data is already current. No changes were made.`
+        );
         onOpenChange(false);
         return;
       }
       if (imported.warningCount === 0) {
         messageService.success(
-          `Imported ${imported.rowCount.toLocaleString()} rows across ${imported.orderCount} source event${imported.orderCount === 1 ? '' : 's'}.`,
+          `${importedSummary(imported)}.`,
           imported.importId === null ? undefined : {
             action: {
               label: 'Undo Import',
@@ -85,7 +107,7 @@ export function OfbImportDialog({
                 void procurementService.rollbackImports([imported.importId!])
                   .then(async () => {
                     await onImported(imported);
-                    messageService.success('The OFB import was rolled back.');
+                    messageService.success('The import was rolled back.');
                   })
                   .catch((error) => ErrorHandlerService.handleError(
                     error,
@@ -112,7 +134,7 @@ export function OfbImportDialog({
         <DialogHeader>
           <DialogTitle>Import OFB Data</DialogTitle>
           <DialogDescription>
-            FEED imports OFB Warehouse orders and Fresh Food Alliance receipts, then discards the source CSV. The file is never retained.
+            Import a Completed Orders or Agency Pickups CSV — FEED recognizes which one it is. The source file is discarded after import and never retained.
           </DialogDescription>
         </DialogHeader>
 
@@ -123,7 +145,7 @@ export function OfbImportDialog({
               <div>
                 <AlertTitle>Imported with source warnings</AlertTitle>
                 <AlertDescription>
-                  FEED imported {result.rowCount.toLocaleString()} rows across {result.orderCount} source events and preserved {result.warningCount} warning{result.warningCount === 1 ? '' : 's'} for review.
+                  {importedSummary(result)} and preserved {result.warningCount} note{result.warningCount === 1 ? '' : 's'} for review.
                 </AlertDescription>
               </div>
             </Alert>
