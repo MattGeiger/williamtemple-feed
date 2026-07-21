@@ -85,6 +85,7 @@ const emptyAnalytics: ProcurementAnalytics = {
   warehouseProducts: [],
   paidProducts: [],
   freshAllianceCategories: [],
+  freshAllianceDonorCategories: [],
   donors: [],
   donorMonthlyWeight: [],
   donorValue: {
@@ -254,6 +255,17 @@ describe('Analytics dataset separation', () => {
         lastReceivedDate: '2026-07-13',
       }],
       freshAllianceCategories: [{
+        productCode: '40000',
+        description: 'Bread & Bakery (Fresh Alliance)',
+        receiptEventCount: 1,
+        receivingDateCount: 1,
+        totalWeightHundredths: 20000,
+        firstReceivedDate: '2026-07-13',
+        lastReceivedDate: '2026-07-13',
+      }],
+      freshAllianceDonorCategories: [{
+        donorCode: 'RTJ146',
+        donorName: "Trader Joe's - Northwest",
         productCode: '40000',
         description: 'Bread & Bakery (Fresh Alliance)',
         receiptEventCount: 1,
@@ -472,6 +484,58 @@ describe('Analytics dataset separation', () => {
     expect(screen.getByText(/Fresh Food Alliance only/)).toBeVisible();
   });
 
+  test('shows every donor by default and lets staff narrow the receipt-category table to one', async () => {
+    getAnalyticsMock.mockResolvedValueOnce({
+      ...emptyAnalytics,
+      status: { ...emptyAnalytics.status, hasData: true },
+      freshAllianceCategories: [
+        { productCode: '40000', description: 'Bread & Bakery (Fresh Alliance)', receiptEventCount: 2, receivingDateCount: 2, totalWeightHundredths: 5000, firstReceivedDate: '2026-07-01', lastReceivedDate: '2026-07-13' },
+      ],
+      freshAllianceDonorCategories: [
+        { donorCode: 'RTJ146', donorName: "Trader Joe's - Northwest", productCode: '40000', description: 'Bread & Bakery (Fresh Alliance)', receiptEventCount: 1, receivingDateCount: 1, totalWeightHundredths: 3000, firstReceivedDate: '2026-07-01', lastReceivedDate: '2026-07-01' },
+        { donorCode: 'RAZ100', donorName: 'Amazon - NW Industrial (Prime Now)', productCode: '40000', description: 'Bread & Bakery (Fresh Alliance)', receiptEventCount: 1, receivingDateCount: 1, totalWeightHundredths: 2000, firstReceivedDate: '2026-07-13', lastReceivedDate: '2026-07-13' },
+        { donorCode: null, donorName: 'Not Reported', productCode: '40000', description: 'Bread & Bakery (Fresh Alliance)', receiptEventCount: 1, receivingDateCount: 1, totalWeightHundredths: 500, firstReceivedDate: '2026-06-01', lastReceivedDate: '2026-06-01' },
+      ],
+    } satisfies ProcurementAnalytics);
+
+    render(
+      <MemoryRouter>
+        <ProcurementAnalyticsWorkspace />
+      </MemoryRouter>
+    );
+
+    await screen.findByText('Fresh Food Alliance Receipt Categories');
+    // Donor identity is present, including an honest "Not Reported" bucket
+    // for a receipt with no donor on file rather than a guess.
+    expect(screen.getAllByText("Trader Joe's - Northwest").length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Amazon - NW Industrial (Prime Now)').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Not Reported').length).toBeGreaterThan(0);
+
+    const donorFilter = screen.getByRole('button', { name: /All Donors/i });
+    expect(donorFilter).toBeVisible();
+
+    fireEvent.keyDown(donorFilter, { key: 'Enter' });
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Clear all donors' }));
+    expect(screen.getByText('Choose at least one donor.')).toBeVisible();
+
+    const trJoes = screen.getByRole('menuitemcheckbox', { name: "Trader Joe's - Northwest" });
+    fireEvent.click(trJoes);
+    expect(trJoes).toHaveAttribute('aria-checked', 'true');
+
+    // Close the menu before inspecting the table -- its still-open checkbox
+    // list otherwise contains every donor's name regardless of filter state,
+    // which would make the table-filtering assertion below meaningless.
+    fireEvent.keyDown(trJoes, { key: 'Escape' });
+    await waitFor(() => {
+      expect(screen.queryByRole('menuitemcheckbox')).not.toBeInTheDocument();
+    });
+
+    // Filtering to one donor removes the others' rows from the table --
+    // the checkbox state alone doesn't prove the table actually filtered.
+    expect(screen.queryByText('Amazon - NW Industrial (Prime Now)')).not.toBeInTheDocument();
+    expect(screen.queryByText('Not Reported')).not.toBeInTheDocument();
+  });
+
   test('uses receipt and category semantics for the Fresh Food Alliance channel', async () => {
     getAnalyticsMock.mockResolvedValue({
       ...emptyAnalytics,
@@ -510,6 +574,17 @@ describe('Analytics dataset separation', () => {
       }],
       seasonalWeight: [{ year: '2026', month: 7, weightHundredths: 20000 }],
       freshAllianceCategories: [{
+        productCode: '41000',
+        description: 'Produce (Fresh Alliance)',
+        receiptEventCount: 2,
+        receivingDateCount: 1,
+        totalWeightHundredths: 20000,
+        firstReceivedDate: '2026-07-13',
+        lastReceivedDate: '2026-07-13',
+      }],
+      freshAllianceDonorCategories: [{
+        donorCode: 'RAZ100',
+        donorName: 'Amazon - NW Industrial (Prime Now)',
         productCode: '41000',
         description: 'Produce (Fresh Alliance)',
         receiptEventCount: 2,

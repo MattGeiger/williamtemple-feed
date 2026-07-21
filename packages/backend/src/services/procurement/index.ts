@@ -759,6 +759,26 @@ interface FreshAllianceCategoryObservation {
   lastReceivedDate: string;
 }
 
+// Reports are honest about what OFB did not tell FEED: a receipt without a
+// donor on file is bucketed under this sentinel rather than guessed. In the
+// current corpus every fresh_alliance event has a donor because the Fresh
+// Alliance import supersedes the AGPCKUP events that would otherwise lack
+// one, but a partially superseded window is a real possibility this must
+// not silently misrepresent.
+const DONOR_NOT_REPORTED = '__not_reported__';
+
+interface FreshAllianceDonorCategoryObservation {
+  donorCode: string;
+  donorName: string;
+  productCode: string;
+  latestDescription: string;
+  receiptReferences: Set<string>;
+  receiptDates: Set<string>;
+  totalWeightHundredths: number;
+  firstReceivedDate: string;
+  lastReceivedDate: string;
+}
+
 interface PaidProductObservation {
   productCode: string;
   latestDescription: string;
@@ -867,6 +887,12 @@ export async function getProcurementAnalytics(
   const seasonalByChannel = new Map<string, number>();
   const products = new Map<string, ProductObservation>();
   const freshAllianceCategories = new Map<string, FreshAllianceCategoryObservation>();
+  // Same shape as freshAllianceCategories, split further by donor. Kept
+  // separate rather than replacing the category-only map: the Fresh Food
+  // Alliance Category Mix chart is legitimately still a donor-agnostic view,
+  // and reconciling two derived maps against the same source lines is safer
+  // than reshaping one map's meaning mid-stream.
+  const freshAllianceDonorCategories = new Map<string, FreshAllianceDonorCategoryObservation>();
 
   // Donor observations come only from the Agency Pickups export, which is the
   // sole source that reports partner identity. FEED never infers a donor for a
@@ -1048,6 +1074,34 @@ export async function getProcurementAnalytics(
             existingCategory.firstReceivedDate = order.deliveryDate;
           }
         }
+
+        const donorKey = order.donorCode ?? DONOR_NOT_REPORTED;
+        const donorCategoryKey = `${donorKey}|${productCode}`;
+        const existingDonorCategory = freshAllianceDonorCategories.get(donorCategoryKey);
+        if (!existingDonorCategory) {
+          freshAllianceDonorCategories.set(donorCategoryKey, {
+            donorCode: donorKey,
+            donorName: order.donorName ?? donorKey,
+            productCode,
+            latestDescription: line.sourceDescription,
+            receiptReferences: new Set([order.sourceOrderReference]),
+            receiptDates: new Set([order.deliveryDate]),
+            totalWeightHundredths: line.weightHundredths,
+            firstReceivedDate: order.deliveryDate,
+            lastReceivedDate: order.deliveryDate,
+          });
+        } else {
+          existingDonorCategory.receiptReferences.add(order.sourceOrderReference);
+          existingDonorCategory.receiptDates.add(order.deliveryDate);
+          existingDonorCategory.totalWeightHundredths += line.weightHundredths;
+          if (order.deliveryDate >= existingDonorCategory.lastReceivedDate) {
+            existingDonorCategory.lastReceivedDate = order.deliveryDate;
+            existingDonorCategory.latestDescription = line.sourceDescription;
+          }
+          if (order.deliveryDate < existingDonorCategory.firstReceivedDate) {
+            existingDonorCategory.firstReceivedDate = order.deliveryDate;
+          }
+        }
         continue;
       }
       const existing = products.get(productCode);
@@ -1113,6 +1167,23 @@ export async function getProcurementAnalytics(
     }))
     .sort((left, right) =>
       right.totalWeightHundredths - left.totalWeightHundredths ||
+      left.productCode.localeCompare(right.productCode)
+    );
+  const freshAllianceDonorCategorySummary = [...freshAllianceDonorCategories.values()]
+    .map((entry) => ({
+      donorCode: entry.donorCode === DONOR_NOT_REPORTED ? null : entry.donorCode,
+      donorName: entry.donorCode === DONOR_NOT_REPORTED ? 'Not Reported' : entry.donorName,
+      productCode: entry.productCode,
+      description: entry.latestDescription,
+      receiptEventCount: entry.receiptReferences.size,
+      receivingDateCount: entry.receiptDates.size,
+      totalWeightHundredths: entry.totalWeightHundredths,
+      firstReceivedDate: entry.firstReceivedDate,
+      lastReceivedDate: entry.lastReceivedDate,
+    }))
+    .sort((left, right) =>
+      right.totalWeightHundredths - left.totalWeightHundredths ||
+      left.donorName.localeCompare(right.donorName) ||
       left.productCode.localeCompare(right.productCode)
     );
   const paidProductSummary = [...paidProducts.values()]
@@ -1243,6 +1314,7 @@ export async function getProcurementAnalytics(
     warehouseProducts: warehouseProductSummary,
     paidProducts: paidProductSummary,
     freshAllianceCategories: freshAllianceCategorySummary,
+    freshAllianceDonorCategories: freshAllianceDonorCategorySummary,
     donors: donorSummary,
     donorMonthlyWeight: [...donorMonthly.entries()]
       .map(([key, weightHundredths]) => {
