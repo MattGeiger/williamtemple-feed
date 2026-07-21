@@ -75,7 +75,14 @@ import {
   TabsList,
   TabsTrigger,
 } from '@/components/ui/tabs';
-import { carbonCategoricalTheme, carbonTheme } from '@/lib/colors';
+import { useTheme } from 'next-themes';
+import {
+  carbonCategoricalTheme,
+  carbonChartColors,
+  carbonTheme,
+  type CarbonFamily,
+  type CarbonGrade,
+} from '@/lib/colors';
 import { ErrorHandlerService } from '@/services/error/ErrorHandlerService';
 import { procurementService } from '@/services/procurement';
 import type {
@@ -179,6 +186,82 @@ export function productFamily(description: string): string {
 }
 
 export const UNCLASSIFIED_FAMILY = 'Unclassified';
+
+/**
+ * Fixed color assignment per product family, so a color always means the same
+ * family everywhere it appears — this chart's bars, its legend, and its
+ * aggregate-row tooltip — regardless of which families the current filter or
+ * search happens to include or how they rank by spend. An index-based palette
+ * (assign color N to whichever family is Nth by spend) would reassign colors
+ * every time the visible family set changed, which defeats the point of a
+ * legend.
+ *
+ * Order and shares reflect the real OFB Warehouse paid-product corpus profiled
+ * during development (Meals 17%, Condiment 15%, Meat 13%, Other Protein 12%,
+ * Fruit 9%, Dairy 9%, Veg 6%, Non-Food 6%, Grains 5%, Cereal 4%, Bev 2%,
+ * Beans 2%, Pasta 1%, Rice 1%). The nine non-gray Carbon hue families each
+ * take one slot at `primary` grade first (hue-hopped for maximum adjacent
+ * contrast), then the remaining families repeat those hues at `secondary`
+ * grade. `Unclassified` is pinned to `warmGray` — reserved, never assigned to
+ * a real family — so a muted, deliberately unsaturated color visually marks
+ * "not a real category" rather than looking like one.
+ */
+const FAMILY_COLOR_ASSIGNMENTS: Record<string, { family: CarbonFamily; grade: CarbonGrade }> = {
+  Meals: { family: 'blue', grade: 'primary' },
+  Condiment: { family: 'magenta', grade: 'primary' },
+  Meat: { family: 'teal', grade: 'primary' },
+  'Other Protein': { family: 'orange', grade: 'primary' },
+  Fruit: { family: 'purple', grade: 'primary' },
+  Dairy: { family: 'green', grade: 'primary' },
+  Veg: { family: 'yellow', grade: 'primary' },
+  'Non-Food': { family: 'cyan', grade: 'primary' },
+  Grains: { family: 'red', grade: 'primary' },
+  Cereal: { family: 'blue', grade: 'secondary' },
+  Bev: { family: 'magenta', grade: 'secondary' },
+  Beans: { family: 'teal', grade: 'secondary' },
+  Pasta: { family: 'orange', grade: 'secondary' },
+  Rice: { family: 'purple', grade: 'secondary' },
+  [UNCLASSIFIED_FAMILY]: { family: 'warmGray', grade: 'primary' },
+};
+
+/** Non-gray hues, both grades, in the same hue-hopped order as the fixed
+ *  assignments above — excludes `warmGray` so a hashed fallback can never
+ *  collide with the reserved `Unclassified` color. */
+const FAMILY_COLOR_FALLBACK_SLOTS: Array<{ family: CarbonFamily; grade: CarbonGrade }> = [
+  'blue', 'magenta', 'teal', 'orange', 'purple', 'green', 'yellow', 'cyan', 'red',
+].flatMap((family) => ([
+  { family: family as CarbonFamily, grade: 'primary' as CarbonGrade },
+  { family: family as CarbonFamily, grade: 'secondary' as CarbonGrade },
+]));
+
+/**
+ * Assigns a stable color to any family label, including one this list has
+ * never seen. A future OFB export could introduce a product-description
+ * prefix outside the profiled set; rather than let that family silently
+ * borrow another family's color (or fall through to the reserved gray), it
+ * gets a deterministic hash-based slot from the same palette so its color is
+ * still fixed and repeatable across renders, just not hand-picked.
+ */
+function familyColorAssignment(label: string): { family: CarbonFamily; grade: CarbonGrade } {
+  const known = FAMILY_COLOR_ASSIGNMENTS[label];
+  if (known) return known;
+  let hash = 0;
+  for (let i = 0; i < label.length; i += 1) {
+    hash = (hash * 31 + label.charCodeAt(i)) >>> 0;
+  }
+  return FAMILY_COLOR_FALLBACK_SLOTS[hash % FAMILY_COLOR_FALLBACK_SLOTS.length];
+}
+
+export function familyColorTheme(label: string): Record<'light' | 'dark', string> {
+  const { family, grade } = familyColorAssignment(label);
+  return carbonTheme(family, grade);
+}
+
+export function familyColorHex(label: string, scheme: 'light' | 'dark'): string {
+  const { family, grade } = familyColorAssignment(label);
+  return carbonChartColors[family][grade][scheme];
+}
+
 
 /** Chart config keys become CSS custom property names, so labels are slugged. */
 export function familyCssKey(family: string): string {
@@ -488,6 +571,14 @@ export function ProcurementAnalyticsWorkspace({
 } = {}) {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  // ChartContainer scopes its color CSS variables to a per-instance
+  // [data-chart=id] selector, and Recharts requires ChartContainer's only
+  // child to be the chart itself — there's nowhere to mount a legend that
+  // would inherit those variables. The family-color legend below resolves
+  // hex values directly instead, matching the pattern already used in
+  // dashboard/category-chart.tsx for the same reason.
+  const { resolvedTheme } = useTheme();
+  const colorScheme: 'light' | 'dark' = resolvedTheme === 'dark' ? 'dark' : 'light';
   const [analytics, setAnalytics] = React.useState<ProcurementAnalytics | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
   const [selectedSeasonalYears, setSelectedSeasonalYears] = React.useState<string[]>([]);
@@ -616,9 +707,9 @@ export function ProcurementAnalyticsWorkspace({
   );
   const paidProductFamilyConfig = React.useMemo(
     () => Object.fromEntries(
-      paidProductSeries.families.map((family, index) => [
+      paidProductSeries.families.map((family) => [
         family.key,
-        { label: family.label, theme: carbonCategoricalTheme(index) },
+        { label: family.label, theme: familyColorTheme(family.label) },
       ])
     ) satisfies ChartConfig,
     [paidProductSeries.families]
@@ -1084,6 +1175,21 @@ export function ProcurementAnalyticsWorkspace({
                   </Bar>
                 </BarChart>
               </ChartContainer>
+            )}
+            {paidProductSeries.families.length > 0 && (
+              <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
+                <span className="font-medium text-foreground">Colored by product family:</span>
+                {paidProductSeries.families.map((family) => (
+                  <span key={family.key} className="flex items-center gap-1.5">
+                    <span
+                      aria-hidden="true"
+                      className="h-2.5 w-2.5 shrink-0 rounded-[2px]"
+                      style={{ backgroundColor: familyColorHex(family.label, colorScheme) }}
+                    />
+                    {family.label}
+                  </span>
+                ))}
+              </div>
             )}
           </CardContent>
         </Card>
