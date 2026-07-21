@@ -1,7 +1,7 @@
 # Procurement Unification Plan
 
 **Started:** 2026-07-20
-**Status:** Phases 1–2 complete; Phase 3 next
+**Status:** Phases 1–3 complete; Phase 4 next
 **Owner doc:** this file is the North Star for procurement data ingestion. Update
 it as each phase lands. Do not rely on session memory for any decision recorded
 here.
@@ -145,14 +145,38 @@ honest than the suffix inference the 12-column path must use.
 The corpus test is gated on `existsSync` because the real export is gitignored
 agency data. It runs locally for anyone holding the file and skips in CI.
 
-### Phase 3 — Persistence and supersede
-- [ ] Schema: donor and pickup fields on revision; received/valuation/FA-category on line
-- [ ] Schema: supersede marker on `ProcurementOrderRevision`, reversible
-- [ ] Import path under `source = 'ofb_pickup'` (D3) with revisions and rollback
-- [ ] Window-bounded supersede of `source = 'ofb'` + `fresh_alliance_receipt` (D1)
-- [ ] Rollback of a Fresh Alliance import clears its supersede marks
-- [ ] Analytics excludes superseded revisions
-- [ ] Migration verified against a restored production copy before deploy
+### Phase 3 — Persistence and supersede ✅ complete (2026-07-20)
+- [x] Schema: donor and pickup fields on revision; received/valuation/FA-category on line
+- [x] Schema: `supersededByImportId` on `ProcurementOrderRevision`, reversible
+- [x] `importFreshAllianceCsv` under `source = 'ofb_pickup'` (D3) with its own
+      revision lineage; products stay under `ofb` so one code means one catalog entry
+- [x] Window-bounded supersede of `source = 'ofb'` + `fresh_alliance_receipt` (D1)
+- [x] Rollback clears exactly what an import claimed; restore reclaims its window
+- [x] Analytics and data status read both sources and exclude superseded revisions
+- [x] `POST /api/procurement/imports/fresh-alliance`
+- [x] Migration verified: full chain applied to a copy of
+      `docs/backup_20260709_103507.db`, all columns and indexes present,
+      168 food items and 9 categories preserved
+- [x] 21 Fresh Alliance tests (30 procurement total); full suite 352/352
+
+**Two correctness details worth remembering:**
+
+*Supersede claims are per-import and unclaimed-only.* `applySupersede` matches
+`supersededByImportId: null`, so the first covering import keeps the claim,
+overlapping imports stay deterministic, and each import releases exactly what it
+took. Restore recomputes the claim from the import's recorded window rather than
+remembering a row list.
+
+*Re-importing Completed Orders re-triggers supersede.* Fresh AGPCKUP revisions
+land unclaimed, so `importOfbCsv` reasserts every active Fresh Alliance import's
+window after writing. Without this, re-importing an orders export after a Fresh
+Alliance import would silently restore double counting. Covered by
+"re-importing Completed Orders cannot reintroduce double counting".
+
+*Excluding and including are one change.* Analytics previously hard-coded
+`source: 'ofb'`. Superseding without also reading `ofb_pickup` would have
+dropped ~570,000 lb from reports, so `corpusWhere` gained both the source list
+and the superseded filter together.
 
 ### Phase 4 — Coverage visibility
 - [ ] Coverage strip in Data Management: `Warehouse: … · Fresh Alliance: …`

@@ -25,6 +25,27 @@ All notable changes to FEED are documented here. This project adheres to
 - **Shared OFB parsing primitives**: date, numeric, reference, and product-family
   contracts now live in one module used by both OFB parsers, so the two cannot
   drift apart. The procurement service's public API is unchanged.
+- **Fresh Food Alliance imports with donor attribution**: importing an Agency
+  Pickups export stores donor identity, pickup provenance, received quantities,
+  and recorded donor valuation as organization-wide observations under their own
+  source namespace, with the established revision, rollback, and restore
+  behavior. Fresh Alliance supply is donated, so its lines carry factual zero
+  cost rather than placeholder pricing.
+- **Fresh Alliance receipts are counted once**: importing an Agency Pickups
+  export supersedes the Completed Orders observations of the same events across
+  the dates it covers, so combined inbound weight never doubles. Superseded
+  observations are marked rather than deleted, remain in Import History, and
+  return in full when the Fresh Alliance import is rolled back. Superseding is
+  bounded to the imported window, so a partial export never suppresses a period
+  it does not cover, and re-importing Completed Orders cannot reintroduce a
+  duplicate.
+
+### Changed
+
+- **Procurement analytics read the whole OFB corpus**: inbound weight, channel
+  mix, seasonal trends, and the staleness prompt now draw on both OFB exports
+  and exclude superseded observations, so Fresh Food Alliance supply is reported
+  from its donor-attributed source without changing headline totals.
 
 - **Procurement Data Management foundation**: a new Data Management destination
   under Information imports standardized Oregon Food Bank CSV exports entirely

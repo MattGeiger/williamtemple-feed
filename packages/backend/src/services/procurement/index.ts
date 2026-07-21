@@ -12,9 +12,13 @@ import {
   resolveRange,
 } from '../inventory-analytics/timezone';
 import { getOperatingHoursSettings } from '../operating-hours';
+import { clearSupersede, reapplySupersede } from './fresh-alliance';
 import {
   ACQUISITION_CLASSES,
   AcquisitionClass,
+  FRESH_ALLIANCE_SOURCE,
+  OFB_SOURCE,
+  PROCUREMENT_SOURCES,
   ProcurementImportError,
   expectedAcquisitionClass,
   invalidRow,
@@ -29,11 +33,13 @@ import {
 // site for procurement consumers.
 export {
   ACQUISITION_CLASSES,
+  FRESH_ALLIANCE_SOURCE,
+  OFB_SOURCE,
+  PROCUREMENT_SOURCES,
   ProcurementImportError,
 } from './parsing';
 export type { AcquisitionClass } from './parsing';
 
-export const OFB_SOURCE = 'ofb';
 export const OFB_IMPORT_SCHEMA_VERSION = 4;
 export const PROCUREMENT_STALE_AFTER_DAYS = 30;
 
@@ -460,6 +466,18 @@ export async function importOfbCsv(
       });
     }
 
+    // A Completed Orders import re-lands AGPCKUP events that an existing Fresh
+    // Alliance import already covers. Without this, those fresh revisions would
+    // arrive unclaimed and Fresh Alliance weight would double again. Each
+    // active Fresh Alliance import reasserts its own recorded window.
+    const activeFreshAllianceImports = await tx.procurementImport.findMany({
+      where: { source: FRESH_ALLIANCE_SOURCE, status: 'active' },
+      select: { id: true, rangeStart: true, rangeEnd: true },
+    });
+    for (const freshImport of activeFreshAllianceImports) {
+      await reapplySupersede(tx, freshImport.id, freshImport.rangeStart, freshImport.rangeEnd);
+    }
+
     return {
       outcome: 'imported' as const,
       importId: importRecord.id,
@@ -476,16 +494,19 @@ export async function importOfbCsv(
 
 async function refreshCurrentOrders(
   tx: TransactionClient,
-  sourceOrderReferences: string[]
+  events: { source: string; sourceOrderReference: string }[]
 ): Promise<void> {
-  for (const sourceOrderReference of [...new Set(sourceOrderReferences)]) {
+  const unique = new Map(
+    events.map((event) => [JSON.stringify([event.source, event.sourceOrderReference]), event])
+  );
+  for (const { source, sourceOrderReference } of unique.values()) {
     await tx.procurementOrderRevision.updateMany({
-      where: { source: OFB_SOURCE, sourceOrderReference },
+      where: { source, sourceOrderReference },
       data: { isCurrent: false },
     });
     const latestActive = await tx.procurementOrderRevision.findFirst({
       where: {
-        source: OFB_SOURCE,
+        source,
         sourceOrderReference,
         import: { status: 'active' },
       },
@@ -511,7 +532,7 @@ export async function rollbackProcurementImports(
   return client.$transaction(async (tx: TransactionClient) => {
     const imports = await tx.procurementImport.findMany({
       where: { id: { in: uniqueIds }, status: 'active' },
-      include: { orders: { select: { sourceOrderReference: true } } },
+      include: { orders: { select: { source: true, sourceOrderReference: true } } },
     });
     if (imports.length === 0) return { updated: 0 };
     const now = new Date();
@@ -519,10 +540,13 @@ export async function rollbackProcurementImports(
       where: { id: { in: imports.map((record) => record.id) } },
       data: { status: 'rolled_back', rolledBackAt: now, rolledBackBy: actor },
     });
-    await refreshCurrentOrders(
-      tx,
-      imports.flatMap((record) => record.orders.map((order) => order.sourceOrderReference))
-    );
+    // Rolling back a Fresh Alliance import releases the Completed Orders
+    // events it superseded, so their observations return to analytics rather
+    // than leaving a hole where the donor-attributed data used to be.
+    for (const record of imports) {
+      await clearSupersede(tx, record.id);
+    }
+    await refreshCurrentOrders(tx, imports.flatMap((record) => record.orders));
     return { updated: imports.length };
   });
 }
@@ -537,7 +561,7 @@ export async function restoreProcurementImports(
   return client.$transaction(async (tx: TransactionClient) => {
     const imports = await tx.procurementImport.findMany({
       where: { id: { in: uniqueIds }, status: 'rolled_back' },
-      include: { orders: { select: { sourceOrderReference: true } } },
+      include: { orders: { select: { source: true, sourceOrderReference: true } } },
     });
     if (imports.length === 0) return { updated: 0 };
     const now = new Date();
@@ -545,10 +569,15 @@ export async function restoreProcurementImports(
       where: { id: { in: imports.map((record) => record.id) } },
       data: { status: 'active', restoredAt: now, restoredBy: actor },
     });
-    await refreshCurrentOrders(
-      tx,
-      imports.flatMap((record) => record.orders.map((order) => order.sourceOrderReference))
-    );
+    // A restored Fresh Alliance import reclaims the window it recorded. The
+    // claim is recomputed rather than remembered, and the "unclaimed only"
+    // guard means an import that took over in the meantime keeps its rows.
+    for (const record of imports) {
+      if (record.source === FRESH_ALLIANCE_SOURCE) {
+        await reapplySupersede(tx, record.id, record.rangeStart, record.rangeEnd);
+      }
+    }
+    await refreshCurrentOrders(tx, imports.flatMap((record) => record.orders));
     return { updated: imports.length };
   });
 }
@@ -612,7 +641,12 @@ export async function getProcurementDataStatus(
 ) {
   const [latest, settings] = await Promise.all([
     client.procurementOrderRevision.findFirst({
-      where: { source: OFB_SOURCE, isCurrent: true, import: { status: 'active' } },
+      where: {
+        source: { in: [...PROCUREMENT_SOURCES] },
+        isCurrent: true,
+        supersededByImportId: null,
+        import: { status: 'active' },
+      },
       orderBy: { deliveryDate: 'desc' },
       select: { deliveryDate: true },
     }),
@@ -698,9 +732,15 @@ export async function getProcurementAnalytics(
     ...(filters.channel ? { procurementChannel: filters.channel } : {}),
     ...(filters.acquisitionClass ? { acquisitionClass: filters.acquisitionClass } : {}),
   };
+  // Both OFB exports contribute. A Completed Orders Fresh Alliance event whose
+  // date is covered by a Fresh Alliance import is excluded here so the
+  // donor-attributed observation of the same event replaces it rather than
+  // adding to it. Excluding the superseded row and including its replacement is
+  // one operation; doing only half of it would move headline weight.
   const corpusWhere: Prisma.ProcurementOrderRevisionWhereInput = {
-    source: OFB_SOURCE,
+    source: { in: [...PROCUREMENT_SOURCES] },
     isCurrent: true,
+    supersededByImportId: null,
     import: { status: 'active' },
   };
   const baseWhere: Prisma.ProcurementOrderRevisionWhereInput = {

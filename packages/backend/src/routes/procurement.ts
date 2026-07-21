@@ -10,6 +10,7 @@ import {
   ANALYTICS_RANGE_PRESETS,
   isValidLocalDate,
 } from '../services/inventory-analytics/timezone';
+import { importFreshAllianceCsv } from '../services/procurement/fresh-alliance';
 import {
   getProcurementDataStatus,
   getProcurementAnalytics,
@@ -106,6 +107,36 @@ router.post('/imports/ofb', rateLimiter, upload.single('file'), async (req, res,
       });
     }
     const result = await importOfbCsv(req.file.buffer, req.auth?.userId);
+    res.status(result.outcome === 'imported' ? 201 : 200).json({ result });
+  } catch (error) {
+    if (error instanceof ProcurementImportError) {
+      return res.status(error.statusCode).json({
+        error: {
+          message: error.message,
+          code: error.code,
+          details: error.details,
+        },
+      });
+    }
+    next(error);
+  }
+});
+
+// The Agency Pickups export is the donor-attributed report of the same Fresh
+// Alliance events the Completed Orders export carries as AGPCKUP rows.
+// Importing it supersedes those rows for the covered window so weight is
+// counted once. See docs/data-management/procurement-unification-plan.md.
+router.post('/imports/fresh-alliance', rateLimiter, upload.single('file'), async (req, res, next) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        error: {
+          message: 'Select an OFB Agency Pickups CSV before importing data.',
+          code: 'NO_FRESH_ALLIANCE_FILE',
+        },
+      });
+    }
+    const result = await importFreshAllianceCsv(req.file.buffer, req.auth?.userId);
     res.status(result.outcome === 'imported' ? 201 : 200).json({ result });
   } catch (error) {
     if (error instanceof ProcurementImportError) {
