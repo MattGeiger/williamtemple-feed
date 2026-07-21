@@ -7,6 +7,25 @@ All notable changes to FEED are documented here. This project adheres to
 
 ### Added
 
+- **Fresh Food Alliance pickup normalization**: FEED now parses the OFB Agency
+  Pickups export (19 columns, exporter v1.2.0), which reports donor identity for
+  Fresh Food Alliance receipts. Donor code and name, pickup reference and ID,
+  pickup line IDs, submission timestamps, received quantities and weights,
+  reporting category, and donor value per pound are normalized into deterministic
+  per-pickup snapshots. Channel classification is file-level: every event in this
+  export is a Fresh Alliance receipt because of its source, so reference suffixes
+  and product-code prefixes are never consulted. Parsing is normalization only;
+  persistence and analytics follow in later increments.
+- **Calm Fresh Alliance data-quality warnings**: a `12:00 AM` pickup time is
+  recorded as an unknown time rather than an observed midnight collection; a
+  `$0.00` donor value is recorded as no valuation on file while the weight is
+  fully retained; received values that disagree with requested values retain
+  both. Duplicate pickup line IDs, and a pickup reporting two donors, dates,
+  or submission times, remain structural failures.
+- **Shared OFB parsing primitives**: date, numeric, reference, and product-family
+  contracts now live in one module used by both OFB parsers, so the two cannot
+  drift apart. The procurement service's public API is unchanged.
+
 - **Procurement Data Management foundation**: a new Data Management destination
   under Information imports standardized Oregon Food Bank CSV exports entirely
   in memory, stores normalized organization-wide source-order revisions and

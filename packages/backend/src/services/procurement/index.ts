@@ -12,6 +12,26 @@ import {
   resolveRange,
 } from '../inventory-analytics/timezone';
 import { getOperatingHoursSettings } from '../operating-hours';
+import {
+  ACQUISITION_CLASSES,
+  AcquisitionClass,
+  ProcurementImportError,
+  expectedAcquisitionClass,
+  invalidRow,
+  monthNames,
+  parseCents,
+  parseHundredths,
+  parseSourceDate,
+} from './parsing';
+
+// Parsing primitives are shared with the Agency Pickups parser so the two
+// cannot drift. Re-exported here because this module is the established import
+// site for procurement consumers.
+export {
+  ACQUISITION_CLASSES,
+  ProcurementImportError,
+} from './parsing';
+export type { AcquisitionClass } from './parsing';
 
 export const OFB_SOURCE = 'ofb';
 export const OFB_IMPORT_SCHEMA_VERSION = 4;
@@ -22,10 +42,8 @@ export const PROCUREMENT_EVENT_KINDS = [
   'ofb_warehouse_order',
   'fresh_alliance_receipt',
 ] as const;
-export const ACQUISITION_CLASSES = ['DONATED', 'PURCH-DON', 'GOVERNMENT', 'PURCHASED'] as const;
 export type ProcurementChannel = typeof PROCUREMENT_CHANNELS[number];
 export type ProcurementEventKind = typeof PROCUREMENT_EVENT_KINDS[number];
-export type AcquisitionClass = typeof ACQUISITION_CLASSES[number];
 
 export const OFB_HEADERS = [
   'Date',
@@ -92,90 +110,8 @@ export interface ParsedOfbImport {
   orders: NormalizedOfbOrder[];
 }
 
-export class ProcurementImportError extends Error {
-  statusCode: number;
-  code: string;
-  details?: unknown;
-
-  constructor(message: string, code: string, statusCode = 400, details?: unknown) {
-    super(message);
-    this.name = 'ProcurementImportError';
-    this.code = code;
-    this.statusCode = statusCode;
-    this.details = details;
-  }
-}
-
-const acquisitionClassByPrefix: Record<string, AcquisitionClass> = {
-  '0': 'DONATED',
-  '1': 'DONATED',
-  '2': 'DONATED',
-  '3': 'DONATED',
-  '6': 'PURCH-DON',
-  '7': 'PURCH-DON',
-  '8': 'GOVERNMENT',
-  '9': 'PURCHASED',
-};
-
-function expectedAcquisitionClass(productCode: string): AcquisitionClass | null {
-  if (/^4\d{4}$/.test(productCode)) return 'DONATED';
-  return acquisitionClassByPrefix[productCode[0]] ?? null;
-}
-
 function procurementChannel(sourceOrderReference: string): ProcurementChannel {
   return /AGPCKUP$/i.test(sourceOrderReference) ? 'fresh_alliance' : 'ofb_warehouse';
-}
-
-const monthNames = [
-  '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-];
-
-function invalidRow(rowNumber: number, field: string, instruction: string): never {
-  throw new ProcurementImportError(
-    `Row ${rowNumber} has an invalid ${field}. ${instruction}`,
-    'INVALID_OFB_CSV',
-    400,
-    { rowNumber, field }
-  );
-}
-
-function parseSourceDate(value: string, rowNumber: number): { iso: string; month: number } {
-  const match = /^(\d{1,2})\/(\d{1,2})\/(\d{2})$/.exec(value.trim());
-  if (!match) invalidRow(rowNumber, 'Date', 'Export the order again and retry the import.');
-  const month = Number(match[1]);
-  const day = Number(match[2]);
-  const year = 2000 + Number(match[3]);
-  const candidate = new Date(Date.UTC(year, month - 1, day));
-  if (
-    month < 1 || month > 12 || day < 1 ||
-    candidate.getUTCFullYear() !== year ||
-    candidate.getUTCMonth() !== month - 1 ||
-    candidate.getUTCDate() !== day
-  ) {
-    invalidRow(rowNumber, 'Date', 'Export the order again and retry the import.');
-  }
-  return { iso: candidate.toISOString().slice(0, 10), month };
-}
-
-function parseHundredths(value: string, rowNumber: number, field: string): number {
-  const match = /^(\d+)(?:\.(\d{1,2}))?$/.exec(value.trim());
-  if (!match) invalidRow(rowNumber, field, 'Use the standardized OFB CSV exporter.');
-  const amount = Number(match[1]) * 100 + Number((match[2] ?? '').padEnd(2, '0'));
-  if (!Number.isSafeInteger(amount)) {
-    invalidRow(rowNumber, field, 'The value is too large to import safely.');
-  }
-  return amount;
-}
-
-function parseCents(value: string, rowNumber: number, field: string): number {
-  const match = /^\$?(\d{1,3}(?:,\d{3})*|\d+)\.(\d{2})$/.exec(value.trim());
-  if (!match) invalidRow(rowNumber, field, 'Use the standardized OFB CSV exporter.');
-  const amount = Number(match[1].replace(/,/g, '')) * 100 + Number(match[2]);
-  if (!Number.isSafeInteger(amount)) {
-    invalidRow(rowNumber, field, 'The value is too large to import safely.');
-  }
-  return amount;
 }
 
 function headerMismatch(actual: string[]): ProcurementImportError {
