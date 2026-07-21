@@ -394,10 +394,22 @@ Key constraints:
   multiple source orders on one receiving date are normal. The revision hash
   excludes source row order, and a corrected receiving date remains a revision
   of the same source order.
-- Preserve procurement channels. Five-digit `4xxxx` products are Fresh
-  Alliance/Donated observations; other accepted four-to-six-digit identifiers
-  are OFB Warehouse observations. Combined totals may aggregate channels, but
-  filtered views must not silently merge them.
+- Preserve procurement channels. The **source reference suffix** classifies the
+  event: references ending `AGPCKUP` are Fresh Food Alliance receipts, all other
+  OFB references are Warehouse orders. Product-code prefixes are supplier
+  catalog metadata and never determine an event's channel — the `4xxxx` rule
+  described here through schema v3 was disproved by the direct-export corpus.
+  Combined totals may aggregate channels, but filtered views must not silently
+  merge them.
+- Grocery partner identity is **received, never inferred**. The Agency Pickups
+  export (extension v1.2.0) reports donor code and name directly; the Completed
+  Orders export does not. FEED records what OFB reports and never derives a
+  partner from dates, reference numbers, category mixes, or operational history.
+- The same Fresh Alliance events appear in both OFB exports under **disjoint
+  identifiers**. Never join them by rank, offset, or content fingerprint — the
+  source system does not publish a mapping, and both heuristics are refuted by
+  the corpus. See `docs/data-management/procurement-unification-plan.md`, which
+  is the North Star for procurement ingestion work.
 - OFB order-level fees and grants are not attributable to the product row on
   which the exporter places them. When a channel or acquisition filter divides
   an order, report those adjustments as unavailable rather than allocating
