@@ -11,6 +11,7 @@ import {
   OFB_HEADERS,
   OFB_SOURCE,
   ProcurementImportError,
+  getProcurementDataStatus,
   importOfbCsv,
   rollbackProcurementImports,
   restoreProcurementImports,
@@ -440,5 +441,118 @@ describe('Fresh Alliance persistence and supersede lifecycle', () => {
         data: { supersededByImportId: 7 },
       })
     );
+  });
+});
+
+describe('Per-channel coverage reporting', () => {
+  const coverageClient = (
+    warehouse: { min: string | null; max: string | null; count: number },
+    fresh: { min: string | null; max: string | null; count: number }
+  ) => {
+    const aggregate = vi.fn(async ({ where }: { where: { eventKind?: string } }) => {
+      const source = where.eventKind === 'fresh_alliance_receipt' ? fresh : warehouse;
+      return {
+        _min: { deliveryDate: source.min },
+        _max: { deliveryDate: source.max },
+        _count: { _all: source.count },
+      };
+    });
+    return {
+      client: {
+        procurementOrderRevision: {
+          findFirst: vi.fn().mockResolvedValue({ deliveryDate: '2026-07-13' }),
+          aggregate,
+        },
+      } as never,
+      aggregate,
+    };
+  };
+
+  test('reports each channel window separately rather than assuming they match', async () => {
+    // The real corpus behaves exactly this way: warehouse orders reach
+    // 2026-07-13 while Fresh Alliance entry lags at 2026-06-30.
+    const { client } = coverageClient(
+      { min: '2009-01-05', max: '2026-07-13', count: 2100 },
+      { min: '2023-06-01', max: '2026-06-30', count: 826 }
+    );
+
+    const status = await getProcurementDataStatus(
+      new Date('2026-07-20T18:00:00Z'),
+      client,
+      'America/Los_Angeles'
+    );
+
+    expect(status.coverage).toEqual({
+      warehouse: {
+        eventCount: 2100,
+        earliestDeliveryDate: '2009-01-05',
+        latestDeliveryDate: '2026-07-13',
+      },
+      freshAlliance: {
+        eventCount: 826,
+        earliestDeliveryDate: '2023-06-01',
+        latestDeliveryDate: '2026-06-30',
+      },
+    });
+  });
+
+  test('a lagging channel does not make the corpus stale', async () => {
+    // Staleness follows the newest observation FEED holds. A Fresh Alliance
+    // entry backlog is not evidence that procurement data needs refreshing,
+    // and must never read as a performance signal.
+    const { client } = coverageClient(
+      { min: '2009-01-05', max: '2026-07-13', count: 2100 },
+      { min: '2023-06-01', max: '2026-06-30', count: 826 }
+    );
+
+    const status = await getProcurementDataStatus(
+      new Date('2026-07-20T18:00:00Z'),
+      client,
+      'America/Los_Angeles'
+    );
+
+    expect(status.latestDeliveryDate).toBe('2026-07-13');
+    expect(status.daysSinceLatestDelivery).toBe(7);
+    expect(status.isStale).toBe(false);
+  });
+
+  test('reports an empty window for a channel with no observations', async () => {
+    const { client } = coverageClient(
+      { min: '2009-01-05', max: '2026-07-13', count: 2100 },
+      { min: null, max: null, count: 0 }
+    );
+
+    const status = await getProcurementDataStatus(
+      new Date('2026-07-20T18:00:00Z'),
+      client,
+      'America/Los_Angeles'
+    );
+
+    expect(status.coverage.freshAlliance).toEqual({
+      eventCount: 0,
+      earliestDeliveryDate: null,
+      latestDeliveryDate: null,
+    });
+  });
+
+  test('excludes superseded and inactive observations from every window', async () => {
+    const { client, aggregate } = coverageClient(
+      { min: '2009-01-05', max: '2026-07-13', count: 2100 },
+      { min: '2023-06-01', max: '2026-06-30', count: 826 }
+    );
+
+    await getProcurementDataStatus(
+      new Date('2026-07-20T18:00:00Z'),
+      client,
+      'America/Los_Angeles'
+    );
+
+    for (const [call] of aggregate.mock.calls as [{ where: Record<string, unknown> }][]) {
+      expect(call.where).toMatchObject({
+        isCurrent: true,
+        supersededByImportId: null,
+        import: { status: 'active' },
+      });
+    }
   });
 });
