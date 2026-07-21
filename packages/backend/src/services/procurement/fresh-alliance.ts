@@ -106,6 +106,16 @@ export interface NormalizedFreshAlliancePickup {
   submittedAt: string;
   donorCode: string;
   donorName: string;
+  /**
+   * Whether OFB has reviewed and confirmed this receipt. The current
+   * 19-column contract only ever carries Completed data (see
+   * fresh-alliance-pending-pickups.md), so this is always `true` today --
+   * hardcoded here rather than read from a column that doesn't exist yet, so
+   * every parsed pickup is self-describing without the reader needing to
+   * know that convention. The day the contract gains a `Confirmed` column,
+   * this becomes a read, not a constant.
+   */
+  isConfirmed: boolean;
   snapshotHash: string;
   warningCodes: FreshAllianceWarningCode[];
   lines: NormalizedFreshAllianceLine[];
@@ -505,6 +515,9 @@ export function parseFreshAllianceCsv(buffer: Buffer): ParsedFreshAllianceImport
         submittedAt: header.submittedAt,
         donorCode: header.donorCode,
         donorName: header.donorName,
+        // See NormalizedFreshAlliancePickup.isConfirmed: today's contract can
+        // only ever carry OFB-confirmed data.
+        isConfirmed: true,
       } as const;
       return {
         ...identity,
@@ -703,6 +716,7 @@ export async function importFreshAllianceCsv(
           submittedAt: pickup.submittedAt,
           donorCode: pickup.donorCode,
           donorName: pickup.donorName,
+          isConfirmed: pickup.isConfirmed,
         },
       });
       await tx.procurementLine.createMany({
