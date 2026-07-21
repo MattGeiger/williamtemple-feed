@@ -21,7 +21,7 @@ export interface ProcurementOrderSummary {
 
 export interface ProcurementImportRecord {
   id: number;
-  source: 'ofb';
+  source: 'ofb' | 'ofb_pickup';
   status: ProcurementImportStatus;
   schemaVersion: number;
   rowCount: number;

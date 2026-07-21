@@ -203,6 +203,33 @@ and the superseded filter together.
       response should not take the page down
 - [x] 4 backend coverage tests, 1 frontend coverage test
 
+**Validated end to end against the real corpus (2026-07-20), not mocks:**
+
+| Check | Result |
+| --- | --- |
+| Fresh Alliance weight before import (from `AGPCKUP`) | 826 events, 569,969 lb |
+| Fresh Alliance weight after import (donor-attributed) | 826 events, 569,969 lb |
+| Double counting | none — identical to the pound |
+| `AGPCKUP` events superseded | 826, marked not deleted |
+| Warehouse totals | unchanged, 1,321 events / 3,152,249 lb |
+| Rollback | supersede marks cleared, prior observations returned in full |
+| Restore | window reclaimed, 826 marks reapplied |
+| Donor roster | matches the verification record exactly, all seven partners |
+| Valuation coverage | 1,108 lines / 164,298 lb unvalued (D6) |
+| Unknown pickup times | 62 (D8) |
+
+**Two defects found during that walkthrough and fixed:**
+
+*Import History showed the raw `ofb_pickup` string.* `sourceLabel` only knew
+`ofb`. Both sources now read as "OFB Completed Orders" and "OFB Agency Pickups"
+— same portal, different export.
+
+*A full-history import returned 1,170 individual notes in a 350 KB response*,
+which the details dialog would have rendered as 1,170 rows. Repeated per-row
+observations are now summarized once per kind with a count, retaining every
+affected row number. The same import now returns two notes in 5.4 KB — a 65×
+smaller payload — and anything genuinely actionable is no longer buried.
+
 **Import became one action instead of two.** Rather than adding a second button
 and asking staff to declare which OFB export they were holding — a choice they
 could get wrong, on two files that look alike, mid-task — FEED reads the header

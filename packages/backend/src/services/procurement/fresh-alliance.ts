@@ -223,6 +223,50 @@ function conflict(message: string, details: unknown): ProcurementImportError {
   return new ProcurementImportError(message, 'FRESH_ALLIANCE_PICKUP_CONFLICT', 400, details);
 }
 
+/**
+ * Collapses per-row notes into one entry per code. The affected row numbers and
+ * the earliest affected date are preserved, so provenance is intact and a
+ * reviewer can still find every row.
+ */
+function summarizeWarnings(rawWarnings: FreshAllianceWarning[]): FreshAllianceWarning[] {
+  const byCode = new Map<FreshAllianceWarningCode, FreshAllianceWarning[]>();
+  for (const warning of rawWarnings) {
+    const group = byCode.get(warning.code) ?? [];
+    group.push(warning);
+    byCode.set(warning.code, group);
+  }
+  return [...byCode.entries()].map(([code, group]) => {
+    const rowNumbers = group.flatMap((warning) => warning.rowNumbers).sort((a, b) => a - b);
+    const deliveryDate = group
+      .map((warning) => warning.deliveryDate)
+      .reduce((earliest, date) => (date < earliest ? date : earliest));
+    return {
+      code,
+      message: group.length === 1
+        ? group[0].message
+        : summaryLabel(code, group.length),
+      deliveryDate,
+      rowNumbers,
+    };
+  });
+}
+
+function summaryLabel(code: FreshAllianceWarningCode, count: number): string {
+  const rows = `${count.toLocaleString()} row${count === 1 ? '' : 's'}`;
+  switch (code) {
+    case 'MISSING_DONOR_VALUATION':
+      return `${rows} record no donor value per pound. FEED retained their weight and excluded them from in-kind value.`;
+    case 'UNKNOWN_PICKUP_TIME':
+      return `${rows} report the 12:00 AM placeholder OFB uses when no pickup time was recorded. FEED retained the pickup date without a time.`;
+    case 'RECEIVED_VARIANCE':
+      return `${rows} report received values that differ from the requested quantity or weight. FEED retained both.`;
+    case 'PERIOD_MISMATCH':
+      return `${rows} use a period label that disagrees with the pickup date. FEED used the pickup date.`;
+    case 'DEPRECATED_PRODUCT_CODE':
+      return `${rows} use a supplier product code the source marks as deprecated. FEED retained the historical observations.`;
+  }
+}
+
 export function parseFreshAllianceCsv(buffer: Buffer): ParsedFreshAllianceImport {
   if (buffer.length === 0) {
     throw new ProcurementImportError(
@@ -271,7 +315,13 @@ export function parseFreshAllianceCsv(buffer: Buffer): ParsedFreshAllianceImport
     );
   }
 
-  const warnings: FreshAllianceWarning[] = [];
+  // Collected per row, then aggregated by code before returning. A
+  // full-history import legitimately produces one note per row for
+  // characteristics like an absent donor valuation — 1,108 of them in the real
+  // corpus. Returning those individually buries anything actionable and makes
+  // the response enormous, so identical notes are summarized into one entry
+  // that keeps every affected row number.
+  const rawWarnings: FreshAllianceWarning[] = [];
   // Pickup-level facts are repeated on every line of a pickup. The first row
   // establishes them; later rows must agree or the snapshot is ambiguous.
   interface PickupHeader {
@@ -292,7 +342,7 @@ export function parseFreshAllianceCsv(buffer: Buffer): ParsedFreshAllianceImport
     const sourcePeriod = record.Period.trim();
     const expectedPeriod = `${parsedDate.month}-${monthNames[parsedDate.month]}`;
     if (sourcePeriod !== expectedPeriod) {
-      warnings.push({
+      rawWarnings.push({
         code: 'PERIOD_MISMATCH',
         message: `Row ${rowNumber} uses period ${sourcePeriod}; the pickup date belongs to ${expectedPeriod}.`,
         deliveryDate: parsedDate.iso,
@@ -331,7 +381,7 @@ export function parseFreshAllianceCsv(buffer: Buffer): ParsedFreshAllianceImport
         submittedAt, donorCode, donorName,
       });
       if (pickupTime === null) {
-        warnings.push({
+        rawWarnings.push({
           code: 'UNKNOWN_PICKUP_TIME',
           message: `Pickup ${sourcePickupReference} reports ${rawPickupTime}, which OFB uses when no pickup time was recorded. FEED retained the pickup date without a time.`,
           deliveryDate: parsedDate.iso,
@@ -364,7 +414,7 @@ export function parseFreshAllianceCsv(buffer: Buffer): ParsedFreshAllianceImport
       invalidRow(rowNumber, 'Product Description', 'Export the pickup range again and retry.', ERROR_CODE);
     }
     if (/\b(?:DO NOT USE|DON'T USE)\b/i.test(sourceDescription)) {
-      warnings.push({
+      rawWarnings.push({
         code: 'DEPRECATED_PRODUCT_CODE',
         message: `Row ${rowNumber} uses supplier product code ${productCode}, which the source description marks as deprecated. FEED retained the historical observation.`,
         deliveryDate: parsedDate.iso,
@@ -386,7 +436,7 @@ export function parseFreshAllianceCsv(buffer: Buffer): ParsedFreshAllianceImport
       receivedQuantityHundredths === quantityHundredths &&
       receivedWeightHundredths === weightHundredths;
     if (!receivedMatchesRequested) {
-      warnings.push({
+      rawWarnings.push({
         code: 'RECEIVED_VARIANCE',
         message: `Row ${rowNumber} reports received values that differ from the requested quantity or weight. FEED retained both.`,
         deliveryDate: parsedDate.iso,
@@ -401,7 +451,7 @@ export function parseFreshAllianceCsv(buffer: Buffer): ParsedFreshAllianceImport
     );
     const hasDonorValuation = donorValuePerPoundCents > 0;
     if (!hasDonorValuation) {
-      warnings.push({
+      rawWarnings.push({
         code: 'MISSING_DONOR_VALUATION',
         message: `Row ${rowNumber} records no donor value per pound. FEED retained the weight and excluded the row from in-kind value.`,
         deliveryDate: parsedDate.iso,
@@ -442,7 +492,7 @@ export function parseFreshAllianceCsv(buffer: Buffer): ParsedFreshAllianceImport
       const header = headersByReference.get(sourcePickupReference)!;
       const rowNumbers = new Set(pickupLines.map((line) => line.sourceRowNumber));
       const warningCodes = [...new Set(
-        warnings
+        rawWarnings
           .filter((warning) => warning.rowNumbers.some((rowNumber) => rowNumbers.has(rowNumber)))
           .map((warning) => warning.code)
       )];
@@ -463,6 +513,8 @@ export function parseFreshAllianceCsv(buffer: Buffer): ParsedFreshAllianceImport
         lines: pickupLines,
       };
     });
+
+  const warnings = summarizeWarnings(rawWarnings);
 
   return {
     fileHash: createHash('sha256').update(buffer).digest('hex'),
