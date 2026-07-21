@@ -350,6 +350,36 @@ extension v2.0.0 work:
   desktop and mobile width, light and dark theme, and with the Custom Range
   popover open while scrolled (no z-index conflict).
 
+**"Other paid products" became a real stacked bar — landed 2026-07-21.** The
+Cell-based single-color workaround from the prior pass was a deliberate,
+disclosed compromise: the family breakdown existed only in the tooltip, not
+as a visible segmented bar, because a 14-series `stackId` stack rendered zero
+geometry. Investigated further rather than left as the final answer: this
+is a documented Recharts limitation (recharts/recharts#3883, "Stacked Bar
+Chart disappears when stackId is added for complex datasets"), reproduced
+here even after eliminating undefined per-series values, not something
+specific to this data or a bug in the aggregation.
+
+Fix: stop using Recharts' native per-series stacking entirely. `Bar` now
+takes a custom `shape` (`PaidProductBarShape`) that draws each row's
+`segments` as adjacent `<rect>`s sized directly from the real dollar values,
+clipped to a shared rounded rect so the bar's outer corners stay rounded
+while interior segment boundaries stay square — the same visual result a
+native stack would give, without touching the mechanism that doesn't render.
+`buildPaidProductChartSeries` was reshaped to match: every row (ordinary or
+aggregate) now carries a unified `segments: Array<{family, spendDollars}>`
+instead of the previous sparse per-family-key record plus a separate
+`familyBreakdown` field, which removes the `familyKeyOf` helper the Cell
+approach needed.
+
+Verified this time by measuring actual rendered geometry in the browser, not
+just checking the code compiles: 47 painted rects across 16 rows (15 ordinary
++ 1 aggregate, each contributing one clip-path rect, plus 30 colored segment
+rects — 15 ordinary rows × 1 segment, 15 segments on the aggregate row
+alone), and the aggregate row's measured segment widths converted back to
+percentages (30.9%, 11.9%, 11.2%, …) match the known family shares to within
+pixel-rounding error. Confirmed in both light and dark theme.
+
 **Fresh Food Alliance Receipt Categories gained donor identity, sortable
 headers, and a donor filter — landed 2026-07-20.** The table's stale
 description ("Partner identity is unavailable in this source and is never
