@@ -37,6 +37,21 @@ The remaining 240 errors are deeper-rooted (API drift in
 union narrowing, etc.) and require domain investigation rather than
 mechanical fixes. Documented below for future passes.
 
+## Update (2026-07-20)
+
+Baseline confirmed stale: a real `tsc --noEmit --project tsconfig.app.json`
+run at the start of that session's work (commit `bd30ae9`) reported 292
+distinct errors, not 240 — the debt has grown as new tables were added using
+the same `EnhancedDataTable`/`ColumnDef` pattern documented below. That same
+session also discovered that a bare `npx tsc --noEmit` run from
+`packages/frontend` (no `--project` flag) checks zero files and reports
+success unconditionally, because the frontend root `tsconfig.json` is a
+solution-style file (`"files": []` + `references`). Every prior "typecheck
+passed" claim made that way in that session was meaningless. See the AGENTS.md
+"Lessons From Recent Work" entry for the fix and how it was verified against
+an isolated historical baseline. This file's counts remain a point-in-time
+snapshot, not a live-tracked number — re-verify before citing them.
+
 This document captures the state of pre-existing TypeScript errors in the
 frontend project, why they exist, what they cost us, and how to address
 them when we choose to. They have been deferred — they do not block v1.0.0
