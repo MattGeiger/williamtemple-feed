@@ -1,0 +1,237 @@
+# Procurement Unification Plan
+
+**Started:** 2026-07-20
+**Status:** Phases 1–2 complete; Phase 3 next
+**Owner doc:** this file is the North Star for procurement data ingestion. Update
+it as each phase lands. Do not rely on session memory for any decision recorded
+here.
+
+## North Star
+
+FEED reports Oregon Food Bank supply — warehouse and Fresh Food Alliance —
+**correctly, completely, and with donor attribution**, using data staff can get
+into the system without careful manual assembly.
+
+Correctness first, then attribution, then convenience. In that order, always.
+
+## Why this work exists
+
+FEED's procurement foundation shipped against one export format. OFB's portal
+actually exposes the same Fresh Alliance donation events through **two**
+exports with **different identifiers**:
+
+- **Completed Orders** — the established 12-column ledger. Fresh Alliance
+  events appear as `Order #` values ending `AGPCKUP`, with all money columns
+  `$0.00`.
+- **Agency Pickups** — a 19-column export added in extension v1.2.0. The same
+  events, keyed by `Pickup Reference`, **with donor identity**.
+
+Importing both today would double-count Fresh Alliance weight. FEED also cannot
+parse the second format at all. That is the defect blocking a production-ready
+MVP; automation of any kind would only deliver wrong numbers faster.
+
+Full evidence: [fresh-alliance-coverage-verification.md](fresh-alliance-coverage-verification.md).
+
+## Settled decisions
+
+Each is load-bearing. Revisit only with a new explicit decision recorded here.
+
+### D1 — Supersede rather than join
+The `AGPCKUP` subset of Completed Orders is verified to carry no information the
+Agency Pickups export lacks (3,933 rows, 2023–2026, all money columns `$0.00`).
+Where a Fresh Alliance import covers a date window, `AGPCKUP`-derived
+observations in that window are marked superseded — not deleted.
+
+Superseding is window-bounded even though this agency's corpus needs no
+bounding, so a partial Fresh Alliance import can never suppress an uncovered
+period.
+
+### D2 — No derived cross-reference between identifier spaces
+No rank-based, offset-based, or content-fingerprint join between `Pickup
+Reference` and `Order #`. The source system does not publish the mapping;
+deriving one manufactures identity. Empirically refuted as well — 304 rank
+inversions across 824 events.
+
+### D3 — Fresh Alliance imports use their own `source`
+Persisted under `source = 'ofb_pickup'`, separate from `source = 'ofb'`. This
+gives an independent revision lineage and independent rollback, and removes any
+possibility of reference collision between the two identifier spaces.
+
+### D4 — Donor identity is received, never inferred
+FEED records the donor OFB reports. FEED never infers a partner from dates,
+reference numbers, category mixes, or operational history. The prohibition in
+`AGENTS.md` stands; what changed is that OFB now *reports* donor identity, so
+the claim that it cannot is obsolete.
+
+### D5 — The donor dimension is open
+Derived from observed data. No fixed enum, no seeded partner list. Partners
+start and stop; absence from a range is not evidence of withdrawal.
+
+### D6 — In-kind value is partial and must say so
+29% of Fresh Alliance poundage carries no recorded donor valuation. Persist the
+per-row rate; never multiply weight by a single rate. Every value figure states
+its coverage.
+
+### D7 — Temperature is parsed and discarded
+Validated when present so malformed exports still fail, but not persisted. The
+agency keeps separate, more detailed food-safety temperature logs; these
+readings are not operationally actionable in FEED.
+
+### D8 — `12:00 AM` pickup time means unknown
+A missing-time default, not an observed midnight collection. Surface as a
+data-quality warning; never render as an observed hour.
+
+### D9 — Legacy XLSX history is a separate domain, not a backfill
+`In-Kind Donations FY20xx` and `Social Services Tracking FY20xx` are
+agency-authored records of direct community donations and client services — not
+OFB supply. The OFB corpus already reaches 2009 for warehouse orders and 2023
+for Fresh Alliance, which is the complete OFB picture.
+
+These files get their own source contract, validation, revision, and rollback
+rules when the time comes. They are **not** to be coerced into the procurement
+schema. Post-MVP; valuable, but separate.
+
+### D10 — CSV import stays, permanently
+Whatever transport is added later, file import remains a documented, supported
+path. When a network path fails during a distribution day, staff need a route
+that does not depend on it.
+
+### D11 — Transport is not on the MVP path
+Server-side credentialed fetch and extension-to-FEED push are both viable and
+both deferred. See "Transport, deferred" below. The MVP blocker is correctness,
+not convenience.
+
+## Phases
+
+Each phase is independently shippable. Check items off in place.
+
+### Phase 1 — Verify historical coverage ✅ complete (2026-07-20)
+- [x] Full-history Fresh Alliance export obtained (3,933 rows, 826 events, from 2023-06-01)
+- [x] Year-by-year parity against the `AGPCKUP` subset — exact, zero delta
+- [x] Confirmed no `AGPCKUP` event lacks a Fresh counterpart, and vice versa
+- [x] Confirmed all money columns `$0.00` across the full corpus
+- [x] Findings recorded in [fresh-alliance-coverage-verification.md](fresh-alliance-coverage-verification.md)
+
+**Gate result: passed.** Superseding is lossless over the full 826-event history.
+
+### Phase 2 — Fresh Alliance parser ✅ complete (2026-07-20)
+Pure normalization, no schema change, no persistence. Reviewable in isolation
+and validated against the real 3,933-row corpus.
+
+- [x] `parseFreshAllianceCsv` against the exact 19-column contract
+      — `packages/backend/src/services/procurement/fresh-alliance.ts`
+- [x] Donor code/name, pickup ID/reference/line ID, pickup time, submitted timestamp
+- [x] Received qty/weight, Fresh Alliance category, donor value per pound
+- [x] Temperature validated then discarded (D7)
+- [x] Unknown-time warning for `12:00 AM` (D8)
+- [x] Missing-valuation warning where rate is `0.00`, weight retained (D6)
+- [x] Event grouping by `Pickup Reference` with deterministic snapshot hash
+      (row-order independent; changes when donor changes)
+- [x] Structural failures reject; reconcilable anomalies warn
+- [x] 14 tests including a corpus test over the full real export
+      — `packages/backend/__tests__/features/procurement/fresh-alliance-import.test.ts`
+
+Also landed: parsing primitives extracted to
+`packages/backend/src/services/procurement/parsing.ts` and shared by both
+parsers, so the date, numeric, reference, and product-family contracts cannot
+drift between them. `index.ts` re-exports `ProcurementImportError`,
+`ACQUISITION_CLASSES`, and `AcquisitionClass` so its public API is unchanged.
+
+**Channel classification is file-level here.** Every event in the Agency Pickups
+export is a Fresh Alliance receipt because of the export it came from; reference
+suffixes and product-code prefixes are not consulted. This is stricter and more
+honest than the suffix inference the 12-column path must use.
+
+The corpus test is gated on `existsSync` because the real export is gitignored
+agency data. It runs locally for anyone holding the file and skips in CI.
+
+### Phase 3 — Persistence and supersede
+- [ ] Schema: donor and pickup fields on revision; received/valuation/FA-category on line
+- [ ] Schema: supersede marker on `ProcurementOrderRevision`, reversible
+- [ ] Import path under `source = 'ofb_pickup'` (D3) with revisions and rollback
+- [ ] Window-bounded supersede of `source = 'ofb'` + `fresh_alliance_receipt` (D1)
+- [ ] Rollback of a Fresh Alliance import clears its supersede marks
+- [ ] Analytics excludes superseded revisions
+- [ ] Migration verified against a restored production copy before deploy
+
+### Phase 4 — Coverage visibility
+- [ ] Coverage strip in Data Management: `Warehouse: … · Fresh Alliance: …`
+- [ ] Mismatched windows surface as a calm prompt, not a score
+- [ ] This is what makes an incomplete import visible instead of silently under-reporting
+
+### Phase 5 — Donor analytics
+- [ ] Donor mix
+- [ ] Donor × category matrix
+- [ ] Donor contribution over time
+- [ ] Per-donor pickup cadence (visit count vs. average load)
+- [ ] Donor filter, scoped to the Fresh Alliance channel
+- [ ] In-kind value with explicit coverage caveat (D6)
+- [ ] Observations only — no editorializing about why a partner's volume moved
+
+**Phases 1–5 constitute the production-ready MVP.**
+
+### Phase 6+ — Polish, post-MVP
+- Extension v2.0.0 unified export: one workflow, one date range, one file,
+  refuse-partial across both channels. Makes coverage mismatch structurally
+  impossible rather than merely visible, and retires the supersede rule for new
+  data.
+- Legacy XLSX ingestion as its own domain (D9).
+
+## Transport, deferred
+
+Explored in depth on 2026-07-20 and deliberately deferred behind correctness
+(D11). Recorded so the reasoning is not relitigated from scratch.
+
+**Established:** OFB does not grant agencies API access — a walled garden.
+Primarius exposes Orders and Agency Pickups as unrelated entities; neither
+carries the other's identifier, so the join genuinely does not exist upstream.
+
+**Option A — Extension pushes to FEED.** Extension already holds a legitimate
+authenticated session. Costs a host permission and a FEED-issued token. No
+credential custody, no autonomous login, no backend scraping. Cheaper than
+previously assessed: the extension is distributed unpacked in Chrome Developer
+Mode, so no Web Store review gates it.
+
+**Option B — Server-side fetch.** FEED stores Primarius credentials using the
+existing AES-256-GCM infrastructure and drives Puppeteer, which is already in
+the backend for PDF rendering. Closest to the desired UX.
+
+Conditions agreed before Option B is built:
+- **Read-only tenant** from OFB rather than an individual's login. Highest-
+  leverage risk reduction available; worth requesting regardless of transport.
+- **No scheduler.** User-initiated, one click only.
+- **Rate and range constraints** so FEED cannot burden OFB's servers.
+- Extract the extension's normalization logic into a package shared by the
+  extension and the backend. `export-core.js` and `fresh-alliance-core.js` are
+  already isomorphic (UMD, `module.exports`/`require`). Product-code edge cases
+  took extension releases v1.1.1–v1.1.3 to get right; a second implementation
+  would drift, and the failure mode is silently wrong normalization. This is a
+  prerequisite for Option B, not a nice-to-have.
+- The PDF Chromium path is a sealed offline renderer — request interception with
+  an allowlist that aborts everything else. An authenticated session must be a
+  separate, separately-configured browser context, not an extension of it.
+
+**Note on scope:** FEED's revision-hash model already makes incremental append
+mostly free — an identical snapshot is a no-op. Incremental fetching is
+politeness toward OFB's servers, not a correctness requirement.
+
+## Tracking progress empirically
+
+Claims about this feature should be checkable, not remembered:
+
+- **Coverage parity** — the year-by-year table in the verification record.
+  Re-run if the export contract changes.
+- **Supersede correctness** — total Fresh Alliance weight must be unchanged
+  after a Fresh Alliance import supersedes the `AGPCKUP` population. 569,969 lb
+  through 2026-07-14 is the reference figure.
+- **No double counting** — combined inbound weight must not increase when the
+  same period is imported through both formats.
+- **Donor totals** — the roster table in the verification record is the expected
+  output of Phase 5's donor mix once the full corpus is loaded.
+
+## Related documents
+
+- [procurement-imports.md](procurement-imports.md) — the import contract
+- [fresh-alliance-coverage-verification.md](fresh-alliance-coverage-verification.md) — Phase 1 evidence
+- `docs/reports/operational-analytics-design.md` — analytics source of truth
+- `AGENTS.md` § Operational Analytics Direction — standing constraints

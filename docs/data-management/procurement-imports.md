@@ -221,15 +221,44 @@ This validation does not authorize semantic mapping, category synthesis, or
 AI-assisted links to FEED Food Items. Exact supplier-product price history and
 direct analytics export remain later, separately reviewed increments.
 
-## Future agency partner-data ingestion
+## Grocery partner identity
 
-OFB exports do not identify the grocery partner behind a Fresh Food Alliance
-receipt. FEED must not infer Amazon, Fred Meyer, Trader Joe's, or another
-partner from dates, reference numbers, category mixes, or operational history.
+**Superseded July 2026.** This section previously stated that OFB exports do not
+identify the grocery partner behind a Fresh Food Alliance receipt, and routed
+partner-level analytics to a future agency-authored XLSX pipeline. The first
+claim is no longer true.
 
-William Temple House tracks partner identity in separate agency-authored XLSX
-files. Supporting partner-level analytics requires a separate, versioned XLSX
-ingestion pipeline with its own source contract, validation, revision, and
-rollback rules. Those observations may later aggregate with OFB procurement by
-weight, date, and defensible category, while retaining their independent
-provenance. The OFB importer must never manufacture partner identity.
+The **Completed Orders** export does not identify the partner. The **Agency
+Pickups** export — added in OFB Order CSV Exporter v1.2.0 — reports donor code
+and donor name directly, from the same authoritative source system. Partner
+identity is now *received*, not unavailable.
+
+What has not changed: **FEED must never infer** Amazon, Fred Meyer, Trader
+Joe's, or another partner from dates, reference numbers, category mixes, or
+operational history. FEED records the donor OFB reports and nothing more. The
+prohibition on manufacturing partner identity stands in full.
+
+The observed donor roster is open and changes over time — partners start and
+stop participating. FEED derives it from imported data. There is no fixed enum
+and no seeded partner list, and a partner's absence from a date range is not
+evidence that it stopped donating.
+
+See [procurement-unification-plan.md](procurement-unification-plan.md) for the
+ingestion phases and
+[fresh-alliance-coverage-verification.md](fresh-alliance-coverage-verification.md)
+for the corpus evidence.
+
+## Future agency-authored historical ingestion
+
+William Temple House holds pre-FEED history in assorted XLSX and XLS files —
+`In-Kind Donations FY20xx`, `Social Services Tracking FY20xx`. These are **not**
+older OFB procurement data and must not be coerced into the procurement schema.
+They record direct community donations and client services: a different domain
+with different meaning.
+
+The OFB corpus already reaches 2009 for Warehouse Orders and 2023-06-01 for
+Fresh Alliance receipts, which is the complete OFB picture. Ingesting the XLSX
+history is additive breadth, not backfill, and requires its own versioned
+pipeline with its own source contract, validation, revision, and rollback rules.
+Those observations may later aggregate with OFB procurement by weight, date, and
+defensible category while retaining independent provenance.
