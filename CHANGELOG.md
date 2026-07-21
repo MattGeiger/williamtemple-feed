@@ -94,6 +94,11 @@ All notable changes to FEED are documented here. This project adheres to
 
 ### Fixed
 
+- **"Last Received" columns are sortable**: the three procurement tables that
+  had a Last Received date column but no sort control on it — Paid OFB
+  Warehouse Products, OFB Warehouse Product History, and Fresh Food Alliance
+  Receipt Categories — now sort ascending and descending like every other
+  sortable column in those tables.
 - **The "Other paid products" bar is now a real stacked bar**: the aggregate
   row's family breakdown was previously visible only in its tooltip; it now
   renders as visually adjacent, proportionally sized, family-colored segments
