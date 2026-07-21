@@ -64,10 +64,24 @@ All notable changes to FEED are documented here. This project adheres to
   comes only from the OFB Agency Pickups export; FEED never infers it. These are
   descriptive observations, not an assessment: FEED does not rank partners,
   score them, or explain why a partner's volume moved.
+- **Partner contribution over time**: a monthly line per grocery partner, with
+  a partner filter offering select-all and clear-all. Months without a delivery
+  render as zero rather than bridging the gap, so the chart never implies a
+  delivery that did not happen.
 - **Recorded donated value with stated coverage**: in-kind value is summed only
   where Oregon Food Bank recorded a rate, and the card leads with the percentage
   of pounds that covers. Pounds without a recorded rate are shown alongside the
   total and are never assigned an estimated rate.
+
+### Fixed
+
+- **Error messages no longer expose internal failure detail**: unhandled server
+  errors previously reached the browser verbatim, so a database or runtime fault
+  could surface a toast containing server file paths, the failing query, and
+  schema internals. Internal failures are now logged and replaced with an
+  actionable message, while messages FEED deliberately wrote for staff continue
+  to appear unchanged. A second guard in the frontend rejects developer-facing
+  text from any source.
 
 ### Changed
 

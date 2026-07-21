@@ -970,6 +970,7 @@ export function ProcurementAnalyticsWorkspace({
         <DonorAnalytics
           donors={analytics.donors}
           donorValue={analytics.donorValue}
+          donorMonthlyWeight={analytics.donorMonthlyWeight}
           formatDate={(isoDate) => format(parseISO(isoDate), 'MMM d, yyyy')}
         />
       )}
