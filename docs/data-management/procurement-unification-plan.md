@@ -1,7 +1,7 @@
 # Procurement Unification Plan
 
 **Started:** 2026-07-20
-**Status:** Phases 1–5 complete — MVP scope delivered, no dormant surfaces; Phase 6+ is polish
+**Status:** Phases 1–5 complete (MVP). Phase 6 (Fresh Alliance confirmation status): FEED schema executed 2026-07-21, extension deferred to a future session.
 **Owner doc:** this file is the North Star for procurement data ingestion. Update
 it as each phase lands. Do not rely on session memory for any decision recorded
 here.
@@ -111,6 +111,53 @@ It never implies lateness, fault, or a target — no "overdue", no "incomplete",
 no progress bars toward a coverage goal, no red. A gap measures available
 data-entry time, not performance. The food arrived and was distributed whether
 or not anyone had time to type it in.
+
+### D13 — Fresh Alliance includes Pending; OFB Warehouse stays Completed-only
+A live, read-only investigation of the Primarius portal on 2026-07-21
+(recorded in full in
+[fresh-alliance-pending-pickups.md](fresh-alliance-pending-pickups.md))
+established that the coverage gap D12 describes is a real OFB review queue,
+not a data-entry backlog alone: Agency Pickups has a Pending tab, and Pending
+and Completed are **the same underlying records** — confirmed by a continuous,
+non-overlapping `Id`/`ReferenceCode` sequence across both, and directly by
+searching Completed for a known Pending reference (zero results). Moving from
+Pending to Completed flips a flag on the existing row; it does not create a
+new one.
+
+This resolves the duplication concern that motivated the investigation:
+FEED's existing revision model, keyed on `ReferenceCode`, already treats a
+later re-import of the same reference as a new revision of the same event,
+whether or not its confirmation status changed. No new deduplication logic
+is required.
+
+The two OFB channels are not treated the same way, and this is a permanent
+distinction, not a temporary compromise:
+
+- **Fresh Alliance Pending is included.** The agency is the authoritative
+  observer — staff already collected and weighed the donation before OFB
+  ever reviews the record. OFB's confirmation is a downstream paperwork step
+  on an observation the agency already made in full. Historically, confirmed
+  weight has equaled requested weight on all 3,933 corpus rows.
+- **OFB Warehouse stays Completed-only.** Checked Order History directly:
+  its equivalent "Active" tab held an order in `DataEntry` status, moving
+  through a `Released / Picked / Confirmed` pipeline controlled by OFB, not
+  the agency. An Active order is a request, not an observation — quantities
+  legitimately change during fulfillment (an item may be unavailable, or
+  substituted). Importing it would violate the same "never infer, never
+  treat a request as a fact" principle that governs the rest of this
+  project. This does not change without new evidence that OFB's fulfillment
+  process works differently than observed here.
+
+**A value must never be reshaped to resolve an ambiguity a status flag
+already resolves.** An earlier draft of this decision proposed representing
+a Pending pickup's `Received Weight` as blank rather than the `0` Primarius
+actually reports, on the reasoning that `0` "reads as nothing was picked
+up." That doesn't survive contact with the schema's own existing pattern:
+`hasDonorValuation` already sits next to a real, possibly-`0` rate rather
+than nulling it out. The fix here is the same — report the real value, add
+`isConfirmed` to say what it means. Requested weight, including a genuine
+`0` for a category that was not collected in a given pickup, was never in
+question and is untouched by any of this.
 
 ## Phases
 
@@ -272,11 +319,35 @@ happen.
 
 **Phases 1–5 constitute the production-ready MVP.**
 
-### Phase 6+ — Polish, post-MVP
-- Extension v2.0.0 unified export: one workflow, one date range, one file,
-  refuse-partial across both channels. Makes coverage mismatch structurally
-  impossible rather than merely visible, and retires the supersede rule for new
-  data.
+### Phase 6 — Fresh Alliance confirmation status 🔄 FEED complete, extension deferred (2026-07-21)
+Full findings in
+[fresh-alliance-pending-pickups.md](fresh-alliance-pending-pickups.md); decision
+recorded as D13.
+
+- [x] Investigated Primarius Pending/Completed live, read-only, production —
+      confirmed same-record identity, confirmed the Warehouse/Fresh-Alliance
+      asymmetry with direct evidence, resolved the duplication question
+- [x] FEED schema: `isConfirmed` on `ProcurementOrderRevision` — nullable,
+      Fresh Alliance only, `true` for everything the current 19-column
+      contract can produce (that contract structurally cannot carry
+      unconfirmed rows today)
+- [x] FEED parser and persistence updated and tested; migration verified
+      against a production-shaped copy
+- [ ] **Deferred to a future session, deliberately.** Extension v2.0.0: one
+      action pulling Completed Orders (Warehouse, unchanged), Agency Pickups
+      Completed (unchanged), and Agency Pickups **Pending** (new) into one
+      file; a new `Confirmed` column on Fresh Alliance rows only; a same-run
+      race guard (fetch Completed first, exclude any reference already seen
+      when pulling Pending) since a pickup can transition mid-export; refuse-
+      partial extended to all three fetches equally. Full technical spec
+      lives in the extension's own repository so a session starting cold
+      there — a different model, no FEED context — has everything it needs:
+      `OFB Data Fetch Plugin/docs/fresh-alliance-pending-pickups-v2-design.md`.
+- [ ] **Deferred, not yet decided.** How Analytics treats pending weight once
+      the extension can produce it (include-and-flag vs. exclude-and-surface-
+      separately vs. show both) — an agency decision, not a schema one.
+
+### Phase 7+ — Further polish, post-MVP
 - Legacy XLSX ingestion as its own domain (D9).
 
 ## Transport, deferred
@@ -317,10 +388,11 @@ Conditions agreed before Option B is built:
 mostly free — an identical snapshot is a no-op. Incremental fetching is
 politeness toward OFB's servers, not a correctness requirement.
 
-## Phase 6 polish landed so far
+## Analytics UI polish landed after the MVP
 
-Two of the analytics-page requests from review landed as polish, ahead of the
-extension v2.0.0 work:
+Unrelated to Phase 6 above (naming coincidence only — this predates the
+confirmation-status work). Two of the analytics-page requests from review
+landed as polish, ahead of the extension work:
 
 - **Seasonal channel breakdown.** `seasonalChannelWeight` (added earlier as a
   computed-but-unwired field — see the Phase 5 note above) now backs a channel
@@ -464,5 +536,6 @@ Claims about this feature should be checkable, not remembered:
 
 - [procurement-imports.md](procurement-imports.md) — the import contract
 - [fresh-alliance-coverage-verification.md](fresh-alliance-coverage-verification.md) — Phase 1 evidence
+- [fresh-alliance-pending-pickups.md](fresh-alliance-pending-pickups.md) — Phase 6 evidence: the live Primarius investigation, D13's basis
 - `docs/reports/operational-analytics-design.md` — analytics source of truth
 - `AGENTS.md` § Operational Analytics Direction — standing constraints

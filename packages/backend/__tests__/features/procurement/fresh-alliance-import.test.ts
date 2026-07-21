@@ -82,6 +82,9 @@ describe('Fresh Alliance pickup import normalization', () => {
       submittedAt: '2026-01-06T14:33',
       donorCode: 'RTJ146',
       donorName: "Trader Joe's - Northwest",
+      // Today's 19-column contract can only carry OFB-confirmed pickups; see
+      // fresh-alliance-pending-pickups.md.
+      isConfirmed: true,
     });
     expect(parsed.pickups[0].lines).toHaveLength(2);
     expect(parsed.pickups[0].lines[0]).toMatchObject({
@@ -257,6 +260,10 @@ describe.skipIf(!existsSync(corpusPath))('Fresh Alliance authoritative corpus', 
     const donors = new Set(parsed.pickups.map((pickup) => pickup.donorCode));
     expect(donors.size).toBe(7);
 
+    // The real corpus is entirely OFB-confirmed history; every pickup parses
+    // as confirmed until the extension can emit an unconfirmed row.
+    expect(parsed.pickups.every((pickup) => pickup.isConfirmed === true)).toBe(true);
+
     const codes = new Set(parsed.warnings.map((warning) => warning.code));
     expect([...codes].sort()).toEqual(['MISSING_DONOR_VALUATION', 'UNKNOWN_PICKUP_TIME']);
 
@@ -314,6 +321,7 @@ describe('Fresh Alliance persistence and supersede lifecycle', () => {
           sourcePickupId: '445624',
           pickupTime: '09:00',
           submittedAt: '2026-01-06T14:33',
+          isConfirmed: true,
         }),
       })
     );

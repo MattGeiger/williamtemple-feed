@@ -91,6 +91,16 @@ All notable changes to FEED are documented here. This project adheres to
   where Oregon Food Bank recorded a rate, and the card leads with the percentage
   of pounds that covers. Pounds without a recorded rate are shown alongside the
   total and are never assigned an estimated rate.
+- **Fresh Alliance revisions record OFB confirmation status**: a new
+  `isConfirmed` field, sourced directly from Primarius's own review flag
+  rather than inferred, lays groundwork for a future extension update that
+  can report pickups the agency has already logged but OFB has not yet
+  reviewed. Every pickup imported through the current export contract is
+  backfilled and recorded as confirmed, because that contract can only ever
+  carry OFB-reviewed data today; nothing about current import or analytics
+  behavior changes. A live, read-only investigation of the Primarius portal
+  found this review queue and confirmed it introduces no duplication risk,
+  recorded in `docs/data-management/fresh-alliance-pending-pickups.md`.
 
 ### Fixed
 

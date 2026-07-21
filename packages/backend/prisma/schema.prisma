@@ -170,6 +170,15 @@ model ProcurementOrderRevision {
   donorCode            String?
   donorName            String?
 
+  // Whether OFB has reviewed and confirmed this Fresh Alliance receipt
+  // (Primarius's own `SystemReceived` flag, reported not inferred). Null for
+  // OFB Warehouse revisions, where the concept does not apply -- Warehouse
+  // orders are never imported except Completed. Every Fresh Alliance import
+  // through the current 19-column contract sets this true, because that
+  // contract structurally can only carry OFB-confirmed rows today. See
+  // fresh-alliance-pending-pickups.md (D13).
+  isConfirmed          Boolean?
+
   // Set when a Fresh Alliance import covers this event's receiving date, so
   // the donor-attributed observation replaces the Completed Orders AGPCKUP
   // observation of the same event without deleting it. Cleared when that
@@ -187,6 +196,7 @@ model ProcurementOrderRevision {
   @@index([snapshotHash])
   @@index([supersededByImportId])
   @@index([donorCode])
+  @@index([source, isConfirmed])
 }
 
 // Stable identity supplied by the source system. Descriptions remain on each
