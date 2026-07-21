@@ -159,6 +159,23 @@ model ProcurementOrderRevision {
   warningCodes         Json
   isCurrent            Boolean           @default(true)
   createdAt            DateTime          @default(now())
+
+  // Agency Pickups provenance. Null for Completed Orders revisions, which
+  // report no donor. FEED records the donor the source reports and never
+  // infers one. `pickupTime` is null when the source emitted its 12:00 AM
+  // missing-time placeholder.
+  sourcePickupId       String?
+  pickupTime           String?
+  submittedAt          String?
+  donorCode            String?
+  donorName            String?
+
+  // Set when a Fresh Alliance import covers this event's receiving date, so
+  // the donor-attributed observation replaces the Completed Orders AGPCKUP
+  // observation of the same event without deleting it. Cleared when that
+  // import is rolled back. See procurement-unification-plan.md (D1).
+  supersededByImportId Int?
+
   import               ProcurementImport @relation(fields: [importId], references: [id])
   lines                ProcurementLine[]
 
@@ -168,6 +185,8 @@ model ProcurementOrderRevision {
   @@index([source, deliveryDate, isCurrent])
   @@index([importId])
   @@index([snapshotHash])
+  @@index([supersededByImportId])
+  @@index([donorCode])
 }
 
 // Stable identity supplied by the source system. Descriptions remain on each
@@ -206,6 +225,20 @@ model ProcurementLine {
   priceTotalMatches         Boolean
   serviceFeeCents           Int
   grantsAppliedCents        Int
+
+  // Agency Pickups observations. Null on Completed Orders lines, which report
+  // none of these. `donorValuePerPoundCents` of 0 with
+  // `hasDonorValuation = false` means OFB recorded no valuation — not a
+  // zero-value donation. 29% of historical poundage arrives this way, so the
+  // weight must never be dropped and value must never be imputed from a rate.
+  sourcePickupLineId         String?
+  freshAllianceCategory      String?
+  receivedQuantityHundredths Int?
+  receivedWeightHundredths   Int?
+  receivedMatchesRequested   Boolean?
+  donorValuePerPoundCents    Int?
+  hasDonorValuation          Boolean?
+
   orderRevision             ProcurementOrderRevision @relation(fields: [orderRevisionId], references: [id])
   product                   ProcurementProduct       @relation(fields: [productId], references: [id])
 

@@ -15,9 +15,13 @@
 // product-code prefixes are not consulted.
 
 import { createHash } from 'crypto';
+import { Prisma } from '@prisma/client';
 import { parse } from 'csv-parse/sync';
+import prisma from '../../db';
 import {
   AcquisitionClass,
+  FRESH_ALLIANCE_SOURCE,
+  OFB_SOURCE,
   ProcurementImportError,
   assertSafeReference,
   expectedAcquisitionClass,
@@ -28,9 +32,7 @@ import {
   parseSourceDate,
 } from './parsing';
 
-/** Fresh Alliance observations persist under their own source namespace so the
- *  two OFB exports can never collide on a reference or share a revision lineage. */
-export const FRESH_ALLIANCE_SOURCE = 'ofb_pickup';
+export { FRESH_ALLIANCE_SOURCE } from './parsing';
 export const FRESH_ALLIANCE_IMPORT_SCHEMA_VERSION = 1;
 export const FRESH_ALLIANCE_EVENT_KIND = 'fresh_alliance_receipt';
 export const FRESH_ALLIANCE_CHANNEL = 'fresh_alliance';
@@ -476,4 +478,231 @@ export function parseFreshAllianceCsv(buffer: Buffer): ParsedFreshAllianceImport
     warnings,
     pickups,
   };
+}
+
+type TransactionClient = Prisma.TransactionClient;
+
+export interface FreshAllianceImportResult {
+  outcome: 'imported' | 'duplicate';
+  importId: number | null;
+  rowCount: number;
+  pickupCount: number;
+  skippedPickupCount: number;
+  supersededEventCount: number;
+  warningCount: number;
+  rangeStart: string;
+  rangeEnd: string;
+  warnings: FreshAllianceWarning[];
+}
+
+/**
+ * Marks Completed Orders Fresh Alliance events whose receiving date falls in a
+ * Fresh Alliance import's window. The donor-attributed observation replaces
+ * them in analytics; nothing is deleted.
+ *
+ * The `supersededByImportId: null` guard means the first covering import keeps
+ * the claim, so overlapping imports stay deterministic and each import can
+ * release exactly what it took.
+ */
+async function applySupersede(
+  tx: TransactionClient,
+  importId: number,
+  rangeStart: string,
+  rangeEnd: string
+): Promise<number> {
+  const { count } = await tx.procurementOrderRevision.updateMany({
+    where: {
+      source: OFB_SOURCE,
+      eventKind: FRESH_ALLIANCE_EVENT_KIND,
+      deliveryDate: { gte: rangeStart, lte: rangeEnd },
+      supersededByImportId: null,
+    },
+    data: { supersededByImportId: importId },
+  });
+  return count;
+}
+
+/** Releases only what the given import claimed. */
+export async function clearSupersede(
+  tx: TransactionClient,
+  importId: number
+): Promise<number> {
+  const { count } = await tx.procurementOrderRevision.updateMany({
+    where: { supersededByImportId: importId },
+    data: { supersededByImportId: null },
+  });
+  return count;
+}
+
+/** Re-applies a restored import's claim over its recorded window. */
+export async function reapplySupersede(
+  tx: TransactionClient,
+  importId: number,
+  rangeStart: string,
+  rangeEnd: string
+): Promise<number> {
+  return applySupersede(tx, importId, rangeStart, rangeEnd);
+}
+
+export async function importFreshAllianceCsv(
+  buffer: Buffer,
+  importedBy?: string,
+  client = prisma
+): Promise<FreshAllianceImportResult> {
+  const parsed = parseFreshAllianceCsv(buffer);
+
+  return client.$transaction(async (tx: TransactionClient) => {
+    const currentSnapshots = await tx.procurementOrderRevision.findMany({
+      where: {
+        source: FRESH_ALLIANCE_SOURCE,
+        sourceOrderReference: { in: parsed.pickups.map((pickup) => pickup.sourcePickupReference) },
+        isCurrent: true,
+        import: { status: 'active' },
+      },
+      select: { sourceOrderReference: true, snapshotHash: true },
+    });
+    const currentByPickup = new Map(
+      currentSnapshots.map((snapshot) => [snapshot.sourceOrderReference, snapshot.snapshotHash])
+    );
+    const changedPickups = parsed.pickups.filter(
+      (pickup) => currentByPickup.get(pickup.sourcePickupReference) !== pickup.snapshotHash
+    );
+
+    if (changedPickups.length === 0) {
+      return {
+        outcome: 'duplicate' as const,
+        importId: null,
+        rowCount: parsed.rowCount,
+        pickupCount: 0,
+        skippedPickupCount: parsed.pickups.length,
+        supersededEventCount: 0,
+        warningCount: parsed.warnings.length,
+        rangeStart: parsed.rangeStart,
+        rangeEnd: parsed.rangeEnd,
+        warnings: parsed.warnings,
+      };
+    }
+
+    const importRecord = await tx.procurementImport.create({
+      data: {
+        source: FRESH_ALLIANCE_SOURCE,
+        fileHash: parsed.fileHash,
+        schemaVersion: FRESH_ALLIANCE_IMPORT_SCHEMA_VERSION,
+        status: 'active',
+        rowCount: parsed.rowCount,
+        orderCount: changedPickups.length,
+        warningCount: parsed.warnings.length,
+        warnings: parsed.warnings as unknown as Prisma.InputJsonValue,
+        rangeStart: parsed.rangeStart,
+        rangeEnd: parsed.rangeEnd,
+        importedBy,
+      },
+    });
+
+    // Products are the OFB supplier catalog, shared by both exports. They stay
+    // under the OFB source so one product code means one catalog entry.
+    const productIds = new Map<string, number>();
+    const products = new Map<string, AcquisitionClass>();
+    for (const pickup of changedPickups) {
+      for (const line of pickup.lines) {
+        products.set(line.productCode, line.acquisitionClass);
+      }
+    }
+    for (const [productCode, acquisitionClass] of products) {
+      const product = await tx.procurementProduct.upsert({
+        where: { source_productCode: { source: OFB_SOURCE, productCode } },
+        create: { source: OFB_SOURCE, productCode, acquisitionClass },
+        update: { acquisitionClass },
+        select: { id: true },
+      });
+      productIds.set(productCode, product.id);
+    }
+
+    for (const pickup of changedPickups) {
+      const previous = await tx.procurementOrderRevision.findFirst({
+        where: {
+          source: FRESH_ALLIANCE_SOURCE,
+          sourceOrderReference: pickup.sourcePickupReference,
+        },
+        orderBy: { revision: 'desc' },
+        select: { revision: true },
+      });
+      await tx.procurementOrderRevision.updateMany({
+        where: {
+          source: FRESH_ALLIANCE_SOURCE,
+          sourceOrderReference: pickup.sourcePickupReference,
+          isCurrent: true,
+        },
+        data: { isCurrent: false },
+      });
+      const revision = await tx.procurementOrderRevision.create({
+        data: {
+          importId: importRecord.id,
+          source: FRESH_ALLIANCE_SOURCE,
+          sourceOrderReference: pickup.sourcePickupReference,
+          eventKind: pickup.eventKind,
+          deliveryDate: pickup.deliveryDate,
+          revision: (previous?.revision ?? 0) + 1,
+          snapshotHash: pickup.snapshotHash,
+          warningCodes: pickup.warningCodes,
+          isCurrent: true,
+          sourcePickupId: pickup.sourcePickupId,
+          pickupTime: pickup.pickupTime,
+          submittedAt: pickup.submittedAt,
+          donorCode: pickup.donorCode,
+          donorName: pickup.donorName,
+        },
+      });
+      await tx.procurementLine.createMany({
+        data: pickup.lines.map((line) => ({
+          orderRevisionId: revision.id,
+          productId: productIds.get(line.productCode)!,
+          sourceRowNumber: line.sourceRowNumber,
+          sourceOrderReference: line.sourcePickupReference,
+          sourcePeriod: line.sourcePeriod,
+          sourceDescription: line.sourceDescription,
+          acquisitionClass: line.acquisitionClass,
+          procurementChannel: FRESH_ALLIANCE_CHANNEL,
+          quantityHundredths: line.quantityHundredths,
+          weightHundredths: line.weightHundredths,
+          // Fresh Alliance supply is donated: there is genuinely no price,
+          // fee, or grant on these lines, so the recorded zeros are factual
+          // rather than placeholders.
+          unitPriceCents: 0,
+          sourcePriceTotalCents: 0,
+          calculatedPriceTotalCents: 0,
+          priceTotalMatches: true,
+          serviceFeeCents: 0,
+          grantsAppliedCents: 0,
+          sourcePickupLineId: line.sourcePickupLineId,
+          freshAllianceCategory: line.freshAllianceCategory,
+          receivedQuantityHundredths: line.receivedQuantityHundredths,
+          receivedWeightHundredths: line.receivedWeightHundredths,
+          receivedMatchesRequested: line.receivedMatchesRequested,
+          donorValuePerPoundCents: line.donorValuePerPoundCents,
+          hasDonorValuation: line.hasDonorValuation,
+        })),
+      });
+    }
+
+    const supersededEventCount = await applySupersede(
+      tx,
+      importRecord.id,
+      parsed.rangeStart,
+      parsed.rangeEnd
+    );
+
+    return {
+      outcome: 'imported' as const,
+      importId: importRecord.id,
+      rowCount: parsed.rowCount,
+      pickupCount: changedPickups.length,
+      skippedPickupCount: parsed.pickups.length - changedPickups.length,
+      supersededEventCount,
+      warningCount: parsed.warnings.length,
+      rangeStart: parsed.rangeStart,
+      rangeEnd: parsed.rangeEnd,
+      warnings: parsed.warnings,
+    };
+  });
 }
