@@ -139,6 +139,34 @@ export interface PaidProcurementProductSummary {
   lastReceivedDate: string;
 }
 
+export interface DonorCategoryObservation {
+  productCode: string;
+  description: string;
+  weightHundredths: number;
+}
+
+export interface DonorSummary {
+  donorCode: string;
+  donorName: string;
+  pickupCount: number;
+  receivingDateCount: number;
+  weightHundredths: number;
+  averageWeightPerPickupHundredths: number;
+  valuedWeightHundredths: number;
+  unvaluedWeightHundredths: number;
+  recordedValueCents: number;
+  firstReceivedDate: string;
+  lastReceivedDate: string;
+  categories: DonorCategoryObservation[];
+}
+
+export interface DonorValueSummary {
+  recordedValueCents: number;
+  valuedWeightHundredths: number;
+  totalWeightHundredths: number;
+  unvaluedWeightHundredths: number;
+}
+
 export interface ProcurementAnalytics {
   dataAsOf: string;
   status: ProcurementDataStatus;
@@ -200,4 +228,11 @@ export interface ProcurementAnalytics {
   warehouseProducts: ProcurementWarehouseProductSummary[];
   paidProducts: PaidProcurementProductSummary[];
   freshAllianceCategories: FreshAllianceCategorySummary[];
+  donors: DonorSummary[];
+  donorMonthlyWeight: Array<{
+    month: string;
+    donorCode: string;
+    weightHundredths: number;
+  }>;
+  donorValue: DonorValueSummary;
 }
