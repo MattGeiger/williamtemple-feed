@@ -50,7 +50,12 @@ type LifecycleAction = {
   imports: ProcurementImportRecord[];
 };
 
-const sourceLabel = (source: string) => source === 'ofb' ? 'Oregon Food Bank' : source;
+// Both sources are the OFB portal; they differ by which export they came from.
+const sourceLabel = (source: string) => {
+  if (source === 'ofb') return 'OFB Completed Orders';
+  if (source === 'ofb_pickup') return 'OFB Agency Pickups';
+  return source;
+};
 const dateLabel = (date: string) => format(parseISO(date), 'MMM d, yyyy');
 const eventLabel = (kind: ProcurementImportRecord['orders'][number]['eventKind']) =>
   kind === 'fresh_alliance_receipt'
