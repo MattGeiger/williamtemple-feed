@@ -120,6 +120,15 @@ All notable changes to FEED are documented here. This project adheres to
   to appear unchanged. A second guard in the frontend rejects developer-facing
   text from any source.
 
+- **Fresh Food Alliance Receipt Categories now shows donor identity**: the
+  table is broken down by donor within each category, sortable by donor,
+  category, receipt events, and receiving dates alongside the existing weight
+  sort, and filterable to one donor, a combination, or all donors combined.
+  A receipt with no donor on file is labeled "Not Reported" rather than
+  guessed. The stale claim that partner identity is unavailable in this
+  source is corrected — it comes from the OFB Agency Pickups export and is
+  still never inferred beyond what that export reports.
+
 ### Changed
 
 - **Procurement analytics read the whole OFB corpus**: inbound weight, channel

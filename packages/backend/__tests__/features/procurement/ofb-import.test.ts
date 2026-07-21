@@ -397,4 +397,102 @@ describe('OFB procurement import normalization', () => {
       },
     });
   });
+
+  test('splits Fresh Alliance categories by donor while keeping the category-only view intact', async () => {
+    const line = (donorLine: Partial<{ weightHundredths: number }>) => ({
+      acquisitionClass: 'DONATED',
+      procurementChannel: 'fresh_alliance',
+      quantityHundredths: 100,
+      weightHundredths: 200,
+      calculatedPriceTotalCents: 0,
+      sourcePriceTotalCents: 0,
+      serviceFeeCents: 0,
+      grantsAppliedCents: 0,
+      priceTotalMatches: true,
+      sourceDescription: 'Produce (Fresh Alliance)',
+      product: { productCode: '41000' },
+      ...donorLine,
+    });
+    const findMany = vi.fn()
+      .mockResolvedValueOnce([{ deliveryDate: '2026-01-05' }])
+      .mockResolvedValueOnce([
+        {
+          sourceOrderReference: '1AGPCKUP',
+          eventKind: 'fresh_alliance_receipt',
+          deliveryDate: '2026-01-05',
+          donorCode: 'RTJ146',
+          donorName: "Trader Joe's - Northwest",
+          lines: [line({})],
+        },
+        {
+          sourceOrderReference: '2AGPCKUP',
+          eventKind: 'fresh_alliance_receipt',
+          deliveryDate: '2026-01-06',
+          donorCode: 'RAZ100',
+          donorName: 'Amazon - NW Industrial (Prime Now)',
+          lines: [line({ weightHundredths: 500 })],
+        },
+        // No donor on file -- a partially superseded window is a real
+        // possibility, and this must be reported honestly, not guessed.
+        {
+          sourceOrderReference: '3AGPCKUP',
+          eventKind: 'fresh_alliance_receipt',
+          deliveryDate: '2026-01-07',
+          donorCode: null,
+          donorName: null,
+          lines: [line({ weightHundredths: 100 })],
+        },
+      ]);
+    const client = {
+      procurementOrderRevision: {
+        findMany,
+        findFirst: vi.fn().mockResolvedValue({ deliveryDate: '2026-01-07' }),
+        aggregate: vi.fn(async () => emptyCoverage()),
+      },
+      operatingHoursRevision: {
+        findFirst: vi.fn().mockResolvedValue({
+          id: 1,
+          effectiveDate: '1970-01-01',
+          timezone: 'America/Los_Angeles',
+          hours: DEFAULT_OPERATING_HOURS,
+          recordedAt: new Date('2026-01-01T00:00:00Z'),
+        }),
+      },
+    } as never;
+
+    const result = await getProcurementAnalytics(
+      {},
+      new Date('2026-01-08T20:00:00Z'),
+      client
+    );
+
+    expect(result.freshAllianceCategories).toEqual([
+      expect.objectContaining({ productCode: '41000', totalWeightHundredths: 800 }),
+    ]);
+
+    expect(result.freshAllianceDonorCategories).toHaveLength(3);
+    const byDonor = new Map(
+      result.freshAllianceDonorCategories.map((row) => [row.donorCode, row])
+    );
+    expect(byDonor.get('RAZ100')).toMatchObject({
+      donorName: 'Amazon - NW Industrial (Prime Now)',
+      productCode: '41000',
+      totalWeightHundredths: 500,
+      receiptEventCount: 1,
+    });
+    expect(byDonor.get('RTJ146')).toMatchObject({
+      donorName: "Trader Joe's - Northwest",
+      totalWeightHundredths: 200,
+    });
+    expect(byDonor.get(null)).toMatchObject({
+      donorName: 'Not Reported',
+      totalWeightHundredths: 100,
+    });
+
+    // The per-donor split must reconcile back to the category-only total --
+    // it is a further breakdown of the same lines, not a separate count.
+    const donorTotal = result.freshAllianceDonorCategories
+      .reduce((sum, row) => sum + row.totalWeightHundredths, 0);
+    expect(donorTotal).toBe(result.freshAllianceCategories[0].totalWeightHundredths);
+  });
 });

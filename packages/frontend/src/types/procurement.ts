@@ -128,6 +128,19 @@ export interface FreshAllianceCategorySummary {
   lastReceivedDate: string;
 }
 
+export interface FreshAllianceDonorCategorySummary {
+  /** `null` when the receipt has no donor on file — reported honestly, never inferred. */
+  donorCode: string | null;
+  donorName: string;
+  productCode: string;
+  description: string;
+  receiptEventCount: number;
+  receivingDateCount: number;
+  totalWeightHundredths: number;
+  firstReceivedDate: string;
+  lastReceivedDate: string;
+}
+
 export interface PaidProcurementProductSummary {
   productCode: string;
   description: string;
@@ -234,6 +247,7 @@ export interface ProcurementAnalytics {
   warehouseProducts: ProcurementWarehouseProductSummary[];
   paidProducts: PaidProcurementProductSummary[];
   freshAllianceCategories: FreshAllianceCategorySummary[];
+  freshAllianceDonorCategories: FreshAllianceDonorCategorySummary[];
   donors: DonorSummary[];
   donorMonthlyWeight: Array<{
     month: string;
