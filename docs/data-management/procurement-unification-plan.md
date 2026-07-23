@@ -1,7 +1,7 @@
 # Procurement Unification Plan
 
 **Started:** 2026-07-20
-**Status:** Phases 1–5 complete (MVP). Phase 6 (Fresh Alliance confirmation status): FEED schema executed 2026-07-21, extension deferred to a future session.
+**Status:** Phases 1–6 complete (extension v2.0.0 + FEED unified parser, 2026-07-22). Next: Phase 7 (legacy XLSX) or the deferred Analytics pending-weight decision.
 **Owner doc:** this file is the North Star for procurement data ingestion. Update
 it as each phase lands. Do not rely on session memory for any decision recorded
 here.
@@ -319,33 +319,82 @@ happen.
 
 **Phases 1–5 constitute the production-ready MVP.**
 
-### Phase 6 — Fresh Alliance confirmation status 🔄 FEED complete, extension deferred (2026-07-21)
+### Phase 6 — Fresh Alliance confirmation status ✅ complete (2026-07-21 FEED groundwork; 2026-07-22 extension + unified parser)
 Full findings in
 [fresh-alliance-pending-pickups.md](fresh-alliance-pending-pickups.md); decision
-recorded as D13.
+recorded as D13. Extension design doc:
+`OFB Data Fetch Plugin/docs/unified-export-design.md`.
 
 - [x] Investigated Primarius Pending/Completed live, read-only, production —
       confirmed same-record identity, confirmed the Warehouse/Fresh-Alliance
       asymmetry with direct evidence, resolved the duplication question
 - [x] FEED schema: `isConfirmed` on `ProcurementOrderRevision` — nullable,
-      Fresh Alliance only, `true` for everything the current 19-column
-      contract can produce (that contract structurally cannot carry
-      unconfirmed rows today)
-- [x] FEED parser and persistence updated and tested; migration verified
-      against a production-shaped copy
-- [ ] **Deferred to a future session, deliberately.** Extension v2.0.0: one
-      action pulling Completed Orders (Warehouse, unchanged), Agency Pickups
-      Completed (unchanged), and Agency Pickups **Pending** (new) into one
-      file; a new `Confirmed` column on Fresh Alliance rows only; a same-run
-      race guard (fetch Completed first, exclude any reference already seen
-      when pulling Pending) since a pickup can transition mid-export; refuse-
-      partial extended to all three fetches equally. Full technical spec
-      lives in the extension's own repository so a session starting cold
-      there — a different model, no FEED context — has everything it needs:
-      `OFB Data Fetch Plugin/docs/fresh-alliance-pending-pickups-v2-design.md`.
-- [ ] **Deferred, not yet decided.** How Analytics treats pending weight once
-      the extension can produce it (include-and-flag vs. exclude-and-surface-
-      separately vs. show both) — an agency decision, not a schema one.
+      Fresh Alliance only
+- [x] Extension v2.0.0 shipped: one Order History action, one sparse
+      26-column CSV (`Schema Version`, `Record Type`, `Confirmed` plus the
+      union of both legacy contracts) covering Warehouse Completed orders
+      and Fresh Alliance Pending + Completed pickups for one date range.
+      `AGPCKUP` rows excluded from `warehouse_order`. Pending sampled before
+      Completed, so a pickup transitioning mid-export cannot be omitted or
+      double-counted. Refuse-partial extended across all three source
+      fetches. Verified: `npm test`, browser-level synthetic export with
+      reconciliation and race simulation, release build inspection.
+- [x] FEED unified parser (`packages/backend/src/services/procurement/unified.ts`):
+      splits rows by `Record Type`, reconstructs synthetic buffers matching
+      the two existing 12- and 19-column contracts exactly, and delegates to
+      the already-tested `parseOfbCsv`/`parseFreshAllianceCsv` rather than
+      re-implementing row validation a third time. Row numbers in every
+      thrown error and returned warning are translated back to their
+      position in the original unified file. `fresh-alliance.ts` gained one
+      backward-compatible parameter (`confirmedByReference`) so a pending
+      row's `Confirmed: No` becomes `isConfirmed: false` on the persisted
+      revision; the legacy 19-column entry point is unaffected. Wired into
+      the existing generic detect-and-import flow (`detect.ts`,
+      `OfbImportDialog`) — no new UI, the same "drop any recognized OFB
+      export" action now recognizes a third format.
+- [x] **Real bug found and fixed during verification, not just discovered.**
+      Every Fresh Alliance pickup imported before 2026-07-21 has a stored
+      snapshot hash computed without `isConfirmed` (it didn't exist on the
+      hashed identity yet). Running the unified parser against a copy of the
+      real database surfaced this directly: all 29 already-current pickups
+      in the sample's date range came back "changed" instead of "duplicate,"
+      even though every persisted field was byte-identical — confirmed by
+      reconstructing the same 8-line pickup through the *unchanged* legacy
+      path and finding it also failed to match the stored hash. Root cause
+      isolated to one commit (`a2ddecd`, 2026-07-21) via `git log -p`, not
+      guessed. Fixed the same way the OFB Warehouse parser already fixed its
+      own v1–v3-to-v4 hash transition: `legacySnapshotHash` computed without
+      `isConfirmed`, accepted as equivalent on import. Re-verified against a
+      fresh copy of the real database: the same 29 pickups now correctly
+      skip as duplicates, only the 14 genuinely new pending pickups import,
+      and the previously-affected revision stays at revision 1. Regression
+      test added. Without this fix, every future re-import of any
+      previously-held Fresh Alliance date range would have silently
+      accumulated a spurious new revision per pickup, forever — not a
+      correctness bug (weight and `isCurrent` tracking stayed right
+      throughout), but real, unbounded, needless database growth and
+      misleading "changed" counts in Import History.
+- [ ] **Known, minor, undecided.** `ProcurementLine.sourceRowNumber` on a
+      unified-imported line reflects the reconstructed sub-CSV's row
+      position, not the original unified file's. Every warning and thrown
+      error is correctly translated back to the original file (tested); this
+      one persisted, rarely-inspected audit column is not. Low value against
+      the complexity of a generic fix across two differently-shaped nested
+      structures (`orders[].lines[]` vs `pickups[].lines[]`) — left as a
+      disclosed gap rather than fixed speculatively.
+- [ ] **Deferred, not yet decided.** How Analytics treats pending weight now
+      that the extension can produce it (include-and-flag vs. exclude-and-
+      surface-separately vs. show both) — an agency decision, not a schema
+      one. See "Analytics UI polish" below for the options as previously
+      sketched.
+
+**Verification performed for this phase**, beyond the automated suites: real
+`OFB Order CSV Exporter v2.0.0` sample (535 rows, 8 warehouse orders, 43
+Fresh Alliance pickups — 29 confirmed, 14 pending) parsed and persisted
+against a copy of the production-shaped database, not just synthetic
+fixtures. Weight totals, confirmed/pending counts, zero AGPCKUP-in-warehouse,
+zero confirmed/pending reference overlap, and correct duplicate-detection on
+re-import all confirmed directly against real data.
 
 ### Phase 7+ — Further polish, post-MVP
 - Legacy XLSX ingestion as its own domain (D9).

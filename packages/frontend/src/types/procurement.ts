@@ -78,7 +78,7 @@ export interface ProcurementDataStatus {
   };
 }
 
-export type OfbExportKind = 'completed_orders' | 'agency_pickups';
+export type OfbExportKind = 'completed_orders' | 'agency_pickups' | 'unified';
 
 export interface FreshAllianceImportResult {
   outcome: 'imported' | 'duplicate';
@@ -93,9 +93,23 @@ export interface FreshAllianceImportResult {
   warnings: ProcurementWarning[];
 }
 
+/** The OFB Order CSV Exporter v2.0.0 unified export: Warehouse Completed
+ *  orders plus Fresh Alliance Pending and Completed pickups, in one file. */
+export interface UnifiedImportResult {
+  outcome: 'imported' | 'duplicate';
+  rowCount: number;
+  rangeStart: string;
+  rangeEnd: string;
+  /** `null` when the file contained no warehouse rows at all. */
+  warehouse: ProcurementImportResult | null;
+  /** `null` when the file contained no Fresh Alliance pickup rows at all. */
+  freshAlliance: FreshAllianceImportResult | null;
+}
+
 export type DetectedImportResult =
   | ({ exportKind: 'completed_orders' } & ProcurementImportResult)
-  | ({ exportKind: 'agency_pickups' } & FreshAllianceImportResult);
+  | ({ exportKind: 'agency_pickups' } & FreshAllianceImportResult)
+  | ({ exportKind: 'unified' } & UnifiedImportResult);
 
 export interface ProcurementAnalyticsFilters {
   preset?: AnalyticsRangePreset;

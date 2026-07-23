@@ -107,16 +107,25 @@ export interface NormalizedFreshAlliancePickup {
   donorCode: string;
   donorName: string;
   /**
-   * Whether OFB has reviewed and confirmed this receipt. The current
-   * 19-column contract only ever carries Completed data (see
-   * fresh-alliance-pending-pickups.md), so this is always `true` today --
-   * hardcoded here rather than read from a column that doesn't exist yet, so
-   * every parsed pickup is self-describing without the reader needing to
-   * know that convention. The day the contract gains a `Confirmed` column,
-   * this becomes a read, not a constant.
+   * Whether OFB has reviewed and confirmed this receipt. The 19-column
+   * Agency Pickups contract has no `Confirmed` column and can only ever
+   * carry OFB-confirmed data, so this defaults to `true` unless the caller
+   * supplies `confirmedByReference` (used by the unified-export parser,
+   * which reads an explicit `Confirmed` column and knows some pickups are
+   * still pending). See fresh-alliance-pending-pickups.md.
    */
   isConfirmed: boolean;
   snapshotHash: string;
+  /**
+   * Every pickup imported before `isConfirmed` was added to the hashed
+   * identity (2026-07-21) has a stored hash computed without it. Accepting
+   * that historical hash as equivalent prevents a semantically unchanged
+   * re-import from manufacturing a spurious new revision for the entire
+   * pre-existing corpus -- the same problem `legacySnapshotHash` solves for
+   * the OFB Warehouse parser's schema v1-3 to v4 transition, and the same
+   * fix.
+   */
+  legacySnapshotHash: string;
   warningCodes: FreshAllianceWarningCode[];
   lines: NormalizedFreshAllianceLine[];
 }
@@ -217,16 +226,22 @@ function validateAndDiscardTemperature(value: string, rowNumber: number): void {
   }
 }
 
-function pickupSnapshotHash(
-  pickup: Omit<NormalizedFreshAlliancePickup, 'snapshotHash' | 'warningCodes' | 'lines'>,
-  lines: NormalizedFreshAllianceLine[]
-): string {
+type PickupIdentity = Omit<NormalizedFreshAlliancePickup, 'snapshotHash' | 'legacySnapshotHash' | 'warningCodes' | 'lines'>;
+
+function pickupSnapshotHash(pickup: PickupIdentity, lines: NormalizedFreshAllianceLine[]): string {
   const canonical = lines
     .map(({ sourceRowNumber: _row, ...line }) => line)
     .sort((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right)));
   return createHash('sha256')
     .update(JSON.stringify({ pickup, lines: canonical }))
     .digest('hex');
+}
+
+// Pre-2026-07-21 hash: computed without `isConfirmed`, which did not exist on
+// the hashed identity before that date. See NormalizedFreshAlliancePickup.legacySnapshotHash.
+function legacyPickupSnapshotHash(pickup: PickupIdentity, lines: NormalizedFreshAllianceLine[]): string {
+  const { isConfirmed: _isConfirmed, ...legacyIdentity } = pickup;
+  return pickupSnapshotHash(legacyIdentity as PickupIdentity, lines);
 }
 
 function conflict(message: string, details: unknown): ProcurementImportError {
@@ -277,7 +292,21 @@ function summaryLabel(code: FreshAllianceWarningCode, count: number): string {
   }
 }
 
-export function parseFreshAllianceCsv(buffer: Buffer): ParsedFreshAllianceImport {
+export interface ParseFreshAllianceOptions {
+  /**
+   * Confirmation status per `Pickup Reference`, sourced from the unified
+   * export's `Confirmed` column. A reference absent from a supplied map
+   * defaults to `true` -- the same default as when no map is given at all --
+   * since an internal gap here is FEED's own row-grouping, not a reason to
+   * misreport a pickup as unconfirmed.
+   */
+  confirmedByReference?: Map<string, boolean>;
+}
+
+export function parseFreshAllianceCsv(
+  buffer: Buffer,
+  options: ParseFreshAllianceOptions = {}
+): ParsedFreshAllianceImport {
   if (buffer.length === 0) {
     throw new ProcurementImportError(
       'The selected CSV is empty. Export the OFB pickup range again and retry.',
@@ -515,13 +544,13 @@ export function parseFreshAllianceCsv(buffer: Buffer): ParsedFreshAllianceImport
         submittedAt: header.submittedAt,
         donorCode: header.donorCode,
         donorName: header.donorName,
-        // See NormalizedFreshAlliancePickup.isConfirmed: today's contract can
-        // only ever carry OFB-confirmed data.
-        isConfirmed: true,
+        // See NormalizedFreshAlliancePickup.isConfirmed.
+        isConfirmed: options.confirmedByReference?.get(sourcePickupReference) ?? true,
       } as const;
       return {
         ...identity,
         snapshotHash: pickupSnapshotHash(identity, pickupLines),
+        legacySnapshotHash: legacyPickupSnapshotHash(identity, pickupLines),
         warningCodes,
         lines: pickupLines,
       };
@@ -612,9 +641,10 @@ export async function reapplySupersede(
 export async function importFreshAllianceCsv(
   buffer: Buffer,
   importedBy?: string,
-  client = prisma
+  client = prisma,
+  options: ParseFreshAllianceOptions = {}
 ): Promise<FreshAllianceImportResult> {
-  const parsed = parseFreshAllianceCsv(buffer);
+  const parsed = parseFreshAllianceCsv(buffer, options);
 
   return client.$transaction(async (tx: TransactionClient) => {
     const currentSnapshots = await tx.procurementOrderRevision.findMany({
@@ -629,9 +659,10 @@ export async function importFreshAllianceCsv(
     const currentByPickup = new Map(
       currentSnapshots.map((snapshot) => [snapshot.sourceOrderReference, snapshot.snapshotHash])
     );
-    const changedPickups = parsed.pickups.filter(
-      (pickup) => currentByPickup.get(pickup.sourcePickupReference) !== pickup.snapshotHash
-    );
+    const changedPickups = parsed.pickups.filter((pickup) => {
+      const currentHash = currentByPickup.get(pickup.sourcePickupReference);
+      return currentHash !== pickup.snapshotHash && currentHash !== pickup.legacySnapshotHash;
+    });
 
     if (changedPickups.length === 0) {
       return {

@@ -95,10 +95,11 @@ router.get('/analytics', rateLimiter, async (_req, res, next) => {
   }
 });
 
-// One import action for both OFB exports. FEED reads the header row to tell
-// Completed Orders from Agency Pickups rather than asking staff to declare
-// which report they exported — a choice they could get wrong, on files that
-// look alike, mid-task.
+// One import action for every OFB export FEED understands (the unified
+// export, and the two legacy single-channel exports it replaced). FEED reads
+// the header row to tell them apart rather than asking staff to declare which
+// report they exported — a choice they could get wrong, on files that look
+// alike, mid-task.
 router.post('/imports', rateLimiter, upload.single('file'), async (req, res, next) => {
   try {
     if (!req.file) {
