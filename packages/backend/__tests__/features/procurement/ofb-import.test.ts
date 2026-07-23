@@ -469,4 +469,132 @@ describe('OFB procurement import normalization', () => {
       .reduce((sum, row) => sum + row.totalWeightHundredths, 0);
     expect(donorTotal).toBe(result.freshAllianceCategories[0].totalWeightHundredths);
   });
+
+  test('counts pending Fresh Alliance weight in every total (D15: Confirmed is an audit sign-off, not a data-quality gate)', async () => {
+    const line = (weightHundredths: number, description: string) => ({
+      acquisitionClass: 'DONATED',
+      procurementChannel: 'fresh_alliance',
+      quantityHundredths: weightHundredths,
+      weightHundredths,
+      calculatedPriceTotalCents: 0,
+      sourcePriceTotalCents: 0,
+      serviceFeeCents: 0,
+      grantsAppliedCents: 0,
+      priceTotalMatches: true,
+      sourceDescription: description,
+      product: { productCode: '40000' },
+    });
+    const findMany = vi.fn()
+      .mockResolvedValueOnce([{ deliveryDate: '2026-01-05' }])
+      .mockResolvedValueOnce([
+        {
+          sourceOrderReference: '100AGPCKUP',
+          eventKind: 'fresh_alliance_receipt',
+          deliveryDate: '2026-01-05',
+          isConfirmed: true,
+          lines: [line(500, 'Confirmed pickup')],
+        },
+        {
+          sourceOrderReference: '101AGPCKUP',
+          eventKind: 'fresh_alliance_receipt',
+          deliveryDate: '2026-01-06',
+          isConfirmed: false,
+          lines: [line(200, 'Pending pickup A')],
+        },
+        {
+          sourceOrderReference: '102AGPCKUP',
+          eventKind: 'fresh_alliance_receipt',
+          deliveryDate: '2026-01-08',
+          isConfirmed: false,
+          lines: [line(100, 'Pending pickup B')],
+        },
+      ]);
+    const client = {
+      procurementOrderRevision: {
+        findMany,
+        findFirst: vi.fn().mockResolvedValue({ deliveryDate: '2026-01-08' }),
+        aggregate: vi.fn(async () => emptyCoverage()),
+      },
+      operatingHoursRevision: {
+        findFirst: vi.fn().mockResolvedValue({
+          id: 1,
+          effectiveDate: '1970-01-01',
+          timezone: 'America/Los_Angeles',
+          hours: DEFAULT_OPERATING_HOURS,
+          recordedAt: new Date('2026-01-01T00:00:00Z'),
+        }),
+      },
+    } as never;
+
+    const result = await getProcurementAnalytics(
+      {},
+      new Date('2026-01-09T20:00:00Z'),
+      client
+    );
+
+    // Pending weight (300) is not walled off -- it's already in the same
+    // total as confirmed weight (500), because that's the point of D15.
+    expect(result.summary.totalWeightHundredths).toBe(800);
+    expect(result.channelMix.find((row) => row.channel === 'fresh_alliance'))
+      .toMatchObject({ weightHundredths: 800 });
+
+    // The pending summary describes the same weight a second time, not a
+    // separate figure to reconcile against.
+    expect(result.summary.freshAlliancePending).toEqual({
+      weightHundredths: 300,
+      eventCount: 2,
+      earliestDeliveryDate: '2026-01-06',
+      latestDeliveryDate: '2026-01-08',
+    });
+  });
+
+  test('reports no pending summary when nothing in range is unconfirmed', async () => {
+    const findMany = vi.fn()
+      .mockResolvedValueOnce([{ deliveryDate: '2026-01-05' }])
+      .mockResolvedValueOnce([
+        {
+          sourceOrderReference: '100AGPCKUP',
+          eventKind: 'fresh_alliance_receipt',
+          deliveryDate: '2026-01-05',
+          isConfirmed: true,
+          lines: [{
+            acquisitionClass: 'DONATED',
+            procurementChannel: 'fresh_alliance',
+            quantityHundredths: 500,
+            weightHundredths: 500,
+            calculatedPriceTotalCents: 0,
+            sourcePriceTotalCents: 0,
+            serviceFeeCents: 0,
+            grantsAppliedCents: 0,
+            priceTotalMatches: true,
+            sourceDescription: 'Confirmed pickup',
+            product: { productCode: '40000' },
+          }],
+        },
+      ]);
+    const client = {
+      procurementOrderRevision: {
+        findMany,
+        findFirst: vi.fn().mockResolvedValue({ deliveryDate: '2026-01-05' }),
+        aggregate: vi.fn(async () => emptyCoverage()),
+      },
+      operatingHoursRevision: {
+        findFirst: vi.fn().mockResolvedValue({
+          id: 1,
+          effectiveDate: '1970-01-01',
+          timezone: 'America/Los_Angeles',
+          hours: DEFAULT_OPERATING_HOURS,
+          recordedAt: new Date('2026-01-06T20:00:00Z'),
+        }),
+      },
+    } as never;
+
+    const result = await getProcurementAnalytics(
+      {},
+      new Date('2026-01-06T20:00:00Z'),
+      client
+    );
+
+    expect(result.summary.freshAlliancePending).toBeNull();
+  });
 });
