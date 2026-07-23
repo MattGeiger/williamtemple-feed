@@ -192,6 +192,51 @@ expected shape. The Import History table and the import detail dialog now
 name the paired row ("Paired with OFB Agency Pickups" / "From the same export
 as: OFB Completed Orders") whenever a sibling sharing the hash exists.
 
+### D15 — Pending Fresh Alliance weight counts equally; disclosed, not walled off
+Decided 2026-07-22, resolving the "Deferred, not yet decided" item Phase 6
+left open. Three options were weighed — include-and-flag, exclude-and-
+surface-separately, show both — and the agency chose include-and-flag,
+against my own initial recommendation (exclude-and-surface-separately). The
+reasoning that changed it:
+
+**What OFB's `Confirmed` flag actually means, operationally.** It is not a
+data-quality gate on the agency's report — it is OFB's own internal audit
+sign-off, done by a person reviewing a spreadsheet. The agency is the party
+that physically collected and weighed the donation; OFB's review exists to
+catch anomalies worth asking about (a sudden implausible quantity, say), not
+to independently verify routine reports. Given that, treating "pending" as
+"less true than confirmed" misrepresents what the checkbox is for. D13
+already established the agency is the authoritative observer for this
+channel; this decision follows that reasoning through consistently rather
+than quietly reintroducing a confirmed/unconfirmed hierarchy through the
+Analytics door that D13 rejected through the import door.
+
+**Rolling pending weight is the normal state, not an anomaly to route
+around.** OFB's review lag is structural — there is always some window of
+recently-submitted, not-yet-reviewed pickups — so "wait until confirmed" is
+not a temporary inconvenience Analytics can design past; it is permanent
+weather. Excluding it would mean recent activity is *always* somewhat
+undercounted in headline totals, every single day, by design.
+
+**Decision:** pending weight is counted in every total exactly like confirmed
+weight — no `isConfirmed` filtering anywhere in `getProcurementAnalytics`.
+A small, factual note states how much and over what date range, so the
+system is transparent about the distinction existing without treating it as
+a data-quality caveat. Wording is deliberately plain rather than alarmed:
+"Includes {weight} of Fresh Food Alliance donations from {date} to {date}
+still awaiting OFB's confirmation sign-off." Placed on the two cards where
+Fresh Alliance weight is the headline figure — Inbound Supply Summary and
+Fresh Food Alliance Receipt Categories — not scattered across every chart
+that touches the number, since the note states the same fact regardless of
+where it appears and repeating it further would be noise, not transparency.
+
+This does not weaken the case for D13's own caution: `isConfirmed` is still
+recorded as a stated fact, not discarded, and remains available if the
+agency's judgment about OFB's review process ever changes, or if the pending
+share grows enough that Option C (show both) becomes worth its added
+complexity. Today it is under 1% of total Fresh Alliance weight; revisit if
+that changes materially.
+
 ## Phases
 
 Each phase is independently shippable. Check items off in place.
@@ -415,11 +460,10 @@ recorded as D13. Extension design doc:
       the complexity of a generic fix across two differently-shaped nested
       structures (`orders[].lines[]` vs `pickups[].lines[]`) — left as a
       disclosed gap rather than fixed speculatively.
-- [ ] **Deferred, not yet decided.** How Analytics treats pending weight now
-      that the extension can produce it (include-and-flag vs. exclude-and-
-      surface-separately vs. show both) — an agency decision, not a schema
-      one. See "Analytics UI polish" below for the options as previously
-      sketched.
+- [x] **Decided 2026-07-22.** How Analytics treats pending weight — recorded
+      as D15: include-and-flag, chosen over this document's own initial
+      recommendation of exclude-and-surface-separately. Full reasoning and
+      implementation in D15 above.
 
 **Verification performed for this phase**, beyond the automated suites: real
 `OFB Order CSV Exporter v2.0.0` sample (535 rows, 8 warehouse orders, 43

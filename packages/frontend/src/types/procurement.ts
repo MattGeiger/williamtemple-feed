@@ -229,6 +229,20 @@ export interface ProcurementAnalytics {
     grantsAppliedCents: number | null;
     netRecordedCostCents: number | null;
     priceMismatchLineCount: number;
+    /**
+     * Weight already counted in every total above -- OFB's "Confirmed" flag
+     * is an audit sign-off on data the agency already reported, not a
+     * data-quality gate, so pending weight is included everywhere like any
+     * other observation (D15). This describes the same weight a second time,
+     * not a separate figure. `null` when nothing in the current range/filters
+     * is pending.
+     */
+    freshAlliancePending: {
+      weightHundredths: number;
+      eventCount: number;
+      earliestDeliveryDate: string;
+      latestDeliveryDate: string;
+    } | null;
   };
   acquisitionMix: Array<{
     acquisitionClass: AcquisitionClass;
