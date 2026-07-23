@@ -119,10 +119,6 @@ const channelMonthlyWeightConfig = {
   freshAllianceWeight: { label: 'Fresh Food Alliance', theme: carbonTheme('green') },
 } satisfies ChartConfig;
 
-const freshAllianceCategoryConfig = {
-  weight: { label: 'Inbound Weight', theme: carbonTheme('green') },
-} satisfies ChartConfig;
-
 const paidProductSpendConfig = {
   spendDollars: { label: 'Paid Product Charges', theme: carbonTheme('blue') },
 } satisfies ChartConfig;
@@ -229,14 +225,28 @@ const FAMILY_COLOR_ASSIGNMENTS: Record<string, { family: CarbonFamily; grade: Ca
 };
 
 /** Non-gray hues, both grades, in the same hue-hopped order as the fixed
- *  assignments above — excludes `warmGray` so a hashed fallback can never
- *  collide with the reserved `Unclassified` color. */
-const FAMILY_COLOR_FALLBACK_SLOTS: Array<{ family: CarbonFamily; grade: CarbonGrade }> = [
+ *  family assignments above — excludes `warmGray` so a hashed fallback can
+ *  never collide with a reserved "not really a category" color. Shared by
+ *  every open-label-set color assignment in this file (product families
+ *  outside the profiled set, and donors — D5: the donor roster has no fixed
+ *  enum, so it never gets a hand-curated table the way families did). */
+const CATEGORICAL_COLOR_FALLBACK_SLOTS: Array<{ family: CarbonFamily; grade: CarbonGrade }> = [
   'blue', 'magenta', 'teal', 'orange', 'purple', 'green', 'yellow', 'cyan', 'red',
 ].flatMap((family) => ([
   { family: family as CarbonFamily, grade: 'primary' as CarbonGrade },
   { family: family as CarbonFamily, grade: 'secondary' as CarbonGrade },
 ]));
+
+/** Deterministic, stable per-label slot index — same label always lands on
+ *  the same fallback color, across renders and sessions, without needing a
+ *  hand-curated table. */
+function hashLabel(label: string): number {
+  let hash = 0;
+  for (let i = 0; i < label.length; i += 1) {
+    hash = (hash * 31 + label.charCodeAt(i)) >>> 0;
+  }
+  return hash;
+}
 
 /**
  * Assigns a stable color to any family label, including one this list has
@@ -249,11 +259,7 @@ const FAMILY_COLOR_FALLBACK_SLOTS: Array<{ family: CarbonFamily; grade: CarbonGr
 function familyColorAssignment(label: string): { family: CarbonFamily; grade: CarbonGrade } {
   const known = FAMILY_COLOR_ASSIGNMENTS[label];
   if (known) return known;
-  let hash = 0;
-  for (let i = 0; i < label.length; i += 1) {
-    hash = (hash * 31 + label.charCodeAt(i)) >>> 0;
-  }
-  return FAMILY_COLOR_FALLBACK_SLOTS[hash % FAMILY_COLOR_FALLBACK_SLOTS.length];
+  return CATEGORICAL_COLOR_FALLBACK_SLOTS[hashLabel(label) % CATEGORICAL_COLOR_FALLBACK_SLOTS.length];
 }
 
 export function familyColorTheme(label: string): Record<'light' | 'dark', string> {
@@ -263,6 +269,32 @@ export function familyColorTheme(label: string): Record<'light' | 'dark', string
 
 export function familyColorHex(label: string, scheme: 'light' | 'dark'): string {
   const { family, grade } = familyColorAssignment(label);
+  return carbonChartColors[family][grade][scheme];
+}
+
+const NOT_REPORTED_DONOR_LABEL = 'Not Reported';
+
+/**
+ * Assigns a stable color to any donor name. Unlike product families, the
+ * donor roster is deliberately open (D5: no fixed enum, no seeded partner
+ * list — partners start and stop) so there is no hand-curated table to
+ * consult; every real donor goes through the same hash-based fallback.
+ * "Not Reported" (a category row with no donor on file) is pinned to
+ * `warmGray`, the same reserved, muted "not really a category" treatment
+ * `Unclassified` gets for product families.
+ */
+function donorColorAssignment(donorName: string): { family: CarbonFamily; grade: CarbonGrade } {
+  if (donorName === NOT_REPORTED_DONOR_LABEL) return { family: 'warmGray', grade: 'primary' };
+  return CATEGORICAL_COLOR_FALLBACK_SLOTS[hashLabel(donorName) % CATEGORICAL_COLOR_FALLBACK_SLOTS.length];
+}
+
+export function donorColorTheme(donorName: string): Record<'light' | 'dark', string> {
+  const { family, grade } = donorColorAssignment(donorName);
+  return carbonTheme(family, grade);
+}
+
+export function donorColorHex(donorName: string, scheme: 'light' | 'dark'): string {
+  const { family, grade } = donorColorAssignment(donorName);
   return carbonChartColors[family][grade][scheme];
 }
 
@@ -349,6 +381,137 @@ export function buildPaidProductChartSeries(data: PaidProductSpendDatum[]): {
   return { rows, families };
 }
 
+export interface FreshAllianceCategoryMixSegment {
+  donor: string;
+  weightPounds: number;
+}
+
+export interface FreshAllianceCategoryMixRow {
+  category: string;
+  fullDescription: string;
+  weightPounds: number;
+  segments: FreshAllianceCategoryMixSegment[];
+}
+
+/**
+ * Groups (donor, category) rows back up into one bar per reporting category,
+ * each segmented by donor. Unlike the paid-products chart there are only a
+ * handful of Fresh Alliance categories (8 in the profiled corpus) and every
+ * one is genuinely multi-donor, so there is no "top N + aggregate" cutoff
+ * here — every category gets a real stack, not a lone bar plus one grouped
+ * long tail.
+ */
+export function buildFreshAllianceCategoryMixSeries(
+  rows: FreshAllianceDonorCategorySummary[]
+): {
+  rows: FreshAllianceCategoryMixRow[];
+  donors: Array<{ key: string; label: string }>;
+} {
+  const donors: Array<{ key: string; label: string }> = [];
+  const noteDonor = (label: string) => {
+    const key = familyCssKey(label);
+    if (!donors.some((entry) => entry.key === key)) donors.push({ key, label });
+  };
+
+  const byCategory = new Map<string, { fullDescription: string; segments: Map<string, number> }>();
+  for (const row of rows) {
+    const category = row.description.replace(/\s*\(Fresh Alliance\)\s*$/i, '');
+    const entry = byCategory.get(category) ?? { fullDescription: row.description, segments: new Map() };
+    entry.segments.set(row.donorName, (entry.segments.get(row.donorName) ?? 0) + toPounds(row.totalWeightHundredths));
+    byCategory.set(category, entry);
+    noteDonor(row.donorName);
+  }
+
+  const categoryRows: FreshAllianceCategoryMixRow[] = [...byCategory.entries()].map(
+    ([category, { fullDescription, segments }]) => {
+      const sortedSegments = [...segments.entries()]
+        .map(([donor, weightPounds]) => ({ donor, weightPounds }))
+        .sort((left, right) => right.weightPounds - left.weightPounds);
+      return {
+        category,
+        fullDescription,
+        weightPounds: sortedSegments.reduce((sum, segment) => sum + segment.weightPounds, 0),
+        segments: sortedSegments,
+      };
+    }
+  ).sort((left, right) => right.weightPounds - left.weightPounds);
+
+  // Order the legend by total weight across all categories, matching the
+  // paid-product family legend's convention.
+  const donorTotals = new Map<string, number>();
+  for (const row of categoryRows) {
+    for (const segment of row.segments) {
+      donorTotals.set(segment.donor, (donorTotals.get(segment.donor) ?? 0) + segment.weightPounds);
+    }
+  }
+  donors.sort((left, right) => (donorTotals.get(right.label) ?? 0) - (donorTotals.get(left.label) ?? 0));
+
+  return { rows: categoryRows, donors };
+}
+
+interface GenericBarSegment {
+  /** CSS-safe key: both the React key and the `var(--color-{key})` fill lookup. */
+  key: string;
+  value: number;
+}
+
+/**
+ * Draws one row's segments as adjacent rects instead of relying on Recharts'
+ * per-series stacking. Recharts' native `stackId` stacking is unreliable at
+ * the cardinality either chart in this file needs — a many-series stack over
+ * this kind of data renders no geometry at all, a documented Recharts bug
+ * (recharts/recharts#3883, "Stacked Bar Chart disappears when stackId is
+ * added for complex datasets"), reproduced during development even after
+ * eliminating undefined per-series values. Every stacked bar in this file
+ * uses this one geometry function instead of fighting that mechanism a
+ * second time per chart.
+ *
+ * A shared rounded clip path gives the whole bar rounded outer corners while
+ * interior segment boundaries stay square, matching how a real stacked bar
+ * reads. Recharts computes `x`/`width` for the underlying single-series `Bar`
+ * exactly as it would for a plain flat-colored bar, so a row with one segment
+ * fills the same rect a non-stacked bar would have.
+ */
+function renderStackedBarSegments(
+  segments: GenericBarSegment[],
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  clipId: string
+): React.ReactElement {
+  const total = segments.reduce((sum, segment) => sum + segment.value, 0);
+  // A returned element is required, not null, for the degenerate case (a
+  // zero-width bar has nothing to draw) -- Recharts' shape type demands it.
+  if (width <= 0 || height <= 0 || total <= 0) return <g />;
+
+  let cursor = x;
+  return (
+    <g>
+      <clipPath id={clipId}>
+        <rect x={x} y={y} width={width} height={height} rx={3} ry={3} />
+      </clipPath>
+      <g clipPath={`url(#${clipId})`}>
+        {segments.map((segment) => {
+          const segmentWidth = (segment.value / total) * width;
+          const rectX = cursor;
+          cursor += segmentWidth;
+          return (
+            <rect
+              key={segment.key}
+              x={rectX}
+              y={y}
+              width={Math.max(segmentWidth, 0)}
+              height={height}
+              fill={`var(--color-${segment.key})`}
+            />
+          );
+        })}
+      </g>
+    </g>
+  );
+}
+
 interface PaidProductBarShapeProps {
   x?: number;
   y?: number;
@@ -358,53 +521,35 @@ interface PaidProductBarShapeProps {
   payload?: PaidProductChartRow;
 }
 
-/**
- * Draws a row's segments as adjacent rects instead of relying on Recharts'
- * per-series stacking (see buildPaidProductChartSeries). Recharts computes
- * `x`/`width` for the single `spendDollars` series exactly as it did for the
- * plain single-color bar this replaced, so an ordinary row's one segment
- * fills the same rect a flat-colored bar would have. A shared rounded
- * clip path gives the whole bar rounded outer corners while interior
- * segment boundaries stay square, matching how a real stacked bar reads.
- */
 // Recharts types its `shape` render-prop input as `unknown` (it is spread
 // from internal state, not a typed public API), so the specific prop shape
 // is asserted here rather than accepted as the parameter type directly.
 function PaidProductBarShape(props: unknown) {
   const { x = 0, y = 0, width = 0, height = 0, index = 0, payload } = props as PaidProductBarShapeProps;
-  const segments = payload?.segments ?? [];
-  const total = segments.reduce((sum, segment) => sum + segment.spendDollars, 0);
-  // Recharts' shape type requires a returned element, not null, for the
-  // degenerate case (a zero-width bar has nothing to draw).
-  if (width <= 0 || height <= 0 || total <= 0) return <g />;
+  const segments = (payload?.segments ?? []).map((segment) => ({
+    key: familyCssKey(segment.family),
+    value: segment.spendDollars,
+  }));
+  return renderStackedBarSegments(segments, x, y, width, height, `paid-product-bar-clip-${index}`);
+}
 
-  const clipId = `paid-product-bar-clip-${index}`;
-  let cursor = x;
+interface FreshAllianceCategoryBarShapeProps {
+  x?: number;
+  y?: number;
+  width?: number;
+  height?: number;
+  index?: number;
+  payload?: FreshAllianceCategoryMixRow;
+}
 
-  return (
-    <g>
-      <clipPath id={clipId}>
-        <rect x={x} y={y} width={width} height={height} rx={3} ry={3} />
-      </clipPath>
-      <g clipPath={`url(#${clipId})`}>
-        {segments.map((segment) => {
-          const segmentWidth = (segment.spendDollars / total) * width;
-          const rectX = cursor;
-          cursor += segmentWidth;
-          return (
-            <rect
-              key={segment.family}
-              x={rectX}
-              y={y}
-              width={Math.max(segmentWidth, 0)}
-              height={height}
-              fill={`var(--color-${familyCssKey(segment.family)})`}
-            />
-          );
-        })}
-      </g>
-    </g>
-  );
+function FreshAllianceCategoryBarShape(props: unknown) {
+  const { x = 0, y = 0, width = 0, height = 0, index = 0, payload } =
+    props as FreshAllianceCategoryBarShapeProps;
+  const segments = (payload?.segments ?? []).map((segment) => ({
+    key: familyCssKey(segment.donor),
+    value: segment.weightPounds,
+  }));
+  return renderStackedBarSegments(segments, x, y, width, height, `fresh-alliance-category-bar-clip-${index}`);
 }
 
 export interface PaidProductSearchResult {
@@ -773,13 +918,6 @@ export function ProcurementAnalyticsWorkspace({
     [paidProductSeries.families]
   );
   const paidProductChartHeight = Math.max(320, paidProductSpendData.length * 36 + 96);
-  const freshAllianceCategoryMix = React.useMemo(
-    () => (analytics?.freshAllianceCategories ?? []).slice(0, 10).map((category) => ({
-      category: category.description.replace(/\s*\(Fresh Alliance\)\s*$/i, ''),
-      weight: toPounds(category.totalWeightHundredths),
-    })),
-    [analytics]
-  );
   // Distinct donors present in the receipt-category breakdown, in the same
   // weight-descending order the backend already sorted the rows in — no
   // separate ranking needed here.
@@ -799,6 +937,26 @@ export function ProcurementAnalyticsWorkspace({
       (row) => selectedFreshAllianceDonors.includes(row.donorCode ?? NOT_REPORTED_DONOR_CODE)
     ),
     [analytics, selectedFreshAllianceDonors]
+  );
+  // Built from the same donor-filtered rows as the table below, so narrowing
+  // the donor filter narrows this chart consistently rather than showing a
+  // different picture than what's selected.
+  const freshAllianceCategoryMixSeries = React.useMemo(
+    () => buildFreshAllianceCategoryMixSeries(freshAllianceDonorCategoryRows),
+    [freshAllianceDonorCategoryRows]
+  );
+  const freshAllianceCategoryMixConfig = React.useMemo(
+    () => Object.fromEntries(
+      freshAllianceCategoryMixSeries.donors.map((donor) => [
+        donor.key,
+        { label: donor.label, theme: donorColorTheme(donor.label) },
+      ])
+    ) satisfies ChartConfig,
+    [freshAllianceCategoryMixSeries.donors]
+  );
+  const freshAllianceCategoryMixHeight = Math.max(
+    280,
+    freshAllianceCategoryMixSeries.rows.length * 40 + 60
   );
   const warehouseProductColumns = React.useMemo<ColumnDef<ProcurementWarehouseProductSummary>[]>(() => [
     {
@@ -1345,24 +1503,88 @@ export function ProcurementAnalyticsWorkspace({
           <CardHeader>
             <CardTitle>Fresh Food Alliance Category Mix</CardTitle>
             <CardDescription>
-              Broad OFB reporting categories—not individual products or inferred grocery partners
+              Broad OFB reporting categories, broken down by donor. Donor identity comes from the
+              OFB Agency Pickups export and is never inferred beyond what it reports.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {freshAllianceCategoryMix.length === 0 ? (
+            {freshAllianceCategoryMixSeries.rows.length === 0 ? (
               <div className="flex h-56 items-center justify-center text-sm text-muted-foreground">
                 No Fresh Food Alliance receipts match this range and filter.
               </div>
             ) : (
-              <ChartContainer config={freshAllianceCategoryConfig} className="h-80 min-w-0 w-full">
-                <BarChart accessibilityLayer data={freshAllianceCategoryMix} layout="vertical" margin={{ left: 8, right: 16 }}>
+              <ChartContainer
+                config={freshAllianceCategoryMixConfig}
+                className="min-w-0 w-full"
+                style={{ height: freshAllianceCategoryMixHeight }}
+              >
+                <BarChart
+                  accessibilityLayer
+                  data={freshAllianceCategoryMixSeries.rows}
+                  layout="vertical"
+                  margin={{ left: 8, right: 16 }}
+                >
                   <CartesianGrid horizontal={false} />
                   <XAxis type="number" tickLine={false} axisLine={false} />
                   <YAxis dataKey="category" type="category" width={150} tickLine={false} axisLine={false} />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Bar dataKey="weight" fill="var(--color-weight)" radius={3} />
+                  {/* One row summary plus the donor split, same pattern as the
+                      paid-product chart's tooltip — a single Bar payload
+                      entry per row, not one per donor series. */}
+                  <ChartTooltip
+                    content={({ active, payload }) => {
+                      if (!active || !payload?.length) return null;
+                      const row = payload[0].payload as FreshAllianceCategoryMixRow;
+                      return (
+                        <div className="grid min-w-[13rem] gap-1.5 rounded-lg border border-border/50 bg-background px-2.5 py-2 text-xs shadow-xl">
+                          <div className="font-medium">{row.fullDescription}</div>
+                          <div className="flex justify-between gap-3">
+                            <span className="text-muted-foreground">Inbound Weight</span>
+                            <span className="font-mono font-medium tabular-nums">{pounds(Math.round(row.weightPounds * 100))}</span>
+                          </div>
+                          {row.segments.length > 0 && (
+                            <div className="mt-1 grid gap-1 border-t border-border/50 pt-1.5">
+                              <span className="text-muted-foreground">By donor</span>
+                              {row.segments.map((segment) => (
+                                <div key={segment.donor} className="flex items-center justify-between gap-3">
+                                  <span className="flex items-center gap-1.5 text-muted-foreground">
+                                    <span
+                                      className="h-2 w-2 shrink-0 rounded-[2px]"
+                                      style={{ backgroundColor: `var(--color-${familyCssKey(segment.donor)})` }}
+                                    />
+                                    {segment.donor}
+                                  </span>
+                                  <span className="font-mono font-medium tabular-nums">{pounds(Math.round(segment.weightPounds * 100))}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    }}
+                  />
+                  {/* Colour carries donor, which the axis label does not
+                      already encode. A custom shape draws each row's
+                      segments directly (see renderStackedBarSegments)
+                      instead of Recharts' native stacking, which renders
+                      nothing at this series count. */}
+                  <Bar dataKey="weightPounds" shape={FreshAllianceCategoryBarShape} isAnimationActive={false} />
                 </BarChart>
               </ChartContainer>
+            )}
+            {freshAllianceCategoryMixSeries.donors.length > 0 && (
+              <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
+                <span className="font-medium text-foreground">Colored by donor:</span>
+                {freshAllianceCategoryMixSeries.donors.map((donor) => (
+                  <span key={donor.key} className="flex items-center gap-1.5">
+                    <span
+                      aria-hidden="true"
+                      className="h-2.5 w-2.5 shrink-0 rounded-[2px]"
+                      style={{ backgroundColor: donorColorHex(donor.label, colorScheme) }}
+                    />
+                    {donor.label}
+                  </span>
+                ))}
+              </div>
             )}
           </CardContent>
         </Card>

@@ -7,6 +7,13 @@ All notable changes to FEED are documented here. This project adheres to
 
 ### Added
 
+- **Fresh Food Alliance Category Mix, broken down by donor**: the category
+  chart on Procurement Analytics now stacks each reporting category (e.g.,
+  "Produce") by donor instead of showing one flat total, using the same
+  stacked-bar pattern as "Where Paid Procurement Dollars Went." Donor colors
+  are assigned deterministically (no fixed roster, since the donor list is
+  open-ended) and stay stable across sessions; the chart respects the same
+  donor filter as the Fresh Food Alliance Receipt Categories table below it.
 - **Pending Fresh Alliance weight counts equally with confirmed weight**:
   OFB's `Confirmed` flag is an internal audit sign-off on a report the agency
   already made in full, not a data-quality gate, so Procurement Analytics no

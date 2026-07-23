@@ -8,10 +8,12 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 import {
   AnalyticsWorkspace,
+  buildFreshAllianceCategoryMixSeries,
   buildPaidProductChartSeries,
   buildPaidProductSpendData,
   buildPaidProductSearchResult,
   buildSeasonalYearChartConfig,
+  donorColorHex,
   familyColorHex,
   familyCssKey,
   productFamily,
@@ -943,6 +945,135 @@ describe('paid product families', () => {
     expect(familyCssKey('Other Protein')).toBe('fam_other_protein');
     expect(familyCssKey('Non-Food')).toBe('fam_non_food');
     expect(familyCssKey('Unclassified')).toBe('fam_unclassified');
+  });
+});
+
+describe('Fresh Alliance category mix, segmented by donor', () => {
+  const receipt = (donorName: string, description: string, hundredths: number) => ({
+    donorCode: donorName.slice(0, 6).toUpperCase(),
+    donorName,
+    productCode: String(Math.abs(description.length * 11)).padStart(5, '0'),
+    description,
+    receiptEventCount: 1,
+    receivingDateCount: 1,
+    totalWeightHundredths: hundredths,
+    firstReceivedDate: '2026-01-01',
+    lastReceivedDate: '2026-06-30',
+  });
+
+  test('groups donor rows back into one bar per category, dropping the "(Fresh Alliance)" suffix', () => {
+    const { rows } = buildFreshAllianceCategoryMixSeries([
+      receipt('Amazon', 'Produce (Fresh Alliance)', 30000),
+      receipt('Trader Joe\'s', 'Produce (Fresh Alliance)', 10000),
+      receipt('Amazon', 'Dairy (Fresh Alliance)', 5000),
+    ]);
+
+    expect(rows.map((row) => row.category)).toEqual(['Produce', 'Dairy']);
+    expect(rows[0].fullDescription).toBe('Produce (Fresh Alliance)');
+    expect(rows[0].weightPounds).toBe(400);
+  });
+
+  test('sorts categories and each category\'s donor segments by weight descending, with no top-N cutoff', () => {
+    const { rows } = buildFreshAllianceCategoryMixSeries([
+      receipt('Amazon', 'Dairy (Fresh Alliance)', 2000),
+      receipt('Amazon', 'Produce (Fresh Alliance)', 30000),
+      receipt('Trader Joe\'s', 'Produce (Fresh Alliance)', 50000),
+      receipt('Restaurant Depot', 'Produce (Fresh Alliance)', 10000),
+    ]);
+
+    expect(rows.map((row) => row.category)).toEqual(['Produce', 'Dairy']);
+    expect(rows[0].segments).toEqual([
+      { donor: 'Trader Joe\'s', weightPounds: 500 },
+      { donor: 'Amazon', weightPounds: 300 },
+      { donor: 'Restaurant Depot', weightPounds: 100 },
+    ]);
+  });
+
+  test('combines multiple rows for the same donor and category instead of duplicating a segment', () => {
+    const { rows } = buildFreshAllianceCategoryMixSeries([
+      receipt('Amazon', 'Produce (Fresh Alliance)', 10000),
+      receipt('Amazon', 'Produce (Fresh Alliance)', 5000),
+    ]);
+
+    expect(rows[0].segments).toEqual([{ donor: 'Amazon', weightPounds: 150 }]);
+  });
+
+  test('orders the donor legend by cross-category total weight, not first appearance', () => {
+    const { donors } = buildFreshAllianceCategoryMixSeries([
+      receipt('New Seasons', 'Dairy (Fresh Alliance)', 1000),
+      receipt('Amazon', 'Produce (Fresh Alliance)', 30000),
+      receipt('Amazon', 'Dairy (Fresh Alliance)', 20000),
+    ]);
+
+    expect(donors.map((donor) => donor.label)).toEqual(['Amazon', 'New Seasons']);
+    expect(donors[0].key).toMatch(/^[a-z0-9_]+$/);
+  });
+
+  test('gives an unrecognized donor a deterministic color that never collides with Not Reported', () => {
+    const first = donorColorHex('Some New Grocery Partner', 'light');
+    const second = donorColorHex('Some New Grocery Partner', 'light');
+    expect(first).toBe(second);
+    expect(first).not.toBe(donorColorHex('Not Reported', 'light'));
+  });
+
+  test('renders the card with a donor legend and follows the same donor filter as the table below it', async () => {
+    getAnalyticsMock.mockResolvedValueOnce({
+      ...emptyAnalytics,
+      status: { ...emptyAnalytics.status, hasData: true },
+      freshAllianceCategories: [
+        { productCode: '40000', description: 'Bread & Bakery (Fresh Alliance)', receiptEventCount: 2, receivingDateCount: 2, totalWeightHundredths: 5000, firstReceivedDate: '2026-07-01', lastReceivedDate: '2026-07-13' },
+      ],
+      freshAllianceDonorCategories: [
+        receipt("Trader Joe's - Northwest", 'Bread & Bakery (Fresh Alliance)', 3000),
+        receipt('Amazon - NW Industrial (Prime Now)', 'Bread & Bakery (Fresh Alliance)', 2000),
+      ],
+    } satisfies ProcurementAnalytics);
+
+    render(
+      <MemoryRouter>
+        <ProcurementAnalyticsWorkspace />
+      </MemoryRouter>
+    );
+
+    await screen.findByText('Fresh Food Alliance Category Mix');
+    expect(screen.getByText('Colored by donor:')).toBeVisible();
+    // The legend and the category axis label both surface donor/category
+    // text outside the SVG bars themselves, so this doesn't depend on jsdom
+    // laying out chart geometry.
+    expect(screen.getAllByText("Trader Joe's - Northwest").length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Amazon - NW Industrial (Prime Now)').length).toBeGreaterThan(0);
+
+    const donorFilter = screen.getByRole('button', { name: /All Donors/i });
+    fireEvent.keyDown(donorFilter, { key: 'Enter' });
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Clear all donors' }));
+    const trJoes = screen.getByRole('menuitemcheckbox', { name: "Trader Joe's - Northwest" });
+    fireEvent.click(trJoes);
+    fireEvent.keyDown(trJoes, { key: 'Escape' });
+    await waitFor(() => {
+      expect(screen.queryByRole('menuitemcheckbox')).not.toBeInTheDocument();
+    });
+
+    // Narrowing the shared donor filter drops Amazon from the chart's
+    // legend too, not just from the table underneath it.
+    expect(screen.queryByText('Amazon - NW Industrial (Prime Now)')).not.toBeInTheDocument();
+  });
+
+  test('shows the empty state instead of an empty chart when nothing matches the range and filter', async () => {
+    getAnalyticsMock.mockResolvedValueOnce({
+      ...emptyAnalytics,
+      status: { ...emptyAnalytics.status, hasData: true },
+      freshAllianceDonorCategories: [],
+    } satisfies ProcurementAnalytics);
+
+    render(
+      <MemoryRouter>
+        <ProcurementAnalyticsWorkspace />
+      </MemoryRouter>
+    );
+
+    await screen.findByText('Fresh Food Alliance Category Mix');
+    expect(screen.getByText(/No Fresh Food Alliance receipts match this range and filter\./)).toBeVisible();
+    expect(screen.queryByText('Colored by donor:')).not.toBeInTheDocument();
   });
 });
 
