@@ -125,6 +125,25 @@ export function parseCents(
 }
 
 /**
+ * Minimal RFC 4180 field/line serialization, the write-side counterpart to the
+ * csv-parse defaults every OFB parser reads with. Used by the unified-export
+ * parser to reconstruct synthetic per-channel CSVs from a subset of rows, so
+ * the existing, already-tested Completed Orders and Agency Pickups parsers can
+ * read them unchanged rather than a third parser re-implementing every
+ * validation rule.
+ */
+export function toCsvField(value: string): string {
+  if (/[",\r\n]/.test(value)) {
+    return `"${value.replace(/"/g, '""')}"`;
+  }
+  return value;
+}
+
+export function toCsvLine(fields: string[]): string {
+  return fields.map(toCsvField).join(',');
+}
+
+/**
  * Source references may contain an alphabetic suffix, so they are preserved as
  * bounded strings rather than parsed as numbers.
  */

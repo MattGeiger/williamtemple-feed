@@ -20,28 +20,72 @@ import { cn } from '@/lib/utils';
 import { ErrorHandlerService } from '@/services/error/ErrorHandlerService';
 import { messageService } from '@/services/message';
 import { procurementService } from '@/services/procurement';
-import type { DetectedImportResult } from '@/types/procurement';
+import type { DetectedImportResult, FreshAllianceImportResult, ProcurementWarning } from '@/types/procurement';
 
 const MAX_FILE_BYTES = 5 * 1024 * 1024;
 
 /** Names the export FEED recognized, so the confirmation is specific. */
-function exportLabel(exportKind: DetectedImportResult['exportKind']): string {
-  return exportKind === 'agency_pickups' ? 'Agency Pickups' : 'Completed Orders';
+export function exportLabel(exportKind: DetectedImportResult['exportKind']): string {
+  if (exportKind === 'agency_pickups') return 'Agency Pickups';
+  if (exportKind === 'unified') return 'OFB Export';
+  return 'Completed Orders';
 }
 
-function importedSummary(result: DetectedImportResult): string {
+function freshAllianceSummary(result: FreshAllianceImportResult): string {
+  const pickups = `${result.pickupCount} pickup${result.pickupCount === 1 ? '' : 's'}`;
+  // Superseding is the part staff would otherwise have to reason about, so
+  // the confirmation says plainly that weight was not counted twice.
+  const superseded = result.supersededEventCount > 0
+    ? `, replacing ${result.supersededEventCount} matching Completed Orders receipt${result.supersededEventCount === 1 ? '' : 's'} so weight is counted once`
+    : '';
+  return `${pickups} with donor detail${superseded}`;
+}
+
+export function importedSummary(result: DetectedImportResult): string {
   const rows = result.rowCount.toLocaleString();
+  if (result.exportKind === 'unified') {
+    const parts: string[] = [];
+    if (result.warehouse) {
+      const orders = `${result.warehouse.orderCount} warehouse order${result.warehouse.orderCount === 1 ? '' : 's'}`;
+      parts.push(orders);
+    }
+    if (result.freshAlliance) {
+      parts.push(freshAllianceSummary(result.freshAlliance));
+    }
+    return `Imported ${rows} rows across ${parts.join(' and ')}`;
+  }
   if (result.exportKind === 'agency_pickups') {
-    const pickups = `${result.pickupCount} pickup${result.pickupCount === 1 ? '' : 's'}`;
-    // Superseding is the part staff would otherwise have to reason about, so
-    // the confirmation says plainly that weight was not counted twice.
-    const superseded = result.supersededEventCount > 0
-      ? `, replacing ${result.supersededEventCount} matching Completed Orders receipt${result.supersededEventCount === 1 ? '' : 's'} so weight is counted once`
-      : '';
-    return `Imported ${rows} rows across ${pickups} with donor detail${superseded}`;
+    return `Imported ${rows} rows across ${freshAllianceSummary(result)}`;
   }
   const orders = `${result.orderCount} source event${result.orderCount === 1 ? '' : 's'}`;
   return `Imported ${rows} rows across ${orders}`;
+}
+
+/** Import IDs created by this result, so a unified import's two channels
+ *  (Warehouse and Fresh Alliance each get their own `ProcurementImport` row)
+ *  can be undone together with one click, same as a single-channel import. */
+export function importIds(result: DetectedImportResult): number[] {
+  if (result.exportKind === 'unified') {
+    return [result.warehouse?.importId, result.freshAlliance?.importId]
+      .filter((id): id is number => typeof id === 'number');
+  }
+  return result.importId === null ? [] : [result.importId];
+}
+
+/** Combined warning count across both channels for a unified import; the
+ *  legacy single-channel results already carry one directly. */
+export function warningCount(result: DetectedImportResult): number {
+  if (result.exportKind === 'unified') {
+    return (result.warehouse?.warningCount ?? 0) + (result.freshAlliance?.warningCount ?? 0);
+  }
+  return result.warningCount;
+}
+
+export function combinedWarnings(result: DetectedImportResult): ProcurementWarning[] {
+  if (result.exportKind === 'unified') {
+    return [...(result.warehouse?.warnings ?? []), ...(result.freshAlliance?.warnings ?? [])];
+  }
+  return result.warnings;
 }
 
 interface OfbImportDialogProps {
@@ -97,14 +141,15 @@ export function OfbImportDialog({
         onOpenChange(false);
         return;
       }
-      if (imported.warningCount === 0) {
+      if (warningCount(imported) === 0) {
+        const undoIds = importIds(imported);
         messageService.success(
           `${importedSummary(imported)}.`,
-          imported.importId === null ? undefined : {
+          undoIds.length === 0 ? undefined : {
             action: {
               label: 'Undo Import',
               onClick: () => {
-                void procurementService.rollbackImports([imported.importId!])
+                void procurementService.rollbackImports(undoIds)
                   .then(async () => {
                     await onImported(imported);
                     messageService.success('The import was rolled back.');
@@ -134,7 +179,7 @@ export function OfbImportDialog({
         <DialogHeader>
           <DialogTitle>Import OFB Data</DialogTitle>
           <DialogDescription>
-            Import a Completed Orders or Agency Pickups CSV — FEED recognizes which one it is. The source file is discarded after import and never retained.
+            Import a unified OFB export, or either legacy Completed Orders or Agency Pickups CSV — FEED recognizes which one it is. The source file is discarded after import and never retained.
           </DialogDescription>
         </DialogHeader>
 
@@ -145,13 +190,13 @@ export function OfbImportDialog({
               <div>
                 <AlertTitle>Imported with source warnings</AlertTitle>
                 <AlertDescription>
-                  {importedSummary(result)} and preserved {result.warningCount} note{result.warningCount === 1 ? '' : 's'} for review.
+                  {importedSummary(result)} and preserved {warningCount(result)} note{warningCount(result) === 1 ? '' : 's'} for review.
                 </AlertDescription>
               </div>
             </Alert>
             <ScrollArea className="h-56 rounded-md border">
               <ul className="space-y-3 p-4 text-sm">
-                {result.warnings.map((warning, index) => (
+                {combinedWarnings(result).map((warning, index) => (
                   <li key={`${warning.code}-${warning.deliveryDate}-${index}`}>
                     <p className="font-medium">{warning.deliveryDate}</p>
                     <p className="text-muted-foreground">{warning.message}</p>

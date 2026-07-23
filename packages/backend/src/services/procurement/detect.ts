@@ -21,12 +21,14 @@ import {
 } from './fresh-alliance';
 import { OFB_HEADERS, ProcurementImportResult, importOfbCsv } from './index';
 import { ProcurementImportError } from './parsing';
+import { UNIFIED_HEADERS, UnifiedImportResult, importUnifiedOfbCsv } from './unified';
 
-export type OfbExportKind = 'completed_orders' | 'agency_pickups';
+export type OfbExportKind = 'completed_orders' | 'agency_pickups' | 'unified';
 
 export type DetectedImportResult =
   | ({ exportKind: 'completed_orders' } & ProcurementImportResult)
-  | ({ exportKind: 'agency_pickups' } & FreshAllianceImportResult);
+  | ({ exportKind: 'agency_pickups' } & FreshAllianceImportResult)
+  | ({ exportKind: 'unified' } & UnifiedImportResult);
 
 function readHeaderRow(buffer: Buffer): string[] {
   if (buffer.length === 0) {
@@ -59,14 +61,16 @@ function matches(actual: string[], expected: readonly string[]): boolean {
 
 export function detectOfbExportKind(buffer: Buffer): OfbExportKind {
   const headers = readHeaderRow(buffer);
+  if (matches(headers, UNIFIED_HEADERS)) return 'unified';
   if (matches(headers, OFB_HEADERS)) return 'completed_orders';
   if (matches(headers, FRESH_ALLIANCE_HEADERS)) return 'agency_pickups';
   throw new ProcurementImportError(
-    'This file does not match either standardized OFB export. Choose a Completed Orders or Agency Pickups CSV from the OFB exporter and retry.',
+    'This file does not match a standardized OFB export. Choose a unified export, a Completed Orders export, or an Agency Pickups export from the OFB exporter and retry.',
     'UNRECOGNIZED_OFB_EXPORT',
     400,
     {
       accepted: [
+        { exportKind: 'unified', headers: UNIFIED_HEADERS },
         { exportKind: 'completed_orders', headers: OFB_HEADERS },
         { exportKind: 'agency_pickups', headers: FRESH_ALLIANCE_HEADERS },
       ],
@@ -80,6 +84,9 @@ export async function importOfbExport(
   importedBy?: string
 ): Promise<DetectedImportResult> {
   const exportKind = detectOfbExportKind(buffer);
+  if (exportKind === 'unified') {
+    return { exportKind, ...(await importUnifiedOfbCsv(buffer, importedBy)) };
+  }
   return exportKind === 'completed_orders'
     ? { exportKind, ...(await importOfbCsv(buffer, importedBy)) }
     : { exportKind, ...(await importFreshAllianceCsv(buffer, importedBy)) };
