@@ -37,7 +37,7 @@ import { procurementService } from '@/services/procurement';
 import type {
   ProcurementDataStatus,
   ProcurementImportRecord,
-  DetectedImportResult,
+  UnifiedImportResult,
 } from '@/types/procurement';
 import type { TableBulkAction } from '@/types/table';
 import { ProcurementCoverageStrip } from './coverage-strip';
@@ -128,12 +128,46 @@ export function DataManagementWorkspace() {
     }
   };
 
+  // A unified upload always produces two rows -- Warehouse and Fresh Alliance
+  // are permanently separate source namespaces (D3) -- correlated by sharing
+  // one unifiedFileHash. Grouped here so the table can name the sibling
+  // rather than leaving two differently-labeled rows looking unrelated.
+  const pairedSourceByImportId = React.useMemo(() => {
+    const bySameUpload = new Map<string, ProcurementImportRecord[]>();
+    for (const record of imports) {
+      if (!record.unifiedFileHash) continue;
+      const group = bySameUpload.get(record.unifiedFileHash) ?? [];
+      group.push(record);
+      bySameUpload.set(record.unifiedFileHash, group);
+    }
+    const result = new Map<number, string>();
+    for (const group of bySameUpload.values()) {
+      for (const record of group) {
+        const sibling = group.find((other) => other.id !== record.id && other.source !== record.source);
+        if (sibling) result.set(record.id, sourceLabel(sibling.source));
+      }
+    }
+    return result;
+  }, [imports]);
+
   const columns = React.useMemo<ColumnDef<ProcurementImportRecord>[]>(() => [
     {
       accessorKey: 'source',
       header: 'Source',
       size: 170,
-      cell: ({ row }) => <span className="font-medium">{sourceLabel(row.original.source)}</span>,
+      cell: ({ row }) => {
+        const pairedWith = pairedSourceByImportId.get(row.original.id);
+        return (
+          <div className="min-w-0">
+            <span className="font-medium">{sourceLabel(row.original.source)}</span>
+            {pairedWith && (
+              <p className="text-xs text-muted-foreground">
+                Paired with {pairedWith}
+              </p>
+            )}
+          </div>
+        );
+      },
     },
     {
       id: 'dateRange',
@@ -209,7 +243,7 @@ export function DataManagementWorkspace() {
         </div>
       ),
     },
-  ], []);
+  ], [pairedSourceByImportId]);
 
   const bulkActions = React.useMemo<TableBulkAction<ProcurementImportRecord>[]>(() => [
     {
@@ -239,7 +273,7 @@ export function DataManagementWorkspace() {
     },
   ], []);
 
-  const handleImported = async (result: DetectedImportResult) => {
+  const handleImported = async (result: UnifiedImportResult) => {
     if (result.outcome === 'imported') await refresh();
   };
 
@@ -309,6 +343,12 @@ export function DataManagementWorkspace() {
                 <div><dt className="text-muted-foreground">Source</dt><dd className="font-medium">{sourceLabel(detailTarget.source)}</dd></div>
                 <div><dt className="text-muted-foreground">Rows</dt><dd className="font-medium">{detailTarget.rowCount.toLocaleString()}</dd></div>
                 <div><dt className="text-muted-foreground">Warnings</dt><dd className="font-medium">{detailTarget.warningCount}</dd></div>
+                {pairedSourceByImportId.get(detailTarget.id) && (
+                  <div className="col-span-2 sm:col-span-3">
+                    <dt className="text-muted-foreground">From the same export as</dt>
+                    <dd className="font-medium">{pairedSourceByImportId.get(detailTarget.id)}</dd>
+                  </div>
+                )}
               </dl>
               <ScrollArea className="h-72 rounded-md border">
                 <div className="space-y-3 p-4">

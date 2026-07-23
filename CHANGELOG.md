@@ -16,8 +16,27 @@ All notable changes to FEED are documented here. This project adheres to
   re-implementing row validation, so a Pending pickup's `Confirmed: No`
   becomes an explicit `isConfirmed: false` on the persisted revision, sourced
   from a stated fact rather than inferred. Wired into the existing "drop any
-  recognized OFB export" import action; both legacy single-channel exports
-  remain fully supported, permanently.
+  recognized OFB export" import action. (The two legacy single-channel
+  exports this replaced were later retired — see below.)
+- **Paired-import indicator**: a unified upload always produces two Import
+  History rows — Warehouse and Fresh Food Alliance are permanently separate
+  source namespaces — and each now names the other ("Paired with OFB Agency
+  Pickups") in the table and the import detail dialog, using a hash of the
+  original uploaded file shared by both resulting rows.
+
+### Removed
+
+- **Legacy single-channel OFB import**: the two exports the unified format
+  replaced — a 12-column Completed Orders CSV and a 19-column Agency Pickups
+  CSV — are no longer accepted as standalone uploads; only the unified export
+  is recognized now. Nothing in this feature had reached production, so there
+  was no historical data in either old shape to preserve compatibility for.
+  Uploading a raw legacy file now produces a clear "does not match the
+  standardized OFB export" error. The underlying parsers for each channel are
+  unchanged and undiminished — they remain exactly what the unified importer
+  delegates to for each half of a file — only the standalone entry points and
+  two now-unreachable schema-compatibility shims (one already known, one
+  found and removed in the same pass) were retired.
 - **Seasonal channel breakdown**: the Seasonal Inbound Weight card on
   Procurement Analytics can now split each year's monthly trend by OFB
   Warehouse or Fresh Food Alliance. The control only appears when the

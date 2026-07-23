@@ -33,6 +33,13 @@ export interface ProcurementImportRecord {
   importedAt: string;
   rolledBackAt: string | null;
   restoredAt: string | null;
+  /**
+   * Hash of the original unified export file. A unified upload always
+   * produces two rows -- Warehouse and Fresh Alliance are permanently
+   * separate source namespaces -- and this ties them back to one upload
+   * action. Null only for an import that predates this column.
+   */
+  unifiedFileHash: string | null;
   orders: ProcurementOrderSummary[];
 }
 
@@ -78,8 +85,6 @@ export interface ProcurementDataStatus {
   };
 }
 
-export type OfbExportKind = 'completed_orders' | 'agency_pickups' | 'unified';
-
 export interface FreshAllianceImportResult {
   outcome: 'imported' | 'duplicate';
   importId: number | null;
@@ -105,11 +110,6 @@ export interface UnifiedImportResult {
   /** `null` when the file contained no Fresh Alliance pickup rows at all. */
   freshAlliance: FreshAllianceImportResult | null;
 }
-
-export type DetectedImportResult =
-  | ({ exportKind: 'completed_orders' } & ProcurementImportResult)
-  | ({ exportKind: 'agency_pickups' } & FreshAllianceImportResult)
-  | ({ exportKind: 'unified' } & UnifiedImportResult);
 
 export interface ProcurementAnalyticsFilters {
   preset?: AnalyticsRangePreset;

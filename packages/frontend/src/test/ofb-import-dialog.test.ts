@@ -4,15 +4,13 @@
 import { describe, expect, test } from 'vitest';
 import {
   combinedWarnings,
-  exportLabel,
   importIds,
   importedSummary,
   warningCount,
 } from '@/components/data-management/ofb-import-dialog';
-import type { DetectedImportResult } from '@/types/procurement';
+import type { UnifiedImportResult } from '@/types/procurement';
 
-const unifiedResult = (overrides: Partial<DetectedImportResult & { exportKind: 'unified' }> = {}) => ({
-  exportKind: 'unified' as const,
+const unifiedResult = (overrides: Partial<UnifiedImportResult> = {}) => ({
   outcome: 'imported' as const,
   rowCount: 535,
   rangeStart: '2026-06-01',
@@ -41,15 +39,9 @@ const unifiedResult = (overrides: Partial<DetectedImportResult & { exportKind: '
     warnings: [{ code: 'MISSING_DONOR_VALUATION', message: 'Row 20 records no donor value per pound. FEED retained the weight and excluded the row from in-kind value.', deliveryDate: '2026-06-02', rowNumbers: [20] }],
   },
   ...overrides,
-} satisfies DetectedImportResult);
+} satisfies UnifiedImportResult);
 
 describe('Unified import summary helpers', () => {
-  test('labels the unified export distinctly from either legacy export', () => {
-    expect(exportLabel('unified')).toBe('OFB Export');
-    expect(exportLabel('completed_orders')).toBe('Completed Orders');
-    expect(exportLabel('agency_pickups')).toBe('Agency Pickups');
-  });
-
   test('summarizes both channels together when both are present', () => {
     const summary = importedSummary(unifiedResult());
     expect(summary).toContain('535 rows');
@@ -85,23 +77,5 @@ describe('Unified import summary helpers', () => {
       warehouse: { ...unifiedResult().warehouse!, importId: null },
       freshAlliance: { ...unifiedResult().freshAlliance!, importId: null },
     }))).toEqual([]);
-  });
-
-  test('still handles the legacy single-channel result shapes unchanged', () => {
-    const legacyOrders: DetectedImportResult = {
-      exportKind: 'completed_orders',
-      outcome: 'imported',
-      importId: 5,
-      rowCount: 12,
-      orderCount: 3,
-      skippedOrderCount: 0,
-      warningCount: 0,
-      rangeStart: '2026-06-01',
-      rangeEnd: '2026-06-05',
-      warnings: [],
-    };
-    expect(importedSummary(legacyOrders)).toBe('Imported 12 rows across 3 source events');
-    expect(importIds(legacyOrders)).toEqual([5]);
-    expect(warningCount(legacyOrders)).toBe(0);
   });
 });

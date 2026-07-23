@@ -18,6 +18,16 @@ export const OFB_SOURCE = 'ofb';
 export const FRESH_ALLIANCE_SOURCE = 'ofb_pickup';
 export const PROCUREMENT_SOURCES = [OFB_SOURCE, FRESH_ALLIANCE_SOURCE] as const;
 
+/** Persistence-level options shared by both importers, distinct from
+ *  parse-level options -- these only matter once a ProcurementImport row is
+ *  actually created. */
+export interface ImportOptions {
+  /** Hash of the original unified export file, shared by the Warehouse and
+   *  Fresh Alliance rows one unified upload produces. Absent for callers that
+   *  aren't the unified importer. */
+  unifiedFileHash?: string;
+}
+
 export class ProcurementImportError extends Error {
   statusCode: number;
   code: string;
