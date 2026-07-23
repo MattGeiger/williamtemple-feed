@@ -133,32 +133,6 @@ describe('OFB procurement import normalization', () => {
       'ofb_warehouse',
       'ofb_warehouse',
     ]);
-    expect(parsed.orders[0].legacySnapshotHash).not.toBe(parsed.orders[0].snapshotHash);
-  });
-
-  test('accepts a matching pre-correction snapshot hash as a duplicate', async () => {
-    const buffer = csv(
-      '6/15/26,6-Jun,806667,00070,Bread,DONATED,1.00,10.00,$0.00,$0.00,$0.00,$0.00',
-      '6/15/26,6-Jun,806667,40000,Fresh Alliance Bread,DONATED,5.00,50.00,$0.00,$0.00,$0.00,$0.00'
-    );
-    const parsed = parseOfbCsv(buffer);
-    const tx = {
-      procurementOrderRevision: {
-        findMany: vi.fn().mockResolvedValue([{
-          sourceOrderReference: '806667',
-          snapshotHash: parsed.orders[0].legacySnapshotHash,
-        }]),
-      },
-    };
-    const client = {
-      $transaction: vi.fn(async (operation: (value: typeof tx) => unknown) => operation(tx)),
-    } as never;
-
-    await expect(importOfbCsv(buffer, undefined, client)).resolves.toMatchObject({
-      outcome: 'duplicate',
-      orderCount: 0,
-      skippedOrderCount: 1,
-    });
   });
 
   test('uses a strict greater-than-30-calendar-day stale boundary', async () => {

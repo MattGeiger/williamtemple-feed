@@ -9,7 +9,8 @@ is the standardized Oregon Food Bank (OFB) CSV exporter.
 The staff workflow is intentionally short:
 
 1. Open **Information → Data Management**.
-2. Drop or select an OFB CSV.
+2. Drop or select the unified OFB export (Order History → the single export
+   action).
 3. Review the import result and any calm data-quality warnings.
 4. Leave. The uploaded file is no longer retained.
 
@@ -32,19 +33,37 @@ Normalized procurement data must never:
 
 ## Accepted OFB contract
 
-The importer requires the exact standardized header sequence:
+**As of 2026-07-22 (D14 in
+[procurement-unification-plan.md](procurement-unification-plan.md)), the
+importer accepts one format: the unified export** — one sparse 26-column CSV,
+produced by one Order History action in the OFB Order CSV Exporter (v2.0.0+),
+covering Warehouse Completed orders plus Fresh Alliance Pending and Completed
+pickups for one date range. `Schema Version`, `Record Type`, and `Confirmed`
+columns identify each row's shape and review status explicitly; FEED rejects
+a schema version it does not understand rather than guessing. Full column
+list and design rationale: `procurement-unification-plan.md` (D13, D14) and
+the extension's own `docs/unified-export-design.md`.
 
-`Date, Period, Order #, Product #, Product Description, Category, Qty, Weight,
-Unit Price, Price Total, Service Fee, Grants Applied`
+The two single-channel exports the unified format replaced — a 12-column
+Completed Orders CSV and a 19-column Agency Pickups CSV — are **no longer
+accepted as standalone uploads.** Nothing in this feature had reached
+production when they were retired, so there was no historical data in either
+old shape to preserve compatibility for. Uploading either raw file now
+produces a clear "does not match the standardized OFB export" error rather
+than being silently accepted.
 
-Structural failures block the import: malformed CSV, missing or reordered
-headers, invalid dates, product identifiers outside the observed four-to-six
-digit contract, missing or unsafe order references, acquisition classes that
-conflict with OFB's product-number families, or unsafe numeric values. OFB
-order references are preserved as bounded strings because real references may
-contain an alphabetic suffix. Source-quality anomalies import with warnings
-when FEED can preserve both the source observation and a deterministic
-reconciliation.
+Internally, the unified import still normalizes each half of the file through
+the same validation the two original formats used — the parsing engine
+wasn't rewritten, only the standalone entry points were removed — so
+everything below in this section remains accurate for what actually gets
+validated, whichever channel a row belongs to. Structural failures block the
+import: malformed CSV, missing or reordered headers, invalid dates, product
+identifiers outside the observed four-to-six digit contract, missing or
+unsafe order references, acquisition classes that conflict with OFB's
+product-number families, or unsafe numeric values. OFB order references are
+preserved as bounded strings because real references may contain an
+alphabetic suffix. Source-quality anomalies import with warnings when FEED
+can preserve both the source observation and a deterministic reconciliation.
 
 Examples include:
 

@@ -21,6 +21,7 @@ import prisma from '../../db';
 import {
   AcquisitionClass,
   FRESH_ALLIANCE_SOURCE,
+  ImportOptions,
   OFB_SOURCE,
   ProcurementImportError,
   assertSafeReference,
@@ -116,16 +117,6 @@ export interface NormalizedFreshAlliancePickup {
    */
   isConfirmed: boolean;
   snapshotHash: string;
-  /**
-   * Every pickup imported before `isConfirmed` was added to the hashed
-   * identity (2026-07-21) has a stored hash computed without it. Accepting
-   * that historical hash as equivalent prevents a semantically unchanged
-   * re-import from manufacturing a spurious new revision for the entire
-   * pre-existing corpus -- the same problem `legacySnapshotHash` solves for
-   * the OFB Warehouse parser's schema v1-3 to v4 transition, and the same
-   * fix.
-   */
-  legacySnapshotHash: string;
   warningCodes: FreshAllianceWarningCode[];
   lines: NormalizedFreshAllianceLine[];
 }
@@ -226,7 +217,7 @@ function validateAndDiscardTemperature(value: string, rowNumber: number): void {
   }
 }
 
-type PickupIdentity = Omit<NormalizedFreshAlliancePickup, 'snapshotHash' | 'legacySnapshotHash' | 'warningCodes' | 'lines'>;
+type PickupIdentity = Omit<NormalizedFreshAlliancePickup, 'snapshotHash' | 'warningCodes' | 'lines'>;
 
 function pickupSnapshotHash(pickup: PickupIdentity, lines: NormalizedFreshAllianceLine[]): string {
   const canonical = lines
@@ -235,13 +226,6 @@ function pickupSnapshotHash(pickup: PickupIdentity, lines: NormalizedFreshAllian
   return createHash('sha256')
     .update(JSON.stringify({ pickup, lines: canonical }))
     .digest('hex');
-}
-
-// Pre-2026-07-21 hash: computed without `isConfirmed`, which did not exist on
-// the hashed identity before that date. See NormalizedFreshAlliancePickup.legacySnapshotHash.
-function legacyPickupSnapshotHash(pickup: PickupIdentity, lines: NormalizedFreshAllianceLine[]): string {
-  const { isConfirmed: _isConfirmed, ...legacyIdentity } = pickup;
-  return pickupSnapshotHash(legacyIdentity as PickupIdentity, lines);
 }
 
 function conflict(message: string, details: unknown): ProcurementImportError {
@@ -550,7 +534,6 @@ export function parseFreshAllianceCsv(
       return {
         ...identity,
         snapshotHash: pickupSnapshotHash(identity, pickupLines),
-        legacySnapshotHash: legacyPickupSnapshotHash(identity, pickupLines),
         warningCodes,
         lines: pickupLines,
       };
@@ -642,7 +625,8 @@ export async function importFreshAllianceCsv(
   buffer: Buffer,
   importedBy?: string,
   client = prisma,
-  options: ParseFreshAllianceOptions = {}
+  options: ParseFreshAllianceOptions = {},
+  importOptions: ImportOptions = {}
 ): Promise<FreshAllianceImportResult> {
   const parsed = parseFreshAllianceCsv(buffer, options);
 
@@ -661,7 +645,7 @@ export async function importFreshAllianceCsv(
     );
     const changedPickups = parsed.pickups.filter((pickup) => {
       const currentHash = currentByPickup.get(pickup.sourcePickupReference);
-      return currentHash !== pickup.snapshotHash && currentHash !== pickup.legacySnapshotHash;
+      return currentHash !== pickup.snapshotHash;
     });
 
     if (changedPickups.length === 0) {
@@ -692,6 +676,7 @@ export async function importFreshAllianceCsv(
         rangeStart: parsed.rangeStart,
         rangeEnd: parsed.rangeEnd,
         importedBy,
+        unifiedFileHash: importOptions.unifiedFileHash,
       },
     });
 

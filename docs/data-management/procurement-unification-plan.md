@@ -1,7 +1,9 @@
 # Procurement Unification Plan
 
 **Started:** 2026-07-20
-**Status:** Phases 1–6 complete (extension v2.0.0 + FEED unified parser, 2026-07-22). Next: Phase 7 (legacy XLSX) or the deferred Analytics pending-weight decision.
+**Status:** Phases 1–7 complete (extension v2.0.0 + FEED unified parser +
+legacy retirement, 2026-07-22). Next: legacy XLSX ingestion or the deferred
+Analytics pending-weight decision.
 **Owner doc:** this file is the North Star for procurement data ingestion. Update
 it as each phase lands. Do not rely on session memory for any decision recorded
 here.
@@ -158,6 +160,37 @@ than nulling it out. The fix here is the same — report the real value, add
 `isConfirmed` to say what it means. Requested weight, including a genuine
 `0` for a category that was not collected in a given pickup, was never in
 question and is untouched by any of this.
+
+### D14 — Legacy single-channel import retired; unified is the only accepted format
+Decided 2026-07-22, once the unified export was verified working end-to-end
+against a full-history real upload. Nothing in this feature — Data
+Management, Analytics, any of it — had reached production yet, so backward
+compatibility with the two formats the unified export replaced was pure
+technical debt, not a real constraint. `detect.ts`'s three-way format
+detection, the OFB Warehouse parser's schema v1–3 hash-compatibility shim
+(`legacyOrderSnapshotHash`), and the Fresh Alliance parser's pre-`isConfirmed`
+hash-compatibility shim (`legacyPickupSnapshotHash`, added and already dead
+one day after it was written) were all removed in the same pass. `parseOfbCsv`
+and `parseFreshAllianceCsv` themselves are unaffected and undiminished — they
+remain the active parsing engine `unified.ts` delegates to for each half of a
+unified file; only the *standalone* upload path for a raw 12- or 19-column
+file, and the compatibility code for pre-this-feature schema shapes, are gone.
+
+This does not reopen D10 (CSV import stays permanently) — the *unified* CSV
+contract remains the supported import path forever. It retires only the two
+single-channel contracts the unified export was built to replace.
+
+A companion fix landed in the same pass: `ProcurementImport.unifiedFileHash`,
+set from the hash of the original unified file on both `ProcurementImport`
+rows one unified upload produces (Warehouse and Fresh Alliance are
+permanently separate source namespaces per D3, so one upload is always two
+rows). Motivated by a real, reported point of confusion: Import History
+labeled the two resulting rows "OFB Completed Orders" / "OFB Agency
+Pickups" — accurate per channel, but with nothing showing they came from one
+upload action, so seeing both looked like an inconsistency rather than the
+expected shape. The Import History table and the import detail dialog now
+name the paired row ("Paired with OFB Agency Pickups" / "From the same export
+as: OFB Completed Orders") whenever a sibling sharing the hash exists.
 
 ## Phases
 
@@ -396,7 +429,53 @@ fixtures. Weight totals, confirmed/pending counts, zero AGPCKUP-in-warehouse,
 zero confirmed/pending reference overlap, and correct duplicate-detection on
 re-import all confirmed directly against real data.
 
-### Phase 7+ — Further polish, post-MVP
+### Phase 7 — Retire legacy single-channel import ✅ complete (2026-07-22)
+Full rationale recorded as D14.
+
+- [x] Dev database's procurement tables cleared (`ProcurementImport`,
+      `ProcurementOrderRevision`, `ProcurementProduct`, `ProcurementLine`) and
+      re-populated from a fresh full-history unified upload — three files
+      covering 2009–2026, 1,322 active Warehouse events and 840 active Fresh
+      Alliance events, matching the coverage strip exactly. Backed up to
+      scratchpad first; reversible, not exercised.
+- [x] `detect.ts` deleted. The route calls `importUnifiedOfbCsv` directly;
+      the unified parser's own header validation is now the only format
+      check. `OfbExportKind`/`DetectedImportResult` unions removed from both
+      backend and frontend — the API returns a bare `UnifiedImportResult`.
+- [x] `legacyOrderSnapshotHash` (OFB Warehouse, schema v1–3) and
+      `legacyPickupSnapshotHash` (Fresh Alliance, pre-`isConfirmed`) removed,
+      along with their fields and the tests that exercised them. Both were
+      provably unreachable: no data in either old shape exists anywhere,
+      dev or production.
+  - Found while removing the first one: a **second**, near-identical legacy
+    hash mechanism already existed for Fresh Alliance (`legacyPickupSnapshotHash`,
+    landed 2026-07-21 to fix the isConfirmed hash-transition bug Phase 6
+    describes) that hadn't surfaced in the plan until this pass touched it.
+    Same category of debt, same justification, removed the same way.
+- [x] `ProcurementImport.unifiedFileHash` added — nullable, set on both rows
+      a unified upload produces, from the hash of the *original* unified
+      file (not either reconstructed sub-buffer, which differ from each
+      other). Threaded through `importOfbCsv`/`importFreshAllianceCsv` via a
+      new shared `ImportOptions` type rather than overloading the existing
+      parse-level options object.
+- [x] Import History table and the import detail dialog name the paired row
+      when a sibling sharing `unifiedFileHash` exists — resolves the
+      reported confusion of seeing two differently-labeled rows from one
+      upload action with nothing showing they were related.
+- [x] Tests: legacy-hash tests removed (not adapted — the behavior they
+      covered no longer exists); new coverage for the correlation field
+      (backend: both `procurementImport.create` calls receive the same
+      hash; frontend: the table names the correct sibling, and an
+      unpaired/legacy-predating row shows nothing).
+
+**Verification:** real project typecheck (`tsconfig.app.json`) confirmed the
+only new frontend errors were the expected test-file breakage from the
+removed exports, now fixed; the `ColumnDef<unknown>` generic-widening class of
+error is unchanged pre-existing debt, confirmed by diffing against a
+`git stash` of this pass's changes. 52/52 backend procurement tests, 376/376
+backend total, frontend procurement-area tests green.
+
+### Phase 8+ — Further polish, post-MVP
 - Legacy XLSX ingestion as its own domain (D9).
 
 ## Transport, deferred

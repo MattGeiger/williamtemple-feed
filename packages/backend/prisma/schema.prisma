@@ -136,9 +136,20 @@ model ProcurementImport {
   rolledBackAt  DateTime?
   restoredBy    String?
   restoredAt    DateTime?
+
+  // Hash of the original unified export file this import was extracted from.
+  // A unified upload always produces two ProcurementImport rows -- one
+  // Warehouse, one Fresh Alliance, permanently separate source namespaces
+  // (D3) -- and this ties them back together as one upload action. Null for
+  // an import that predates this column; every import created from this
+  // point forward has it, since the unified export is the only accepted
+  // format.
+  unifiedFileHash String?
+
   orders        ProcurementOrderRevision[]
 
   @@index([source, importedAt])
+  @@index([unifiedFileHash])
   @@index([fileHash])
   @@index([status, importedAt])
 }

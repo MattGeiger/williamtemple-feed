@@ -6,6 +6,7 @@ import { render, screen } from '@testing-library/react';
 import { describe, expect, test, vi } from 'vitest';
 
 import { DataManagementWorkspace } from '@/components/data-management';
+import type { ProcurementImportRecord } from '@/types/procurement';
 
 vi.mock('@/services/procurement', () => ({
   procurementService: {
@@ -66,5 +67,38 @@ describe('Data Management', () => {
     for (const forbidden of [/overdue/i, /behind/i, /incomplete/i, /missing data/i, /failed to/i]) {
       expect(document.body.textContent).not.toMatch(forbidden);
     }
+  });
+
+  test('names the sibling row a unified upload produced, and only that row', async () => {
+    const record = (overrides: Partial<ProcurementImportRecord> & Pick<ProcurementImportRecord, 'id' | 'source'>): ProcurementImportRecord => ({
+      status: 'active',
+      schemaVersion: 1,
+      rowCount: 10,
+      orderCount: 2,
+      warningCount: 0,
+      warnings: [],
+      rangeStart: '2026-06-01',
+      rangeEnd: '2026-06-02',
+      importedAt: '2026-07-22T20:00:00.000Z',
+      rolledBackAt: null,
+      restoredAt: null,
+      unifiedFileHash: null,
+      orders: [],
+      ...overrides,
+    });
+    const { procurementService } = await import('@/services/procurement');
+    vi.mocked(procurementService.getImports).mockResolvedValueOnce([
+      record({ id: 1, source: 'ofb', unifiedFileHash: 'hash-a' }),
+      record({ id: 2, source: 'ofb_pickup', unifiedFileHash: 'hash-a' }),
+      // A standalone import (or one predating the column) shares no hash and
+      // must not be labeled as paired with anything.
+      record({ id: 3, source: 'ofb', unifiedFileHash: null }),
+    ]);
+
+    render(<DataManagementWorkspace />);
+
+    expect(await screen.findByText('Paired with OFB Agency Pickups')).toBeVisible();
+    expect(screen.getByText('Paired with OFB Completed Orders')).toBeVisible();
+    expect(screen.getAllByText(/Paired with/)).toHaveLength(2);
   });
 });

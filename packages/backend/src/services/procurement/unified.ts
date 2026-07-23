@@ -382,9 +382,13 @@ export async function importUnifiedOfbCsv(
 ): Promise<UnifiedImportResult> {
   const split = splitUnifiedCsv(buffer);
 
+  // Both resulting ProcurementImport rows carry the same hash of the
+  // original unified file (not the reconstructed sub-buffers, which differ
+  // from each other), so the two permanently-separate source namespaces
+  // (D3) that one upload produces can be traced back to that one upload.
   const warehouse = split.warehouseBuffer
     ? await runTranslated(
-        () => importOfbCsv(split.warehouseBuffer!, importedBy, client),
+        () => importOfbCsv(split.warehouseBuffer!, importedBy, client, { unifiedFileHash: split.fileHash }),
         split.warehouseRowMap
       )
     : null;
@@ -394,7 +398,8 @@ export async function importUnifiedOfbCsv(
           split.pickupBuffer!,
           importedBy,
           client,
-          { confirmedByReference: split.confirmedByReference }
+          { confirmedByReference: split.confirmedByReference },
+          { unifiedFileHash: split.fileHash }
         ),
         split.pickupRowMap
       )
