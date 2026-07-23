@@ -1122,6 +1122,7 @@ export function ProcurementAnalyticsWorkspace({
                 : `${summary.medianReceivingGapDays.toLocaleString(undefined, { maximumFractionDigits: 1 })} days`}
             />
           </div>
+          <FreshAlliancePendingNote pending={summary.freshAlliancePending} />
         </CardContent>
       </Card>
 
@@ -1530,6 +1531,7 @@ export function ProcurementAnalyticsWorkspace({
               Broad categories reported through OFB, by donor. Donor identity comes from the OFB
               Agency Pickups export and is never inferred beyond what it reports.
             </p>
+            <FreshAlliancePendingNote pending={summary.freshAlliancePending} className="mt-1" />
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild disabled={freshAllianceDonorOptions.length === 0}>
@@ -1606,6 +1608,32 @@ function MixDetails({ total, rows }: { total: number; rows: Array<{ label: strin
         </div>
       ))}
     </dl>
+  );
+}
+
+/**
+ * States how much already-counted weight is still awaiting OFB's review.
+ * Deliberately understated: OFB's "Confirmed" checkbox is an audit sign-off
+ * on data the agency already reported, not a data-quality gate, so pending
+ * weight is included in every total already -- this note explains that
+ * fact, it does not correct or caveat a number that needs correcting. See
+ * procurement-unification-plan.md D15.
+ */
+function FreshAlliancePendingNote({
+  pending,
+  className = '',
+}: {
+  pending: ProcurementAnalytics['summary']['freshAlliancePending'];
+  className?: string;
+}) {
+  if (!pending) return null;
+  return (
+    <p className={`text-xs text-muted-foreground ${className}`}>
+      Includes {pounds(pending.weightHundredths)} of Fresh Food Alliance donations from{' '}
+      {format(parseISO(pending.earliestDeliveryDate), 'MMM d, yyyy')} to{' '}
+      {format(parseISO(pending.latestDeliveryDate), 'MMM d, yyyy')} still awaiting OFB's
+      confirmation sign-off.
+    </p>
   );
 }
 

@@ -7,6 +7,14 @@ All notable changes to FEED are documented here. This project adheres to
 
 ### Added
 
+- **Pending Fresh Alliance weight counts equally with confirmed weight**:
+  OFB's `Confirmed` flag is an internal audit sign-off on a report the agency
+  already made in full, not a data-quality gate, so Procurement Analytics no
+  longer distinguishes pending from confirmed weight in any total, chart, or
+  donor breakdown. A small, calm note on Inbound Supply Summary and Fresh
+  Food Alliance Receipt Categories states how much of the total is still
+  awaiting that sign-off and over what date range, so the distinction stays
+  visible without being treated as a caveat on the number.
 - **Unified OFB export ingestion**: FEED now recognizes the OFB Order CSV
   Exporter v2.0.0 unified export — one sparse 26-column file covering
   Warehouse Completed orders and Fresh Food Alliance Pending and Completed

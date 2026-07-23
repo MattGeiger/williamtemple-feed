@@ -76,6 +76,7 @@ const emptyAnalytics: ProcurementAnalytics = {
     grantsAppliedCents: 0,
     netRecordedCostCents: 0,
     priceMismatchLineCount: 0,
+    freshAlliancePending: null,
   },
   acquisitionMix: [],
   channelMix: [],
@@ -942,5 +943,56 @@ describe('paid product families', () => {
     expect(familyCssKey('Other Protein')).toBe('fam_other_protein');
     expect(familyCssKey('Non-Food')).toBe('fam_non_food');
     expect(familyCssKey('Unclassified')).toBe('fam_unclassified');
+  });
+});
+
+describe('Pending Fresh Alliance weight note (D15: included everywhere, stated plainly)', () => {
+  test('states the pending weight and date range on both cards it appears', async () => {
+    getAnalyticsMock.mockResolvedValueOnce({
+      ...emptyAnalytics,
+      status: { ...emptyAnalytics.status, hasData: true },
+      summary: {
+        ...emptyAnalytics.summary,
+        totalWeightHundredths: 80000,
+        freshAlliancePending: {
+          weightHundredths: 30000,
+          eventCount: 2,
+          earliestDeliveryDate: '2026-06-16',
+          latestDeliveryDate: '2026-07-21',
+        },
+      },
+    } satisfies ProcurementAnalytics);
+
+    render(
+      <MemoryRouter>
+        <ProcurementAnalyticsWorkspace />
+      </MemoryRouter>
+    );
+
+    const notes = await screen.findAllByText(
+      /Includes 300 lb of Fresh Food Alliance donations from Jun 16, 2026 to Jul 21, 2026 still awaiting OFB's confirmation sign-off\./
+    );
+    // Inbound Supply Summary and Fresh Food Alliance Receipt Categories.
+    expect(notes).toHaveLength(2);
+
+    // The number in the note is the same weight already in the headline KPI,
+    // not a separate figure -- Option A never walls pending weight off.
+    expect(screen.getByText('800 lb')).toBeVisible();
+  });
+
+  test('omits the note entirely when nothing in range is pending', async () => {
+    getAnalyticsMock.mockResolvedValueOnce({
+      ...emptyAnalytics,
+      status: { ...emptyAnalytics.status, hasData: true },
+    } satisfies ProcurementAnalytics);
+
+    render(
+      <MemoryRouter>
+        <ProcurementAnalyticsWorkspace />
+      </MemoryRouter>
+    );
+
+    await screen.findByText('Inbound Supply Summary');
+    expect(screen.queryByText(/awaiting OFB's confirmation/)).not.toBeInTheDocument();
   });
 });

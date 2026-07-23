@@ -899,6 +899,17 @@ export async function getProcurementAnalytics(
   let zeroInboundLineCount = 0;
   const costAdjustmentsAttributable = !filters.acquisitionClass;
 
+  // Pending weight is counted in every total above like any other observation
+  // -- the agency already weighed it, and OFB's "Confirmed" checkbox is an
+  // audit sign-off, not a data-quality gate (see procurement-unification-plan.md
+  // D13/D15). This tracks the same weight a second time, unioned, purely so
+  // Analytics can state in one sentence how much of what's already counted is
+  // still awaiting that sign-off.
+  let freshAlliancePendingWeightHundredths = 0;
+  let freshAlliancePendingEventCount = 0;
+  let freshAlliancePendingEarliestDate: string | null = null;
+  let freshAlliancePendingLatestDate: string | null = null;
+
   for (const order of orders) {
     const month = order.deliveryDate.slice(0, 7);
     const monthValues = monthly.get(month) ?? {
@@ -935,6 +946,23 @@ export async function getProcurementAnalytics(
         donorObservation.lastReceivedDate = order.deliveryDate;
       }
       donors.set(donorCode, donorObservation);
+    }
+
+    // isConfirmed is null for OFB Warehouse (the concept doesn't apply there
+    // -- Warehouse is Completed-only) and strictly false, never absent, for a
+    // Fresh Alliance revision still awaiting OFB's review.
+    if (order.isConfirmed === false) {
+      freshAlliancePendingEventCount += 1;
+      freshAlliancePendingWeightHundredths += order.lines.reduce(
+        (sum, line) => sum + line.weightHundredths,
+        0
+      );
+      if (!freshAlliancePendingEarliestDate || order.deliveryDate < freshAlliancePendingEarliestDate) {
+        freshAlliancePendingEarliestDate = order.deliveryDate;
+      }
+      if (!freshAlliancePendingLatestDate || order.deliveryDate > freshAlliancePendingLatestDate) {
+        freshAlliancePendingLatestDate = order.deliveryDate;
+      }
     }
 
     for (const line of order.lines) {
@@ -1270,6 +1298,16 @@ export async function getProcurementAnalytics(
         ? calculatedGrossProductChargesCents + serviceFeesCents - grantsAppliedCents
         : null,
       priceMismatchLineCount,
+      // Weight already counted in every total above; this is the same
+      // observation viewed a second time, not a separate figure. null when
+      // nothing in the current range/filters is pending -- e.g. a Warehouse-
+      // only channel filter, or simply no unconfirmed receipts right now.
+      freshAlliancePending: freshAlliancePendingEventCount === 0 ? null : {
+        weightHundredths: freshAlliancePendingWeightHundredths,
+        eventCount: freshAlliancePendingEventCount,
+        earliestDeliveryDate: freshAlliancePendingEarliestDate,
+        latestDeliveryDate: freshAlliancePendingLatestDate,
+      },
     },
     acquisitionMix: ACQUISITION_CLASSES.map((acquisitionClass) => ({
       acquisitionClass,
