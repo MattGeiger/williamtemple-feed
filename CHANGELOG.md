@@ -7,6 +7,17 @@ All notable changes to FEED are documented here. This project adheres to
 
 ### Added
 
+- **Unified OFB export ingestion**: FEED now recognizes the OFB Order CSV
+  Exporter v2.0.0 unified export — one sparse 26-column file covering
+  Warehouse Completed orders and Fresh Food Alliance Pending and Completed
+  pickups for one date range, replacing the two separate legacy exports for
+  agencies using the updated extension. FEED splits rows by `Record Type` and
+  delegates to the existing, already-tested parsers rather than
+  re-implementing row validation, so a Pending pickup's `Confirmed: No`
+  becomes an explicit `isConfirmed: false` on the persisted revision, sourced
+  from a stated fact rather than inferred. Wired into the existing "drop any
+  recognized OFB export" import action; both legacy single-channel exports
+  remain fully supported, permanently.
 - **Seasonal channel breakdown**: the Seasonal Inbound Weight card on
   Procurement Analytics can now split each year's monthly trend by OFB
   Warehouse or Fresh Food Alliance. The control only appears when the
@@ -91,19 +102,29 @@ All notable changes to FEED are documented here. This project adheres to
   where Oregon Food Bank recorded a rate, and the card leads with the percentage
   of pounds that covers. Pounds without a recorded rate are shown alongside the
   total and are never assigned an estimated rate.
-- **Fresh Alliance revisions record OFB confirmation status**: a new
+- **Fresh Alliance revisions record OFB confirmation status**: an
   `isConfirmed` field, sourced directly from Primarius's own review flag
-  rather than inferred, lays groundwork for a future extension update that
-  can report pickups the agency has already logged but OFB has not yet
-  reviewed. Every pickup imported through the current export contract is
-  backfilled and recorded as confirmed, because that contract can only ever
-  carry OFB-reviewed data today; nothing about current import or analytics
-  behavior changes. A live, read-only investigation of the Primarius portal
-  found this review queue and confirmed it introduces no duplication risk,
-  recorded in `docs/data-management/fresh-alliance-pending-pickups.md`.
+  rather than inferred, reports pickups the agency has already logged but OFB
+  has not yet reviewed — populated from the unified export's `Confirmed`
+  column (see below); still always `true` when imported through either legacy
+  export, which can only ever carry OFB-reviewed data. A live, read-only
+  investigation of the Primarius portal found this review queue and confirmed
+  it introduces no duplication risk, recorded in
+  `docs/data-management/fresh-alliance-pending-pickups.md`.
 
 ### Fixed
 
+- **Fresh Alliance re-imports no longer manufacture spurious revisions**:
+  every pickup imported before 2026-07-21 had a stored snapshot hash computed
+  without the `isConfirmed` field, which did not exist on the hashed identity
+  yet. Re-importing an unchanged date range would silently create a new
+  revision for every pickup in it, forever, growing the database and
+  misreporting "changed" counts in Import History without affecting reported
+  weight or donor totals. Fixed the same way the OFB Warehouse parser already
+  handles its own historical hash-contract change: a `legacySnapshotHash`,
+  accepted as equivalent to the current one on import. Found and verified
+  against a copy of the real production database while validating unified
+  export ingestion, not from a synthetic test case.
 - **"Last Received" columns are sortable**: the three procurement tables that
   had a Last Received date column but no sort control on it — Paid OFB
   Warehouse Products, OFB Warehouse Product History, and Fresh Food Alliance
