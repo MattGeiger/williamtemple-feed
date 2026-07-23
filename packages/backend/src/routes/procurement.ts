@@ -10,7 +10,7 @@ import {
   ANALYTICS_RANGE_PRESETS,
   isValidLocalDate,
 } from '../services/inventory-analytics/timezone';
-import { importOfbExport } from '../services/procurement/detect';
+import { importUnifiedOfbCsv } from '../services/procurement/unified';
 import {
   getProcurementDataStatus,
   getProcurementAnalytics,
@@ -95,11 +95,11 @@ router.get('/analytics', rateLimiter, async (_req, res, next) => {
   }
 });
 
-// One import action for every OFB export FEED understands (the unified
-// export, and the two legacy single-channel exports it replaced). FEED reads
-// the header row to tell them apart rather than asking staff to declare which
-// report they exported — a choice they could get wrong, on files that look
-// alike, mid-task.
+// One import action for the unified OFB export -- one Order History action
+// on the extension side produces one file covering Warehouse Completed
+// orders plus Fresh Alliance Pending and Completed pickups. The two
+// single-channel exports this replaced are no longer accepted; nothing in
+// production ever depended on them (see procurement-unification-plan.md).
 router.post('/imports', rateLimiter, upload.single('file'), async (req, res, next) => {
   try {
     if (!req.file) {
@@ -110,7 +110,7 @@ router.post('/imports', rateLimiter, upload.single('file'), async (req, res, nex
         },
       });
     }
-    const result = await importOfbExport(req.file.buffer, req.auth?.userId);
+    const result = await importUnifiedOfbCsv(req.file.buffer, req.auth?.userId);
     res.status(result.outcome === 'imported' ? 201 : 200).json({ result });
   } catch (error) {
     if (error instanceof ProcurementImportError) {

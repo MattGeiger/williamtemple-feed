@@ -20,78 +20,48 @@ import { cn } from '@/lib/utils';
 import { ErrorHandlerService } from '@/services/error/ErrorHandlerService';
 import { messageService } from '@/services/message';
 import { procurementService } from '@/services/procurement';
-import type { DetectedImportResult, FreshAllianceImportResult, ProcurementWarning } from '@/types/procurement';
+import type { ProcurementWarning, UnifiedImportResult } from '@/types/procurement';
 
 const MAX_FILE_BYTES = 5 * 1024 * 1024;
 
-/** Names the export FEED recognized, so the confirmation is specific. */
-export function exportLabel(exportKind: DetectedImportResult['exportKind']): string {
-  if (exportKind === 'agency_pickups') return 'Agency Pickups';
-  if (exportKind === 'unified') return 'OFB Export';
-  return 'Completed Orders';
-}
-
-function freshAllianceSummary(result: FreshAllianceImportResult): string {
-  const pickups = `${result.pickupCount} pickup${result.pickupCount === 1 ? '' : 's'}`;
-  // Superseding is the part staff would otherwise have to reason about, so
-  // the confirmation says plainly that weight was not counted twice.
-  const superseded = result.supersededEventCount > 0
-    ? `, replacing ${result.supersededEventCount} matching Completed Orders receipt${result.supersededEventCount === 1 ? '' : 's'} so weight is counted once`
-    : '';
-  return `${pickups} with donor detail${superseded}`;
-}
-
-export function importedSummary(result: DetectedImportResult): string {
+export function importedSummary(result: UnifiedImportResult): string {
   const rows = result.rowCount.toLocaleString();
-  if (result.exportKind === 'unified') {
-    const parts: string[] = [];
-    if (result.warehouse) {
-      const orders = `${result.warehouse.orderCount} warehouse order${result.warehouse.orderCount === 1 ? '' : 's'}`;
-      parts.push(orders);
-    }
-    if (result.freshAlliance) {
-      parts.push(freshAllianceSummary(result.freshAlliance));
-    }
-    return `Imported ${rows} rows across ${parts.join(' and ')}`;
+  const parts: string[] = [];
+  if (result.warehouse) {
+    parts.push(`${result.warehouse.orderCount} warehouse order${result.warehouse.orderCount === 1 ? '' : 's'}`);
   }
-  if (result.exportKind === 'agency_pickups') {
-    return `Imported ${rows} rows across ${freshAllianceSummary(result)}`;
+  if (result.freshAlliance) {
+    const pickups = `${result.freshAlliance.pickupCount} pickup${result.freshAlliance.pickupCount === 1 ? '' : 's'}`;
+    // Superseding is the part staff would otherwise have to reason about, so
+    // the confirmation says plainly that weight was not counted twice.
+    const superseded = result.freshAlliance.supersededEventCount > 0
+      ? `, replacing ${result.freshAlliance.supersededEventCount} matching Completed Orders receipt${result.freshAlliance.supersededEventCount === 1 ? '' : 's'} so weight is counted once`
+      : '';
+    parts.push(`${pickups} with donor detail${superseded}`);
   }
-  const orders = `${result.orderCount} source event${result.orderCount === 1 ? '' : 's'}`;
-  return `Imported ${rows} rows across ${orders}`;
+  return `Imported ${rows} rows across ${parts.join(' and ')}`;
 }
 
-/** Import IDs created by this result, so a unified import's two channels
- *  (Warehouse and Fresh Alliance each get their own `ProcurementImport` row)
- *  can be undone together with one click, same as a single-channel import. */
-export function importIds(result: DetectedImportResult): number[] {
-  if (result.exportKind === 'unified') {
-    return [result.warehouse?.importId, result.freshAlliance?.importId]
-      .filter((id): id is number => typeof id === 'number');
-  }
-  return result.importId === null ? [] : [result.importId];
+/** Both `ProcurementImport` rows a unified import produces -- Warehouse and
+ *  Fresh Alliance are permanently separate source namespaces -- so they can
+ *  be undone together with one click. */
+export function importIds(result: UnifiedImportResult): number[] {
+  return [result.warehouse?.importId, result.freshAlliance?.importId]
+    .filter((id): id is number => typeof id === 'number');
 }
 
-/** Combined warning count across both channels for a unified import; the
- *  legacy single-channel results already carry one directly. */
-export function warningCount(result: DetectedImportResult): number {
-  if (result.exportKind === 'unified') {
-    return (result.warehouse?.warningCount ?? 0) + (result.freshAlliance?.warningCount ?? 0);
-  }
-  return result.warningCount;
+export function warningCount(result: UnifiedImportResult): number {
+  return (result.warehouse?.warningCount ?? 0) + (result.freshAlliance?.warningCount ?? 0);
 }
 
-export function combinedWarnings(result: DetectedImportResult): ProcurementWarning[] {
-  if (result.exportKind === 'unified') {
-    return [...(result.warehouse?.warnings ?? []), ...(result.freshAlliance?.warnings ?? [])];
-  }
-  return result.warnings;
+export function combinedWarnings(result: UnifiedImportResult): ProcurementWarning[] {
+  return [...(result.warehouse?.warnings ?? []), ...(result.freshAlliance?.warnings ?? [])];
 }
 
 interface OfbImportDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onImported: (result: DetectedImportResult) => Promise<void> | void;
+  onImported: (result: UnifiedImportResult) => Promise<void> | void;
 }
 
 export function OfbImportDialog({
@@ -102,7 +72,7 @@ export function OfbImportDialog({
   const [file, setFile] = React.useState<File | null>(null);
   const [isDragging, setIsDragging] = React.useState(false);
   const [isImporting, setIsImporting] = React.useState(false);
-  const [result, setResult] = React.useState<DetectedImportResult | null>(null);
+  const [result, setResult] = React.useState<UnifiedImportResult | null>(null);
   const inputRef = React.useRef<HTMLInputElement>(null);
 
   React.useEffect(() => {
@@ -136,7 +106,7 @@ export function OfbImportDialog({
       await onImported(imported);
       if (imported.outcome === 'duplicate') {
         messageService.info(
-          `This ${exportLabel(imported.exportKind)} data is already current. No changes were made.`
+          'This OFB export is already current. No changes were made.'
         );
         onOpenChange(false);
         return;
@@ -179,7 +149,7 @@ export function OfbImportDialog({
         <DialogHeader>
           <DialogTitle>Import OFB Data</DialogTitle>
           <DialogDescription>
-            Import a unified OFB export, or either legacy Completed Orders or Agency Pickups CSV — FEED recognizes which one it is. The source file is discarded after import and never retained.
+            Import the unified OFB export from Order History — one file covering Warehouse Completed orders and Fresh Alliance Pending and Completed pickups. The source file is discarded after import and never retained.
           </DialogDescription>
         </DialogHeader>
 

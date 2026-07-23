@@ -17,6 +17,7 @@ import {
   ACQUISITION_CLASSES,
   AcquisitionClass,
   FRESH_ALLIANCE_SOURCE,
+  ImportOptions,
   OFB_SOURCE,
   PROCUREMENT_SOURCES,
   ProcurementImportError,
@@ -102,7 +103,6 @@ export interface NormalizedOfbOrder {
   eventKind: ProcurementEventKind;
   deliveryDate: string;
   snapshotHash: string;
-  legacySnapshotHash: string;
   warningCodes: ProcurementWarningCode[];
   lines: NormalizedOfbLine[];
 }
@@ -134,19 +134,6 @@ function orderSnapshotHash(lines: NormalizedOfbLine[]): string {
     .map(({ sourceRowNumber: _row, ...line }) => line)
     .sort((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right)));
   return createHash('sha256').update(JSON.stringify(canonical)).digest('hex');
-}
-
-// Schema versions 1–3 derived channel from the product-code prefix. Accepting
-// that historical hash prevents a semantically corrected no-op import from
-// manufacturing a new revision. New revisions always store the source-based
-// schema-v4 hash.
-function legacyOrderSnapshotHash(lines: NormalizedOfbLine[]): string {
-  return orderSnapshotHash(lines.map((line) => ({
-    ...line,
-    procurementChannel: /^4\d{4}$/.test(line.productCode)
-      ? 'fresh_alliance'
-      : 'ofb_warehouse',
-  })));
 }
 
 export function parseOfbCsv(buffer: Buffer): ParsedOfbImport {
@@ -319,7 +306,6 @@ export function parseOfbCsv(buffer: Buffer): ParsedOfbImport {
         eventKind,
         deliveryDate,
         snapshotHash: orderSnapshotHash(orderLines),
-        legacySnapshotHash: legacyOrderSnapshotHash(orderLines),
         warningCodes,
         lines: orderLines,
       };
@@ -352,7 +338,8 @@ export interface ProcurementImportResult {
 export async function importOfbCsv(
   buffer: Buffer,
   importedBy?: string,
-  client = prisma
+  client = prisma,
+  options: ImportOptions = {}
 ): Promise<ProcurementImportResult> {
   const parsed = parseOfbCsv(buffer);
 
@@ -371,7 +358,7 @@ export async function importOfbCsv(
     );
     const changedOrders = parsed.orders.filter((order) => {
       const currentHash = currentByOrder.get(order.sourceOrderReference);
-      return currentHash !== order.snapshotHash && currentHash !== order.legacySnapshotHash;
+      return currentHash !== order.snapshotHash;
     });
 
     if (changedOrders.length === 0) {
@@ -401,6 +388,7 @@ export async function importOfbCsv(
         rangeStart: parsed.rangeStart,
         rangeEnd: parsed.rangeEnd,
         importedBy,
+        unifiedFileHash: options.unifiedFileHash,
       },
     });
 
@@ -615,6 +603,7 @@ export async function listProcurementImports(client = prisma) {
     importedAt: record.importedAt.toISOString(),
     rolledBackAt: record.rolledBackAt?.toISOString() ?? null,
     restoredAt: record.restoredAt?.toISOString() ?? null,
+    unifiedFileHash: record.unifiedFileHash,
     orders: record.orders.map((order) => ({
       id: order.id,
       sourceOrderReference: order.sourceOrderReference,

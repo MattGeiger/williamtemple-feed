@@ -222,6 +222,23 @@ describe('Unified export persistence', () => {
     expect(tx.procurementImport.create).toHaveBeenCalledTimes(2);
   });
 
+  test('ties both resulting rows back to one upload with a shared unifiedFileHash', async () => {
+    // Warehouse and Fresh Alliance are permanently separate source
+    // namespaces (D3), so one unified upload always produces two
+    // ProcurementImport rows. Both must carry the same hash -- of the
+    // original unified file, not either reconstructed sub-buffer, which
+    // differ from each other -- so the pair can be traced back to one
+    // upload action.
+    const tx = makeTx();
+    await importUnifiedOfbCsv(csv(warehouseRow(), pickupRow()), undefined, asClient(tx));
+
+    const calls = tx.procurementImport.create.mock.calls as [{ data: { unifiedFileHash?: string; source: string } }][];
+    expect(calls).toHaveLength(2);
+    const hashes = calls.map(([{ data }]) => data.unifiedFileHash);
+    expect(hashes[0]).toBeTruthy();
+    expect(hashes[0]).toBe(hashes[1]);
+  });
+
   test('persists a pending pickup with isConfirmed: false', async () => {
     const tx = makeTx();
     await importUnifiedOfbCsv(csv(pickupRow({

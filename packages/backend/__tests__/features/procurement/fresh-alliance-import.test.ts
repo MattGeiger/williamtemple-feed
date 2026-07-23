@@ -391,34 +391,6 @@ describe('Fresh Alliance persistence and supersede lifecycle', () => {
     expect(tx.procurementOrderRevision.updateMany).not.toHaveBeenCalled();
   });
 
-  // Discovered 2026-07-22 while verifying the unified-export parser against a
-  // real database copy: every pickup imported before isConfirmed was added to
-  // the hashed identity (2026-07-21) has a stored hash computed without it.
-  // Without legacySnapshotHash, re-importing the entire pre-existing Fresh
-  // Alliance corpus -- unchanged in every field FEED persists -- would
-  // manufacture a spurious new revision for all of it, forever.
-  test('accepts a pre-isConfirmed snapshot hash as a duplicate', async () => {
-    const parsed = parseFreshAllianceCsv(singlePickup());
-    expect(parsed.pickups[0].legacySnapshotHash).not.toBe(parsed.pickups[0].snapshotHash);
-
-    const tx = makeTx({
-      procurementOrderRevision: {
-        findMany: vi.fn().mockResolvedValue([{
-          sourceOrderReference: '1155954AGPCKUP',
-          snapshotHash: parsed.pickups[0].legacySnapshotHash,
-        }]),
-        findFirst: vi.fn(),
-        updateMany: vi.fn().mockResolvedValue({ count: 0 }),
-        update: vi.fn(),
-        create: vi.fn(),
-      },
-    });
-
-    await expect(importFreshAllianceCsv(singlePickup(), undefined, asClient(tx)))
-      .resolves.toMatchObject({ outcome: 'duplicate', pickupCount: 0, skippedPickupCount: 1 });
-    expect(tx.procurementImport.create).not.toHaveBeenCalled();
-  });
-
   test('rolling back a Fresh Alliance import releases exactly what it claimed', async () => {
     const tx = makeTx({
       procurementImport: {

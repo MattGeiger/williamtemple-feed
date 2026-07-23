@@ -3,11 +3,11 @@
 
 import { BaseApiService } from '@/services/base';
 import type {
-  DetectedImportResult,
   ProcurementDataStatus,
   ProcurementAnalytics,
   ProcurementAnalyticsFilters,
   ProcurementImportRecord,
+  UnifiedImportResult,
 } from '@/types/procurement';
 
 class ProcurementApiService extends BaseApiService {
@@ -37,14 +37,12 @@ class ProcurementApiService extends BaseApiService {
     return response.analytics;
   }
 
-  /**
-   * FEED identifies which OFB export this is from its header row, so staff
-   * never have to declare it. The result reports which one it recognized.
-   */
-  async importOfbExport(file: File): Promise<DetectedImportResult> {
+  /** FEED accepts the unified OFB export -- one file covering Warehouse
+   *  Completed orders plus Fresh Alliance Pending and Completed pickups. */
+  async importOfbExport(file: File): Promise<UnifiedImportResult> {
     const formData = new FormData();
     formData.append('file', file);
-    const response = await this.requestFormData<{ result: DetectedImportResult }>(
+    const response = await this.requestFormData<{ result: UnifiedImportResult }>(
       '/imports',
       formData
     );
