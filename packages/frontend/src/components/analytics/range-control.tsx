@@ -198,10 +198,14 @@ export function AnalyticsRangeControl({ value, onChange }: AnalyticsRangeControl
               {customLabel}
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-[262px] max-w-[calc(100vw-2rem)] p-0" align="end">
+          <PopoverContent
+            className="w-[262px] max-w-[calc(100vw-2rem)] overflow-hidden p-0"
+            align="end"
+          >
             {/* One month with clickable month/year dropdown captions, matching
                 the ZEV picker pattern. */}
             <Calendar
+              className="mx-auto"
               mode="range"
               captionLayout="dropdown"
               selected={draft}

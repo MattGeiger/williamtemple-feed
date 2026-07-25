@@ -42,7 +42,8 @@ describe('AnalyticsRangeControl', () => {
     expect(screen.getAllByRole('grid')).toHaveLength(1);
     expect(screen.getByRole('combobox', { name: 'Choose the Month' })).toBeEnabled();
     expect(screen.getByRole('combobox', { name: 'Choose the Year' })).toBeEnabled();
-    expect(screen.getByRole('dialog')).toHaveClass('w-[262px]');
+    expect(screen.getByRole('dialog')).toHaveClass('w-[262px]', 'overflow-hidden');
+    expect(screen.getByRole('grid').closest('[data-slot="calendar"]')).toHaveClass('mx-auto');
   });
 
   test('keeps typed dates and the applied custom range in sync', () => {
