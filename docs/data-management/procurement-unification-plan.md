@@ -2,8 +2,12 @@
 
 **Started:** 2026-07-20
 **Status:** Phases 1–7 complete (extension v2.0.0 + FEED unified parser +
-legacy retirement, 2026-07-22). Next: legacy XLSX ingestion or the deferred
-Analytics pending-weight decision.
+legacy retirement, 2026-07-22). Analytics pending-weight decision settled (D15,
+2026-07-22). Phase 8 — data-shaping flags + legacy community integration — designed
+2026-07-23 (D16–D22); implementation underway — 2a (rule foundation + Data
+Management UI), 2b (Analytics honors flags), 2c (legacy community
+integration), and the analytics-polish + Fresh Alliance legacy-weave pass landed
+2026-07-23/24.
 **Owner doc:** this file is the North Star for procurement data ingestion. Update
 it as each phase lands. Do not rely on session memory for any decision recorded
 here.
@@ -84,6 +88,12 @@ A missing-time default, not an observed midnight collection. Surface as a
 data-quality warning; never render as an observed hour.
 
 ### D9 — Legacy XLSX history is a separate domain, not a backfill
+> **Revised 2026-07-23 by [D16](#d16). Read D9 for its still-valid caution, D16
+> for the current shape.** The prohibition D9 actually protects — never fabricate
+> line-item detail these files do not contain — stands. Its *conclusion* (a wholly
+> separate domain, indefinitely post-MVP) is superseded: the community-food subset
+> now enters procurement under its own source at explicitly-tagged monthly grain.
+
 `In-Kind Donations FY20xx` and `Social Services Tracking FY20xx` are
 agency-authored records of direct community donations and client services — not
 OFB supply. The OFB corpus already reaches 2009 for warehouse orders and 2023
@@ -237,6 +247,88 @@ share grows enough that Option C (show both) becomes worth its added
 complexity. Today it is under 1% of total Fresh Alliance weight; revisit if
 that changes materially.
 
+The decisions below (D16–D22) were settled 2026-07-23 and are documented in full
+in [data-shaping-and-legacy-integration.md](data-shaping-and-legacy-integration.md).
+They cover two linked capabilities: import-time **data-shaping flags/rules**, and
+the **legacy community-donation** integration.
+
+<a id="d16"></a>
+### D16 — Legacy community history is a procurement subset (revises D9)
+The community *food*-donation slice of the legacy workbooks enters procurement
+under its own `source = 'legacy_community'` (the D3 separate-source pattern), not
+as a wholly separate domain. Scope is community food only — OFB-supply rows (they
+duplicate authoritative data), hygiene/supply, client-service counts, volunteer
+hours, and derived averages are all dropped. A hard cutoff at **2023-06-01** (the
+first Fresh Alliance delivery) means legacy and OFB abut with no overlap and no
+double-count. D9's caution against fabricating line-item detail is preserved; its
+"separate domain" conclusion is superseded.
+
+### D17 — Monthly granularity is a first-class, tagged property
+Legacy events carry weight · source · month and nothing finer — no delivery day,
+no product code, no line items. They are tagged `estimated` (aggregate grain), and
+that tag governs inclusion: **present** in weight/time/source views (their own
+series on Inbound Weight Over Time; counted-with-disclaimer in Inbound Supply
+Summary), **absent** from product-category and line-level views. Absence over
+zero-fill — showing nothing is honest where inventing categories would lie. Extends
+the D15 disclose-don't-hide principle to resolution.
+
+### D18 — The canonical map is authored data, retained as a private artifact
+Legacy source identity is reconciled by a human-curated map
+(`source_as_written → source_canonical`, plus `disposition`), authored with the
+agency director's institutional knowledge — 37 label variants to 25 donors. The
+verbatim label is always preserved beside the canonical one; nothing is overwritten.
+The map is retained and reviewed as private operational data outside the FEED
+repository, **never committed and never inferred by code** (consistent with D4).
+Validated against the live OFB record over the Jun–Sep 2023 overlap: >50% of monthly
+cells matched to the pound, lending confidence to the uncheckable pre-2023 gap.
+
+### D19 — Data-shaping flags are non-destructive overlays
+Events are immutable facts; classification is a reversible overlay, and each view
+declares which flags it honors. Two families: **exclusions** (`pass_through`,
+`other_exclusion`) change a metric's total; **annotations** (`at_risk`,
+`estimated`, `program_bound`) change meaning/confidence, not the math. The
+exclusion set is deliberately minimal: `non_food` is already a product category
+(flagging it would encode the same fact twice), and a `one_off` donation can still
+be food the pantry distributed, so neither belongs. `other_exclusion` is the
+open-ended escape hatch and cannot be saved without a note explaining it.
+Donor rules match on donor code, donor name, or both — either hitting suffices. Every
+exclusion is disclosed where it acts (D15 generalized). Default is inclusive;
+agencies opt into exclusions. Flags never mutate or delete events.
+
+### D20 — Flags and import rules live in Data Management, not Analytics
+Authoring is an import-time and post-import concern. Two entry points: the rules list (standing rules,
+with donor fields autocompleted from donors FEED has actually seen) and the
+per-import Actions menu (reshape retroactively, beyond rollback). Scoped to donor /
+category / date-range·program / single event. Rules are evaluated at **read time**
+against every enabled rule and are never bound to an import, so one saved rule
+governs past, present, and future data until the agency changes it — no
+re-application step exists. FEED never proposes a rule: suggesting a donor "looks
+like" it needs excluding would be FEED forming an opinion about the agency's
+operation. They are contextual and
+relational — an agency's operational truth — **never general system logic**.
+Analytics only reads the result. (Prior art: the ZEV project's rules-at-ingestion
+with saved rule sets.)
+
+### D21 — Procurement ≠ supply is a first-class distinction, resolved by configuration
+"Received" (every real event) and "retained inventory" (what the pantry actually
+distributes) are different questions answered from the same immutable events via the
+`pass_through` flag. New Seasons - Slabtown is the canonical case: WTH couriers it to
+another agency rather than distributing it.
+
+**It is resolved at the configuration level only** — no code special-case, no shipped
+exclusion, no interim fix. This build has not reached production, so there is nothing
+to hot-fix; the expectation is that on release the agency imports its data and applies
+the `pass_through` rule through D20's interface. The distinction applies identically to
+live OFB Fresh Alliance data and to legacy `legacy_community` data, because the flag
+attaches to donor identity, not to a source.
+
+### D22 — The legacy import is a permanent single-agency sidecar
+A dedicated admin "Import Legacy" action in Data Management, separate from the
+standard OFB drop-zone, ingesting the two curated artifacts (ledger + map). It
+teaches the system nothing general and, under future white-label support, is hidden
+— it applies only to WTH. FEED's analytics foundation stays the OFB Primarius
+exports; this is an annex, not a second foundation.
+
 ## Phases
 
 Each phase is independently shippable. Check items off in place.
@@ -278,8 +370,9 @@ export is a Fresh Alliance receipt because of the export it came from; reference
 suffixes and product-code prefixes are not consulted. This is stricter and more
 honest than the suffix inference the 12-column path must use.
 
-The corpus test is gated on `existsSync` because the real export is gitignored
-agency data. It runs locally for anyone holding the file and skips in CI.
+The corpus test is gated on `FEED_PRIVATE_DATA_DIR` plus `existsSync` because the
+real export is private agency data stored outside the repository. It runs locally
+for authorized developers holding the file and skips in CI.
 
 ### Phase 3 — Persistence and supersede ✅ complete (2026-07-20)
 - [x] Schema: donor and pickup fields on revision; received/valuation/FA-category on line
@@ -290,8 +383,8 @@ agency data. It runs locally for anyone holding the file and skips in CI.
 - [x] Rollback clears exactly what an import claimed; restore reclaims its window
 - [x] Analytics and data status read both sources and exclude superseded revisions
 - [x] `POST /api/procurement/imports/fresh-alliance`
-- [x] Migration verified: full chain applied to a copy of
-      `docs/backup_20260709_103507.db`, all columns and indexes present,
+- [x] Migration verified: full chain applied to a private external copy of
+      `backup_20260709_103507.db`, all columns and indexes present,
       168 food items and 9 categories preserved
 - [x] 21 Fresh Alliance tests (30 procurement total); full suite 352/352
 
@@ -519,8 +612,35 @@ error is unchanged pre-existing debt, confirmed by diffing against a
 `git stash` of this pass's changes. 52/52 backend procurement tests, 376/376
 backend total, frontend procurement-area tests green.
 
-### Phase 8+ — Further polish, post-MVP
-- Legacy XLSX ingestion as its own domain (D9).
+### Phase 8 — Data-shaping flags + legacy community integration ✅ complete (2026-07-25)
+Design intent recorded in
+[data-shaping-and-legacy-integration.md](data-shaping-and-legacy-integration.md)
+and D16–D22. Stage 1 (documentation) and Stage 2 (implementation) complete.
+- [x] 2a — Flag/rule foundation: `ProcurementDataRule` model + migration, pure
+      matching/resolution service, CRUD + REST API, Data Management rules UI with a
+      per-import "Shape Data" action, donor autocomplete from observed donors
+      (35 backend + 5 frontend tests)
+- [x] 2b — Analytics honors flags: rules resolved at read time per line, a
+      `dataShaping` block reporting excluded/retained weight and a per-flag
+      breakdown, and a disclosure note on Inbound Supply Summary naming what was
+      set aside. Annotations measured but never subtracted. Verified live against
+      the real corpus (New Seasons: 9,213 lb over 119 events separated from
+      supply; cross-checked by direct SQL)
+- [x] 2c — `legacy_community` source + third `community_donation` channel;
+      curated-ledger parser/importer with stable per-month references (a
+      corrected weight becomes a revision, not a new event); admin "Import
+      Legacy" action separate from the OFB drop-zone; legacy counted in
+      weight/time/source views and explicitly excluded from every product and
+      category view; own line/color/legend on Inbound Weight Over Time. Curated
+      artifacts live outside the repository under the authorized private-data root
+      (real organizational data, local only; never commit). Verified live: 596 rows → 550
+      months, 1,033,334 lb, Oct 2016 – May 2023, clean seam at 2023-06
+- [x] 2d — Tests for flag honoring + disclosure; cutoff and overlap validation
+      as regressions; 108/108 procurement tests pass with the authorized private
+      corpus, 54/54 frontend Data Management + Procurement Analytics tests pass,
+      and the full 23-migration chain applies to a fresh SQLite database
+
+### Phase 9+ — Further polish, post-MVP
 
 ## Transport, deferred
 
@@ -707,6 +827,7 @@ Claims about this feature should be checkable, not remembered:
 ## Related documents
 
 - [procurement-imports.md](procurement-imports.md) — the import contract
+- [data-shaping-and-legacy-integration.md](data-shaping-and-legacy-integration.md) — Phase 8 design intent (flags/rules + legacy community integration; D16–D22)
 - [fresh-alliance-coverage-verification.md](fresh-alliance-coverage-verification.md) — Phase 1 evidence
 - [fresh-alliance-pending-pickups.md](fresh-alliance-pending-pickups.md) — Phase 6 evidence: the live Primarius investigation, D13's basis
 - `docs/reports/operational-analytics-design.md` — analytics source of truth

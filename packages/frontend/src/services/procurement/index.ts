@@ -3,6 +3,10 @@
 
 import { BaseApiService } from '@/services/base';
 import type {
+  DataShapingCatalogEntry,
+  DataShapingRule,
+  DataShapingRuleInput,
+  LegacyImportResult,
   ProcurementDataStatus,
   ProcurementAnalytics,
   ProcurementAnalyticsFilters,
@@ -49,6 +53,21 @@ class ProcurementApiService extends BaseApiService {
     return response.result;
   }
 
+  /**
+   * The legacy sidecar (D22). A separate endpoint from the OFB drop-zone on
+   * purpose: it accepts only the curated community-donation ledger and teaches
+   * the system nothing general.
+   */
+  async importLegacyLedger(file: File): Promise<LegacyImportResult> {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await this.requestFormData<{ result: LegacyImportResult }>(
+      '/imports/legacy',
+      formData
+    );
+    return response.result;
+  }
+
   async rollbackImports(ids: number[]): Promise<number> {
     const response = await this.post<{ result: { updated: number } }>(
       '/imports/rollback',
@@ -63,6 +82,29 @@ class ProcurementApiService extends BaseApiService {
       { ids }
     );
     return response.result.updated;
+  }
+
+  /**
+   * Data-shaping rules (D20). The catalog travels with the list so the options
+   * staff see are the ones the evaluator understands -- no second, drifting
+   * copy of the flag vocabulary in the frontend.
+   */
+  async getRules(): Promise<{ rules: DataShapingRule[]; catalog: DataShapingCatalogEntry[] }> {
+    return this.get<{ rules: DataShapingRule[]; catalog: DataShapingCatalogEntry[] }>('/rules');
+  }
+
+  async createRule(input: DataShapingRuleInput): Promise<DataShapingRule> {
+    const response = await this.post<{ rule: DataShapingRule }>('/rules', input);
+    return response.rule;
+  }
+
+  async updateRule(id: number, input: Partial<DataShapingRuleInput>): Promise<DataShapingRule> {
+    const response = await this.put<{ rule: DataShapingRule }>(`/rules/${id}`, input);
+    return response.rule;
+  }
+
+  async deleteRule(id: number): Promise<void> {
+    await this.delete<void>(`/rules/${id}`);
   }
 }
 

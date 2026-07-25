@@ -16,7 +16,19 @@ export type AcquisitionClass = typeof ACQUISITION_CLASSES[number];
 // share one supplier product catalog under `OFB_SOURCE`.
 export const OFB_SOURCE = 'ofb';
 export const FRESH_ALLIANCE_SOURCE = 'ofb_pickup';
-export const PROCUREMENT_SOURCES = [OFB_SOURCE, FRESH_ALLIANCE_SOURCE] as const;
+
+// Pre-Primarius community donation history, curated by the agency from its own
+// records (D16). Its own namespace for the same reason the two OFB exports have
+// theirs -- independent lineage and rollback, no reference collision -- and so
+// it can never be mistaken for something OFB reported. Monthly grain: these
+// events carry a month and a weight and nothing finer (D17).
+export const LEGACY_COMMUNITY_SOURCE = 'legacy_community';
+
+export const PROCUREMENT_SOURCES = [
+  OFB_SOURCE,
+  FRESH_ALLIANCE_SOURCE,
+  LEGACY_COMMUNITY_SOURCE,
+] as const;
 
 /** Persistence-level options shared by both importers, distinct from
  *  parse-level options -- these only matter once a ProcurementImport row is

@@ -79,6 +79,7 @@ const emptyAnalytics: ProcurementAnalytics = {
     netRecordedCostCents: 0,
     priceMismatchLineCount: 0,
     freshAlliancePending: null,
+    freshAllianceLegacyWeightHundredths: 0,
   },
   acquisitionMix: [],
   channelMix: [],
@@ -91,11 +92,19 @@ const emptyAnalytics: ProcurementAnalytics = {
   freshAllianceDonorCategories: [],
   donors: [],
   donorMonthlyWeight: [],
+  communitySources: [],
+  communityMonthlyWeight: [],
+  freshAllianceLegacyMonthlyWeight: [],
   donorValue: {
     recordedValueCents: 0,
     valuedWeightHundredths: 0,
     totalWeightHundredths: 0,
     unvaluedWeightHundredths: 0,
+  },
+  dataShaping: {
+    excludedWeightHundredths: 0,
+    retainedWeightHundredths: 0,
+    flags: [],
   },
 };
 
@@ -233,6 +242,7 @@ describe('Analytics dataset separation', () => {
         purchasedWeightHundredths: 0,
         ofbWarehouseWeightHundredths: 100000,
         freshAllianceWeightHundredths: 20000,
+        communityDonationWeightHundredths: 0,
       }],
       seasonalWeight: [{ year: '2026', month: 7, weightHundredths: 120000 }],
       warehouseProducts: [{
@@ -244,6 +254,9 @@ describe('Analytics dataset separation', () => {
         totalWeightHundredths: 100000,
         averageWeightPerReceiptHundredths: 100000,
         medianGapDays: null,
+        totalSpendCents: 5000,
+        paidWeightHundredths: 100000,
+        costPerPaidPoundCents: 50,
         firstReceivedDate: '2026-07-13',
         lastReceivedDate: '2026-07-13',
       }],
@@ -299,7 +312,9 @@ describe('Analytics dataset separation', () => {
     expect(paidProductSearch).toBeVisible();
     fireEvent.change(paidProductSearch, { target: { value: '90001' } });
     expect(screen.getByText('1 matching product code.')).toBeVisible();
-    expect(screen.getByRole('heading', { name: 'Paid OFB Warehouse Products' })).toBeVisible();
+    // The standalone paid table was merged into Product History as cost columns.
+    expect(screen.queryByRole('heading', { name: 'Paid OFB Warehouse Products' })).not.toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: /Cost \/ Paid lb/ })).toBeVisible();
     expect(screen.queryByText('Warehouse Product Recurrence')).not.toBeInTheDocument();
     expect(screen.queryByText('Warehouse Product Continuity')).not.toBeInTheDocument();
     expect(screen.queryByText('Range Coverage')).not.toBeInTheDocument();
@@ -574,6 +589,7 @@ describe('Analytics dataset separation', () => {
         purchasedWeightHundredths: 0,
         ofbWarehouseWeightHundredths: 0,
         freshAllianceWeightHundredths: 20000,
+        communityDonationWeightHundredths: 0,
       }],
       seasonalWeight: [{ year: '2026', month: 7, weightHundredths: 20000 }],
       freshAllianceCategories: [{
@@ -794,10 +810,10 @@ describe('Grocery partner observations', () => {
     );
 
     // 31,498,300 of 39,750,600 hundredths carries a recorded rate.
-    expect(screen.getByText(/79% of received pounds/)).toBeVisible();
+    expect(screen.getByText(/From Oregon Food Bank recorded rates/)).toBeVisible();
     expect(screen.getByText('82,523 lb')).toBeVisible();
     expect(
-      screen.getByText(/does not estimate a rate for the rest/)
+      screen.getByText(/does not estimate a rate for other donations/)
     ).toBeVisible();
   });
 
@@ -1101,7 +1117,7 @@ describe('Pending Fresh Alliance weight note (D15: included everywhere, stated p
     );
 
     const notes = await screen.findAllByText(
-      /Includes 300 lb of Fresh Food Alliance donations from Jun 16, 2026 to Jul 21, 2026 still awaiting OFB's confirmation sign-off\./
+      /Includes 300 lb of Fresh Food Alliance donations still awaiting OFB's confirmation\./
     );
     // Inbound Supply Summary and Fresh Food Alliance Receipt Categories.
     expect(notes).toHaveLength(2);
@@ -1125,5 +1141,180 @@ describe('Pending Fresh Alliance weight note (D15: included everywhere, stated p
 
     await screen.findByText('Inbound Supply Summary');
     expect(screen.queryByText(/awaiting OFB's confirmation/)).not.toBeInTheDocument();
+  });
+});
+
+describe('Data-shaping disclosure (D19/D21: exclusions are never silent)', () => {
+  const withShaping = (dataShaping: ProcurementAnalytics['dataShaping']) => ({
+    ...emptyAnalytics,
+    status: { ...emptyAnalytics.status, hasData: true },
+    summary: { ...emptyAnalytics.summary, totalWeightHundredths: 100000 },
+    dataShaping,
+  } satisfies ProcurementAnalytics);
+
+  test('names what an exclusion removed, and what is left, beside the figure it changed', async () => {
+    getAnalyticsMock.mockResolvedValueOnce(withShaping({
+      excludedWeightHundredths: 30000,
+      retainedWeightHundredths: 70000,
+      flags: [
+        { flag: 'pass_through', family: 'exclusion', weightHundredths: 30000, eventCount: 4 },
+      ],
+    }));
+
+    render(
+      <MemoryRouter>
+        <ProcurementAnalyticsWorkspace />
+      </MemoryRouter>
+    );
+
+    // Both answers are stated: what arrived, and what the pantry kept.
+    expect(await screen.findByText(/Does not include 300 lb flagged as passthrough to agency partner/)).toBeVisible();
+  });
+
+  test('reports an annotation without claiming it changed a total', async () => {
+    getAnalyticsMock.mockResolvedValueOnce(withShaping({
+      excludedWeightHundredths: 0,
+      retainedWeightHundredths: 100000,
+      flags: [
+        { flag: 'at_risk', family: 'annotation', weightHundredths: 66000, eventCount: 12 },
+      ],
+    }));
+
+    render(
+      <MemoryRouter>
+        <ProcurementAnalyticsWorkspace />
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText(/Also noted: 660 lb from arrangements you marked fragile/)).toBeVisible();
+    // No exclusion happened, so no retained-vs-received split is claimed.
+    expect(screen.queryByText(/flagged as/)).not.toBeInTheDocument();
+  });
+
+  test('says nothing at all when the agency has set no rules', async () => {
+    getAnalyticsMock.mockResolvedValueOnce(withShaping({
+      excludedWeightHundredths: 0,
+      retainedWeightHundredths: 100000,
+      flags: [],
+    }));
+
+    render(
+      <MemoryRouter>
+        <ProcurementAnalyticsWorkspace />
+      </MemoryRouter>
+    );
+
+    await screen.findByText('Inbound Supply Summary');
+    expect(screen.queryByText(/flagged as/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Also noted/)).not.toBeInTheDocument();
+  });
+});
+
+
+describe('Community Donation History cards (D16, Model A)', () => {
+  const source = (name: string, lb: number, isFreshAlliancePartner = false) => ({
+    sourceName: name,
+    isFreshAlliancePartner,
+    weightHundredths: lb * 100,
+    monthCount: 6,
+    firstReceivedDate: '2019-01-01',
+    lastReceivedDate: '2023-05-01',
+  });
+  // 14 sources so the top-12 named + "Other Community sources" split is exercised.
+  const communitySources = [
+    source('Amazon - NW Industrial (Prime Now)', 613409),
+    source('Trader Joe\'s - Northwest', 249000),
+    source('New Seasons - Slabtown', 35296),
+    source('Fred Meyer - Stadium', 31285),
+    source('CFAP (COVID farm-to-family)', 13191),
+    source('Individual Donors', 11295),
+    source('WTH Thrift Store (food)', 6214),
+    source('Christ Church', 4749),
+    source('Feed The Mass', 4714),
+    source('Local Food Drive', 3633),
+    source('St. John', 3568),
+    source('All Saints', 1452),
+    source('Ascension Episcopal', 352),
+    source('Trinity Episcopal', 111),
+  ];
+  const withCommunity = {
+    ...emptyAnalytics,
+    status: { ...emptyAnalytics.status, hasData: true },
+    monthlyWeight: [{
+      month: '2019-11',
+      donatedWeightHundredths: 100000,
+      purchDonWeightHundredths: 0,
+      governmentWeightHundredths: 0,
+      purchasedWeightHundredths: 0,
+      ofbWarehouseWeightHundredths: 0,
+      freshAllianceWeightHundredths: 0,
+      communityDonationWeightHundredths: 100000,
+    }],
+    communitySources,
+    communityMonthlyWeight: [
+      { month: '2019-11', sourceName: 'Amazon - NW Industrial (Prime Now)', weightHundredths: 60000 },
+      { month: '2019-11', sourceName: 'Ascension Episcopal', weightHundredths: 20000 },
+      { month: '2019-11', sourceName: 'Trinity Episcopal', weightHundredths: 20000 },
+    ],
+  } satisfies ProcurementAnalytics;
+
+  test('renders both community cards, gated on legacy history being present', async () => {
+    // jsdom cannot lay out the recharts SVG, so in-chart source names and the
+    // "Other Community sources" bucket label are verified live/by DOM, not here.
+    // What is HTML and testable: the two card headings and the source filter.
+    getAnalyticsMock.mockResolvedValueOnce(withCommunity);
+
+    render(
+      <MemoryRouter>
+        <ProcurementAnalyticsWorkspace />
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText('Donation History From Legacy Data')).toBeVisible();
+    expect(screen.getByText('Other Donations Over Time (Legacy Data)')).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Choose sources' })).toBeVisible();
+  });
+
+  test('states it counts donations received, not inventory retained', async () => {
+    getAnalyticsMock.mockResolvedValueOnce(withCommunity);
+
+    render(
+      <MemoryRouter>
+        <ProcurementAnalyticsWorkspace />
+      </MemoryRouter>
+    );
+
+    await screen.findByText('Donation History From Legacy Data');
+    expect(
+      screen.getAllByText(/Legacy data only, based on internal William Temple House records/).length
+    ).toBeGreaterThan(0);
+  });
+
+  test('is absent for an agency with no such history', async () => {
+    getAnalyticsMock.mockResolvedValueOnce({
+      ...emptyAnalytics,
+      status: { ...emptyAnalytics.status, hasData: true },
+      monthlyWeight: [{
+        month: '2026-06',
+        donatedWeightHundredths: 100000,
+        purchDonWeightHundredths: 0,
+        governmentWeightHundredths: 0,
+        purchasedWeightHundredths: 0,
+        ofbWarehouseWeightHundredths: 100000,
+        freshAllianceWeightHundredths: 0,
+        communityDonationWeightHundredths: 0,
+      }],
+      communitySources: [],
+      communityMonthlyWeight: [],
+    } satisfies ProcurementAnalytics);
+
+    render(
+      <MemoryRouter>
+        <ProcurementAnalyticsWorkspace />
+      </MemoryRouter>
+    );
+
+    await screen.findByText('Inbound Supply Summary');
+    expect(screen.queryByText('Donation History From Legacy Data')).not.toBeInTheDocument();
   });
 });
