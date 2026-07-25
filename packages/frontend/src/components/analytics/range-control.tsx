@@ -8,13 +8,15 @@ import type { DateRange } from 'react-day-picker';
 
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
+import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useIsMobile } from '@/hooks/use-mobile';
 import type {
   AnalyticsDateRange,
   AnalyticsRangePreset,
@@ -83,33 +85,84 @@ interface AnalyticsRangeControlProps {
   onChange: (range: AnalyticsDateRange) => void;
 }
 
+const textOf = (date: Date | undefined) => (date ? format(date, 'yyyy-MM-dd') : '');
+
 export function AnalyticsRangeControl({ value, onChange }: AnalyticsRangeControlProps) {
-  const isMobile = useIsMobile();
   const [isOpen, setIsOpen] = React.useState(false);
   const [draft, setDraft] = React.useState<DateRange | undefined>(
     dateRangeFromValue(value)
   );
+  // Typed Start/End fields kept in sync with the calendar (the ZEV pattern):
+  // the calendar and the inputs are two views of one draft range.
+  const [draftText, setDraftText] = React.useState<{ from: string; to: string }>({
+    from: textOf(dateRangeFromValue(value)?.from),
+    to: textOf(dateRangeFromValue(value)?.to),
+  });
 
   const handleOpenChange = (open: boolean) => {
     if (open) {
-      setDraft(dateRangeFromValue(value) ?? {
+      const initial = dateRangeFromValue(value) ?? {
         from: subDays(new Date(), 89),
         to: new Date(),
-      });
+      };
+      setDraft(initial);
+      setDraftText({ from: textOf(initial.from), to: textOf(initial.to) });
     }
     setIsOpen(open);
+  };
+
+  // Calendar → inputs.
+  const handleSelect = (range: DateRange | undefined) => {
+    setDraft(range);
+    setDraftText({ from: textOf(range?.from), to: textOf(range?.to) });
+  };
+
+  // Inputs → calendar. Only a fully valid date moves the draft; partial typing
+  // updates the text without snapping the calendar around.
+  const handleTextChange = (field: 'from' | 'to', text: string) => {
+    setDraftText((current) => ({ ...current, [field]: text }));
+    if (!validDate(text)) return;
+    const parsed = parseISO(text);
+    const other = field === 'from' ? draft?.to : draft?.from;
+    const inverted = other
+      && (field === 'from' ? parsed > other : parsed < other);
+
+    if (inverted) {
+      // A valid date that crosses the opposite boundary starts a new one-day
+      // range. Keep both text fields and the calendar on that same truth.
+      setDraft({ from: parsed, to: parsed });
+      setDraftText({ from: text, to: text });
+      return;
+    }
+
+    setDraft((current) => ({
+      from: field === 'from' ? parsed : current?.from,
+      to: field === 'to' ? parsed : current?.to,
+    }));
+  };
+
+  const handleTextBlur = (field: 'from' | 'to') => {
+    if (validDate(draftText[field])) return;
+    setDraftText((current) => ({
+      ...current,
+      [field]: textOf(field === 'from' ? draft?.from : draft?.to),
+    }));
   };
 
   const customLabel = value.preset === 'custom' && value.startDate && value.endDate
     ? `${format(parseISO(value.startDate), 'MMM d')} – ${format(parseISO(value.endDate), 'MMM d, yyyy')}`
     : 'Custom range';
 
+  const isDraftComplete = validDate(draftText.from)
+    && validDate(draftText.to)
+    && draftText.from <= draftText.to;
+
   const applyCustomRange = () => {
-    if (!draft?.from || !draft.to) return;
+    if (!isDraftComplete) return;
     onChange({
       preset: 'custom',
-      startDate: format(draft.from, 'yyyy-MM-dd'),
-      endDate: format(draft.to, 'yyyy-MM-dd'),
+      startDate: draftText.from,
+      endDate: draftText.to,
     });
     setIsOpen(false);
   };
@@ -145,34 +198,69 @@ export function AnalyticsRangeControl({ value, onChange }: AnalyticsRangeControl
               {customLabel}
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-auto max-w-[calc(100vw-2rem)] p-0" align="start">
+          <PopoverContent className="w-[262px] max-w-[calc(100vw-2rem)] p-0" align="end">
+            {/* One month with clickable month/year dropdown captions, matching
+                the ZEV picker pattern. */}
             <Calendar
               mode="range"
+              captionLayout="dropdown"
               selected={draft}
-              onSelect={setDraft}
-              numberOfMonths={isMobile ? 1 : 2}
+              onSelect={handleSelect}
+              numberOfMonths={1}
               defaultMonth={draft?.from}
               startMonth={new Date(2000, 0, 1)}
               endMonth={new Date()}
               disabled={{ after: new Date() }}
+              initialFocus
             />
-            <div className="space-y-3 border-t p-3">
+            <Separator />
+            <form
+              className="space-y-3 p-3"
+              onSubmit={(event) => {
+                event.preventDefault();
+                applyCustomRange();
+              }}
+            >
+              <div className="space-y-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="range-start" className="text-xs text-muted-foreground">Start</Label>
+                  <Input
+                    id="range-start"
+                    inputMode="numeric"
+                    placeholder="YYYY-MM-DD"
+                    value={draftText.from}
+                    aria-invalid={draftText.from !== '' && !validDate(draftText.from)}
+                    onChange={(event) => handleTextChange('from', event.target.value)}
+                    onBlur={() => handleTextBlur('from')}
+                    className="h-8 bg-background px-2 py-0.5 text-sm"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="range-end" className="text-xs text-muted-foreground">End</Label>
+                  <Input
+                    id="range-end"
+                    inputMode="numeric"
+                    placeholder="YYYY-MM-DD"
+                    value={draftText.to}
+                    aria-invalid={draftText.to !== '' && !validDate(draftText.to)}
+                    onChange={(event) => handleTextChange('to', event.target.value)}
+                    onBlur={() => handleTextBlur('to')}
+                    className="h-8 bg-background px-2 py-0.5 text-sm"
+                  />
+                </div>
+              </div>
               <p className="text-xs text-muted-foreground">
                 Dates use the organization timezone configured in Settings.
               </p>
               <div className="flex justify-end gap-2">
-                <Button variant="ghost" size="sm" onClick={() => setIsOpen(false)}>
+                <Button type="button" variant="ghost" size="sm" onClick={() => setIsOpen(false)}>
                   Cancel
                 </Button>
-                <Button
-                  size="sm"
-                  disabled={!draft?.from || !draft.to}
-                  onClick={applyCustomRange}
-                >
+                <Button type="submit" size="sm" disabled={!isDraftComplete}>
                   Apply
                 </Button>
               </div>
-            </div>
+            </form>
           </PopoverContent>
         </Popover>
       </div>
