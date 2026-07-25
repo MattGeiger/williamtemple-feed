@@ -42,7 +42,15 @@ describe('AnalyticsRangeControl', () => {
     expect(screen.getAllByRole('grid')).toHaveLength(1);
     expect(screen.getByRole('combobox', { name: 'Choose the Month' })).toBeEnabled();
     expect(screen.getByRole('combobox', { name: 'Choose the Year' })).toBeEnabled();
-    expect(screen.getByRole('dialog')).toHaveClass('w-[262px]', 'overflow-hidden');
+    expect(screen.getByRole('dialog')).toHaveClass(
+      'w-[262px]',
+      'overflow-hidden',
+      'rounded-2xl',
+      'border-border/70',
+      'bg-background/40',
+      'backdrop-blur-[14px]',
+      'backdrop-saturate-150'
+    );
     expect(screen.getByRole('grid').closest('[data-slot="calendar"]')).toHaveClass('mx-auto');
   });
 
