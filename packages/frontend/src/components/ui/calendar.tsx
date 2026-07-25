@@ -43,7 +43,7 @@ function Calendar({
       showOutsideDays={showOutsideDays}
       captionLayout={captionLayout}
       className={cn(
-        "group/calendar bg-background p-3 [--cell-size:2rem]",
+        "group/calendar bg-transparent p-3 [--cell-size:2rem]",
         className
       )}
       formatters={{
