@@ -1,7 +1,18 @@
 # Release Notes
 
-## In Development
+## Version 1.4.0 — 2026-07-25
 
+- Rebuilt Analytics around two distinct live lenses: **Operations** for
+  availability and service pressure, and **Procurement** for inbound supply,
+  source activity, recorded costs, and seasonal history.
+- Added one-step unified Oregon Food Bank imports in Data Management, including
+  Warehouse orders, Fresh Food Alliance pickups, donor attribution, coverage,
+  rollback/restore, legacy community history, and agency-authored shaping rules.
+- Replaced the Analytics custom-date control with a compact calendar featuring
+  month/year dropdowns, synced date fields, and a frosted shared surface.
+- Planned Service as the third Analytics lens, covering pantry visits,
+  households, and people served from Link2Feed and SIMC, with William Temple
+  House's supplemental log kept as a separate agency-specific source.
 - Reframed the experimental Logistics tab as an optional **Supply** tab with
   only Estimated Quantity and Source. Both may be left Unknown.
 - Restored one-action Out of Stock updates. Changing availability no longer
