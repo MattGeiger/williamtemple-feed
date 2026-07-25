@@ -55,6 +55,14 @@ All notable changes to FEED are documented here. This project adheres to
   Pickups") in the table and the import detail dialog, using a hash of the
   original uploaded file shared by both resulting rows.
 
+### Fixed
+
+- **Custom date-range picker**: faithfully translated ZEV's shared calendar from
+  Tailwind v4 to FEED's Tailwind v3. The Analytics picker now has one compact
+  calendar, working month/year dropdowns, synced Start/End inputs, keyboard focus
+  restoration, and correctly styled range endpoints and middle dates in light
+  and dark themes.
+
 ### Changed
 
 - **Procurement Analytics polish**: the Paid Products table merged into OFB
