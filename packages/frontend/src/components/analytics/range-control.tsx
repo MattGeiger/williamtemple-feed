@@ -199,7 +199,7 @@ export function AnalyticsRangeControl({ value, onChange }: AnalyticsRangeControl
             </Button>
           </PopoverTrigger>
           <PopoverContent
-            className="w-[262px] max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border-border/70 bg-background/90 p-0 shadow-xl backdrop-blur-[14px] backdrop-saturate-150 supports-[backdrop-filter]:bg-background/90"
+            className="w-[262px] max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border-border/70 bg-background/80 p-0 shadow-xl backdrop-blur-[14px] backdrop-saturate-150 supports-[backdrop-filter]:bg-background/90"
             align="end"
           >
             {/* One month with clickable month/year dropdown captions, matching

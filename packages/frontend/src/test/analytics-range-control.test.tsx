@@ -47,7 +47,7 @@ describe('AnalyticsRangeControl', () => {
       'overflow-hidden',
       'rounded-2xl',
       'border-border/70',
-      'bg-background/90',
+      'bg-background/80',
       'backdrop-blur-[14px]',
       'backdrop-saturate-150'
     );
