@@ -91,6 +91,7 @@ describe('shared Calendar', () => {
     );
 
     const grid = screen.getByRole('grid', { name: 'June 2025' });
+    expect(grid.closest('[data-slot="calendar"]')).toHaveClass('bg-transparent');
     expect(
       within(grid).getByRole('button', {
         name: 'Tuesday, June 10th, 2025, selected',
