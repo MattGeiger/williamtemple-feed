@@ -18,6 +18,7 @@ import { Bar, BarChart, CartesianGrid, Line, LineChart, XAxis, YAxis } from 'rec
 import { ChevronDown } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -35,6 +36,8 @@ import {
 } from '@/components/ui/card';
 import {
   ChartContainer,
+  ChartLegend,
+  ChartLegendContent,
   ChartTooltip,
   ChartTooltipContent,
   type ChartConfig,
@@ -54,6 +57,9 @@ interface DonorAnalyticsProps {
   donors: DonorSummary[];
   donorValue: DonorValueSummary;
   donorMonthlyWeight: Array<{ month: string; donorCode: string; weightHundredths: number }>;
+  /** FFA partners' pre-Primarius monthly history, shown when "Show Legacy Data"
+   *  is on. Keyed by the live donor code, so it extends the same lines back. */
+  legacyMonthlyWeight?: Array<{ month: string; donorCode: string; weightHundredths: number }>;
   formatDate: (isoDate: string) => string;
 }
 
@@ -72,8 +78,12 @@ export function DonorAnalytics({
   donors,
   donorValue,
   donorMonthlyWeight,
+  legacyMonthlyWeight,
   formatDate,
 }: DonorAnalyticsProps) {
+  const legacyRows = React.useMemo(() => legacyMonthlyWeight ?? [], [legacyMonthlyWeight]);
+  const hasLegacy = legacyRows.length > 0;
+  const [showLegacy, setShowLegacy] = React.useState(false);
   // Tolerates an analytics payload without donor fields — an older cached
   // response, or a session held open across a backend deploy. A missing
   // section is not worth taking the whole Analytics page down for.
@@ -100,13 +110,17 @@ export function DonorAnalytics({
   );
 
   const trend = React.useMemo(() => {
-    const months = [...new Set(safeMonthly.map((entry) => entry.month))].sort();
+    // With the toggle on, partners' pre-Primarius months extend the same lines
+    // back. They abut the live data (legacy ends May 2023, Fresh Alliance starts
+    // June 2023) with no overlap, so no month is double-counted.
+    const rows = showLegacy ? [...legacyRows, ...safeMonthly] : safeMonthly;
+    const months = [...new Set(rows.map((entry) => entry.month))].sort();
     const visibleCodes = new Set(visibleDonors.map((donor) => donor.donorCode));
     return months.map((month) => {
       const row: Record<string, string | number> = { month };
-      for (const entry of safeMonthly) {
+      for (const entry of rows) {
         if (entry.month !== month || !visibleCodes.has(entry.donorCode)) continue;
-        row[entry.donorCode] = Math.round(entry.weightHundredths / 100);
+        row[entry.donorCode] = (Number(row[entry.donorCode]) || 0) + Math.round(entry.weightHundredths / 100);
       }
       // Recharts needs an explicit 0 for a month a partner did not deliver in,
       // otherwise the line bridges the gap and implies a delivery that did not
@@ -116,7 +130,7 @@ export function DonorAnalytics({
       }
       return row;
     });
-  }, [safeMonthly, visibleDonors]);
+  }, [safeMonthly, legacyRows, showLegacy, visibleDonors]);
 
   const trendConfig = React.useMemo(
     () => Object.fromEntries(
@@ -181,6 +195,7 @@ export function DonorAnalytics({
               <Bar dataKey="weight" fill="var(--color-weight)" radius={3} />
             </BarChart>
           </ChartContainer>
+          <p className="mt-3 text-xs text-muted-foreground">Does not include legacy donations data.</p>
         </CardContent>
       </Card>
 
@@ -193,7 +208,7 @@ export function DonorAnalytics({
               // The coverage figure is not a footnote. OFB leaves the rate blank
               // on a large share of historical rows, so the total is a partial
               // sum and must never be read as the value of all donated supply.
-              : `Summed only where Oregon Food Bank recorded a rate — ${valuationCoverage}% of received pounds`}
+              : 'From Oregon Food Bank recorded rates.'}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -218,9 +233,8 @@ export function DonorAnalytics({
             </div>
           </dl>
           <p className="mt-4 text-sm text-muted-foreground">
-            Food without a recorded rate was received and distributed the same as
-            any other. FEED reports the value Oregon Food Bank recorded and does
-            not estimate a rate for the rest.
+            FEED reports the value Oregon Food Bank reported and does not estimate
+            a rate for other donations.
           </p>
         </CardContent>
       </Card>
@@ -228,11 +242,19 @@ export function DonorAnalytics({
       <Card className="min-w-0">
         <CardHeader className="flex flex-col items-start justify-between gap-3 space-y-0 sm:flex-row sm:items-center">
           <div>
-            <CardTitle>Partner Contribution Over Time</CardTitle>
+            <CardTitle>Fresh Food Alliance Donations Over Time</CardTitle>
             <CardDescription>
               Monthly received pounds per partner within the selected range
+              {showLegacy && ', extended before June 2023 with legacy records'}
             </CardDescription>
           </div>
+          <div className="flex flex-wrap items-center gap-3">
+          {hasLegacy && (
+            <label className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Switch checked={showLegacy} onCheckedChange={setShowLegacy} aria-label="Show legacy data" />
+              Show Legacy Data
+            </label>
+          )}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm" aria-label="Choose partners">
@@ -275,6 +297,7 @@ export function DonorAnalytics({
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
+          </div>
         </CardHeader>
         <CardContent>
           {visibleDonors.length === 0 ? (
@@ -297,6 +320,7 @@ export function DonorAnalytics({
                 />
                 <YAxis tickLine={false} axisLine={false} width={64} />
                 <ChartTooltip content={<ChartTooltipContent />} />
+                <ChartLegend content={<ChartLegendContent />} />
                 {visibleDonors.map((donor) => (
                   <Line
                     key={donor.donorCode}
@@ -315,9 +339,9 @@ export function DonorAnalytics({
 
       <Card className="min-w-0">
         <CardHeader>
-          <CardTitle>Partner Pickup History</CardTitle>
+          <CardTitle>Fresh Food Alliance Pickup History</CardTitle>
           <CardDescription>
-            Visit count and typical load differ by partner and shape routing and staffing
+            Fresh Food Alliance Pickups only. Does not include legacy data.
           </CardDescription>
         </CardHeader>
         <CardContent>

@@ -7,7 +7,7 @@
  * This script intentionally models operational observations rather than
  * consumption. It uses FEED's production catalog, the April–July 2026 OFB
  * delivery cadence derived from the intentionally untracked internal workbook
- * docs/OFB_Orders.xlsx, and the pantry schedule documented in
+ * OFB_Orders.xlsx held outside the repository, and the pantry schedule documented in
  * docs/reports/development-history-fixture.md.
  *
  * Usage:

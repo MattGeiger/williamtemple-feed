@@ -223,15 +223,19 @@ describe('Fresh Alliance pickup import normalization', () => {
   });
 });
 
-// The authoritative corpus is the agency's real supply data and is gitignored,
-// so this block runs for developers who hold the export and skips elsewhere.
-// Expected values come from docs/data-management/fresh-alliance-coverage-verification.md.
-const corpusPath = path.resolve(
-  process.cwd(),
-  '../../docs/reports/RealData/FreshFoodData/OFB_Fresh_Alliance_Pickups_2009-01-01_to_2026-07-20.csv'
-);
+// The authoritative corpus is private agency data kept outside this repository.
+// Authorized developers can opt in with FEED_PRIVATE_DATA_DIR; everyone else
+// runs the synthetic regression suite above. Expected values come from
+// docs/data-management/fresh-alliance-coverage-verification.md.
+const privateDataRoot = process.env.FEED_PRIVATE_DATA_DIR;
+const corpusPath = privateDataRoot
+  ? path.resolve(
+      privateDataRoot,
+      'FreshFoodData/OFB_Fresh_Alliance_Pickups_2009-01-01_to_2026-07-20.csv'
+    )
+  : '';
 
-describe.skipIf(!existsSync(corpusPath))('Fresh Alliance authoritative corpus', () => {
+describe.skipIf(!corpusPath || !existsSync(corpusPath))('Fresh Alliance authoritative corpus', () => {
   test('normalizes the complete pickup history without structural failure', () => {
     const parsed = parseFreshAllianceCsv(readFileSync(corpusPath));
 

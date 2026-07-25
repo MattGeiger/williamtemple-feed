@@ -15,7 +15,7 @@ changes.
 
 | Role | File |
 | --- | --- |
-| Fresh Alliance (donor-attributed) | `docs/reports/RealData/FreshFoodData/OFB_Fresh_Alliance_Pickups_2009-01-01_to_2026-07-20.csv` |
+| Fresh Alliance (donor-attributed) | Private operational export under `FEED_PRIVATE_DATA_DIR/FreshFoodData/` |
 | Completed Orders (canonical, non-overlapping) | `OFB_Completed_Orders_2009-01-01_to_2011-12-31.csv`, `2011-01-01_to_2021-12-31`, `2021-01-01_to_2023-12-31`, `2024-01-01_to_2024-12-31`, `2025-01-01_to_2025-12-31`, `2026-01-01_to_2026-07-14` |
 
 The partial `2026-05-01`, `2026-06-01`, and single-order exports were excluded
@@ -24,6 +24,10 @@ so no source event is counted twice.
 Both exports were produced by the OFB Order CSV Exporter extension: Completed
 Orders by the Order History workflow, Agency Pickups by the v1.2.0 Fresh
 Alliance workflow.
+
+The source exports are sensitive operational records and are stored outside the
+repository. Authorized developers may point local verification at them with
+`FEED_PRIVATE_DATA_DIR`; they must never be committed to FEED.
 
 ## Result: complete parity
 

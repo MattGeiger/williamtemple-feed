@@ -34,13 +34,13 @@ food-pantry.code-workspace
 *.db
 data/
 
-# Internal source data supplied for local analytics research. Keep the working
-# copy available to developers, but never publish it with the open-source repo.
+# Defense in depth for legacy repository-local paths. Operational source data
+# belongs outside the repository (see FEED_PRIVATE_DATA_DIR); never publish it.
 /docs/OFB_Orders.xlsx
 /docs/reports/OFB_*.csv
 
-# Real operational exports and historical records. These files may contain
-# sensitive organization data and must never be committed or published.
+# Real operational exports and historical records may contain sensitive
+# organization data and must never be committed or published.
 /docs/reports/RealData/
 
 # Generated local artifacts

@@ -146,6 +146,7 @@ describe('OFB procurement import normalization', () => {
         recordedAt: new Date('2026-01-01T00:00:00Z'),
       });
     const client = {
+      procurementDataRule: { findMany: vi.fn(async () => []) },
       procurementOrderRevision: { findFirst, aggregate: vi.fn(async () => emptyCoverage()) },
       operatingHoursRevision: { findFirst },
     } as never;
@@ -232,6 +233,7 @@ describe('OFB procurement import normalization', () => {
         },
       ]);
     const client = {
+      procurementDataRule: { findMany: vi.fn(async () => []) },
       procurementOrderRevision: {
         findMany,
         findFirst: vi.fn().mockResolvedValue({ deliveryDate: '2026-01-05' }),
@@ -331,6 +333,7 @@ describe('OFB procurement import normalization', () => {
         },
       ]);
     const filteredClient = {
+      procurementDataRule: { findMany: vi.fn(async () => []) },
       procurementOrderRevision: {
         findMany: filteredFindMany,
         findFirst: vi.fn().mockResolvedValue({ deliveryDate: '2026-01-05' }),
@@ -418,6 +421,7 @@ describe('OFB procurement import normalization', () => {
         },
       ]);
     const client = {
+      procurementDataRule: { findMany: vi.fn(async () => []) },
       procurementOrderRevision: {
         findMany,
         findFirst: vi.fn().mockResolvedValue({ deliveryDate: '2026-01-07' }),
@@ -510,6 +514,7 @@ describe('OFB procurement import normalization', () => {
         },
       ]);
     const client = {
+      procurementDataRule: { findMany: vi.fn(async () => []) },
       procurementOrderRevision: {
         findMany,
         findFirst: vi.fn().mockResolvedValue({ deliveryDate: '2026-01-08' }),
@@ -573,6 +578,7 @@ describe('OFB procurement import normalization', () => {
         },
       ]);
     const client = {
+      procurementDataRule: { findMany: vi.fn(async () => []) },
       procurementOrderRevision: {
         findMany,
         findFirst: vi.fn().mockResolvedValue({ deliveryDate: '2026-01-05' }),
@@ -596,5 +602,149 @@ describe('OFB procurement import normalization', () => {
     );
 
     expect(result.summary.freshAlliancePending).toBeNull();
+  });
+});
+describe('Analytics honors the agency\'s data rules (D19/D21)', () => {
+  // Two Fresh Alliance receipts on the same day: one from a donor the agency
+  // couriers onward, one it keeps.
+  const analyticsClient = (rules: unknown[]) => ({
+    procurementDataRule: { findMany: vi.fn(async () => rules) },
+    procurementOrderRevision: {
+      findMany: vi.fn()
+        .mockResolvedValueOnce([{ deliveryDate: '2026-01-05' }])
+        .mockResolvedValueOnce([
+          {
+            id: 1,
+            source: 'ofb_pickup',
+            sourceOrderReference: 'P1',
+            eventKind: 'fresh_alliance_receipt',
+            deliveryDate: '2026-01-05',
+            donorCode: 'RNS16',
+            donorName: 'New Seasons - Slabtown',
+            lines: [{
+              acquisitionClass: 'DONATED',
+              procurementChannel: 'fresh_alliance',
+              quantityHundredths: 100,
+              weightHundredths: 300,
+              calculatedPriceTotalCents: 0,
+              sourcePriceTotalCents: 0,
+              serviceFeeCents: 0,
+              grantsAppliedCents: 0,
+              priceTotalMatches: true,
+              sourceDescription: 'Produce',
+              product: { productCode: '41000' },
+            }],
+          },
+          {
+            id: 2,
+            source: 'ofb_pickup',
+            sourceOrderReference: 'P2',
+            eventKind: 'fresh_alliance_receipt',
+            deliveryDate: '2026-01-05',
+            donorCode: 'RAZ100',
+            donorName: 'Amazon - NW Industrial (Prime Now)',
+            lines: [{
+              acquisitionClass: 'DONATED',
+              procurementChannel: 'fresh_alliance',
+              quantityHundredths: 100,
+              weightHundredths: 700,
+              calculatedPriceTotalCents: 0,
+              sourcePriceTotalCents: 0,
+              serviceFeeCents: 0,
+              grantsAppliedCents: 0,
+              priceTotalMatches: true,
+              sourceDescription: 'Produce',
+              product: { productCode: '41000' },
+            }],
+          },
+        ]),
+      findFirst: vi.fn().mockResolvedValue({ deliveryDate: '2026-01-05' }),
+      aggregate: vi.fn(async () => emptyCoverage()),
+    },
+    operatingHoursRevision: {
+      findFirst: vi.fn().mockResolvedValue({
+        id: 1,
+        effectiveDate: '1970-01-01',
+        timezone: 'America/Los_Angeles',
+        hours: DEFAULT_OPERATING_HOURS,
+        recordedAt: new Date('2026-01-01T00:00:00Z'),
+      }),
+    },
+  } as never);
+
+  test('with no rules, retained weight equals everything received', async () => {
+    const result = await getProcurementAnalytics({}, new Date('2026-01-06T20:00:00Z'), analyticsClient([]));
+
+    expect(result.summary.totalWeightHundredths).toBe(1000);
+    expect(result.dataShaping.excludedWeightHundredths).toBe(0);
+    expect(result.dataShaping.retainedWeightHundredths).toBe(1000);
+    expect(result.dataShaping.flags).toEqual([]);
+  });
+
+  test('a pass-through rule separates what was received from what was retained', async () => {
+    const result = await getProcurementAnalytics(
+      {},
+      new Date('2026-01-06T20:00:00Z'),
+      analyticsClient([
+        { id: 1, flag: 'pass_through', scope: 'donor', donorName: 'New Seasons - Slabtown', enabled: true },
+      ])
+    );
+
+    // The donation really happened, so "received" is untouched...
+    expect(result.summary.totalWeightHundredths).toBe(1000);
+    // ...but the pantry only ever distributed Amazon's 700.
+    expect(result.dataShaping.retainedWeightHundredths).toBe(700);
+    expect(result.dataShaping.excludedWeightHundredths).toBe(300);
+    expect(result.dataShaping.flags).toEqual([
+      { flag: 'pass_through', family: 'exclusion', weightHundredths: 300, eventCount: 1 },
+    ]);
+  });
+
+  test('a rule keyed on donor code reaches the same events', async () => {
+    const result = await getProcurementAnalytics(
+      {},
+      new Date('2026-01-06T20:00:00Z'),
+      analyticsClient([
+        { id: 1, flag: 'pass_through', scope: 'donor', donorCode: 'RNS16', enabled: true },
+      ])
+    );
+
+    expect(result.dataShaping.retainedWeightHundredths).toBe(700);
+  });
+
+  test('an annotation is measured but never subtracted', async () => {
+    const result = await getProcurementAnalytics(
+      {},
+      new Date('2026-01-06T20:00:00Z'),
+      analyticsClient([
+        { id: 1, flag: 'at_risk', scope: 'donor', donorName: 'Amazon - NW Industrial (Prime Now)', enabled: true },
+      ])
+    );
+
+    // Naming Amazon fragile makes the dependence legible; it must not quietly
+    // move a number the agency already reported.
+    expect(result.dataShaping.retainedWeightHundredths).toBe(1000);
+    expect(result.dataShaping.excludedWeightHundredths).toBe(0);
+    expect(result.dataShaping.flags).toEqual([
+      { flag: 'at_risk', family: 'annotation', weightHundredths: 700, eventCount: 1 },
+    ]);
+  });
+
+  test('weight excluded by two overlapping rules is subtracted once', async () => {
+    const result = await getProcurementAnalytics(
+      {},
+      new Date('2026-01-06T20:00:00Z'),
+      analyticsClient([
+        { id: 1, flag: 'pass_through', scope: 'donor', donorName: 'New Seasons - Slabtown', enabled: true },
+        { id: 2, flag: 'other_exclusion', scope: 'event', orderRevisionId: 1, note: 'Also spoiled.', enabled: true },
+      ])
+    );
+
+    expect(result.dataShaping.excludedWeightHundredths).toBe(300);
+    expect(result.dataShaping.retainedWeightHundredths).toBe(700);
+    // Both reasons are still reported; only the subtraction is deduplicated.
+    expect(result.dataShaping.flags.map((entry) => entry.flag).sort()).toEqual([
+      'other_exclusion', 'pass_through',
+    ]);
   });
 });

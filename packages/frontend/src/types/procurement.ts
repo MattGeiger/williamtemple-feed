@@ -4,8 +4,11 @@
 import type { AnalyticsRangePreset } from '@/types/analytics';
 
 export type ProcurementImportStatus = 'active' | 'rolled_back';
-export type ProcurementChannel = 'ofb_warehouse' | 'fresh_alliance';
-export type ProcurementEventKind = 'ofb_warehouse_order' | 'fresh_alliance_receipt';
+export type ProcurementChannel = 'ofb_warehouse' | 'fresh_alliance' | 'community_donation';
+export type ProcurementEventKind =
+  | 'ofb_warehouse_order'
+  | 'fresh_alliance_receipt'
+  | 'community_donation_month';
 export type AcquisitionClass = 'DONATED' | 'PURCH-DON' | 'GOVERNMENT' | 'PURCHASED';
 
 export interface ProcurementOrderSummary {
@@ -14,6 +17,9 @@ export interface ProcurementOrderSummary {
   eventKind: ProcurementEventKind;
   deliveryDate: string;
   revision: number;
+  /** Null where the source reports no donor — never inferred (D4). */
+  donorCode: string | null;
+  donorName: string | null;
   warningCodes: string[];
   isCurrent: boolean;
   lineCount: number;
@@ -21,7 +27,8 @@ export interface ProcurementOrderSummary {
 
 export interface ProcurementImportRecord {
   id: number;
-  source: 'ofb' | 'ofb_pickup';
+  /** `legacy_community` is the curated pre-Primarius ledger (D16). */
+  source: 'ofb' | 'ofb_pickup' | 'legacy_community';
   status: ProcurementImportStatus;
   schemaVersion: number;
   rowCount: number;
@@ -111,6 +118,61 @@ export interface UnifiedImportResult {
   freshAlliance: FreshAllianceImportResult | null;
 }
 
+export const DATA_SHAPING_EXCLUSIONS = ['pass_through', 'other_exclusion'] as const;
+export const DATA_SHAPING_ANNOTATIONS = ['at_risk', 'estimated', 'program_bound'] as const;
+export type DataShapingFlag =
+  | (typeof DATA_SHAPING_EXCLUSIONS)[number]
+  | (typeof DATA_SHAPING_ANNOTATIONS)[number];
+export type FlagFamily = 'exclusion' | 'annotation';
+export type RuleScope = 'donor' | 'category' | 'date_range' | 'event';
+
+/**
+ * A non-destructive classification overlay on procurement observations (D19).
+ * A rule never edits or deletes an event; it records how this agency reads it,
+ * and each Analytics view decides which flags it honors.
+ */
+export interface DataShapingRule {
+  id: number;
+  flag: DataShapingFlag;
+  scope: RuleScope;
+  donorName: string | null;
+  donorCode: string | null;
+  productCode: string | null;
+  orderRevisionId: number | null;
+  source: string | null;
+  startDate: string | null;
+  endDate: string | null;
+  enabled: boolean;
+  note: string | null;
+  createdBy: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type DataShapingRuleInput = Partial<Omit<DataShapingRule, 'id' | 'createdAt' | 'updatedAt' | 'createdBy'>> & {
+  flag: DataShapingFlag;
+  scope: RuleScope;
+};
+
+export interface DataShapingCatalogEntry {
+  flag: DataShapingFlag;
+  family: FlagFamily;
+  description: string;
+}
+
+/** The curated pre-Primarius community-donation ledger (D22, single-agency). */
+export interface LegacyImportResult {
+  outcome: 'imported' | 'duplicate';
+  importId: number | null;
+  rowCount: number;
+  monthCount: number;
+  skippedMonthCount: number;
+  totalWeightHundredths: number;
+  rangeStart: string;
+  rangeEnd: string;
+  sourceCount: number;
+}
+
 export interface ProcurementAnalyticsFilters {
   preset?: AnalyticsRangePreset;
   startDate?: string;
@@ -128,6 +190,12 @@ export interface ProcurementWarehouseProductSummary {
   totalWeightHundredths: number;
   averageWeightPerReceiptHundredths: number;
   medianGapDays: number | null;
+  // Charges carried on the same rows. A product is purchased or donated, never
+  // both, so these are 0/0/null for donated products (the old separate paid
+  // table was just the purchased subset).
+  totalSpendCents: number;
+  paidWeightHundredths: number;
+  costPerPaidPoundCents: number | null;
   firstReceivedDate: string;
   lastReceivedDate: string;
 }
@@ -243,6 +311,10 @@ export interface ProcurementAnalytics {
       earliestDeliveryDate: string;
       latestDeliveryDate: string;
     } | null;
+    /** Legacy weight from sources the live Fresh Alliance record also reports —
+     *  already inside the community_donation channel; the frontend stacks this
+     *  onto the Fresh Alliance bar and removes it from the legacy bar (D16). */
+    freshAllianceLegacyWeightHundredths: number;
   };
   acquisitionMix: Array<{
     acquisitionClass: AcquisitionClass;
@@ -260,6 +332,8 @@ export interface ProcurementAnalytics {
     purchasedWeightHundredths: number;
     ofbWarehouseWeightHundredths: number;
     freshAllianceWeightHundredths: number;
+    /** Pre-Primarius community donations (D16). Monthly grain, own series. */
+    communityDonationWeightHundredths: number;
   }>;
   seasonalWeight: Array<{
     year: string;
@@ -282,5 +356,50 @@ export interface ProcurementAnalytics {
     donorCode: string;
     weightHundredths: number;
   }>;
+  /**
+   * Legacy community donation history (D16), by canonical source. A "received"
+   * view of donations as an activity, so it honors no exclusion flags — its
+   * total will not reconcile with retained-supply figures, by design (D21).
+   * Sorted heaviest first.
+   */
+  communitySources: Array<{
+    sourceName: string;
+    /** True when this source matches a live Fresh Alliance donor; its history
+     *  feeds the Fresh Alliance views, and the community time-series omit it. */
+    isFreshAlliancePartner: boolean;
+    weightHundredths: number;
+    monthCount: number;
+    firstReceivedDate: string;
+    lastReceivedDate: string;
+  }>;
+  communityMonthlyWeight: Array<{
+    month: string;
+    sourceName: string;
+    weightHundredths: number;
+  }>;
+  /** FFA partners' pre-Primarius monthly history, keyed by the live donor code,
+   *  for the Donations-Over-Time "Show Legacy Data" toggle. */
+  freshAllianceLegacyMonthlyWeight: Array<{
+    month: string;
+    donorCode: string;
+    weightHundredths: number;
+  }>;
   donorValue: DonorValueSummary;
+  /**
+   * What the agency's own rules did to these numbers (D19/D21).
+   * `summary.totalWeightHundredths` remains everything received;
+   * `retainedWeightHundredths` is what is left after honoring exclusions. Two
+   * honest answers to two different questions, from the same untouched
+   * observations — and the breakdown exists so an exclusion is never invisible.
+   */
+  dataShaping: {
+    excludedWeightHundredths: number;
+    retainedWeightHundredths: number;
+    flags: Array<{
+      flag: DataShapingFlag;
+      family: FlagFamily;
+      weightHundredths: number;
+      eventCount: number;
+    }>;
+  };
 }

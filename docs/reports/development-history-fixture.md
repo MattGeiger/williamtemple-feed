@@ -11,10 +11,9 @@ It is deterministic and must never run in production.
 The fixture combines:
 
 - the Food Item and Category catalog from
-  `docs/backup_20260709_103507.db`;
+  the privately held `backup_20260709_103507.db`;
 - weekly staple presence and delivery dates derived from the internal local
-  workbook `docs/OFB_Orders.xlsx` (intentionally ignored and not distributed
-  with the public repository);
+  workbook `OFB_Orders.xlsx` (stored outside the repository and not distributed);
 - the pantry's Tuesday–Thursday, 11am–2pm service schedule;
 - routine inventory updates near 9am on service days;
 - Tuesday Trader Joe's donations and smaller Thursday Fred Meyer donations.
@@ -64,4 +63,4 @@ Food Item/Category status, limit, quantity, and Supply annotation state. It
 does not add, rename, or delete catalog records.
 
 The pre-fixture local database backup created for the July 2026 evaluation is
-stored outside the tracked repository under `packages/backend/backups/`.
+stored in private operational storage outside the repository.

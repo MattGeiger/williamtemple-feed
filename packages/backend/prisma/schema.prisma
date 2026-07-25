@@ -269,6 +269,69 @@ model ProcurementLine {
   @@index([procurementChannel])
 }
 
+// A non-destructive classification overlay on procurement observations (D19).
+// Events are immutable facts; a rule never edits, hides, or deletes one -- it
+// records how this agency interprets it, and each Analytics view decides which
+// flags it honors. That is what lets "received" and "retained inventory" be
+// different, equally honest answers drawn from the same rows (D21).
+//
+// Rules are the agency's own operational truth, authored in Data Management
+// (D20) -- never shipped as system logic. FEED cannot know that a given
+// pickup is a courier run for another agency; only the agency does.
+//
+// Evaluated at read time rather than materialized at import, so adding or
+// disabling a rule reshapes existing data without a re-import. That is
+// precisely what makes the per-import Actions menu able to reshape
+// retroactively rather than only roll back.
+model ProcurementDataRule {
+  id    Int    @id @default(autoincrement())
+
+  // The classification applied. Exclusion flags (pass_through,
+  // other_exclusion) change a metric's total; annotation flags (at_risk, estimated,
+  // program_bound) change meaning and confidence but never the math. The
+  // family is derived from the flag in code, not stored, so the two can never
+  // drift apart -- see FLAG_FAMILY in services/procurement/data-shaping.ts.
+  flag  String
+
+  // Narrowest scope that is true: 'donor' | 'category' | 'date_range' |
+  // 'event'. Stored explicitly rather than inferred from which matchers are
+  // populated, so an ambiguous rule cannot be persisted and the UI can group
+  // rules by the intent the author actually had.
+  scope String
+
+  // Primary matcher -- the one the scope requires; the others stay null. A
+  // donor rule may carry either identifier or both: OFB's donor codes are
+  // stabler than its names, which demonstrably drift, while legacy rows carry
+  // only a canonical name and no code. Either one matching is enough.
+  donorName       String?
+  donorCode       String?
+  productCode     String?
+  orderRevisionId Int?
+
+  // General narrowers, available to any scope. `source` absent means every
+  // namespace, which is what lets one donor rule (New Seasons -> pass_through)
+  // cover both live OFB data and legacy history without being restated.
+  // Dates are inclusive ISO `YYYY-MM-DD`, which compares correctly as text.
+  source    String?
+  startDate String?
+  endDate   String?
+
+  enabled Boolean @default(true)
+
+  // Why the agency set this. Institutional knowledge the data itself cannot
+  // carry; it belongs with the rule rather than in someone's memory.
+  note      String?
+
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([enabled, scope])
+  @@index([donorName])
+  @@index([donorCode])
+  @@index([orderRevisionId])
+}
+
 // Append-only inventory ledger. Events survive food-item deletion:
 // `foodItemId` detaches via SetNull while the immutable `sourceFoodItemId`
 // plus denormalized name/category keep historical analytics intact. Rows

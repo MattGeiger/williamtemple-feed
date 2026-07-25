@@ -7,6 +7,22 @@ All notable changes to FEED are documented here. This project adheres to
 
 ### Added
 
+- **Legacy community donation history in Procurement Analytics**: the agency's
+  pre-Primarius records (2016–2023) load through an admin "Import Legacy" sidecar
+  as a distinct `legacy_community` source at monthly grain. A "Donation History
+  From Legacy Data" mix card and a community over-time card present it; the
+  Inbound Weight Over Time chart carries it as its own series with a clean seam
+  at the 2023-06 Fresh Alliance boundary.
+- **Fresh Alliance legacy weave**: legacy sources matching a live Fresh Alliance
+  donor (Amazon, Trader Joe's, Fred Meyer, New Seasons, Safeway – Portland SW
+  Jefferson) join the Fresh Alliance views — the Procurement Channels bar stacks
+  Primarius + legacy-partner history, and Fresh Food Alliance Donations Over Time
+  gains a "Show Legacy Data" toggle that extends partner lines back before 2023.
+- **Data-shaping rules**: agencies can flag donations in Data Management —
+  `pass_through` (relayed to another agency, excluded from supply totals),
+  `other_exclusion` (requires a note), and annotations (`at_risk`, `estimated`,
+  `program_bound`) — evaluated at read time and disclosed wherever they change a
+  number. "Received" and "retained inventory" are now two honest answers.
 - **Fresh Food Alliance Category Mix, broken down by donor**: the category
   chart on Procurement Analytics now stacks each reporting category (e.g.,
   "Produce") by donor instead of showing one flat total, using the same
@@ -38,6 +54,15 @@ All notable changes to FEED are documented here. This project adheres to
   source namespaces — and each now names the other ("Paired with OFB Agency
   Pickups") in the table and the import detail dialog, using a hash of the
   original uploaded file shared by both resulting rows.
+
+### Changed
+
+- **Procurement Analytics polish**: the Paid Products table merged into OFB
+  Warehouse Product History as sortable Total Charges / Cost-per-paid-lb columns;
+  the low-value acquisition-class filter and the per-product Median Gap column
+  were removed; the Fresh Food Alliance Receipt Categories table moved up beside
+  the other Fresh Alliance cards; the seasonal legend now reads oldest→newest;
+  table dates standardized to MM/DD/YYYY; and numerous card blurbs tightened.
 
 ### Removed
 
