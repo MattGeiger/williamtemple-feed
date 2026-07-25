@@ -137,13 +137,13 @@ not duplicated in individual reports.
 
 ## Shared analytics date filters
 
-Operations and Procurement use one date-range control and retain the selected
-range when staff switch between those analytical lenses. The quick presets are
-7 days, 30 days, 90 days (default), year to date, and all tracked history.
-Custom ranges contain inclusive local start and end dates; time-of-day inputs
-are deliberately excluded because procurement observations are date-granular
-and operational events are already intersected with effective-dated service
-hours.
+Operations, Procurement, and the planned Service lens use one date-range
+control and retain the selected range when staff switch between those
+analytical lenses. The quick presets are 7 days, 30 days, 90 days (default),
+year to date, and all tracked history. Custom ranges contain inclusive local
+start and end dates; time-of-day inputs are deliberately excluded because
+procurement and planned service summaries are date-granular and operational
+events are already intersected with effective-dated service hours.
 
 Preset dates resolve on the server in the organization timezone:
 
@@ -154,10 +154,24 @@ Preset dates resolve on the server in the organization timezone:
 - Custom rejects invalid, reversed, incomplete, or future-ending ranges.
 
 The active tab and filters are reproducible URL state: `tab`, `range`, `from`,
-`to`, `channel`, and `acquisition`. Procurement channel and acquisition class
-remain Procurement-only controls. The Available Assortment Category selector
-remains card-local and does not alter other cards or the shared URL range.
-Every visible card and CSV must use the same resolved range.
+`to`, `channel`, and `acquisition`. `tab=service` is reserved for the planned
+third lens. Procurement channel and acquisition class remain Procurement-only
+controls. The Available Assortment Category selector remains card-local and
+does not alter other cards or the shared URL range. Every visible card and CSV
+must use the same resolved range.
+
+## Planned Service lens
+
+Service will sit to the right of Procurement and report pantry service delivered
+to households and individuals. It remains a separate evidence domain: FEED must
+not infer that an inbound shipment or inventory transition caused a service
+encounter, nor convert visit counts into inventory consumption.
+
+The documentation-only source and architecture plan is in
+[Service Analytics Plan](service-analytics-plan.md). Link2Feed and SIMC form the
+standard white-label source foundation. William Temple House's supplemental
+Google Sheet is an agency-specific sidecar and must not define general product
+behavior.
 
 ## Evidence hierarchy
 
