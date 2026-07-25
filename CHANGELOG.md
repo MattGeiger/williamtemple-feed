@@ -5,8 +5,16 @@ All notable changes to FEED are documented here. This project adheres to
 
 ## [Unreleased]
 
+## [1.4.0] — 2026-07-25
+
 ### Added
 
+- **Service Analytics plan**: documented the future third Analytics lens to the
+  right of Operations and Procurement. The plan defines Link2Feed and SIMC as
+  standard white-label sources, the WTH Google Sheet as an agency-only sidecar,
+  a privacy-minimized dual-grain integration model, source seams, metric
+  vocabulary, and phased delivery. No Service UI or ingestion code is included
+  yet.
 - **Legacy community donation history in Procurement Analytics**: the agency's
   pre-Primarius records (2016–2023) load through an admin "Import Legacy" sidecar
   as a distinct `legacy_community` source at monthly grain. A "Donation History
