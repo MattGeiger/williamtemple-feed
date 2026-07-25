@@ -274,16 +274,18 @@ describe('Unified export persistence', () => {
   });
 });
 
-// The authoritative sample is a real export pulled from production Primarius
-// data and is gitignored, so this block runs for developers who hold the file
-// and skips elsewhere. Expected values independently computed from the raw
-// CSV, not from the parser under test.
-const samplePath = path.resolve(
-  process.cwd(),
-  '../../docs/reports/RealData/UnifiedData/OFB_Export_2026-06-01_to_2026-07-22.csv'
-);
+// The authoritative sample is a private production export kept outside this
+// repository. Authorized developers can opt in with FEED_PRIVATE_DATA_DIR;
+// everyone else runs the synthetic regression suite above.
+const privateDataRoot = process.env.FEED_PRIVATE_DATA_DIR;
+const samplePath = privateDataRoot
+  ? path.resolve(
+      privateDataRoot,
+      'UnifiedData/OFB_Export_2026-06-01_to_2026-07-22.csv'
+    )
+  : '';
 
-describe.skipIf(!existsSync(samplePath))('Unified export real sample', () => {
+describe.skipIf(!samplePath || !existsSync(samplePath))('Unified export real sample', () => {
   test('splits and normalizes the full unified export without structural failure', () => {
     const parsed = parseUnifiedOfbCsv(readFileSync(samplePath));
 

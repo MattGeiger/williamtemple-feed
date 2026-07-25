@@ -4,7 +4,7 @@
 import * as React from 'react';
 import type { ColumnDef } from '@tanstack/react-table';
 import { format, parseISO } from 'date-fns';
-import { AlertTriangle, Eye, RotateCcw, Undo2 } from 'lucide-react';
+import { AlertTriangle, Archive, Eye, RotateCcw, SlidersHorizontal, Undo2 } from 'lucide-react';
 import { UploadIcon } from '@/components/animate-ui/icons/upload';
 import { createPageTitleIcon } from '@/components/layout/page-title-icon';
 import { SectionHeader } from '@/components/shared/section-header';
@@ -35,12 +35,17 @@ import { ErrorHandlerService } from '@/services/error/ErrorHandlerService';
 import { messageService } from '@/services/message';
 import { procurementService } from '@/services/procurement';
 import type {
+  DataShapingCatalogEntry,
+  DataShapingRule,
   ProcurementDataStatus,
   ProcurementImportRecord,
   UnifiedImportResult,
 } from '@/types/procurement';
 import type { TableBulkAction } from '@/types/table';
 import { ProcurementCoverageStrip } from './coverage-strip';
+import { DataShapingRuleDialog, type RuleDialogSeed } from './data-shaping-rule-dialog';
+import { DataShapingRules } from './data-shaping-rules';
+import { LegacyImportDialog } from './legacy-import-dialog';
 import { OfbImportDialog } from './ofb-import-dialog';
 
 const PageTitleDataManagementIcon = createPageTitleIcon(DatabaseIcon);
@@ -54,22 +59,31 @@ type LifecycleAction = {
 const sourceLabel = (source: string) => {
   if (source === 'ofb') return 'OFB Completed Orders';
   if (source === 'ofb_pickup') return 'OFB Agency Pickups';
+  if (source === 'legacy_community') return 'Community Donations (historical)';
   return source;
 };
 const dateLabel = (date: string) => format(parseISO(date), 'MMM d, yyyy');
-const eventLabel = (kind: ProcurementImportRecord['orders'][number]['eventKind']) =>
-  kind === 'fresh_alliance_receipt'
-    ? 'Fresh Food Alliance Receipt'
-    : 'OFB Warehouse Order';
+const eventLabel = (kind: ProcurementImportRecord['orders'][number]['eventKind']) => {
+  if (kind === 'fresh_alliance_receipt') return 'Fresh Food Alliance Receipt';
+  if (kind === 'community_donation_month') return 'Community Donation Month';
+  return 'OFB Warehouse Order';
+};
 
 export function DataManagementWorkspace() {
   const [imports, setImports] = React.useState<ProcurementImportRecord[]>([]);
   const [status, setStatus] = React.useState<ProcurementDataStatus | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
   const [importOpen, setImportOpen] = React.useState(false);
+  const [legacyOpen, setLegacyOpen] = React.useState(false);
   const [detailTarget, setDetailTarget] = React.useState<ProcurementImportRecord | null>(null);
   const [lifecycleAction, setLifecycleAction] = React.useState<LifecycleAction | null>(null);
   const [isUpdating, setIsUpdating] = React.useState(false);
+  const [rules, setRules] = React.useState<DataShapingRule[]>([]);
+  const [ruleCatalog, setRuleCatalog] = React.useState<DataShapingCatalogEntry[]>([]);
+  const [rulesLoading, setRulesLoading] = React.useState(true);
+  const [ruleSeed, setRuleSeed] = React.useState<RuleDialogSeed | null>(null);
+  const [ruleDialogOpen, setRuleDialogOpen] = React.useState(false);
+  const [ruleToDelete, setRuleToDelete] = React.useState<DataShapingRule | null>(null);
   const tableRef = React.useRef<{ clearSelection?: () => void }>(null);
 
   const refresh = React.useCallback(async () => {
@@ -88,9 +102,67 @@ export function DataManagementWorkspace() {
     }
   }, []);
 
+  const refreshRules = React.useCallback(async () => {
+    try {
+      setRulesLoading(true);
+      const { rules: loaded, catalog } = await procurementService.getRules();
+      setRules(loaded);
+      setRuleCatalog(catalog);
+    } catch (error) {
+      ErrorHandlerService.handleError(error, 'procurementDataRules');
+    } finally {
+      setRulesLoading(false);
+    }
+  }, []);
+
   React.useEffect(() => {
     void refresh();
-  }, [refresh]);
+    void refreshRules();
+  }, [refresh, refreshRules]);
+
+  // Donors FEED has actually seen, offered when authoring a rule so staff pick
+  // from what the source reported rather than retyping a name from memory.
+  const donorSuggestions = React.useMemo(() => {
+    const seen = new Map<string, { name: string; code: string | null }>();
+    for (const record of imports) {
+      for (const order of record.orders) {
+        if (!order.donorName) continue;
+        if (!seen.has(order.donorName)) {
+          seen.set(order.donorName, { name: order.donorName, code: order.donorCode });
+        }
+      }
+    }
+    return [...seen.values()].sort((left, right) => left.name.localeCompare(right.name));
+  }, [imports]);
+
+  const openRuleDialog = React.useCallback((seed: RuleDialogSeed | null) => {
+    setRuleSeed(seed);
+    setRuleDialogOpen(true);
+  }, []);
+
+  const toggleRule = async (rule: DataShapingRule, enabled: boolean) => {
+    try {
+      await procurementService.updateRule(rule.id, { enabled });
+      await refreshRules();
+    } catch (error) {
+      ErrorHandlerService.handleError(error, 'procurementDataRules');
+    }
+  };
+
+  const confirmDeleteRule = async () => {
+    if (!ruleToDelete) return;
+    try {
+      setIsUpdating(true);
+      await procurementService.deleteRule(ruleToDelete.id);
+      setRuleToDelete(null);
+      await refreshRules();
+      messageService.success('Rule removed. The observations it covered are counted again.');
+    } catch (error) {
+      ErrorHandlerService.handleError(error, 'procurementDataRules');
+    } finally {
+      setIsUpdating(false);
+    }
+  };
 
   const applyLifecycleAction = async () => {
     if (!lifecycleAction) return;
@@ -226,6 +298,19 @@ export function DataManagementWorkspace() {
                 icon: Eye,
                 onClick: () => setDetailTarget(row.original),
               },
+              {
+                // An import is something you can reshape after the fact, not
+                // only roll back (D20). Seeded with this import's source and
+                // window so the rule starts where the user is looking.
+                label: 'Shape Data',
+                icon: SlidersHorizontal,
+                onClick: () => openRuleDialog({
+                  scope: 'donor',
+                  source: row.original.source,
+                  startDate: row.original.rangeStart,
+                  endDate: row.original.rangeEnd,
+                }),
+              },
               row.original.status === 'active'
                 ? {
                     label: 'Rollback',
@@ -243,7 +328,7 @@ export function DataManagementWorkspace() {
         </div>
       ),
     },
-  ], [pairedSourceByImportId]);
+  ], [openRuleDialog, pairedSourceByImportId]);
 
   const bulkActions = React.useMemo<TableBulkAction<ProcurementImportRecord>[]>(() => [
     {
@@ -320,7 +405,24 @@ export function DataManagementWorkspace() {
             variant: 'default',
             action: () => setImportOpen(true),
           },
+          {
+            // A permanent single-agency sidecar (D22), deliberately separate
+            // from the OFB drop-zone above and hidden under white-label.
+            label: 'Import Legacy',
+            icon: Archive,
+            variant: 'outline',
+            action: () => setLegacyOpen(true),
+          },
         ]}
+      />
+
+      <DataShapingRules
+        rules={rules}
+        isLoading={rulesLoading}
+        onAdd={() => openRuleDialog(null)}
+        onEdit={(rule) => openRuleDialog({ rule })}
+        onToggle={(rule, enabled) => void toggleRule(rule, enabled)}
+        onDelete={setRuleToDelete}
       />
 
       <OfbImportDialog
@@ -328,6 +430,39 @@ export function DataManagementWorkspace() {
         onOpenChange={setImportOpen}
         onImported={handleImported}
       />
+
+      <LegacyImportDialog
+        open={legacyOpen}
+        onOpenChange={setLegacyOpen}
+        onImported={refresh}
+      />
+
+      <DataShapingRuleDialog
+        open={ruleDialogOpen}
+        onOpenChange={setRuleDialogOpen}
+        catalog={ruleCatalog}
+        seed={ruleSeed}
+        donorSuggestions={donorSuggestions}
+        onSaved={refreshRules}
+      />
+
+      <AlertDialog open={ruleToDelete !== null} onOpenChange={(open) => !open && setRuleToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove this rule?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Nothing that was imported changes. The observations this rule covered simply stop
+              carrying its flag, so any total that had honored it will include them again.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isUpdating}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteRule} disabled={isUpdating}>
+              Remove Rule
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Dialog open={detailTarget !== null} onOpenChange={(open) => !open && setDetailTarget(null)}>
         <DialogContent className="sm:max-w-[650px]">

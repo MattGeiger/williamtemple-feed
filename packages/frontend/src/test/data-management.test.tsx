@@ -6,7 +6,38 @@ import { render, screen } from '@testing-library/react';
 import { describe, expect, test, vi } from 'vitest';
 
 import { DataManagementWorkspace } from '@/components/data-management';
-import type { ProcurementImportRecord } from '@/types/procurement';
+import type {
+  DataShapingCatalogEntry,
+  DataShapingRule,
+  ProcurementImportRecord,
+} from '@/types/procurement';
+
+const CATALOG: DataShapingCatalogEntry[] = [
+  { flag: 'pass_through', family: 'exclusion', description: 'Relayed to another agency.' },
+  { flag: 'other_exclusion', family: 'exclusion', description: 'Excluded for another reason.' },
+  { flag: 'at_risk', family: 'annotation', description: 'Fragile arrangement.' },
+  { flag: 'estimated', family: 'annotation', description: 'Lower-resolution data.' },
+  { flag: 'program_bound', family: 'annotation', description: 'Time-limited program.' },
+];
+
+const shapingRule = (overrides: Partial<DataShapingRule> = {}): DataShapingRule => ({
+  id: 1,
+  flag: 'pass_through',
+  scope: 'donor',
+  donorName: 'New Seasons - Slabtown',
+  donorCode: 'RNS16',
+  productCode: null,
+  orderRevisionId: null,
+  source: null,
+  startDate: null,
+  endDate: null,
+  enabled: true,
+  note: 'Couriered to another agency; never our inventory.',
+  createdBy: null,
+  createdAt: '2026-07-23T00:00:00.000Z',
+  updatedAt: '2026-07-23T00:00:00.000Z',
+  ...overrides,
+});
 
 vi.mock('@/services/procurement', () => ({
   procurementService: {
@@ -33,6 +64,11 @@ vi.mock('@/services/procurement', () => ({
     rollbackImports: vi.fn(),
     restoreImports: vi.fn(),
     importOfbExport: vi.fn(),
+    importLegacyLedger: vi.fn(),
+    getRules: vi.fn(() => Promise.resolve({ rules: [], catalog: CATALOG })),
+    createRule: vi.fn(),
+    updateRule: vi.fn(),
+    deleteRule: vi.fn(),
   },
 }));
 
@@ -100,5 +136,115 @@ describe('Data Management', () => {
     expect(await screen.findByText('Paired with OFB Agency Pickups')).toBeVisible();
     expect(screen.getByText('Paired with OFB Completed Orders')).toBeVisible();
     expect(screen.getAllByText(/Paired with/)).toHaveLength(2);
+  });
+});
+
+describe('Data rules (D19/D20)', () => {
+  test('invites a rule without inventing one, since only the agency knows its operation', async () => {
+    render(<DataManagementWorkspace />);
+
+    expect(await screen.findByText('Data Rules')).toBeVisible();
+    expect(screen.getByText('No rules yet')).toBeVisible();
+    // FEED ships no opinionated exclusions.
+    expect(screen.getByRole('button', { name: /Add Rule/ })).toBeVisible();
+  });
+
+  test('restates a saved rule in plain language, with the reason it exists', async () => {
+    const { procurementService } = await import('@/services/procurement');
+    vi.mocked(procurementService.getRules).mockResolvedValueOnce({
+      rules: [shapingRule()],
+      catalog: CATALOG,
+    });
+
+    render(<DataManagementWorkspace />);
+
+    expect(await screen.findByText(/Donations from New Seasons - Slabtown/)).toBeVisible();
+    expect(screen.getByText(/code RNS16/)).toBeVisible();
+    // The note carries the institutional knowledge the data cannot.
+    expect(screen.getByText(/Couriered to another agency/)).toBeVisible();
+  });
+
+  test('states that exclusions are disclosed, never silently dropped', async () => {
+    const { procurementService } = await import('@/services/procurement');
+    vi.mocked(procurementService.getRules).mockResolvedValueOnce({
+      rules: [shapingRule()],
+      catalog: CATALOG,
+    });
+
+    render(<DataManagementWorkspace />);
+
+    expect(await screen.findByText(/1 rule removes weight from supply totals/)).toBeVisible();
+    expect(screen.getByText(/never silently dropped/)).toBeVisible();
+  });
+
+  test('shows a paused rule as paused rather than removing it from view', async () => {
+    const { procurementService } = await import('@/services/procurement');
+    vi.mocked(procurementService.getRules).mockResolvedValueOnce({
+      rules: [shapingRule({ enabled: false })],
+      catalog: CATALOG,
+    });
+
+    render(<DataManagementWorkspace />);
+
+    expect(await screen.findByText('Paused')).toBeVisible();
+  });
+
+  test('describes a date-bounded rule with its window', async () => {
+    const { procurementService } = await import('@/services/procurement');
+    vi.mocked(procurementService.getRules).mockResolvedValueOnce({
+      rules: [shapingRule({
+        flag: 'program_bound',
+        scope: 'date_range',
+        donorName: null,
+        donorCode: null,
+        startDate: '2020-05-01',
+        endDate: '2021-05-31',
+        note: null,
+      })],
+      catalog: CATALOG,
+    });
+
+    render(<DataManagementWorkspace />);
+
+    expect(
+      await screen.findByText(/Everything received between 2020-05-01 and 2021-05-31/)
+    ).toBeVisible();
+  });
+});
+
+describe('Legacy community import (D22: a single-agency sidecar)', () => {
+  test('offers a separate action, so the standard flow stays "drop an OFB export"', async () => {
+    render(<DataManagementWorkspace />);
+
+    expect(await screen.findByRole('button', { name: /Import OFB Data/ })).toBeVisible();
+    const legacy = screen.getByRole('button', { name: /Import Legacy/ });
+    expect(legacy).toBeVisible();
+    // Distinct actions, never one drop-zone that guesses which format arrived.
+    expect(legacy).not.toBe(screen.getByRole('button', { name: /Import OFB Data/ }));
+  });
+
+  test('names the legacy source without dressing it up as an OFB export', async () => {
+    const { procurementService } = await import('@/services/procurement');
+    vi.mocked(procurementService.getImports).mockResolvedValueOnce([{
+      id: 9,
+      source: 'legacy_community',
+      status: 'active',
+      schemaVersion: 1,
+      rowCount: 596,
+      orderCount: 550,
+      warningCount: 0,
+      warnings: [],
+      rangeStart: '2016-10-01',
+      rangeEnd: '2023-05-01',
+      importedAt: '2026-07-23T20:00:00.000Z',
+      rolledBackAt: null,
+      restoredAt: null,
+      unifiedFileHash: null,
+      orders: [],
+    }]);
+
+    render(<DataManagementWorkspace />);
+
+    expect(await screen.findByText('Community Donations (historical)')).toBeVisible();
   });
 });

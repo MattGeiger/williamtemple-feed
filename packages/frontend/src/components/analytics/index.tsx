@@ -95,6 +95,7 @@ import type {
 } from '@/types/procurement';
 import type { AnalyticsDateRange } from '@/types/analytics';
 import { DEFAULT_ANALYTICS_RANGE } from '@/types/analytics';
+import { CommunityDonationAnalytics } from './community-analytics';
 import { DonorAnalytics } from './donor-analytics';
 
 const PageTitleAnalyticsIcon = createPageTitleIcon(ChartNoAxesCombinedIcon);
@@ -104,7 +105,10 @@ const acquisitionMixConfig = {
 } satisfies ChartConfig;
 
 const channelMixConfig = {
-  weight: { label: 'Inbound Weight', theme: carbonTheme('teal') },
+  primaryWeight: { label: 'Received', theme: carbonTheme('teal') },
+  // Fresh Alliance partners' pre-Primarius history, stacked onto the FFA bar so
+  // it reflects the whole relationship, not just the years OFB recorded (D16).
+  legacyWeight: { label: 'Legacy partner history', theme: carbonTheme('magenta') },
 } satisfies ChartConfig;
 
 const monthlyWeightConfig = {
@@ -117,6 +121,9 @@ const monthlyWeightConfig = {
 const channelMonthlyWeightConfig = {
   ofbWarehouseWeight: { label: 'OFB Warehouse', theme: carbonTheme('blue') },
   freshAllianceWeight: { label: 'Fresh Food Alliance', theme: carbonTheme('green') },
+  // Its own line, color, and legend entry so the pre-Primarius record reads as
+  // a distinct source rather than merging into an OFB series (D16).
+  communityDonationWeight: { label: 'Donations (Legacy Data)', theme: carbonTheme('magenta') },
 } satisfies ChartConfig;
 
 const paidProductSpendConfig = {
@@ -133,10 +140,16 @@ const acquisitionLabels: Record<AcquisitionClass, string> = {
 const channelLabels: Record<ProcurementChannel, string> = {
   ofb_warehouse: 'OFB Warehouse',
   fresh_alliance: 'Fresh Food Alliance',
+  community_donation: 'Donations (Legacy Data)',
 };
 
 const monthLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const toPounds = (hundredths: number) => hundredths / 100;
+// Tables across FEED render dates as zero-padded MM/DD/YYYY (see the shopping-list
+// and AI-configuration tables). Analytics tables follow that one standard; chart
+// axes and prose keep the friendlier "MMM d, yyyy".
+const tableDate = (iso: string) =>
+  new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' });
 const pounds = (hundredths: number | null) =>
   hundredths === null
     ? 'Unknown'
@@ -787,12 +800,7 @@ export function ProcurementAnalyticsWorkspace({
     searchParams.get('channel') === 'fresh_alliance'
     ? (searchParams.get('channel') as ProcurementChannel)
     : 'all';
-  const acquisitionParam = searchParams.get('acquisition');
-  const selectedAcquisition = acquisitionParam && acquisitionParam in acquisitionLabels
-    ? acquisitionParam
-    : 'all';
-
-  const setProcurementFilter = (key: 'channel' | 'acquisition', value: string) => {
+  const setProcurementFilter = (key: 'channel', value: string) => {
     const next = new URLSearchParams(searchParams);
     if (value === 'all') next.delete(key);
     else next.set(key, value);
@@ -805,7 +813,6 @@ export function ProcurementAnalyticsWorkspace({
     procurementService.getAnalytics({
       ...range,
       ...(selectedChannel === 'all' ? {} : { channel: selectedChannel as ProcurementChannel }),
-      ...(selectedAcquisition === 'all' ? {} : { acquisitionClass: selectedAcquisition as AcquisitionClass }),
     })
       .then((result) => {
         if (!active) return;
@@ -822,7 +829,7 @@ export function ProcurementAnalyticsWorkspace({
     return () => {
       active = false;
     };
-  }, [range, selectedAcquisition, selectedChannel]);
+  }, [range, selectedChannel]);
 
   // The card's own channel breakdown only applies when the page-level filter
   // is "All Channels" -- otherwise the analytics payload is already scoped to
@@ -874,6 +881,7 @@ export function ProcurementAnalyticsWorkspace({
       purchasedWeight: toPounds(row.purchasedWeightHundredths),
       ofbWarehouseWeight: toPounds(row.ofbWarehouseWeightHundredths),
       freshAllianceWeight: toPounds(row.freshAllianceWeightHundredths),
+      communityDonationWeight: toPounds(row.communityDonationWeightHundredths),
     })),
     [analytics]
   );
@@ -884,13 +892,24 @@ export function ProcurementAnalyticsWorkspace({
     })),
     [analytics]
   );
-  const channelMix = React.useMemo(
-    () => (analytics?.channelMix ?? []).map((row) => ({
-      channel: channelLabels[row.channel],
-      weight: toPounds(row.weightHundredths),
-    })),
+  const communityTotalHundredths = React.useMemo(
+    () => (analytics?.communitySources ?? []).reduce((sum, s) => sum + s.weightHundredths, 0),
     [analytics]
   );
+  const channelMix = React.useMemo(() => {
+    const legacyPartner = analytics?.summary.freshAllianceLegacyWeightHundredths ?? 0;
+    return (analytics?.channelMix ?? []).map((row) => {
+      if (row.channel === 'fresh_alliance') {
+        // Stack: Primarius (2023+) plus the matched partners' legacy history.
+        return { channel: channelLabels[row.channel], primaryWeight: toPounds(row.weightHundredths), legacyWeight: toPounds(legacyPartner) };
+      }
+      if (row.channel === 'community_donation') {
+        // Legacy bar shows only what did NOT move to the Fresh Alliance bar.
+        return { channel: channelLabels[row.channel], primaryWeight: toPounds(Math.max(0, communityTotalHundredths - legacyPartner)), legacyWeight: 0 };
+      }
+      return { channel: channelLabels[row.channel], primaryWeight: toPounds(row.weightHundredths), legacyWeight: 0 };
+    });
+  }, [analytics, communityTotalHundredths]);
   const paidProductSearchResult = React.useMemo(
     () => buildPaidProductSearchResult(
       analytics?.paidProducts ?? [],
@@ -996,12 +1015,28 @@ export function ProcurementAnalyticsWorkspace({
       cell: ({ row }) => pounds(row.original.totalWeightHundredths),
     },
     {
-      accessorKey: 'medianGapDays',
-      header: 'Median Gap',
-      size: 115,
-      cell: ({ row }) => row.original.medianGapDays === null
-        ? 'Insufficient history'
-        : `${row.original.medianGapDays.toLocaleString(undefined, { maximumFractionDigits: 1 })} days`,
+      accessorKey: 'totalSpendCents',
+      header: ({ column }) => (
+        <Button variant="ghost" className="-ml-3" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
+          Total Charges <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      ),
+      size: 140,
+      // Donated products have no charge; show "—" rather than $0.
+      cell: ({ row }) => row.original.totalSpendCents > 0 ? dollars(row.original.totalSpendCents) : '—',
+    },
+    {
+      accessorKey: 'costPerPaidPoundCents',
+      header: ({ column }) => (
+        <Button variant="ghost" className="-ml-3" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
+          Cost / Paid lb <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      ),
+      size: 140,
+      // Sort purchased products to the top with a descending sort here.
+      cell: ({ row }) => row.original.costPerPaidPoundCents === null
+        ? '—'
+        : dollars(row.original.costPerPaidPoundCents),
     },
     {
       accessorKey: 'lastReceivedDate',
@@ -1011,7 +1046,7 @@ export function ProcurementAnalyticsWorkspace({
         </Button>
       ),
       size: 130,
-      cell: ({ row }) => format(parseISO(row.original.lastReceivedDate), 'MMM d, yyyy'),
+      cell: ({ row }) => tableDate(row.original.lastReceivedDate),
     },
   ], []);
   const freshAllianceDonorCategoryColumns = React.useMemo<ColumnDef<FreshAllianceDonorCategorySummary>[]>(() => [
@@ -1067,59 +1102,11 @@ export function ProcurementAnalyticsWorkspace({
       accessorKey: 'lastReceivedDate',
       header: ({ column }) => (
         <Button variant="ghost" className="-ml-3" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
-          Last Received <ArrowUpDown className="ml-2 h-4 w-4" />
+          Last Pickup <ArrowUpDown className="ml-2 h-4 w-4" />
         </Button>
       ),
       size: 130,
-      cell: ({ row }) => format(parseISO(row.original.lastReceivedDate), 'MMM d, yyyy'),
-    },
-  ], []);
-  const paidProductColumns = React.useMemo<ColumnDef<PaidProcurementProductSummary>[]>(() => [
-    {
-      accessorKey: 'description',
-      header: ({ column }) => (
-        <Button variant="ghost" className="-ml-3" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
-          Product <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      ),
-      size: 300,
-      cell: ({ row }) => <span className="font-medium">{row.original.description}</span>,
-    },
-    { accessorKey: 'productCode', header: 'Code', size: 90 },
-    {
-      accessorKey: 'totalSpendCents',
-      header: ({ column }) => (
-        <Button variant="ghost" className="-ml-3" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
-          Paid Charges <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      ),
-      size: 145,
-      cell: ({ row }) => dollars(row.original.totalSpendCents),
-    },
-    {
-      accessorKey: 'paidWeightHundredths',
-      header: 'Paid Weight',
-      size: 130,
-      cell: ({ row }) => pounds(row.original.paidWeightHundredths),
-    },
-    {
-      accessorKey: 'costPerPaidPoundCents',
-      header: 'Cost / Paid lb',
-      size: 140,
-      cell: ({ row }) => row.original.costPerPaidPoundCents === null
-        ? 'Unknown'
-        : dollars(row.original.costPerPaidPoundCents),
-    },
-    { accessorKey: 'receiptDateCount', header: 'Receiving Dates', size: 135 },
-    {
-      accessorKey: 'lastReceivedDate',
-      header: ({ column }) => (
-        <Button variant="ghost" className="-ml-3" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
-          Last Received <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      ),
-      size: 130,
-      cell: ({ row }) => format(parseISO(row.original.lastReceivedDate), 'MMM d, yyyy'),
+      cell: ({ row }) => tableDate(row.original.lastReceivedDate),
     },
   ], []);
 
@@ -1160,10 +1147,15 @@ export function ProcurementAnalyticsWorkspace({
     ? 'Unknown'
     : `${pounds(summary.lowerQuartileEventWeightHundredths)}–${pounds(summary.upperQuartileEventWeightHundredths)}`;
   const acquisitionWeightTotal = analytics.acquisitionMix.reduce((sum, row) => sum + row.weightHundredths, 0);
-  const channelWeightTotal = analytics.channelMix.reduce((sum, row) => sum + row.weightHundredths, 0);
   const includesWarehouse = selectedChannel !== 'fresh_alliance';
   const includesFreshAlliance = selectedChannel !== 'ofb_warehouse';
   const allChannels = selectedChannel === 'all';
+  // The legacy series appears only when that history is actually loaded --
+  // it is a single-agency sidecar (D22), so an empty line would imply every
+  // other agency has a source it will never have.
+  const hasCommunityDonations = (analytics?.monthlyWeight ?? []).some(
+    (row) => row.communityDonationWeightHundredths > 0
+  );
 
   const toggleSeasonalYear = (year: string, checked: boolean) => {
     setSelectedSeasonalYears((current) => {
@@ -1196,22 +1188,17 @@ export function ProcurementAnalyticsWorkspace({
         </Button>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div>
         <Select value={selectedChannel} onValueChange={(value) => setProcurementFilter('channel', value)}>
-          <SelectTrigger aria-label="Procurement channel"><SelectValue /></SelectTrigger>
+          {/* Constrained so the control sizes to its content rather than
+              stretching across the viewport. */}
+          <SelectTrigger aria-label="Procurement channel" className="w-full sm:w-64">
+            <SelectValue />
+          </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Channels</SelectItem>
             <SelectItem value="ofb_warehouse">OFB Warehouse</SelectItem>
             <SelectItem value="fresh_alliance">Fresh Food Alliance</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={selectedAcquisition} onValueChange={(value) => setProcurementFilter('acquisition', value)}>
-          <SelectTrigger aria-label="Acquisition class"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Acquisition Classes</SelectItem>
-            {Object.entries(acquisitionLabels).map(([value, label]) => (
-              <SelectItem key={value} value={value}>{label}</SelectItem>
-            ))}
           </SelectContent>
         </Select>
       </div>
@@ -1281,6 +1268,7 @@ export function ProcurementAnalyticsWorkspace({
             />
           </div>
           <FreshAlliancePendingNote pending={summary.freshAlliancePending} />
+          <DataShapingNote dataShaping={analytics.dataShaping} />
         </CardContent>
       </Card>
 
@@ -1295,7 +1283,9 @@ export function ProcurementAnalyticsWorkspace({
           </CardTitle>
           <CardDescription>
             {allChannels
-              ? 'Monthly inbound pounds with OFB Warehouse and Fresh Food Alliance kept separate'
+              ? (hasCommunityDonations
+                ? 'Monthly inbound pounds, each source kept separate. Community donations are the agency\u2019s own pre-Primarius record, at monthly grain.'
+                : 'Monthly inbound pounds with OFB Warehouse and Fresh Food Alliance kept separate')
               : selectedChannel === 'fresh_alliance'
                 ? 'Monthly pounds reported through grocery-partner donation receipts'
                 : 'Monthly warehouse pounds with OFB acquisition classes kept separate'}
@@ -1323,6 +1313,9 @@ export function ProcurementAnalyticsWorkspace({
                 <>
                   {allChannels && <Line dataKey="ofbWarehouseWeight" stroke="var(--color-ofbWarehouseWeight)" strokeWidth={2} dot={false} />}
                   <Line dataKey="freshAllianceWeight" stroke="var(--color-freshAllianceWeight)" strokeWidth={2} dot={false} />
+                  {allChannels && hasCommunityDonations && (
+                    <Line dataKey="communityDonationWeight" stroke="var(--color-communityDonationWeight)" strokeWidth={2} dot={false} />
+                  )}
                 </>
               )}
             </LineChart>
@@ -1395,9 +1388,17 @@ export function ProcurementAnalyticsWorkspace({
                     content={({ active, payload }) => {
                       if (!active || !payload?.length) return null;
                       const row = payload[0].payload as Record<string, unknown>;
-                      const breakdown = row.familyBreakdown as
+                      // The chart row carries `segments` -- `familyBreakdown`
+                      // lives on the pre-chart datum and is never present here,
+                      // which is why this block used to render nothing on the
+                      // aggregate bar.
+                      const breakdown = row.segments as
                         | Array<{ family: string; spendDollars: number }>
                         | undefined;
+                      const breakdownTotal = (breakdown ?? []).reduce(
+                        (sum, entry) => sum + entry.spendDollars,
+                        0
+                      );
                       return (
                         <div className="grid min-w-[13rem] gap-1.5 rounded-lg border border-border/50 bg-background px-2.5 py-2 text-xs shadow-xl">
                           <div className="font-medium">{String(row.fullDescription)}</div>
@@ -1413,7 +1414,7 @@ export function ProcurementAnalyticsWorkspace({
                             <span className="text-muted-foreground">Product Codes</span>
                             <span className="font-mono font-medium tabular-nums">{Number(row.productCount).toLocaleString()}</span>
                           </div>
-                          {breakdown && breakdown.length > 0 && (
+                          {breakdown && breakdown.length > 1 && breakdownTotal > 0 && (
                             <div className="mt-1 grid gap-1 border-t border-border/50 pt-1.5">
                               <span className="text-muted-foreground">By product family</span>
                               {breakdown.map((entry) => (
@@ -1425,7 +1426,12 @@ export function ProcurementAnalyticsWorkspace({
                                     />
                                     {entry.family}
                                   </span>
-                                  <span className="font-mono font-medium tabular-nums">{dollars(Math.round(entry.spendDollars * 100))}</span>
+                                  <span className="font-mono font-medium tabular-nums">
+                                    {(entry.spendDollars / breakdownTotal * 100).toFixed(1)}%
+                                    <span className="ml-1.5 text-muted-foreground">
+                                      {dollars(Math.round(entry.spendDollars * 100))}
+                                    </span>
+                                  </span>
                                 </div>
                               ))}
                             </div>
@@ -1489,10 +1495,14 @@ export function ProcurementAnalyticsWorkspace({
                 <XAxis type="number" tickLine={false} axisLine={false} />
                 <YAxis dataKey="channel" type="category" width={110} tickLine={false} axisLine={false} />
                 <ChartTooltip content={<ChartTooltipContent />} />
-                <Bar dataKey="weight" fill="var(--color-weight)" radius={3} />
+                <Bar dataKey="primaryWeight" stackId="channel" fill="var(--color-primaryWeight)" radius={[3, 0, 0, 3]} />
+                <Bar dataKey="legacyWeight" stackId="channel" fill="var(--color-legacyWeight)" radius={[0, 3, 3, 0]} />
               </BarChart>
             </ChartContainer>
-            <MixDetails total={channelWeightTotal} rows={analytics.channelMix.map((row) => ({ label: channelLabels[row.channel], weight: row.weightHundredths }))} />
+            <MixDetails
+              total={channelMix.reduce((sum, row) => sum + row.primaryWeight + row.legacyWeight, 0) * 100}
+              rows={channelMix.map((row) => ({ label: row.channel, weight: (row.primaryWeight + row.legacyWeight) * 100 }))}
+            />
           </CardContent>
         </Card>}
         </div>
@@ -1586,6 +1596,7 @@ export function ProcurementAnalyticsWorkspace({
                 ))}
               </div>
             )}
+            <p className="mt-3 text-xs text-muted-foreground">Does not include legacy donations data.</p>
           </CardContent>
         </Card>
       )}
@@ -1595,7 +1606,15 @@ export function ProcurementAnalyticsWorkspace({
           donors={analytics.donors}
           donorValue={analytics.donorValue}
           donorMonthlyWeight={analytics.donorMonthlyWeight}
-          formatDate={(isoDate) => format(parseISO(isoDate), 'MMM d, yyyy')}
+          legacyMonthlyWeight={analytics.freshAllianceLegacyMonthlyWeight}
+          formatDate={tableDate}
+        />
+      )}
+
+      {hasCommunityDonations && (
+        <CommunityDonationAnalytics
+          communitySources={analytics.communitySources}
+          communityMonthlyWeight={analytics.communityMonthlyWeight}
         />
       )}
 
@@ -1629,6 +1648,11 @@ export function ProcurementAnalyticsWorkspace({
                 <SelectItem value="all">All Channels</SelectItem>
                 <SelectItem value="ofb_warehouse">OFB Warehouse</SelectItem>
                 <SelectItem value="fresh_alliance">Fresh Food Alliance</SelectItem>
+                {/* Offered only when legacy history is loaded — its own channel
+                    is already summed into "All Channels" and can now be isolated. */}
+                {hasCommunityDonations && (
+                  <SelectItem value="community_donation">Donations (Legacy Data)</SelectItem>
+                )}
               </SelectContent>
             </Select>
           )}
@@ -1685,9 +1709,37 @@ export function ProcurementAnalyticsWorkspace({
                 <CartesianGrid vertical={false} />
                 <XAxis dataKey="month" tickLine={false} axisLine={false} />
                 <YAxis width={52} tickLine={false} axisLine={false} />
-                <ChartTooltip content={<ChartTooltipContent />} />
+                {/* Sorted heaviest-first per month, so the tooltip's order
+                    mirrors the lines' visual stacking at that point rather than
+                    a fixed year order. */}
+                <ChartTooltip
+                  content={({ active, payload, label }) => {
+                    if (!active || !payload?.length) return null;
+                    const rows = [...payload]
+                      .filter((item) => item.value != null)
+                      .sort((left, right) => Number(right.value) - Number(left.value));
+                    if (rows.length === 0) return null;
+                    return (
+                      <div className="grid min-w-[10rem] gap-1.5 rounded-lg border border-border/50 bg-background px-2.5 py-2 text-xs shadow-xl">
+                        <div className="font-medium">{String(label)}</div>
+                        {rows.map((item) => (
+                          <div key={String(item.dataKey)} className="flex items-center justify-between gap-3">
+                            <span className="flex items-center gap-1.5 text-muted-foreground">
+                              <span className="h-2 w-2 shrink-0 rounded-[2px]" style={{ backgroundColor: item.color }} />
+                              {String(item.name ?? item.dataKey)}
+                            </span>
+                            <span className="font-mono font-medium tabular-nums">{Math.round(Number(item.value)).toLocaleString()} lb</span>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  }}
+                />
                 <ChartLegend content={<ChartLegendContent />} />
-                {seasonalYears.map((year) => {
+                {/* Ascending so the legend reads oldest → newest, with the
+                    current year last (rightmost). Colors are keyed by year, not
+                    render order, so this does not disturb them. */}
+                {[...seasonalYears].sort().map((year) => {
                   const isCurrentYear = year === String(currentCalendarYear);
 
                   return (
@@ -1713,45 +1765,12 @@ export function ProcurementAnalyticsWorkspace({
         </CardContent>
       </Card>
 
-      {includesWarehouse && analytics.paidProducts.length > 0 && <section className="space-y-3">
-        <div>
-          <h3 className="text-lg font-semibold">Paid OFB Warehouse Products</h3>
-          <p className="text-sm text-muted-foreground">
-            Exact supplier products with calculated charges; this does not infer why the organization purchased them.
-          </p>
-        </div>
-        <EnhancedDataTable
-          columns={paidProductColumns}
-          data={analytics.paidProducts}
-          filterColumn="description"
-          filterPlaceholder="Filter paid products..."
-          enableColumnVisibility
-          defaultPageSize={10}
-        />
-      </section>}
-
-      {includesWarehouse && <section className="space-y-3">
-        <div>
-          <h3 className="text-lg font-semibold">OFB Warehouse Product History</h3>
-          <p className="text-sm text-muted-foreground">Exact supplier products with receiving dates, inbound weight, and timing; Fresh Food Alliance categories are excluded.</p>
-        </div>
-        <EnhancedDataTable
-          columns={warehouseProductColumns}
-          data={analytics.warehouseProducts}
-          filterColumn="description"
-          filterPlaceholder="Filter supplier products..."
-          enableColumnVisibility
-          defaultPageSize={10}
-        />
-      </section>}
-
       {includesFreshAlliance && <section className="space-y-3">
         <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
           <div>
             <h3 className="text-lg font-semibold">Fresh Food Alliance Receipt Categories</h3>
             <p className="text-sm text-muted-foreground">
-              Broad categories reported through OFB, by donor. Donor identity comes from the OFB
-              Agency Pickups export and is never inferred beyond what it reports.
+              Broad categories of products donated through the Fresh Food Alliance.
             </p>
             <FreshAlliancePendingNote pending={summary.freshAlliancePending} className="mt-1" />
           </div>
@@ -1813,6 +1832,22 @@ export function ProcurementAnalyticsWorkspace({
           />
         )}
       </section>}
+
+      {includesWarehouse && <section className="space-y-3">
+        <div>
+          <h3 className="text-lg font-semibold">OFB Warehouse Product History</h3>
+          <p className="text-sm text-muted-foreground">OFB ordered products with receiving dates, inbound weight, timing, and charges. Sort by Cost / Paid lb to bring purchased products first.</p>
+        </div>
+        <EnhancedDataTable
+          columns={warehouseProductColumns}
+          data={analytics.warehouseProducts}
+          filterColumn="description"
+          filterPlaceholder="Filter supplier products..."
+          enableColumnVisibility
+          defaultPageSize={10}
+        />
+      </section>}
+
     </div>
   );
 }
@@ -1830,6 +1865,48 @@ function MixDetails({ total, rows }: { total: number; rows: Array<{ label: strin
         </div>
       ))}
     </dl>
+  );
+}
+
+const SHAPING_FLAG_LABELS: Record<string, string> = {
+  pass_through: 'passthrough to agency partner',
+  other_exclusion: 'excluded by your rules',
+  at_risk: 'from arrangements you marked fragile',
+  estimated: 'recorded at lower resolution',
+  program_bound: 'from a time-limited program',
+};
+
+/**
+ * States what the agency's own rules did to these numbers. An exclusion nobody
+ * can see is as dishonest as an inflated total, so whenever a rule removes
+ * weight, the amount and the reason are named right beside the figure it
+ * changed (D19). Annotations are reported the same way but never subtract.
+ */
+export function DataShapingNote({
+  dataShaping,
+  className = '',
+}: {
+  dataShaping: ProcurementAnalytics['dataShaping'];
+  className?: string;
+}) {
+  if (!dataShaping || dataShaping.flags.length === 0) return null;
+  const exclusions = dataShaping.flags.filter((entry) => entry.family === 'exclusion');
+  const annotations = dataShaping.flags.filter((entry) => entry.family === 'annotation');
+  const describe = (entry: ProcurementAnalytics['dataShaping']['flags'][number]) =>
+    `${pounds(entry.weightHundredths)} ${SHAPING_FLAG_LABELS[entry.flag] ?? entry.flag}`;
+
+  return (
+    <div className={`space-y-1 text-xs text-muted-foreground ${className}`}>
+      {exclusions.length > 0 && (
+        <p>
+          Does not include {pounds(dataShaping.excludedWeightHundredths)} flagged as{' '}
+          {exclusions.map((entry) => SHAPING_FLAG_LABELS[entry.flag] ?? entry.flag).join(', ')}.
+        </p>
+      )}
+      {annotations.length > 0 && (
+        <p>Also noted: {annotations.map(describe).join(', ')}.</p>
+      )}
+    </div>
   );
 }
 
@@ -1851,10 +1928,8 @@ function FreshAlliancePendingNote({
   if (!pending) return null;
   return (
     <p className={`text-xs text-muted-foreground ${className}`}>
-      Includes {pounds(pending.weightHundredths)} of Fresh Food Alliance donations from{' '}
-      {format(parseISO(pending.earliestDeliveryDate), 'MMM d, yyyy')} to{' '}
-      {format(parseISO(pending.latestDeliveryDate), 'MMM d, yyyy')} still awaiting OFB's
-      confirmation sign-off.
+      Includes {pounds(pending.weightHundredths)} of Fresh Food Alliance donations still
+      awaiting OFB's confirmation.
     </p>
   );
 }

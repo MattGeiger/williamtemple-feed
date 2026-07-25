@@ -12,11 +12,20 @@ import {
   resolveRange,
 } from '../inventory-analytics/timezone';
 import { getOperatingHoursSettings } from '../operating-hours';
+import {
+  DataShapingFlag,
+  DataShapingRule,
+  FLAG_FAMILY,
+  RuleScope,
+  resolveFlags,
+  validateRule,
+} from './data-shaping';
 import { clearSupersede, reapplySupersede } from './fresh-alliance';
 import {
   ACQUISITION_CLASSES,
   AcquisitionClass,
   FRESH_ALLIANCE_SOURCE,
+  LEGACY_COMMUNITY_SOURCE,
   ImportOptions,
   OFB_SOURCE,
   PROCUREMENT_SOURCES,
@@ -35,6 +44,7 @@ import {
 export {
   ACQUISITION_CLASSES,
   FRESH_ALLIANCE_SOURCE,
+  LEGACY_COMMUNITY_SOURCE,
   OFB_SOURCE,
   PROCUREMENT_SOURCES,
   ProcurementImportError,
@@ -44,10 +54,21 @@ export type { AcquisitionClass } from './parsing';
 export const OFB_IMPORT_SCHEMA_VERSION = 4;
 export const PROCUREMENT_STALE_AFTER_DAYS = 30;
 
-export const PROCUREMENT_CHANNELS = ['ofb_warehouse', 'fresh_alliance'] as const;
+// `community_donation` is the legacy channel (D16). It is a third channel
+// rather than a flavor of Fresh Alliance because it is a different reporting
+// relationship entirely -- donations the agency received directly, which never
+// passed through OFB -- and because giving it its own channel is what lets it
+// carry its own line, color, and legend entry on the weight-over-time chart
+// instead of silently merging into an OFB series.
+export const PROCUREMENT_CHANNELS = [
+  'ofb_warehouse',
+  'fresh_alliance',
+  'community_donation',
+] as const;
 export const PROCUREMENT_EVENT_KINDS = [
   'ofb_warehouse_order',
   'fresh_alliance_receipt',
+  'community_donation_month',
 ] as const;
 export type ProcurementChannel = typeof PROCUREMENT_CHANNELS[number];
 export type ProcurementEventKind = typeof PROCUREMENT_EVENT_KINDS[number];
@@ -583,6 +604,11 @@ export async function listProcurementImports(client = prisma) {
           revision: true,
           warningCodes: true,
           isCurrent: true,
+          // Donor identity travels with the summary so Data Management can
+          // inspect an import and offer rules for the donors it actually
+          // contains, rather than making staff type names from memory (D20).
+          donorCode: true,
+          donorName: true,
           _count: { select: { lines: true } },
         },
         orderBy: { deliveryDate: 'asc' },
@@ -610,6 +636,8 @@ export async function listProcurementImports(client = prisma) {
       eventKind: order.eventKind,
       deliveryDate: order.deliveryDate,
       revision: order.revision,
+      donorCode: order.donorCode,
+      donorName: order.donorName,
       warningCodes: order.warningCodes,
       isCurrent: order.isCurrent,
       lineCount: order._count.lines,
@@ -720,6 +748,11 @@ interface ProductObservation {
   procurementChannel: ProcurementChannel;
   receiptDates: Set<string>;
   totalWeightHundredths: number;
+  // Charges live on the same warehouse lines, so the product history table can
+  // carry cost alongside weight (a product is either purchased or donated, so
+  // the paid-products table was just this subset). Donated products keep 0/0.
+  totalSpendCents: number;
+  paidWeightHundredths: number;
   firstReceivedDate: string;
   lastReceivedDate: string;
 }
@@ -736,6 +769,19 @@ interface DonorObservation {
   unvaluedWeightHundredths: number;
   recordedValueCents: number;
   categories: Map<string, { description: string; weightHundredths: number }>;
+}
+
+// The legacy community stream, aggregated by curated canonical source. This is
+// a "received" view -- a history of donations as an activity -- so it honors no
+// exclusion flags (D21): New Seasons' relayed pounds are a real gift here even
+// though the pass_through rule removes them from retained supply elsewhere.
+interface CommunitySourceObservation {
+  sourceName: string;
+  isFreshAlliancePartner: boolean;
+  weightHundredths: number;
+  monthCount: number;
+  firstReceivedDate: string;
+  lastReceivedDate: string;
 }
 
 interface FreshAllianceCategoryObservation {
@@ -841,7 +887,7 @@ export async function getProcurementAnalytics(
     earliestDeliveryDate
   );
 
-  const [orders, status] = await Promise.all([
+  const [orders, status, shapingRules] = await Promise.all([
     client.procurementOrderRevision.findMany({
       where: {
         ...baseWhere,
@@ -857,7 +903,12 @@ export async function getProcurementAnalytics(
       },
     }),
     getProcurementDataStatus(now, client, settings.timezone),
+    // Resolved at read time against every enabled rule, never bound to an
+    // import (D20). A rule saved today therefore reshapes data imported years
+    // ago, and removing it restores those observations to every total.
+    client.procurementDataRule.findMany({ where: { enabled: true } }),
   ]);
+  const activeRules = shapingRules as DataShapingRule[];
 
   const eventWeights = orders.map((order) =>
     order.lines.reduce((sum, line) => sum + line.weightHundredths, 0)
@@ -889,6 +940,27 @@ export async function getProcurementAnalytics(
   // being attributed to a partner.
   const donors = new Map<string, DonorObservation>();
   const donorMonthly = new Map<string, number>();
+  // Legacy community donations, keyed by canonical source name (these rows
+  // carry no OFB donor code, so the name is the identity -- D18).
+  const communitySources = new Map<string, CommunitySourceObservation>();
+  const communityMonthly = new Map<string, number>();
+  // A legacy community source is a "Fresh Alliance partner" when its curated
+  // canonical name matches a donor the live Fresh Alliance record reports. That
+  // match lets its pre-Primarius history join the Fresh Alliance views (channel
+  // stack, donations-over-time toggle) instead of the community cards. The map
+  // is donorName -> donorCode so legacy months can be keyed by the live code.
+  const normalizeDonorName = (name: string) => name.trim().replace(/\s+/g, ' ').toLowerCase();
+  const freshAllianceCodeByName = new Map<string, string>();
+  for (const order of orders) {
+    if (order.source === FRESH_ALLIANCE_SOURCE && order.donorName && order.donorCode) {
+      freshAllianceCodeByName.set(normalizeDonorName(order.donorName), order.donorCode);
+    }
+  }
+  const freshAlliancePartnerNames = new Set<string>();
+  // FFA-partner legacy weight, kept out of the community totals so the two
+  // never double-count when the frontend stacks it onto the Fresh Alliance bar.
+  let freshAllianceLegacyWeightHundredths = 0;
+  const freshAllianceLegacyMonthly = new Map<string, number>();
   const paidProducts = new Map<string, PaidProductObservation>();
   let totalWeightHundredths = 0;
   let calculatedGrossProductChargesCents = 0;
@@ -905,6 +977,14 @@ export async function getProcurementAnalytics(
   // D13/D15). This tracks the same weight a second time, unioned, purely so
   // Analytics can state in one sentence how much of what's already counted is
   // still awaiting that sign-off.
+  // Weight the agency's own rules classify. Exclusions are subtracted from the
+  // supply figure and stated outright -- an exclusion nobody can see is as
+  // dishonest as an inflated total (D15 generalized, D19). Annotations are
+  // measured the same way but never subtracted.
+  let excludedWeightHundredths = 0;
+  const flagWeights = new Map<DataShapingFlag, number>();
+  const flagEvents = new Map<DataShapingFlag, Set<number>>();
+
   let freshAlliancePendingWeightHundredths = 0;
   let freshAlliancePendingEventCount = 0;
   let freshAlliancePendingEarliestDate: string | null = null;
@@ -919,6 +999,7 @@ export async function getProcurementAnalytics(
       purchasedWeightHundredths: 0,
       ofbWarehouseWeightHundredths: 0,
       freshAllianceWeightHundredths: 0,
+      communityDonationWeightHundredths: 0,
     };
     const donorCode = order.donorCode;
     const donorObservation = donorCode
@@ -968,7 +1049,36 @@ export async function getProcurementAnalytics(
     for (const line of order.lines) {
       const acquisitionClass = line.acquisitionClass as AcquisitionClass;
       const channel = line.procurementChannel as ProcurementChannel;
+      // Legacy months carry a source and a weight and nothing finer (D17), so
+      // they contribute to weight, time, and source views but are absent from
+      // every product- and category-level view below. Absence is honest;
+      // a fabricated category would not be.
+      const carriesProductDetail = order.source !== LEGACY_COMMUNITY_SOURCE;
       totalWeightHundredths += line.weightHundredths;
+
+      // Flags resolve per line because weight lives on lines: a donor rule
+      // reaches a line through its parent event, a category rule addresses the
+      // line itself.
+      if (activeRules.length > 0) {
+        const flags = resolveFlags(activeRules, {
+          orderRevisionId: order.id,
+          source: order.source,
+          deliveryDate: order.deliveryDate,
+          donorName: order.donorName,
+          donorCode: order.donorCode,
+          productCode: line.product.productCode,
+        });
+        let lineExcluded = false;
+        for (const flag of flags) {
+          flagWeights.set(flag, (flagWeights.get(flag) ?? 0) + line.weightHundredths);
+          const events = flagEvents.get(flag) ?? new Set<number>();
+          events.add(order.id);
+          flagEvents.set(flag, events);
+          if (FLAG_FAMILY[flag] === 'exclusion') lineExcluded = true;
+        }
+        // Counted once however many exclusion rules happen to apply.
+        if (lineExcluded) excludedWeightHundredths += line.weightHundredths;
+      }
       calculatedGrossProductChargesCents += line.calculatedPriceTotalCents;
       sourceReportedProductChargesCents += line.sourcePriceTotalCents;
       // OFB exports place event-level fees and grants on individual source
@@ -979,7 +1089,10 @@ export async function getProcurementAnalytics(
         grantsAppliedCents += line.grantsAppliedCents;
       }
       if (!line.priceTotalMatches) priceMismatchLineCount += 1;
-      if (line.weightHundredths === 0 || line.quantityHundredths === 0) {
+      // A zero-quantity line is a data-quality signal about an OFB export. A
+      // legacy month legitimately has no quantity at all -- only a weight --
+      // so counting it here would report a defect that does not exist.
+      if (carriesProductDetail && (line.weightHundredths === 0 || line.quantityHundredths === 0)) {
         zeroInboundLineCount += 1;
       }
       acquisitionWeights.set(
@@ -996,11 +1109,57 @@ export async function getProcurementAnalytics(
             : 'purchasedWeightHundredths';
       const channelKey = channel === 'fresh_alliance'
         ? 'freshAllianceWeightHundredths'
-        : 'ofbWarehouseWeightHundredths';
+        : channel === 'community_donation'
+          ? 'communityDonationWeightHundredths'
+          : 'ofbWarehouseWeightHundredths';
       monthValues[acquisitionKey] += line.weightHundredths;
       monthValues[channelKey] += line.weightHundredths;
       const yearMonth = `${order.deliveryDate.slice(0, 4)}-${order.deliveryDate.slice(5, 7)}`;
       seasonal.set(yearMonth, (seasonal.get(yearMonth) ?? 0) + line.weightHundredths);
+
+      // Legacy community donations, aggregated by canonical source for the
+      // community-history cards. Received weight, no exclusions honored here.
+      if (channel === 'community_donation') {
+        const sourceName = order.donorName ?? 'Unattributed';
+        const partnerCode = order.donorName
+          ? freshAllianceCodeByName.get(normalizeDonorName(order.donorName))
+          : undefined;
+        const isFreshAlliancePartner = partnerCode !== undefined;
+
+        // Every legacy source appears in the community roster (mix card), FFA
+        // partner or not -- the roster is "everyone who ever donated". The
+        // isFreshAlliancePartner flag lets the frontend scope the community
+        // *time-series* to non-partners, while the partner history feeds the
+        // Fresh Alliance views instead.
+        const community = communitySources.get(sourceName) ?? {
+          sourceName,
+          isFreshAlliancePartner,
+          weightHundredths: 0,
+          monthCount: 0,
+          firstReceivedDate: order.deliveryDate,
+          lastReceivedDate: order.deliveryDate,
+        };
+        community.weightHundredths += line.weightHundredths;
+        community.monthCount += 1;
+        if (order.deliveryDate < community.firstReceivedDate) community.firstReceivedDate = order.deliveryDate;
+        if (order.deliveryDate > community.lastReceivedDate) community.lastReceivedDate = order.deliveryDate;
+        communitySources.set(sourceName, community);
+        const communityMonthKey = `${yearMonth}|${sourceName}`;
+        communityMonthly.set(
+          communityMonthKey,
+          (communityMonthly.get(communityMonthKey) ?? 0) + line.weightHundredths
+        );
+
+        if (isFreshAlliancePartner) {
+          freshAlliancePartnerNames.add(sourceName);
+          freshAllianceLegacyWeightHundredths += line.weightHundredths;
+          const legacyKey = `${yearMonth}|${partnerCode}`;
+          freshAllianceLegacyMonthly.set(
+            legacyKey,
+            (freshAllianceLegacyMonthly.get(legacyKey) ?? 0) + line.weightHundredths
+          );
+        }
+      }
       const seasonalChannelKey = `${yearMonth}|${channel}`;
       seasonalByChannel.set(
         seasonalChannelKey,
@@ -1062,6 +1221,13 @@ export async function getProcurementAnalytics(
           }
         }
       }
+
+      // Legacy months stop here: they have a source and a weight and no
+      // product, so every view below -- warehouse products, Fresh Alliance
+      // categories, the donor-category split -- correctly has nothing to show
+      // for them (D17). Stated explicitly rather than left to the zero-quantity
+      // guard, which would exclude them for the wrong reason.
+      if (!carriesProductDetail) continue;
 
       // A completed source line with zero quantity/weight is retained for
       // provenance but is not evidence that supply was received.
@@ -1130,12 +1296,16 @@ export async function getProcurementAnalytics(
           procurementChannel: channel,
           receiptDates: new Set([order.deliveryDate]),
           totalWeightHundredths: line.weightHundredths,
+          totalSpendCents: line.calculatedPriceTotalCents,
+          paidWeightHundredths: line.calculatedPriceTotalCents > 0 ? line.weightHundredths : 0,
           firstReceivedDate: order.deliveryDate,
           lastReceivedDate: order.deliveryDate,
         });
       } else {
         existing.receiptDates.add(order.deliveryDate);
         existing.totalWeightHundredths += line.weightHundredths;
+        existing.totalSpendCents += line.calculatedPriceTotalCents;
+        if (line.calculatedPriceTotalCents > 0) existing.paidWeightHundredths += line.weightHundredths;
         if (order.deliveryDate >= existing.lastReceivedDate) {
           existing.lastReceivedDate = order.deliveryDate;
           existing.latestDescription = line.sourceDescription;
@@ -1164,6 +1334,13 @@ export async function getProcurementAnalytics(
         product.totalWeightHundredths / product.receiptDates.size
       ),
       medianGapDays: quantile(gaps, 0.5),
+      totalSpendCents: product.totalSpendCents,
+      paidWeightHundredths: product.paidWeightHundredths,
+      // Null for a product FEED never paid for, so the table shows "—" rather
+      // than a fabricated $0.00/lb on donated supply.
+      costPerPaidPoundCents: product.paidWeightHundredths > 0
+        ? Math.round((product.totalSpendCents * 100) / product.paidWeightHundredths)
+        : null,
       firstReceivedDate: product.firstReceivedDate,
       lastReceivedDate: product.lastReceivedDate,
     };
@@ -1308,15 +1485,28 @@ export async function getProcurementAnalytics(
         earliestDeliveryDate: freshAlliancePendingEarliestDate,
         latestDeliveryDate: freshAlliancePendingLatestDate,
       },
+      // Legacy weight from sources the live Fresh Alliance record also reports.
+      // Already counted inside the community_donation channel; this names the
+      // portion the frontend stacks onto the Fresh Alliance bar (and removes
+      // from the legacy bar) so the two never double-count.
+      freshAllianceLegacyWeightHundredths,
     },
     acquisitionMix: ACQUISITION_CLASSES.map((acquisitionClass) => ({
       acquisitionClass,
       weightHundredths: acquisitionWeights.get(acquisitionClass) ?? 0,
     })),
-    channelMix: PROCUREMENT_CHANNELS.map((channel) => ({
-      channel,
-      weightHundredths: channelWeights.get(channel) ?? 0,
-    })),
+    // The two OFB channels are always reported, at zero if need be: FEED
+    // imports both, so "none this range" is a real observation. The legacy
+    // community channel appears only once it holds weight -- it is a
+    // single-agency sidecar (D22), and a permanently-zero row would imply
+    // every other agency has a source it will never have.
+    channelMix: PROCUREMENT_CHANNELS
+      .filter((channel) => channel !== 'community_donation'
+        || (channelWeights.get(channel) ?? 0) > 0)
+      .map((channel) => ({
+        channel,
+        weightHundredths: channelWeights.get(channel) ?? 0,
+      })),
     monthlyWeight: [...monthly.entries()]
       .sort(([left], [right]) => left.localeCompare(right))
       .map(([month, values]) => ({ month, ...values })),
@@ -1350,6 +1540,64 @@ export async function getProcurementAnalytics(
       })
       .sort((left, right) => left.month.localeCompare(right.month)
         || left.donorCode.localeCompare(right.donorCode)),
+    // Legacy community donation history, by canonical source and by source-month.
+    // A "received" view of donations as an activity (D21), keyed on the curated
+    // name because these rows carry no OFB code (D18). Sorted heaviest first so
+    // the frontend's named-vs-"Other Community sources" split is a simple slice.
+    communitySources: [...communitySources.values()]
+      .map((source) => ({
+        sourceName: source.sourceName,
+        isFreshAlliancePartner: source.isFreshAlliancePartner,
+        weightHundredths: source.weightHundredths,
+        monthCount: source.monthCount,
+        firstReceivedDate: source.firstReceivedDate,
+        lastReceivedDate: source.lastReceivedDate,
+      }))
+      .sort((left, right) => right.weightHundredths - left.weightHundredths
+        || left.sourceName.localeCompare(right.sourceName)),
+    communityMonthlyWeight: [...communityMonthly.entries()]
+      .map(([key, weightHundredths]) => {
+        const separator = key.indexOf('|');
+        return {
+          month: key.slice(0, separator),
+          sourceName: key.slice(separator + 1),
+          weightHundredths,
+        };
+      })
+      .sort((left, right) => left.month.localeCompare(right.month)
+        || left.sourceName.localeCompare(right.sourceName)),
+    // Fresh Alliance partners' pre-Primarius history, keyed by the live donor
+    // code so the Donations-Over-Time chart can extend those partners' lines
+    // back before 2023 when the "Show Legacy Data" toggle is on. Kept separate
+    // from donorMonthlyWeight so it is opt-in, never silently merged.
+    freshAllianceLegacyMonthlyWeight: [...freshAllianceLegacyMonthly.entries()]
+      .map(([key, weightHundredths]) => {
+        const separator = key.indexOf('|');
+        return {
+          month: key.slice(0, separator),
+          donorCode: key.slice(separator + 1),
+          weightHundredths,
+        };
+      })
+      .sort((left, right) => left.month.localeCompare(right.month)
+        || left.donorCode.localeCompare(right.donorCode)),
+    // What the agency's own rules did to these numbers, stated plainly so an
+    // exclusion is never invisible. `totalWeightHundredths` above remains
+    // everything received; `retainedWeightHundredths` is what is left after
+    // honoring exclusions -- two honest answers to two different questions
+    // (D21), from the same untouched observations.
+    dataShaping: {
+      excludedWeightHundredths,
+      retainedWeightHundredths: totalWeightHundredths - excludedWeightHundredths,
+      flags: [...flagWeights.entries()]
+        .map(([flag, weightHundredths]) => ({
+          flag,
+          family: FLAG_FAMILY[flag],
+          weightHundredths,
+          eventCount: flagEvents.get(flag)?.size ?? 0,
+        }))
+        .sort((left, right) => right.weightHundredths - left.weightHundredths),
+    },
     donorValue: {
       // Stated with its coverage because OFB left the rate blank on a large
       // share of historical rows. Value is summed only where recorded, and the
@@ -1360,4 +1608,138 @@ export async function getProcurementAnalytics(
       unvaluedWeightHundredths: donorWeightHundredths - donorValuedWeightHundredths,
     },
   };
+}
+
+// ---------------------------------------------------------------------------
+// Data-shaping rules (D19/D20)
+//
+// Persistence for the classification overlay. Rules are stored, never applied
+// destructively: nothing here touches an observation. Analytics resolves the
+// flags at read time, which is what lets a rule added or disabled today
+// reshape data imported months ago without a re-import.
+// ---------------------------------------------------------------------------
+
+export type StoredDataShapingRule = DataShapingRule & {
+  id: number;
+  enabled: boolean;
+  createdBy: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+function toStoredRule(row: {
+  id: number;
+  flag: string;
+  scope: string;
+  donorName: string | null;
+  donorCode: string | null;
+  productCode: string | null;
+  orderRevisionId: number | null;
+  source: string | null;
+  startDate: string | null;
+  endDate: string | null;
+  enabled: boolean;
+  note: string | null;
+  createdBy: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}): StoredDataShapingRule {
+  return {
+    ...row,
+    flag: row.flag as DataShapingFlag,
+    scope: row.scope as RuleScope,
+  };
+}
+
+export async function listDataShapingRules(client = prisma): Promise<StoredDataShapingRule[]> {
+  const rows = await client.procurementDataRule.findMany({
+    orderBy: [{ scope: 'asc' }, { donorName: 'asc' }, { id: 'asc' }],
+  });
+  return rows.map(toStoredRule);
+}
+
+/**
+ * Rules that Analytics should evaluate. Disabled rules are excluded here rather
+ * than filtered downstream, so a disabled rule cannot be honored by accident.
+ */
+export async function listActiveDataShapingRules(client = prisma): Promise<StoredDataShapingRule[]> {
+  const rows = await client.procurementDataRule.findMany({ where: { enabled: true } });
+  return rows.map(toStoredRule);
+}
+
+export async function createDataShapingRule(
+  input: DataShapingRule,
+  createdBy?: string,
+  client = prisma
+): Promise<StoredDataShapingRule> {
+  const errors = validateRule(input);
+  if (errors.length > 0) {
+    throw new ProcurementImportError(errors[0], 'INVALID_DATA_RULE', 400, errors);
+  }
+  const created = await client.procurementDataRule.create({
+    data: {
+      flag: input.flag,
+      scope: input.scope,
+      donorName: input.donorName ?? null,
+      donorCode: input.donorCode ?? null,
+      productCode: input.productCode ?? null,
+      orderRevisionId: input.orderRevisionId ?? null,
+      source: input.source ?? null,
+      startDate: input.startDate ?? null,
+      endDate: input.endDate ?? null,
+      enabled: input.enabled ?? true,
+      note: input.note ?? null,
+      createdBy: createdBy ?? null,
+    },
+  });
+  return toStoredRule(created);
+}
+
+export async function updateDataShapingRule(
+  id: number,
+  input: Partial<DataShapingRule>,
+  client = prisma
+): Promise<StoredDataShapingRule> {
+  const existing = await client.procurementDataRule.findUnique({ where: { id } });
+  if (!existing) {
+    throw new ProcurementImportError('That rule no longer exists.', 'DATA_RULE_NOT_FOUND', 404);
+  }
+
+  // Validate the rule as it will be, not just the fields that changed -- a
+  // partial edit can otherwise leave a scope without its primary matcher.
+  const merged = { ...toStoredRule(existing), ...input } as DataShapingRule;
+  const errors = validateRule(merged);
+  if (errors.length > 0) {
+    throw new ProcurementImportError(errors[0], 'INVALID_DATA_RULE', 400, errors);
+  }
+
+  const updated = await client.procurementDataRule.update({
+    where: { id },
+    data: {
+      flag: merged.flag,
+      scope: merged.scope,
+      donorName: merged.donorName ?? null,
+      donorCode: merged.donorCode ?? null,
+      productCode: merged.productCode ?? null,
+      orderRevisionId: merged.orderRevisionId ?? null,
+      source: merged.source ?? null,
+      startDate: merged.startDate ?? null,
+      endDate: merged.endDate ?? null,
+      enabled: merged.enabled ?? true,
+      note: merged.note ?? null,
+    },
+  });
+  return toStoredRule(updated);
+}
+
+/**
+ * Deleting a rule only removes an interpretation. Every observation it ever
+ * touched is untouched and reappears in the metrics that had honored it.
+ */
+export async function deleteDataShapingRule(id: number, client = prisma): Promise<void> {
+  const existing = await client.procurementDataRule.findUnique({ where: { id } });
+  if (!existing) {
+    throw new ProcurementImportError('That rule no longer exists.', 'DATA_RULE_NOT_FOUND', 404);
+  }
+  await client.procurementDataRule.delete({ where: { id } });
 }
