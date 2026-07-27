@@ -1,5 +1,9 @@
 import { describe, expect, test, vi } from 'vitest';
-import { errorHandler, type AppError } from '../../src/middleware/error-handler';
+import {
+  errorHandler,
+  INTERNAL_FAILURE_MESSAGE,
+  type AppError,
+} from '../../src/middleware/error-handler';
 
 const runHandler = (error: AppError) => {
   const json = vi.fn();
@@ -23,9 +27,16 @@ describe('global error handler', () => {
     expect(body.error.message).not.toContain('prisma.');
     expect(body.error.message).not.toContain('/Users/');
     expect(body.error.message).not.toContain('supersededByImportId');
-    expect(body.error.message).toBe(
-      'FEED could not complete that request. Please try again, and let Matt know if it keeps happening.'
+    expect(body.error.message).toBe(INTERNAL_FAILURE_MESSAGE);
+  });
+
+  test('points a stuck user at the issue tracker rather than a named person', () => {
+    const body = runHandler(new Error('Error querying the database') as AppError);
+
+    expect(body.error.message).toContain(
+      'https://github.com/MattGeiger/williamtemple-feed/issues'
     );
+    expect(body.error.message).not.toContain('let Matt know');
   });
 
   test('withholds an unexpected runtime failure the same way', () => {

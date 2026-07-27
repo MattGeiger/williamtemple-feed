@@ -14,6 +14,19 @@ export interface AppError extends Error {
 }
 
 /**
+ * Where a user should report a failure they cannot resolve themselves.
+ * A tracked issue reaches whoever is maintaining FEED, which naming one
+ * developer in the copy does not. Override with SUPPORT_ISSUES_URL if the
+ * project moves.
+ */
+const SUPPORT_ISSUES_URL =
+  process.env.SUPPORT_ISSUES_URL || 'https://github.com/MattGeiger/williamtemple-feed/issues';
+
+export const INTERNAL_FAILURE_MESSAGE =
+  'FEED could not complete that request. Please try again. If it keeps happening, ' +
+  `report it at ${SUPPORT_ISSUES_URL}.`;
+
+/**
  * Type guard for Prisma errors
  */
 const isPrismaError = (error: any): error is Prisma.PrismaClientKnownRequestError => {
@@ -131,9 +144,7 @@ export const errorHandler = (
   const carriesUserFacingMessage =
     typeof err.statusCode === 'number' && err.statusCode >= 400 && err.statusCode < 500;
 
-  let friendlyMessage = carriesUserFacingMessage
-    ? message
-    : 'FEED could not complete that request. Please try again, and let Matt know if it keeps happening.';
+  let friendlyMessage = carriesUserFacingMessage ? message : INTERNAL_FAILURE_MESSAGE;
 
   if (!carriesUserFacingMessage) {
     console.error('[Error] Internal failure withheld from client', {
@@ -144,8 +155,7 @@ export const errorHandler = (
 
   // Status-code defaults for errors whose message is a bare HTTP phrase.
   // A 500 needs no branch here: the withheld-message default above already
-  // covers it, and pointing pantry staff at a source repository is not a next
-  // step they can act on.
+  // covers it, and that default now carries the issue-tracker link.
   if (statusCode === 404 && (!err.message || err.message === 'Not Found')) {
     friendlyMessage = 'The requested resource could not be found. It may have been moved or deleted.';
   } else if (statusCode === 401 && (!err.message || err.message === 'Unauthorized')) {
