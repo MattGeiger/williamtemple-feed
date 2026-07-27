@@ -61,7 +61,7 @@ interface EnhancedDataTableProps<TData> {
   toolbarActions?: Array<{
     label: string
     icon?: LucideIcon
-    variant: 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link'
+    variant: 'default' | 'destructive' | 'outline-solid' | 'secondary' | 'ghost' | 'link'
     action: () => void
   }>
   toolbarControls?: React.ReactNode

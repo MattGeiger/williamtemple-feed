@@ -241,7 +241,7 @@ export function CommunityDonationAnalytics({
                     ? 0
                     : (row.weight * 100) / (totalWeightHundredths / 100);
                   return (
-                    <div className="grid min-w-[14rem] gap-1.5 rounded-lg border border-border/50 bg-background px-2.5 py-2 text-xs shadow-xl">
+                    <div className="grid min-w-56 gap-1.5 rounded-lg border border-border/50 bg-background px-2.5 py-2 text-xs shadow-xl">
                       <div className="font-medium">{row.label}</div>
                       <div className="flex justify-between gap-3">
                         <span className="text-muted-foreground">Received</span>
@@ -348,7 +348,7 @@ export function CommunityDonationAnalytics({
                       }));
                     if (rows.length === 0) return null;
                     return (
-                      <div className="grid min-w-[13rem] gap-1.5 rounded-lg border border-border/50 bg-background px-2.5 py-2 text-xs shadow-xl">
+                      <div className="grid min-w-52 gap-1.5 rounded-lg border border-border/50 bg-background px-2.5 py-2 text-xs shadow-xl">
                         <div className="font-medium">{format(parseISO(`${month}-01`), 'MMMM yyyy')}</div>
                         {rows.map((row) => (
                           <React.Fragment key={row.key}>

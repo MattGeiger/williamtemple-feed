@@ -77,7 +77,7 @@ type TabsContentProps = TabsContentPrimitiveProps;
 function TabsContent({ className, ...props }: TabsContentProps) {
   return (
     <TabsContentPrimitive
-      className={cn('flex-1 outline-none', className)}
+      className={cn('flex-1 outline-hidden', className)}
       {...props}
     />
   );

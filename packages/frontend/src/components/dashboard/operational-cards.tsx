@@ -27,8 +27,8 @@ export function DashboardOperationalCards() {
 
   return (
     <div className="grid gap-4 sm:grid-cols-2">
-      <Link to="/analytics" className="rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
-        <Card className="h-full transition-colors hover:bg-muted/30">
+      <Link to="/analytics" className="rounded-lg focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+        <Card className="h-full transition-colors hover:translation-options-column">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Unavailable Items</CardTitle>
             <AlertTriangle className="h-4 w-4 text-muted-foreground" />
@@ -39,8 +39,8 @@ export function DashboardOperationalCards() {
           </CardContent>
         </Card>
       </Link>
-      <Link to="/analytics" className="rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
-        <Card className="h-full transition-colors hover:bg-muted/30">
+      <Link to="/analytics" className="rounded-lg focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+        <Card className="h-full transition-colors hover:translation-options-column">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Limited Supply</CardTitle>
             <PackageCheck className="h-4 w-4 text-muted-foreground" />

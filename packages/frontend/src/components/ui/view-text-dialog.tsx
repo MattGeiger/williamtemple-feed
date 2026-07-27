@@ -45,7 +45,7 @@ export function ViewTextDialog({
             string that is usually short, so a fixed-height ScrollArea would
             render a large empty muted box. The box grows to the content and
             only scrolls past 400px. */}
-        <div className="mt-4 p-4 bg-muted rounded-md whitespace-pre-wrap break-words max-h-[400px] overflow-y-auto">
+        <div className="mt-4 p-4 bg-muted rounded-md whitespace-pre-wrap wrap-break-word max-h-[400px] overflow-y-auto">
           {text}
         </div>
       </DialogContent>

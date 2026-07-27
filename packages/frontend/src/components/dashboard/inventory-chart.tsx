@@ -132,7 +132,7 @@ export function InventoryChart() {
       <CardContent>
         <ChartContainer
           config={chartConfigPresets.inventoryChart}
-          className="w-full aspect-[2/1]"
+          className="w-full aspect-2/1"
         >
           <PieChart>
             <ChartTooltip

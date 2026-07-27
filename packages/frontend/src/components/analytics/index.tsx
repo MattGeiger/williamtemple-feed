@@ -756,7 +756,7 @@ export function AnalyticsWorkspace() {
             range stay reachable across a long scroll of Procurement cards.
             Translucent + blurred to match the one existing sticky-content
             treatment in the app (GuideToc) rather than an opaque bar. */}
-        <div className="sticky top-16 z-30 -mx-4 space-y-4 border-b border-border/70 bg-background/40 px-4 py-4 backdrop-blur-[14px] backdrop-saturate-150 supports-[backdrop-filter]:bg-background/40 sm:-mx-6 sm:px-6">
+        <div className="sticky top-16 z-30 -mx-4 space-y-4 border-b border-border/70 bg-background/40 px-4 py-4 backdrop-blur-[14px] backdrop-saturate-150 supports-backdrop-filter:bg-background/40 sm:-mx-6 sm:px-6">
           <TabsList className="grid h-auto w-full grid-cols-2 sm:w-[360px]">
             <TabsTrigger value="operations">Operations</TabsTrigger>
             <TabsTrigger value="procurement">Procurement</TabsTrigger>
@@ -1400,7 +1400,7 @@ export function ProcurementAnalyticsWorkspace({
                         0
                       );
                       return (
-                        <div className="grid min-w-[13rem] gap-1.5 rounded-lg border border-border/50 bg-background px-2.5 py-2 text-xs shadow-xl">
+                        <div className="grid min-w-52 gap-1.5 rounded-lg border border-border/50 bg-background px-2.5 py-2 text-xs shadow-xl">
                           <div className="font-medium">{String(row.fullDescription)}</div>
                           <div className="flex justify-between gap-3">
                             <span className="text-muted-foreground">Paid Product Charges</span>
@@ -1545,7 +1545,7 @@ export function ProcurementAnalyticsWorkspace({
                       if (!active || !payload?.length) return null;
                       const row = payload[0].payload as FreshAllianceCategoryMixRow;
                       return (
-                        <div className="grid min-w-[13rem] gap-1.5 rounded-lg border border-border/50 bg-background px-2.5 py-2 text-xs shadow-xl">
+                        <div className="grid min-w-52 gap-1.5 rounded-lg border border-border/50 bg-background px-2.5 py-2 text-xs shadow-xl">
                           <div className="font-medium">{row.fullDescription}</div>
                           <div className="flex justify-between gap-3">
                             <span className="text-muted-foreground">Inbound Weight</span>
@@ -1668,7 +1668,7 @@ export function ProcurementAnalyticsWorkspace({
               </Button>
             </DropdownMenuTrigger>
             {/* DropdownMenu owns this overflow; bound long histories to its available popper height. */}
-            <DropdownMenuContent align="end" className="max-h-[var(--radix-dropdown-menu-content-available-height)] overflow-y-auto">
+            <DropdownMenuContent align="end" className="max-h-(--radix-dropdown-menu-content-available-height) overflow-y-auto">
               <DropdownMenuItem
                 onSelect={(event) => {
                   event.preventDefault();
@@ -1720,7 +1720,7 @@ export function ProcurementAnalyticsWorkspace({
                       .sort((left, right) => Number(right.value) - Number(left.value));
                     if (rows.length === 0) return null;
                     return (
-                      <div className="grid min-w-[10rem] gap-1.5 rounded-lg border border-border/50 bg-background px-2.5 py-2 text-xs shadow-xl">
+                      <div className="grid min-w-40 gap-1.5 rounded-lg border border-border/50 bg-background px-2.5 py-2 text-xs shadow-xl">
                         <div className="font-medium">{String(label)}</div>
                         {rows.map((item) => (
                           <div key={String(item.dataKey)} className="flex items-center justify-between gap-3">
@@ -1786,7 +1786,7 @@ export function ProcurementAnalyticsWorkspace({
               </Button>
             </DropdownMenuTrigger>
             {/* DropdownMenu owns this overflow; bound long donor rosters to its available popper height. */}
-            <DropdownMenuContent align="end" className="max-h-[var(--radix-dropdown-menu-content-available-height)] overflow-y-auto">
+            <DropdownMenuContent align="end" className="max-h-(--radix-dropdown-menu-content-available-height) overflow-y-auto">
               <DropdownMenuItem
                 onSelect={(event) => {
                   event.preventDefault();
@@ -1938,7 +1938,7 @@ function ProcurementKpi({ label, value }: { label: string; value: string }) {
   return (
     <div className="min-w-0 space-y-1">
       <p className="text-sm text-muted-foreground">{label}</p>
-      <p className="break-words text-xl font-semibold">{value}</p>
+      <p className="wrap-break-word text-xl font-semibold">{value}</p>
     </div>
   );
 }

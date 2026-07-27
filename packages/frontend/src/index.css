@@ -1,7 +1,120 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
- 
+@import 'tailwindcss' source(none);
+
+@source '../index.html';
+@source '../src';
+
+@plugin 'tailwindcss-animate';
+
+@custom-variant dark (&:is(.dark *));
+
+/* Mirrors the v3 `theme.container` config: centered, 2rem gutter, and a
+   max-width only at the custom 1400px breakpoint. */
+@utility container {
+  margin-inline: auto;
+  padding-inline: 2rem;
+  @media (width >= --theme(--breakpoint-sm)) {
+    max-width: none;
+  }
+  @media (width >= 1400px) {
+    max-width: 1400px;
+  }
+}
+
+/*
+  `inline` is load-bearing. It makes Tailwind paste `hsl(var(--border))` into
+  each utility instead of emitting `--color-border` on `:root`. That keeps the
+  v3 behaviour where a *nested* element can retheme the app by overriding the
+  raw token — which `.print-theme` and `.shopping-list-print-page` both rely on.
+  It also lets the shadow keys point at the runtime `--shadow-*` tokens below
+  without becoming self-referential declarations.
+*/
+@theme inline {
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+
+  --color-chart-primary: hsl(var(--chart-primary));
+  --color-chart-success: hsl(var(--chart-success));
+  --color-chart-warning: hsl(var(--chart-warning));
+  --color-chart-danger: hsl(var(--chart-danger));
+  --color-chart-info: hsl(var(--chart-info));
+  --color-chart-muted: hsl(var(--chart-muted));
+
+  --color-sidebar: hsl(var(--sidebar-background));
+  --color-sidebar-foreground: hsl(var(--sidebar-foreground));
+  --color-sidebar-primary: hsl(var(--sidebar-primary));
+  --color-sidebar-primary-foreground: hsl(var(--sidebar-primary-foreground));
+  --color-sidebar-accent: hsl(var(--sidebar-accent));
+  --color-sidebar-accent-foreground: hsl(var(--sidebar-accent-foreground));
+  --color-sidebar-border: hsl(var(--sidebar-border));
+  --color-sidebar-ring: hsl(var(--sidebar-ring));
+
+  /* Point the shadow scale at the themeable tokens defined in `:root` /
+     `.dark` / `.print-theme` below, exactly as the v3 config did. */
+  --shadow-2xs: var(--shadow-2xs);
+  --shadow-xs: var(--shadow-xs);
+  --shadow-sm: var(--shadow-sm);
+  --shadow: var(--shadow);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
+  --shadow-xl: var(--shadow-xl);
+  --shadow-2xl: var(--shadow-2xl);
+  --shadow-realistic-sm: var(--shadow-realistic-sm);
+  --shadow-realistic: var(--shadow-realistic);
+  --shadow-realistic-lg: var(--shadow-realistic-lg);
+
+  --background-image-feed-card: var(--feed-card-gradient);
+  --background-image-feed-card-primary: var(--feed-card-gradient-primary);
+
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
+
+  --animate-accordion-down: accordion-down 0.2s ease-out;
+  --animate-accordion-up: accordion-up 0.2s ease-out;
+}
+
+@keyframes accordion-down {
+  from {
+    height: 0;
+  }
+  to {
+    height: var(--radix-accordion-content-height);
+  }
+}
+
+@keyframes accordion-up {
+  from {
+    height: var(--radix-accordion-content-height);
+  }
+  to {
+    height: 0;
+  }
+}
+
 @layer base {
   :root {
     /* Status Flag Colors */
@@ -24,7 +137,7 @@
     --chart-warning: 38 92% 50%;
     --chart-danger: 0 84% 60%;
     --chart-info: var(--primary);
-    
+
     /* Service Provider Colors */
     --service-openai: 1, 0%, 0%;
     --service-anthropic: 16, 56%, 60%;
@@ -98,7 +211,7 @@
     --feed-motion-ease-standard: cubic-bezier(0.22, 1, 0.36, 1);
 
     /* Shadow scale — light mode (pure-black, geometry: x 1px / y 3.5px / blur 7px / spread 0.5px).
-       Tailwind's default shadow-* utilities are remapped to these via tailwind.config.js. */
+       Tailwind's shadow-* utilities are remapped to these via the `@theme inline` block above. */
     --shadow-color: hsl(0 0% 0%);
     --shadow-2xs: 1px 3.5px 7px 0.5px hsl(0 0% 0% / 0.10);
     --shadow-xs:  1px 3.5px 7px 0.5px hsl(0 0% 0% / 0.10);
@@ -152,7 +265,7 @@
     --chart-warning: 38 92% 55%;
     --chart-danger: 0 84% 65%;
     --chart-info: var(--primary);
-    
+
     /* Service Provider Colors */
     --service-openai: 1, 0%, 100%;
     --service-anthropic: 16, 56%, 60%;
@@ -294,7 +407,7 @@
     --feed-shell-panel-border: hsl(0 0% 82%);
     --feed-shell-header-border: hsl(0 0% 82%);
     --feed-shell-surface-shadow: none;
-    
+
     /* Status Flag Colors - Light Mode */
     --status-success-bg: 142 76% 97%;
     --status-success-border: 142 71% 45%;
@@ -587,7 +700,7 @@
     }
   }
 }
- 
+
 @layer base {
   @font-face {
     font-family: 'Noto Sans';
@@ -670,6 +783,19 @@
     font-style: normal;
     font-weight: 700;
     font-display: swap;
+  }
+
+  /*
+    v4 changed the default border colour from gray-200 to `currentcolor`.
+    The rule below restores the v3 default for pseudo-elements, which the
+    `*` rule that follows does not match. Both together reproduce exactly
+    what v3 preflight + the old `* { @apply border-border }` produced.
+  */
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentcolor);
   }
 
   * {
@@ -824,11 +950,11 @@
   .recharts-tooltip-wrapper .recharts-tooltip-label {
     color: hsl(var(--popover-foreground)) !important;
   }
-  
+
   .recharts-tooltip-wrapper .recharts-tooltip-item-name {
     color: hsl(var(--muted-foreground)) !important;
   }
-  
+
   .recharts-tooltip-wrapper .recharts-tooltip-item-value {
     color: hsl(var(--popover-foreground)) !important;
   }
@@ -838,7 +964,7 @@
     table-layout: fixed;
     width: 100%;
   }
-  
+
   .table-fixed-layout td,
   .table-fixed-layout th {
     overflow: hidden;
@@ -846,7 +972,7 @@
     white-space: nowrap;
     min-width: 0;
   }
-  
+
   /* Fixed column constraints are now handled via inline styles */
 
   /* Translation Dialog Advanced Options Table Styling */

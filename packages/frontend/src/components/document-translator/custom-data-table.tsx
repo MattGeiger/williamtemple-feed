@@ -140,7 +140,7 @@ export function CustomDocumentTable({
         pages.push(
           <Button
             key={i}
-            variant={currentPage === i ? "default" : "outline"}
+            variant={currentPage === i ? "default" : "outline-solid"}
             size="sm"
             onClick={() => setCurrentPage(i)}
           >

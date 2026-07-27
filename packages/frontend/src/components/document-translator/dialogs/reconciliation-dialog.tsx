@@ -445,7 +445,7 @@ export function ReconciliationDialog({ open, onOpenChange, onComplete }: Reconci
                             variant="outline"
                             size="sm"
                             onClick={handleClearQuarantine}
-                            className="!text-[hsl(var(--status-warning-text))] !border-[hsl(var(--status-warning-border))] !bg-transparent hover:!bg-[hsla(var(--status-warning-bg),0.7)]"
+                            className="text-[hsl(var(--status-warning-text))]! border-[hsl(var(--status-warning-border))]! bg-transparent! hover:bg-[hsla(var(--status-warning-bg),0.7)]!"
                           >
                             Clear All
                           </Button>
@@ -494,7 +494,7 @@ export function ReconciliationDialog({ open, onOpenChange, onComplete }: Reconci
                     <CardContent className="flex flex-col gap-4">
                       <div>
                         <h4 className="text-sm font-semibold mb-2">Status Information</h4>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 break-words">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 wrap-break-word">
                           <div className="text-sm font-medium">Result Status</div>
                           <div className="text-sm">{result.status}</div>
                           

@@ -60,7 +60,7 @@ export function ResponsiveTruncatedText({
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-6 w-6 p-0 flex-shrink-0"
+                className="h-6 w-6 p-0 shrink-0"
                 onClick={() => setDialogOpen(true)}
               >
                 <Maximize2 className="h-4 w-4" />

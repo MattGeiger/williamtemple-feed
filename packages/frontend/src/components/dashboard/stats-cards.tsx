@@ -78,7 +78,7 @@ function StatsCard({ title, value, description, icon: Icon, href, trend }: Stats
   const content = !href ? card : (
     <Link
       to={href}
-      className="block rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+      className="block rounded-xl outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       aria-label={`Open ${title}`}
     >
       {card}
