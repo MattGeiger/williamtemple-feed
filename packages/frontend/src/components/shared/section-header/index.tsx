@@ -25,10 +25,10 @@ export function SectionHeader({ title, description, icon: Icon }: SectionHeaderP
   return (
     <div className="space-y-1.5">
       <div className="flex items-start gap-4">
-        <Icon className="h-6 w-6 mt-1 flex-shrink-0" />
+        <Icon className="h-6 w-6 mt-1 shrink-0" />
         <div className="min-w-0 flex-1 space-y-1">
-          <h2 className="text-2xl font-semibold tracking-tight break-words">{title}</h2>
-          <p className="text-sm text-muted-foreground break-words whitespace-normal">{description}</p>
+          <h2 className="text-2xl font-semibold tracking-tight wrap-break-word">{title}</h2>
+          <p className="text-sm text-muted-foreground wrap-break-word whitespace-normal">{description}</p>
         </div>
       </div>
     </div>

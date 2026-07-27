@@ -146,7 +146,7 @@ export function ThemeSwitcher() {
           size="icon"
           className={cn(
             "relative h-10 w-10 rounded-full border-border/70 bg-background/72 shadow-sm backdrop-blur-md transition-colors",
-            "hover:bg-background/90 supports-[backdrop-filter]:bg-background/58"
+            "hover:bg-background/90 supports-backdrop-filter:bg-background/58"
           )}
         >
           <ThemeIcon
@@ -159,7 +159,7 @@ export function ThemeSwitcher() {
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align="end"
-        className="w-52 rounded-2xl border-border/70 bg-background/40 p-2 shadow-xl backdrop-blur-[14px] backdrop-saturate-150 supports-[backdrop-filter]:bg-background/40"
+        className="w-52 rounded-2xl border-border/70 bg-background/40 p-2 shadow-xl backdrop-blur-[14px] backdrop-saturate-150 supports-backdrop-filter:bg-background/40"
       >
         <DropdownMenuLabel className="px-2 pb-1 pt-2 text-[0.65rem] uppercase tracking-[0.18em] text-muted-foreground">
           Appearance

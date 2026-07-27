@@ -169,7 +169,7 @@ export function EditDialog({
               Existing translations were found for this category.
             </DialogDescription>
             <div className="flex items-start space-x-3 py-4">
-              <AlertCircle className="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" />
+              <AlertCircle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
               <div>
                 <span className="block mb-2">
                   Would you like to keep the current translations or replace them with new ones?

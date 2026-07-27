@@ -1222,7 +1222,7 @@ export function TranslateDialog({
                     <div className="space-y-4 pr-4">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center min-w-0 flex-1 mr-2">
-                          <FileIcon className="w-6 h-6 mr-2 flex-shrink-0" />
+                          <FileIcon className="w-6 h-6 mr-2 shrink-0" />
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <span className="cursor-help">{truncateMiddle(documentName)}</span>
@@ -1250,7 +1250,7 @@ export function TranslateDialog({
                           return (
                             <div key={lang} className="flex items-center justify-between">
                               <div className="flex items-center min-w-0 flex-1 mr-2">
-                                <FileIcon className="w-6 h-6 mr-2 flex-shrink-0" />
+                                <FileIcon className="w-6 h-6 mr-2 shrink-0" />
                                 <Tooltip>
                                   <TooltipTrigger asChild>
                                     <span className="cursor-help">{truncateMiddle(`${documentName.split('.')[0]}_${lang}.docx`)}</span>
@@ -1319,7 +1319,7 @@ export function TranslateDialog({
                         currentTranslations.map((translation) => (
                           <div key={translation.id} className="flex items-center justify-between">
                             <div className="flex items-center min-w-0 flex-1 mr-2">
-                              <FileIcon className="w-6 h-6 mr-2 flex-shrink-0" />
+                              <FileIcon className="w-6 h-6 mr-2 shrink-0" />
                               <Tooltip>
                                 <TooltipTrigger asChild>
                                   <span className="cursor-help">{truncateMiddle(translation.fileName)}</span>

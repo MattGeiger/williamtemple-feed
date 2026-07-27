@@ -271,7 +271,7 @@ export function DataManagementWorkspace() {
       header: 'Status',
       size: 120,
       cell: ({ row }) => (
-        <Badge variant={row.original.status === 'active' ? 'secondary' : 'outline'}>
+        <Badge variant={row.original.status === 'active' ? 'secondary' : 'outline-solid'}>
           {row.original.status === 'active' ? 'Active' : 'Rolled Back'}
         </Badge>
       ),

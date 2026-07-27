@@ -161,7 +161,7 @@ export function EditDialog({
           </DialogHeader>
           <div className="py-2">
             <div className="flex items-start space-x-3">
-              <AlertCircle className="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" />
+              <AlertCircle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
               <div>
                 <p className="mb-2">
                   Existing translations were found for this food item.

@@ -31,7 +31,7 @@ interface ToolbarAction {
   // Accepts both static Lucide icons and animate-ui native icons (the latter
   // animate on button hover/tap via the AnimateIcon wrapper below).
   icon?: React.ComponentType<any>
-  variant: 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link'
+  variant: 'default' | 'destructive' | 'outline-solid' | 'secondary' | 'ghost' | 'link'
   action: () => void
 }
 
@@ -127,7 +127,7 @@ export function TableFeatureBar<TData>({
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
           {enableFiltering && filterColumn && (
             <div
-              className="relative w-full px-[1px]"
+              className="relative w-full px-px"
               onMouseEnter={playFilterIcon}
               onClick={playFilterIcon}
             >

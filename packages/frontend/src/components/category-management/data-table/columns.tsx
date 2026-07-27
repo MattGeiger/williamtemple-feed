@@ -66,7 +66,7 @@ export const columns = ({ onEdit, onDelete }: CategoryActions): ColumnDef<Catego
       
       return (
         <div className="flex items-center space-x-2 min-w-0">
-          <IconDisplay iconName={icon} size="sm" showTooltip={false} className="flex-shrink-0" />
+          <IconDisplay iconName={icon} size="sm" showTooltip={false} className="shrink-0" />
           <ResponsiveTruncatedText 
             text={name} 
             title="View full category name"

@@ -19,7 +19,7 @@ export function SkipNav() {
         focus:bg-background
         focus:border-2 focus:border-ring
         focus:rounded-md
-        focus:outline-none
+        focus:outline-hidden
         focus:shadow-lg
       "
     >

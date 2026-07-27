@@ -117,7 +117,7 @@ export const builderTemplateColumns = ({
 
         return (
           <div className="flex min-w-0 items-center space-x-2">
-            <IconDisplay icon={ClipboardListIcon} size="sm" className="flex-shrink-0" />
+            <IconDisplay icon={ClipboardListIcon} size="sm" className="shrink-0" />
             <ResponsiveTruncatedText
               text={name}
               title="View full name"
@@ -156,7 +156,7 @@ export const builderTemplateColumns = ({
                   <Badge
                     key={label}
                     variant="outline"
-                    className="max-w-[9rem] truncate font-normal"
+                    className="max-w-36 truncate font-normal"
                     title={label}
                   >
                     {label}

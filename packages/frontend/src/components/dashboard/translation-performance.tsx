@@ -135,7 +135,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   const label_text = entry.dataKey === 'cost' ? 'Cost: ' : 'Response Time: ';
 
   return (
-    <div className="grid min-w-[8rem] items-start gap-1.5 rounded-lg border bg-popover px-2.5 py-1.5 text-xs shadow-xl">
+    <div className="grid min-w-32 items-start gap-1.5 rounded-lg border bg-popover px-2.5 py-1.5 text-xs shadow-xl">
       <div className="font-medium text-popover-foreground">{formattedDate}</div>
       <div className="grid gap-1.5">
         <div className="flex items-center gap-2">

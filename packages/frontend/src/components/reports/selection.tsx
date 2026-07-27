@@ -169,7 +169,7 @@ export function SelectableBlock({
         }
       }}
       className={cn(
-        "relative min-w-0 cursor-pointer rounded-lg outline-none",
+        "relative min-w-0 cursor-pointer rounded-lg outline-hidden",
         "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
         variant === "card" && !isSelected && "report-selectable",
         isSelected &&

@@ -163,7 +163,7 @@ export function AppSidebar() {
           group-data-[collapsible=icon]:flex-col
           group-data-[collapsible=icon]:items-center
           group-data-[collapsible=icon]:pt-4
-          !justify-start
+          justify-start!
         "
       >
         {/* Collapsed state view - single column of icons */}
@@ -356,7 +356,7 @@ export function AppSidebar() {
                   Version {APP_VERSION}
                 </button>
               </DialogTrigger>
-              <DialogContent className="!border-0 !bg-transparent !p-0 !shadow-none !outline-none !ring-0 focus:!outline-none focus-visible:!outline-none focus-visible:!ring-0 sm:max-w-2xl [&>button]:right-4 [&>button]:top-4">
+              <DialogContent className="border-0! bg-transparent! p-0! shadow-none! outline-hidden! ring-0! focus:outline-hidden! focus-visible:outline-hidden! focus-visible:ring-0! sm:max-w-2xl [&>button]:right-4 [&>button]:top-4">
                 <DialogTitle className="sr-only">Release Notes</DialogTitle>
                 <DialogDescription className="sr-only">
                   Plain-language release notes for FEED versions 1.0.0 through {APP_VERSION}.
@@ -391,7 +391,7 @@ export function AppSidebar() {
                 </TooltipTrigger>
                 <TooltipContent side="right" sideOffset={10}>About</TooltipContent>
               </Tooltip>
-              <DialogContent className="!border-0 !bg-transparent !p-0 !shadow-none !outline-none !ring-0 focus:!outline-none focus-visible:!outline-none focus-visible:!ring-0 sm:max-w-xl [&>button]:right-10 [&>button]:top-4">
+              <DialogContent className="border-0! bg-transparent! p-0! shadow-none! outline-hidden! ring-0! focus:outline-hidden! focus-visible:outline-hidden! focus-visible:ring-0! sm:max-w-xl [&>button]:right-10 [&>button]:top-4">
                 <DialogTitle className="sr-only">About FEED</DialogTitle>
                 <DialogDescription className="sr-only">
                   Product, source, and licensing information for FEED.

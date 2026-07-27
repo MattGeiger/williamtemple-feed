@@ -267,7 +267,7 @@ export function DonorAnalytics({
               </Button>
             </DropdownMenuTrigger>
             {/* DropdownMenu owns this overflow; bound long rosters to the popper height. */}
-            <DropdownMenuContent align="end" className="max-h-[var(--radix-dropdown-menu-content-available-height)] overflow-y-auto">
+            <DropdownMenuContent align="end" className="max-h-(--radix-dropdown-menu-content-available-height) overflow-y-auto">
               <DropdownMenuItem
                 onSelect={(event) => {
                   event.preventDefault();

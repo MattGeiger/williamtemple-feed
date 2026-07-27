@@ -4497,7 +4497,7 @@ export function ShoppingListBuilder() {
       <div
         key={options.key}
         className={cn(
-          'absolute select-none rounded-[2px] outline-none',
+          'absolute select-none rounded-[2px] outline-hidden',
           selected ? 'z-20' : 'z-10 hover:ring-1 hover:ring-primary/40',
         )}
         data-region={componentRegion}
@@ -4525,7 +4525,7 @@ export function ShoppingListBuilder() {
         aria-label={`Select ${component.name}`}
       >
         {selected && (
-          <div className="pointer-events-none absolute -inset-[3px] z-30 rounded-[4px] border-2 border-primary" />
+          <div className="pointer-events-none absolute inset-[-3px] z-30 rounded-[4px] border-2 border-primary" />
         )}
         {showRegionBadge && (
           <div
@@ -4679,13 +4679,13 @@ export function ShoppingListBuilder() {
                   data-testid="builder-preview-language-select"
                 >
                   {/*
-                    `!flex` overrides the SelectTrigger's `[&>span]:line-clamp-1`
+                    `flex!` overrides the SelectTrigger's `[&>span]:line-clamp-1`
                     utility, which forces display: -webkit-box + vertical
                     box-orient and stacks the Languages icon above the
                     SelectValue text. With display:flex restored, the icon
                     and the value sit side-by-side as intended.
                   */}
-                  <span className="!flex items-center gap-2 truncate">
+                  <span className="flex! items-center gap-2 truncate">
                     <AnimateIcon asChild animate={animateBuilderChromeMount} animateOnHover animateOnTap>
                       <LanguagesIcon size={16} className="shrink-0" />
                     </AnimateIcon>
@@ -4767,7 +4767,7 @@ export function ShoppingListBuilder() {
                   </DropdownMenuTrigger>
                   <DropdownMenuContent
                     align="start"
-                    className="w-[var(--radix-dropdown-menu-trigger-width)]"
+                    className="w-(--radix-dropdown-menu-trigger-width)"
                   >
                     <DropdownMenuLabel>Apply to Canvas</DropdownMenuLabel>
                     <DropdownMenuSeparator />
@@ -4821,7 +4821,7 @@ export function ShoppingListBuilder() {
                     draggable
                     onDragStart={(event) => handlePaletteDragStart(event, item.type)}
                     onClick={() => addComponent(item.type)}
-                    className="flex w-full items-center justify-between rounded-md border bg-background px-3 py-2 text-left text-sm transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="flex w-full items-center justify-between rounded-md border bg-background px-3 py-2 text-left text-sm transition-colors hover:bg-accent focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     <span className="flex items-center gap-2">
                       <item.icon size={16} />
@@ -4862,7 +4862,7 @@ export function ShoppingListBuilder() {
                         data-inventory-section-name={inventorySection.categoryName}
                         onDragStart={(event) => handleInventorySectionDragStart(event, inventorySection)}
                         onClick={() => insertInventorySection(inventorySection)}
-                        className="flex w-full items-center justify-between gap-2 rounded-md border bg-background px-3 py-2 text-left text-sm transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        className="flex w-full items-center justify-between gap-2 rounded-md border bg-background px-3 py-2 text-left text-sm transition-colors hover:bg-accent focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
                       >
                         <span className="min-w-0">
                           <span className="block truncate font-medium">{inventorySection.categoryName}</span>
@@ -4916,7 +4916,7 @@ export function ShoppingListBuilder() {
                           draggable
                           onDragStart={(event) => handleSavedComponentDragStart(event, savedComponent)}
                           onClick={() => insertSavedComponent(savedComponent)}
-                          className="flex min-w-0 flex-1 items-center justify-between gap-2 rounded-sm px-2 py-1.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          className="flex min-w-0 flex-1 items-center justify-between gap-2 rounded-sm px-2 py-1.5 text-left focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
                         >
                           <span className="min-w-0">
                             <span className="block truncate font-medium">{savedComponent.name}</span>
@@ -4989,7 +4989,7 @@ export function ShoppingListBuilder() {
             </div>
           </aside>
 
-          <main className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-md border bg-muted/30 p-3 lg:h-[calc(150vh-184px)]">
+          <main className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-md border translation-options-column p-3 lg:h-[calc(150vh-184px)]">
             <div className="mb-3 space-y-2">
               {/* Row 1: layout toggles (left) + canvas actions (right) */}
               <div className="flex items-center justify-between gap-2">
@@ -5112,7 +5112,7 @@ export function ShoppingListBuilder() {
                           aria-hidden
                           data-testid={pageIndex === 0 ? 'shopping-list-builder-split-line' : undefined}
                           data-body-column-gap={bodyColumnGap}
-                          className="pointer-events-none absolute z-[6]"
+                          className="pointer-events-none absolute z-6"
                           style={{
                             left: template.paper.width / 2,
                             top: headerHeight,
@@ -5127,7 +5127,7 @@ export function ShoppingListBuilder() {
                           aria-hidden
                           data-testid={pageIndex === 0 ? 'shopping-list-builder-header-line' : undefined}
                           data-header-height={headerHeight}
-                          className="pointer-events-none absolute left-0 right-0 z-[5]"
+                          className="pointer-events-none absolute left-0 right-0 z-5"
                           style={{
                             top: headerHeight,
                             height: 1,
@@ -5140,7 +5140,7 @@ export function ShoppingListBuilder() {
                           aria-hidden
                           data-testid={pageIndex === 0 ? 'shopping-list-builder-footer-line' : undefined}
                           data-footer-height={footerHeight}
-                          className="pointer-events-none absolute left-0 right-0 z-[5]"
+                          className="pointer-events-none absolute left-0 right-0 z-5"
                           style={{
                             top: template.paper.height - footerHeight,
                             height: 1,
@@ -5199,7 +5199,7 @@ export function ShoppingListBuilder() {
                         <div
                           aria-hidden
                           data-testid={pageIndex === 0 ? 'shopping-list-builder-reorder-line' : undefined}
-                          className="pointer-events-none absolute z-[50] rounded-[2px]"
+                          className="pointer-events-none absolute z-50 rounded-[2px]"
                           style={{
                             left: reorderState.target.x,
                             top: reorderState.target.y - 4,
@@ -5375,7 +5375,7 @@ export function ShoppingListBuilder() {
                       selectedComponent.translationHeightAdjustments?.[previewLanguage],
                     );
                     return (
-                      <div className="flex items-center justify-between gap-3 rounded-md border bg-muted/30 p-3">
+                      <div className="flex items-center justify-between gap-3 rounded-md border translation-options-column p-3">
                         <div className="min-w-0 space-y-1">
                           <Label className="text-sm font-medium">Preview Height</Label>
                           <p className="text-xs text-muted-foreground">
@@ -5769,7 +5769,7 @@ export function ShoppingListBuilder() {
                         />
                       </div>
                       {selectedComponent.inventorySource && (
-                        <div className="rounded-md border bg-muted/30 p-2 text-xs">
+                        <div className="rounded-md border translation-options-column p-2 text-xs">
                           <div className="flex items-center justify-between gap-2">
                             <div className="min-w-0">
                               <div className="font-medium text-foreground">
@@ -5808,7 +5808,7 @@ export function ShoppingListBuilder() {
                         Rows render contract, so the control is no longer
                         gated to `inventorySource`.
                       */}
-                      <div className="rounded-md border bg-muted/30 p-3">
+                      <div className="rounded-md border translation-options-column p-3">
                         {(() => {
                           const settings = resolveSectionTableTranslationSettings(selectedComponent.translationSettings);
                           return (
@@ -6180,7 +6180,7 @@ export function ShoppingListBuilder() {
                                         }
                                       }}
                                     />
-                                    <Badge variant={row.foodItemId ? 'secondary' : 'outline'} className="shrink-0">
+                                    <Badge variant={row.foodItemId ? 'secondary' : 'outline-solid'} className="shrink-0">
                                       {limitSourceLabel(row)}
                                     </Badge>
                                   </div>
@@ -6840,7 +6840,7 @@ export function ShoppingListBuilder() {
                 )}
               </DialogDescription>
             </DialogHeader>
-            <div className="rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground">
+            <div className="rounded-md border translation-options-column p-3 text-sm text-muted-foreground">
               Update Translations will use the existing Shopping List Builder
               translation pipeline and cache the missing text. Cancel returns
               the preview dropdown to English.
