@@ -230,8 +230,27 @@ Both were silent-breakage risks, not style preferences.
   `ring-0`, so v4's `currentColor` default is unreachable.
 - Default border colour is preserved by a compat rule for the pseudo-elements
   `*` does not match, layered under the existing `* { @apply border-border }`.
-- Browser: auth shell verified in dark, light, and mobile; no console or
-  server errors.
+- **Browser, §4 component pass — complete, both themes.** Dashboard,
+  Analytics (Operations lens, charts, range picker), Food Items table,
+  Add Food Item dialog, Reports, Data Management, Shopping Lists, Shopping
+  List Builder, and Document Translator all render correctly in dark and
+  light; auth shell also checked at mobile width. No console or server
+  errors beyond two pre-existing React warnings (a spread `key` prop and a
+  ref on a function component), neither CSS-related.
+- The two divergences above were confirmed in the running app rather than
+  only in theory. In the Shopping List Builder, all four runtime-applied
+  classes resolve: `.print-theme`, `.shopping-list-print-page-frame`
+  (`outline: solid 2px #111827`, `0 18px 48px rgb(15 23 42 / 24%)`),
+  `.shopping-list-print-page` (white on `#111827`, Noto stack — a *nested*
+  `--background`/`--foreground` override, the case `@theme inline`
+  preserves), and `.shopping-list-print-workspace`, which correctly picks
+  up `hsl(222 25% 8%)` under `.dark` and `hsl(220 14% 92%)` under light —
+  the descendant rule `@utility` would have dropped.
+- The ported ZEV range picker keeps its frosted surface in both themes:
+  `backdrop-filter: blur(14px) saturate(1.5)`, `bg-background/90` via the
+  codemod-converted `supports-backdrop-filter:` variant, `rounded-2xl`,
+  `border-border/70` — matching the alpha the last pre-migration commit
+  tuned it to.
 
 ### Known intentional behaviour changes
 
@@ -248,12 +267,27 @@ Both were silent-breakage risks, not style preferences.
 
 ### Outstanding
 
-The signed-in surfaces (Analytics, Data Management, Shopping Lists, Reports,
-Document Translator, dialogs, tables, calendar) were **not** visually
-reviewed — local dev still gates on `/api/auth/session`, which needs a real
-cookie. The per-utility diff above covers those surfaces at the CSS level,
-but §4's light/dark component pass and §5's staff-device check remain open
-before merge.
+§4 is closed. What remains before merge:
+
+- **§5, the device check.** Nothing here can substitute for it: confirm the
+  staff device set can load the dashboard, given the Safari 16.4+ /
+  Chrome 111+ floor.
+- Two surfaces were reachable but empty in local data and so exercised only
+  their frames, not their populated states: Reports Management (no saved
+  templates) and the Procurement lens.
+- Unrelated pre-existing breakage worth a separate fix: `npm run lint` in
+  `packages/frontend` fails before it starts. `eslint.config.js` imports
+  `typescript-eslint`, which is not in `devDependencies`, and the script
+  still passes the flat-config-incompatible `--ext` flag.
+
+### Local dev note
+
+`packages/backend/dev.db` is a symlink into a private data directory. It was
+pointing at `~/williamtemple-feed-private-data/...`, one path segment short
+of the real `~/Repos/williamtemple-feed-private-data/...`, so Prisma failed
+every query with "Unable to open the database file" and OTP requests
+returned a 500 before an email was ever sent. Repointed. Unrelated to this
+migration, but it blocks local sign-in entirely if it recurs.
 
 ---
 
