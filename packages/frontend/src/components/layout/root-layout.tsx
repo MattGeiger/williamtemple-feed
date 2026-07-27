@@ -71,7 +71,7 @@ export function RootLayout({ children, breadcrumbs = [] }: RootLayoutProps) {
             id="main-content"
             className="
               flex min-w-0 flex-1 flex-col gap-4 px-4 pt-0 pb-6 sm:px-6
-              focus:outline-none
+              focus:outline-hidden
             "
             tabIndex={-1}
           >

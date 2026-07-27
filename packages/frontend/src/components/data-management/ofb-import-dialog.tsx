@@ -221,7 +221,7 @@ export function OfbImportDialog({
             </div>
 
             {file && (
-              <div className="flex items-start gap-3 rounded-md border bg-muted/30 p-3">
+              <div className="flex items-start gap-3 rounded-md border translation-options-column p-3">
                 <FileText className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" aria-hidden="true" />
                 <div className="min-w-0">
                   <p className="truncate font-medium">{file.name}</p>

@@ -74,7 +74,7 @@ export function InitialSetupWizard({
             </div>
 
             <div className="space-y-4">
-              <div className="p-4 bg-muted/30 rounded-lg">
+              <div className="p-4 translation-options-column rounded-lg">
                 <h4 className="text-sm font-medium mb-2">Security Information</h4>
                 <p className="text-xs text-muted-foreground mb-2">
                   This system uses client-side encryption to protect API keys and sensitive configuration data.
@@ -118,7 +118,7 @@ export function InitialSetupWizard({
             <div className="space-y-4">
               {!setupState.generatedKey ? (
                 <>
-                  <div className="p-4 bg-muted/30 rounded-lg">
+                  <div className="p-4 translation-options-column rounded-lg">
                     <h4 className="text-sm font-medium mb-2">Key Generation Process</h4>
                     <p className="text-xs text-muted-foreground mb-2">
                       A 256-bit AES-GCM encryption key will be generated using your browser's Web Crypto API.
@@ -154,7 +154,7 @@ export function InitialSetupWizard({
                     </p>
                   </div>
 
-                  <div className="p-4 bg-muted/30 rounded-lg">
+                  <div className="p-4 translation-options-column rounded-lg">
                     <h4 className="text-sm font-medium mb-2">Security Notice</h4>
                     <p className="text-xs text-muted-foreground">
                       The encryption key is stored securely in memory and will be transmitted to the server for 
@@ -197,7 +197,7 @@ export function InitialSetupWizard({
             <div className="space-y-4">
               {!setupState.isInitializing ? (
                 <>
-                  <div className="p-4 bg-muted/30 rounded-lg">
+                  <div className="p-4 translation-options-column rounded-lg">
                     <h4 className="text-sm font-medium mb-2">Initialization Process</h4>
                     <p className="text-xs text-muted-foreground mb-2">
                       The encryption key will be securely transmitted to the server and used to initialize 
@@ -267,7 +267,7 @@ export function InitialSetupWizard({
                 </ul>
               </div>
 
-              <div className="p-4 bg-muted/30 rounded-lg">
+              <div className="p-4 translation-options-column rounded-lg">
                 <h4 className="text-sm font-medium mb-2">Next Steps</h4>
                 <p className="text-xs text-muted-foreground">
                   You can now proceed with creating your AI configuration. The system will securely encrypt 

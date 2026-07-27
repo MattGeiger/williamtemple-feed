@@ -264,7 +264,7 @@ export function TranslationSettingsDialog({
               )}
             </div>
             {previewLanguage && !cachedTranslation && !isFetching && !isTranslating && mode !== 'skip' && (
-              <div className="flex items-start justify-between gap-3 rounded-md border border-dashed bg-muted/30 p-2 text-xs">
+              <div className="flex items-start justify-between gap-3 rounded-md border border-dashed translation-options-column p-2 text-xs">
                 <span className="text-muted-foreground">
                   No cached translation to {previewLanguage} yet. Skip mode is
                   unaffected; translate and Include English fall back to

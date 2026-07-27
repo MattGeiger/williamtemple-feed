@@ -334,7 +334,7 @@ export function TranslateAndGenerateDialog({
                   </p>
                 )}
 
-                <div className="flex items-start justify-between gap-3 rounded-md border bg-muted/30 p-3">
+                <div className="flex items-start justify-between gap-3 rounded-md border translation-options-column p-3">
                   <div className="min-w-0 space-y-1">
                     <Label htmlFor="bulk-translate-two-sided" className="text-sm font-medium">
                       Export single-page lists two-sided

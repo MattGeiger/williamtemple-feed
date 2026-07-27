@@ -40,7 +40,7 @@ export function HelpPage() {
           <Link
             key={guide.slug}
             to={`/help/${guide.slug}`}
-            className="group focus:outline-none"
+            className="group focus:outline-hidden"
           >
             <Card className="h-full rounded-lg transition-colors hover:border-primary/50 hover:bg-accent/30 group-focus-visible:ring-2 group-focus-visible:ring-ring">
               <CardHeader>

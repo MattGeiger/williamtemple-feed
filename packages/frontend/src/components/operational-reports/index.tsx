@@ -519,7 +519,7 @@ export function OperationalAnalyticsWorkspace({
                       : result.summary.latestAvailableAssortment.toFixed(1)}
                   />
                 </div>
-                <ChartContainer config={assortmentChart.config} className="h-[36rem] min-w-0 w-full sm:h-[30rem]">
+                <ChartContainer config={assortmentChart.config} className="h-144 min-w-0 w-full sm:h-120">
                   <ComposedChart data={assortmentChart.data}>
                     <CartesianGrid vertical={false} />
                     <XAxis dataKey="date" tickLine={false} axisLine={false} tickFormatter={(value: string) => format(new Date(`${value}T00:00:00`), 'MMM d')} />
@@ -658,7 +658,7 @@ export function OperationalAnalyticsWorkspace({
                       <h3 className="font-medium">Recorded Service Pressure</h3>
                       <p className="text-sm text-muted-foreground">Share of each Category&apos;s observed service time with each signal active</p>
                     </div>
-                    <ChartContainer config={categoryPressureConfig} className="h-[34rem] min-w-0 w-full">
+                    <ChartContainer config={categoryPressureConfig} className="h-136 min-w-0 w-full">
                       <BarChart
                         accessibilityLayer
                         data={result.categoryPressure}
@@ -689,7 +689,7 @@ export function OperationalAnalyticsWorkspace({
                       <h3 className="font-medium">Recurring Unavailability</h3>
                       <p className="text-sm text-muted-foreground">Repeat-cycling items and their unavailable entries remain event counts</p>
                     </div>
-                    <ChartContainer config={categoryRecurrenceConfig} className="h-[34rem] min-w-0 w-full">
+                    <ChartContainer config={categoryRecurrenceConfig} className="h-136 min-w-0 w-full">
                       <BarChart
                         accessibilityLayer
                         data={result.categoryPressure}

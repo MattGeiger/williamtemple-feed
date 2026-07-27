@@ -24,7 +24,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-svh items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 px-4 py-10 dark:from-gray-950 dark:to-gray-900">
+    <div className="flex min-h-svh items-center justify-center bg-linear-to-br from-gray-50 to-gray-100 px-4 py-10 dark:from-gray-950 dark:to-gray-900">
       <div className="flex w-full max-w-lg flex-col items-center gap-8">
         <div className="space-y-5 text-center">
           <img

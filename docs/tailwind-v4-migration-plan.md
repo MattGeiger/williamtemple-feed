@@ -1,6 +1,12 @@
 # Tailwind CSS v3 → v4 Migration Plan
 
-**Status:** Deferred. FEED currently runs Tailwind **3.4.19**. The immediate
+**Status:** Executed on 2026-07-27 on branch `feat/tailwind-v4-migration`
+(FEED now runs Tailwind **4.3.3**). See [§8 Execution record](#8-execution-record)
+for what was done, what was verified, and what is still outstanding.
+
+The plan below is preserved as written. Original framing follows.
+
+**Original status:** Deferred. FEED ran Tailwind **3.4.19**. The immediate
 calendar need was completed as a Tailwind v3 translation on 2026-07-25.
 **Why consider it:** modern CSS-first config, faster builds, and access to the
 current shadcn/ui components (e.g. ZEV's v4 calendar). Not worth doing for a
@@ -156,6 +162,98 @@ The migration is a single dependency + config + CSS change set on one branch. If
 visual QA surfaces too much regression, the rollback is reverting the branch — no
 data or schema involvement. That containment is a reason to do the whole thing at
 once on one branch rather than piecemeal.
+
+---
+
+## 8. Execution record
+
+Branch `feat/tailwind-v4-migration`, cut from `main` at `ce6b4ac`.
+
+### What changed
+
+- `tailwindcss` 3.4.19 → **4.3.3**; `autoprefixer` and `postcss.config.js`
+  removed (v4 handles both internally).
+- Build plugin: **`@tailwindcss/vite`**, added to `vite.config.ts`. The codemod
+  reached for `@tailwindcss/postcss`; that was swapped out per §3.
+- `tailwind.config.js` **deleted**. Config is now CSS-first in
+  `src/index.css`. `components.json` had its `tailwind.config` pointer cleared,
+  which is what shadcn expects under v4.
+- `@tailwind base/components/utilities` → `@import 'tailwindcss'`, with
+  `source(none)` plus explicit `@source` entries mirroring the old `content`
+  globs (so the backend package is not scanned).
+- `darkMode: ["class"]` → `@custom-variant dark (&:is(.dark *))`.
+- 72 template files rewritten by the codemod: `outline-none` →
+  `outline-hidden` (49), `flex-shrink-0` → `shrink-0`, `bg-[--x]` → `bg-(--x)`,
+  `bg-gradient-to-*` → `bg-linear-to-*`, `!x` → `x!`, `backdrop-blur-sm` →
+  `backdrop-blur-xs`, `data-[disabled]:` → `data-disabled:`, `theme(spacing.4)`
+  → `--spacing(4)`.
+
+### Two decisions that diverge from the codemod's output
+
+Both were silent-breakage risks, not style preferences.
+
+1. **`@theme inline`, not `@theme`.** A plain `@theme` emits
+   `--color-border: hsl(var(--border))` onto `:root` and makes utilities
+   reference *that*. Custom properties resolve where they are declared, so a
+   nested element overriding `--border` would no longer move the utility —
+   which is exactly how `.print-theme` and `.shopping-list-print-page`
+   retheme subtrees today. `inline` pastes `hsl(var(--border))` into each
+   utility instead, preserving v3 resolution. It also makes the
+   `--shadow-*: var(--shadow-*)` mapping legal rather than a circular `:root`
+   declaration (the codemod emitted the circular form).
+
+2. **Custom CSS stays in `@layer components` / `@layer utilities`.** The
+   codemod converted every such class to `@utility`. `@utility` only emits
+   when the class name is found by the source scanner, so classes applied at
+   runtime rather than written in JSX would have silently vanished:
+   `.print-theme`, `.dark`, `.recharts-tooltip-label`,
+   `.recharts-tooltip-item-name`, `.recharts-tooltip-item-value`,
+   `.shopping-list-print-page`. `index.css` was rewritten by hand from the v3
+   original instead.
+
+### Verification
+
+- `vite build`, `tsc --noEmit`, and the full frontend suite (**40 files /
+  241 tests**) all pass.
+- **Systematic §4 audit.** Rather than eyeballing components, the v3 and v4
+  stylesheets were both built from their own sources and the *resolved
+  declarations* diffed per utility class — 764 classes present in both.
+  Every difference resolves to a known-equivalent v4 refactor (theme vars,
+  `var(--spacing)` arithmetic, `translate`/`rotate` as discrete properties,
+  rem breakpoints, `color-mix` opacity, dropped vendor prefixes). The 57
+  classes "missing" in v4 are all ones the codemod renamed in templates.
+  Specifically **no** shadow, radius, ring, or border regression: the custom
+  scales meant the codemod correctly declined the `shadow-sm`→`shadow-xs` /
+  `rounded-sm`→`rounded-xs` renames, and `rounded-sm/md/lg` and `shadow-*`
+  emit byte-identical values.
+- Ring colour is safe: the only ring used without an explicit colour is
+  `ring-0`, so v4's `currentColor` default is unreachable.
+- Default border colour is preserved by a compat rule for the pseudo-elements
+  `*` does not match, layered under the existing `* { @apply border-border }`.
+- Browser: auth shell verified in dark, light, and mobile; no console or
+  server errors.
+
+### Known intentional behaviour changes
+
+- `hover:` is now wrapped in `@media (hover: hover)` — no sticky hover on
+  touch devices.
+- Opacity modifiers use `color-mix(in oklab, …)` instead of `hsl(… / α)`;
+  the default palette is oklch, so `slate-*`/`red-*` etc. are marginally more
+  saturated on wide-gamut displays.
+- v4 writes `rotate`/`translate` as discrete properties instead of composing
+  `transform`. Where a `rotate-180` chevron sits inside an element that the
+  icon-motion rules in `index.css` also transform, the two now compose rather
+  than conflict — the chevron keeps its rotation on hover, where under v3 it
+  snapped back.
+
+### Outstanding
+
+The signed-in surfaces (Analytics, Data Management, Shopping Lists, Reports,
+Document Translator, dialogs, tables, calendar) were **not** visually
+reviewed — local dev still gates on `/api/auth/session`, which needs a real
+cookie. The per-utility diff above covers those surfaces at the CSS level,
+but §4's light/dark component pass and §5's staff-device check remain open
+before merge.
 
 ---
 

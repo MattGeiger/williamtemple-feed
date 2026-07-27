@@ -97,7 +97,7 @@ export function getColumns(
               />
               {/* Show warning icon if file has integrity issues */}
               {document.hasIntegrityIssue && (
-                <span className="flex-shrink-0" title={document.wasCleared ? 
+                <span className="shrink-0" title={document.wasCleared ? 
                   "This file is missing and has been marked unavailable" : 
                   "This file has integrity issues and may not be accessible"}>
                   <AlertTriangle className="h-4 w-4 text-amber-500" />
