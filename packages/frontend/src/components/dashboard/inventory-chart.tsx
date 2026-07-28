@@ -6,6 +6,7 @@
 // not covered by this license; see TRADEMARKS.md.
 
 "use client";
+import { prefersReducedMotion } from '@/lib/reduced-motion'
 import { TrendingUp, Package } from "lucide-react";
 import { Pie, PieChart, Cell, Label } from "recharts"
 import {
@@ -139,7 +140,7 @@ export function InventoryChart() {
               cursor={false}
               content={<CustomTooltipContent />}
             />
-            <Pie
+            <Pie isAnimationActive={!prefersReducedMotion()}
               data={distribution}
               dataKey="items"
               nameKey="status"
