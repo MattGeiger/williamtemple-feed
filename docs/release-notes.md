@@ -1,5 +1,23 @@
 # Release Notes
 
+## Version 1.5.0 — 2026-07-27
+
+- Upgraded the styling toolchain to Tailwind CSS v4. This is a build and
+  configuration change with no intended visual difference; every component was
+  reviewed in both light and dark themes, and the two stylesheets were compared
+  utility by utility to confirm nothing shifted.
+- Softened how dialogs open and close. Modals now rise gently into place and
+  settle back out, instead of appearing abruptly.
+- Fixed dialogs opening from the upper-left corner of the screen rather than the
+  centre.
+- Fixed the *Translate & Download PDF* and *Translate* dialogs vanishing
+  instantly on close while every other dialog closed smoothly.
+- Menus, tooltips, dialogs, and notifications now respect the operating
+  system's "reduce motion" setting. They fade instead of moving, for staff who
+  find on-screen movement uncomfortable.
+- Error messages for unexpected failures now point to the project's issue
+  tracker instead of naming an individual.
+
 ## Version 1.4.0 — 2026-07-25
 
 - Rebuilt Analytics around two distinct live lenses: **Operations** for

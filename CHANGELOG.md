@@ -5,6 +5,51 @@ All notable changes to FEED are documented here. This project adheres to
 
 ## [Unreleased]
 
+## [1.5.0] — 2026-07-27
+
+### Changed
+
+- **Tailwind CSS v3.4.19 → v4.3.3**, as an app-wide initiative rather than to
+  unblock any single component. `@tailwindcss/vite` replaces the PostCSS chain,
+  `autoprefixer` and `postcss.config.js` are gone (v4 handles both internally),
+  and `tailwind.config.js` is retired in favour of CSS-first configuration in
+  `src/index.css`. The theme is declared with `@theme inline` specifically so
+  utilities keep inlining `hsl(var(--token))`: that preserves the v3 behaviour
+  where a nested element can retheme a subtree by overriding the raw token,
+  which the print theme and the shopping-list print page both depend on.
+  Custom CSS stays in `@layer components` / `@layer utilities` rather than
+  becoming `@utility`, because `@utility` only emits when the class name is
+  found in source — classes applied at runtime (the print theme, `.dark`, the
+  Recharts tooltip rules) would otherwise have silently disappeared.
+- **Modal enter/exit motion** is now a gentle 8px rise with a fade and a
+  95%→100% scale, timed by a new `--feed-motion-dialog` token and eased on the
+  existing `--feed-motion-ease` so dialogs share the app's curve. Modal pacing
+  is tunable without disturbing `--feed-motion-medium`, which card hover,
+  sidebar icons, and icon motion share.
+
+### Fixed
+
+- **Dialogs no longer fly in from the upper-left corner.** shadcn's v3 markup
+  paired translate-based centring with compensating slide utilities that
+  existed only because v3 wrote both the centring and the animation to
+  `transform`. v4 centres via the discrete `translate` property, which the
+  animation composes with rather than replaces, so the compensation
+  double-counted.
+- **Two dialogs that skipped their closing animation entirely** — Shopping
+  Lists' *Translate & Download PDF* and Document Translator's *Translate*
+  (Cancel and Done). Both were rendered behind a `{data && …}` guard while
+  clearing that data on close, unmounting the subtree in the same commit and
+  denying Radix its `data-state="closed"` pass. Pre-existing, unrelated to the
+  Tailwind work.
+- **Reduced-motion support now covers every Radix surface.** Dialogs,
+  popovers, dropdowns, selects, tooltips, toasts, and sheets previously
+  animated regardless of `prefers-reduced-motion`. They now cross-fade without
+  moving: only the translate, scale, and rotate channels are neutralized, so
+  the fade is kept (a fade is not motion) and the animation stays real, which
+  matters because Radix waits on `animationend` before unmounting.
+- **Internal failure messages** point at the project's issue tracker instead
+  of naming one developer, so a stuck user has a step they can actually take.
+
 ## [1.4.0] — 2026-07-25
 
 ### Added
