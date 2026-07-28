@@ -64,7 +64,14 @@ export function useDialogState<T = undefined>() {
   }
 
   /**
-   * Closes the dialog and clears its associated data
+   * Closes the dialog and clears its associated data.
+   *
+   * Careful: if the dialog's JSX is guarded on `data` — `{dialog.data && ...}`
+   * — clearing it here unmounts the subtree in the same commit that closes it,
+   * so Radix never reaches `data-state="closed"` and the exit animation is
+   * skipped (the modal just vanishes). Prefer {@link setOpen}(false) for those,
+   * which preserves `data` so the subtree survives long enough to animate out.
+   * `close()` is fine for dialogs that are always mounted.
    */
   const close = () => {
     setState({

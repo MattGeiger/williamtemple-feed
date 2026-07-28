@@ -242,6 +242,12 @@
     --feed-motion-fast: 160ms;
     --feed-motion-medium: 220ms;
     --feed-motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+    /* Modal enter/exit duration. Deliberately its own token rather than
+       reusing --feed-motion-medium, which card hover, sidebar icons, and the
+       generic icon motion all share — dialogs want a more gradual curve than
+       a hover response does. Single knob for tuning modal feel. */
+    --feed-motion-dialog: 440ms;
   }
 
   .dark {

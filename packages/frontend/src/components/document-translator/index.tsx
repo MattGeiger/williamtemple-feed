@@ -406,9 +406,15 @@ function DocumentTranslatorContent() {
     }
   }, [translateDialog.data, translateDocument, showMessage]);
 
+  // `setOpen(false)`, not `close()`. The dialog is rendered behind a
+  // `{translateDialog.data && ...}` guard, and `close()` clears `data` in the
+  // same commit as `isOpen`, unmounting the subtree before Radix can reach
+  // `data-state="closed"` — the exit animation is skipped and the modal
+  // vanishes. Leaving `data` set lets it animate out; it is re-keyed by
+  // document id on the next open, so a stale value is inert.
   const handleTranslationCancel = useCallback(() => {
     resetTranslationState();
-    translateDialog.close();
+    translateDialog.setOpen(false);
   }, [resetTranslationState, translateDialog]);
 
   const handleTranslationDone = useCallback(() => {
@@ -416,7 +422,7 @@ function DocumentTranslatorContent() {
       refreshDocuments();
     }
     resetTranslationState();
-    translateDialog.close();
+    translateDialog.setOpen(false);
   }, [translationCompleted, refreshDocuments, resetTranslationState, translateDialog]);
 
   // Download handler
