@@ -37,6 +37,27 @@ const DialogOverlay = React.forwardRef<
 ))
 DialogOverlay.displayName = DialogPrimitive.Overlay.displayName
 
+// Enter/exit motion: rise — scale 95% → 100% with a fade while drifting 8px
+// up into place (and back down on close). Eased on FEED's shared
+// `--feed-motion-ease` so dialogs share the app's curve, timed by
+// `--feed-motion-dialog` (see index.css) so modal pacing can be tuned
+// without touching hover-speed motion.
+//
+// The duration is deliberately written as `data-[state=*]:duration-…` rather
+// than a bare `duration-…`. tailwindcss-animate bakes `animation-duration:
+// 150ms` into `animate-in`/`animate-out`, and under the `data-[state]`
+// variant that rule carries an attribute selector — so a bare `duration-…`
+// loses on specificity and silently does nothing. (shadcn's stock
+// `duration-200` never affected this animation, in v3 either.) Matching the
+// variant puts the two at equal specificity so the token wins.
+//
+// Do NOT reintroduce shadcn's v3 `slide-in-from-left-1/2` /
+// `slide-in-from-top-[48%]` pair here (a `shadcn add` will try to). Those
+// existed only because under Tailwind v3 the centering and the animation
+// both wrote `transform`, so tailwindcss-animate's keyframe wiped the
+// centering and had to re-supply it. v4 centers via the discrete
+// `translate` property, which the keyframe now composes with rather than
+// replaces — so that pair double-counts and throws the dialog off-centre.
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
@@ -46,7 +67,7 @@ const DialogContent = React.forwardRef<
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-realistic-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg",
+        "fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-realistic-lg ease-(--feed-motion-ease) data-[state=open]:duration-(--feed-motion-dialog) data-[state=closed]:duration-(--feed-motion-dialog) data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-bottom-2 data-[state=open]:slide-in-from-bottom-2 sm:rounded-lg",
         className
       )}
       {...props}
