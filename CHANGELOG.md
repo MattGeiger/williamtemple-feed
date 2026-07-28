@@ -5,7 +5,11 @@ All notable changes to FEED are documented here. This project adheres to
 
 ## [Unreleased]
 
-## [1.5.0] — 2026-07-27
+## [1.5.0-beta.1] — 2026-07-27
+
+Tagged as beta pending verification on the iPad Mini 4 used for day-to-day
+inventory updates — see §5/§8 of `docs/tailwind-v4-migration-plan.md`. No
+schema or migration changes are included in this release.
 
 ### Changed
 

@@ -1,6 +1,8 @@
 # Release Notes
 
-## Version 1.5.0 — 2026-07-27
+## Version 1.5.0-beta.1 — 2026-07-27
+
+*Beta — deployed to production for hardware verification before the final 1.5.0 tag.*
 
 - Upgraded the styling toolchain to Tailwind CSS v4. This is a build and
   configuration change with no intended visual difference; every component was
