@@ -6,6 +6,7 @@
 // not covered by this license; see TRADEMARKS.md.
 
 "use client";
+import { prefersReducedMotion } from '@/lib/reduced-motion'
 import { TrendingUp, Shapes } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, LabelList, XAxis, YAxis } from "recharts"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -136,7 +137,7 @@ export function CategoryChart({ minimumItems = 1 }: CategoryChartProps = {}) {
               cursor={false}
               content={<ChartTooltipContent indicator="line" />}
             />
-            <Bar
+            <Bar isAnimationActive={!prefersReducedMotion()}
             dataKey="items"
             layout="vertical"
             fill="var(--color-items-fill)"

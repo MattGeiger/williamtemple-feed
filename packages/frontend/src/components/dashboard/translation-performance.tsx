@@ -7,6 +7,7 @@
 
 "use client"
 
+import { prefersReducedMotion } from '@/lib/reduced-motion'
 import * as React from "react"
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts"
 import {
@@ -454,7 +455,7 @@ export function TranslationPerformance() {
               <ChartTooltip
                 content={<CustomTooltip />}
               />
-              <Bar 
+              <Bar isAnimationActive={!prefersReducedMotion()} 
                 dataKey={activeMetric} 
                 fill={getServiceColor(selectedService)}
               />

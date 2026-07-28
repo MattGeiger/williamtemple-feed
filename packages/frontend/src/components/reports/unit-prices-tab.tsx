@@ -7,6 +7,7 @@
 
 "use client";
 
+import { prefersReducedMotion } from '@/lib/reduced-motion'
 import { ColumnDef } from "@tanstack/react-table";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 
@@ -121,8 +122,8 @@ export function UnitPricesTab(props: ReportTabProps<UnitPricesResult>) {
                       <XAxis dataKey="itemName" tickLine={false} axisLine={false} fontSize={12} />
                       <YAxis tickLine={false} axisLine={false} width={44} />
                       <ChartTooltip content={<ChartTooltipContent />} />
-                      <Bar dataKey="previousUnitCostCents" fill="var(--color-previousUnitCostCents)" radius={4} />
-                      <Bar dataKey="latestUnitCostCents" fill="var(--color-latestUnitCostCents)" radius={4} />
+                      <Bar isAnimationActive={!prefersReducedMotion()} dataKey="previousUnitCostCents" fill="var(--color-previousUnitCostCents)" radius={4} />
+                      <Bar isAnimationActive={!prefersReducedMotion()} dataKey="latestUnitCostCents" fill="var(--color-latestUnitCostCents)" radius={4} />
                     </BarChart>
                   </ChartContainer>
                 )}
@@ -154,7 +155,7 @@ export function UnitPricesTab(props: ReportTabProps<UnitPricesResult>) {
                       <XAxis dataKey="itemName" tickLine={false} axisLine={false} fontSize={12} />
                       <YAxis tickLine={false} axisLine={false} width={54} />
                       <ChartTooltip content={<ChartTooltipContent />} />
-                      <Bar dataKey="impactCents" fill="var(--color-impactCents)" radius={4} />
+                      <Bar isAnimationActive={!prefersReducedMotion()} dataKey="impactCents" fill="var(--color-impactCents)" radius={4} />
                     </BarChart>
                   </ChartContainer>
                 )}

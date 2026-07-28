@@ -9,6 +9,7 @@ import { QueryClientProvider, useQueryClient } from '@tanstack/react-query'
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import * as React from 'react'
 import { useEffect } from 'react'
+import { MotionConfig } from 'motion/react'
 import { queryClient } from './lib/react-query'
 import { ShoppingLists } from './components/shopping-lists'
 import { ShoppingListBuilder } from './components/shopping-lists/builder/ShoppingListBuilder'
@@ -391,46 +392,53 @@ function HelpDetailPage() {
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <ThemeProvider>
-        <AuthProvider>
-          <Router>
-            <>
-              <Routes>
-                {/* Public login route */}
-                <Route path="/login" element={<LoginPage />} />
-                <Route path="/logout" element={<LogoutPage />} />
+    // `reducedMotion="user"` makes every Motion component in the tree honour
+    // the OS "reduce motion" setting: transform and layout animations are
+    // dropped, opacity is kept. Motion drives things CSS cannot reach — the
+    // animate-ui tab indicator's spring, the animated icons — so the
+    // reduced-motion rules in index.css do not cover them on their own.
+    <MotionConfig reducedMotion="user">
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider>
+          <AuthProvider>
+            <Router>
+              <>
+                <Routes>
+                  {/* Public login route */}
+                  <Route path="/login" element={<LoginPage />} />
+                  <Route path="/logout" element={<LogoutPage />} />
                 
-                {/* Protected routes */}
-                <Route element={<ProtectedRoute />}>
-                  <Route path="/" element={<HomePage />} />
-                  <Route path="/categories" element={<CategoryPage />} />
-                  <Route path="/food-items" element={<FoodItemPage />} />
-                  <Route path="/analytics" element={<AnalyticsPage />} />
-                  <Route path="/reports" element={<ReportsManagementPage />} />
-                  <Route path="/languages" element={<LanguagePage />} />
-                  <Route path="/translations" element={<TranslationPage />} />
-                  <Route path="/shopping-lists" element={<ShoppingListsPage />} />
-                  <Route path="/shopping-lists/builder" element={<ShoppingListBuilderPage />} />
-                  {/** In-browser PrintView removed; use server-side React-PDF export instead */}
-                  <Route path="/document-translator" element={<DocumentTranslatorPage />} />
-                  <Route path="/ai-configuration" element={<AIConfigurationPage />} />
-                  <Route path="/settings" element={<SettingsPage />} />
-                  <Route path="/data-management" element={<DataManagementPage />} />
-                  <Route path="/help" element={<HelpIndexPage />} />
-                  <Route path="/help/:slug" element={<HelpDetailPage />} />
+                  {/* Protected routes */}
+                  <Route element={<ProtectedRoute />}>
+                    <Route path="/" element={<HomePage />} />
+                    <Route path="/categories" element={<CategoryPage />} />
+                    <Route path="/food-items" element={<FoodItemPage />} />
+                    <Route path="/analytics" element={<AnalyticsPage />} />
+                    <Route path="/reports" element={<ReportsManagementPage />} />
+                    <Route path="/languages" element={<LanguagePage />} />
+                    <Route path="/translations" element={<TranslationPage />} />
+                    <Route path="/shopping-lists" element={<ShoppingListsPage />} />
+                    <Route path="/shopping-lists/builder" element={<ShoppingListBuilderPage />} />
+                    {/** In-browser PrintView removed; use server-side React-PDF export instead */}
+                    <Route path="/document-translator" element={<DocumentTranslatorPage />} />
+                    <Route path="/ai-configuration" element={<AIConfigurationPage />} />
+                    <Route path="/settings" element={<SettingsPage />} />
+                    <Route path="/data-management" element={<DataManagementPage />} />
+                    <Route path="/help" element={<HelpIndexPage />} />
+                    <Route path="/help/:slug" element={<HelpDetailPage />} />
                   
-                  {/* Catch-all route for any unmatched routes */}
-                  <Route path="*" element={<Navigate to="/" replace />} />
-                </Route>
-              </Routes>
-              <Toaster />
-            </>
-          </Router>
-        </AuthProvider>
-      </ThemeProvider>
-      {import.meta.env.VITE_RQ_DEVTOOLS === 'true' && <ReactQueryDevtools initialIsOpen={false} />}
-    </QueryClientProvider>
+                    {/* Catch-all route for any unmatched routes */}
+                    <Route path="*" element={<Navigate to="/" replace />} />
+                  </Route>
+                </Routes>
+                <Toaster />
+              </>
+            </Router>
+          </AuthProvider>
+        </ThemeProvider>
+        {import.meta.env.VITE_RQ_DEVTOOLS === 'true' && <ReactQueryDevtools initialIsOpen={false} />}
+      </QueryClientProvider>
+    </MotionConfig>
   )
 }
 

@@ -7,6 +7,7 @@
 
 "use client";
 
+import { prefersReducedMotion } from '@/lib/reduced-motion'
 import { ColumnDef } from "@tanstack/react-table";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { format } from "date-fns";
@@ -108,7 +109,7 @@ export function DataCoverageTab(props: ReportTabProps<CoverageResult>) {
                     <XAxis dataKey="status" tickLine={false} axisLine={false} fontSize={12} />
                     <YAxis allowDecimals={false} tickLine={false} axisLine={false} width={30} />
                     <ChartTooltip content={<ChartTooltipContent />} />
-                    <Bar dataKey="itemCount" fill="var(--color-itemCount)" radius={4} />
+                    <Bar isAnimationActive={!prefersReducedMotion()} dataKey="itemCount" fill="var(--color-itemCount)" radius={4} />
                   </BarChart>
                 </ChartContainer>
               </CardContent>
@@ -140,7 +141,7 @@ export function DataCoverageTab(props: ReportTabProps<CoverageResult>) {
                     />
                     <YAxis allowDecimals={false} tickLine={false} axisLine={false} width={30} />
                     <ChartTooltip content={<ChartTooltipContent />} />
-                    <Bar dataKey="eventCount" fill="var(--color-eventCount)" radius={4} />
+                    <Bar isAnimationActive={!prefersReducedMotion()} dataKey="eventCount" fill="var(--color-eventCount)" radius={4} />
                   </BarChart>
                 </ChartContainer>
               </CardContent>

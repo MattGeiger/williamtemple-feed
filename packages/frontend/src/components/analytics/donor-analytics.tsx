@@ -13,6 +13,7 @@
 // route, or nothing at all. Staff know their partners; the software's job is to
 // report what arrived.
 
+import { prefersReducedMotion } from '@/lib/reduced-motion'
 import * as React from 'react';
 import { Bar, BarChart, CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts';
 import { ChevronDown } from 'lucide-react';
@@ -192,7 +193,7 @@ export function DonorAnalytics({
               <XAxis type="number" tickLine={false} axisLine={false} />
               <YAxis dataKey="donor" type="category" width={190} tickLine={false} axisLine={false} />
               <ChartTooltip content={<ChartTooltipContent />} />
-              <Bar dataKey="weight" fill="var(--color-weight)" radius={3} />
+              <Bar isAnimationActive={!prefersReducedMotion()} dataKey="weight" fill="var(--color-weight)" radius={3} />
             </BarChart>
           </ChartContainer>
           <p className="mt-3 text-xs text-muted-foreground">Does not include legacy donations data.</p>
@@ -322,7 +323,7 @@ export function DonorAnalytics({
                 <ChartTooltip content={<ChartTooltipContent />} />
                 <ChartLegend content={<ChartLegendContent />} />
                 {visibleDonors.map((donor) => (
-                  <Line
+                  <Line isAnimationActive={!prefersReducedMotion()}
                     key={donor.donorCode}
                     type="monotone"
                     dataKey={donor.donorCode}

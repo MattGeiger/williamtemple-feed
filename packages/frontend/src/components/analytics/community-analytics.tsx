@@ -14,6 +14,7 @@
 // supply elsewhere. The two totals answer two different questions and are not
 // meant to reconcile (D21) — the card says so, so no one reads a contradiction.
 
+import { prefersReducedMotion } from '@/lib/reduced-motion'
 import * as React from 'react';
 import { Bar, BarChart, CartesianGrid, Cell, Line, LineChart, XAxis, YAxis } from 'recharts';
 import { ChevronDown } from 'lucide-react';
@@ -379,7 +380,7 @@ export function CommunityDonationAnalytics({
                 {visibleKeys.map((key) => {
                   const cssKey = sourceKey(key);
                   return (
-                    <Line
+                    <Line isAnimationActive={!prefersReducedMotion()}
                       key={cssKey}
                       type="monotone"
                       dataKey={cssKey}

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 Matt Geiger
 
+import { prefersReducedMotion } from '@/lib/reduced-motion'
 import * as React from 'react';
 import type { ColumnDef } from '@tanstack/react-table';
 import { format, parseISO } from 'date-fns';
@@ -1304,17 +1305,17 @@ export function ProcurementAnalyticsWorkspace({
               <ChartLegend content={<ChartLegendContent />} />
               {selectedChannel === 'ofb_warehouse' ? (
                 <>
-                  <Line dataKey="donatedWeight" stroke="var(--color-donatedWeight)" strokeWidth={2} dot={false} />
-                  <Line dataKey="purchDonWeight" stroke="var(--color-purchDonWeight)" strokeWidth={2} dot={false} />
-                  <Line dataKey="governmentWeight" stroke="var(--color-governmentWeight)" strokeWidth={2} dot={false} />
-                  <Line dataKey="purchasedWeight" stroke="var(--color-purchasedWeight)" strokeWidth={2} dot={false} />
+                  <Line isAnimationActive={!prefersReducedMotion()} dataKey="donatedWeight" stroke="var(--color-donatedWeight)" strokeWidth={2} dot={false} />
+                  <Line isAnimationActive={!prefersReducedMotion()} dataKey="purchDonWeight" stroke="var(--color-purchDonWeight)" strokeWidth={2} dot={false} />
+                  <Line isAnimationActive={!prefersReducedMotion()} dataKey="governmentWeight" stroke="var(--color-governmentWeight)" strokeWidth={2} dot={false} />
+                  <Line isAnimationActive={!prefersReducedMotion()} dataKey="purchasedWeight" stroke="var(--color-purchasedWeight)" strokeWidth={2} dot={false} />
                 </>
               ) : (
                 <>
-                  {allChannels && <Line dataKey="ofbWarehouseWeight" stroke="var(--color-ofbWarehouseWeight)" strokeWidth={2} dot={false} />}
-                  <Line dataKey="freshAllianceWeight" stroke="var(--color-freshAllianceWeight)" strokeWidth={2} dot={false} />
+                  {allChannels && <Line isAnimationActive={!prefersReducedMotion()} dataKey="ofbWarehouseWeight" stroke="var(--color-ofbWarehouseWeight)" strokeWidth={2} dot={false} />}
+                  <Line isAnimationActive={!prefersReducedMotion()} dataKey="freshAllianceWeight" stroke="var(--color-freshAllianceWeight)" strokeWidth={2} dot={false} />
                   {allChannels && hasCommunityDonations && (
-                    <Line dataKey="communityDonationWeight" stroke="var(--color-communityDonationWeight)" strokeWidth={2} dot={false} />
+                    <Line isAnimationActive={!prefersReducedMotion()} dataKey="communityDonationWeight" stroke="var(--color-communityDonationWeight)" strokeWidth={2} dot={false} />
                   )}
                 </>
               )}
@@ -1479,7 +1480,7 @@ export function ProcurementAnalyticsWorkspace({
                 <XAxis type="number" tickLine={false} axisLine={false} />
                 <YAxis dataKey="acquisitionClass" type="category" width={92} tickLine={false} axisLine={false} />
                 <ChartTooltip content={<ChartTooltipContent />} />
-                <Bar dataKey="weight" fill="var(--color-weight)" radius={3} />
+                <Bar isAnimationActive={!prefersReducedMotion()} dataKey="weight" fill="var(--color-weight)" radius={3} />
               </BarChart>
             </ChartContainer>
             <MixDetails total={acquisitionWeightTotal} rows={analytics.acquisitionMix.map((row) => ({ label: acquisitionLabels[row.acquisitionClass], weight: row.weightHundredths }))} />
@@ -1495,8 +1496,8 @@ export function ProcurementAnalyticsWorkspace({
                 <XAxis type="number" tickLine={false} axisLine={false} />
                 <YAxis dataKey="channel" type="category" width={110} tickLine={false} axisLine={false} />
                 <ChartTooltip content={<ChartTooltipContent />} />
-                <Bar dataKey="primaryWeight" stackId="channel" fill="var(--color-primaryWeight)" radius={[3, 0, 0, 3]} />
-                <Bar dataKey="legacyWeight" stackId="channel" fill="var(--color-legacyWeight)" radius={[0, 3, 3, 0]} />
+                <Bar isAnimationActive={!prefersReducedMotion()} dataKey="primaryWeight" stackId="channel" fill="var(--color-primaryWeight)" radius={[3, 0, 0, 3]} />
+                <Bar isAnimationActive={!prefersReducedMotion()} dataKey="legacyWeight" stackId="channel" fill="var(--color-legacyWeight)" radius={[0, 3, 3, 0]} />
               </BarChart>
             </ChartContainer>
             <MixDetails
@@ -1743,7 +1744,7 @@ export function ProcurementAnalyticsWorkspace({
                   const isCurrentYear = year === String(currentCalendarYear);
 
                   return (
-                    <Line
+                    <Line isAnimationActive={!prefersReducedMotion()}
                       key={year}
                       dataKey={year}
                       stroke={`var(--color-${year})`}

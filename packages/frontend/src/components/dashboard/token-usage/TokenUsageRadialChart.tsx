@@ -5,6 +5,7 @@
 // under AGPL-3.0-or-later; see LICENSE. William Temple House branding is
 // not covered by this license; see TRADEMARKS.md.
 
+import { prefersReducedMotion } from '@/lib/reduced-motion'
 import React from 'react';
 import {
   Label,
@@ -96,7 +97,7 @@ export function TokenUsageRadialChart({
               className="first:fill-muted last:fill-background"
               polarRadius={[86, 74]}
             />
-            <RadialBar 
+            <RadialBar isAnimationActive={!prefersReducedMotion()} 
               dataKey="value" 
               background={{ fill: 'hsl(var(--chart-background))' }}
               cornerRadius={10} 

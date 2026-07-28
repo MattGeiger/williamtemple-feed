@@ -7,6 +7,7 @@
 
 "use client";
 
+import { prefersReducedMotion } from '@/lib/reduced-motion'
 import { ColumnDef } from "@tanstack/react-table";
 import {
   Area,
@@ -138,7 +139,7 @@ export function ScarcityTab(props: ReportTabProps<ScarcityResult>) {
                     />
                     <YAxis domain={[0, 100]} tickLine={false} axisLine={false} width={34} />
                     <ChartTooltip content={<ChartTooltipContent />} />
-                    <Area
+                    <Area isAnimationActive={!prefersReducedMotion()}
                       dataKey="availabilityPercent"
                       type="monotone"
                       stroke="var(--color-availabilityPercent)"
@@ -180,7 +181,7 @@ export function ScarcityTab(props: ReportTabProps<ScarcityResult>) {
                         fontSize={12}
                       />
                       <ChartTooltip content={<ChartTooltipContent />} />
-                      <Bar dataKey="episodeCount" fill="var(--color-episodeCount)" radius={4} />
+                      <Bar isAnimationActive={!prefersReducedMotion()} dataKey="episodeCount" fill="var(--color-episodeCount)" radius={4} />
                     </BarChart>
                   </ChartContainer>
                 )}

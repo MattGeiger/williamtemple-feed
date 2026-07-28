@@ -7,6 +7,7 @@
 
 "use client";
 
+import { prefersReducedMotion } from '@/lib/reduced-motion'
 import { ColumnDef } from "@tanstack/react-table";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 
@@ -143,7 +144,7 @@ export function ReplenishmentTab(props: ReportTabProps<ReplenishmentResult>) {
                         fontSize={12}
                       />
                       <ChartTooltip content={<ChartTooltipContent />} />
-                      <Bar dataKey="priorityValue" fill="var(--color-priorityValue)" radius={4} />
+                      <Bar isAnimationActive={!prefersReducedMotion()} dataKey="priorityValue" fill="var(--color-priorityValue)" radius={4} />
                     </BarChart>
                   </ChartContainer>
                 )}
@@ -175,7 +176,7 @@ export function ReplenishmentTab(props: ReportTabProps<ReplenishmentResult>) {
                       <XAxis dataKey="categoryName" tickLine={false} axisLine={false} fontSize={12} />
                       <YAxis tickLine={false} axisLine={false} width={64} />
                       <ChartTooltip content={<ChartTooltipContent />} />
-                      <Bar dataKey="knownSpendCents" fill="var(--color-knownSpendCents)" radius={4} />
+                      <Bar isAnimationActive={!prefersReducedMotion()} dataKey="knownSpendCents" fill="var(--color-knownSpendCents)" radius={4} />
                     </BarChart>
                   </ChartContainer>
                 )}
