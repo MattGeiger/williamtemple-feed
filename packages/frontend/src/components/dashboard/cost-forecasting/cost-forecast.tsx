@@ -7,6 +7,7 @@
 
 "use client";
 
+import { prefersReducedMotion } from '@/lib/reduced-motion'
 import { useMemo, useState } from 'react';
 import {
   AreaChart,
@@ -184,7 +185,7 @@ function ConfigurationComparisonChart({
                   color: 'hsl(var(--popover-foreground))'
                 }}
               />
-              <Bar dataKey="cost" radius={[4, 4, 0, 0]} />
+              <Bar isAnimationActive={!prefersReducedMotion()} dataKey="cost" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -644,21 +645,21 @@ export function CostForecast() {
                       color: 'hsl(var(--popover-foreground))'
                     }}
                   />
-                  <Area
+                  <Area isAnimationActive={!prefersReducedMotion()}
                     type="monotone"
                     dataKey="lower"
                     stackId="1"
                     stroke="none"
                     fill="url(#colorUpper)"
                   />
-                  <Area
+                  <Area isAnimationActive={!prefersReducedMotion()}
                     type="monotone"
                     dataKey="projected"
                     stackId="2"
                     stroke="hsl(var(--primary))"
                     fill="none"
                   />
-                  <Area
+                  <Area isAnimationActive={!prefersReducedMotion()}
                     type="monotone"
                     dataKey="upper"
                     stackId="3"

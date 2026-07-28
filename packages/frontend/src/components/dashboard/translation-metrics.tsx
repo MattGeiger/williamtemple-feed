@@ -6,6 +6,7 @@
 // not covered by this license; see TRADEMARKS.md.
 
 "use client";
+import { prefersReducedMotion } from '@/lib/reduced-motion'
 import type { ReactNode } from "react";
 import { Timer, Zap, AlertTriangle } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, LabelList, XAxis, YAxis, RadialBar, RadialBarChart, PolarRadiusAxis, Label } from "recharts"
@@ -345,21 +346,21 @@ export function TranslationMetrics() {
                   }}
                 />
               </PolarRadiusAxis>
-              <RadialBar
+              <RadialBar isAnimationActive={!prefersReducedMotion()}
                 dataKey="success"
                 stackId="a"
                 cornerRadius={5}
                 fill="hsl(var(--chart-success))"
                 className="stroke-transparent stroke-2"
               />
-              <RadialBar
+              <RadialBar isAnimationActive={!prefersReducedMotion()}
                 dataKey="pending"
                 fill="hsl(var(--chart-warning))"
                 stackId="a"
                 cornerRadius={5}
                 className="stroke-transparent stroke-2"
               />
-              <RadialBar
+              <RadialBar isAnimationActive={!prefersReducedMotion()}
                 dataKey="failed"
                 fill="hsl(var(--chart-danger))"
                 stackId="a"
@@ -444,7 +445,7 @@ export function TranslationMetrics() {
                   cursor={false}
                   content={<ChartTooltipContent indicator="line" />}
                 />
-                <Bar
+                <Bar isAnimationActive={!prefersReducedMotion()}
                   dataKey="time"
                   layout="vertical"
                   fill="var(--color-time-fill)"

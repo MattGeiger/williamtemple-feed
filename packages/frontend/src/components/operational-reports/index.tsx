@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 Matt Geiger
 
+import { prefersReducedMotion } from '@/lib/reduced-motion'
 import * as React from 'react';
 import { ColumnDef } from '@tanstack/react-table';
 import { format } from 'date-fns';
@@ -457,7 +458,7 @@ export function OperationalAnalyticsWorkspace({
                       <XAxis type="number" allowDecimals={false} tickLine={false} axisLine={false} />
                       <YAxis dataKey="metric" type="category" width={104} tickLine={false} axisLine={false} />
                       <ChartTooltip content={<ChartTooltipContent hideLabel />} />
-                      <Bar dataKey="value" radius={4} />
+                      <Bar isAnimationActive={!prefersReducedMotion()} dataKey="value" radius={4} />
                     </BarChart>
                   </ChartContainer>
                   <dl className="sr-only">
@@ -527,7 +528,7 @@ export function OperationalAnalyticsWorkspace({
                     <ChartTooltip content={<ChartTooltipContent />} />
                     <ChartLegend content={<ChartLegendContent />} />
                     {assortmentCategory === 'all' ? (
-                      <Area
+                      <Area isAnimationActive={!prefersReducedMotion()}
                         dataKey="available"
                         type="monotone"
                         stroke="var(--color-available)"
@@ -540,7 +541,7 @@ export function OperationalAnalyticsWorkspace({
                     {assortmentChart.series.map((series) => {
                       const key = assortmentCategoryChartKey(series.categoryId);
                       return (
-                        <Line
+                        <Line isAnimationActive={!prefersReducedMotion()}
                           key={series.categoryId}
                           dataKey={key}
                           type="monotone"
@@ -595,8 +596,8 @@ export function OperationalAnalyticsWorkspace({
                             <YAxis dataKey="itemName" type="category" width={112} tickLine={false} axisLine={false} />
                             <ChartTooltip content={<ChartTooltipContent />} />
                             <ChartLegend content={<ChartLegendContent />} />
-                            <Bar dataKey="unavailableEntries" fill="var(--color-unavailableEntries)" radius={3} />
-                            <Bar dataKey="restorations" fill="var(--color-restorations)" radius={3} />
+                            <Bar isAnimationActive={!prefersReducedMotion()} dataKey="unavailableEntries" fill="var(--color-unavailableEntries)" radius={3} />
+                            <Bar isAnimationActive={!prefersReducedMotion()} dataKey="restorations" fill="var(--color-restorations)" radius={3} />
                           </BarChart>
                         </ChartContainer>
                     </div>
@@ -626,11 +627,11 @@ export function OperationalAnalyticsWorkspace({
                     <YAxis width={34} tickLine={false} axisLine={false} />
                     <ChartTooltip content={<ChartTooltipContent />} />
                     <ChartLegend content={<ChartLegendContent />} />
-                    <Line dataKey="limitedSupply" stroke="var(--color-limitedSupply)" dot={false} />
-                    <Line dataKey="clearance" stroke="var(--color-clearance)" dot={false} />
-                    <Line dataKey="categoryRationed" stroke="var(--color-categoryRationed)" dot={false} />
+                    <Line isAnimationActive={!prefersReducedMotion()} dataKey="limitedSupply" stroke="var(--color-limitedSupply)" dot={false} />
+                    <Line isAnimationActive={!prefersReducedMotion()} dataKey="clearance" stroke="var(--color-clearance)" dot={false} />
+                    <Line isAnimationActive={!prefersReducedMotion()} dataKey="categoryRationed" stroke="var(--color-categoryRationed)" dot={false} />
                     {result.rationedLimitSeries.map((series) => (
-                      <Line
+                      <Line isAnimationActive={!prefersReducedMotion()}
                         key={series.key}
                         dataKey={limitSeriesChartKey(series)}
                         stroke={`var(--color-${limitSeriesChartKey(series)})`}
@@ -676,10 +677,10 @@ export function OperationalAnalyticsWorkspace({
                         <YAxis dataKey="categoryName" type="category" width={112} tickLine={false} axisLine={false} />
                         <ChartTooltip content={<ChartTooltipContent />} />
                         <ChartLegend content={<ChartLegendContent />} />
-                        <Bar dataKey="limitedSupplyServicePercent" fill="var(--color-limitedSupplyServicePercent)" radius={2} />
-                        <Bar dataKey="clearanceServicePercent" fill="var(--color-clearanceServicePercent)" radius={2} />
-                        <Bar dataKey="itemRationedServicePercent" fill="var(--color-itemRationedServicePercent)" radius={2} />
-                        <Bar dataKey="categoryRationedServicePercent" fill="var(--color-categoryRationedServicePercent)" radius={2} />
+                        <Bar isAnimationActive={!prefersReducedMotion()} dataKey="limitedSupplyServicePercent" fill="var(--color-limitedSupplyServicePercent)" radius={2} />
+                        <Bar isAnimationActive={!prefersReducedMotion()} dataKey="clearanceServicePercent" fill="var(--color-clearanceServicePercent)" radius={2} />
+                        <Bar isAnimationActive={!prefersReducedMotion()} dataKey="itemRationedServicePercent" fill="var(--color-itemRationedServicePercent)" radius={2} />
+                        <Bar isAnimationActive={!prefersReducedMotion()} dataKey="categoryRationedServicePercent" fill="var(--color-categoryRationedServicePercent)" radius={2} />
                       </BarChart>
                     </ChartContainer>
                   </div>
@@ -701,8 +702,8 @@ export function OperationalAnalyticsWorkspace({
                         <YAxis dataKey="categoryName" type="category" width={112} tickLine={false} axisLine={false} />
                         <ChartTooltip content={<ChartTooltipContent />} />
                         <ChartLegend content={<ChartLegendContent />} />
-                        <Bar dataKey="recurringItems" fill="var(--color-recurringItems)" radius={3} />
-                        <Bar dataKey="recurringUnavailableEntries" fill="var(--color-recurringUnavailableEntries)" radius={3} />
+                        <Bar isAnimationActive={!prefersReducedMotion()} dataKey="recurringItems" fill="var(--color-recurringItems)" radius={3} />
+                        <Bar isAnimationActive={!prefersReducedMotion()} dataKey="recurringUnavailableEntries" fill="var(--color-recurringUnavailableEntries)" radius={3} />
                       </BarChart>
                     </ChartContainer>
                   </div>
