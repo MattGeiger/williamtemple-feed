@@ -223,9 +223,19 @@ function ShoppingListsContent() {
   // runs its own multi-step flow (language pick -> pre-flight -> optional
   // translate-missing -> generate-and-download) so we just stash the
   // selected template here.
+  //
+  // "Which template" and "is open" are separate state on purpose. Deriving
+  // `open` from the template and clearing the template on close unmounts the
+  // modal in the same commit as the close, so Radix never reaches
+  // `data-state="closed"` and the exit animation is skipped entirely. The
+  // template is deliberately left set after closing so the subtree survives
+  // long enough to animate out; the modal resets its own internal state on
+  // each open, so a stale template is inert.
   const [translateTargetTemplate, setTranslateTargetTemplate] = useState<SavedBuilderTemplate | null>(null);
+  const [isTranslateDialogOpen, setIsTranslateDialogOpen] = useState(false);
   const handleTranslateAndDownloadBuilderTemplatePdf = (template: SavedBuilderTemplate) => {
     setTranslateTargetTemplate(template);
+    setIsTranslateDialogOpen(true);
   };
 
   const handleBulkDownloadBuilderTemplatePdfs = async (templates: SavedBuilderTemplate[]) => {
@@ -375,12 +385,8 @@ function ShoppingListsContent() {
       {translateTargetTemplate && (
         <TranslateAndGenerateDialog
           template={translateTargetTemplate}
-          open={Boolean(translateTargetTemplate)}
-          onOpenChange={(open) => {
-            if (!open) {
-              setTranslateTargetTemplate(null);
-            }
-          }}
+          open={isTranslateDialogOpen}
+          onOpenChange={setIsTranslateDialogOpen}
           exportSettings={exportSettings}
         />
       )}
