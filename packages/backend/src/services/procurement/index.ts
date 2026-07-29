@@ -582,6 +582,16 @@ export async function importOfbCsv(
   });
 }
 
+/**
+ * Re-points `isCurrent` at the newest still-active revision of each affected
+ * order, after a rollback or restore has changed which imports count.
+ *
+ * Set-based for the same reason as the import paths: this runs over every
+ * order an import touched, so rolling back a decade-long import took three
+ * round-trips per order — thousands of queries for one "Undo Import" click.
+ * The winner per order is decided in memory from a single read rather than by
+ * asking the database once per order.
+ */
 async function refreshCurrentOrders(
   tx: TransactionClient,
   events: { source: string; sourceOrderReference: string }[]
@@ -589,26 +599,57 @@ async function refreshCurrentOrders(
   const unique = new Map(
     events.map((event) => [JSON.stringify([event.source, event.sourceOrderReference]), event])
   );
+  if (unique.size === 0) return;
+
+  // Group by source so each statement is one source and a batch of
+  // references; the two procurement sources are permanently separate
+  // namespaces, so a reference is only meaningful alongside its source.
+  const refsBySource = new Map<string, string[]>();
   for (const { source, sourceOrderReference } of unique.values()) {
-    await tx.procurementOrderRevision.updateMany({
-      where: { source, sourceOrderReference },
-      data: { isCurrent: false },
-    });
-    const latestActive = await tx.procurementOrderRevision.findFirst({
-      where: {
-        source,
-        sourceOrderReference,
-        import: { status: 'active' },
-      },
-      orderBy: { revision: 'desc' },
-      select: { id: true },
-    });
-    if (latestActive) {
-      await tx.procurementOrderRevision.update({
-        where: { id: latestActive.id },
-        data: { isCurrent: true },
+    const refs = refsBySource.get(source) ?? [];
+    refs.push(sourceOrderReference);
+    refsBySource.set(source, refs);
+  }
+
+  for (const [source, refs] of refsBySource) {
+    for (const batch of chunk(refs)) {
+      await tx.procurementOrderRevision.updateMany({
+        where: { source, sourceOrderReference: { in: batch } },
+        data: { isCurrent: false },
       });
     }
+  }
+
+  // One read of every candidate revision, then pick the highest revision per
+  // order locally. `findFirst` with `orderBy` per order gave the same answer
+  // at one query each.
+  const winners = new Map<string, { id: number; revision: number }>();
+  for (const [source, refs] of refsBySource) {
+    for (const batch of chunk(refs)) {
+      const candidates = await tx.procurementOrderRevision.findMany({
+        where: {
+          source,
+          sourceOrderReference: { in: batch },
+          import: { status: 'active' },
+        },
+        select: { id: true, sourceOrderReference: true, revision: true },
+      });
+      for (const candidate of candidates) {
+        const key = JSON.stringify([source, candidate.sourceOrderReference]);
+        const held = winners.get(key);
+        if (!held || candidate.revision > held.revision) {
+          winners.set(key, { id: candidate.id, revision: candidate.revision });
+        }
+      }
+    }
+  }
+
+  const winningIds = [...winners.values()].map((winner) => winner.id);
+  for (const batch of chunk(winningIds)) {
+    await tx.procurementOrderRevision.updateMany({
+      where: { id: { in: batch } },
+      data: { isCurrent: true },
+    });
   }
 }
 
