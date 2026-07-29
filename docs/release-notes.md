@@ -1,5 +1,18 @@
 # Release Notes
 
+## Version 1.5.0-beta.2 — 2026-07-29
+
+*Beta — deployed to production for evaluation before the final 1.5.0 tag.*
+
+- Fixed large OFB data imports failing on the pantry server. A multi-year export
+  that worked on a developer machine would stall or fail here; imports of the
+  full history now complete in seconds.
+- Fixed **Undo Import** being slow after a large import.
+- Fixed FEED becoming unresponsive for everyone while an import was running.
+  Other staff can now keep working during an import.
+- Import errors now explain what actually went wrong instead of showing a
+  generic "unexpected error".
+
 ## Version 1.5.0-beta.1 — 2026-07-27
 
 *Beta — deployed to production for hardware verification before the final 1.5.0 tag.*

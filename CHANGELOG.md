@@ -5,6 +5,49 @@ All notable changes to FEED are documented here. This project adheres to
 
 ## [Unreleased]
 
+## [1.5.0-beta.2] — 2026-07-29
+
+Procurement import throughput. No schema or migration changes.
+
+### Fixed
+
+- **Large OFB imports no longer fail on the production Pi.** A five-year export
+  imported cleanly on a developer Mac and failed on the Raspberry Pi against
+  identical data. The cause was not compute but query count: the warehouse loop
+  issued four round-trips per order plus one upsert per product, and the Fresh
+  Alliance loop did the same per pickup. The largest export — 944 orders, 900
+  products, 17,814 rows — meant 4,707 queries inside a single transaction. At
+  0.23ms per query on an SSD that fits inside the 20-second transaction ceiling;
+  the Pi only had to be 4.3× slower per query to exceed it, and SD card against
+  NVMe is routinely 10–50×. Each per-row query is now one set-based statement:
+  4,707 → 327 queries on the largest export, 3,984 → 304 and 2,687 → 149 on the
+  others. Atomicity is unchanged — still one transaction, still all-or-nothing.
+- **Undo Import is no longer proportional to import size.** `refreshCurrentOrders`
+  asked the database three times per affected order, so rolling back the
+  ten-year import cost roughly 2,800 queries. Now 8.
+- **One import no longer makes FEED appear frozen to everyone.** SQLite ran in
+  the default rollback-journal mode, where a write transaction blocks *readers*,
+  not just other writers. The database now runs in WAL mode, so reads proceed
+  against the last commit while a write is in flight, with `busy_timeout` so a
+  concurrent save waits its turn rather than failing with `SQLITE_BUSY`.
+- **Import failures now produce an application message instead of a generic
+  one.** nginx's `/api/` block inherited the 60-second default
+  `proxy_read_timeout`; when it fired, nginx returned its own HTML error page,
+  which the client correctly refuses to show a user, falling back to
+  "An unexpected error occurred". The backend never got to write an
+  ASK-compliant message. Raised to 300s so the backend's own ceiling is the
+  meaningful limit.
+
+### Added
+
+- **Import timing logs** on both success and failure, including byte size, row
+  counts, and the Prisma error code, so a production run distinguishes "this
+  host is too slow for the ceiling" from a genuine data problem.
+- **`scripts/benchmark-procurement-import.ts`**, which measures parse time
+  against transaction time and counts queries against a scratch database.
+- **`docs/data-management/ingestion-architecture.md`** — the measured account of
+  the failure, what changed, and the open atomicity decision.
+
 ## [1.5.0-beta.1] — 2026-07-27
 
 Tagged as beta pending verification on the iPad Mini 4 used for day-to-day
