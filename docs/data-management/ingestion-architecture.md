@@ -37,7 +37,7 @@ that only edits copy will not touch this.
 
 Benchmarked against the real exports with
 `scripts/benchmark-procurement-import.ts` (reads from `FEED_PRIVATE_DATA_DIR`;
-real data stays outside this repository).
+real data lives in a directory outside this repository and stays there).
 
 The import was issuing **four sequential queries per order** plus **one upsert
 per distinct product**. On the largest export — 944 orders, 900 products,
