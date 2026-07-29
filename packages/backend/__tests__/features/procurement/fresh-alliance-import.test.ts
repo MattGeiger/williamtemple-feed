@@ -286,24 +286,83 @@ describe.skipIf(!corpusPath || !existsSync(corpusPath))('Fresh Alliance authorit
 describe('Fresh Alliance persistence and supersede lifecycle', () => {
   const singlePickup = () => csv(row());
 
-  /** Minimal transaction double shaped like the Prisma client the service uses. */
-  const makeTx = (overrides: Record<string, unknown> = {}) => ({
-    procurementOrderRevision: {
-      findMany: vi.fn().mockResolvedValue([]),
-      findFirst: vi.fn().mockResolvedValue(null),
-      updateMany: vi.fn().mockResolvedValue({ count: 0 }),
-      update: vi.fn().mockResolvedValue({}),
-      create: vi.fn().mockResolvedValue({ id: 55 }),
-    },
-    procurementImport: {
-      create: vi.fn().mockResolvedValue({ id: 7 }),
-      findMany: vi.fn().mockResolvedValue([]),
-      updateMany: vi.fn().mockResolvedValue({ count: 0 }),
-    },
-    procurementProduct: { upsert: vi.fn().mockResolvedValue({ id: 3 }) },
-    procurementLine: { createMany: vi.fn().mockResolvedValue({ count: 1 }) },
-    ...overrides,
-  });
+  /**
+   * Minimal transaction double shaped like the Prisma client the service uses.
+   *
+   * The warehouse import writes in bulk (one `createMany` for a whole batch,
+   * then a read-back for the generated ids, since SQLite cannot return them),
+   * so the product and revision doubles carry just enough state to honour that
+   * round-trip. A double that returned a fixed `[]` would let the service
+   * "succeed" while silently associating every line with no revision.
+   */
+  const makeTx = (overrides: Record<string, unknown> = {}) => {
+    const productsByCode = new Map<
+      string,
+      { id: number; productCode: string; acquisitionClass: string }
+    >();
+    const createdRevisions: { id: number; sourceOrderReference: string }[] = [];
+    let nextProductId = 3;
+    let nextRevisionId = 55;
+
+    const base = {
+      procurementOrderRevision: {
+        // Two callers: the pre-import snapshot probe (no `importId` filter)
+        // and the read-back of rows just written (filtered by `importId`).
+        findMany: vi.fn(async (args: { where?: { importId?: number } } = {}) =>
+          args?.where?.importId === undefined ? [] : createdRevisions
+        ),
+        findFirst: vi.fn().mockResolvedValue(null),
+        groupBy: vi.fn().mockResolvedValue([]),
+        updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+        update: vi.fn().mockResolvedValue({}),
+        create: vi.fn(async () => ({ id: nextRevisionId++ })),
+        createMany: vi.fn(async (args: { data: { sourceOrderReference: string }[] }) => {
+          for (const row of args.data) {
+            createdRevisions.push({
+              id: nextRevisionId++,
+              sourceOrderReference: row.sourceOrderReference,
+            });
+          }
+          return { count: args.data.length };
+        }),
+      },
+      procurementImport: {
+        create: vi.fn().mockResolvedValue({ id: 7 }),
+        findMany: vi.fn().mockResolvedValue([]),
+        updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+      },
+      procurementProduct: {
+        upsert: vi.fn().mockResolvedValue({ id: 3 }),
+        findMany: vi.fn(async (args: { where?: { productCode?: { in?: string[] } } } = {}) =>
+          (args?.where?.productCode?.in ?? [])
+            .map((code) => productsByCode.get(code))
+            .filter((row): row is NonNullable<typeof row> => row !== undefined)
+        ),
+        createMany: vi.fn(async (args: {
+          data: { productCode: string; acquisitionClass: string }[];
+        }) => {
+          for (const row of args.data) {
+            productsByCode.set(row.productCode, {
+              id: nextProductId++,
+              productCode: row.productCode,
+              acquisitionClass: row.acquisitionClass,
+            });
+          }
+          return { count: args.data.length };
+        }),
+        updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+      },
+      procurementLine: { createMany: vi.fn().mockResolvedValue({ count: 1 }) },
+    };
+
+    // Merge per model rather than replacing it, so a test overriding one
+    // method keeps the rest of that model's double intact.
+    const merged: Record<string, unknown> = { ...base };
+    for (const [model, methods] of Object.entries(overrides)) {
+      merged[model] = { ...(base as Record<string, unknown>)[model] as object, ...(methods as object) };
+    }
+    return merged as typeof base;
+  };
 
   const asClient = (tx: ReturnType<typeof makeTx>) => ({
     $transaction: vi.fn(async (operation: (value: typeof tx) => unknown) => operation(tx)),
@@ -313,20 +372,25 @@ describe('Fresh Alliance persistence and supersede lifecycle', () => {
     const tx = makeTx();
     await importFreshAllianceCsv(singlePickup(), 'staff@example.org', asClient(tx));
 
-    expect(tx.procurementOrderRevision.create).toHaveBeenCalledWith(
+    // Revisions are written in one batched `createMany`, so the provenance
+    // fields are asserted on the row inside that batch rather than on a
+    // per-pickup `create`.
+    expect(tx.procurementOrderRevision.createMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({
-          source: FRESH_ALLIANCE_SOURCE,
-          sourceOrderReference: '1155954AGPCKUP',
-          eventKind: 'fresh_alliance_receipt',
-          deliveryDate: '2026-01-06',
-          donorCode: 'RTJ146',
-          donorName: "Trader Joe's - Northwest",
-          sourcePickupId: '445624',
-          pickupTime: '09:00',
-          submittedAt: '2026-01-06T14:33',
-          isConfirmed: true,
-        }),
+        data: expect.arrayContaining([
+          expect.objectContaining({
+            source: FRESH_ALLIANCE_SOURCE,
+            sourceOrderReference: '1155954AGPCKUP',
+            eventKind: 'fresh_alliance_receipt',
+            deliveryDate: '2026-01-06',
+            donorCode: 'RTJ146',
+            donorName: "Trader Joe's - Northwest",
+            sourcePickupId: '445624',
+            pickupTime: '09:00',
+            submittedAt: '2026-01-06T14:33',
+            isConfirmed: true,
+          }),
+        ]),
       })
     );
   });
