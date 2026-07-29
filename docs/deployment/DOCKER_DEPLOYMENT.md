@@ -237,6 +237,21 @@ docker compose exec backend sqlite3 /app/data/production.db ".backup /app/data/b
 docker compose cp backend:/app/data/backup.db ./backups/
 ```
 
+**Use `.backup`, not `cp`.** The database runs in WAL mode (set at startup in
+`src/db.ts`, so readers are not blocked while an import writes). In WAL mode the
+most recent commits can live in the `-wal` sidecar rather than the main file, so
+copying `production.db` on its own can silently produce a backup that is missing
+the newest data. `sqlite3 .backup` accounts for this and always yields a
+transactionally consistent single file. You will see `production.db-wal` and
+`production.db-shm` alongside the database; both are expected, and neither
+should be deleted while the container is running.
+
+Verify a backup before trusting it:
+
+```bash
+sqlite3 ~/backups/feed/backup_YYYYMMDD_HHMMSS.db "PRAGMA integrity_check;"
+```
+
 Note: Recent releases add AI Configuration token limit fields (`inputTokenLimit`, `outputTokenLimit`). After updating images, run migrations and verify these columns exist before testing the AI Configuration modal.
 
 **Monitor Resources:**
