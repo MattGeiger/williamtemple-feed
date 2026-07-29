@@ -40,6 +40,7 @@ import { tmpdir } from 'os';
 import path from 'path';
 import { PrismaClient } from '@prisma/client';
 import { parseUnifiedOfbCsv, importUnifiedOfbCsv } from '../src/services/procurement/unified';
+import { rollbackProcurementImports } from '../src/services/procurement';
 
 interface PhaseTiming {
   label: string;
@@ -137,6 +138,21 @@ const run = async (): Promise<void> => {
     const importMs = performance.now() - importStart;
     phases.push({ label: 'import (transaction)', ms: importMs, queries: queries - before });
 
+    // "Undo Import" runs over every order the import touched, so it is the
+    // same shape of work and was the same shape of bug.
+    const importIds = [result.warehouse?.importId, result.freshAlliance?.importId]
+      .filter((id): id is number => typeof id === 'number');
+    if (importIds.length > 0) {
+      const rollbackBefore = queries;
+      const rollbackStart = performance.now();
+      await rollbackProcurementImports(importIds, 'benchmark@local', prisma);
+      phases.push({
+        label: 'rollback (undo)',
+        ms: performance.now() - rollbackStart,
+        queries: queries - rollbackBefore,
+      });
+    }
+
     const warehouseOrders = parsed.warehouse?.orders.length ?? 0;
     const pickups = parsed.freshAlliance?.pickups.length ?? 0;
     const units = warehouseOrders + pickups;
@@ -147,15 +163,16 @@ const run = async (): Promise<void> => {
       `  rows ${parsed.rowCount}   warehouse orders ${warehouseOrders}   ` +
       `pickups ${pickups}   outcome ${result.outcome}`
     );
+    const totalMs = phases.reduce((sum, phase) => sum + phase.ms, 0);
     for (const phase of phases) {
-      const share = ((phase.ms / (parseMs + importMs)) * 100).toFixed(0);
+      const share = ((phase.ms / totalMs) * 100).toFixed(0);
       console.log(
         `  ${phase.label.padEnd(22)} ${fmt(phase.ms).padStart(8)}  ` +
         `${String(share).padStart(3)}%   queries ${phase.queries}`
       );
     }
 
-    const total = parseMs + importMs;
+    const total = totalMs;
     const importQueries = phases[1].queries;
     const perUnit = units > 0 ? (importQueries / units).toFixed(1) : 'n/a';
     console.log(`  ${'total'.padEnd(22)} ${fmt(total).padStart(8)}`);
