@@ -32,8 +32,10 @@ import {
   parseHundredths,
   parseSourceDate,
 } from './parsing';
+import { chunk } from './bulk';
 
 export { FRESH_ALLIANCE_SOURCE } from './parsing';
+
 export const FRESH_ALLIANCE_IMPORT_SCHEMA_VERSION = 1;
 export const FRESH_ALLIANCE_EVENT_KIND = 'fresh_alliance_receipt';
 export const FRESH_ALLIANCE_CHANNEL = 'fresh_alliance';
@@ -689,41 +691,97 @@ export async function importFreshAllianceCsv(
         products.set(line.productCode, line.acquisitionClass);
       }
     }
-    for (const [productCode, acquisitionClass] of products) {
-      const product = await tx.procurementProduct.upsert({
-        where: { source_productCode: { source: OFB_SOURCE, productCode } },
-        create: { source: OFB_SOURCE, productCode, acquisitionClass },
-        update: { acquisitionClass },
-        select: { id: true },
-      });
-      productIds.set(productCode, product.id);
+    // Set-based, matching the warehouse path: one round-trip per product put
+    // a multi-year import past its transaction ceiling on production storage.
+    // Prisma types `skipDuplicates` as `never` on SQLite, so existing rows are
+    // read first and only genuinely new products are inserted.
+    const productCodes = [...products.keys()];
+    const productRows: { id: number; productCode: string; acquisitionClass: string }[] = [];
+    for (const batch of chunk(productCodes)) {
+      productRows.push(...await tx.procurementProduct.findMany({
+        where: { source: OFB_SOURCE, productCode: { in: batch } },
+        select: { id: true, productCode: true, acquisitionClass: true },
+      }));
     }
 
-    for (const pickup of changedPickups) {
-      const previous = await tx.procurementOrderRevision.findFirst({
-        where: {
-          source: FRESH_ALLIANCE_SOURCE,
-          sourceOrderReference: pickup.sourcePickupReference,
-        },
-        orderBy: { revision: 'desc' },
-        select: { revision: true },
+    const known = new Set(productRows.map((row) => row.productCode));
+    const missingCodes = productCodes.filter((code) => !known.has(code));
+    for (const batch of chunk(missingCodes)) {
+      await tx.procurementProduct.createMany({
+        data: batch.map((productCode) => ({
+          source: OFB_SOURCE,
+          productCode,
+          acquisitionClass: products.get(productCode)!,
+        })),
       });
+    }
+    for (const batch of chunk(missingCodes)) {
+      productRows.push(...await tx.procurementProduct.findMany({
+        where: { source: OFB_SOURCE, productCode: { in: batch } },
+        select: { id: true, productCode: true, acquisitionClass: true },
+      }));
+    }
+    for (const row of productRows) productIds.set(row.productCode, row.id);
+
+    // `createMany` leaves pre-existing rows untouched, but the upsert this
+    // replaced also refreshed `acquisitionClass` when a product's class
+    // changed. Preserve that, grouped by target class so the cost is one
+    // statement per distinct class rather than one per product.
+    const reclassify = new Map<string, string[]>();
+    for (const row of productRows) {
+      const desired = products.get(row.productCode);
+      if (desired && desired !== row.acquisitionClass) {
+        const codes = reclassify.get(desired) ?? [];
+        codes.push(row.productCode);
+        reclassify.set(desired, codes);
+      }
+    }
+    for (const [acquisitionClass, codes] of reclassify) {
+      for (const batch of chunk(codes)) {
+        await tx.procurementProduct.updateMany({
+          where: { source: OFB_SOURCE, productCode: { in: batch } },
+          data: { acquisitionClass },
+        });
+      }
+    }
+
+    // Set-based, matching the warehouse path. Was four round-trips per pickup;
+    // a multi-year export carries hundreds, which is what pushed the whole
+    // transaction past its ceiling on the production Pi.
+    const changedRefs = changedPickups.map((pickup) => pickup.sourcePickupReference);
+
+    const priorRevisions = new Map<string, number>();
+    for (const batch of chunk(changedRefs)) {
+      const grouped = await tx.procurementOrderRevision.groupBy({
+        by: ['sourceOrderReference'],
+        where: { source: FRESH_ALLIANCE_SOURCE, sourceOrderReference: { in: batch } },
+        _max: { revision: true },
+      });
+      for (const row of grouped) {
+        priorRevisions.set(row.sourceOrderReference, row._max.revision ?? 0);
+      }
+    }
+
+    for (const batch of chunk(changedRefs)) {
       await tx.procurementOrderRevision.updateMany({
         where: {
           source: FRESH_ALLIANCE_SOURCE,
-          sourceOrderReference: pickup.sourcePickupReference,
+          sourceOrderReference: { in: batch },
           isCurrent: true,
         },
         data: { isCurrent: false },
       });
-      const revision = await tx.procurementOrderRevision.create({
-        data: {
+    }
+
+    for (const batch of chunk(changedPickups)) {
+      await tx.procurementOrderRevision.createMany({
+        data: batch.map((pickup) => ({
           importId: importRecord.id,
           source: FRESH_ALLIANCE_SOURCE,
           sourceOrderReference: pickup.sourcePickupReference,
           eventKind: pickup.eventKind,
           deliveryDate: pickup.deliveryDate,
-          revision: (previous?.revision ?? 0) + 1,
+          revision: (priorRevisions.get(pickup.sourcePickupReference) ?? 0) + 1,
           snapshotHash: pickup.snapshotHash,
           warningCodes: pickup.warningCodes,
           isCurrent: true,
@@ -733,38 +791,54 @@ export async function importFreshAllianceCsv(
           donorCode: pickup.donorCode,
           donorName: pickup.donorName,
           isConfirmed: pickup.isConfirmed,
-        },
-      });
-      await tx.procurementLine.createMany({
-        data: pickup.lines.map((line) => ({
-          orderRevisionId: revision.id,
-          productId: productIds.get(line.productCode)!,
-          sourceRowNumber: line.sourceRowNumber,
-          sourceOrderReference: line.sourcePickupReference,
-          sourcePeriod: line.sourcePeriod,
-          sourceDescription: line.sourceDescription,
-          acquisitionClass: line.acquisitionClass,
-          procurementChannel: FRESH_ALLIANCE_CHANNEL,
-          quantityHundredths: line.quantityHundredths,
-          weightHundredths: line.weightHundredths,
-          // Fresh Alliance supply is donated: there is genuinely no price,
-          // fee, or grant on these lines, so the recorded zeros are factual
-          // rather than placeholders.
-          unitPriceCents: 0,
-          sourcePriceTotalCents: 0,
-          calculatedPriceTotalCents: 0,
-          priceTotalMatches: true,
-          serviceFeeCents: 0,
-          grantsAppliedCents: 0,
-          sourcePickupLineId: line.sourcePickupLineId,
-          freshAllianceCategory: line.freshAllianceCategory,
-          receivedQuantityHundredths: line.receivedQuantityHundredths,
-          receivedWeightHundredths: line.receivedWeightHundredths,
-          receivedMatchesRequested: line.receivedMatchesRequested,
-          donorValuePerPoundCents: line.donorValuePerPoundCents,
-          hasDonorValuation: line.hasDonorValuation,
         })),
       });
+    }
+
+    // SQLite cannot return generated ids from `createMany`, so the new
+    // revisions are read back. Scoping to this import's id is exact: every
+    // revision just written carries it, and no other row can.
+    const createdRevisions = await tx.procurementOrderRevision.findMany({
+      where: { importId: importRecord.id },
+      select: { id: true, sourceOrderReference: true },
+    });
+    const revisionIds = new Map(
+      createdRevisions.map((revision) => [revision.sourceOrderReference, revision.id])
+    );
+
+    const allLines = changedPickups.flatMap((pickup) => {
+      const orderRevisionId = revisionIds.get(pickup.sourcePickupReference)!;
+      return pickup.lines.map((line) => ({
+        orderRevisionId,
+        productId: productIds.get(line.productCode)!,
+        sourceRowNumber: line.sourceRowNumber,
+        sourceOrderReference: line.sourcePickupReference,
+        sourcePeriod: line.sourcePeriod,
+        sourceDescription: line.sourceDescription,
+        acquisitionClass: line.acquisitionClass,
+        procurementChannel: FRESH_ALLIANCE_CHANNEL,
+        quantityHundredths: line.quantityHundredths,
+        weightHundredths: line.weightHundredths,
+        // Fresh Alliance supply is donated: there is genuinely no price,
+        // fee, or grant on these lines, so the recorded zeros are factual
+        // rather than placeholders.
+        unitPriceCents: 0,
+        sourcePriceTotalCents: 0,
+        calculatedPriceTotalCents: 0,
+        priceTotalMatches: true,
+        serviceFeeCents: 0,
+        grantsAppliedCents: 0,
+        sourcePickupLineId: line.sourcePickupLineId,
+        freshAllianceCategory: line.freshAllianceCategory,
+        receivedQuantityHundredths: line.receivedQuantityHundredths,
+        receivedWeightHundredths: line.receivedWeightHundredths,
+        receivedMatchesRequested: line.receivedMatchesRequested,
+        donorValuePerPoundCents: line.donorValuePerPoundCents,
+        hasDonorValuation: line.hasDonorValuation,
+      }));
+    });
+    for (const batch of chunk(allLines)) {
+      await tx.procurementLine.createMany({ data: batch });
     }
 
     const supersededEventCount = await applySupersede(

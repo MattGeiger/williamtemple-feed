@@ -21,6 +21,7 @@ import {
   validateRule,
 } from './data-shaping';
 import { clearSupersede, reapplySupersede } from './fresh-alliance';
+import { chunk } from './bulk';
 import {
   ACQUISITION_CLASSES,
   AcquisitionClass,
@@ -420,59 +421,139 @@ export async function importOfbCsv(
         products.set(line.productCode, line.acquisitionClass);
       }
     }
-    for (const [productCode, acquisitionClass] of products) {
-      const product = await tx.procurementProduct.upsert({
-        where: { source_productCode: { source: OFB_SOURCE, productCode } },
-        create: { source: OFB_SOURCE, productCode, acquisitionClass },
-        update: { acquisitionClass },
-        select: { id: true },
-      });
-      productIds.set(productCode, product.id);
+
+    // Set-based rather than one upsert per product. A decade-long export
+    // carries ~900 distinct products; issuing a round-trip each put the
+    // transaction over its 20s ceiling on the production Pi while finishing
+    // comfortably on a developer SSD. Query count is the portable cost —
+    // latency is whatever the disk happens to be.
+    // Prisma types `skipDuplicates` as `never` on SQLite, so existing rows are
+    // read first and only genuinely new products are inserted.
+    const productCodes = [...products.keys()];
+    const productRows: { id: number; productCode: string; acquisitionClass: string }[] = [];
+    for (const batch of chunk(productCodes)) {
+      productRows.push(...await tx.procurementProduct.findMany({
+        where: { source: OFB_SOURCE, productCode: { in: batch } },
+        select: { id: true, productCode: true, acquisitionClass: true },
+      }));
     }
 
-    for (const order of changedOrders) {
-      const previous = await tx.procurementOrderRevision.findFirst({
-        where: { source: OFB_SOURCE, sourceOrderReference: order.sourceOrderReference },
-        orderBy: { revision: 'desc' },
-        select: { revision: true },
+    const known = new Set(productRows.map((row) => row.productCode));
+    const missingCodes = productCodes.filter((code) => !known.has(code));
+    for (const batch of chunk(missingCodes)) {
+      await tx.procurementProduct.createMany({
+        data: batch.map((productCode) => ({
+          source: OFB_SOURCE,
+          productCode,
+          acquisitionClass: products.get(productCode)!,
+        })),
       });
+    }
+    for (const batch of chunk(missingCodes)) {
+      productRows.push(...await tx.procurementProduct.findMany({
+        where: { source: OFB_SOURCE, productCode: { in: batch } },
+        select: { id: true, productCode: true, acquisitionClass: true },
+      }));
+    }
+    for (const row of productRows) productIds.set(row.productCode, row.id);
+
+    // `skipDuplicates` leaves pre-existing rows untouched, but the upsert this
+    // replaced also refreshed `acquisitionClass` when a product's class
+    // changed. Preserve that, grouped by target class so the cost is one
+    // statement per distinct class (a handful) instead of one per product.
+    const reclassify = new Map<string, string[]>();
+    for (const row of productRows) {
+      const desired = products.get(row.productCode);
+      if (desired && desired !== row.acquisitionClass) {
+        const codes = reclassify.get(desired) ?? [];
+        codes.push(row.productCode);
+        reclassify.set(desired, codes);
+      }
+    }
+    for (const [acquisitionClass, codes] of reclassify) {
+      for (const batch of chunk(codes)) {
+        await tx.procurementProduct.updateMany({
+          where: { source: OFB_SOURCE, productCode: { in: batch } },
+          data: { acquisitionClass },
+        });
+      }
+    }
+
+    // The per-order shape of this block was four round-trips each (previous
+    // revision, clear `isCurrent`, create revision, create lines). Each is now
+    // one set-based statement over the whole batch, which is what keeps a
+    // ten-year import inside a single atomic transaction on slow storage.
+    const changedRefs = changedOrders.map((order) => order.sourceOrderReference);
+
+    const priorRevisions = new Map<string, number>();
+    for (const batch of chunk(changedRefs)) {
+      const grouped = await tx.procurementOrderRevision.groupBy({
+        by: ['sourceOrderReference'],
+        where: { source: OFB_SOURCE, sourceOrderReference: { in: batch } },
+        _max: { revision: true },
+      });
+      for (const row of grouped) {
+        priorRevisions.set(row.sourceOrderReference, row._max.revision ?? 0);
+      }
+    }
+
+    for (const batch of chunk(changedRefs)) {
       await tx.procurementOrderRevision.updateMany({
-        where: { source: OFB_SOURCE, sourceOrderReference: order.sourceOrderReference, isCurrent: true },
+        where: { source: OFB_SOURCE, sourceOrderReference: { in: batch }, isCurrent: true },
         data: { isCurrent: false },
       });
-      const revision = await tx.procurementOrderRevision.create({
-        data: {
+    }
+
+    for (const batch of chunk(changedOrders)) {
+      await tx.procurementOrderRevision.createMany({
+        data: batch.map((order) => ({
           importId: importRecord.id,
           source: OFB_SOURCE,
           sourceOrderReference: order.sourceOrderReference,
           eventKind: order.eventKind,
           deliveryDate: order.deliveryDate,
-          revision: (previous?.revision ?? 0) + 1,
+          revision: (priorRevisions.get(order.sourceOrderReference) ?? 0) + 1,
           snapshotHash: order.snapshotHash,
           warningCodes: order.warningCodes,
           isCurrent: true,
-        },
-      });
-      await tx.procurementLine.createMany({
-        data: order.lines.map((line) => ({
-          orderRevisionId: revision.id,
-          productId: productIds.get(line.productCode)!,
-          sourceRowNumber: line.sourceRowNumber,
-          sourceOrderReference: line.sourceOrderReference,
-          sourcePeriod: line.sourcePeriod,
-          sourceDescription: line.sourceDescription,
-          acquisitionClass: line.acquisitionClass,
-          procurementChannel: line.procurementChannel,
-          quantityHundredths: line.quantityHundredths,
-          weightHundredths: line.weightHundredths,
-          unitPriceCents: line.unitPriceCents,
-          sourcePriceTotalCents: line.sourcePriceTotalCents,
-          calculatedPriceTotalCents: line.calculatedPriceTotalCents,
-          priceTotalMatches: line.priceTotalMatches,
-          serviceFeeCents: line.serviceFeeCents,
-          grantsAppliedCents: line.grantsAppliedCents,
         })),
       });
+    }
+
+    // SQLite cannot return generated ids from `createMany`, so the new
+    // revisions are read back. Scoping to this import's id is exact: every
+    // revision just written carries it, and no other row can.
+    const createdRevisions = await tx.procurementOrderRevision.findMany({
+      where: { importId: importRecord.id },
+      select: { id: true, sourceOrderReference: true },
+    });
+    const revisionIds = new Map(
+      createdRevisions.map((revision) => [revision.sourceOrderReference, revision.id])
+    );
+
+    const allLines = changedOrders.flatMap((order) => {
+      const orderRevisionId = revisionIds.get(order.sourceOrderReference)!;
+      return order.lines.map((line) => ({
+        orderRevisionId,
+        productId: productIds.get(line.productCode)!,
+        sourceRowNumber: line.sourceRowNumber,
+        sourceOrderReference: line.sourceOrderReference,
+        sourcePeriod: line.sourcePeriod,
+        sourceDescription: line.sourceDescription,
+        acquisitionClass: line.acquisitionClass,
+        procurementChannel: line.procurementChannel,
+        quantityHundredths: line.quantityHundredths,
+        weightHundredths: line.weightHundredths,
+        unitPriceCents: line.unitPriceCents,
+        sourcePriceTotalCents: line.sourcePriceTotalCents,
+        calculatedPriceTotalCents: line.calculatedPriceTotalCents,
+        priceTotalMatches: line.priceTotalMatches,
+        serviceFeeCents: line.serviceFeeCents,
+        grantsAppliedCents: line.grantsAppliedCents,
+      }));
+    });
+    for (const batch of chunk(allLines)) {
+      await tx.procurementLine.createMany({ data: batch });
     }
 
     // A Completed Orders import re-lands AGPCKUP events that an existing Fresh
