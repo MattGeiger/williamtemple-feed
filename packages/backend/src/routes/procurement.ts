@@ -114,6 +114,10 @@ router.get('/analytics', rateLimiter, async (_req, res, next) => {
 // single-channel exports this replaced are no longer accepted; nothing in
 // production ever depended on them (see procurement-unification-plan.md).
 router.post('/imports', rateLimiter, upload.single('file'), async (req, res, next) => {
+  // Declared outside the try so a failure can be timed too. A slow import that
+  // fails is more diagnostic than a fast one that succeeds: it tells us which
+  // ceiling was hit.
+  const importStartedAt = Date.now();
   try {
     if (!req.file) {
       return res.status(400).json({
@@ -123,9 +127,33 @@ router.post('/imports', rateLimiter, upload.single('file'), async (req, res, nex
         },
       });
     }
+    // Timed because this is the one operation whose cost depends on the host
+    // it runs on. The same file that finishes in a second on a developer SSD
+    // took long enough on the production Pi's SD card to hit the transaction
+    // ceiling, and there was no way to tell from the outside whether the time
+    // went to parsing, the database, or the network. One line in the log
+    // answers that without attaching a profiler to production.
     const result = await importUnifiedOfbCsv(req.file.buffer, req.auth?.userId);
+    const elapsedMs = Date.now() - importStartedAt;
+    console.log('[procurement] unified import complete', {
+      elapsedMs,
+      fileBytes: req.file.size,
+      outcome: result.outcome,
+      warehouseOrders: result.warehouse?.orderCount ?? 0,
+      freshAlliancePickups: result.freshAlliance?.pickupCount ?? 0,
+      rowCount: (result.warehouse?.rowCount ?? 0) + (result.freshAlliance?.rowCount ?? 0),
+    });
     res.status(result.outcome === 'imported' ? 201 : 200).json({ result });
   } catch (error) {
+    console.error('[procurement] unified import failed', {
+      elapsedMs: Date.now() - importStartedAt,
+      fileBytes: req.file?.size ?? 0,
+      // `P2028` is Prisma's interactive-transaction timeout. Naming it here
+      // means the log distinguishes "this host is too slow for the ceiling"
+      // from a genuine data problem, which the generic message cannot.
+      code: (error as { code?: string })?.code,
+      message: error instanceof Error ? error.message : String(error),
+    });
     if (error instanceof ProcurementImportError) {
       return res.status(error.statusCode).json({
         error: {
