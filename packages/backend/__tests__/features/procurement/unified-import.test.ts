@@ -190,23 +190,75 @@ describe('Unified export normalization', () => {
 });
 
 describe('Unified export persistence', () => {
-  const makeTx = (overrides: Record<string, unknown> = {}) => ({
-    procurementOrderRevision: {
-      findMany: vi.fn().mockResolvedValue([]),
-      findFirst: vi.fn().mockResolvedValue(null),
-      updateMany: vi.fn().mockResolvedValue({ count: 0 }),
-      update: vi.fn().mockResolvedValue({}),
-      create: vi.fn().mockResolvedValue({ id: 55 }),
-    },
-    procurementImport: {
-      create: vi.fn().mockResolvedValue({ id: 7 }),
-      findMany: vi.fn().mockResolvedValue([]),
-      updateMany: vi.fn().mockResolvedValue({ count: 0 }),
-    },
-    procurementProduct: { upsert: vi.fn().mockResolvedValue({ id: 3 }) },
-    procurementLine: { createMany: vi.fn().mockResolvedValue({ count: 1 }) },
-    ...overrides,
-  });
+  /**
+   * See the equivalent double in fresh-alliance-import.test.ts: the warehouse
+   * import writes in bulk and reads generated ids back, so the product and
+   * revision doubles hold enough state to honour that round-trip.
+   */
+  const makeTx = (overrides: Record<string, unknown> = {}) => {
+    const productsByCode = new Map<
+      string,
+      { id: number; productCode: string; acquisitionClass: string }
+    >();
+    const createdRevisions: { id: number; sourceOrderReference: string }[] = [];
+    let nextProductId = 3;
+    let nextRevisionId = 55;
+
+    const base = {
+      procurementOrderRevision: {
+        findMany: vi.fn(async (args: { where?: { importId?: number } } = {}) =>
+          args?.where?.importId === undefined ? [] : createdRevisions
+        ),
+        findFirst: vi.fn().mockResolvedValue(null),
+        groupBy: vi.fn().mockResolvedValue([]),
+        updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+        update: vi.fn().mockResolvedValue({}),
+        create: vi.fn(async () => ({ id: nextRevisionId++ })),
+        createMany: vi.fn(async (args: { data: { sourceOrderReference: string }[] }) => {
+          for (const row of args.data) {
+            createdRevisions.push({
+              id: nextRevisionId++,
+              sourceOrderReference: row.sourceOrderReference,
+            });
+          }
+          return { count: args.data.length };
+        }),
+      },
+      procurementImport: {
+        create: vi.fn().mockResolvedValue({ id: 7 }),
+        findMany: vi.fn().mockResolvedValue([]),
+        updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+      },
+      procurementProduct: {
+        upsert: vi.fn().mockResolvedValue({ id: 3 }),
+        findMany: vi.fn(async (args: { where?: { productCode?: { in?: string[] } } } = {}) =>
+          (args?.where?.productCode?.in ?? [])
+            .map((code) => productsByCode.get(code))
+            .filter((row): row is NonNullable<typeof row> => row !== undefined)
+        ),
+        createMany: vi.fn(async (args: {
+          data: { productCode: string; acquisitionClass: string }[];
+        }) => {
+          for (const row of args.data) {
+            productsByCode.set(row.productCode, {
+              id: nextProductId++,
+              productCode: row.productCode,
+              acquisitionClass: row.acquisitionClass,
+            });
+          }
+          return { count: args.data.length };
+        }),
+        updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+      },
+      procurementLine: { createMany: vi.fn().mockResolvedValue({ count: 1 }) },
+    };
+
+    const merged: Record<string, unknown> = { ...base };
+    for (const [model, methods] of Object.entries(overrides)) {
+      merged[model] = { ...(base as Record<string, unknown>)[model] as object, ...(methods as object) };
+    }
+    return merged as typeof base;
+  };
   const asClient = (tx: ReturnType<typeof makeTx>) => ({
     $transaction: vi.fn(async (operation: (value: typeof tx) => unknown) => operation(tx)),
   } as never);
@@ -245,12 +297,16 @@ describe('Unified export persistence', () => {
       confirmed: 'No', sourceRef: '1172093AGPCKUP', receivedQty: '0.00', receivedWeight: '0.00',
     })), undefined, asClient(tx));
 
-    expect(tx.procurementOrderRevision.create).toHaveBeenCalledWith(
+    // Revisions are written in one batched `createMany`, so the pending flag
+    // is asserted on the row inside that batch rather than a per-pickup call.
+    expect(tx.procurementOrderRevision.createMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({
-          sourceOrderReference: '1172093AGPCKUP',
-          isConfirmed: false,
-        }),
+        data: expect.arrayContaining([
+          expect.objectContaining({
+            sourceOrderReference: '1172093AGPCKUP',
+            isConfirmed: false,
+          }),
+        ]),
       })
     );
   });
