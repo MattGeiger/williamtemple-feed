@@ -23,7 +23,7 @@
  * count is our code. Only one of those is worth fixing.
  *
  * Runs against a scratch database, never a real one. Reads real exports
- * from the private-data repository by absolute path — that data is
+ * from the private-data directory by absolute path — that data is
  * deliberately kept outside this repository and must never be copied in.
  *
  * Usage:
