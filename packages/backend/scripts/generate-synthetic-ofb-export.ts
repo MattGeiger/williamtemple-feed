@@ -152,7 +152,21 @@ const write = (line: string): void => { out.write(line + '\r\n'); };
 write(UNIFIED_HEADERS.join(','));
 
 let rowsWritten = 0;
-let refCounter = 800000;
+
+/**
+ * Base for fabricated order references. Deliberately far above the real
+ * corpus, which spans 300,365–1,174,032 across the agency's exports.
+ *
+ * This is a data-safety guard, not cosmetics. Orders are keyed by
+ * `sourceOrderReference` under the revision/supersede model, so a synthetic
+ * reference colliding with a real one would create a new current revision and
+ * mark the genuine record superseded. A rollback does repair that — the
+ * refresh re-points `isCurrent` at the newest still-active revision — but a
+ * benchmark file should never touch real records in the first place.
+ *
+ * 9,900,000 also makes synthetic rows greppable: every reference starts "99".
+ */
+let refCounter = Number(arg('ref-base', '9900000'));
 
 // Interleaved chronologically-ish rather than grouped by channel, matching how
 // the real exporter emits a mixed ledger. Each unit gets a unique reference so
