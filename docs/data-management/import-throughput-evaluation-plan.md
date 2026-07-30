@@ -266,22 +266,78 @@ Modelled on 2025–2026 density, the highest observed:
 All values fabricated. No real records, donor names, or product codes derived.
 Generated files live outside the repository; the generator is committed.
 
-## 7. Deferred: the upload size cap
+## 7. The upload size cap — RESOLVED: 10MB, with a 30s ceiling
 
 `MAX_IMPORT_BYTES` (`routes/procurement.ts`) and `MAX_FILE_BYTES`
-(`ofb-import-dialog.tsx`) both cap uploads at 5MB.
+(`ofb-import-dialog.tsx`) capped uploads at 5MB.
 
-That limit was set when the document translator was the primary file-handling
-feature, and its rationale does not transfer: the translator **stores** files,
-while a procurement import holds one in memory and discards it. Both constants
-are already procurement-specific, so raising them is a localized change.
+That limit was inherited from the document translator, and its rationale does
+not transfer: the translator **stores** files, while a procurement import holds
+one buffer in memory and discards it. Both constants are already
+procurement-specific, so raising them was a localized change.
 
-**Intent: expand this deliberately once the evaluation is complete.** The
-binding constraint is not disk but **RAM on the Pi** — the file is buffered
-whole and parsed into objects several times its size. Phase 1 therefore records
-peak RSS, so the new cap is a number derived from measurement rather than
-chosen. Expected form: "25MB, measured at N MB peak for a 55MB file" — not
-"remove the cap".
+**The binding constraint turned out not to be memory.** The expectation going
+in was that RAM on the Pi would decide the number. It does not, by a wide
+margin — the marginal cost measured between the 4.6MB and 76MB runs is ~18MB of
+RAM per MB of CSV, so even a 10MB file is only ~180MB. **Transaction time binds
+first**, and by an order of magnitude.
+
+Two independent measurements agree on throughput:
+
+| Source | Figure |
+|---|---|
+| Real 2.4MB export on the Pi | 4.24s → 1.77 s/MB |
+| Synthetic 4.6MB, pickup-heavy (worse queries/row) | 609 queries × 12.9ms → 1.70 s/MB |
+
+Planning figure: **~1.8 s/MB**.
+
+| Cap | Estimated Pi time | % of 20s ceiling | % of 30s ceiling |
+|---|---|---|---|
+| 5MB (previous) | ~9s | 45% | 30% |
+| **10MB (adopted)** | ~18s | 90% — too tight | **60%** |
+| ~11.7MB | ~20s | 100% — fails | 67% |
+| ~16.7MB | ~30s | — | 100% — fails |
+
+**Decision: 10MB cap, transaction timeout raised 20s → 30s.** The pairing is
+the point. 10MB against the old 20s ceiling would have sat at 90% utilisation,
+close enough that an aging SD card, a busy service day, or a pickup-heavy file
+could tip it into a `P2028` abort — the exact failure that started this work.
+At 30s the same file uses 60%, which absorbs all three.
+
+10MB is roughly **4× the largest real export** (2.4MB) and covers several years
+of history at current density.
+
+**Above ~16MB the cap stops being the right lever.** The transaction ceiling
+becomes the thing to raise, after which memory finally binds somewhere past
+50MB. Not needed now.
+
+**Caveat on the throughput figure:** every Pi datapoint comes from files ≤2.4MB.
+The 1.8 s/MB planning number is `12.9ms × query count`, and query counts scale
+cleanly with rows, so it is trustworthy — but no import above 5MB has actually
+run on that hardware. The 4.6MB synthetic file is the obvious first production
+test.
+
+### Waiting-state UX
+
+Raising the cap makes the waiting longer, so the import dialog now shows a real
+progress state rather than a muted button label: a spinning indicator, the file
+name, and a **live elapsed-seconds counter**, following the same `Loader2`
+pattern as the Shopping List *Translate & Download PDF* modal.
+
+Deliberately **indeterminate, not a percentage.** The server performs the whole
+import in one atomic transaction and reports nothing until it returns, so any
+bar or percentage would be fabricated. Elapsed time is real, and it is what
+distinguishes "still working" from "hung" for someone watching a spinner.
+
+The panel also states that existing data is unchanged until the import
+finishes. That is the reassurance that makes waiting tolerable, and it is only
+sayable because the import is genuinely atomic — the guarantee §5 of
+`ingestion-architecture.md` recommends keeping.
+
+Cancel stays disabled during an import. There is no server-side abort, so a
+cancel button that only dropped the HTTP request would let the transaction
+commit anyway and tell the user the opposite. Honest disabling beats a
+misleading control.
 
 ## 8. Explicitly out of scope
 

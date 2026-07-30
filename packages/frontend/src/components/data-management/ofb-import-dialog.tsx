@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Matt Geiger
 
 import * as React from 'react';
-import { AlertTriangle, FileText } from 'lucide-react';
+import { AlertTriangle, FileText, Loader2 } from 'lucide-react';
 import { UploadIcon } from '@/components/animate-ui/icons/upload';
 import { AnimateIcon } from '@/components/animate-ui/icons/icon';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -22,7 +22,8 @@ import { messageService } from '@/services/message';
 import { procurementService } from '@/services/procurement';
 import type { ProcurementWarning, UnifiedImportResult } from '@/types/procurement';
 
-const MAX_FILE_BYTES = 5 * 1024 * 1024;
+/** Must match MAX_IMPORT_BYTES in routes/procurement.ts, which documents why. */
+const MAX_FILE_BYTES = 10 * 1024 * 1024;
 
 export function importedSummary(result: UnifiedImportResult): string {
   const rows = result.rowCount.toLocaleString();
@@ -72,6 +73,7 @@ export function OfbImportDialog({
   const [file, setFile] = React.useState<File | null>(null);
   const [isDragging, setIsDragging] = React.useState(false);
   const [isImporting, setIsImporting] = React.useState(false);
+  const [elapsedSeconds, setElapsedSeconds] = React.useState(0);
   const [result, setResult] = React.useState<UnifiedImportResult | null>(null);
   const inputRef = React.useRef<HTMLInputElement>(null);
 
@@ -80,9 +82,25 @@ export function OfbImportDialog({
       setFile(null);
       setIsDragging(false);
       setIsImporting(false);
+      setElapsedSeconds(0);
       setResult(null);
     }
   }, [open]);
+
+  // A real elapsed counter rather than a simulated percentage. The server does
+  // the whole import in one atomic transaction and reports nothing until it
+  // returns, so any progress bar here would be invented. Counting actual
+  // seconds is honest, and it is what distinguishes "still working" from
+  // "hung" for someone watching a spinner.
+  React.useEffect(() => {
+    if (!isImporting) return;
+    setElapsedSeconds(0);
+    const startedAt = Date.now();
+    const id = window.setInterval(() => {
+      setElapsedSeconds(Math.floor((Date.now() - startedAt) / 1000));
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [isImporting]);
 
   const selectFile = (selected: File | undefined) => {
     if (!selected) return;
@@ -91,7 +109,7 @@ export function OfbImportDialog({
       return;
     }
     if (selected.size > MAX_FILE_BYTES) {
-      messageService.error('Choose an OFB CSV smaller than 5 MB.');
+      messageService.error('Choose an OFB CSV smaller than 10 MB.');
       return;
     }
     setResult(null);
@@ -174,6 +192,36 @@ export function OfbImportDialog({
                 ))}
               </ul>
             </ScrollArea>
+          </div>
+        ) : isImporting ? (
+          /* Progress state, following the Translate & Download PDF pattern:
+             a spinning Loader2 with a status label. Deliberately indeterminate
+             — see the elapsed-seconds effect above for why a percentage here
+             would be fabricated. */
+          <div className="space-y-4 py-6" role="status" aria-live="polite">
+            <div className="flex flex-col items-center gap-3 text-center">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" aria-hidden="true" />
+              <div>
+                <p className="font-medium">Importing {file?.name ?? 'your file'}…</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {elapsedSeconds < 1
+                    ? 'Reading the file…'
+                    : `Working — ${elapsedSeconds} second${elapsedSeconds === 1 ? '' : 's'} elapsed`}
+                </p>
+              </div>
+            </div>
+            <div className="rounded-md border translation-options-column p-3 text-sm text-muted-foreground">
+              <p>
+                A large export can take up to about 30 seconds. Please keep this
+                window open.
+              </p>
+              {/* The reassurance that matters most: the import is one atomic
+                  transaction, so waiting cannot leave the data half-written. */}
+              <p className="mt-2">
+                Your existing data is unchanged until the import finishes. If it
+                fails, nothing is partly imported.
+              </p>
+            </div>
           </div>
         ) : (
           <div className="space-y-4 py-2">
