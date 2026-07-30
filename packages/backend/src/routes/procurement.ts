@@ -34,7 +34,25 @@ import {
 } from '../services/procurement';
 
 const router = Router();
-const MAX_IMPORT_BYTES = 5 * 1024 * 1024;
+/**
+ * Upload ceiling for a procurement import.
+ *
+ * Raised from 5MB. That original limit was inherited from the document
+ * translator, whose rationale does not transfer: the translator *stores*
+ * uploads, while an import holds one buffer in memory and discards it.
+ *
+ * 10MB is bounded by transaction time, not disk or memory. The production Pi
+ * runs ~1.8s per MB of OFB export, so a full 10MB file lands near 18s against
+ * the 30s transaction ceiling in `db.ts` — roughly 60% utilisation, leaving
+ * room for a slower SD card or a pickup-heavy file that costs more queries per
+ * row. Memory is nowhere near binding at this size (~18MB of RAM per MB of
+ * CSV, so ~180MB here).
+ *
+ * Past ~16MB the cap stops being the right lever and the transaction ceiling
+ * becomes the thing to raise. See
+ * docs/data-management/import-throughput-evaluation-plan.md §7.
+ */
+const MAX_IMPORT_BYTES = 10 * 1024 * 1024;
 
 const upload = multer({
   storage: multer.memoryStorage(),

@@ -9,10 +9,15 @@ import { PrismaClient } from '@prisma/client';
 import { translationTriggerService } from './services/translation-trigger';
 
 const prisma = new PrismaClient({
-  // Configure higher transaction timeout to prevent timeouts on complex operations
   transactionOptions: {
-    maxWait: 30000,  // 30 seconds max wait time
-    timeout: 20000   // 20 seconds transaction timeout
+    maxWait: 30000,  // 30 seconds to acquire a transaction
+    // 30s, raised from 20s alongside the 10MB import cap. Measured on the
+    // production Pi at ~1.8s per MB of OFB export, so a full 10MB file lands
+    // near 18s — 60% of this ceiling. At the old 20s that same file would have
+    // sat at 90%, close enough that an aging SD card or a busy service day
+    // could push it into a P2028 abort. See
+    // docs/data-management/import-throughput-evaluation-plan.md §7.
+    timeout: 30000
   }
 });
 
