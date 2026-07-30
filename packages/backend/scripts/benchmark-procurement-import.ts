@@ -95,6 +95,25 @@ const createScratchDatabase = (): { url: string; dir: string } => {
 const fmt = (ms: number): string =>
   ms >= 1000 ? `${(ms / 1000).toFixed(2)}s` : `${ms.toFixed(0)}ms`;
 
+const mb = (bytes: number): string => `${(bytes / 1024 / 1024).toFixed(0)}MB`;
+
+/**
+ * Samples resident set size on an interval.
+ *
+ * The upload cap is bounded by RAM on the Pi, not disk: the file is buffered
+ * whole and parsed into objects several times its size. Recording peak RSS is
+ * what lets the new cap be a measured number rather than a guess.
+ */
+const trackPeakRss = (): { peak: () => number; stop: () => void } => {
+  let peak = process.memoryUsage().rss;
+  const timer = setInterval(() => {
+    const rss = process.memoryUsage().rss;
+    if (rss > peak) peak = rss;
+  }, 50);
+  timer.unref();
+  return { peak: () => peak, stop: () => clearInterval(timer) };
+};
+
 const run = async (): Promise<void> => {
   const samples = resolveSamples();
   if (samples.length === 0) {
@@ -126,6 +145,8 @@ const run = async (): Promise<void> => {
       .$on('query', () => { queries += 1; });
 
     const phases: PhaseTiming[] = [];
+    const rss = trackPeakRss();
+    const rssBaseline = process.memoryUsage().rss;
 
     const parseStart = performance.now();
     const parsed = parseUnifiedOfbCsv(buffer);
@@ -177,6 +198,12 @@ const run = async (): Promise<void> => {
     const perUnit = units > 0 ? (importQueries / units).toFixed(1) : 'n/a';
     console.log(`  ${'total'.padEnd(22)} ${fmt(total).padStart(8)}`);
     console.log(`  queries per order/pickup: ${perUnit}`);
+
+    rss.stop();
+    console.log(
+      `  peak RSS ${mb(rss.peak())} (baseline ${mb(rssBaseline)}, ` +
+      `file ${mb(buffer.byteLength)}, ratio ${(rss.peak() / buffer.byteLength).toFixed(1)}x file)`
+    );
 
     // The production ceiling is what turns "slow" into "failed". Report the
     // margin explicitly so a regression is obvious without re-deriving it.
