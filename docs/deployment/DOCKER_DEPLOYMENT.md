@@ -89,11 +89,22 @@ cd ~/feed
 
 # Create required directories
 mkdir -p data/backend data/storage logs/backend
+```
 
-# Set environment variables
-export DOCKER_REGISTRY="yourusername"
-export VERSION="0.14.9"
-export CLOUDFLARE_TUNNEL_TOKEN="your-tunnel-token"
+**Set the version in `.env`, not with `export`.** See
+[Choosing the deployed version](#choosing-the-deployed-version) below — this is
+the step where a deploy can silently install the wrong build.
+
+```bash
+# ~/feed/.env  (compose reads this automatically)
+DOCKER_REGISTRY=yourusername
+VERSION=1.5.0-beta.2
+CLOUDFLARE_TUNNEL_TOKEN=your-tunnel-token
+```
+
+```bash
+# Confirm what will actually deploy BEFORE deploying
+docker compose config | grep "image:"
 
 # Pull and start services
 docker compose pull
@@ -103,6 +114,51 @@ docker compose up -d
 docker compose ps
 docker compose logs -f
 ```
+
+### Choosing the deployed version
+
+`docker-compose.yml` resolves images as
+`${DOCKER_REGISTRY}/feed-backend:${VERSION}`. Compose fills those in from two
+places, and **the shell wins over `.env` only while the shell still has them**:
+
+1. shell environment (`export VERSION=…`)
+2. the `.env` file in the compose project directory
+
+That ordering is a trap on a remote host. If the session drops — or the terminal
+is reconnected, or the commands are pasted into a fresh shell — the exports
+vanish and compose falls back to whatever `.env` says. If `.env` is stale, the
+deploy **succeeds** while installing an old build. It fails backwards, silently.
+
+This happened on 2026-07-29: a stale `VERSION=1.0.10` in `.env` rolled
+production back several versions mid-deploy. `docker compose pull` had already
+run with the exports alive and fetched the right images, so the pull output
+looked correct; `up` then started the wrong ones.
+
+Therefore:
+
+- **Edit `.env`.** It survives session drops and is the durable record of what
+  the host is running.
+- **Always run `docker compose config | grep "image:"` before `up`.** It prints
+  the fully-resolved tags after every source is merged, and is the only check
+  that reflects what `up` will really do.
+- **Verify the running images afterwards**, not just container health:
+
+```bash
+docker ps --format "table {{.Names}}\t{{.Image}}\t{{.Status}}"
+```
+
+- **Confirm the backend matches the repo.** The migration count is a good
+  fingerprint — an image built from a different commit reports a different
+  number:
+
+```bash
+docker compose logs backend --tail=40 | grep -iE "migrations found|journal_mode"
+```
+
+A healthy beta.2 deploy reports `23 migrations found`,
+`No pending migrations to apply`, and `[db] SQLite journal_mode=wal`. A
+container can be `healthy` and still be the wrong build — health checks only
+prove the process is answering.
 
 ### 5. Setup Cloudflare Tunnel
 
@@ -282,20 +338,60 @@ docker buildx build --platform linux/amd64,linux/arm64 \
 ```
 
 **On Pi:**
+
+Pull the repo first if the release touched anything compose mounts — the
+`./docker` directory (nginx config) is bind-mounted, so `docker compose pull`
+alone will run new images behind the old proxy configuration.
+
 ```bash
-export VERSION="0.14.9"
-docker compose pull
-docker compose up -d
+cd ~/apps/williamtemple-feed && git --no-pager pull --ff-only
+```
+
+Set the version in `.env`, verify, then deploy:
+
+```bash
+sed -i 's/^VERSION=.*/VERSION=1.5.0-beta.2/' .env && grep -E "^VERSION|^DOCKER_REGISTRY" .env
+```
+
+```bash
+docker compose config | grep "image:"
+```
+
+```bash
+docker compose pull && docker compose up -d
+```
+
+```bash
+docker ps --format "table {{.Names}}\t{{.Image}}\t{{.Status}}"
 ```
 
 ## Rollback
 
+Same discipline: edit `.env`, confirm resolution, then deploy.
+
 ```bash
-# On Pi
-export VERSION="0.14.8"  # Previous version
-docker compose pull
-docker compose up -d
+sed -i 's/^VERSION=.*/VERSION=1.5.0-beta.1/' .env && docker compose config | grep "image:"
 ```
+
+```bash
+docker compose pull && docker compose up -d
+```
+
+**Check the target tag exists before relying on this.** Rollback assumes that
+version was pushed to the registry; if it was not, the only path back is
+rebuilding from the corresponding commit.
+
+```bash
+docker manifest inspect et2geiger/feed-backend:1.5.0-beta.1 > /dev/null && echo "tag exists"
+```
+
+**Rolling back across a migration is not symmetrical.** `prisma migrate deploy`
+only rolls forward. An older image whose migration set is a subset of what the
+database has applied will report "no pending migrations" and start anyway — it
+will not revert schema. That is survivable when the newer migrations are
+additive, but it means the app is running against a schema it does not fully
+know. Take a database backup before any rollback that crosses a migration, and
+prefer restoring that backup over relying on an older image to cope.
 
 ## Backup Strategy
 
