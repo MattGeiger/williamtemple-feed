@@ -135,25 +135,40 @@ router.post('/imports', rateLimiter, upload.single('file'), async (req, res, nex
     // answers that without attaching a profiler to production.
     const result = await importUnifiedOfbCsv(req.file.buffer, req.auth?.userId);
     const elapsedMs = Date.now() - importStartedAt;
-    console.log('[procurement] unified import complete', {
-      elapsedMs,
-      fileBytes: req.file.size,
-      outcome: result.outcome,
-      warehouseOrders: result.warehouse?.orderCount ?? 0,
-      freshAlliancePickups: result.freshAlliance?.pickupCount ?? 0,
-      rowCount: (result.warehouse?.rowCount ?? 0) + (result.freshAlliance?.rowCount ?? 0),
-    });
+    // One line, `key=value`. Passing an object to console.log makes Node
+    // pretty-print it across nine lines, so `docker compose logs | grep` on the
+    // Pi returned the header and none of the numbers — which is the whole point
+    // of the log. Single-line keeps it greppable and awk-able over SSH.
+    const rowCount = (result.warehouse?.rowCount ?? 0) + (result.freshAlliance?.rowCount ?? 0);
+    console.log(
+      '[procurement] unified import complete' +
+      ` outcome=${result.outcome}` +
+      ` elapsedMs=${elapsedMs}` +
+      ` fileBytes=${req.file.size}` +
+      ` rows=${rowCount}` +
+      ` warehouseOrders=${result.warehouse?.orderCount ?? 0}` +
+      ` pickups=${result.freshAlliance?.pickupCount ?? 0}`
+    );
     res.status(result.outcome === 'imported' ? 201 : 200).json({ result });
   } catch (error) {
-    console.error('[procurement] unified import failed', {
-      elapsedMs: Date.now() - importStartedAt,
-      fileBytes: req.file?.size ?? 0,
-      // `P2028` is Prisma's interactive-transaction timeout. Naming it here
-      // means the log distinguishes "this host is too slow for the ceiling"
-      // from a genuine data problem, which the generic message cannot.
-      code: (error as { code?: string })?.code,
-      message: error instanceof Error ? error.message : String(error),
-    });
+    // Single-line for the same reason as the success path. `P2028` is Prisma's
+    // interactive-transaction timeout; surfacing the code distinguishes "this
+    // host is too slow for the ceiling" from a genuine data problem, which the
+    // user-facing message cannot. The message is last because it is the only
+    // field that can contain spaces.
+    // Prisma error messages are themselves multi-line (P2028 spans several,
+    // with indentation), so the message is flattened. Without this the error
+    // path would break `grep` exactly the way the object form did.
+    const flatMessage = (error instanceof Error ? error.message : String(error))
+      .replace(/\s+/g, ' ')
+      .trim();
+    console.error(
+      '[procurement] unified import failed' +
+      ` elapsedMs=${Date.now() - importStartedAt}` +
+      ` fileBytes=${req.file?.size ?? 0}` +
+      ` code=${(error as { code?: string })?.code ?? 'none'}` +
+      ` message=${flatMessage}`
+    );
     if (error instanceof ProcurementImportError) {
       return res.status(error.statusCode).json({
         error: {
