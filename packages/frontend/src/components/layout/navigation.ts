@@ -5,8 +5,9 @@
 // under AGPL-3.0-or-later; see LICENSE. William Temple House branding is
 // not covered by this license; see TRADEMARKS.md.
 
-import { Info, Package, Globe2, Settings, ShieldCheck } from "@/components/ui/icons";
+import { Info, Package, Globe2, Settings } from "@/components/ui/icons";
 import {
+  AdminNavIcon,
   AIConfigurationNavIcon,
   AnalyticsNavIcon,
   CategoriesNavIcon,
@@ -127,7 +128,7 @@ export const navigationItems: NavItem[] = [
       {
         title: "Admin",
         href: "/admin",
-        icon: ShieldCheck,
+        icon: AdminNavIcon,
         adminOnly: true,
       },
       {
