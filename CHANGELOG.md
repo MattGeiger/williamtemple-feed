@@ -5,6 +5,63 @@ All notable changes to FEED are documented here. This project adheres to
 
 ## [Unreleased]
 
+## [1.5.0-beta.3] — 2026-07-31
+
+Import capacity, deploy safety, and an honest waiting state. No schema or
+migration changes.
+
+### Changed
+
+- **Procurement import cap raised from 5MB to 10MB**, with the interactive
+  transaction ceiling raised 20s → 30s to match. The 5MB limit was inherited
+  from the document translator, whose rationale does not transfer — the
+  translator stores uploads, an import holds one buffer and discards it. The
+  binding constraint turned out to be transaction time rather than memory:
+  measured at ~1.8s per MB on the production Pi, a full 10MB file lands near
+  18s, which is 90% of the old ceiling but 60% of the new one. Memory is
+  nowhere close (~18MB of RAM per MB of CSV).
+
+### Added
+
+- **A real waiting state on the import dialog** — a spinning indicator, the
+  file name, and a live elapsed-seconds counter, reusing the pattern from the
+  Shopping List *Translate & Download PDF* modal. Deliberately indeterminate:
+  the server performs the import in one atomic transaction and reports nothing
+  until it returns, so a percentage would be fabricated. The panel also states
+  that existing data is unchanged until the import finishes — a promise only
+  made honestly because the import is genuinely atomic.
+- **A synthetic OFB export generator** (`scripts/generate-synthetic-ofb-export.ts`)
+  for throughput testing at arbitrary scale. Every value is fabricated;
+  references are numbered from 9,900,000 so they cannot collide with the real
+  corpus (300,365–1,174,032) and silently supersede genuine records.
+
+### Fixed
+
+- **Import timing logs are now greppable.** They passed an object to
+  `console.log`, which Node pretty-prints across nine lines, so
+  `docker compose logs | grep` returned the header and none of the numbers.
+  Both statements are single-line `key=value`; the failure path also flattens
+  whitespace, because Prisma's own messages are multi-line and would have
+  broken `grep` through the back door.
+- **Deployment can no longer silently install an old build.** The guide told
+  operators to `export VERSION=…`, but Compose prefers the shell over `.env`
+  only while the shell still has it — so a dropped remote session falls back to
+  whatever `.env` says. On 2026-07-29 a stale `VERSION=1.0.10` rolled
+  production back several versions mid-deploy, and because `pull` had run with
+  the exports alive, its output looked correct. The guide now leads with
+  editing `.env` and requires `docker compose config | grep image:` as a
+  pre-flight.
+
+### Investigated
+
+- **Prisma 6.19.3 does not change SQLite batching.** Evaluated because Prisma,
+  not SQLite, is the remaining bottleneck: it batches `createMany` at 999 bind
+  parameters where the engine accepts 32,763. Seven minor versions produced
+  byte-identical query counts. The upgrade also is not free — `$use` was
+  removed *within* the 6.x line, and `db.ts` depends on it — so it was
+  reverted and tracked separately. Documented in
+  `docs/data-management/import-throughput-evaluation-plan.md`.
+
 ## [1.5.0-beta.2] — 2026-07-29
 
 Procurement import throughput. No schema or migration changes.
