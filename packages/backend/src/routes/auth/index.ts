@@ -9,6 +9,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { VerificationService } from '../../services/auth/verification-service';
 import { TokenService } from '../../services/auth/token-service';
+import { AccessPolicyService } from '../../services/auth/access-policy-service';
 
 const router = Router();
 const cookieDomain = process.env.COOKIE_DOMAIN?.trim();
@@ -29,11 +30,16 @@ const otpVerifySchema = z.object({
 });
 
 /**
- * Domain validation - @williamtemple.org only
+ * Every entry point below consults `AccessPolicyService.assertMayAuthenticate`,
+ * which owns both the domain rule and the roster allowlist. It replaces the
+ * local domain check that used to be duplicated across three handlers — and
+ * that `/callback` never had at all, so a magic link could complete for an
+ * address the OTP path would have refused.
+ *
+ * The gate is applied at request *and* at verify. Checking only at request
+ * would honour a code or link issued moments before an administrator revoked
+ * someone's access.
  */
-const isAllowedDomain = (email: string): boolean => {
-  return email.toLowerCase().endsWith('@williamtemple.org');
-};
 
 /**
  * POST /api/auth/magic-link/request
@@ -52,11 +58,7 @@ router.post('/magic-link/request', async (req: Request, res: Response, next: Nex
 
     const { email } = result.data;
 
-    if (!isAllowedDomain(email)) {
-      const error = new Error('Only @williamtemple.org email addresses are allowed') as Error & { statusCode?: number };
-      error.statusCode = 403;
-      throw error;
-    }
+    await AccessPolicyService.assertMayAuthenticate(email);
 
     await VerificationService.sendMagicLink(email);
 
@@ -82,6 +84,15 @@ router.get('/callback', async (req: Request, res: Response, next: NextFunction) 
     }
 
     const { email, token } = result.data;
+
+    // Re-checked here, not only at request time: a link issued before a
+    // revocation must not still resolve. A browser navigation gets a redirect
+    // rather than a JSON error.
+    try {
+      await AccessPolicyService.assertMayAuthenticate(email);
+    } catch {
+      return res.redirect(`${process.env.APP_URL}/login?error=access_denied`);
+    }
 
     const userId = await VerificationService.verifyMagicLink(email, token);
 
@@ -126,11 +137,7 @@ router.post('/otp/request', async (req: Request, res: Response, next: NextFuncti
 
     const { email } = result.data;
 
-    if (!isAllowedDomain(email)) {
-      const error = new Error('Only @williamtemple.org email addresses are allowed') as Error & { statusCode?: number };
-      error.statusCode = 403;
-      throw error;
-    }
+    await AccessPolicyService.assertMayAuthenticate(email);
 
     await VerificationService.sendOTP(email);
 
@@ -160,11 +167,7 @@ router.post('/otp/verify', async (req: Request, res: Response, next: NextFunctio
 
     const { email, code } = result.data;
 
-    if (!isAllowedDomain(email)) {
-      const error = new Error('Only @williamtemple.org email addresses are allowed') as Error & { statusCode?: number };
-      error.statusCode = 403;
-      throw error;
-    }
+    await AccessPolicyService.assertMayAuthenticate(email);
 
     const userId = await VerificationService.verifyOTP(email, code);
 
@@ -201,24 +204,21 @@ router.post('/otp/verify', async (req: Request, res: Response, next: NextFunctio
  */
 router.get('/session', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const token = req.cookies.auth_token;
-
-    if (!token) {
-      return res.json({ authenticated: false, user: null });
-    }
-
-    const payload = TokenService.verifyJWT(token);
-
-    if (!payload) {
-      res.clearCookie('auth_token');
+    // `jwtAuthMiddleware` has already verified the cookie and loaded the
+    // caller's current role and access state from the database, so this reads
+    // what it attached rather than re-decoding the token. A revoked or deleted
+    // account never reaches here — the middleware ends that session with a 401.
+    if (!req.auth?.userId) {
       return res.json({ authenticated: false, user: null });
     }
 
     res.json({
       authenticated: true,
       user: {
-        id: payload.userId,
-        email: payload.email
+        id: req.auth.userId,
+        email: req.auth.email,
+        role: req.auth.role,
+        accessState: req.auth.accessState
       }
     });
   } catch (error) {

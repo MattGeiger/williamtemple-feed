@@ -1,5 +1,33 @@
 # Release Notes
 
+## Version 1.5.0-beta.4 — 2026-07-31
+
+*Beta — deployed to production for evaluation before the final 1.5.0 tag.*
+
+- **New Admin page.** Administrators can now see everyone who has access to
+  FEED, invite new staff, change who is an administrator, and remove access for
+  people who have left. You will find it under Information in the sidebar; it is
+  visible only to administrators.
+- **You can now choose how strict sign-in is.** By default, anyone with a
+  William Temple House email address can sign in, exactly as before. You can
+  switch to allowing only the specific people on your list, so that a colleague
+  whose email account is compromised cannot reach FEED unless you have added
+  them. The message people see when they are turned away is yours to write, and
+  so is the contact address shown with it.
+- **Removing someone's access now takes effect immediately** and stays in
+  effect. Previously there was no way to do this at all.
+- **Inviting a new staff member sends them an email** with a link to the sign-in
+  page. They enter their address there and receive a code, the same as everyone
+  else.
+- **The page shows when each person last signed in**, so you can tell who is
+  still using FEED before deciding who to remove.
+- **An activity history** records every change an administrator makes — who did
+  what, to whom, and when.
+
+*Everyone who already had access has been made an administrator by this update,
+so nobody is locked out. Adjust the list on the Admin page after signing in.
+Anyone added from now on starts as staff.*
+
 ## Version 1.5.0-beta.3 — 2026-07-31
 
 *Beta — deployed to production for evaluation before the final 1.5.0 tag.*

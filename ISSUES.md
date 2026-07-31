@@ -50,19 +50,38 @@ Builds and tests remain available, but they are not a substitute for the lint
 gate. Repair the script and declare a compatible `typescript-eslint` dependency
 before treating frontend lint as part of release validation.
 
-### #50 — Administrator authority and sanitized in-app backups
+### #50a — Administrator authority and the Admin page
+**Priority**: High · **Status**: Implemented in 1.5.0-beta.4; route tightening
+open for beta.5
+**Bucket**: authorization
+
+FEED's shared organization-wide data model does not imply that every signed-in
+user should be able to change privileges or replace the database. beta.4 adds
+Staff and Administrator roles, a unified user roster, a Domain/Allowlist sign-in
+policy, a privileged-action audit log, an operator recovery CLI, and the Admin
+page at `/admin`.
+
+Two decisions departed from the original design and are recorded in
+`docs/auth/admin-page-implementation-plan.md`:
+
+- **Bootstrap on a populated instance.** "First verified user becomes
+  Administrator" assumes an empty `User` table, which production is not. The
+  migration promotes every pre-existing user and the roster is pruned manually.
+  New users created afterwards default to Staff.
+- **Authority is read per request, not from the JWT.** A seven-day token would
+  have made revocation advisory.
+
+**Still open for beta.5:** existing privileged routes — procurement rollback and
+restore, AI configuration, data-shaping rules — are *not* yet behind
+`requireAdmin`. Gating them in the same release as the migration risked removing
+capability the pantry depends on before the roster was verified. Any
+authenticated user can still reach them until that lands.
+
+### #50b — Sanitized in-app backups
 **Priority**: High · **Status**: Design approved; implementation deferred
 **Bucket**: Data Management / authorization
 
-FEED's shared organization-wide data model does not imply that every signed-in
-user should be able to change privileges, download sensitive configuration, or
-replace the database. The approved direction is to make the first verified user
-on a fresh installation an Administrator through an atomic bootstrap rule, add
-Staff and Administrator roles, hide the future Admin page from Staff, and—more
-importantly—enforce authorization on every privileged backend endpoint. Hiding
-navigation is not a security boundary.
-
-Database backup terminology also needs care. A transactionally consistent raw
+Database backup terminology needs care. A transactionally consistent raw
 SQLite snapshot necessarily contains encrypted API-key material, encryption-key
 records, authentication records, and other sensitive configuration. A browser-
 downloadable artifact that excludes those records is therefore a **sanitized
@@ -71,10 +90,11 @@ snapshots remain an operator-controlled deployment concern. The in-app restore
 design must build a fresh compatible database from the sanitized artifact and
 require fresh encryption/API-key configuration afterward.
 
-The accepted authority, bootstrap, backup, and restore boundaries are recorded
-in `docs/auth/administrator-authorization.md` and
-`docs/data-management/backup-and-restore.md`. Implementation is intentionally
-deferred until the Data Management and OFB import pilot is complete.
+The accepted backup and restore boundaries are recorded in
+`docs/data-management/backup-and-restore.md`. This was split from #50 at beta.4
+so the authority work could close on its own; as one issue it could not close
+until the riskiest piece shipped. Administrator authority (#50a) is now in
+place, which was the stated precondition.
 
 ### #49 — Document Translator upload UI bypasses current component standards
 **Priority**: Medium · **Status**: Open

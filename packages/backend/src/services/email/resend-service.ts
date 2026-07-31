@@ -86,6 +86,44 @@ export class ResendService {
   }
 
   /**
+   * Tell a newly invited staff member that they can sign in.
+   *
+   * Deliberately carries NO token — it links to the login page, where the
+   * recipient enters their own address and receives a code. Inbound mail
+   * scanners (Microsoft Defender, among others) prefetch links and would burn a
+   * single-use token before the human ever clicked it; that is exactly why
+   * magic links are the secondary path here. A plain page URL is safe to
+   * prefetch.
+   *
+   * @throws Error with user-friendly message if sending fails
+   */
+  static async sendInvitation(email: string): Promise<void> {
+    assertEmailConfig();
+    const resend = new Resend(resendApiKey);
+    const loginUrl = `${process.env.APP_URL || 'https://feed.williamtemple.app'}/login`;
+
+    try {
+      const { error } = await resend.emails.send({
+        from,
+        to: [email],
+        subject: 'You have been given access to FEED',
+        html: this.getInvitationTemplate(loginUrl, email)
+      });
+
+      if (error) {
+        console.error('[ResendService] Invitation error:', error);
+        throw new Error('Unable to send the invitation email. The person was added to the roster and can be notified another way.');
+      }
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('Unable to send')) {
+        throw error; // Re-throw our custom error
+      }
+      console.error('[ResendService] Unexpected error:', error);
+      throw new Error('Email service temporarily unavailable. The person was added to the roster and can be notified another way.');
+    }
+  }
+
+  /**
    * Simple HTML template for magic link email
    */
   private static getMagicLinkTemplate(magicLink: string): string {
@@ -125,6 +163,68 @@ export class ResendService {
                     <td style="padding-top: 30px; border-top: 1px solid #eeeeee;">
                       <p style="color: #999999; font-size: 12px; line-height: 18px; margin: 0;">
                         If you didn't request this email, you can safely ignore it. This link will expire in 10 minutes.
+                      </p>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+        </body>
+      </html>
+    `;
+  }
+
+  /**
+   * Simple HTML template for the invitation email
+   */
+  private static getInvitationTemplate(loginUrl: string, email: string): string {
+    return `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1">
+          <title>Access to FEED</title>
+        </head>
+        <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f6f9fc;">
+          <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f6f9fc; padding: 40px 0;">
+            <tr>
+              <td align="center">
+                <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 8px; padding: 40px;">
+                  <tr>
+                    <td align="center" style="padding-bottom: 30px;">
+                      <h1 style="color: #333333; font-size: 24px; margin: 0;">You have access to FEED</h1>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding-bottom: 20px;">
+                      <p style="color: #555555; font-size: 16px; line-height: 24px; margin: 0;">
+                        An administrator has added <strong>${email}</strong> to FEED, the food pantry
+                        management system. You can sign in whenever you are ready.
+                      </p>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td align="center" style="padding: 20px 0;">
+                      <a href="${loginUrl}" style="background-color: #000000; color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-size: 16px; font-weight: 600; display: inline-block;">
+                        Go to FEED
+                      </a>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding-bottom: 10px;">
+                      <p style="color: #555555; font-size: 14px; line-height: 22px; margin: 0;">
+                        On the sign-in page, enter this email address and FEED will send you a
+                        six-digit verification code. There is no password to set up.
+                      </p>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding-top: 30px; border-top: 1px solid #eeeeee;">
+                      <p style="color: #999999; font-size: 12px; line-height: 18px; margin: 0;">
+                        If you were not expecting this, you can ignore it — no account is active
+                        until you sign in.
                       </p>
                     </td>
                   </tr>
