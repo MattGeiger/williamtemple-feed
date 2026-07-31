@@ -8,6 +8,8 @@
 import prisma from '../../db';
 import { TokenService } from './token-service';
 import { ResendService } from '../email/resend-service';
+import { AccessPolicyService } from './access-policy-service';
+import { AuthorizationError } from './authorization';
 
 const MAGIC_LINK_EXPIRY = 10 * 60 * 1000; // 10 minutes
 const OTP_EXPIRY = 3 * 60 * 1000; // 3 minutes
@@ -260,21 +262,54 @@ export class VerificationService {
   }
 
   /**
-   * Find existing user or create new one
+   * Find the roster row for a verified sign-in, creating it only when the
+   * access policy allows.
+   *
+   * In Domain mode any address on the organization domain may sign in, and a
+   * first sign-in creates the row — the behavior FEED has always had. In
+   * Allowlist mode the row must already exist; the access gate has established
+   * that before a code was ever sent, so reaching this branch without one means
+   * the policy changed mid-flight, and creating the row would quietly undo the
+   * restriction.
+   *
+   * Records `lastLoginAt` on every successful verification. That timestamp is
+   * the evidence an administrator prunes by; `emailVerified` marks account
+   * creation and cannot answer "who has stopped using FEED?". An invited user
+   * arrives here with a null `emailVerified`, which is set on their first
+   * successful sign-in.
    */
   private static async findOrCreateUser(email: string) {
+    const now = new Date();
+
     const existing = await prisma.user.findUnique({
       where: { email }
     });
 
     if (existing) {
-      return existing;
+      return await prisma.user.update({
+        where: { id: existing.id },
+        data: {
+          lastLoginAt: now,
+          emailVerified: existing.emailVerified ?? now
+        }
+      });
+    }
+
+    const mayCreate = await AccessPolicyService.mayCreateUserOnVerify();
+
+    if (!mayCreate) {
+      throw new AuthorizationError(
+        'FEED access is limited to authorized staff. Contact your administrator for access.',
+        403,
+        'ACCESS_DENIED'
+      );
     }
 
     return await prisma.user.create({
       data: {
         email,
-        emailVerified: new Date()
+        emailVerified: now,
+        lastLoginAt: now
       }
     });
   }

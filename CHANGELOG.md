@@ -5,6 +5,79 @@ All notable changes to FEED are documented here. This project adheres to
 
 ## [Unreleased]
 
+## [1.5.0-beta.4] — 2026-07-31
+
+Administrator authority, a user roster, and a sign-in access policy. **Includes
+a schema migration** — the first since 1.5.0. Back up `production.db` before
+deploying; migrations apply automatically on container start.
+
+### Added
+
+- **Staff and Administrator roles.** Authority is read from the database on
+  every authenticated request rather than carried in the JWT. A token lives
+  seven days, so a demotion or revocation carried in the claims would not take
+  effect until it expired — which would make the access policy advisory rather
+  than enforced. The cost is one indexed lookup on a table of a handful of rows,
+  which WAL mode (beta.2) keeps off the critical path of a running import.
+- **The Admin page at `/admin`**, in three tabs. **Staff** is the roster —
+  invite, promote, demote, revoke, restore, remove, and last sign-in.
+  **Sign-in** sets the access mode, the message shown to anyone turned away, and
+  the contact address. **History** is the privileged-action record.
+- **Two sign-in modes.** *Domain* admits any organization address whose access
+  is not revoked, which is FEED's existing behaviour and the shipped default.
+  *Allowlist* admits only people on the roster, so a colleague whose mailbox is
+  compromised cannot reach FEED unless an administrator put them there. The
+  modes are strictly nested: switching can never widen access.
+- **A durable revoked state**, which blocks sign-in under *both* modes.
+  Deleting a departed staff member was never durable on its own — the account is
+  recreated on their next successful verification — so revoking is now the
+  action that actually holds.
+- **`lastLoginAt`**, recorded on every successful sign-in. `emailVerified` marks
+  account creation and cannot answer "who has stopped using FEED?", which is the
+  question a roster prune actually asks.
+- **Invitations.** An administrator can add someone before their first sign-in.
+  The email carries **no token** — it links to the sign-in page, where the
+  recipient requests their own code. Mail scanners that prefetch links cannot
+  consume anything, which is the failure that makes magic links unusable here.
+- **An operator CLI** at `dist/cli/admin.js` (`list`, `grant`, `revoke`,
+  `reset-access-mode`), for bootstrapping an instance with no administrator and
+  for recovering from an Allowlist lockout. It is subject to the same guards as
+  the Admin page and records its actions as `operator:cli`.
+- **A privileged-action audit log** recording actor, target, action, and
+  timestamp, with the actor stored as both id and label so entries stay legible
+  after an account is deleted.
+
+### Changed
+
+- **Every pre-existing user was promoted to Administrator by the migration.**
+  The approved bootstrap rule — first verified user on a fresh deployment —
+  assumes an empty user table, which production does not have. The alternatives
+  were worse: promoting the oldest row confers authority by accident of history,
+  and arming the bootstrap for the first sign-in after deploy is a race decided
+  by whoever opens FEED first on a Monday. Nobody gained meaningful capability,
+  because no authority check existed anywhere before this release. Users created
+  *after* the migration default to Staff and need an explicit promotion.
+- **The sign-in gate now covers all four entry points.** The domain check was
+  duplicated across three handlers and absent from the magic-link callback
+  entirely, so a link could complete for an address the code path would have
+  refused. One service now owns it, and it is re-checked at verify so a code
+  issued moments before a revocation does not still resolve.
+- Lockout guards scale with the mode: at least one administrator always, and at
+  least two who can actually sign in while Allowlist mode is active. A revoked
+  administrator holds a role they cannot use and counts toward neither.
+
+### Notes
+
+- **Existing privileged routes are deliberately unchanged.** Procurement
+  rollback and restore, AI configuration, and data-shaping rules are not yet
+  behind an administrator check. Between the migration and a verified roster the
+  authorization state is unproven, and gating them in the same release could
+  have removed capability the pantry depends on with no in-app way to restore
+  it. Tracked as ISSUES.md #50a for beta.5.
+- A session-revalidation failure returns `503`, not `401`. A `401` would clear
+  the cookie and bounce every signed-in user to a login that fails identically,
+  so a database blip would read as a mass revocation.
+
 ## [1.5.0-beta.3] — 2026-07-31
 
 Import capacity, deploy safety, and an honest waiting state. No schema or

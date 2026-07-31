@@ -713,14 +713,33 @@ model UsageRecord {
 // AUTHENTICATION MODELS
 // ===================================
 
+// Roles authorize actions; they never partition feature data. Every
+// authenticated user still sees the same shared organization dataset (see
+// AGENTS.md, "Shared Whole-Organization Environment").
+//
+// `accessState` is deliberately independent of AccessPolicy.mode: REVOKED
+// blocks sign-in in BOTH Domain and Allowlist mode. Without it, removing a
+// departed staff member does not stick, because findOrCreateUser recreates
+// the row on their next successful verification.
+//
+// `emailVerified` records account creation, not recent activity, so it cannot
+// answer "who has left?". `lastLoginAt` is the evidence input to pruning.
+// An invited user has emailVerified = null, which the roster renders as
+// "Invited — not yet signed in".
 model User {
   id            String    @id @default(cuid())
   email         String    @unique
   emailVerified DateTime?
+  lastLoginAt   DateTime?
+  role          String    @default("STAFF") // STAFF | ADMINISTRATOR
+  accessState   String    @default("ALLOWED") // ALLOWED | REVOKED
+  invitedAt     DateTime?
+  invitedBy     String? // actor email at invite time; retained if the actor is deleted
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
   @@index([email])
+  @@index([role])
 }
 
 model VerificationToken {
@@ -743,4 +762,47 @@ model OtpFailure {
 
   @@index([email])
   @@index([lockedUntil])
+}
+
+// ===================================
+// AUTHORIZATION MODELS
+// ===================================
+
+// Org-wide shared sign-in policy. A single upserted row (id = 1), following
+// the ExportSettings precedent — no per-user scoping.
+//
+// Domain mode    — any address on the allowed domain may sign in (current
+//                  behavior; the domain itself stays hardcoded until v2.0).
+// Allowlist mode — only an existing, non-revoked roster row may sign in.
+//
+// `deniedMessage` is plain text and MUST be rendered as text, never as HTML.
+// It is shown for both rejection cases; distinguishing "wrong domain" from
+// "not on the list" is an accepted disclosure (the threat model is a
+// compromised mailbox, whose owner already knows their own address).
+model AccessPolicy {
+  id            Int      @id @default(autoincrement())
+  mode          String   @default("DOMAIN") // DOMAIN | ALLOWLIST
+  deniedMessage String   @default("FEED access is limited to authorized staff.")
+  contactEmail  String   @default("technology@williamtemple.org")
+  updatedAt     DateTime @updatedAt
+}
+
+// Append-only record of privileged actions: actor, target, action, timestamp.
+// The actor is stored as both id and label so rows stay legible after the
+// acting user is deleted. `actorUserId` is null for non-interactive actors
+// ("system:beta.4-migration", "operator:cli").
+model AdminAuditLog {
+  id          String   @id @default(cuid())
+  actorUserId String?
+  actorLabel  String
+  action      String
+  targetType  String // USER | ACCESS_POLICY
+  targetId    String?
+  targetLabel String?
+  detail      Json?
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([actorUserId])
+  @@index([action])
 }

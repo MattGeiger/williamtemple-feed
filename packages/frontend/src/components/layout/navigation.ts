@@ -5,7 +5,7 @@
 // under AGPL-3.0-or-later; see LICENSE. William Temple House branding is
 // not covered by this license; see TRADEMARKS.md.
 
-import { Info, Package, Globe2, Settings } from "@/components/ui/icons";
+import { Info, Package, Globe2, Settings, ShieldCheck } from "@/components/ui/icons";
 import {
   AIConfigurationNavIcon,
   AnalyticsNavIcon,
@@ -29,6 +29,12 @@ export interface NavItem {
   items?: NavItem[];
   isActive?: boolean;
   isFuture?: boolean;  // For planned features
+  /**
+   * Shown only to administrators. Presentation only — the server enforces
+   * authority on every privileged route independently, and an omitted menu
+   * item is not a security boundary.
+   */
+  adminOnly?: boolean;
 }
 
 export const navigationItems: NavItem[] = [
@@ -117,6 +123,12 @@ export const navigationItems: NavItem[] = [
         title: "Reports",
         href: "/reports",
         icon: ReportsNavIcon,
+      },
+      {
+        title: "Admin",
+        href: "/admin",
+        icon: ShieldCheck,
+        adminOnly: true,
       },
       {
         title: "Help",

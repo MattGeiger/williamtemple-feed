@@ -1,6 +1,6 @@
 {
   "name": "backend",
-  "version": "1.5.0-beta.3",
+  "version": "1.5.0-beta.4",
   "main": "index.js",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
@@ -15,7 +15,11 @@
     "generate:test-data": "ts-node scripts/generate-test-data.ts",
     "seed:languages": "ts-node scripts/seed-languages.ts",
     "test:bulk-retry": "ts-node scripts/test-bulk-retry.ts",
-    "measure:builder-translation-heights": "ts-node scripts/measure-builder-translation-heights.ts"
+    "measure:builder-translation-heights": "ts-node scripts/measure-builder-translation-heights.ts",
+    "admin:list": "ts-node src/cli/admin.ts list",
+    "admin:grant": "ts-node src/cli/admin.ts grant",
+    "admin:revoke": "ts-node src/cli/admin.ts revoke",
+    "admin:reset-access-mode": "ts-node src/cli/admin.ts reset-access-mode"
   },
   "keywords": [],
   "author": "",
