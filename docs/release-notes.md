@@ -24,6 +24,12 @@
 - **An activity history** records every change an administrator makes — who did
   what, to whom, and when.
 
+- **Fixed a confusing sign-in screen.** If someone tried to sign in without
+  access, FEED said a code had been sent and asked them to type it in, while
+  also telling them they were not allowed in. No code was ever sent. The
+  sign-in page now stays put and explains the problem, so there is nothing to
+  type and nothing to wait for.
+
 *Everyone who already had access has been made an administrator by this update,
 so nobody is locked out. Adjust the list on the Admin page after signing in.
 Anyone added from now on starts as staff.*
