@@ -1,5 +1,18 @@
 # Release Notes
 
+## Version 1.5.0-beta.3 — 2026-07-31
+
+*Beta — deployed to production for evaluation before the final 1.5.0 tag.*
+
+- Data imports now accept files up to 10 MB, raised from 5 MB. That covers
+  several more years of history in a single file.
+- The import window now shows that it is working, with a running count of
+  seconds elapsed, so a long import no longer looks like a frozen screen. It
+  also states plainly that your existing data stays unchanged until the import
+  finishes.
+- Fixed a deployment problem that could quietly install an older version of
+  FEED instead of the intended one.
+
 ## Version 1.5.0-beta.2 — 2026-07-29
 
 *Beta — deployed to production for evaluation before the final 1.5.0 tag.*

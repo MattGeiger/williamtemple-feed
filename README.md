@@ -18,7 +18,7 @@ food-distribution programs at scale.
 
 **Production deployment:** https://feed.williamtemple.app
 **License:** [AGPL-3.0-or-later](./LICENSE)
-**Status:** v1.5.0-beta.2 — evaluating the Tailwind v4 migration and procurement import throughput on production hardware
+**Status:** v1.5.0-beta.3 — evaluating the Tailwind v4 migration and procurement import throughput on production hardware
 
 ---
 
