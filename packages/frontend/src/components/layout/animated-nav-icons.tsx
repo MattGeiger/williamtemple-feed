@@ -16,6 +16,7 @@ import { FileChartColumnIcon } from "@/components/animate-ui/icons/file-chart-co
 import { GaugeIcon } from "@/components/animate-ui/icons/gauge";
 import { InfoIcon } from "@/components/animate-ui/icons/info";
 import { SettingsIcon } from "@/components/animate-ui/icons/settings";
+import { UserRoundCogIcon } from "@/components/animate-ui/icons/user-round-cog";
 import { BridgedAnimatedIcon } from "@/components/animate-ui/bridge";
 import { AppleIcon } from "@/components/ui/apple";
 import { FileTextIcon } from "@/components/ui/file-text";
@@ -150,6 +151,16 @@ export function HelpNavIcon({ className, ...props }: NavIconProps) {
 export function SettingsNavIcon({ className, ...props }: NavIconProps) {
   return (
     <SettingsIcon
+      size={16}
+      className={animatedIconClassName(className)}
+      {...props}
+    />
+  );
+}
+
+export function AdminNavIcon({ className, ...props }: NavIconProps) {
+  return (
+    <UserRoundCogIcon
       size={16}
       className={animatedIconClassName(className)}
       {...props}
