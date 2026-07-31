@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/sidebar';
 import { navigationItems } from './navigation';
 import { NavigationSection } from './navigation-section';
+import { useAuth } from '@/contexts/AuthContext';
 import { useNavigationKeyboard } from '@/hooks/use-navigation-keyboard';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { markDashboardNavigation } from '@/hooks/use-route-persistence';
@@ -40,21 +41,48 @@ import {
 // Extract Dashboard as a special item (at index 0)
 const dashboardItem = navigationItems[0];
 
-// Get remaining standalone items and grouped items
-const standaloneItems = navigationItems.slice(1).filter(item => !item.items);
-const groupedItems = navigationItems.slice(1).filter(item => item.items);
-
-// Flatten nested items for collapsed view (excluding Dashboard which is handled separately)
-const allMenuItems = [
-  ...standaloneItems,
-  ...groupedItems.flatMap(section => section.items || [])
-].filter(item => !item.isFuture);
-
 export function AppSidebar() {
   const { pathname } = useLocation();
   const { state } = useSidebar();
+  const { isAdministrator } = useAuth();
   const isCollapsed = state === 'collapsed';
   const itemRefs = React.useRef<(HTMLAnchorElement | null)[]>([]);
+
+  // Administrator-only entries are filtered here rather than at module scope,
+  // because the roster can change under a signed-in session: the server
+  // re-reads role on every request, so a demotion takes effect on the next
+  // session check and the menu should follow. Hiding an item is presentation;
+  // `/api/admin` enforces authority on its own.
+  const { standaloneItems, groupedItems, allMenuItems } = React.useMemo(() => {
+    const isVisible = (item: { adminOnly?: boolean }) =>
+      !item.adminOnly || isAdministrator;
+
+    const standalone = navigationItems
+      .slice(1)
+      .filter(item => !item.items)
+      .filter(isVisible);
+
+    const grouped = navigationItems
+      .slice(1)
+      .filter(item => item.items)
+      .filter(isVisible)
+      .map(section => ({
+        ...section,
+        items: section.items?.filter(isVisible),
+      }));
+
+    // Flattened for the collapsed view (Dashboard is handled separately)
+    const all = [
+      ...standalone,
+      ...grouped.flatMap(section => section.items || []),
+    ].filter(item => !item.isFuture);
+
+    return {
+      standaloneItems: standalone,
+      groupedItems: grouped,
+      allMenuItems: all,
+    };
+  }, [isAdministrator]);
 
   const handleNavigate = React.useCallback((index: number) => {
     itemRefs.current[index]?.focus();

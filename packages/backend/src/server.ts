@@ -31,6 +31,7 @@ import settingsRouter from './routes/settings';
 import procurementRouter from './routes/procurement';
 import authTestRouter from './routes/auth-test';
 import authRouter from './routes/auth';
+import adminRouter from './routes/admin';
 import { errorHandler } from './middleware/error-handler';
 import { jsonErrorHandler } from './middleware/json-error-handler';
 import { authMiddleware, jwtAuthMiddleware } from './middleware/auth';
@@ -105,6 +106,8 @@ export const createServer = () => {
   app.use('/api/system', systemRouter);
   app.use('/api/auth/test', authTestRouter);
   app.use('/api/auth', authRouter);
+  // Administrator-only. The router applies `requireAdmin` to every route.
+  app.use('/api/admin', adminRouter);
 
   // Error handling
   app.use(errorHandler);

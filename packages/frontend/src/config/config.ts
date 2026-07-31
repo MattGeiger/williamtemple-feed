@@ -66,6 +66,16 @@ interface ApiConfig {
       base: string;
       operatingHours: string;
     };
+    admin: {
+      base: string;
+      users: string;
+      invite: string;
+      userRole: (id: string) => string;
+      userAccess: (id: string) => string;
+      userById: (id: string) => string;
+      accessPolicy: string;
+      audit: string;
+    };
   };
 }
 
@@ -134,6 +144,16 @@ const config: AppConfig = {
       settings: {
         base: '/api/settings',
         operatingHours: '/operating-hours'
+      },
+      admin: {
+        base: '/api/admin',
+        users: '/users',
+        invite: '/users/invite',
+        userRole: (id: string) => `/users/${id}/role`,
+        userAccess: (id: string) => `/users/${id}/access`,
+        userById: (id: string) => `/users/${id}`,
+        accessPolicy: '/access-policy',
+        audit: '/audit'
       }
     }
   }

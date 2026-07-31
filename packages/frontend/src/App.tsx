@@ -41,6 +41,8 @@ import { useTokenMetrics } from './hooks/dashboard/useTokenMetrics'
 import { ThemeProvider } from './components/theme-provider'
 import { AuthProvider } from './contexts/AuthContext'
 import { ProtectedRoute } from './components/protected-route'
+import { AdminRoute } from './components/admin-route'
+import { AdminPage as AdminWorkspace } from './components/admin'
 import LoginPage from './components/pages/login-page'
 import LogoutPage from './components/pages/logout-page'
 import { AIConfiguration } from './components/ai-configuration'
@@ -358,6 +360,20 @@ function HelpIndexPage() {
   )
 }
 
+function AdminPage() {
+  return (
+    <RootLayout
+      breadcrumbs={[
+        { title: "Dashboard (Home)", href: "/" },
+        { title: "Information" },
+        { title: "Admin" },
+      ]}
+    >
+      <AdminWorkspace />
+    </RootLayout>
+  )
+}
+
 function SettingsPage() {
   return (
     <RootLayout
@@ -423,6 +439,12 @@ function App() {
                     <Route path="/document-translator" element={<DocumentTranslatorPage />} />
                     <Route path="/ai-configuration" element={<AIConfigurationPage />} />
                     <Route path="/settings" element={<SettingsPage />} />
+                    {/* Administrator-only. The server enforces authority on
+                        every /api/admin route independently — this guard only
+                        decides what the browser renders. */}
+                    <Route element={<AdminRoute />}>
+                      <Route path="/admin" element={<AdminPage />} />
+                    </Route>
                     <Route path="/data-management" element={<DataManagementPage />} />
                     <Route path="/help" element={<HelpIndexPage />} />
                     <Route path="/help/:slug" element={<HelpDetailPage />} />

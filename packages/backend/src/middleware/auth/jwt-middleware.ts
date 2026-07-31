@@ -6,38 +6,108 @@
 // not covered by this license; see TRADEMARKS.md.
 
 import { Request, Response, NextFunction } from 'express';
+import prisma from '../../db';
 import { TokenService } from '../../services/auth/token-service';
+import { ACCESS_STATES } from '../../services/auth/authorization';
 
 const cookieDomain = process.env.COOKIE_DOMAIN?.trim();
 const cookieDomainOption = cookieDomain ? cookieDomain : undefined;
 
-export const jwtAuthMiddleware = (req: Request, res: Response, next: NextFunction) => {
+const clearAuthCookie = (res: Response) => {
+  res.clearCookie('auth_token', {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
+    domain: cookieDomainOption,
+  });
+};
+
+/**
+ * Verify the session cookie and load the caller's current authority.
+ *
+ * The JWT proves *identity* only. Role and access state come from a database
+ * read on every authenticated request, because the token lives seven days and a
+ * revocation that took a week to bite would make the access policy advisory
+ * rather than enforced. One indexed point lookup on a table holding a handful
+ * of rows, which SQLite serves from page cache; WAL mode (1.5.0-beta.2) means
+ * it does not queue behind a running import.
+ *
+ * The read is skipped entirely when there is no cookie — anonymous requests
+ * reach the public routes and the login endpoints unchanged.
+ */
+export const jwtAuthMiddleware = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  // Internal Puppeteer render requests carry no cookie and must not acquire a
+  // database dependency for PDF export.
+  if (req.headers['x-internal-pdf-request'] === 'true') {
+    return next();
+  }
+
   const token = req.cookies?.auth_token;
 
   if (!token) {
     return next();
   }
 
+  let payload: ReturnType<typeof TokenService.verifyJWT>;
+
   try {
-    const payload = TokenService.verifyJWT(token);
-
-    if (payload) {
-      req.auth = {
-        userId: payload.userId,
-        email: payload.email,
-      };
-      return next();
-    }
-
-    res.clearCookie('auth_token', {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
-      domain: cookieDomainOption,
-    });
+    payload = TokenService.verifyJWT(token);
   } catch (error) {
     console.warn('[Auth] JWT verification failed:', error);
+    payload = null;
   }
+
+  if (!payload) {
+    clearAuthCookie(res);
+    return next();
+  }
+
+  let user;
+
+  try {
+    user = await prisma.user.findUnique({
+      where: { id: payload.userId },
+      select: { id: true, email: true, role: true, accessState: true },
+    });
+  } catch (error) {
+    // Fail closed, but not as though the session were invalid. A 401 would
+    // clear the cookie and bounce every signed-in user to a login screen that
+    // fails identically — a database blip would read as a mass revocation.
+    console.error('[Auth] Session revalidation failed:', error);
+    return res.status(503).json({
+      error: {
+        message:
+          'FEED cannot confirm your sign-in right now. Wait a moment and try again.',
+        code: 'SESSION_REVALIDATION_UNAVAILABLE',
+        timestamp: new Date().toISOString(),
+      },
+    });
+  }
+
+  // The account was deleted, or access was revoked, after this token was
+  // issued. Both end the session on the next request.
+  if (!user || user.accessState === ACCESS_STATES.REVOKED) {
+    clearAuthCookie(res);
+    return res.status(401).json({
+      error: {
+        message:
+          'Your FEED access has ended. Contact your administrator if you think this is a mistake.',
+        code: 'ACCESS_REVOKED',
+        timestamp: new Date().toISOString(),
+      },
+    });
+  }
+
+  req.auth = {
+    userId: user.id,
+    email: user.email,
+    role: user.role,
+    accessState: user.accessState,
+  };
 
   return next();
 };
