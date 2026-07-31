@@ -38,6 +38,95 @@ Everything else in this file. The application is shippable today.
 
 ## Open Issues
 
+### #55 — Theme transition origin reported as viewport top-centre
+**Priority**: Low · **Status**: Cannot reproduce; awaiting repro details
+**Bucket**: motion / Tailwind v4 fallout
+
+Reported after the Tailwind v4 migration: the light/dark reveal used to radiate
+from the Theme Switcher button and now appears to radiate from the top centre of
+the viewport.
+
+**Investigated 2026-07-31 and not reproduced.** Measured in the running app at
+711×832 and again after resize:
+
+- `runThemeTransition` computed `circle(20px at 635px 31.5px)` → the trigger
+  button's exact centre, taken from `getBoundingClientRect()`;
+- the animation was paused at 20% progress and the rendered frame showed the
+  circle centred on the button, with the outgoing theme surviving longest in the
+  opposite (bottom-left) corner, which is the correct geometry;
+- `getComputedStyle(html, '::view-transition-new(root)')` reports
+  `animationName: none`, so the `@layer base` override in `index.css` is
+  winning and the WAAPI animation is the only one running — the Tailwind v4
+  real-cascade-layer hypothesis is disproved;
+- `html`/`body` carry no `transform`, `filter`, or `backdrop-filter`, so no
+  snapshot containing block is displacing the pseudo-element;
+- `git show 10a8f24 -- src/lib/theme-transition.ts` is empty: the v4 commit
+  changed only `supports-[backdrop-filter]:` → `supports-backdrop-filter:` class
+  syntax in `theme-switcher.tsx`, and did not touch the transition code or the
+  `::view-transition` rules.
+
+The one genuine weakness found is the fallback in `getTransitionOrigin`: when
+`trigger` is null it uses a hard-coded `(innerWidth - 56, 56)` rather than the
+button, which would put the origin near the top-right regardless of layout.
+`ThemeSwitcher` is the only mount and does pass its ref, so this path is not
+currently reached.
+
+**Needed to proceed:** window size, page, and light→dark vs dark→light
+direction where it was observed, plus whether the sidebar was collapsed.
+
+### #54 — Admin action-menu icons bypassed the animation standard
+**Priority**: Medium · **Status**: Fixed in 1.5.0-beta.4
+**Bucket**: motion standards
+
+The Admin roster shipped with raw `lucide-react` icons in `TableActionMenu` and
+on the Invite button. `docs/motion/ICON_ANIMATIONS.md` requires **native
+animate-ui icons** in action menus: only those read `AnimateIconContext`, so
+static Lucide icons ignore the `animate` (menu-open) and `animateOnHover`
+triggers entirely. "Change to Staff" and "Revoke access" also shared a single
+`UserMinus` glyph, which read as the same action twice.
+
+Fixed by hand-rolling six native animate-ui icons — neither registry ships
+animate-ui builds of them, and the lucide-animated versions are imperative-ref,
+which the standard forbids here. Geometry is verbatim from lucide-react's
+`__iconNode`.
+
+The icons now carry the distinction the actions have: the **shield family**
+(`shield-check`, `shield-minus`) is role, the **person/ban family** (`ban`,
+`user-round-check`) is access. A role change and an access change can no longer
+look identical.
+
+### #53 — Admin page icon was semantically wrong
+**Priority**: Low · **Status**: Fixed in 1.5.0-beta.4
+**Bucket**: UI semantics
+
+The Admin sidebar entry and section header used a shield-with-checkmark, which
+reads as security verification rather than managing people. Both now use
+`user-round-cog`: animated in the sidebar (interactive), static in the section
+header (decorative parent — Rule 4 of the motion standards, which forbids
+animating a non-interactive element and creating a false affordance).
+
+### #52 — Refused sign-in advanced to the code-entry step
+**Priority**: High · **Status**: Fixed in 1.5.0-beta.4
+**Bucket**: authentication UX
+
+Found while testing revoked access. Requesting a code for a revoked or
+unauthorised address produced a screen that said **"Code sent to
+&lt;address&gt;"** directly above **"FEED access is limited to authorized
+staff."**, and offered a six-digit field for a code that was never sent. Resend
+confirmed no email left the system — the backend was correct; only the UI lied.
+
+`OTPTab` had a single `error` status covering two different failures. The render
+guard returned the email form for `idle | requesting` and fell through to the
+code form for everything else, so a failed *request* landed on the code step. A
+failed *verification* belongs there, which is why one status could not serve
+both.
+
+Split into `requestFailed` (stay on the email step, show the reason inline,
+clear it when the address is edited) and `error` (a failed verification, stay on
+the code step). Covered by `src/test/auth/otp-tab-denied.test.tsx`, which
+asserts the refusal message and the *absence* of both "Code sent to" and the
+code prompt.
+
 ### #51 — Frontend lint command is not runnable
 **Priority**: Medium · **Status**: Open
 **Bucket**: developer tooling

@@ -6,7 +6,21 @@
 // not covered by this license; see TRADEMARKS.md.
 
 import * as React from 'react';
-import { ShieldCheck, UserMinus, UserPlus, UserRoundCheck, Trash2 } from 'lucide-react';
+// Native animate-ui icons: TableActionMenu drives them through AnimateIconContext,
+// which imperative-ref icons cannot read — they would ignore the `animate` and
+// `animateOnHover` triggers and only respond to hovering the glyph itself.
+// See docs/motion/ICON_ANIMATIONS.md, "Action Menu Icons".
+//
+// Role actions use the shield family; access actions use the person/ban family.
+// Keeping the two kinds visually distinct is why "Change to Staff" and
+// "Revoke access" no longer share an icon.
+import { AnimateIcon } from '@/components/animate-ui/icons/icon';
+import { BanIcon } from '@/components/animate-ui/icons/ban';
+import { ShieldCheckIcon } from '@/components/animate-ui/icons/shield-check';
+import { ShieldMinusIcon } from '@/components/animate-ui/icons/shield-minus';
+import { Trash2Icon } from '@/components/animate-ui/icons/trash-2';
+import { UserRoundCheckIcon } from '@/components/animate-ui/icons/user-round-check';
+import { UserRoundPlusIcon } from '@/components/animate-ui/icons/user-round-plus';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -128,7 +142,7 @@ export function UserRoster({
       isAdmin
         ? {
             label: 'Change to Staff',
-            icon: UserMinus,
+            icon: ShieldMinusIcon,
             onClick: () =>
               setConfirm({
                 title: `Change ${user.email} to Staff?`,
@@ -147,7 +161,7 @@ export function UserRoster({
           }
         : {
             label: 'Make Administrator',
-            icon: ShieldCheck,
+            icon: ShieldCheckIcon,
             onClick: () =>
               setConfirm({
                 title: `Make ${user.email} an Administrator?`,
@@ -169,7 +183,7 @@ export function UserRoster({
       isRevoked
         ? {
             label: 'Restore access',
-            icon: UserRoundCheck,
+            icon: UserRoundCheckIcon,
             onClick: () =>
               runGuarded(
                 () =>
@@ -181,7 +195,7 @@ export function UserRoster({
           }
         : {
             label: 'Revoke access',
-            icon: UserMinus,
+            icon: BanIcon,
             variant: 'destructive' as const,
             onClick: () =>
               setConfirm({
@@ -204,7 +218,7 @@ export function UserRoster({
           },
       {
         label: 'Remove from roster',
-        icon: Trash2,
+        icon: Trash2Icon,
         variant: 'destructive' as const,
         onClick: () =>
           setConfirm({
@@ -242,10 +256,16 @@ export function UserRoster({
             <Skeleton className="h-4 w-64" />
           )}
         </div>
-        <Button onClick={() => setInviteOpen(true)} disabled={isSubmitting}>
-          <UserPlus className="mr-2 h-4 w-4" />
-          Invite
-        </Button>
+        {/* Wrap the Button, not the icon: `asChild` attaches the handlers to
+            the direct child, so wrapping the icon would only animate on hover
+            of the glyph's own box and never on the label. Matches the
+            TableFeatureBar pattern. */}
+        <AnimateIcon asChild animateOnHover animateOnTap>
+          <Button onClick={() => setInviteOpen(true)} disabled={isSubmitting}>
+            <UserRoundPlusIcon className="mr-2 h-4 w-4" />
+            Invite
+          </Button>
+        </AnimateIcon>
       </div>
 
       <div className="rounded-md border">

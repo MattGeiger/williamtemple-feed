@@ -66,8 +66,37 @@ deploying; migrations apply automatically on container start.
   least two who can actually sign in while Allowlist mode is active. A revoked
   administrator holds a role they cannot use and counts toward neither.
 
+### Fixed
+
+- **A refused sign-in no longer claims a code was sent.** Requesting a code for
+  a revoked or unauthorised address showed "Code sent to <address>" directly
+  above "FEED access is limited to authorized staff", and offered a six-digit
+  field for a code that had never been sent. No email was actually sent — the
+  backend was right and only the screen was wrong. `OTPTab` had one `error`
+  status covering both a failed *request* and a failed *verification*; the
+  render guard sent everything that was not `idle`/`requesting` to the code
+  step. The two are now distinct, so a refusal stays on the email step, explains
+  itself inline, and clears when the address is edited. Regression test in
+  `src/test/auth/otp-tab-denied.test.tsx` (ISSUES.md #52).
+- **Admin icons follow the project's motion standard.** The roster shipped with
+  raw `lucide-react` icons in the action menu, which cannot read
+  `AnimateIconContext` and so ignored the menu-open and row-hover triggers
+  entirely. Six native animate-ui icons were hand-rolled (`user-round-cog`,
+  `user-round-check`, `user-round-plus`, `shield-check`, `shield-minus`, `ban`)
+  with geometry taken verbatim from lucide-react. "Change to Staff" and "Revoke
+  access" no longer share a glyph: the shield family now means a role change and
+  the person/ban family an access change (ISSUES.md #54).
+- **The Admin page uses `user-round-cog` rather than a shield-with-checkmark**,
+  which read as security verification instead of managing people. Animated in
+  the sidebar, static in the section header, per Rule 4 of the motion standards
+  (ISSUES.md #53).
+
 ### Notes
 
+- A report that the light/dark reveal radiates from the viewport's top centre
+  rather than the Theme Switcher could not be reproduced; measurement shows the
+  circle centred on the button and the `@layer base` override winning. Recorded
+  with the full evidence as ISSUES.md #55, pending repro details.
 - **Existing privileged routes are deliberately unchanged.** Procurement
   rollback and restore, AI configuration, and data-shaping rules are not yet
   behind an administrator check. Between the migration and a verified roster the

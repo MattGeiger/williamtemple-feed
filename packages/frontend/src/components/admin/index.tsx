@@ -6,7 +6,11 @@
 // not covered by this license; see TRADEMARKS.md.
 
 import * as React from 'react';
-import { ShieldCheck } from 'lucide-react';
+// Static, not animated: the section header icon is decorative and its parent is
+// not interactive. Animating it would signal a false affordance
+// (docs/motion/ICON_ANIMATIONS.md, Rule 4). The sidebar entry for this page is
+// interactive and uses the animated UserRoundCog.
+import { UserRoundCog } from '@/components/ui/icons';
 import { SectionHeader } from '@/components/shared/section-header';
 import {
   Tabs,
@@ -70,7 +74,7 @@ export function AdminPage() {
       <SectionHeader
         title="Admin"
         description="Manage who can use FEED, choose how sign-in works, and review what administrators have changed."
-        icon={ShieldCheck}
+        icon={UserRoundCog}
       />
 
       <Tabs defaultValue="users">
