@@ -33,6 +33,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { TableActionMenu } from '@/components/ui/table-action-menu';
 import { ErrorHandlerService } from '@/services/error/ErrorHandlerService';
 import { messageService } from '@/services/message';
+import { useAuth } from '@/contexts/AuthContext';
 import { procurementService } from '@/services/procurement';
 import type {
   DataShapingCatalogEntry,
@@ -70,6 +71,11 @@ const eventLabel = (kind: ProcurementImportRecord['orders'][number]['eventKind']
 };
 
 export function DataManagementWorkspace() {
+  // Rollback, restore, and data-shaping rules are administrator actions
+  // (ISSUES.md #50a) — the server refuses them for Staff. Hiding the controls
+  // keeps a staff member from meeting a 403 they could not have predicted;
+  // it is not the boundary, which lives on the route.
+  const { isAdministrator } = useAuth();
   const [imports, setImports] = React.useState<ProcurementImportRecord[]>([]);
   const [status, setStatus] = React.useState<ProcurementDataStatus | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
@@ -298,39 +304,45 @@ export function DataManagementWorkspace() {
                 icon: Eye,
                 onClick: () => setDetailTarget(row.original),
               },
-              {
-                // An import is something you can reshape after the fact, not
-                // only roll back (D20). Seeded with this import's source and
-                // window so the rule starts where the user is looking.
-                label: 'Shape Data',
-                icon: SlidersHorizontal,
-                onClick: () => openRuleDialog({
-                  scope: 'donor',
-                  source: row.original.source,
-                  startDate: row.original.rangeStart,
-                  endDate: row.original.rangeEnd,
-                }),
-              },
-              row.original.status === 'active'
-                ? {
-                    label: 'Rollback',
-                    icon: Undo2,
-                    variant: 'destructive' as const,
-                    onClick: () => setLifecycleAction({ mode: 'rollback', imports: [row.original] }),
-                  }
-                : {
-                    label: 'Restore Import',
-                    icon: RotateCcw,
-                    onClick: () => setLifecycleAction({ mode: 'restore', imports: [row.original] }),
-                  },
+              ...(isAdministrator
+                ? [
+                    {
+                      // An import is something you can reshape after the fact,
+                      // not only roll back (D20). Seeded with this import's
+                      // source and window so the rule starts where the user is
+                      // looking.
+                      label: 'Shape Data',
+                      icon: SlidersHorizontal,
+                      onClick: () => openRuleDialog({
+                        scope: 'donor',
+                        source: row.original.source,
+                        startDate: row.original.rangeStart,
+                        endDate: row.original.rangeEnd,
+                      }),
+                    },
+                    row.original.status === 'active'
+                      ? {
+                          label: 'Rollback',
+                          icon: Undo2,
+                          variant: 'destructive' as const,
+                          onClick: () => setLifecycleAction({ mode: 'rollback', imports: [row.original] }),
+                        }
+                      : {
+                          label: 'Restore Import',
+                          icon: RotateCcw,
+                          onClick: () => setLifecycleAction({ mode: 'restore', imports: [row.original] }),
+                        },
+                  ]
+                : []),
             ]}
           />
         </div>
       ),
     },
-  ], [openRuleDialog, pairedSourceByImportId]);
+  ], [isAdministrator, openRuleDialog, pairedSourceByImportId]);
 
-  const bulkActions = React.useMemo<TableBulkAction<ProcurementImportRecord>[]>(() => [
+  const bulkActions = React.useMemo<TableBulkAction<ProcurementImportRecord>[]>(() => (
+    !isAdministrator ? [] : [
     {
       label: 'Rollback Active Imports',
       icon: Undo2,
@@ -356,7 +368,7 @@ export function DataManagementWorkspace() {
         setLifecycleAction({ mode: 'restore', imports: rolledBack });
       },
     },
-  ], []);
+  ]), [isAdministrator]);
 
   const handleImported = async (result: UnifiedImportResult) => {
     if (result.outcome === 'imported') await refresh();
@@ -423,6 +435,7 @@ export function DataManagementWorkspace() {
         onEdit={(rule) => openRuleDialog({ rule })}
         onToggle={(rule, enabled) => void toggleRule(rule, enabled)}
         onDelete={setRuleToDelete}
+        canManage={isAdministrator}
       />
 
       <OfbImportDialog

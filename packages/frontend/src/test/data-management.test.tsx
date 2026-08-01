@@ -6,6 +6,22 @@ import { render, screen } from '@testing-library/react';
 import { describe, expect, test, vi } from 'vitest';
 
 import { DataManagementWorkspace } from '@/components/data-management';
+
+// Rollback, restore, and rule authoring are administrator-only as of beta.5
+// (ISSUES.md #50a). These tests exercise the workspace itself, so the role is
+// mocked rather than provided — most cases assert the administrator view, and
+// `mockRole` flips it for the staff case below.
+const authState = { isAdministrator: true };
+vi.mock('@/contexts/AuthContext', () => ({
+  useAuth: () => ({
+    isAuthenticated: true,
+    isLoading: false,
+    user: { name: 'admin', email: 'admin@williamtemple.org', role: 'ADMINISTRATOR', accessState: 'ALLOWED' },
+    isAdministrator: authState.isAdministrator,
+    checkSession: async () => {},
+    logout: async () => {},
+  }),
+}));
 import type {
   DataShapingCatalogEntry,
   DataShapingRule,
@@ -147,6 +163,32 @@ describe('Data rules (D19/D20)', () => {
     expect(screen.getByText('No rules yet')).toBeVisible();
     // FEED ships no opinionated exclusions.
     expect(screen.getByRole('button', { name: /Add Rule/ })).toBeVisible();
+  });
+
+  test('shows staff what a rule does without offering to change it', async () => {
+    const { procurementService } = await import('@/services/procurement');
+    vi.mocked(procurementService.getRules).mockResolvedValueOnce({
+      rules: [shapingRule()],
+      catalog: CATALOG,
+    });
+
+    authState.isAdministrator = false;
+    try {
+      render(<DataManagementWorkspace />);
+
+      // A rule changes what Analytics counts, so a staff member reading a total
+      // has to be able to see that it is in force.
+      expect(await screen.findByText('Data Rules')).toBeVisible();
+      expect(screen.getByText('Active')).toBeVisible();
+
+      // But authoring is the server's call to refuse, and the UI should not
+      // offer an action that will come back 403.
+      expect(screen.queryByRole('button', { name: /Add Rule/ })).toBeNull();
+      expect(screen.queryByRole('button', { name: /Edit rule/ })).toBeNull();
+      expect(screen.queryByRole('button', { name: /Delete rule/ })).toBeNull();
+    } finally {
+      authState.isAdministrator = true;
+    }
   });
 
   test('restates a saved rule in plain language, with the reason it exists', async () => {
