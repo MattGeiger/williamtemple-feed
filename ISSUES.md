@@ -38,6 +38,33 @@ Everything else in this file. The application is shippable today.
 
 ## Open Issues
 
+### #58 — Tailwind v4 codemod renamed a variant *value*, not just classes
+**Priority**: Medium · **Status**: Fixed in 1.5.0-beta.6
+**Bucket**: Tailwind v4 fallout
+
+The v4 upgrade codemod rewrote `outline` → `outline-solid` across the 72-file
+template pass. That rename is correct for utility *classes*; it was also
+applied to eight `variant="outline"` **prop values** and to two TypeScript
+union members declaring them.
+
+Neither `Button` nor `Badge` has an `outline-solid` variant, so every affected
+control rendered with no variant styling at all — silently, because
+`class-variance-authority` falls through to the base classes rather than
+throwing. Affected: pagination's active-page button, the Document Translator's
+pagination, the Data Management import-status badge, a Shopping List Builder
+badge, and three buttons in the Find Missing Translations dialog.
+
+It survived the migration's utility-by-utility stylesheet diff because that
+compared *classes*; these are prop values, which never reach the stylesheet.
+It was found while adding a toolbar button, when the union rejected the
+`'outline'` every caller was already passing.
+
+Fixed in all eight call sites and both unions. tsc 288 → 280.
+
+Worth a check if other codemod-era prop values were caught the same way — the
+class rename list is the place to start.
+
+
 ### #57 — Magic links were burned by inbound mail scanning
 **Priority**: Medium · **Status**: Fixed in 1.5.0-beta.5
 **Bucket**: authentication
