@@ -2,13 +2,23 @@
 
 ## Status
 
-**Scheduled, not designed.** This is the input to a design session, not a plan.
-It records what is already settled, what the session must decide, and the traps
-that are already known — so that session starts from the current state of the
-system rather than rediscovering it.
+**Backup shipped in 1.5.0-beta.6. Restore is still to design**, and this
+remains the input to that session rather than a plan.
 
-Preconditions are met: beta.4 delivered roles, the roster, and the audit log;
-beta.5 gated the privileged routes. ISSUES.md #50b.
+The artifact format now exists, which the questions below can be answered
+against instead of in the abstract: `services/backup/table-contract.ts` names
+what is in and out with a reason for each, and `sanitized-backup.ts` defines the
+manifest (artifact kind, table-contract version, FEED version, applied
+migration, row counts, exclusion list, SHA-256 over canonicalised data).
+
+One question below is already answered by what shipped: **the export excludes
+`User`, `AccessPolicy`, and `AdminAuditLog`**, so a stale or edited artifact
+cannot restore authority. Restore inherits that decision — there is nothing in
+the file to restore access from, and the bootstrap path stands.
+
+The rest of this document records what is already settled, what the session must
+decide, and the traps that are already known — so that session starts from the
+current state of the system rather than rediscovering it. ISSUES.md #50b.
 
 ## Why this gets a design pass first
 
@@ -42,22 +52,24 @@ organization. There is no per-user export and no per-user restore.
 
 ## What the design session must settle
 
-1. **Artifact format and the version contract.** JSON manifest plus table
-   payloads is the obvious shape, but the binding decision is what happens when
-   the schema has moved on: refuse outright, refuse with a named migration
+1. **The version contract.** The format itself is settled — beta.6 ships a JSON
+   manifest carrying artifact kind, table-contract version, FEED version, the
+   applied migration, row counts, the exclusion list, and a SHA-256 over
+   canonicalised data. What remains is the binding decision: what happens when
+   the schema has moved on — refuse outright, refuse with a named migration
    path, or attempt a forward migration. Restoring a beta.4 artifact into a
    beta.9 database is the realistic case, and "attempt it and hope" is not an
    option. The manifest needs FEED version, schema/migration version, table
    contract version, row counts, and a checksum.
 
-2. **What is actually in scope for the export.** Inventory (categories, food
-   items, limits, statuses), translations, shopping-list templates and saved
-   components, procurement imports and revisions, settings, operating hours,
-   the user roster and audit log — each needs an explicit in/out decision, not
-   a default. The roster is the interesting one: restoring it restores
-   *authority*, so a malicious or stale artifact could grant administrator
-   access. That may argue for excluding roles from the artifact and forcing the
-   bootstrap path after restore.
+2. ~~**What is actually in scope for the export.**~~ **Settled by beta.6.**
+   The contract is `services/backup/table-contract.ts`, which classifies every
+   model as included or excluded with a reason, enforced by a test that fails on
+   any model in neither. The roster question resolved the cautious way: `User`,
+   `AccessPolicy`, and `AdminAuditLog` are excluded, so no artifact can restore
+   authority. Restore inherits that — reconsider only with a reason, since
+   widening an export is easy and narrowing it after people depend on it is
+   not.
 
 3. **Maintenance mode.** The contract requires stopping writes during restore.
    FEED has no such mode today. Deciding what it means — reject writes with a
@@ -110,9 +122,8 @@ exclusion list, and the version contract with no ability to destroy anything.
 Restore then has a real artifact to consume and a real format to validate
 against.
 
-That also means beta.6 could reasonably ship backup alone, with restore in
-beta.7, if the design session concludes restore needs more time than the
-release window allows.
+That is what happened: beta.6 shipped backup alone, and restore is beta.7 or
+later, once designed.
 
 ## Reading order for whoever picks this up
 

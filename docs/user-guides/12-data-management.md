@@ -62,9 +62,16 @@ of staff work.
 - To understand the resulting visualizations, read [Inventory Analytics](04-inventory-reports.md#read-procurement-analytics).
 - To manage Food Items and availability, read [Inventory](03-inventory.md).
 
+## The Analytics and Database tabs
+
+Data Management has two tabs. **Analytics** opens by default and holds
+everything on this page — coverage, data rules, importing, and the import
+history. **Database** holds backup actions and appears for administrators only.
+
 ## Downloading a backup
 
-Administrators can save a copy of the pantry's data with **Download Backup**.
+Administrators can save a copy of the pantry's data from **Database →
+Download Backup**.
 
 It contains categories and food items with their limits, every saved
 translation, shopping list templates and saved components, imported procurement
@@ -76,3 +83,9 @@ own** — it is a copy of your working data, not of the whole system. Ask whoeve
 maintains your server to keep full server backups as well.
 
 Keep the file somewhere private. It still holds your organization's data.
+
+The same tab shows what FEED is currently holding: record counts by kind, the
+size of the database, and when the last backup was taken.
+
+**Restoring from a backup is not available yet.** The button is there and will
+say so if you press it.

@@ -4,20 +4,30 @@
 
 *Beta — deployed to production for evaluation before the final 1.5.0 tag.*
 
-- **You can now download a backup of FEED's data.** Look under **Admin →
-  Backup**. It saves a single file containing your categories and food items,
-  every saved translation, your shopping list templates, imported procurement
-  history, and your settings. Keep it somewhere private and safe.
-- **The backup deliberately leaves some things out**, and the page lists them:
-  AI provider keys, sign-in codes, the staff list, and uploaded documents. That
-  means the file cannot restore FEED by itself, and it is not a replacement for
-  the server backups whoever maintains FEED takes for you. It is a copy of your
-  pantry's working data, not of the whole system.
-- Downloading a backup is recorded in the activity history, like every other
-  administrator action.
+- **You can now download a backup of FEED's data.** Look under **Data
+  Management → Database**. It saves a single file containing your categories and
+  food items, every saved translation, your shopping list templates, imported
+  procurement history, and your settings. Keep it somewhere private and safe.
+- **The backup deliberately leaves some things out** — AI provider keys, sign-in
+  codes, the staff list, and uploaded documents. That means the file cannot
+  restore FEED by itself, and it does not replace the server backups whoever
+  maintains FEED takes for you. It is a copy of your pantry's working data, not
+  of the whole system.
+- **A summary of what FEED is holding** sits on the same tab: how many
+  categories, food items, translations, templates, and imported records there
+  are, how large the database is, and when you last took a backup.
+- **Data Management is now split into two tabs.** *Analytics* is everything the
+  page had before and opens by default. *Database* holds the backup actions and
+  appears for administrators only.
+- **Dates on this page now read as 07/31/2026** rather than "Jul 31, 2026".
+- **Data Rules moved up the page**, above the import buttons, since those rules
+  affect the totals shown above them.
+- Fixed several buttons and labels across FEED that had lost their outline
+  styling in the Tailwind upgrade — the active page number in tables, some
+  status badges, and buttons in the Find Missing Translations window.
 
-*Restoring from a backup file is not built yet — that comes in a later update.*
-
+*Restoring from a backup file is not built yet. The button is there and will
+tell you so; that work comes in a later update.*
 
 ## Version 1.5.0-beta.5 — 2026-08-01
 
