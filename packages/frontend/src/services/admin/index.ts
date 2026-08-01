@@ -12,6 +12,7 @@ import type {
   AccessPolicyUpdate,
   AdministratorSummary,
   AuditPage,
+  DatabaseSummary,
   InviteResult,
   RosterUser,
   UserAccessState,
@@ -113,6 +114,13 @@ class AdminService extends BaseApiService {
    * a parsed object could change formatting and invalidate the manifest
    * checksum a reader is meant to verify against.
    */
+  async getDatabaseSummary(): Promise<DatabaseSummary> {
+    const response = await this.get<{ summary: DatabaseSummary }>(
+      config.api.endpoints.admin.databaseSummary
+    );
+    return response.summary;
+  }
+
   /**
    * Save the sanitized backup to disk.
    *
