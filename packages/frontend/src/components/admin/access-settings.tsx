@@ -6,7 +6,7 @@
 // not covered by this license; see TRADEMARKS.md.
 
 import * as React from 'react';
-import { TriangleAlert } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import {
@@ -151,18 +151,26 @@ export function AccessSettings({
         </div>
 
         {switchingToAllowlist && (
-          <Alert variant={tooFewAdministrators ? 'destructive' : 'default'}>
-            <TriangleAlert className="h-4 w-4" />
-            <AlertTitle>
-              {tooFewAdministrators
-                ? 'Not enough administrators to switch safely'
-                : 'Check the roster before switching'}
-            </AlertTitle>
-            <AlertDescription>
-              {tooFewAdministrators
-                ? `Only ${administrators?.eligible ?? 0} administrator can sign in. Allowlist mode requires two, so a changed or lost mailbox cannot lock everyone out. Promote another administrator first.`
-                : 'After this change, anyone not on the roster is turned away — including colleagues with valid organization addresses. Confirm the roster is right first.'}
-            </AlertDescription>
+          // `items-start` overrides the Alert root's `items-center` so the icon
+          // sits on the first line, and the title/description are wrapped so
+          // they stack rather than laying out along the root's flex row.
+          <Alert
+            variant={tooFewAdministrators ? 'destructive' : 'warning'}
+            className="items-start"
+          >
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+            <div>
+              <AlertTitle>
+                {tooFewAdministrators
+                  ? 'Not enough administrators to switch safely'
+                  : 'Check the roster before switching'}
+              </AlertTitle>
+              <AlertDescription>
+                {tooFewAdministrators
+                  ? `Only ${administrators?.eligible ?? 0} administrator can sign in. Allowlist mode requires two, so a changed or lost mailbox cannot lock everyone out. Promote another administrator first.`
+                  : 'After this change, anyone not on the roster is turned away — including colleagues with valid organization addresses. Confirm the roster is right first.'}
+              </AlertDescription>
+            </div>
           </Alert>
         )}
 
