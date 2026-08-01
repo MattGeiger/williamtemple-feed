@@ -55,10 +55,11 @@ to shrink and pushes the whole page into horizontal overflow.
 4. **`description` is one sentence**, sentence case, no trailing period
    ambiguity — it wraps under the title at any width and should still read as a
    single thought on a narrow viewport.
-5. **Do not wrap `SectionHeader` in an extra `<div>`.** Some older pages do
-   (`settings/index.tsx`, `shared/data-list/DataList.tsx`); the page root
-   already carries `min-w-0 w-full`, so the wrapper is redundant. New pages
-   follow `data-management/index.tsx` and `admin/index.tsx`.
+5. **Do not wrap `SectionHeader` in an extra `<div>`.** The page root already
+   carries `min-w-0 w-full`, so a `<div className="w-full min-w-0">` around the
+   header repeats it to no effect. `settings/index.tsx` and
+   `shared/data-list/DataList.tsx` carried one until 1.5.0-beta.4; every page
+   is now consistent.
 
 ## Conforming routes
 
