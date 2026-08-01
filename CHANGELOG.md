@@ -86,6 +86,23 @@ deploying; migrations apply automatically on container start.
   with geometry taken verbatim from lucide-react. "Change to Staff" and "Revoke
   access" no longer share a glyph: the shield family now means a role change and
   the person/ban family an access change (ISSUES.md #54).
+- **The light/dark reveal radiates from the Theme Switcher again in Chrome
+  150.** It had been starting from the viewport's top centre there, while
+  Safari and Chromium 148 were correct on the same 2× display. `clip-path` on
+  `::view-transition-new(root)` resolves against that pseudo-element's own box,
+  not the viewport, and the two coincide only while the snapshot is sized in
+  CSS pixels. Diagnostics from the affected browser showed FEED requesting the
+  button's true centre and Chrome drawing it elsewhere: at `innerWidth` 965 and
+  `devicePixelRatio` 2, an origin 92% across a CSS-pixel box lands at 46% of a
+  device-pixel one. The reveal is now expressed in percentages, which track the
+  button proportionally whatever box the browser uses, with the end radius
+  converted through the reference percentage radii resolve against so the
+  pacing is unchanged (ISSUES.md #55).
+- **A React key-spread warning on every page load is gone.** Lucide's
+  `__iconNode` stores its key inside each primitive's attrs, so spreading them
+  re-introduced a `key` prop after the explicit one — and the spread won,
+  discarding the stable fallback for nodes that have none. Pre-existing for
+  every icon in the fallback registry.
 - **The Admin page uses `user-round-cog` rather than a shield-with-checkmark**,
   which read as security verification instead of managing people. Animated in
   the sidebar, static in the section header, per Rule 4 of the motion standards
@@ -93,10 +110,6 @@ deploying; migrations apply automatically on container start.
 
 ### Notes
 
-- A report that the light/dark reveal radiates from the viewport's top centre
-  rather than the Theme Switcher could not be reproduced; measurement shows the
-  circle centred on the button and the `@layer base` override winning. Recorded
-  with the full evidence as ISSUES.md #55, pending repro details.
 - **Existing privileged routes are deliberately unchanged.** Procurement
   rollback and restore, AI configuration, and data-shaping rules are not yet
   behind an administrator check. Between the migration and a verified roster the
