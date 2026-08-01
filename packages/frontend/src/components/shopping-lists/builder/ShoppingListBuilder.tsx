@@ -6180,7 +6180,7 @@ export function ShoppingListBuilder() {
                                         }
                                       }}
                                     />
-                                    <Badge variant={row.foodItemId ? 'secondary' : 'outline-solid'} className="shrink-0">
+                                    <Badge variant={row.foodItemId ? 'secondary' : 'outline'} className="shrink-0">
                                       {limitSourceLabel(row)}
                                     </Badge>
                                   </div>

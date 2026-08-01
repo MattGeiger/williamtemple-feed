@@ -532,7 +532,7 @@ export function EnhancedFindMissingDialog({
                                     onClick={handleProcessTranslations}
                                     disabled={isProcessing || Object.values(selectedTypes).filter(Boolean).length === 0}
                                     className={`w-full ${isProcessing || Object.values(selectedTypes).filter(Boolean).length === 0 ? 'opacity-50 border border-dashed text-muted-foreground' : ''}`}
-                                    variant={isProcessing || Object.values(selectedTypes).filter(Boolean).length === 0 ? "outline-solid" : "default"}
+                                    variant={isProcessing || Object.values(selectedTypes).filter(Boolean).length === 0 ? "outline" : "default"}
                                   >
                                     {isProcessing && processingAction === 'process' && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                     Queue for Translation
@@ -581,7 +581,7 @@ export function EnhancedFindMissingDialog({
                                     onClick={handleDeleteTranslations}
                                     disabled={isProcessing || Object.values(selectedTypes).filter(Boolean).length === 0 || (!hasFailedTranslations && !hasStaleTranslations)}
                                     className={`w-full ${isProcessing || Object.values(selectedTypes).filter(Boolean).length === 0 || (!hasFailedTranslations && !hasStaleTranslations) ? 'opacity-50 border border-dashed text-muted-foreground' : ''}`}
-                                    variant={isProcessing || Object.values(selectedTypes).filter(Boolean).length === 0 || (!hasFailedTranslations && !hasStaleTranslations) ? "outline-solid" : "destructive"}
+                                    variant={isProcessing || Object.values(selectedTypes).filter(Boolean).length === 0 || (!hasFailedTranslations && !hasStaleTranslations) ? "outline" : "destructive"}
                                   >
                                     {isProcessing && processingAction === 'delete' && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                     <Trash2 className="mr-2 h-4 w-4" />
@@ -692,7 +692,7 @@ export function EnhancedFindMissingDialog({
                                       onClick={handleDeleteTranslations}
                                       disabled={isProcessing || Object.values(selectedTypes).filter(Boolean).length === 0}
                                       className={`w-full ${isProcessing || Object.values(selectedTypes).filter(Boolean).length === 0 ? 'opacity-50 border border-dashed text-muted-foreground' : ''}`}
-                                      variant={isProcessing || Object.values(selectedTypes).filter(Boolean).length === 0 ? "outline-solid" : "destructive"}
+                                      variant={isProcessing || Object.values(selectedTypes).filter(Boolean).length === 0 ? "outline" : "destructive"}
                                     >
                                       {isProcessing && processingAction === 'delete' && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                       <Trash2 className="mr-2 h-4 w-4" />
