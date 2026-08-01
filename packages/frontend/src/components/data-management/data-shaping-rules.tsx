@@ -2,8 +2,14 @@
 // Copyright (C) 2026 Matt Geiger
 
 import * as React from 'react';
-import { Pencil, Plus, Trash2 } from 'lucide-react';
+import { CircleHelp, Pencil, Plus, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -85,12 +91,34 @@ export function DataShapingRules({
     <Card className="min-w-0">
       <CardHeader className="flex-row items-start justify-between gap-4 space-y-0">
         <div className="min-w-0">
-          <CardTitle>Data Rules</CardTitle>
-          <CardDescription>
-            How your agency reads its own data. Rules never change or delete what was imported —
-            they record context, and Analytics decides which flags to honor. They apply to data
-            already imported as well as to everything imported later.
-          </CardDescription>
+          <div className="flex items-center gap-1.5">
+            <CardTitle>Data Rules</CardTitle>
+            {/* The detail belongs here rather than in the card: it answers a
+                question staff ask once, and on screen it crowded the rules
+                themselves. */}
+            {/* Self-provided, like ShoppingListList and DocumentList: the
+                component should not depend on an ancestor provider it cannot
+                guarantee. Nested providers are supported. */}
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    className="text-muted-foreground hover:text-foreground"
+                    aria-label="About data rules"
+                  >
+                    <CircleHelp className="h-4 w-4" aria-hidden="true" />
+                  </button>
+              </TooltipTrigger>
+                <TooltipContent className="max-w-xs">
+                  Rules never change or delete imported data. They add context
+                  that Analytics reads, and they apply to past and future
+                  imports alike.
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+          <CardDescription>How your agency reads its own data.</CardDescription>
         </div>
         {canManage && (
           <Button size="sm" onClick={onAdd} className="shrink-0">
