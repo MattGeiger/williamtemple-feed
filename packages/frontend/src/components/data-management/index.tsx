@@ -400,6 +400,15 @@ export function DataManagementWorkspace() {
       </Alert>
     )}
 
+    <DataShapingRules
+      rules={rules}
+      isLoading={rulesLoading}
+      onAdd={() => openRuleDialog(null)}
+      onEdit={(rule) => openRuleDialog({ rule })}
+      onToggle={(rule, enabled) => void toggleRule(rule, enabled)}
+      onDelete={setRuleToDelete}
+      canManage={isAdministrator}
+    />
     <EnhancedDataTable
       ref={tableRef}
       columns={columns}
@@ -432,15 +441,6 @@ export function DataManagementWorkspace() {
       ]}
     />
 
-    <DataShapingRules
-      rules={rules}
-      isLoading={rulesLoading}
-      onAdd={() => openRuleDialog(null)}
-      onEdit={(rule) => openRuleDialog({ rule })}
-      onToggle={(rule, enabled) => void toggleRule(rule, enabled)}
-      onDelete={setRuleToDelete}
-      canManage={isAdministrator}
-    />
     </>
   );
 
