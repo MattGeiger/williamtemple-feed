@@ -13,6 +13,7 @@ import { AccessPolicyService } from '../../services/auth/access-policy-service';
 import { AdminAuditService } from '../../services/auth/admin-audit-service';
 import { RosterService } from '../../services/auth/roster-service';
 import { SanitizedBackupService } from '../../services/backup/sanitized-backup';
+import { DatabaseSummaryService } from '../../services/backup/database-summary';
 import {
   ACCESS_MODES,
   AUDIT_ACTIONS,
@@ -203,6 +204,20 @@ router.put('/access-policy', rateLimiter, async (req, res, next) => {
     );
 
     res.json({ policy });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * GET /api/admin/database-summary — what the database currently holds.
+ *
+ * Counted over the same table contract the backup exports, so the figures
+ * describe exactly what a backup would contain.
+ */
+router.get('/database-summary', rateLimiter, async (_req, res, next) => {
+  try {
+    res.json({ summary: await DatabaseSummaryService.get() });
   } catch (error) {
     next(error);
   }

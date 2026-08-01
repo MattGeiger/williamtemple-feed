@@ -76,6 +76,7 @@ interface ApiConfig {
       accessPolicy: string;
       audit: string;
       backup: string;
+      databaseSummary: string;
     };
   };
 }
@@ -155,7 +156,8 @@ const config: AppConfig = {
         userById: (id: string) => `/users/${id}`,
         accessPolicy: '/access-policy',
         audit: '/audit',
-        backup: '/backup'
+        backup: '/backup',
+        databaseSummary: '/database-summary'
       }
     }
   }
