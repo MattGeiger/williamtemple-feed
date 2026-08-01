@@ -38,15 +38,40 @@ Everything else in this file. The application is shippable today.
 
 ## Open Issues
 
-### #55 — Theme transition origin reported as viewport top-centre
-**Priority**: Low · **Status**: Cannot reproduce; awaiting repro details
-**Bucket**: motion / Tailwind v4 fallout
+### #55 — Theme transition radiated from viewport top-centre in Chrome 150
+**Priority**: Low · **Status**: Fixed in 1.5.0-beta.4
+**Bucket**: motion / browser compatibility
 
-Reported after the Tailwind v4 migration: the light/dark reveal used to radiate
-from the Theme Switcher button and now appears to radiate from the top centre of
-the viewport.
+The light/dark reveal radiated from the top centre of the viewport instead of
+the Theme Switcher button — **in Chrome 150 only**. Safari and Chromium 148
+(Electron) were correct on the same machine and the same 2× display, which is
+why the first investigation could not reproduce it.
 
-**Investigated 2026-07-31 and not reproduced.** Measured in the running app at
+**Cause.** `clip-path` on `::view-transition-new(root)` resolves against that
+pseudo-element's own box, not the viewport. The two coincide only while the
+browser sizes the snapshot in CSS pixels. Diagnostics from the affected browser
+showed FEED requesting exactly the right thing —
+`circle(20px at 889px 31.5px)`, the button's true centre, on the correct
+pseudo-element, with `animationName: none` confirming our `@layer base`
+override won, no extensions, no forced colors, zoom 1 — and Chrome drawing it
+elsewhere. With `innerWidth` 965 and `devicePixelRatio` 2, an origin 92% of the
+way across a CSS-pixel box falls at 46% of a device-pixel one: top centre,
+exactly as reported.
+
+**Fix.** The reveal is expressed in percentages rather than pixels, so the
+origin tracks the button proportionally against whatever box the browser uses.
+The end radius is converted through the `sqrt(w² + h²) / sqrt(2)` reference that
+percentage radii resolve against, so the pacing is unchanged. Verified on
+Chromium 148 by pausing the animation at 20% progress: emitted origin
+`89.31% / 3.70%` matches the button's computed proportional position, and the
+rendered frame is identical to the pixel version. **Confirmed correct in
+Chrome 150 by the reporter**, on the machine where the fault was observed.
+
+The earlier hypotheses — Tailwind v4's real cascade layers, an extension, a
+Chrome force-dark flag — were each tested and disproved; the notes below are
+retained because they rule those out for any future recurrence.
+
+**Superseded investigation notes (2026-07-31).** Measured in the running app at
 711×832 and again after resize:
 
 - `runThemeTransition` computed `circle(20px at 635px 31.5px)` → the trigger
