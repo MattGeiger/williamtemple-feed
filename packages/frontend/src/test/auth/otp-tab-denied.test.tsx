@@ -14,17 +14,6 @@ vi.mock('@/components/ui/use-toast', () => ({
   useToast: () => ({ toast: vi.fn() }),
 }));
 
-// The code-entry step renders InputOTP, which observes its own size. jsdom has
-// no ResizeObserver; stub it locally rather than widening the shared setup for
-// one test file.
-if (!('ResizeObserver' in globalThis)) {
-  (globalThis as unknown as { ResizeObserver: unknown }).ResizeObserver = class {
-    observe() {}
-    unobserve() {}
-    disconnect() {}
-  };
-}
-
 /**
  * A refused sign-in must not advance to the code-entry step.
  *
