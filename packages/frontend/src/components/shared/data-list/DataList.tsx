@@ -27,7 +27,7 @@ interface DataItem {
 interface ToolbarAction {
   label: string
   icon: LucideIcon
-  variant: 'default' | 'destructive' | 'outline-solid' | 'secondary' | 'ghost' | 'link'
+  variant: 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link'
   action: () => void
 }
 
