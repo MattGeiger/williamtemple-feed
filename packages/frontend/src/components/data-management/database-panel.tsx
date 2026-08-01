@@ -11,6 +11,14 @@ import { DownloadIcon } from '@/components/animate-ui/icons/download';
 import { UploadIcon } from '@/components/animate-ui/icons/upload';
 import { Button } from '@/components/ui/button';
 import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
@@ -19,6 +27,7 @@ import {
 import { ErrorHandlerService } from '@/services/error/ErrorHandlerService';
 import { messageService } from '@/services/message';
 import { adminService } from '@/services/admin';
+import { DATABASE_SUMMARY_GROUPS, type DatabaseSummary } from '@/types/admin';
 
 /**
  * Administrator-only database actions.
@@ -27,14 +36,47 @@ import { adminService } from '@/services/admin';
  * not on screen — it is a question most people ask once. The tooltips carry the
  * one thing that cannot wait: this file is not a whole-system backup.
  */
+/** Bytes as something a person reads, not a number they have to convert. */
+const sizeLabel = (bytes: number | null): string => {
+  if (bytes === null) return 'Size unavailable';
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+};
+
+const dateLabel = (iso: string) =>
+  new Date(iso).toLocaleDateString(undefined, {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  });
+
 export function DatabasePanel() {
   const [isDownloading, setIsDownloading] = React.useState(false);
+  const [summary, setSummary] = React.useState<DatabaseSummary | null>(null);
+  const [isLoading, setIsLoading] = React.useState(true);
+
+  const loadSummary = React.useCallback(async () => {
+    setIsLoading(true);
+    try {
+      setSummary(await adminService.getDatabaseSummary());
+    } catch (error) {
+      ErrorHandlerService.handleError(error, 'databaseSummary');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    void loadSummary();
+  }, [loadSummary]);
 
   const handleDownload = async () => {
     setIsDownloading(true);
     try {
       const { filename } = await adminService.downloadBackup();
       messageService.success(`Saved ${filename}.`);
+      // The card shows when the last backup was taken; that is now.
+      void loadSummary();
     } catch (error) {
       ErrorHandlerService.handleError(error, 'dataManagementBackup');
     } finally {
@@ -44,6 +86,7 @@ export function DatabasePanel() {
 
   return (
     <TooltipProvider>
+      <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
       <Tooltip>
         <TooltipTrigger asChild>
@@ -82,6 +125,49 @@ export function DatabasePanel() {
           designed before it is built.
         </TooltipContent>
       </Tooltip>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>What FEED is holding</CardTitle>
+          <CardDescription>
+            {isLoading || !summary
+              ? 'Counting…'
+              : `${summary.totalRecords.toLocaleString()} records · ${sizeLabel(summary.sizeBytes)}` +
+                (summary.lastBackupAt
+                  ? ` · last backup ${dateLabel(summary.lastBackupAt)}`
+                  : ' · never backed up')}
+          </CardDescription>
+        </CardHeader>
+
+        <CardContent>
+          {isLoading || !summary ? (
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {Array.from({ length: 5 }).map((_, index) => (
+                <Skeleton key={index} className="h-24 w-full" />
+              ))}
+            </div>
+          ) : (
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {DATABASE_SUMMARY_GROUPS.map(group => (
+                <div key={group.label}>
+                  <p className="text-sm font-medium">{group.label}</p>
+                  <dl className="mt-2 space-y-1">
+                    {group.tables.map(({ table, label }) => (
+                      <div key={table} className="flex items-baseline justify-between gap-4">
+                        <dt className="text-sm text-muted-foreground">{label}</dt>
+                        <dd className="text-sm font-medium tabular-nums">
+                          {(summary.rowCounts[table] ?? 0).toLocaleString()}
+                        </dd>
+                      </div>
+                    ))}
+                  </dl>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
       </div>
     </TooltipProvider>
   );
