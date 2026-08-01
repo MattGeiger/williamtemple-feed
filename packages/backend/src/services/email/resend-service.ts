@@ -28,7 +28,11 @@ export class ResendService {
   static async sendMagicLink(email: string, token: string): Promise<void> {
     assertEmailConfig();
     const resend = new Resend(resendApiKey);
-    const magicLink = `${process.env.APP_URL}/api/auth/callback?token=${token}&email=${encodeURIComponent(email)}`;
+    // Points at the confirmation *page*, not the API. Following this link
+    // consumes nothing; the token is spent only when the recipient presses the
+    // button there, which POSTs it. Mail scanners prefetch links and would
+    // otherwise burn a single-use token before the human ever clicked.
+    const magicLink = `${process.env.APP_URL}/sign-in/confirm?token=${token}&email=${encodeURIComponent(email)}`;
     
     try {
       const { error } = await resend.emails.send({
@@ -148,7 +152,7 @@ export class ResendService {
                   <tr>
                     <td style="padding-bottom: 30px;">
                       <p style="color: #555555; font-size: 16px; line-height: 24px; margin: 0;">
-                        Click the button below to sign in to your account. This link expires in 10 minutes.
+                        Click the button below, then confirm on the page that opens. This link expires in 10 minutes.
                       </p>
                     </td>
                   </tr>

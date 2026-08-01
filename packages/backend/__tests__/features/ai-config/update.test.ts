@@ -23,6 +23,19 @@ describe('AI Configuration Update', () => {
     app.use(express.json());
 
     const aiConfigRouter = (await import('../../../src/routes/ai-config')).default;
+    // AI configuration mutations require administrator authority as of
+    // beta.5 (ISSUES.md #50a). `jwtAuthMiddleware` populates req.auth from a
+    // per-request database read in the real app; these route tests stand that
+    // in so the subject under test stays the route, not the guard.
+    app.use((req, _res, next) => {
+      req.auth = {
+        userId: 'test-admin',
+        email: 'admin@williamtemple.org',
+        role: 'ADMINISTRATOR',
+        accessState: 'ALLOWED',
+      };
+      next();
+    });
     app.use('/api/ai-config', aiConfigRouter);
   });
 
