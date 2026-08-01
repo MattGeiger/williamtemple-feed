@@ -5,6 +5,10 @@ All notable changes to FEED are documented here. This project adheres to
 
 ## [Unreleased]
 
+Next: **1.5.0-beta.6 — sanitized backup and restore** (ISSUES.md #50b). The
+precondition, Administrator authority, was met by beta.4 and beta.5. Design
+brief: `docs/data-management/beta-6-backup-restore-brief.md`.
+
 ## [1.5.0-beta.5] — 2026-08-01
 
 Closes the authorization hole beta.4 built the machinery for, and makes magic
