@@ -12,8 +12,11 @@ import { auditActorFrom, requireAdmin } from '../../middleware/auth/require-admi
 import { AccessPolicyService } from '../../services/auth/access-policy-service';
 import { AdminAuditService } from '../../services/auth/admin-audit-service';
 import { RosterService } from '../../services/auth/roster-service';
+import { SanitizedBackupService } from '../../services/backup/sanitized-backup';
 import {
   ACCESS_MODES,
+  AUDIT_ACTIONS,
+  AUDIT_TARGET_TYPES,
   DENIED_MESSAGE_MAX_LENGTH,
   ROLES,
 } from '../../services/auth/authorization';
@@ -200,6 +203,43 @@ router.put('/access-policy', rateLimiter, async (req, res, next) => {
     );
 
     res.json({ policy });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * GET /api/admin/backup — download a sanitized logical backup.
+ *
+ * Not a database snapshot. It deliberately omits key material, authentication
+ * records, and authority (see services/backup/table-contract.ts, and
+ * docs/data-management/backup-and-restore.md for why the distinction matters).
+ * The artifact names its own exclusions so the file is self-describing.
+ */
+router.get('/backup', rateLimiter, async (req, res, next) => {
+  try {
+    const actor = auditActorFrom(req);
+    const backup = await SanitizedBackupService.create(actor.label);
+
+    await AdminAuditService.record({
+      actor,
+      action: AUDIT_ACTIONS.BACKUP_DOWNLOADED,
+      targetType: AUDIT_TARGET_TYPES.BACKUP,
+      targetLabel: SanitizedBackupService.filename(backup.manifest.generatedAt),
+      detail: {
+        tableContractVersion: backup.manifest.tableContractVersion,
+        schemaVersion: backup.manifest.schemaVersion,
+        checksum: backup.manifest.checksum,
+        rowCounts: backup.manifest.rowCounts,
+      },
+    });
+
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${SanitizedBackupService.filename(backup.manifest.generatedAt)}"`
+    );
+    res.send(JSON.stringify(backup, null, 2));
   } catch (error) {
     next(error);
   }

@@ -88,4 +88,5 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   USER_INVITED: 'Invited',
   USER_DELETED: 'Removed from roster',
   ACCESS_POLICY_UPDATED: 'Access settings changed',
+  BACKUP_DOWNLOADED: 'Backup downloaded',
 };

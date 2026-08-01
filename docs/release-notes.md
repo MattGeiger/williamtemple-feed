@@ -1,5 +1,24 @@
 # Release Notes
 
+## Version 1.5.0-beta.6 — 2026-08-01
+
+*Beta — deployed to production for evaluation before the final 1.5.0 tag.*
+
+- **You can now download a backup of FEED's data.** Look under **Admin →
+  Backup**. It saves a single file containing your categories and food items,
+  every saved translation, your shopping list templates, imported procurement
+  history, and your settings. Keep it somewhere private and safe.
+- **The backup deliberately leaves some things out**, and the page lists them:
+  AI provider keys, sign-in codes, the staff list, and uploaded documents. That
+  means the file cannot restore FEED by itself, and it is not a replacement for
+  the server backups whoever maintains FEED takes for you. It is a copy of your
+  pantry's working data, not of the whole system.
+- Downloading a backup is recorded in the activity history, like every other
+  administrator action.
+
+*Restoring from a backup file is not built yet — that comes in a later update.*
+
+
 ## Version 1.5.0-beta.5 — 2026-08-01
 
 *Beta — deployed to production for evaluation before the final 1.5.0 tag.*
