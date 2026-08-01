@@ -6,6 +6,7 @@ import type { ColumnDef } from '@tanstack/react-table';
 import { format, parseISO } from 'date-fns';
 import { AlertTriangle, Archive, Eye, RotateCcw, SlidersHorizontal, Undo2 } from 'lucide-react';
 import { UploadIcon } from '@/components/animate-ui/icons/upload';
+import { DownloadIcon } from '@/components/animate-ui/icons/download';
 import { createPageTitleIcon } from '@/components/layout/page-title-icon';
 import { SectionHeader } from '@/components/shared/section-header';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -34,6 +35,7 @@ import { TableActionMenu } from '@/components/ui/table-action-menu';
 import { ErrorHandlerService } from '@/services/error/ErrorHandlerService';
 import { messageService } from '@/services/message';
 import { useAuth } from '@/contexts/AuthContext';
+import { adminService } from '@/services/admin';
 import { procurementService } from '@/services/procurement';
 import type {
   DataShapingCatalogEntry,
@@ -167,6 +169,15 @@ export function DataManagementWorkspace() {
       ErrorHandlerService.handleError(error, 'procurementDataRules');
     } finally {
       setIsUpdating(false);
+    }
+  };
+
+  const handleDownloadBackup = async () => {
+    try {
+      const { filename } = await adminService.downloadBackup();
+      messageService.success(`Saved ${filename}.`);
+    } catch (error) {
+      ErrorHandlerService.handleError(error, 'dataManagementBackup');
     }
   };
 
@@ -425,6 +436,22 @@ export function DataManagementWorkspace() {
             variant: 'outline',
             action: () => setLegacyOpen(true),
           },
+          // Backup belongs with the other data actions, not on the Admin page:
+          // it is a data task that happens to be privileged, not an identity
+          // one. What the file does and does not contain is in the Data
+          // Management help guide rather than on screen.
+          ...(isAdministrator
+            ? [
+                {
+                  label: 'Download Backup',
+                  icon: DownloadIcon,
+                  variant: 'outline' as const,
+                  title:
+                    'Saves your pantry data as a file. Excludes keys, sign-in records, and staff access.',
+                  action: () => void handleDownloadBackup(),
+                },
+              ]
+            : []),
         ]}
       />
 

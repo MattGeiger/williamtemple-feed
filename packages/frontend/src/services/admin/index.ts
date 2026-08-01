@@ -113,7 +113,15 @@ class AdminService extends BaseApiService {
    * a parsed object could change formatting and invalidate the manifest
    * checksum a reader is meant to verify against.
    */
-  async downloadBackup(): Promise<{ filename: string; rowTotal: number }> {
+  /**
+   * Save the sanitized backup to disk.
+   *
+   * Deliberately not routed through BaseApiService: that layer parses JSON into
+   * an object, and re-serialising it could change formatting and invalidate the
+   * manifest checksum a reader is meant to verify the file against. The bytes
+   * the server produced are the bytes that get saved.
+   */
+  async downloadBackup(): Promise<{ filename: string }> {
     const response = await fetch(
       `${config.api.baseUrl}${config.api.endpoints.admin.base}${config.api.endpoints.admin.backup}`,
       { credentials: 'include' }
@@ -143,18 +151,7 @@ class AdminService extends BaseApiService {
       URL.revokeObjectURL(url);
     }
 
-    let rowTotal = 0;
-    try {
-      const counts = JSON.parse(text)?.manifest?.rowCounts ?? {};
-      rowTotal = Object.values(counts).reduce<number>(
-        (sum, count) => sum + (typeof count === 'number' ? count : 0),
-        0
-      );
-    } catch {
-      // The file is already saved; a summary is a nicety, not a requirement.
-    }
-
-    return { filename, rowTotal };
+    return { filename };
   }
 
   async getAudit(options: { limit?: number; offset?: number } = {}): Promise<AuditPage> {
