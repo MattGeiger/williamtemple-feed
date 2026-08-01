@@ -1,5 +1,22 @@
 # Release Notes
 
+## Version 1.5.0-beta.5 — 2026-08-01
+
+*Beta — deployed to production for evaluation before the final 1.5.0 tag.*
+
+- **Sign-in links in email now work.** Previously, the security scanner that
+  checks incoming mail would open the link before you did, which used it up —
+  so the link was already spent by the time you clicked it, and the six-digit
+  code was the only way in. The link now opens a page with a **Sign in**
+  button, and nothing is used up until you press it. One extra click, and it
+  works.
+- **Some actions are now limited to administrators.** Undoing or restoring a
+  data import, adding data rules, and changing AI settings are administrator
+  tasks. Everyone can still see all of it — including which data rules are
+  active, since those change the totals on your reports — but the controls only
+  appear for administrators.
+- **Importing data is unchanged** and remains available to all staff.
+
 ## Version 1.5.0-beta.4 — 2026-07-31
 
 *Beta — deployed to production for evaluation before the final 1.5.0 tag.*
