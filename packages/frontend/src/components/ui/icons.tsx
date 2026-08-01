@@ -331,10 +331,16 @@ function createFallbackIcon(iconName: string, iconNode: IconNode) {
         >
           {iconNode.map(([tag, attrs], index) => {
             const MotionElement = motionElements[tag as SvgPrimitive] ?? motion.path;
+            // Lucide's __iconNode carries `key` *inside* each attrs object, so
+            // spreading attrs re-introduces a key prop after the explicit one.
+            // React warns about that and the spread value wins, discarding the
+            // stable fallback below. Pull it out before spreading so the key is
+            // passed directly and never reaches the DOM element as an attribute.
+            const { key: nodeKey, ...primitiveAttrs } = attrs;
             return (
               <MotionElement
-                key={String(attrs.key ?? iconName + "-" + index)}
-                {...attrs}
+                key={String(nodeKey ?? iconName + "-" + index)}
+                {...primitiveAttrs}
                 variants={primitiveVariants(kind, tag, index, iconNode.length)}
               />
             );
