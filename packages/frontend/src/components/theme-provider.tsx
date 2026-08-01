@@ -8,7 +8,9 @@
 "use client"
 
 import { ThemeProvider as NextThemesProvider } from "next-themes"
-import { type ThemeProviderProps } from "next-themes/dist/types"
+// next-themes 0.4 exports its types from the package root; the old
+// `next-themes/dist/types` subpath no longer resolves.
+import { type ThemeProviderProps } from "next-themes"
 
 export function ThemeProvider({ children, ...props }: ThemeProviderProps) {
   return (

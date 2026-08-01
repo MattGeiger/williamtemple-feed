@@ -177,16 +177,36 @@ asserts the refusal message and the *absence* of both "Code sent to" and the
 code prompt.
 
 ### #51 — Frontend lint command is not runnable
-**Priority**: Medium · **Status**: Open
+**Priority**: Medium · **Status**: Runnable as of 1.5.0-beta.4; backlog open
 **Bucket**: developer tooling
 
 `packages/frontend` uses a flat `eslint.config.js`, but its `lint` script still
-passes the legacy `--ext` flag, which ESLint rejects when flat configuration is
-active. Running ESLint without that flag then fails because the configuration
-imports `typescript-eslint`, which is not declared in the frontend package.
-Builds and tests remain available, but they are not a substitute for the lint
-gate. Repair the script and declare a compatible `typescript-eslint` dependency
-before treating frontend lint as part of release validation.
+passed the legacy `--ext` flag, which ESLint rejects when flat configuration is
+active. Removing that flag then failed because the configuration imports
+`typescript-eslint` — the unified v7+ package — which was never declared; only
+the split v6 `@typescript-eslint/{parser,eslint-plugin}` were.
+
+**Fixed.** `typescript-eslint ^8.65.0` is declared (compatible with the
+installed ESLint 8.57.1) and the script runs under flat config. This was not a
+new dependency in substance — the config already required it.
+
+The first successful run found **three `react-hooks/rules-of-hooks`
+violations**, all real and all fixed: a `useMemo` after an early return in
+`usage-summary.tsx`, and `useState`/`useEffect` called inside a column
+definition's `cell` in the Document Translator's `columns.tsx` (extracted to a
+`DocumentNameCell` component, which also removed a duplicate 768px mobile
+breakpoint that `useIsMobile` already owns).
+
+**Still open: the backlog.** 497 problems remain — `no-unused-vars` (190),
+`react-refresh/only-export-components` (125), `no-explicit-any` (116),
+`react-hooks/exhaustive-deps` (36), and a long tail. `--max-warnings 0` is
+deliberately off the script until that is cleared: a gate nothing can pass is
+not a gate. The `exhaustive-deps` warnings are the ones most likely to hide
+real bugs and are the sensible next slice.
+
+Consider a lint ratchet mirroring the type-check one
+(`npm run typecheck:ratchet`, see `docs/TSC-DEBT.md`) so the count cannot grow
+while the backlog is worked down.
 
 ### #50a — Administrator authority and the Admin page
 **Priority**: High · **Status**: Implemented in 1.5.0-beta.4; route tightening
