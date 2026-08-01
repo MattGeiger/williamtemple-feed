@@ -8,6 +8,8 @@
     "build": "tsc && vite build",
     "check:icon-coverage": "node scripts/check-lucide-icon-coverage.cjs",
     "lint": "ESLINT_USE_FLAT_CONFIG=true eslint . --report-unused-disable-directives",
+    "typecheck": "node scripts/typecheck-ratchet.mjs --report",
+    "typecheck:ratchet": "node scripts/typecheck-ratchet.mjs",
     "preview": "vite preview",
     "test": "vitest"
   },
