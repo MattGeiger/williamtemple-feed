@@ -61,7 +61,10 @@ exactly as reported.
 **Fix.** The reveal is expressed in percentages rather than pixels, so the
 origin tracks the button proportionally against whatever box the browser uses.
 The end radius is converted through the `sqrt(w² + h²) / sqrt(2)` reference that
-percentage radii resolve against, so the pacing is unchanged. Verified on
+percentage radii resolve against, so the geometry is equivalent to the pixel
+form rather than an approximation of it. (The duration and easing were then
+retuned separately as a feel change — 1200ms on
+`cubic-bezier(0.64, 0, 0.36, 1)` — which is independent of this fix.) Verified on
 Chromium 148 by pausing the animation at 20% progress: emitted origin
 `89.31% / 3.70%` matches the button's computed proportional position, and the
 rendered frame is identical to the pixel version. **Confirmed correct in

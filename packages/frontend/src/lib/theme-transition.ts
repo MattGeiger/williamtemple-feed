@@ -81,7 +81,8 @@ export async function runThemeTransition({
   // so the origin tracks the button regardless of how the snapshot is scaled.
   // A percentage radius resolves against sqrt(w² + h²) / sqrt(2), so the end
   // radius is converted through that reference rather than guessed — the
-  // reveal keeps the exact pacing it had.
+  // geometry is equivalent to the pixel form it replaced, not an approximation
+  // of it.
   const radiusReference = Math.hypot(width, height) / Math.SQRT2
   const originX = (origin.x / width) * 100
   const originY = (origin.y / height) * 100
@@ -103,8 +104,22 @@ export async function runThemeTransition({
         ],
       },
       {
-        duration: 600,
-        easing: "cubic-bezier(0.22, 1, 0.36, 1)",
+        // A symmetric ease-in-out S-curve — reflecting it through (0.5, 0.5)
+        // maps (0.64, 0) onto (0.36, 1), so the acceleration in mirrors the
+        // deceleration out exactly. It is effectively easeInOutCubic, whose
+        // canonical form is cubic-bezier(0.65, 0, 0.35, 1).
+        //
+        // Chosen over the previous 600ms ease-out (cubic-bezier(0.22, 1, 0.36,
+        // 1)) for how it renders on 60Hz displays: that curve spent most of its
+        // travel in the first handful of frames, which reads as a jump on a
+        // 16.7ms frame budget. At 1200ms the sweep has ~72 frames to cover, and
+        // the symmetric curve spreads the movement across them instead of
+        // front-loading it.
+        //
+        // This is a deliberate feel choice, not a derived value — retune it
+        // freely, but check it on a 60Hz panel rather than only on 120Hz.
+        duration: 1200,
+        easing: "cubic-bezier(0.64, 0, 0.36, 1)",
         pseudoElement: "::view-transition-new(root)",
       } as KeyframeAnimationOptions & { pseudoElement: string }
     )
