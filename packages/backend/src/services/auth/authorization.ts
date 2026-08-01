@@ -48,6 +48,7 @@ export const AUDIT_ACTIONS = {
   USER_INVITED: 'USER_INVITED',
   USER_DELETED: 'USER_DELETED',
   ACCESS_POLICY_UPDATED: 'ACCESS_POLICY_UPDATED',
+  BACKUP_DOWNLOADED: 'BACKUP_DOWNLOADED',
 } as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[keyof typeof AUDIT_ACTIONS];
@@ -55,6 +56,7 @@ export type AuditAction = (typeof AUDIT_ACTIONS)[keyof typeof AUDIT_ACTIONS];
 export const AUDIT_TARGET_TYPES = {
   USER: 'USER',
   ACCESS_POLICY: 'ACCESS_POLICY',
+  BACKUP: 'BACKUP',
 } as const;
 
 export type AuditTargetType =

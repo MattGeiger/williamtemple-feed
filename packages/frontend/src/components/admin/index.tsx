@@ -29,6 +29,7 @@ import type {
 } from '@/types/admin';
 import { AccessSettings } from './access-settings';
 import { AuditHistory } from './audit-history';
+import { BackupPanel } from './backup-panel';
 import { UserRoster } from './user-roster';
 
 /**
@@ -85,6 +86,7 @@ export function AdminPage() {
         <TabsList>
           <TabsTrigger value="users">Staff</TabsTrigger>
           <TabsTrigger value="access">Sign-in</TabsTrigger>
+          <TabsTrigger value="backup">Backup</TabsTrigger>
           <TabsTrigger value="audit">History</TabsTrigger>
         </TabsList>
 
@@ -106,6 +108,10 @@ export function AdminPage() {
               isLoading={isLoading}
               onChanged={() => void load()}
             />
+          </TabsContent>
+
+          <TabsContent value="backup" className="pt-4">
+            <BackupPanel />
           </TabsContent>
 
           <TabsContent value="audit" className="pt-4">
