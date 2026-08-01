@@ -38,33 +38,42 @@ Everything else in this file. The application is shippable today.
 
 ## Open Issues
 
-### #59 — Backend test files share one database and ran in parallel
-**Priority**: Medium · **Status**: Mitigated in 1.5.0-beta.6; proper fix open
+### #59 — Backend suite flaked under load
+**Priority**: Medium · **Status**: Fixed in 1.5.0-beta.6
 **Bucket**: developer tooling / test integrity
 
-Every backend test file points at the same `dev.db`
-(`DATABASE_URL="file:../dev.db"`), and Vitest runs files in parallel by
-default. One file's seed or cleanup could therefore invalidate another's
-assertions.
+The backend suite failed two tests in one run and three different ones in the
+next, all passing in isolation.
 
-It presented as unrelated flakiness: `public-inventory` and
-`shopping-list-builder` failed together in one run and a different set failed
-in the next, while every one of them passed in isolation. That moving target
-is the signature of a shared fixture, not of a defect in the code under test.
+**The first diagnosis in this entry was wrong and is corrected here.** It
+attributed the flakiness to test files sharing one `dev.db` while Vitest ran
+them in parallel. That was inferred from `DATABASE_URL` plus Vitest's default
+parallelism, and never checked. Every one of the eleven test files that imports
+`src/db` also mocks it — no test touches a real database, so a shared fixture
+could not have been the cause. Serialising the suite appeared to fix it, which
+made the wrong explanation look confirmed.
 
-**Mitigated** with `fileParallelism: false`. The suite is now deterministic —
-35 files, 488 passing, 2 skipped — at the cost of a slower run.
+**The actual cause** is a timeout that is too short for what the tests do. The
+Shopping List Builder's `preview-pdf` tests launch Chromium and render a real
+PDF, which takes ~5.6s on this hardware. Vitest's default `testTimeout` is
+5000ms. They were already over the line in a *serial* run and passed only when
+they happened to land under it; any extra load — parallel workers, a running
+dev server, a concurrent build — pushed them over. Serialising helped only
+because it reduced contention, not because it removed a conflict.
 
-**Be clear about what this means retroactively:** green backend runs before
-this change were partly luck. Test counts quoted during the beta.4–beta.6 work
-were accurate for the run that produced them, but the suite could not have
-reliably reproduced them.
+**Fixed** with `testTimeout`/`hookTimeout` of 30s, and parallelism restored.
+Verified across four consecutive parallel runs, and again with eight cores
+deliberately saturated — 35 files, 488 passing, 2 skipped, every time.
 
-**Proper fix, still open:** give each worker its own database — a temp file per
-worker seeded from the migrations, with `DATABASE_URL` set per process — and
-restore parallelism. That is a test-infrastructure change worth doing on its
-own rather than inside a feature.
+**Retroactive note stands, for a different reason than first recorded.** Green
+backend runs before this were genuinely at risk, because two tests sat past the
+default timeout and passed on timing luck. The counts quoted through
+beta.4–beta.6 were accurate for the runs that produced them.
 
+Lesson worth keeping: "passes in isolation, fails in a suite" is not
+automatically a shared-fixture problem. Read the failure message before
+choosing a cause — this one said `TimeoutError`, which pointed straight at the
+answer and was not looked at first.
 
 ### #58 — Tailwind v4 codemod renamed a variant *value*, not just classes
 **Priority**: Medium · **Status**: Fixed in 1.5.0-beta.6
