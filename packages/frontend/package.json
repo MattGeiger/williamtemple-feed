@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "check:icon-coverage": "node scripts/check-lucide-icon-coverage.cjs",
-    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "lint": "ESLINT_USE_FLAT_CONFIG=true eslint . --report-unused-disable-directives",
     "preview": "vite preview",
     "test": "vitest"
   },
@@ -81,6 +81,7 @@
     "postcss": "^8.4.32",
     "tailwindcss": "^4.3.3",
     "typescript": "^5.2.2",
+    "typescript-eslint": "^8.65.0",
     "vite": "^5.0.8",
     "vitest": "^3.2.4"
   }

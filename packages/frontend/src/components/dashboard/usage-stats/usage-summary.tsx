@@ -385,15 +385,19 @@ function AggregatedMetricsView({ configurations, aggregatedMetrics, stats }: any
 }
 
 function IndividualServiceView({ configuration, stats, multiServiceData }: any) {
+  // Calculated before the early return below: a hook after a conditional
+  // return changes the hook order between renders, which React treats as a
+  // corrupted component ("rendered fewer hooks than expected"). Selecting a
+  // service with no configuration and then one with a configuration is exactly
+  // the sequence that triggers it.
+  const maxCost = useMemo(() => {
+    return Math.max(configuration?.totalCost ?? 0, 0.0001);
+  }, [configuration]);
+
   if (!configuration) {
     return <div className="text-center text-muted-foreground">No data available for selected service.</div>;
   }
-  
-  // Calculate threshold from configuration cost
-  const maxCost = useMemo(() => {
-    return Math.max(configuration.totalCost, 0.0001);
-  }, [configuration]);
-  
+
   const useCents = maxCost < 0.10;
   
   // Formatter function for costs in this view
