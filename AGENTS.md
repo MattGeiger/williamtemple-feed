@@ -39,6 +39,8 @@ Read these before broad changes:
 - `docs/toast/unified-error-handling.md` for ASK-aligned error handling.
 - `packages/frontend/docs/components/ui/README.md` for Shadcn/Radix UI usage.
 - `packages/frontend/docs/styling/README.md` for centralized styling and theme conventions.
+- `docs/layout/page-layout-standard.md` before adding or restructuring any route.
+- `docs/motion/ICON_ANIMATIONS.md` before adding or changing any icon.
 - `docs/layout/assistant-orientation.md` for historical orientation context. Treat `AGENTS.md` as the current source of truth if details differ.
 
 Read these before shopping list work:
@@ -112,6 +114,16 @@ This change goes against the current [pattern name] pattern. Here is why, here a
 ## UI Standards
 
 - Use TypeScript `.ts` and `.tsx`; do not add JSX files.
+- **Page layout is fixed.** Every route's root element is exactly
+  `space-y-6 min-w-0 w-full pt-6`, with `SectionHeader` as its first child.
+  `RootLayout`'s `<main>` already supplies the horizontal padding
+  (`px-4 sm:px-6`) and the bottom padding, so a page contributes only the top —
+  `p-6` or any `px-*` on a page root double-pads it and insets that route
+  further than the rest of the app. The header icon is **static** (from
+  `@/components/ui/icons`) because its parent is not interactive; the matching
+  sidebar entry uses the animated variant. Full specification, the conforming
+  route list, and a one-line measurement check:
+  `docs/layout/page-layout-standard.md`.
 - Use Shadcn/Radix components from `packages/frontend/src/components/ui` where possible.
 - Use Lucide icons for icon buttons when an icon exists.
 - Action menu icon convention: use `Pencil` for Rename and `SquarePen` for Edit.

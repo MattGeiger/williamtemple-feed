@@ -38,6 +38,27 @@ Everything else in this file. The application is shippable today.
 
 ## Open Issues
 
+### #56 — Admin page drifted from the standard route layout
+**Priority**: Low · **Status**: Fixed in 1.5.0-beta.4
+**Bucket**: UI consistency
+
+The Admin page wrapped its content in `space-y-6 p-6` while every other route
+uses `space-y-6 min-w-0 w-full pt-6`. `RootLayout`'s `<main>` already supplies
+the horizontal and bottom padding, so `p-6` added a second horizontal inset no
+other page has — pushing the icon, title, description, and all tab content
+further right — and the missing `min-w-0 w-full` removed the guard that keeps a
+wide child from forcing horizontal overflow.
+
+Fixed, and measured against Data Management to confirm: icon x=24, title x=64,
+header top y=88 on both.
+
+The layout was previously conventional rather than specified, which is how it
+drifted. It is now written down in `docs/layout/page-layout-standard.md`, with a
+summary rule in AGENTS.md under UI Standards so a future page does not
+rediscover it. That document also records the one real inconsistency between
+existing pages: `settings/index.tsx` and `shared/data-list/DataList.tsx` wrap
+`SectionHeader` in a redundant extra `<div>`, which new pages should not copy.
+
 ### #55 — Theme transition radiated from viewport top-centre in Chrome 150
 **Priority**: Low · **Status**: Fixed in 1.5.0-beta.4
 **Bucket**: motion / browser compatibility
