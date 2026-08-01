@@ -276,8 +276,8 @@ capability the pantry depends on before the roster was verified. Any
 authenticated user can still reach them until that lands.
 
 ### #50b — Sanitized in-app backups
-**Priority**: High · **Status**: Scheduled as the 1.5.0-beta.6 feature;
-design pass pending
+**Priority**: High · **Status**: Backup shipped in 1.5.0-beta.6;
+restore still pending its design pass
 **Bucket**: Data Management / authorization
 
 **Unblocked.** The stated precondition — Administrator authority — was
@@ -297,9 +297,33 @@ already paid for elsewhere (auto-applying migrations, Prisma's INTEGER
 timestamp storage, `.dump` omitting unique indexes, WAL, the encryption key
 living in the database).
 
-Likely to ship as backup first and restore second — possibly in separate
-releases. A sanitized export is useful on its own, exercises the manifest and
-exclusion list, and cannot destroy anything.
+**Backup shipped (beta.6).** `GET /api/admin/backup`, administrator-only and
+audited, produces a self-describing JSON artifact: a manifest carrying the
+artifact kind, table-contract version, FEED version, the applied migration
+name, per-table row counts, the exclusion list with reasons, and a SHA-256 over
+canonicalised data. Read inside a transaction so the snapshot is coherent.
+
+The contract is enforced mechanically rather than by prose: every model in the
+schema must appear in either `INCLUDED_TABLES` or `EXCLUDED_TABLES`, and a test
+reads `schema.prisma` and fails naming any model in neither. Verified by adding
+a probe model and confirming the failure. That is the guard that matters — the
+realistic leak is not somebody exporting `EncryptionKey` on purpose, it is a
+table added a year from now that a blanket export quietly picks up.
+
+**Authority is excluded, deliberately.** `User`, `AccessPolicy`, and
+`AdminAuditLog` are left out, so a stale or edited artifact cannot grant
+administrator access, quietly widen sign-in, or rewrite the record of
+privileged actions. In Domain mode the roster self-heals — a successful sign-in
+recreates the row as Staff. This is reversible if it proves wrong in practice;
+adding tables to an export is easy, removing them after people depend on them
+is not.
+
+**Restore is still to design.** Its blocking questions — maintenance mode,
+transactional strategy against the measured 30s ceiling, what happens when the
+artifact's schema version is older than the database, and how the action is
+confirmed — remain open in
+`docs/data-management/beta-6-backup-restore-brief.md`. Backup now supplies the
+concrete artifact format that design needs.
 
 Database backup terminology needs care. A transactionally consistent raw
 SQLite snapshot necessarily contains encrypted API-key material, encryption-key

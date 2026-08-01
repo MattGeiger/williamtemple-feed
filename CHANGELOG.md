@@ -5,9 +5,51 @@ All notable changes to FEED are documented here. This project adheres to
 
 ## [Unreleased]
 
-Next: **1.5.0-beta.6 — sanitized backup and restore** (ISSUES.md #50b). The
-precondition, Administrator authority, was met by beta.4 and beta.5. Design
-brief: `docs/data-management/beta-6-backup-restore-brief.md`.
+Next: **restore** (ISSUES.md #50b), still pending its design pass. Backup
+shipped in beta.6 and supplies the artifact format restore has to validate
+against. Open questions:
+`docs/data-management/beta-6-backup-restore-brief.md`.
+
+## [1.5.0-beta.6] — 2026-08-01
+
+Sanitized backup. No schema or migration changes.
+
+### Added
+
+- **Download a sanitized backup** from Admin → Backup, administrator-only and
+  recorded in the activity history. It is a *selective logical export*, not a
+  database snapshot — the distinction is the whole point of
+  `docs/data-management/backup-and-restore.md`. A raw SQLite snapshot
+  necessarily carries encryption keys, encrypted provider secrets, and
+  authentication records, so it stays an operator concern and is never a
+  browser download.
+
+  The artifact describes itself: artifact kind, table-contract version, FEED
+  version, the migration the database has applied, per-table row counts, the
+  full exclusion list *with the reason for each*, and a SHA-256 over
+  canonicalised data. Canonicalised because Prisma does not guarantee column
+  order, and a checksum that changed on an unchanged database after an upgrade
+  would be worthless. It is read inside a transaction so an import landing
+  mid-export cannot produce an incoherent file.
+
+  **Authority is excluded deliberately.** `User`, `AccessPolicy`, and
+  `AdminAuditLog` are left out, so a stale or edited artifact cannot grant
+  administrator access, widen who may sign in, or rewrite the history of
+  privileged actions. Also excluded: key material, provider secrets, sign-in
+  tokens, rows pointing at files the artifact does not carry, and telemetry.
+
+  The UI says plainly that this cannot restore FEED on its own and that full
+  disaster recovery remains a server-side concern — an administrator who
+  believed otherwise would plan a recovery around something that cannot deliver
+  one.
+
+- **The exclusion contract is enforced by a test, not by prose.** Every model in
+  `schema.prisma` must be classified as included or excluded; the test reads the
+  schema and fails naming any model in neither. Verified by adding a probe model
+  and confirming it fails. The realistic leak was never somebody exporting
+  `EncryptionKey` on purpose — it was a table added later that a blanket export
+  quietly picked up.
+
 
 ## [1.5.0-beta.5] — 2026-08-01
 
