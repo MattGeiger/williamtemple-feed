@@ -6,7 +6,7 @@
 // not covered by this license; see TRADEMARKS.md.
 
 import config from '@/config/config';
-import { BaseApiService } from '@/services/base';
+import { BaseApiService, parseContentDispositionFilename } from '@/services/base';
 import type {
   AccessPolicy,
   AccessPolicyUpdate,
@@ -103,6 +103,58 @@ class AdminService extends BaseApiService {
       update
     );
     return response.policy;
+  }
+
+  /**
+   * Fetch the sanitized backup and hand it to the browser as a download.
+   *
+   * Not routed through BaseApiService: that layer parses JSON into an object,
+   * and the point here is to save the bytes the server produced — re-serialising
+   * a parsed object could change formatting and invalidate the manifest
+   * checksum a reader is meant to verify against.
+   */
+  async downloadBackup(): Promise<{ filename: string; rowTotal: number }> {
+    const response = await fetch(
+      `${config.api.baseUrl}${config.api.endpoints.admin.base}${config.api.endpoints.admin.backup}`,
+      { credentials: 'include' }
+    );
+
+    if (!response.ok) {
+      const body = await response.json().catch(() => null);
+      throw new Error(
+        body?.error?.message ?? 'FEED could not prepare the backup. Try again in a moment.'
+      );
+    }
+
+    const text = await response.text();
+    const filename =
+      parseContentDispositionFilename(response.headers.get('Content-Disposition')) ??
+      'feed-backup.json';
+
+    const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
+    try {
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+
+    let rowTotal = 0;
+    try {
+      const counts = JSON.parse(text)?.manifest?.rowCounts ?? {};
+      rowTotal = Object.values(counts).reduce<number>(
+        (sum, count) => sum + (typeof count === 'number' ? count : 0),
+        0
+      );
+    } catch {
+      // The file is already saved; a summary is a nicety, not a requirement.
+    }
+
+    return { filename, rowTotal };
   }
 
   async getAudit(options: { limit?: number; offset?: number } = {}): Promise<AuditPage> {

@@ -75,6 +75,7 @@ interface ApiConfig {
       userById: (id: string) => string;
       accessPolicy: string;
       audit: string;
+      backup: string;
     };
   };
 }
@@ -153,7 +154,8 @@ const config: AppConfig = {
         userAccess: (id: string) => `/users/${id}/access`,
         userById: (id: string) => `/users/${id}`,
         accessPolicy: '/access-policy',
-        audit: '/audit'
+        audit: '/audit',
+        backup: '/backup'
       }
     }
   }
