@@ -6,6 +6,7 @@ import { Router } from 'express';
 import multer from 'multer';
 import { z } from 'zod';
 import { rateLimiter } from '../middleware/rate-limiter';
+import { requireAdmin } from '../middleware/auth/require-admin';
 import {
   ANALYTICS_RANGE_PRESETS,
   isValidLocalDate,
@@ -226,7 +227,7 @@ router.post('/imports/legacy', rateLimiter, upload.single('file'), async (req, r
   }
 });
 
-router.post('/imports/rollback', rateLimiter, async (req, res, next) => {
+router.post('/imports/rollback', rateLimiter, requireAdmin, async (req, res, next) => {
   try {
     const { ids } = idsSchema.parse(req.body);
     res.json({ result: await rollbackProcurementImports(ids, req.auth?.userId) });
@@ -244,7 +245,7 @@ router.post('/imports/rollback', rateLimiter, async (req, res, next) => {
   }
 });
 
-router.post('/imports/restore', rateLimiter, async (req, res, next) => {
+router.post('/imports/restore', rateLimiter, requireAdmin, async (req, res, next) => {
   try {
     const { ids } = idsSchema.parse(req.body);
     res.json({ result: await restoreProcurementImports(ids, req.auth?.userId) });
@@ -289,7 +290,7 @@ router.get('/rules', rateLimiter, async (_req, res, next) => {
   }
 });
 
-router.post('/rules', rateLimiter, async (req, res, next) => {
+router.post('/rules', rateLimiter, requireAdmin, async (req, res, next) => {
   try {
     const body = ruleBodySchema.parse(req.body);
     res.status(201).json({ rule: await createDataShapingRule(body, req.auth?.userId) });
@@ -307,7 +308,7 @@ router.post('/rules', rateLimiter, async (req, res, next) => {
   }
 });
 
-router.put('/rules/:id', rateLimiter, async (req, res, next) => {
+router.put('/rules/:id', rateLimiter, requireAdmin, async (req, res, next) => {
   try {
     const id = ruleIdSchema.parse(req.params.id);
     const body = ruleBodySchema.partial().parse(req.body);
@@ -326,7 +327,7 @@ router.put('/rules/:id', rateLimiter, async (req, res, next) => {
   }
 });
 
-router.delete('/rules/:id', rateLimiter, async (req, res, next) => {
+router.delete('/rules/:id', rateLimiter, requireAdmin, async (req, res, next) => {
   try {
     const id = ruleIdSchema.parse(req.params.id);
     await deleteDataShapingRule(id);

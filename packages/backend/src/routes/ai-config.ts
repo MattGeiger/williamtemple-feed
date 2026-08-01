@@ -12,6 +12,8 @@ import prisma from '../db';
 import { encryptApiKey } from '../services/encryption';
 import { encoding_for_model } from 'tiktoken';
 
+import { requireAdmin } from '../middleware/auth/require-admin';
+
 const router = Router();
 
 interface BulkUpdateRequest {
@@ -198,7 +200,7 @@ router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
 });
 
 // Create new configuration
-router.post('/', async (req: Request, res: Response, next: NextFunction) => {
+router.post('/', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { 
       name, 
@@ -304,7 +306,7 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
 });
 
 // Update configuration
-router.put('/:id', async (req: Request, res: Response, next: NextFunction) => {
+router.put('/:id', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
     const updateFields = req.body;
@@ -452,7 +454,7 @@ router.put('/:id', async (req: Request, res: Response, next: NextFunction) => {
 });
 
 // Bulk update configurations
-router.put('/bulk', async (req: Request, res: Response, next: NextFunction) => {
+router.put('/bulk', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
     console.log('Bulk update AI config request body:', req.body);
     const { ids, updates } = req.body as BulkUpdateRequest;
@@ -523,7 +525,7 @@ router.put('/bulk', async (req: Request, res: Response, next: NextFunction) => {
 });
 
 // Bulk delete configurations
-router.delete('/bulk', async (req: Request, res: Response, next: NextFunction) => {
+router.delete('/bulk', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   console.log('Hit AI config bulk delete endpoint');
   try {
     console.log('Bulk delete AI config request:', {
@@ -692,7 +694,7 @@ router.post('/estimate-tokens', async (req: Request, res: Response, next: NextFu
 });
 
 // Delete single configuration
-router.delete('/:id', async (req: Request, res: Response, next: NextFunction) => {
+router.delete('/:id', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
     const configId = Number(id);
