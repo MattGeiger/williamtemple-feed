@@ -6,7 +6,6 @@ import type { ColumnDef } from '@tanstack/react-table';
 import { format, parseISO } from 'date-fns';
 import { AlertTriangle, Archive, Eye, RotateCcw, SlidersHorizontal, Undo2 } from 'lucide-react';
 import { UploadIcon } from '@/components/animate-ui/icons/upload';
-import { DownloadIcon } from '@/components/animate-ui/icons/download';
 import { createPageTitleIcon } from '@/components/layout/page-title-icon';
 import { SectionHeader } from '@/components/shared/section-header';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -30,12 +29,18 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { EnhancedDataTable } from '@/components/ui/enhanced-data-table';
+import {
+  Tabs,
+  TabsContent,
+  TabsContents,
+  TabsList,
+  TabsTrigger,
+} from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { TableActionMenu } from '@/components/ui/table-action-menu';
 import { ErrorHandlerService } from '@/services/error/ErrorHandlerService';
 import { messageService } from '@/services/message';
 import { useAuth } from '@/contexts/AuthContext';
-import { adminService } from '@/services/admin';
 import { procurementService } from '@/services/procurement';
 import type {
   DataShapingCatalogEntry,
@@ -46,6 +51,7 @@ import type {
 } from '@/types/procurement';
 import type { TableBulkAction } from '@/types/table';
 import { ProcurementCoverageStrip } from './coverage-strip';
+import { DatabasePanel } from './database-panel';
 import { DataShapingRuleDialog, type RuleDialogSeed } from './data-shaping-rule-dialog';
 import { DataShapingRules } from './data-shaping-rules';
 import { LegacyImportDialog } from './legacy-import-dialog';
@@ -65,7 +71,7 @@ const sourceLabel = (source: string) => {
   if (source === 'legacy_community') return 'Community Donations (historical)';
   return source;
 };
-const dateLabel = (date: string) => format(parseISO(date), 'MMM d, yyyy');
+const dateLabel = (date: string) => format(parseISO(date), 'MM/dd/yyyy');
 const eventLabel = (kind: ProcurementImportRecord['orders'][number]['eventKind']) => {
   if (kind === 'fresh_alliance_receipt') return 'Fresh Food Alliance Receipt';
   if (kind === 'community_donation_month') return 'Community Donation Month';
@@ -169,15 +175,6 @@ export function DataManagementWorkspace() {
       ErrorHandlerService.handleError(error, 'procurementDataRules');
     } finally {
       setIsUpdating(false);
-    }
-  };
-
-  const handleDownloadBackup = async () => {
-    try {
-      const { filename } = await adminService.downloadBackup();
-      messageService.success(`Saved ${filename}.`);
-    } catch (error) {
-      ErrorHandlerService.handleError(error, 'dataManagementBackup');
     }
   };
 
@@ -297,7 +294,7 @@ export function DataManagementWorkspace() {
       accessorKey: 'importedAt',
       header: 'Imported',
       size: 170,
-      cell: ({ row }) => format(new Date(row.original.importedAt), 'MMM d, yyyy h:mm a'),
+      cell: ({ row }) => format(new Date(row.original.importedAt), 'MM/dd/yyyy h:mm a'),
     },
     {
       id: 'actions',
@@ -385,85 +382,99 @@ export function DataManagementWorkspace() {
     if (result.outcome === 'imported') await refresh();
   };
 
+  // One definition, rendered by whichever branch applies below. Duplicating
+  // the JSX would double every future edit — and every type error in it.
+  const analyticsContent = (
+    <>
+    <ProcurementCoverageStrip status={status} formatDate={dateLabel} />
+
+    {status?.isStale && status.latestDeliveryDate && (
+      <Alert variant="warning" className="items-start">
+        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+        <div>
+          <AlertTitle>Procurement data may be out of date</AlertTitle>
+          <AlertDescription>
+            The most recent observation FEED holds is from {dateLabel(status.latestDeliveryDate)}. Importing a current export will refresh Procurement Analytics.
+          </AlertDescription>
+        </div>
+      </Alert>
+    )}
+
+    <EnhancedDataTable
+      ref={tableRef}
+      columns={columns}
+      data={imports}
+      isLoading={isLoading}
+      filterColumn="source"
+      filterPlaceholder="Filter imports..."
+      enableColumnVisibility
+      defaultPageSize={5}
+      selection={{
+        enabled: true,
+        selectionColumn: true,
+        bulkActions,
+      }}
+      toolbarActions={[
+        {
+          label: 'Import OFB Data',
+          icon: UploadIcon,
+          variant: 'default',
+          action: () => setImportOpen(true),
+        },
+        {
+          // A permanent single-agency sidecar (D22), deliberately separate
+          // from the OFB drop-zone above and hidden under white-label.
+          label: 'Import Legacy',
+          icon: Archive,
+          variant: 'outline',
+          action: () => setLegacyOpen(true),
+        },
+      ]}
+    />
+
+    <DataShapingRules
+      rules={rules}
+      isLoading={rulesLoading}
+      onAdd={() => openRuleDialog(null)}
+      onEdit={(rule) => openRuleDialog({ rule })}
+      onToggle={(rule, enabled) => void toggleRule(rule, enabled)}
+      onDelete={setRuleToDelete}
+      canManage={isAdministrator}
+    />
+    </>
+  );
+
   return (
     <div className="space-y-6 min-w-0 w-full pt-6">
       <SectionHeader
         title="Data Management"
-        description="Import external data, review its provenance, and reverse unwanted imports."
+        description="Import external data, download and restore database backups."
         icon={PageTitleDataManagementIcon}
       />
 
-      <ProcurementCoverageStrip status={status} formatDate={dateLabel} />
+      {/* Staff see only the Analytics content and no tab strip: a single tab
+          is chrome without a choice. Administrators also get Database, whose
+          actions the server gates independently of this rendering. */}
+      {isAdministrator ? (
+        <Tabs defaultValue="analytics">
+          <TabsList>
+            <TabsTrigger value="analytics">Analytics</TabsTrigger>
+            <TabsTrigger value="database">Database</TabsTrigger>
+          </TabsList>
 
-      {status?.isStale && status.latestDeliveryDate && (
-        <Alert variant="warning" className="items-start">
-          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-          <div>
-            <AlertTitle>Procurement data may be out of date</AlertTitle>
-            <AlertDescription>
-              The most recent observation FEED holds is from {dateLabel(status.latestDeliveryDate)}. Importing a current export will refresh Procurement Analytics.
-            </AlertDescription>
-          </div>
-        </Alert>
+          <TabsContents>
+            <TabsContent value="analytics" className="space-y-6 pt-4">
+              {analyticsContent}
+            </TabsContent>
+
+            <TabsContent value="database" className="pt-4">
+              <DatabasePanel />
+            </TabsContent>
+          </TabsContents>
+        </Tabs>
+      ) : (
+        <div className="space-y-6">{analyticsContent}</div>
       )}
-
-      <EnhancedDataTable
-        ref={tableRef}
-        columns={columns}
-        data={imports}
-        isLoading={isLoading}
-        filterColumn="source"
-        filterPlaceholder="Filter imports..."
-        enableColumnVisibility
-        defaultPageSize={5}
-        selection={{
-          enabled: true,
-          selectionColumn: true,
-          bulkActions,
-        }}
-        toolbarActions={[
-          {
-            label: 'Import OFB Data',
-            icon: UploadIcon,
-            variant: 'default',
-            action: () => setImportOpen(true),
-          },
-          {
-            // A permanent single-agency sidecar (D22), deliberately separate
-            // from the OFB drop-zone above and hidden under white-label.
-            label: 'Import Legacy',
-            icon: Archive,
-            variant: 'outline',
-            action: () => setLegacyOpen(true),
-          },
-          // Backup belongs with the other data actions, not on the Admin page:
-          // it is a data task that happens to be privileged, not an identity
-          // one. What the file does and does not contain is in the Data
-          // Management help guide rather than on screen.
-          ...(isAdministrator
-            ? [
-                {
-                  label: 'Download Backup',
-                  icon: DownloadIcon,
-                  variant: 'outline' as const,
-                  title:
-                    'Saves your pantry data as a file. Excludes keys, sign-in records, and staff access.',
-                  action: () => void handleDownloadBackup(),
-                },
-              ]
-            : []),
-        ]}
-      />
-
-      <DataShapingRules
-        rules={rules}
-        isLoading={rulesLoading}
-        onAdd={() => openRuleDialog(null)}
-        onEdit={(rule) => openRuleDialog({ rule })}
-        onToggle={(rule, enabled) => void toggleRule(rule, enabled)}
-        onDelete={setRuleToDelete}
-        canManage={isAdministrator}
-      />
 
       <OfbImportDialog
         open={importOpen}

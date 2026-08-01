@@ -38,6 +38,34 @@ Everything else in this file. The application is shippable today.
 
 ## Open Issues
 
+### #59 — Backend test files share one database and ran in parallel
+**Priority**: Medium · **Status**: Mitigated in 1.5.0-beta.6; proper fix open
+**Bucket**: developer tooling / test integrity
+
+Every backend test file points at the same `dev.db`
+(`DATABASE_URL="file:../dev.db"`), and Vitest runs files in parallel by
+default. One file's seed or cleanup could therefore invalidate another's
+assertions.
+
+It presented as unrelated flakiness: `public-inventory` and
+`shopping-list-builder` failed together in one run and a different set failed
+in the next, while every one of them passed in isolation. That moving target
+is the signature of a shared fixture, not of a defect in the code under test.
+
+**Mitigated** with `fileParallelism: false`. The suite is now deterministic —
+35 files, 488 passing, 2 skipped — at the cost of a slower run.
+
+**Be clear about what this means retroactively:** green backend runs before
+this change were partly luck. Test counts quoted during the beta.4–beta.6 work
+were accurate for the run that produced them, but the suite could not have
+reliably reproduced them.
+
+**Proper fix, still open:** give each worker its own database — a temp file per
+worker seeded from the migrations, with `DATABASE_URL` set per process — and
+restore parallelism. That is a test-infrastructure change worth doing on its
+own rather than inside a feature.
+
+
 ### #58 — Tailwind v4 codemod renamed a variant *value*, not just classes
 **Priority**: Medium · **Status**: Fixed in 1.5.0-beta.6
 **Bucket**: Tailwind v4 fallout

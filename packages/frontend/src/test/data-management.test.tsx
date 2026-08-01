@@ -109,8 +109,8 @@ describe('Data Management', () => {
 
     // The windows differ because Fresh Alliance entry lags; both are stated
     // plainly rather than compared.
-    expect(screen.getByText('Jan 5, 2009 – May 1, 2026')).toBeVisible();
-    expect(screen.getByText('Jun 1, 2023 – Apr 18, 2026')).toBeVisible();
+    expect(screen.getByText('01/05/2009 – 05/01/2026')).toBeVisible();
+    expect(screen.getByText('06/01/2023 – 04/18/2026')).toBeVisible();
     expect(screen.getByText('2,100 events')).toBeVisible();
     expect(screen.getByText('826 events')).toBeVisible();
 
@@ -152,6 +152,31 @@ describe('Data Management', () => {
     expect(await screen.findByText('Paired with OFB Agency Pickups')).toBeVisible();
     expect(screen.getByText('Paired with OFB Completed Orders')).toBeVisible();
     expect(screen.getAllByText(/Paired with/)).toHaveLength(2);
+  });
+});
+
+describe('Database tab visibility by role', () => {
+  test('offers Analytics and Database to an administrator', async () => {
+    render(<DataManagementWorkspace />);
+
+    expect(await screen.findByRole('tab', { name: 'Analytics' })).toBeVisible();
+    expect(screen.getByRole('tab', { name: 'Database' })).toBeVisible();
+  });
+
+  test('shows staff the analytics content with no tab strip at all', async () => {
+    authState.isAdministrator = false;
+    try {
+      render(<DataManagementWorkspace />);
+
+      // The content is still there — staff lose the Database actions, not the page.
+      expect(await screen.findByText('Data Rules')).toBeVisible();
+
+      // A single tab is chrome without a choice, so there is no tab strip.
+      expect(screen.queryByRole('tablist')).toBeNull();
+      expect(screen.queryByRole('tab', { name: 'Database' })).toBeNull();
+    } finally {
+      authState.isAdministrator = true;
+    }
   });
 });
 
