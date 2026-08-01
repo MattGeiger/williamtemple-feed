@@ -12,25 +12,26 @@ against. Open questions:
 
 ## [1.5.0-beta.6] — 2026-08-01
 
-Sanitized backup. No schema or migration changes.
+Sanitized backup, a database summary, and the Data Management page restructured
+around it. No schema or migration changes.
 
 ### Added
 
-- **Download a sanitized backup** from Admin → Backup, administrator-only and
-  recorded in the activity history. It is a *selective logical export*, not a
-  database snapshot — the distinction is the whole point of
-  `docs/data-management/backup-and-restore.md`. A raw SQLite snapshot
+- **Download a sanitized backup** from Data Management → Database,
+  administrator-only and recorded in the activity history. It is a *selective
+  logical export*, not a database snapshot — the distinction is the whole point
+  of `docs/data-management/backup-and-restore.md`. A raw SQLite snapshot
   necessarily carries encryption keys, encrypted provider secrets, and
-  authentication records, so it stays an operator concern and is never a
-  browser download.
+  authentication records, so it stays an operator concern and is never a browser
+  download.
 
   The artifact describes itself: artifact kind, table-contract version, FEED
   version, the migration the database has applied, per-table row counts, the
   full exclusion list *with the reason for each*, and a SHA-256 over
   canonicalised data. Canonicalised because Prisma does not guarantee column
   order, and a checksum that changed on an unchanged database after an upgrade
-  would be worthless. It is read inside a transaction so an import landing
-  mid-export cannot produce an incoherent file.
+  would be worthless. Read inside a transaction so an import landing mid-export
+  cannot produce an incoherent file.
 
   **Authority is excluded deliberately.** `User`, `AccessPolicy`, and
   `AdminAuditLog` are left out, so a stale or edited artifact cannot grant
@@ -38,10 +39,10 @@ Sanitized backup. No schema or migration changes.
   privileged actions. Also excluded: key material, provider secrets, sign-in
   tokens, rows pointing at files the artifact does not carry, and telemetry.
 
-  The UI says plainly that this cannot restore FEED on its own and that full
-  disaster recovery remains a server-side concern — an administrator who
-  believed otherwise would plan a recovery around something that cannot deliver
-  one.
+- **A database summary** on the same tab: grouped record counts, the file size,
+  and when the last backup was taken. Counted over the same table contract the
+  backup exports, so the figures describe exactly what a backup would contain —
+  a summary with its own list would eventually disagree with the artifact.
 
 - **The exclusion contract is enforced by a test, not by prose.** Every model in
   `schema.prisma` must be classified as included or excluded; the test reads the
@@ -50,6 +51,50 @@ Sanitized backup. No schema or migration changes.
   `EncryptionKey` on purpose — it was a table added later that a blanket export
   quietly picked up.
 
+### Changed
+
+- **Data Management is now tabbed: Analytics and Database.** Analytics is the
+  default and holds everything the page had before. Database holds the backup
+  actions. Staff see the Analytics content with no tab strip at all — a single
+  tab is chrome without a choice — while administrators get both. The server
+  gates the Database actions independently; the tab strip is presentation.
+- **Data Rules moved above the import toolbar** and its description shrank to
+  one line, with the detail behind a tooltip. The rules govern every total shown
+  above them, so ending the page with them below a paginated table read wrong.
+- **Dates are `mm/dd/yyyy` throughout the page** — coverage strip, delivery
+  ranges, import timestamps, the staleness alert, and the detail dialog.
+- **Restore Backup is present but not yet functional.** It answers with a
+  "coming soon" message rather than sitting disabled, matching AI
+  Configuration's *Reset to Defaults*: a dead control gives the user nothing to
+  act on. Restore replaces live data and its design questions are still open —
+  see `docs/data-management/beta-6-backup-restore-brief.md`.
+
+### Fixed
+
+- **Variant styling the Tailwind v4 codemod silently removed** (ISSUES.md #58).
+  The upgrade rewrote `outline` → `outline-solid` across its template pass;
+  that rename is correct for utility *classes* and was also applied to eight
+  `variant="outline"` prop values and two TypeScript unions. Neither `Button`
+  nor `Badge` has an `outline-solid` variant, so those controls rendered with no
+  variant styling at all — silently, because class-variance-authority falls
+  through to base classes rather than throwing. Affected pagination's active
+  page, the Document Translator's pagination, the Data Management status badge,
+  a Shopping List Builder badge, and three buttons in Find Missing Translations.
+  It survived beta.1's utility-by-utility stylesheet diff because that compared
+  classes; a prop value never reaches the stylesheet.
+- **The backend suite flaked under load** (ISSUES.md #59). The Shopping List
+  Builder's `preview-pdf` tests launch Chromium and render a real PDF, taking
+  ~5.6s against Vitest's 5000ms default — already over the line in a serial run,
+  and pushed over by any extra load. `testTimeout` is now 30s. An earlier
+  diagnosis in this release attributed the flakiness to test files sharing one
+  database; that was wrong and is corrected in #59.
+
+### Notes
+
+- **Restore is not built.** beta.6 ships the safe half. A sanitized export is
+  independently useful, exercises the manifest and exclusion list, and cannot
+  destroy anything — and it fixes the artifact format restore has to validate
+  against.
 
 ## [1.5.0-beta.5] — 2026-08-01
 
