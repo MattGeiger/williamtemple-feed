@@ -114,13 +114,11 @@ export function SettingsWorkspace() {
 
   return (
     <div className="space-y-6 min-w-0 w-full pt-6">
-      <div className="w-full min-w-0">
-        <SectionHeader
-          icon={Settings}
-          title="Settings"
-          description="Organization-wide settings shared by everyone using FEED."
-        />
-      </div>
+      <SectionHeader
+        icon={Settings}
+        title="Settings"
+        description="Organization-wide settings shared by everyone using FEED."
+      />
 
       <Card className="max-w-4xl">
         <CardHeader>
