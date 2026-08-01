@@ -5,6 +5,49 @@ All notable changes to FEED are documented here. This project adheres to
 
 ## [Unreleased]
 
+## [1.5.0-beta.5] — 2026-08-01
+
+Closes the authorization hole beta.4 built the machinery for, and makes magic
+links usable. No schema or migration changes.
+
+### Changed
+
+- **Privileged routes now require administrator authority** (ISSUES.md #50a).
+  Until now any authenticated user could roll back procurement imports, restore
+  them, author data-shaping rules that change what Analytics counts, or rewrite
+  AI provider keys and cost limits. beta.4 deliberately left these open, because
+  gating them before the roster was verified risked removing capability the
+  pantry depends on with no in-app way to restore it.
+
+  Reads stay open — staff keep visibility into imports, coverage, models, usage,
+  and cost. The procurement import itself also stays a staff workflow: it is the
+  everyday Data Management task, and it is additive and reversible, whereas
+  rollback is the destructive half.
+
+  The UI hides what the server will refuse, so a staff member never meets a
+  refusal they could not have predicted. Data-shaping rules stay *visible* to
+  everyone with an Active/Paused badge, because a rule changes the totals a
+  staff member is reading even though changing it is not theirs to do.
+
+### Fixed
+
+- **Magic links are no longer burned by mail scanning before they reach you**
+  (ISSUES.md #57). Microsoft Defender prefetches every link in an inbound
+  message; because the callback verified on GET, that scan spent the single-use
+  token first, which is why magic links never worked here and OTP became the
+  only usable path. Consumption moved to a POST behind a confirmation page: the
+  emailed link now opens a page that consumes nothing, and the token is spent
+  only when the recipient presses the button. Still single-use, still
+  ten-minute, still bound to one address — one extra click, and it survives the
+  scanner. Letting a token survive its first use was considered and rejected as
+  a replay window.
+- **`requireAdmin` now also refuses a revoked account**, not only a non-admin
+  one. `jwtAuthMiddleware` ends those sessions upstream so it never fires in the
+  mounted app, but a guard whose correctness depends on middleware ordering
+  opens silently if that ordering changes. Found by a test asserting the
+  property.
+
+
 ## [1.5.0-beta.4] — 2026-07-31
 
 Administrator authority, a user roster, and a sign-in access policy. **Includes

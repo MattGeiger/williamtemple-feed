@@ -44,6 +44,7 @@ import { ProtectedRoute } from './components/protected-route'
 import { AdminRoute } from './components/admin-route'
 import { AdminPage as AdminWorkspace } from './components/admin'
 import LoginPage from './components/pages/login-page'
+import { MagicLinkConfirmPage } from './components/auth/magic-link-confirm'
 import LogoutPage from './components/pages/logout-page'
 import { AIConfiguration } from './components/ai-configuration'
 import { HelpGuidePage } from './components/help/HelpGuidePage'
@@ -422,6 +423,10 @@ function App() {
                 <Routes>
                   {/* Public login route */}
                   <Route path="/login" element={<LoginPage />} />
+                  {/* Public by necessity: the visitor is not signed in yet.
+                      Consumes nothing on load — the token is spent only when
+                      the recipient presses the button. */}
+                  <Route path="/sign-in/confirm" element={<MagicLinkConfirmPage />} />
                   <Route path="/logout" element={<LogoutPage />} />
                 
                   {/* Protected routes */}
