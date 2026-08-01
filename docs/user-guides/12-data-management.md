@@ -61,3 +61,18 @@ of staff work.
 
 - To understand the resulting visualizations, read [Inventory Analytics](04-inventory-reports.md#read-procurement-analytics).
 - To manage Food Items and availability, read [Inventory](03-inventory.md).
+
+## Downloading a backup
+
+Administrators can save a copy of the pantry's data with **Download Backup**.
+
+It contains categories and food items with their limits, every saved
+translation, shopping list templates and saved components, imported procurement
+history and data rules, and your settings.
+
+It deliberately leaves out AI provider keys, encryption keys, sign-in codes, the
+staff list, and uploaded documents. That means it **cannot restore FEED on its
+own** — it is a copy of your working data, not of the whole system. Ask whoever
+maintains your server to keep full server backups as well.
+
+Keep the file somewhere private. It still holds your organization's data.
