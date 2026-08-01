@@ -32,7 +32,8 @@ Out of scope, with rationale:
 - **Tightening existing privileged routes** (procurement rollback/restore, AI
   configuration, data-shaping rules). Deferred to beta.5 — see
   [Why beta.4 does not gate existing routes](#why-beta4-does-not-gate-existing-routes).
-- **Sanitized backup and restore** (ISSUES.md #50). Unchanged deferral.
+- **Sanitized backup and restore** (ISSUES.md #50b). Deferred here, now
+  scheduled as the beta.6 feature.
 - **White-labelling** — the hardcoded `@williamtemple.org` domain stays
   hardcoded. Making allowed domains configurable is v2.0 work; noted in
   [v2.0 notes](#v20-notes) so the model leaves room for it.
@@ -435,20 +436,25 @@ Part of the deliverable, not follow-up:
 - A user guide under `docs/user-guides/` covering invite, prune, and the two
   access modes.
 
-## Deferred to beta.5
+## Delivered after beta.4
 
-- **Magic-link POST interstitial.** Microsoft Defender prefetches links in
-  inbound mail and burns the single-use token before the recipient can use it,
-  which is why OTP is the working path at William Temple House. The fix is to
-  make the emailed URL a GET to a page whose button POSTs to consume the token:
-  scanners follow GET but do not POST, so the token survives the bot and burns
-  on the human. Strictly single-use, no replay window, one extra click. This is
-  materially different from letting a token survive its first click, which was
-  considered and rejected.
-- **Tightening existing privileged routes** with `requireAdmin`: procurement
-  rollback/restore, AI configuration, data-shaping rules.
-- **Sanitized backup and restore** (ISSUES.md #50), unchanged in its own
-  deferral.
+Both items originally deferred here shipped in **1.5.0-beta.5**:
+
+- **Magic-link POST interstitial** — the emailed URL is now a GET to a page
+  whose button POSTs to consume the token, so a mail scanner's prefetch cannot
+  burn it. ISSUES.md #57.
+- **Tightening existing privileged routes** with `requireAdmin` — procurement
+  rollback/restore, data-shaping rules, AI configuration mutations.
+  ISSUES.md #50a.
+
+## Deferred to beta.6
+
+- **Sanitized backup and restore** (ISSUES.md #50b). The precondition this
+  document set — "deferred until Administrator authority is implemented" — is
+  now met, so the work is unblocked rather than merely postponed. It is the
+  largest single feature in this plan and the only one where a mistake destroys
+  production data, so it gets its own design pass before implementation, the
+  way the Admin page did. Brief: `docs/data-management/beta-6-backup-restore-brief.md`.
 
 ## v2.0 notes
 

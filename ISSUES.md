@@ -276,8 +276,30 @@ capability the pantry depends on before the roster was verified. Any
 authenticated user can still reach them until that lands.
 
 ### #50b — Sanitized in-app backups
-**Priority**: High · **Status**: Design approved; implementation deferred
+**Priority**: High · **Status**: Scheduled as the 1.5.0-beta.6 feature;
+design pass pending
 **Bucket**: Data Management / authorization
+
+**Unblocked.** The stated precondition — Administrator authority — was
+delivered by beta.4 (roles, roster, audit log) and beta.5 (privileged routes
+gated). This is the next feature.
+
+It gets a design pass before implementation, as the Admin page did. It is the
+largest single item in the authorization plan and the only one where a mistake
+destroys production data: restore replaces live records, and the failure mode
+is a pantry losing inventory, translations, templates, and procurement history
+on a service day. The open questions — artifact format and version contract,
+what the export actually covers (restoring the roster restores *authority*),
+maintenance mode, transactional strategy against the measured 30s ceiling, and
+how restore is confirmed — are collected in
+`docs/data-management/beta-6-backup-restore-brief.md`, together with the traps
+already paid for elsewhere (auto-applying migrations, Prisma's INTEGER
+timestamp storage, `.dump` omitting unique indexes, WAL, the encryption key
+living in the database).
+
+Likely to ship as backup first and restore second — possibly in separate
+releases. A sanitized export is useful on its own, exercises the manifest and
+exclusion list, and cannot destroy anything.
 
 Database backup terminology needs care. A transactionally consistent raw
 SQLite snapshot necessarily contains encrypted API-key material, encryption-key

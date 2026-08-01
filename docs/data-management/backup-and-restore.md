@@ -29,10 +29,23 @@ must create and validate a compatible database, import the approved logical
 records transactionally, and then require fresh encryption initialization and
 fresh AI provider keys.
 
+## Status
+
+**Scheduled as the 1.5.0-beta.6 feature.** The precondition this document set —
+"deferred until Administrator authority is implemented" — was met by beta.4
+(roles, roster, audit log) and beta.5 (privileged routes gated). The work is
+unblocked rather than merely postponed.
+
+It gets a design pass before implementation, the way the Admin page did: it is
+the largest single feature in the authorization plan and the only one where a
+mistake destroys production data. Open questions and the decisions the design
+session must settle are in
+[beta-6-backup-restore-brief.md](beta-6-backup-restore-brief.md).
+
 ## Restore safety contract
 
-Restore is privileged and remains deferred until Administrator authority is
-implemented. The eventual workflow must:
+Restore is privileged. Administrator authority now exists to gate it. The
+workflow must:
 
 1. upload to isolated temporary storage;
 2. validate artifact type, manifest, checksums, FEED/schema version, and table
