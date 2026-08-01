@@ -38,6 +38,46 @@ Everything else in this file. The application is shippable today.
 
 ## Open Issues
 
+### #57 — Magic links were burned by inbound mail scanning
+**Priority**: Medium · **Status**: Fixed in 1.5.0-beta.5
+**Bucket**: authentication
+
+Microsoft Defender, used by William Temple House's IT vendor, prefetches every
+link in an inbound message to scan it for malicious payloads. `/api/auth/callback`
+verified on GET, so that scan **spent the single-use token before the recipient
+ever clicked**. Magic links therefore never worked in practice here, and OTP
+became the only usable path — which is why FEED's sign-in copy leads with the
+six-digit code.
+
+The workaround of letting a token survive its first use was considered and
+rejected: a token good for two uses is a token an attacker can replay, and no
+server-side signal reliably separates a scanner from a human.
+
+**Fix.** Consumption moved from GET to POST. The emailed link now points at a
+confirmation *page* (`/sign-in/confirm`), which consumes nothing on load and
+asks the recipient to press a button; that button POSTs to
+`/api/auth/magic-link/verify`, which is the only place a token is spent.
+Scanners follow GET and do not submit a form they have not rendered and had a
+human press. The token remains single-use, ten-minute, and bound to one
+address — nothing is weakened, at the cost of one extra click.
+
+`GET /api/auth/callback` is retained as a redirect rather than deleted, so
+links already sitting in inboxes keep working and become scanner-safe in the
+process.
+
+**The confirmation page must never auto-submit.** An effect that posted on
+mount would hand the token straight back to the bot and undo the entire fix.
+This is stated at the top of `magic-link-confirm.tsx` because it is the kind of
+thing a later refactor "tidies away".
+
+Verified against a real database, not only mocks: two GETs left the token in
+`VerificationToken`, issued no cookie, and a subsequent POST consumed it,
+recorded `lastLoginAt`, and issued the session. Replaying the spent token
+returned 401 `MAGIC_LINK_EXPIRED`.
+
+Relevant to white-labelling: other agencies may not run equally aggressive mail
+security, but the interstitial costs them nothing and protects any that do.
+
 ### #56 — Admin page drifted from the standard route layout
 **Priority**: Low · **Status**: Fixed in 1.5.0-beta.4
 **Bucket**: UI consistency
