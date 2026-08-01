@@ -90,3 +90,65 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   ACCESS_POLICY_UPDATED: 'Access settings changed',
   BACKUP_DOWNLOADED: 'Backup downloaded',
 };
+
+export interface DatabaseSummary {
+  /** Row count per table the backup covers. */
+  rowCounts: Record<string, number>;
+  totalRecords: number;
+  /** SQLite file size in bytes, or null when the pragmas are unavailable. */
+  sizeBytes: number | null;
+  lastBackupAt: string | null;
+  lastBackupBy: string | null;
+}
+
+/**
+ * How the Database tab groups and names the raw table counts.
+ *
+ * Presentation only — the backend returns table names, which are FEED's
+ * internal vocabulary, not a staff member's. Tables absent from this map still
+ * count toward the total; they simply do not earn their own line.
+ */
+export const DATABASE_SUMMARY_GROUPS: {
+  label: string;
+  tables: { table: string; label: string }[];
+}[] = [
+  {
+    label: 'Inventory',
+    tables: [
+      { table: 'Category', label: 'Categories' },
+      { table: 'FoodItem', label: 'Food items' },
+    ],
+  },
+  {
+    label: 'Languages & translations',
+    tables: [
+      { table: 'Language', label: 'Languages' },
+      { table: 'Translation', label: 'Translations' },
+      { table: 'FoodItemTranslation', label: 'Food item names' },
+      { table: 'CategoryTranslation', label: 'Category names' },
+    ],
+  },
+  {
+    label: 'Shopping lists',
+    tables: [
+      { table: 'ShoppingListBuilderTemplate', label: 'Templates' },
+      { table: 'ShoppingListBuilderComponent', label: 'Saved components' },
+    ],
+  },
+  {
+    label: 'Procurement',
+    tables: [
+      { table: 'ProcurementImport', label: 'Imports' },
+      { table: 'ProcurementOrderRevision', label: 'Orders' },
+      { table: 'ProcurementLine', label: 'Line items' },
+      { table: 'ProcurementDataRule', label: 'Data rules' },
+    ],
+  },
+  {
+    label: 'Recorded history',
+    tables: [
+      { table: 'FoodItemInventoryEvent', label: 'Food item changes' },
+      { table: 'CategoryInventoryEvent', label: 'Category changes' },
+    ],
+  },
+];
