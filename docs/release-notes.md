@@ -24,6 +24,11 @@
 - **An activity history** records every change an administrator makes — who did
   what, to whom, and when.
 
+- **Fixed the light/dark switch animation in Chrome.** The colour change is
+  meant to sweep out from the sun/moon button you just pressed. In recent
+  versions of Chrome it started from the top of the screen instead. Safari was
+  never affected.
+
 - **Fixed a confusing sign-in screen.** If someone tried to sign in without
   access, FEED said a code had been sent and asked them to type it in, while
   also telling them they were not allowed in. No code was ever sent. The

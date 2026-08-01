@@ -58,9 +58,35 @@ export async function runThemeTransition({
   }
 
   const origin = getTransitionOrigin(trigger)
-  const maxX = Math.max(origin.x, window.innerWidth - origin.x)
-  const maxY = Math.max(origin.y, window.innerHeight - origin.y)
+  const width = window.innerWidth
+  const height = window.innerHeight
+  const maxX = Math.max(origin.x, width - origin.x)
+  const maxY = Math.max(origin.y, height - origin.y)
   const endRadius = Math.hypot(maxX, maxY)
+
+  // The reveal is expressed in PERCENTAGES, not pixels, and this is load
+  // bearing.
+  //
+  // `clip-path` on `::view-transition-new(root)` resolves against that
+  // pseudo-element's own box, not the viewport. Those happen to coincide only
+  // while the browser sizes the snapshot in CSS pixels. Chrome 150 on a
+  // 2× display placed a pixel origin at roughly half its intended fraction
+  // across — a button 92% of the way to the right rendered as though it were
+  // at 46%, i.e. top centre — while Chromium 148 on the same display and
+  // Safari both honoured it. Diagnostics from the affected browser confirmed
+  // FEED was requesting the correct coordinates and the browser drew them
+  // elsewhere, so the origin cannot be trusted to a fixed pixel box.
+  //
+  // Percentages resolve proportionally against whatever box the browser uses,
+  // so the origin tracks the button regardless of how the snapshot is scaled.
+  // A percentage radius resolves against sqrt(w² + h²) / sqrt(2), so the end
+  // radius is converted through that reference rather than guessed — the
+  // reveal keeps the exact pacing it had.
+  const radiusReference = Math.hypot(width, height) / Math.SQRT2
+  const originX = (origin.x / width) * 100
+  const originY = (origin.y / height) * 100
+  const startRadius = (20 / radiusReference) * 100
+  const endRadiusPercent = (endRadius / radiusReference) * 100
 
   const transition = document.startViewTransition(() => {
     flushSync(update)
@@ -72,8 +98,8 @@ export async function runThemeTransition({
     const animation = document.documentElement.animate(
       {
         clipPath: [
-          `circle(20px at ${origin.x}px ${origin.y}px)`,
-          `circle(${endRadius}px at ${origin.x}px ${origin.y}px)`,
+          `circle(${startRadius}% at ${originX}% ${originY}%)`,
+          `circle(${endRadiusPercent}% at ${originX}% ${originY}%)`,
         ],
       },
       {
