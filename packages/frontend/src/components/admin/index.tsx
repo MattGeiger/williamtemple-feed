@@ -70,7 +70,11 @@ export function AdminPage() {
   }, [load]);
 
   return (
-    <div className="space-y-6 p-6">
+    // Matches Settings, Data Management, and the shared DataList: RootLayout's
+    // <main> already supplies the horizontal padding (px-4 sm:px-6) and the
+    // bottom padding, so a page adds only pt-6. `p-6` here double-padded the
+    // page and inset it further than every other route.
+    <div className="space-y-6 min-w-0 w-full pt-6">
       <SectionHeader
         title="Admin"
         description="Manage who can use FEED, choose how sign-in works, and review what administrators have changed."
