@@ -7,7 +7,7 @@
 
 import { Request, Response, NextFunction } from 'express';
 import { AuditActor } from '../../services/auth/admin-audit-service';
-import { ROLES } from '../../services/auth/authorization';
+import { ACCESS_STATES, ROLES } from '../../services/auth/authorization';
 
 /**
  * Require Administrator authority.
@@ -35,6 +35,22 @@ export const requireAdmin = (
       error: {
         message: 'Please sign in to continue.',
         code: 'AUTH_REQUIRED',
+        timestamp: new Date().toISOString(),
+      },
+    });
+  }
+
+  // Self-sufficient rather than trusting the order of middleware.
+  // `jwtAuthMiddleware` already ends a revoked session before routing, so in
+  // the mounted app this never fires — but a guard whose correctness depends on
+  // something upstream silently opens if that ordering ever changes, or if this
+  // is mounted somewhere the session middleware does not cover.
+  if (req.auth.accessState === ACCESS_STATES.REVOKED) {
+    return res.status(403).json({
+      error: {
+        message:
+          'Your FEED access has ended. Contact your administrator if you think this is a mistake.',
+        code: 'ACCESS_REVOKED',
         timestamp: new Date().toISOString(),
       },
     });
