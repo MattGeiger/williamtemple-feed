@@ -58,6 +58,14 @@ interface DataShapingRulesProps {
   onEdit: (rule: DataShapingRule) => void;
   onToggle: (rule: DataShapingRule, enabled: boolean) => void;
   onDelete: (rule: DataShapingRule) => void;
+  /**
+   * Whether to offer the authoring controls at all. Rules change what
+   * Analytics counts, so creating, editing, and deleting them are
+   * administrator actions (ISSUES.md #50a) that the server refuses for
+   * Staff. Rules stay *visible* to everyone — a staff member reading a
+   * total deserves to see what has been excluded from it.
+   */
+  canManage: boolean;
 }
 
 export function DataShapingRules({
@@ -67,6 +75,7 @@ export function DataShapingRules({
   onEdit,
   onToggle,
   onDelete,
+  canManage,
 }: DataShapingRulesProps) {
   const exclusions = rules.filter(
     (rule) => rule.flag === 'pass_through' || rule.flag === 'other_exclusion'
@@ -83,10 +92,12 @@ export function DataShapingRules({
             already imported as well as to everything imported later.
           </CardDescription>
         </div>
-        <Button size="sm" onClick={onAdd} className="shrink-0">
-          <Plus className="mr-1.5 h-4 w-4" aria-hidden="true" />
-          Add Rule
-        </Button>
+        {canManage && (
+          <Button size="sm" onClick={onAdd} className="shrink-0">
+            <Plus className="mr-1.5 h-4 w-4" aria-hidden="true" />
+            Add Rule
+          </Button>
+        )}
       </CardHeader>
       <CardContent>
         {isLoading ? (
@@ -122,19 +133,27 @@ export function DataShapingRules({
                     <p className="mt-1 text-xs text-muted-foreground">{rule.note}</p>
                   )}
                 </div>
-                <div className="flex items-center gap-1">
-                  <Switch
-                    checked={rule.enabled}
-                    onCheckedChange={(checked) => onToggle(rule, checked)}
-                    aria-label={`${rule.enabled ? 'Pause' : 'Enable'} rule`}
-                  />
-                  <Button variant="ghost" size="icon" onClick={() => onEdit(rule)} aria-label="Edit rule">
-                    <Pencil className="h-4 w-4" aria-hidden="true" />
-                  </Button>
-                  <Button variant="ghost" size="icon" onClick={() => onDelete(rule)} aria-label="Delete rule">
-                    <Trash2 className="h-4 w-4" aria-hidden="true" />
-                  </Button>
-                </div>
+                {canManage ? (
+                  <div className="flex items-center gap-1">
+                    <Switch
+                      checked={rule.enabled}
+                      onCheckedChange={(checked) => onToggle(rule, checked)}
+                      aria-label={`${rule.enabled ? 'Pause' : 'Enable'} rule`}
+                    />
+                    <Button variant="ghost" size="icon" onClick={() => onEdit(rule)} aria-label="Edit rule">
+                      <Pencil className="h-4 w-4" aria-hidden="true" />
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={() => onDelete(rule)} aria-label="Delete rule">
+                      <Trash2 className="h-4 w-4" aria-hidden="true" />
+                    </Button>
+                  </div>
+                ) : (
+                  // Staff still need to know whether a rule is in force, since
+                  // it changes the totals they are reading.
+                  <Badge variant={rule.enabled ? 'secondary' : 'outline'} className="shrink-0">
+                    {rule.enabled ? 'Active' : 'Paused'}
+                  </Badge>
+                )}
               </li>
             ))}
           </ul>
