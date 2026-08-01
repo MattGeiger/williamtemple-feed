@@ -27,7 +27,7 @@
 - **Fixed the light/dark switch animation in Chrome.** The colour change is
   meant to sweep out from the sun/moon button you just pressed. In recent
   versions of Chrome it started from the top of the screen instead. Safari was
-  never affected.
+  never affected. The sweep is also slower and smoother now.
 
 - **Fixed a confusing sign-in screen.** If someone tried to sign in without
   access, FEED said a code had been sent and asked them to type it in, while
