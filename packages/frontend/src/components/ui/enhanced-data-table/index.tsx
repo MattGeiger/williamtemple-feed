@@ -61,8 +61,13 @@ interface EnhancedDataTableProps<TData> {
   toolbarActions?: Array<{
     label: string
     icon?: LucideIcon
-    variant: 'default' | 'destructive' | 'outline-solid' | 'secondary' | 'ghost' | 'link'
+    // 'outline', not 'outline-solid'. The Tailwind v4 codemod rewrote this union
+    // member as though it were a utility class name (that rename is real for
+    // classes, not for these values), leaving a variant Button does not accept
+    // while every caller passed 'outline'.
+    variant: 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link'
     action: () => void
+    title?: string
   }>
   toolbarControls?: React.ReactNode
 }
