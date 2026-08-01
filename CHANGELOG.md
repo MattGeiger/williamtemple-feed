@@ -49,6 +49,13 @@ deploying; migrations apply automatically on container start.
 
 ### Changed
 
+- **The light/dark sweep is slower and eases symmetrically** — 1200ms on
+  `cubic-bezier(0.64, 0, 0.36, 1)`, replacing 600ms on
+  `cubic-bezier(0.22, 1, 0.36, 1)`. The old curve was a hard ease-out that
+  spent most of its travel in the first few frames, which reads as a jump
+  within a 60Hz frame budget. The new one is effectively easeInOutCubic and is
+  symmetric about its midpoint, so acceleration in mirrors deceleration out
+  across roughly 72 frames. A feel change, not a correctness one.
 - **Every pre-existing user was promoted to Administrator by the migration.**
   The approved bootstrap rule — first verified user on a fresh deployment —
   assumes an empty user table, which production does not have. The alternatives
@@ -96,8 +103,9 @@ deploying; migrations apply automatically on container start.
   `devicePixelRatio` 2, an origin 92% across a CSS-pixel box lands at 46% of a
   device-pixel one. The reveal is now expressed in percentages, which track the
   button proportionally whatever box the browser uses, with the end radius
-  converted through the reference percentage radii resolve against so the
-  pacing is unchanged (ISSUES.md #55).
+  converted through the reference percentage radii resolve against — so the
+  geometry is equivalent to the pixel form rather than an approximation of it
+  (ISSUES.md #55).
 - **A React key-spread warning on every page load is gone.** Lucide's
   `__iconNode` stores its key inside each primitive's attrs, so spreading them
   re-introduced a `key` prop after the explicit one — and the spread won,
