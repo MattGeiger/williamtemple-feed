@@ -69,8 +69,10 @@ build-and-swap rather than a live transaction, in-memory maintenance mode,
 replace-never-merge, partial units closed under foreign keys, the roster
 resolution above, and the clean-slate model — are recorded in
 [beta-6-backup-restore-brief.md](beta-6-backup-restore-brief.md), which also
-names two prerequisites that must land first: editable API keys, and
-`AIConfiguration` redaction in place of exclusion.
+named two prerequisites that had to land first: editable API keys, and
+`AIConfiguration` redaction in place of exclusion. **Both are implemented**, and
+the artifact now declares table contract version 2 — beta.6 artifacts declare
+version 1 and carry no `AIConfiguration` at all.
 
 ## Restore safety contract
 
