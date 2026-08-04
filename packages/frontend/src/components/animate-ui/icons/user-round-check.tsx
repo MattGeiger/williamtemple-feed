@@ -44,12 +44,12 @@ const animations = {
   } satisfies Record<string, Variants>,
 } as const;
 
-function IconComponent({ size, ...props }: UserRoundCheckProps) {
+const IconComponent = React.forwardRef<SVGSVGElement, UserRoundCheckProps>(function IconComponent({ size, ...props }, ref) {
   const { controls } = useAnimateIconContext();
   const variants = getVariants(animations);
 
   return (
-    <motion.svg
+    <motion.svg ref={ref}
       xmlns="http://www.w3.org/2000/svg"
       width={size}
       height={size}
@@ -73,7 +73,8 @@ function IconComponent({ size, ...props }: UserRoundCheckProps) {
       />
     </motion.svg>
   );
-}
+});
+IconComponent.displayName = 'IconComponent';
 
 function UserRoundCheck(props: UserRoundCheckProps) {
   return <IconWrapper icon={IconComponent} {...props} />;

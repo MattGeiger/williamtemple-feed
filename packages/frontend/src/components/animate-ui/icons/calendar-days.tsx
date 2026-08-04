@@ -42,12 +42,12 @@ const animations = {
   ) satisfies Record<string, Variants>,
 } as const;
 
-function IconComponent({ size, ...props }: CalendarDaysProps) {
+const IconComponent = React.forwardRef<SVGSVGElement, CalendarDaysProps>(function IconComponent({ size, ...props }, ref) {
   const { controls } = useAnimateIconContext();
   const variants = getVariants(animations);
 
   return (
-    <motion.svg
+    <motion.svg ref={ref}
       xmlns="http://www.w3.org/2000/svg"
       width={size}
       height={size}
@@ -80,7 +80,8 @@ function IconComponent({ size, ...props }: CalendarDaysProps) {
       ))}
     </motion.svg>
   );
-}
+});
+IconComponent.displayName = 'IconComponent';
 
 function CalendarDays(props: CalendarDaysProps) {
   return <IconWrapper icon={IconComponent} {...props} />;
