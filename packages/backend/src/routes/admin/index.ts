@@ -14,6 +14,7 @@ import { AdminAuditService } from '../../services/auth/admin-audit-service';
 import { RosterService } from '../../services/auth/roster-service';
 import { SanitizedBackupService } from '../../services/backup/sanitized-backup';
 import { DatabaseSummaryService } from '../../services/backup/database-summary';
+import restoreRouter from './restore';
 import {
   ACCESS_MODES,
   AUDIT_ACTIONS,
@@ -33,6 +34,11 @@ import {
 const router = Router();
 
 router.use(requireAdmin);
+
+// Restore lives in its own file: it carries multipart handling and a mechanism
+// heavy enough that mixing it into the roster and policy routes would obscure
+// both. `requireAdmin` above already applies to it.
+router.use('/restore', restoreRouter);
 
 const inviteSchema = z.object({
   email: z.string().email('Enter a valid email address to invite.'),

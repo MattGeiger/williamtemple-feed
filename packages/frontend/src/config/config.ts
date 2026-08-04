@@ -77,6 +77,9 @@ interface ApiConfig {
       audit: string;
       backup: string;
       databaseSummary: string;
+      restore: string;
+      restoreUnits: string;
+      restoreValidate: string;
     };
   };
 }
@@ -157,7 +160,10 @@ const config: AppConfig = {
         accessPolicy: '/access-policy',
         audit: '/audit',
         backup: '/backup',
-        databaseSummary: '/database-summary'
+        databaseSummary: '/database-summary',
+        restore: '/restore',
+        restoreUnits: '/restore/units',
+        restoreValidate: '/restore/validate'
       }
     }
   }

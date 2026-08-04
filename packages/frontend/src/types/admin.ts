@@ -152,3 +152,45 @@ export const DATABASE_SUMMARY_GROUPS: {
     ],
   },
 ];
+
+/**
+ * Restore.
+ *
+ * The units are closed under foreign keys — a selection that is not would
+ * produce rows pointing at rows that were not restored — so the server decides
+ * the closure and the client only reports it. See
+ * `services/restore/restore-units.ts` and
+ * docs/data-management/beta-6-backup-restore-brief.md.
+ */
+export type RestoreUnitId =
+  | 'inventory'
+  | 'languages'
+  | 'shoppingLists'
+  | 'procurement'
+  | 'configuration';
+
+export interface RestoreUnitInfo {
+  id: RestoreUnitId;
+  label: string;
+  description: string;
+  requires: RestoreUnitId[];
+}
+
+/** What validation found in an uploaded file, before anything is replaced. */
+export interface RestorePreview {
+  generatedAt: string;
+  generatedBy: string;
+  feedVersion: string;
+  tableContractVersion: number;
+  rowCounts: Record<string, number>;
+  availableUnits: RestoreUnitId[];
+  rowsByUnit: Record<string, number>;
+  notes: string[];
+}
+
+export interface RestoreResult {
+  units: RestoreUnitId[];
+  tables: string[];
+  rowsWritten: Record<string, number>;
+  backupTakenAt: string;
+}
