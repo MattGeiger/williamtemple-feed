@@ -5,10 +5,46 @@ All notable changes to FEED are documented here. This project adheres to
 
 ## [Unreleased]
 
-Next: **restore** (ISSUES.md #50b), still pending its design pass. Backup
-shipped in beta.6 and supplies the artifact format restore has to validate
-against. Open questions:
-`docs/data-management/beta-6-backup-restore-brief.md`.
+Next: **restore** (ISSUES.md #50b). The design pass is done and approved —
+`docs/data-management/beta-6-backup-restore-brief.md` for the mechanism,
+`docs/data-management/clean-slate-and-seed.md` for the reset it shares that
+mechanism with. What follows is the groundwork restore needed before it could be
+built at all: a backup you cannot fully restore from is not a backup.
+
+### Added
+
+- **API keys can be changed on an existing AI configuration.** Edit previously
+  showed a disabled row of bullets and told the administrator to create a new
+  configuration to rotate a key — which meant re-entering every cost, token, and
+  rate setting, and left the old configuration to be found and deleted.
+
+  The field is editable now and write-only: it opens blank with a `••••••••••••`
+  placeholder, which reads as *deliberately hidden* rather than *empty*. Blank
+  on save leaves the stored key untouched; a typed value replaces it. The key is
+  still never sent to the browser, so there was never anything to prefill.
+
+  This is a prerequisite for restore, not a convenience. A restored
+  configuration arrives keyless by design, and without an editable field the
+  only way to make it work again was to delete it and start over.
+
+### Changed
+
+- **`AIConfiguration` is now backed up with its two secret columns stripped,
+  rather than excluded whole.** beta.6 dropped the entire table to protect
+  `encryptedApiKey` and `salt`, which also discarded the administrator's model
+  choice, temperature, thinking level, token limits, cost limits, and rate
+  limits. `backup-and-restore.md` only ever asked for column-level exclusion;
+  this is what it said.
+
+  The redaction *deletes* the columns rather than nulling them, so a restore
+  cannot mistake an empty key for a real one. Redactions are declared in the
+  same contract as the include/exclude lists and tested: a redaction naming a
+  table that is not exported fails the suite, because dead configuration that
+  reads as protection is worse than none.
+
+  **Table contract version is now 2.** Artifacts produced by beta.6 declare
+  version 1 and carry no `AIConfiguration` at all — a difference a reader has to
+  be able to see, which is what the version is for.
 
 ## [1.5.0-beta.6] — 2026-08-01
 

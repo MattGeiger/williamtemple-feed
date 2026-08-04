@@ -8,8 +8,8 @@ This began as a brief of open questions. Those questions are now answered, so it
 is a design record rather than an agenda. Backup shipped in 1.5.0-beta.6;
 restore and clean slate are the work this describes.
 
-Two changes to already-shipped code fall out of it and should land first — see
-[Prerequisites](#prerequisites).
+Two changes to already-shipped code fall out of it and had to land first. Both
+are now **implemented** — see [Prerequisites](#prerequisites).
 
 ## The vision this serves
 
@@ -31,9 +31,11 @@ The design follows from that framing.
 
 ## Prerequisites
 
-Two things must land before restore is built.
+Two things had to land before restore could be built. **Both are implemented.**
+They are recorded here as written, with the outcome noted, because the reasoning
+is what justifies the shape they took.
 
-**1. API keys must be editable.** `PUT /api/ai-config/:id` already accepts
+**1. API keys must be editable.** ✅ Implemented. `PUT /api/ai-config/:id` already accepts
 `apiKey` and re-encrypts with a fresh salt, but `EditAIModelDialog` renders no
 field for it — it sets `apiKey: ''` with the comment "Not displayed in edit
 mode." Today, rotating a key means deleting the configuration and recreating it,
@@ -44,7 +46,12 @@ has nowhere to enter one. Render the field in Edit with a `•••••••
 placeholder — signalling *deliberately hidden, updatable but not viewable* — and
 send `apiKey` only when non-empty, which is exactly what the backend expects.
 
-**2. `AIConfiguration` must be redacted rather than excluded.** beta.6 excluded
+*Landed as designed, in `ApiKeyStep` rather than in the dialog — that is where
+the field lives in both Add and Edit. Blank on save omits the property
+entirely; the backend rejects an empty string with 400, so omission is the only
+correct way to say "unchanged."*
+
+**2. `AIConfiguration` must be redacted rather than excluded.** ✅ Implemented. beta.6 excluded
 the whole table because it holds `encryptedApiKey`. That was coarser than
 `backup-and-restore.md` ever asked for — it says exclude
 "`AIConfiguration.encryptedApiKey`, salts, and provider secrets," which is
@@ -55,6 +62,12 @@ which are an administrator's work and should survive a restore.
 This adds a third category to the table contract — **included with columns
 redacted** — and bumps `tableContractVersion` to 2. Doing it before anyone
 depends on the v1 shape means only one reader version ever has to exist.
+
+*Landed as `REDACTED_COLUMNS` in `table-contract.ts`. The redaction deletes the
+columns rather than nulling them, so a restore cannot mistake an empty key for a
+real one, and the manifest declares what was redacted. Verified against a
+database seeded with a known secret: absent from the artifact, with model, cost,
+and rate settings intact.*
 
 ## The mechanism: build and swap, never a live transaction
 
