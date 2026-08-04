@@ -41,12 +41,12 @@ const animations = {
   } satisfies Record<string, Variants>,
 } as const;
 
-function IconComponent({ size, ...props }: Grid3x3Props) {
+const IconComponent = React.forwardRef<SVGSVGElement, Grid3x3Props>(function IconComponent({ size, ...props }, ref) {
   const { controls } = useAnimateIconContext();
   const variants = getVariants(animations);
 
   return (
-    <motion.svg
+    <motion.svg ref={ref}
       xmlns="http://www.w3.org/2000/svg"
       width={size}
       height={size}
@@ -67,7 +67,8 @@ function IconComponent({ size, ...props }: Grid3x3Props) {
       <motion.path d="M15 3v18" variants={variants.v2} initial="initial" animate={controls} />
     </motion.svg>
   );
-}
+});
+IconComponent.displayName = 'IconComponent';
 
 function Grid3x3(props: Grid3x3Props) {
   return <IconWrapper icon={IconComponent} {...props} />;

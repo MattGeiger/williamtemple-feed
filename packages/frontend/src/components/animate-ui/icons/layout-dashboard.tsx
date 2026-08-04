@@ -38,12 +38,12 @@ const animations = {
   } satisfies Record<string, Variants>,
 } as const;
 
-function IconComponent({ size, ...props }: LayoutDashboardProps) {
+const IconComponent = React.forwardRef<SVGSVGElement, LayoutDashboardProps>(function IconComponent({ size, ...props }, ref) {
   const { controls } = useAnimateIconContext();
   const variants = getVariants(animations);
 
   return (
-    <motion.svg
+    <motion.svg ref={ref}
       xmlns="http://www.w3.org/2000/svg"
       width={size}
       height={size}
@@ -61,7 +61,8 @@ function IconComponent({ size, ...props }: LayoutDashboardProps) {
       <motion.rect width="7" height="5" x="3" y="16" rx="1" variants={variants.rect4} initial="initial" animate={controls} />
     </motion.svg>
   );
-}
+});
+IconComponent.displayName = 'IconComponent';
 
 function LayoutDashboard(props: LayoutDashboardProps) {
   return <IconWrapper icon={IconComponent} {...props} />;

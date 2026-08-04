@@ -107,14 +107,22 @@ Nesting the other way round — a Radix `asChild` trigger wrapping `AnimateIcon`
 </AnimateIcon>
 ```
 
-**Anti-pattern — do not pass trigger props directly to the icon:**
+**Prefer wrapping the parent over passing trigger props to the icon:**
 
 ```tsx
-// Wrong — causes "Function components cannot be given refs" React warning
+// Discouraged — the trigger zone is only the icon's own bounding box
 <SunIcon size={16} animateOnHover animateOnTap />
 ```
 
-Passing trigger props directly to an animate-ui icon causes `IconWrapper` to internally render `<AnimateIcon asChild>`, which uses a `Slot` that attempts to forward a ref to the plain `IconComponent` function. Since `IconComponent` is not wrapped with `forwardRef`, React emits a console warning and the ref fails silently.
+This makes `IconWrapper` render `<AnimateIcon asChild>` around the icon, so only
+hovering the glyph itself fires the animation — the Rule 2 problem described
+above. Wrap the interactive parent instead.
+
+It no longer *breaks*: every generated `IconComponent` is wrapped in
+`forwardRef` and puts the ref on its root `motion.svg`, so the `Slot` has
+somewhere to put it. Until that change this pattern also logged "Function
+components cannot be given refs" and dropped the ref — see
+[React 18 and refs](#react-18-and-refs).
 
 ### React 18 and refs
 
@@ -123,13 +131,26 @@ function component receives. **This project is on React 18.2**, where React
 intercepts `ref`, keeps it off `props`, and refuses to hand it to a function
 component that is not wrapped in `forwardRef`.
 
-Three places carried the React 19 assumption and were corrected:
+These places carried the React 19 assumption and were corrected:
 
 | Component | Was | Now |
 | --- | --- | --- |
 | `AnimateIcon` | plain function; a Radix `asChild` trigger could not give it a ref | `forwardRef`, merged with its in-view ref |
 | `Slot` (`primitives/animate/slot`) | read `ref` out of props, and read `children.props.ref` | `forwardRef`; reads the child's ref from `children.ref` |
 | `Switch` (`primitives/radix/switch`) | spread Radix control props onto the DOM button | spreads only what the button takes |
+| All 69 generated icons | `function IconComponent(...)` | `React.forwardRef<SVGSVGElement, …>`, ref on the root `motion.svg` |
+
+**If you add or regenerate an icon**, apply the same shape — the generator emits
+the React 19 form:
+
+```tsx
+const IconComponent = React.forwardRef<SVGSVGElement, FooProps>(
+  function IconComponent({ size, ...props }, ref) {
+    return <motion.svg ref={ref} …>
+  },
+);
+IconComponent.displayName = 'IconComponent';
+```
 
 The failures were quiet ones. A dropped ref logs a warning but otherwise just
 leaves a consumer holding `null` — `TabsTrigger` registers `localRef.current`

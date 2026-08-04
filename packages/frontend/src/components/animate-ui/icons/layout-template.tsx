@@ -36,12 +36,12 @@ const animations = {
   } satisfies Record<string, Variants>,
 } as const;
 
-function IconComponent({ size, ...props }: LayoutTemplateProps) {
+const IconComponent = React.forwardRef<SVGSVGElement, LayoutTemplateProps>(function IconComponent({ size, ...props }, ref) {
   const { controls } = useAnimateIconContext();
   const variants = getVariants(animations);
 
   return (
-    <motion.svg
+    <motion.svg ref={ref}
       xmlns="http://www.w3.org/2000/svg"
       width={size}
       height={size}
@@ -58,7 +58,8 @@ function IconComponent({ size, ...props }: LayoutTemplateProps) {
       <motion.rect width={7} height={7} x={14} y={14} rx={1} variants={variants.right} initial="initial" animate={controls} style={{ transformOrigin: '17.5px 17.5px' }} />
     </motion.svg>
   );
-}
+});
+IconComponent.displayName = 'IconComponent';
 
 function LayoutTemplate(props: LayoutTemplateProps) {
   return <IconWrapper icon={IconComponent} {...props} />;
