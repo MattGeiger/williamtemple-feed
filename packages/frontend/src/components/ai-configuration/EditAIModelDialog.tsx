@@ -36,7 +36,7 @@ export function EditAIModelDialog({
       modelName: configuration.modelName || '',
       customModel: '',
       customModelName: '',
-      apiKey: '', // Not displayed in edit mode
+      apiKey: '', // Write-only: the API never returns it, so there is nothing to prefill
       endpointUrl: configuration.endpointUrl || '',
       inputCost: configuration.inputCost,
       outputCost: configuration.outputCost,
@@ -109,7 +109,15 @@ export function EditAIModelDialog({
       thinkingLevel: data.thinkingLevel,
       isActive: data.isActive
     }
-    
+
+    // Only send a key the administrator actually typed. Sending an empty string
+    // would re-encrypt nothing over a working key; omitting the field entirely
+    // is what tells the backend to leave the stored one alone.
+    const apiKey = data.apiKey.trim()
+    if (apiKey) {
+      updateData.apiKey = apiKey
+    }
+
     return await onSave(updateData)
   }
 

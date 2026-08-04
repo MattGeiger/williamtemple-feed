@@ -47,12 +47,15 @@ export const createApiKeySteps = (mode: 'add' | 'edit'): StepDefinition<ApiKeyCo
   {
     id: 'apikey',
     title: 'API Credentials',
-    description: mode === 'add' 
+    description: mode === 'add'
       ? 'Enter API credentials and endpoint'
-      : 'API credentials (already configured)',
+      : 'Update API credentials',
     component: ApiKeyStep,
     validate: (data) => {
-      if (mode === 'edit') return true // Skip validation in edit mode
+      // Edit: blank means "keep the current key", so there is nothing to
+      // require. A typed value gets the same soft, non-blocking check on blur
+      // that Add gets.
+      if (mode === 'edit') return true
       const apiKeyResult = validateApiKey(data.apiKey)
       return !apiKeyResult.error && data.apiKey.trim().length > 0
     }

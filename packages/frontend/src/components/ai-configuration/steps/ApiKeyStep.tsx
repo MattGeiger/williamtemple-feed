@@ -27,6 +27,10 @@ export function ApiKeyStep({
   const warnedRef = React.useRef(false)
 
   const handleApiKeyBlur = () => {
+    // In edit mode an empty field is the normal case — it means "keep the
+    // current key" — so it is not something to warn about.
+    if (mode === 'edit' && !data.apiKey.trim()) return
+
     onBlur?.('apiKey', 'apikey')
     // Provider-aware soft validation: warn but do not block
     const result = validateApiKeyForService(data.apiKey, data.serviceType)
@@ -39,40 +43,36 @@ export function ApiKeyStep({
     <StepWrapper 
       icon={Key} 
       title="API Key" 
-      description={mode === 'add' ? 'Enter your API credentials and endpoint URL' : 'API credentials (already configured)'}
+      description={mode === 'add' ? 'Enter your API credentials and endpoint URL' : 'Update API credentials'}
     >
+      {/*
+        The key is write-only in both modes: it is encrypted at rest and the API
+        never returns it, so there is nothing to prefill on edit. The bullet
+        placeholder says "deliberately hidden" rather than "empty", and a blank
+        field on save leaves the stored key untouched.
+      */}
       <div className="space-y-2">
         <Label htmlFor="apiKey">API Key</Label>
-        {mode === 'add' ? (
-          <>
-            <Input
-              id="apiKey"
-              type="password"
-              autoComplete="new-password"
-              value={data.apiKey}
-              onChange={(e) => onChange({ apiKey: e.target.value })}
-              onBlur={handleApiKeyBlur}
-              placeholder="Enter your API key (e.g., sk-am1RLw7XUWGXGUBaSg...)"
-              disabled={isLoading}
-              className={`${validation?.showValidation && validation?.errors?.apiKey ? 'border-destructive' : ''}`}
-            />
-            <p className="text-xs text-muted-foreground">
-              API keys are encrypted and never displayed. Required for API access.
-            </p>
-          </>
-        ) : (
-          <>
-            <Input
-              type="password"
-              value="••••••••••••••••"
-              disabled
-              className="bg-muted"
-            />
-            <p className="text-xs text-muted-foreground">
-              API key is encrypted and cannot be viewed. Create a new configuration to change the API key.
-            </p>
-          </>
-        )}
+        <Input
+          id="apiKey"
+          type="password"
+          autoComplete="new-password"
+          value={data.apiKey}
+          onChange={(e) => onChange({ apiKey: e.target.value })}
+          onBlur={handleApiKeyBlur}
+          placeholder={
+            mode === 'add'
+              ? 'Enter your API key (e.g., sk-am1RLw7XUWGXGUBaSg...)'
+              : '••••••••••••'
+          }
+          disabled={isLoading}
+          className={`${validation?.showValidation && validation?.errors?.apiKey ? 'border-destructive' : ''}`}
+        />
+        <p className="text-xs text-muted-foreground">
+          {mode === 'add'
+            ? 'API keys are encrypted and never displayed. Required for API access.'
+            : 'Encrypted and never shown. Leave blank to keep the current key.'}
+        </p>
       </div>
 
       <div className="space-y-2">
