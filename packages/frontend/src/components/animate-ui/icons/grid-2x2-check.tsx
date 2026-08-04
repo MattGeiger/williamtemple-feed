@@ -37,12 +37,12 @@ const animations = {
   } satisfies Record<string, Variants>,
 } as const;
 
-function IconComponent({ size, ...props }: Grid2x2CheckProps) {
+const IconComponent = React.forwardRef<SVGSVGElement, Grid2x2CheckProps>(function IconComponent({ size, ...props }, ref) {
   const { controls } = useAnimateIconContext();
   const variants = getVariants(animations);
 
   return (
-    <motion.svg
+    <motion.svg ref={ref}
       xmlns="http://www.w3.org/2000/svg"
       width={size}
       height={size}
@@ -58,7 +58,8 @@ function IconComponent({ size, ...props }: Grid2x2CheckProps) {
       <motion.path d="m16 19 2 2 4-4" variants={variants.check} initial="initial" animate={controls} />
     </motion.svg>
   );
-}
+});
+IconComponent.displayName = 'IconComponent';
 
 function Grid2x2Check(props: Grid2x2CheckProps) {
   return <IconWrapper icon={IconComponent} {...props} />;

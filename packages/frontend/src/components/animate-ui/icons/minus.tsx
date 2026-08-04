@@ -36,12 +36,12 @@ const animations = {
   } satisfies Record<string, Variants>,
 } as const;
 
-function IconComponent({ size, ...props }: MinusProps) {
+const IconComponent = React.forwardRef<SVGSVGElement, MinusProps>(function IconComponent({ size, ...props }, ref) {
   const { controls } = useAnimateIconContext();
   const variants = getVariants(animations);
 
   return (
-    <motion.svg
+    <motion.svg ref={ref}
       xmlns="http://www.w3.org/2000/svg"
       width={size}
       height={size}
@@ -56,7 +56,8 @@ function IconComponent({ size, ...props }: MinusProps) {
       <motion.path d="M5 12h14" variants={variants.line} initial="initial" animate={controls} />
     </motion.svg>
   );
-}
+});
+IconComponent.displayName = 'IconComponent';
 
 function Minus(props: MinusProps) {
   return <IconWrapper icon={IconComponent} {...props} />;

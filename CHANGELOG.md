@@ -63,7 +63,19 @@ built at all: a backup you cannot fully restore from is not a backup.
 
   Also stopped `Switch` spreading Radix's control props onto the DOM button
   underneath it, which made React log and discard an `onCheckedChange`
-  attribute on every render. The console is now clean on load.
+  attribute on every render.
+
+  The same React 19 assumption sat in all 69 generated icon files, whose
+  `IconComponent` was a plain function. That one only surfaced inside the
+  AI-configuration step dialogs, where `IconWrapper` wraps the icon in
+  `<AnimateIcon asChild>`. Each now forwards its ref to its root `motion.svg`.
+  The console is clean on load and with dialogs open.
+
+- **The sidebar no longer shows a redundant "About" tooltip.** Hovering About
+  put a second "About" bubble next to the label. The footer block only renders
+  with the sidebar expanded — where the label is already visible — so the
+  tooltip repeated what it was pointing at. Removed, matching the sibling
+  "Version" button. (Pre-existing; unrelated to the ref work above.)
 
 ## [1.5.0-beta.6] — 2026-08-01
 

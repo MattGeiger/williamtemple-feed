@@ -20,11 +20,12 @@ const animations = {
   } satisfies Record<string, Variants>,
 } as const;
 
-function IconComponent({ size, ...props }: ChevronDownProps) {
+const IconComponent = React.forwardRef<SVGSVGElement, ChevronDownProps>(function IconComponent({ size, ...props }, ref) {
   const { controls } = useAnimateIconContext();
   const variants = getVariants(animations);
-  return <motion.svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" {...props}><motion.path d="m6 9 6 6 6-6" variants={variants.path} initial="initial" animate={controls} /></motion.svg>;
-}
+  return <motion.svg ref={ref} xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" {...props}><motion.path d="m6 9 6 6 6-6" variants={variants.path} initial="initial" animate={controls} /></motion.svg>;
+});
+IconComponent.displayName = 'IconComponent';
 
 function ChevronDown(props: ChevronDownProps) {
   return <IconWrapper icon={IconComponent} {...props} />;
