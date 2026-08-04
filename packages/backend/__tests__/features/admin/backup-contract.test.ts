@@ -12,6 +12,8 @@ import { describe, expect, it } from 'vitest';
 import {
   EXCLUDED_TABLES,
   INCLUDED_TABLES,
+  REDACTED_COLUMNS,
+  TABLE_CONTRACT_VERSION,
 } from '../../../src/services/backup/table-contract';
 import { checksumOf } from '../../../src/services/backup/sanitized-backup';
 
@@ -69,12 +71,33 @@ describe('sanitized backup table contract', () => {
     expect(both).toEqual([]);
   });
 
+  it('redacts secrets from tables it exports rather than dropping the table', () => {
+    // Excluding AIConfiguration entirely (as beta.6 did) protected two columns
+    // by discarding an administrator's model, cost, and rate configuration.
+    expect(INCLUDED_TABLES).toContain('AIConfiguration');
+    expect(EXCLUDED_TABLES).not.toHaveProperty('AIConfiguration');
+    expect(REDACTED_COLUMNS.AIConfiguration).toEqual(['encryptedApiKey', 'salt']);
+  });
+
+  it('names redactions only for tables it actually exports', () => {
+    // A redaction on an excluded or non-existent table is dead configuration
+    // that reads as protection.
+    for (const table of Object.keys(REDACTED_COLUMNS)) {
+      expect(INCLUDED_TABLES, `${table} is redacted but not exported`).toContain(table);
+    }
+  });
+
+  it('has bumped the contract version for the redaction change', () => {
+    // Readers key on this, so a shape change that does not bump it is a silent
+    // incompatibility.
+    expect(TABLE_CONTRACT_VERSION).toBeGreaterThanOrEqual(2);
+  });
+
   it('excludes every table that carries secrets or authority', () => {
     // Spelled out individually rather than as a loop: each of these is a
     // deliberate promise in backup-and-restore.md, and a failure should name
     // exactly which promise broke.
     expect(EXCLUDED_TABLES).toHaveProperty('EncryptionKey');
-    expect(EXCLUDED_TABLES).toHaveProperty('AIConfiguration');
     expect(EXCLUDED_TABLES).toHaveProperty('VerificationToken');
     expect(EXCLUDED_TABLES).toHaveProperty('OtpFailure');
     // Authority: restoring these would restore access, not just data.

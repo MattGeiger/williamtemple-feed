@@ -14,6 +14,7 @@ import {
   ARTIFACT_KIND,
   EXCLUDED_TABLES,
   INCLUDED_TABLES,
+  REDACTED_COLUMNS,
   TABLE_CONTRACT_VERSION,
   type IncludedTable,
 } from './table-contract';
@@ -49,6 +50,8 @@ export interface BackupManifest {
   rowCounts: Record<string, number>;
   /** Table → why it was left out. Carried in the artifact so the file is self-describing. */
   excluded: Record<string, string>;
+  /** Table → columns stripped from otherwise-exported rows. */
+  redacted: Record<string, readonly string[]>;
   /** SHA-256 over the canonical JSON of `data`. */
   checksum: string;
 }
@@ -110,6 +113,25 @@ const readSchemaVersion = async (): Promise<string> => {
 };
 
 /**
+ * Strip redacted columns before anything sees the row.
+ *
+ * Deletes rather than nulls the field: a `null` where a secret used to be still
+ * describes the schema, and a reader that finds no key at all cannot mistake an
+ * empty string for one. The restore path treats a missing key the same as a
+ * configuration that never had one.
+ */
+const redact = (table: string, rows: unknown[]): unknown[] => {
+  const columns = REDACTED_COLUMNS[table];
+  if (!columns?.length) return rows;
+
+  return rows.map(row => {
+    const copy = { ...(row as Record<string, unknown>) };
+    for (const column of columns) delete copy[column];
+    return copy;
+  });
+};
+
+/**
  * Stable stringify: key order must not depend on the order Prisma happened to
  * return columns, or the checksum would change between runs over identical
  * data and be worthless as an integrity check.
@@ -142,7 +164,7 @@ export class SanitizedBackupService {
 
     await prisma.$transaction(async () => {
       for (const table of INCLUDED_TABLES) {
-        data[table] = await delegateFor(table).findMany();
+        data[table] = redact(table, await delegateFor(table).findMany());
       }
     });
 
@@ -160,6 +182,7 @@ export class SanitizedBackupService {
         generatedBy,
         rowCounts,
         excluded: EXCLUDED_TABLES,
+        redacted: REDACTED_COLUMNS,
         checksum: checksumOf(data),
       },
       data,

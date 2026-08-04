@@ -20,6 +20,47 @@ vi.mock('@/hooks/message/useMessage', () => ({
 }));
 
 describe('EditAIModelDialog', () => {
+  test('offers the API key as an editable, hidden-value field', () => {
+    // Edit used to render a disabled box of bullets and tell the administrator
+    // to create a new configuration to change the key. The field is editable
+    // now, and the placeholder has to read as "deliberately hidden" rather than
+    // "nothing here" — see docs/data-management/beta-6-backup-restore-brief.md.
+    const config: AIConfiguration = {
+      id: 3,
+      name: 'OpenAI Test',
+      type: 'apikey',
+      value: '',
+      isActive: true,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      serviceType: 'OpenAI',
+      model: 'gpt-4',
+      modelName: 'gpt-4'
+    };
+
+    render(
+      <EditAIModelDialog
+        open
+        configuration={config}
+        onOpenChange={vi.fn()}
+        onSave={vi.fn().mockResolvedValue(true)}
+        isLoading={false}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /next/i }));
+
+    const apiKey = screen.getByLabelText('API Key') as HTMLInputElement;
+
+    expect(apiKey.disabled).toBe(false);
+    expect(apiKey.type).toBe('password');
+    expect(apiKey.value).toBe('');
+    expect(apiKey.placeholder).toBe('••••••••••••');
+
+    fireEvent.change(apiKey, { target: { value: 'sk-new-key' } });
+    expect((screen.getByLabelText('API Key') as HTMLInputElement).value).toBe('sk-new-key');
+  });
+
   test('preserves cost inputs across parent re-renders', () => {
     const config: AIConfiguration = {
       id: 1,

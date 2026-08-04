@@ -16,10 +16,14 @@
  * "selective" is only meaningful if the selection is enumerated rather than
  * implied.
  *
- * Every model in the schema appears in exactly one of these two lists. A test
- * reads the Prisma schema and fails if any model is missing from both, so a
- * table added later cannot drift into a backup — or silently out of one —
- * without somebody making that call deliberately.
+ * Every model in the schema appears in exactly one of INCLUDED_TABLES or
+ * EXCLUDED_TABLES. A test reads the Prisma schema and fails if any model is
+ * missing from both, so a table added later cannot drift into a backup — or
+ * silently out of one — without somebody making that call deliberately.
+ *
+ * REDACTED_COLUMNS is the third category: tables that are exported with
+ * specific columns stripped, for the case where excluding the whole table to
+ * protect one field would also discard an administrator's work.
  */
 
 /** Organization operating data. The point of the artifact. */
@@ -42,6 +46,7 @@ export const INCLUDED_TABLES = [
   'ShoppingListBuilderTemplate',
   'ShoppingListBuilderComponent',
   // Organization configuration
+  'AIConfiguration',
   'ExportSettings',
   'OperatingHoursRevision',
   'SystemPrompt',
@@ -66,8 +71,6 @@ export const EXCLUDED_TABLES: Record<string, string> = {
   // --- Secrets. Non-negotiable; this is why the artifact exists at all. ---
   EncryptionKey:
     'Key material. The runtime encryption key lives here, not in env (KeyManager.getActiveKey).',
-  AIConfiguration:
-    'Holds encryptedApiKey and salts. Provider keys are re-entered after a restore by design.',
 
   // --- Authentication material. ---
   VerificationToken: 'Live magic-link and OTP tokens.',
@@ -99,11 +102,30 @@ export const EXCLUDED_TABLES: Record<string, string> = {
 };
 
 /**
+ * Columns stripped from otherwise-included tables.
+ *
+ * The middle category between "exported" and "excluded", and the reason it
+ * exists: dropping a whole table to protect one column also discards work.
+ * `AIConfiguration` holds an administrator's model choice, temperature,
+ * thinking level, token limits, cost limits, and rate limits alongside the
+ * provider key. Excluding the table — as beta.6 did — threw all of that away to
+ * protect two fields. backup-and-restore.md only ever asked for column-level
+ * exclusion; this implements what it said.
+ *
+ * A restored configuration therefore arrives complete but keyless, which is
+ * exactly the state the restore contract already requires ("fresh AI provider
+ * keys afterwards").
+ */
+export const REDACTED_COLUMNS: Record<string, readonly string[]> = {
+  AIConfiguration: ['encryptedApiKey', 'salt'],
+};
+
+/**
  * Bumped when the shape of `data` changes in a way a reader must notice —
  * a table added or removed, or a payload restructured. Distinct from the FEED
  * version and from the migration name: an artifact can be produced by many FEED
  * builds while remaining the same contract.
  */
-export const TABLE_CONTRACT_VERSION = 1;
+export const TABLE_CONTRACT_VERSION = 2;
 
 export const ARTIFACT_KIND = 'feed-sanitized-backup';
