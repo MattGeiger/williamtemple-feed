@@ -2,7 +2,41 @@
 
 ## Status
 
-**Designed and approved, 2026-08-02. Not yet implemented.**
+**Designed and approved 2026-08-02. Restore shipped in 1.5.0-beta.7
+(2026-08-04). Clean slate is still to build.**
+
+What shipped, and where it differs from this document:
+
+| Design | Shipped |
+| --- | --- |
+| Build a fresh file, `migrate deploy`, import, carry across what the artifact lacks | **`VACUUM INTO` a copy of the live file**, then rewrite only the selected units. Same destination, fewer moving parts — see [The mechanism](#the-mechanism-build-and-swap-never-a-live-transaction) |
+| Include the roster in the artifact, force every restored role to `STAFF` | **Not needed for in-app restore, and not done.** Copying the live file means the roster, access policy, keys, and audit log are simply still there. Still required for the disaster-recovery case — see [below](#the-roster-in-the-artifact-still-open) |
+| Maintenance mode, partial units, replace-never-merge, exit-to-restart | As designed |
+
+Verified end to end against a copy of the production-scale database: a renamed
+category and a stray row were reverted, 120,856 procurement lines and the
+4-account roster were carried across untouched, the pre-restore snapshot was
+written, and the scratch file was cleaned up.
+
+### The roster in the artifact: still open
+
+This document argued the artifact should carry the roster so a restore onto new
+hardware brings accounts back. That reasoning still holds, and it is **not
+implemented** — `User` remains excluded from backups.
+
+In-app restore does not need it: the live file already has the roster, so
+nothing is lost. The gap is the hardware-disaster case — restoring onto a fresh
+Pi from a file alone still produces an instance with no accounts, which arms the
+fresh-instance bootstrap. Closing it means adding `User` to the backup contract
+(a bump to version 3) with every restored role forced to `STAFF`.
+
+### Sizing, measured
+
+The artifact for a ~29MB database is **120MB** of pretty-printed JSON — about
+4×, driven by ~121k procurement lines each repeating their key names. The upload
+cap is 256MB. Memory is the real ceiling: the file is held as a buffer, a
+string, and a parsed object, so past this size the fix is a streaming parse
+rather than a larger number.
 
 This began as a brief of open questions. Those questions are now answered, so it
 is a design record rather than an agenda. Backup shipped in 1.5.0-beta.6;

@@ -5,13 +5,72 @@ All notable changes to FEED are documented here. This project adheres to
 
 ## [Unreleased]
 
-Next: **restore** (ISSUES.md #50b). The design pass is done and approved —
-`docs/data-management/beta-6-backup-restore-brief.md` for the mechanism,
-`docs/data-management/clean-slate-and-seed.md` for the reset it shares that
-mechanism with. What follows is the groundwork restore needed before it could be
-built at all: a backup you cannot fully restore from is not a backup.
+Next: **clean slate** — the reset that shares restore's mechanism. Designed and
+approved in `docs/data-management/clean-slate-and-seed.md`, not yet built. The
+mechanism it needs now exists and is proven; what remains is the seed itself.
+
+## [1.5.0-beta.7] — 2026-08-04
+
+**In-app restore.** An administrator can put the database back from a backup
+file without SSH, VNC, or a terminal — the point of the whole data-management
+arc. No schema or migration changes.
 
 ### Added
+
+- **Restore from a backup, from the Database tab.** Choose a file, see what is
+  in it, pick what to bring back, confirm, and FEED restarts on the restored
+  data. Validation is a separate round trip from execution, so what the file
+  contains is on screen *before* anything is replaced — the difference between a
+  confirmation and a dare.
+
+- **Build and swap, never a live transaction.** The largest procurement import
+  already lands near 18s against the 30s transaction ceiling; a full restore is
+  an order of magnitude larger, and raising the ceiling would mean holding a
+  multi-minute write lock that blocks the pantry for nothing if it fails at
+  minute four.
+
+  Instead FEED takes a consistent copy of the live database with `VACUUM INTO`,
+  rewrites only the selected units inside that copy, verifies it, snapshots the
+  original, and swaps the new file in with a single `rename(2)`. The live
+  database is untouched until that one syscall, and rollback is renaming the
+  snapshot back.
+
+  The design called for `migrate deploy` against an empty file. Copying the live
+  one reaches the same place with fewer moving parts: the schema is necessarily
+  current because it *is* the live schema, everything a partial restore is not
+  replacing is already correct rather than needing a carry-across pass, and
+  `VACUUM INTO` is WAL-safe by construction. It also settles the roster question
+  the design worried about — accounts, access policy, keys, and the audit log
+  are simply still there, because they were never removed.
+
+- **Partial restore, in units closed under foreign keys.** Inventory, languages
+  and translations, shopping lists, procurement, and configuration. Not
+  arbitrary table checkboxes: `FoodItemTranslation` and the inventory events
+  reference food items and categories by autoincrement id, so a selection that
+  is not FK-closed produces rows pointing at rows that were not restored. The
+  modal adds dependencies for you and says why, rather than refusing and making
+  you solve a graph. Procurement is genuinely independent, which makes "add back
+  last month's imports" a safe standalone operation.
+
+- **Maintenance mode**, in memory and process-local. A database flag would live
+  in the file being replaced, and a crashed restore must not be able to strand
+  the instance — a restart clears this one, and `restart: unless-stopped`
+  guarantees the restart. Mutations get 503 naming what is happening and who
+  started it; reads keep working, so staff can still look things up.
+
+- **The app restarts itself by exiting.** No Docker socket, no privileged
+  access, no host agent.
+
+### Changed
+
+- **Upload cap sized from a real artifact: 256MB.** Scaling from the ~29MB
+  SQLite file gives the wrong answer by about 4× — the same data as
+  pretty-printed JSON measures **120MB**, driven by ~121k procurement lines each
+  repeating their key names. The first cap here was 64MB and would have rejected
+  every real backup this instance produces. Only testing at production scale
+  caught it. Memory is the next ceiling, not the number: the artifact is held as
+  a buffer, a string, and a parsed object, so streaming is the fix past this
+  point rather than a bigger limit.
 
 - **API keys can be changed on an existing AI configuration.** Edit previously
   showed a disabled row of bullets and told the administrator to create a new
@@ -20,62 +79,52 @@ built at all: a backup you cannot fully restore from is not a backup.
 
   The field is editable now and write-only: it opens blank with a `••••••••••••`
   placeholder, which reads as *deliberately hidden* rather than *empty*. Blank
-  on save leaves the stored key untouched; a typed value replaces it. The key is
-  still never sent to the browser, so there was never anything to prefill.
+  on save leaves the stored key untouched; a typed value replaces it, with a
+  fresh salt.
 
-  This is a prerequisite for restore, not a convenience. A restored
+  This was a prerequisite for restore, not a convenience: a restored
   configuration arrives keyless by design, and without an editable field the
   only way to make it work again was to delete it and start over.
 
-### Changed
-
-- **`AIConfiguration` is now backed up with its two secret columns stripped,
-  rather than excluded whole.** beta.6 dropped the entire table to protect
+- **`AIConfiguration` is now backed up with its two secret columns stripped,**
+  rather than excluded whole. beta.6 dropped the entire table to protect
   `encryptedApiKey` and `salt`, which also discarded the administrator's model
   choice, temperature, thinking level, token limits, cost limits, and rate
-  limits. `backup-and-restore.md` only ever asked for column-level exclusion;
-  this is what it said.
+  limits. `backup-and-restore.md` only ever asked for column-level exclusion.
 
   The redaction *deletes* the columns rather than nulling them, so a restore
-  cannot mistake an empty key for a real one. Redactions are declared in the
-  same contract as the include/exclude lists and tested: a redaction naming a
-  table that is not exported fails the suite, because dead configuration that
-  reads as protection is worse than none.
+  cannot mistake an empty key for a real one. **Table contract version is now
+  2**, and beta.6 artifacts (version 1) still read, through a reader for that
+  version.
 
-  **Table contract version is now 2.** Artifacts produced by beta.6 declare
-  version 1 and carry no `AIConfiguration` at all — a difference a reader has to
-  be able to see, which is what the version is for.
+- **React 19.2.7**, up from 18.2. The ported animate-ui components were written
+  for React 19, where `ref` is an ordinary prop; three rounds of `forwardRef`
+  fixes existed only to bridge that gap. `cmdk` moved to 1.1.1 with it — at
+  1.0.0 it pinned React 18 and was the one real blocker. No source changes were
+  needed: the codebase had none of the React 19 breaking patterns.
 
 ### Fixed
 
-- **Refs are no longer dropped by the ported animate-ui components.** Upstream
-  animate-ui targets React 19, where `ref` is an ordinary prop; this project is
-  on React 18.2, where it is not. `AnimateIcon` and the animate-ui `Slot` were
-  both plain function components handling `ref` as a prop, so every ref aimed at
-  them was discarded — 16 "Function components cannot be given refs" warnings on
-  a single page load.
+- **Refs are no longer dropped by the ported animate-ui components.**
+  `AnimateIcon`, the animate-ui `Slot`, and all 69 generated icon files handled
+  `ref` as a prop, which React 18 never delivers — 16 "Function components
+  cannot be given refs" warnings on a single page load.
 
-  The warnings were the visible part. The consequences were not: Radix tooltip
-  triggers never received the element they anchor and measure against, and
-  `TabsTrigger` registered `null` with the tab indicator instead of the trigger
-  it was meant to measure. Both now forward refs, merged with the internal ones
-  rather than replacing them.
+  The warnings were the visible part. Radix tooltip triggers never received the
+  element they anchor against, and `TabsTrigger` registered `null` with the tab
+  indicator instead of the trigger it exists to measure.
 
-  Also stopped `Switch` spreading Radix's control props onto the DOM button
-  underneath it, which made React log and discard an `onCheckedChange`
-  attribute on every render.
-
-  The same React 19 assumption sat in all 69 generated icon files, whose
-  `IconComponent` was a plain function. That one only surfaced inside the
-  AI-configuration step dialogs, where `IconWrapper` wraps the icon in
-  `<AnimateIcon asChild>`. Each now forwards its ref to its root `motion.svg`.
-  The console is clean on load and with dialogs open.
+- **`Switch` no longer spreads Radix's control props onto the DOM button**,
+  which made React log and discard an `onCheckedChange` attribute every render.
 
 - **The sidebar no longer shows a redundant "About" tooltip.** Hovering About
-  put a second "About" bubble next to the label. The footer block only renders
-  with the sidebar expanded — where the label is already visible — so the
-  tooltip repeated what it was pointing at. Removed, matching the sibling
-  "Version" button. (Pre-existing; unrelated to the ref work above.)
+  put a second "About" bubble beside the label. That footer block only renders
+  with the sidebar expanded — where the label is already visible.
+
+- **Removed `@types/react-beautiful-dnd`**, a dead type whose runtime package
+  was never installed. Both surfaces that actually drag use native browser APIs:
+  the Shopping List Builder uses pointer events, the Document Translator's
+  upload uses HTML5 drop events.
 
 ## [1.5.0-beta.6] — 2026-08-01
 
