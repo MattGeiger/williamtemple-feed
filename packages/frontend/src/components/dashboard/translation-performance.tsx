@@ -158,6 +158,18 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   );
 };
 
+/**
+ * Ranges are calendar-based, not rolling: "This Month" means since the 1st, not
+ * the last 30 days. Naming the selected period in the empty state is what makes
+ * an empty card self-explanatory instead of alarming.
+ */
+const TIME_RANGE_LABELS: Record<string, string> = {
+  today: 'today',
+  'this-week': 'this week',
+  'this-month': 'this month',
+  'this-year': 'this year',
+};
+
 // Service-specific color configuration
 const getServiceColor = (serviceType: ServiceProvider | 'all') => {
   const serviceColors = {
@@ -303,8 +315,17 @@ export function TranslationPerformance() {
     )
   }
 
-  // Services configured but no usage data yet
+  // Configurations exist, but nothing was recorded inside the selected period.
+  //
+  // The previous copy here said "No Usage Data Yet ... performance data will
+  // appear after translation activity begins", which reads as *never any* and
+  // sent at least one person looking for data loss. The period is the whole
+  // explanation: the ranges are calendar-based (This Month starts on the 1st,
+  // not 30 days ago), so on the 4th of a quiet month a busy previous month
+  // shows nothing at all.
   if (data.configurations.length > 0 && data.services.length === 0) {
+    const periodLabel = TIME_RANGE_LABELS[timeRange] ?? 'this period';
+
     return (
       <Card>
         <CardHeader className="flex items-center gap-2 space-y-0 border-b py-5 sm:flex-row">
@@ -320,9 +341,10 @@ export function TranslationPerformance() {
         <CardContent className="px-2 pt-4 sm:px-6 sm:pt-6">
           <Alert>
             <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>No Usage Data Yet</AlertTitle>
+            <AlertTitle>No activity {periodLabel}</AlertTitle>
             <AlertDescription>
-              Run translation operations to generate performance metrics. Performance data will appear after translation activity begins.
+              Nothing was translated in this period. Earlier activity is not shown here — try a
+              longer range.
             </AlertDescription>
           </Alert>
         </CardContent>
