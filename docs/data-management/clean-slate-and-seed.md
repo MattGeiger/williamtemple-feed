@@ -2,26 +2,56 @@
 
 ## Status
 
-Designed and approved 2026-08-02. **Not yet implemented.**
+Designed and approved 2026-08-02. **Partially implemented.**
 
-**The mechanism it shares now exists and is proven.** Restore shipped in
-1.5.0-beta.7, and clean slate is the same machinery with a different source:
-build a database, populate it, swap it in, exit to restart
-(`services/restore/restore-service.ts`). What remains is specific to this
-feature and is content work rather than plumbing:
+**Done** — the three layers exist as code under `src/services/seed/`
+(`layers.ts`, `seed-service.ts`, `supported-languages.ts`), with the example
+inventory approved 2026-08-04 and pinned by tests. `SeedService.apply` takes a
+Prisma client rather than the singleton, so it can populate a *scratch*
+database — which is what the clean-slate action needs.
 
-- decide the three example categories and dozen items;
-- build the example builder template against them and render it to PDF, per the
-  builder validation rules in AGENTS.md;
-- split the seed into the structural / reference / illustrative layers below;
-- wire the reset action, with its own confirmation copy — it *discards* rather
-  than *recovers*, and the wording must never let those blur;
-- offer preserve (default) or clear for the roster.
+It lives under `src/`, not in `scripts/`, because the production image installs
+with `--omit=dev` and never copies `scripts/`. Seed content kept there cannot
+back a user-facing action; the operator CLI hit the same trap in beta.4.
 
-The mechanism deliberately was not generalised to cover seeding in advance of
-that work. `RestoreService.run` takes artifact data and a unit list; a
-`resetToSeed` path alongside it will want the same VACUUM-copy, verify,
-snapshot, swap, exit sequence with a seeding step in place of the import.
+**Remaining:**
+
+- the example builder template, bound to the example inventory, rendered to PDF
+  per the builder validation rules in AGENTS.md;
+- the reset action itself — the same VACUUM-copy, verify, snapshot, swap, exit
+  sequence restore uses, with a seeding step in place of the import, and
+  confirmation copy that says *discards* rather than *recovers*;
+- the roster preserve (default) or clear choice;
+- retiring the duplicated arrays in `scripts/seed-all.ts` once the above lands,
+  so the development seed and the clean slate share one source.
+
+## The approved example inventory
+
+Three categories, nine items. Small on purpose: its job is to demonstrate
+structure, not to look like a stocked pantry.
+
+| Category | Category limit | Items | Item limit |
+| --- | --- | --- | --- |
+| Produce | No Limit (stored as 100) | Apples, Carrots, Grapes | none |
+| Dairy | 3 | Milk, Cheese, Yogurt | 1 |
+| Meat | 3 | Chicken, Beef, Pork | 1 |
+
+Status badges are **independent of the numeric limit** — `isLimited` paints a
+"Limited" marker on shopping lists, it does not cap anything. Exactly one badge
+per category, so each is visibly distinct:
+
+- **Carrots** — out of stock
+- **Chicken** — Limited
+- **Yogurt** — Clearance
+
+Setting `isLimited` on every item that happens to carry a limit of 1 would put
+the badge on six items and demonstrate nothing. That mistake is caught by a
+test.
+
+Dietary flags are set accurately, because the flags are what the example
+teaches: grapes vegan, cheese vegetarian but not vegan, the meats neither.
+Halal and kosher are false across all three meats — for chicken and beef that
+depends on provenance an example cannot assert, and for pork it is never true.
 
 ## What changed and why
 
@@ -131,11 +161,15 @@ artifact to recover from if someone resets by mistake.
 
 ## Before implementing
 
-- Audit the seed against current migrations — confirm nothing it writes has
-  drifted from the schema.
-- Decide the three example categories and dozen items. They should be generic
-  enough to read as examples and specific enough to demonstrate limits and
-  statuses.
+Struck through as they land.
+
+- ~~Audit the seed against current migrations~~ — done; `SeedService` was
+  written against the current schema and verified against a freshly migrated
+  database. Two fields did not match the assumption: `GlobalLimit` stores
+  `value`, not `limit`, and a category's "No Limit" is stored as `100`.
+- ~~Decide the example categories and items~~ — approved 2026-08-04, above.
+  Nine items rather than the dozen originally sketched; three per category
+  reads as a pattern without becoming a list to maintain.
 - Build the example template against those items and render it to PDF, per the
   builder validation rules in AGENTS.md.
 - Update the AGENTS.md "Seeding" note, which currently describes `seed-all` as a
