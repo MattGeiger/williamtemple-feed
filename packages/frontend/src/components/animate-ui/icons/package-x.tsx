@@ -39,12 +39,12 @@ const animations = {
   } satisfies Record<string, Variants>,
 } as const;
 
-function IconComponent({ size, ...props }: PackageXProps) {
+const IconComponent = React.forwardRef<SVGSVGElement, PackageXProps>(function IconComponent({ size, ...props }, ref) {
   const { controls } = useAnimateIconContext();
   const variants = getVariants(animations);
 
   return (
-    <motion.svg
+    <motion.svg ref={ref}
       xmlns="http://www.w3.org/2000/svg"
       width={size}
       height={size}
@@ -66,7 +66,8 @@ function IconComponent({ size, ...props }: PackageXProps) {
       <motion.path d="m22 17-5 5" variants={variants.xUp} initial="initial" animate={controls} />
     </motion.svg>
   );
-}
+});
+IconComponent.displayName = 'IconComponent';
 
 function PackageX(props: PackageXProps) {
   return <IconWrapper icon={IconComponent} {...props} />;

@@ -393,32 +393,35 @@ export function AppSidebar() {
               </DialogContent>
             </Dialog>
           </div>
+          {/*
+            No tooltip here, unlike the collapsed-rail items above. This block
+            is `group-data-[collapsible=icon]:hidden`, so it only ever renders
+            with the sidebar expanded — where the word "About" is already on
+            screen next to the icon. A tooltip repeating it just put a second
+            "About" beside the first on hover. The sibling "Version" button
+            follows the same rule.
+          */}
           <div className="group-data-[collapsible=icon]:hidden">
             <Dialog>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <DialogTrigger asChild>
-                    <AnimateIcon asChild animateOnHover animateOnTap>
-                      <button
-                        type="button"
-                        data-feed-no-icon-motion="true"
-                        className="
-                          flex items-center gap-2 rounded-md px-0 py-1
-                          text-left text-xs text-muted-foreground/80
-                          transition-all duration-200
-                          hover:text-foreground
-                          focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
-                        "
-                        aria-label="About FEED"
-                      >
-                        <AboutNavIcon className="h-4 w-4 shrink-0" aria-hidden="true" />
-                        <span>About</span>
-                      </button>
-                    </AnimateIcon>
-                  </DialogTrigger>
-                </TooltipTrigger>
-                <TooltipContent side="right" sideOffset={10}>About</TooltipContent>
-              </Tooltip>
+              <DialogTrigger asChild>
+                <AnimateIcon asChild animateOnHover animateOnTap>
+                  <button
+                    type="button"
+                    data-feed-no-icon-motion="true"
+                    className="
+                      flex items-center gap-2 rounded-md px-0 py-1
+                      text-left text-xs text-muted-foreground/80
+                      transition-all duration-200
+                      hover:text-foreground
+                      focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
+                    "
+                    aria-label="About FEED"
+                  >
+                    <AboutNavIcon className="h-4 w-4 shrink-0" aria-hidden="true" />
+                    <span>About</span>
+                  </button>
+                </AnimateIcon>
+              </DialogTrigger>
               <DialogContent className="border-0! bg-transparent! p-0! shadow-none! outline-hidden! ring-0! focus:outline-hidden! focus-visible:outline-hidden! focus-visible:ring-0! sm:max-w-xl [&>button]:right-10 [&>button]:top-4">
                 <DialogTitle className="sr-only">About FEED</DialogTitle>
                 <DialogDescription className="sr-only">

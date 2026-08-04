@@ -22,17 +22,18 @@ const animations = {
   } satisfies Record<string, Variants>,
 } as const;
 
-function IconComponent({ size, ...props }: BetweenHorizontalStartProps) {
+const IconComponent = React.forwardRef<SVGSVGElement, BetweenHorizontalStartProps>(function IconComponent({ size, ...props }, ref) {
   const { controls } = useAnimateIconContext();
   const variants = getVariants(animations);
   return (
-    <motion.svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <motion.svg ref={ref} xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" {...props}>
       <motion.rect width="13" height="7" x="8" y="3" rx="1" variants={variants.top} initial="initial" animate={controls} />
       <motion.path d="m2 9 3 3-3 3" variants={variants.arrow} initial="initial" animate={controls} />
       <motion.rect width="13" height="7" x="8" y="14" rx="1" variants={variants.bottom} initial="initial" animate={controls} />
     </motion.svg>
   );
-}
+});
+IconComponent.displayName = 'IconComponent';
 
 function BetweenHorizontalStart(props: BetweenHorizontalStartProps) {
   return <IconWrapper icon={IconComponent} {...props} />;

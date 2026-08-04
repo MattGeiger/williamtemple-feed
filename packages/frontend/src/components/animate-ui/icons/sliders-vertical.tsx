@@ -140,12 +140,12 @@ const animations = {
   } satisfies Record<string, Variants>,
 } as const;
 
-function IconComponent({ size, ...props }: SlidersVerticalProps) {
+const IconComponent = React.forwardRef<SVGSVGElement, SlidersVerticalProps>(function IconComponent({ size, ...props }, ref) {
   const { controls } = useAnimateIconContext();
   const variants = getVariants(animations);
 
   return (
-    <motion.svg
+    <motion.svg ref={ref}
       xmlns="http://www.w3.org/2000/svg"
       width={size}
       height={size}
@@ -240,7 +240,8 @@ function IconComponent({ size, ...props }: SlidersVerticalProps) {
       />
     </motion.svg>
   );
-}
+});
+IconComponent.displayName = 'IconComponent';
 
 function SlidersVertical(props: SlidersVerticalProps) {
   return <IconWrapper icon={IconComponent} {...props} />;

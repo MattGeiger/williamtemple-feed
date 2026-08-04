@@ -56,12 +56,12 @@ const RAY_PATHS = [
   'm19.1 4.9-1.4 1.4',
 ] as const;
 
-function IconComponent({ size, ...props }: SunMoonProps) {
+const IconComponent = React.forwardRef<SVGSVGElement, SunMoonProps>(function IconComponent({ size, ...props }, ref) {
   const { controls } = useAnimateIconContext();
   const variants = getVariants(animations);
 
   return (
-    <motion.svg
+    <motion.svg ref={ref}
       xmlns="http://www.w3.org/2000/svg"
       width={size}
       height={size}
@@ -93,7 +93,8 @@ function IconComponent({ size, ...props }: SunMoonProps) {
       ))}
     </motion.svg>
   );
-}
+});
+IconComponent.displayName = 'IconComponent';
 
 function SunMoon(props: SunMoonProps) {
   return <IconWrapper icon={IconComponent} {...props} />;
