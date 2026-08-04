@@ -339,70 +339,62 @@ restore, AI configuration, data-shaping rules — are *not* yet behind
 capability the pantry depends on before the roster was verified. Any
 authenticated user can still reach them until that lands.
 
-### #50b — Sanitized in-app backups
-**Priority**: High · **Status**: Backup shipped in 1.5.0-beta.6;
-restore still pending its design pass
+### #50b — Restore, clean slate, and the backup contract
+**Priority**: High · **Status**: Backup shipped in 1.5.0-beta.6; restore
+designed and approved 2026-08-02, not yet built
 **Bucket**: Data Management / authorization
 
-**Unblocked.** The stated precondition — Administrator authority — was
-delivered by beta.4 (roles, roster, audit log) and beta.5 (privileged routes
-gated). This is the next feature.
+**Backup shipped.** Administrator-only, audited, self-describing artifact with
+a mechanically enforced table contract. See the 1.5.0-beta.6 changelog.
 
-It gets a design pass before implementation, as the Admin page did. It is the
-largest single item in the authorization plan and the only one where a mistake
-destroys production data: restore replaces live records, and the failure mode
-is a pantry losing inventory, translations, templates, and procurement history
-on a service day. The open questions — artifact format and version contract,
-what the export actually covers (restoring the roster restores *authority*),
-maintenance mode, transactional strategy against the measured 30s ceiling, and
-how restore is confirmed — are collected in
-`docs/data-management/beta-6-backup-restore-brief.md`, together with the traps
-already paid for elsewhere (auto-applying migrations, Prisma's INTEGER
-timestamp storage, `.dump` omitting unique indexes, WAL, the encryption key
-living in the database).
+**Restore and clean slate are designed.** Full record in
+`docs/data-management/beta-6-backup-restore-brief.md`. The decisions that
+matter:
 
-**Backup shipped (beta.6).** `GET /api/admin/backup`, administrator-only and
-audited, produces a self-describing JSON artifact: a manifest carrying the
-artifact kind, table-contract version, FEED version, the applied migration
-name, per-table row counts, the exclusion list with reasons, and a SHA-256 over
-canonicalised data. Read inside a transaction so the snapshot is coherent.
+- **Build and swap, not a live transaction.** A single interactive transaction
+  cannot hold a full restore — the largest procurement import is 17,814 rows at
+  ~18s against a 30s ceiling, and a restore is an order of magnitude larger.
+  The scratch file sits on the same bind mount, so `rename(2)` supplies
+  atomicity and the ceiling never applies. The app restarts itself by exiting;
+  `restart: unless-stopped` does the rest.
+- **Maintenance mode is in-memory and process-local**, never a database flag —
+  the flag would live in the file being replaced, and a crashed restore must
+  not strand the instance.
+- **Replace, never merge.** The blocker is identity, not fragility:
+  `FoodItem.id` and `Category.id` are autoincrement and referenced by id from
+  translations and inventory events, so merging two id-spaces risks binding a
+  translation to the wrong item — invisible on screen and untouched by physical
+  reconciliation. Procurement is the one tractable exception, because its
+  source references are natural keys; that is a named follow-up.
+- **The roster is carried, with roles neutralised.** Excluding `User` does not
+  preserve it under build-and-swap — it destroys it, arming the bootstrap and
+  recreating the beta.4 privilege-escalation race. It is now included, every
+  restored role lands as `STAFF`, and the restoring administrator is
+  re-granted.
+- **Clean slate is the same mechanism with a seed as its source**, offering
+  "With examples" (default) or "Structure only", and preserving the roster by
+  default. Design in `docs/data-management/clean-slate-and-seed.md`; the seed
+  currently covers five models and demonstrates nothing of the Shopping List
+  Builder.
 
-The contract is enforced mechanically rather than by prose: every model in the
-schema must appear in either `INCLUDED_TABLES` or `EXCLUDED_TABLES`, and a test
-reads `schema.prisma` and fails naming any model in neither. Verified by adding
-a probe model and confirming the failure. That is the guard that matters — the
-realistic leak is not somebody exporting `EncryptionKey` on purpose, it is a
-table added a year from now that a blanket export quietly picks up.
+**Two prerequisites must land first:**
 
-**Authority is excluded, deliberately.** `User`, `AccessPolicy`, and
-`AdminAuditLog` are left out, so a stale or edited artifact cannot grant
-administrator access, quietly widen sign-in, or rewrite the record of
-privileged actions. In Domain mode the roster self-heals — a successful sign-in
-recreates the row as Staff. This is reversible if it proves wrong in practice;
-adding tables to an export is easy, removing them after people depend on them
-is not.
+1. **API keys are not editable in the UI.** `PUT /api/ai-config/:id` accepts
+   `apiKey` and re-encrypts, but `EditAIModelDialog` renders no field —
+   rotating a key today means deleting the configuration and recreating it,
+   losing its model, costs, and limits. Restore ends with "re-enter your
+   provider keys," which needs somewhere to enter one. Fix: render the field
+   with a `••••••••••••` placeholder and send `apiKey` only when non-empty.
+2. **`AIConfiguration` should be redacted, not excluded.** beta.6 dropped the
+   whole table because it holds `encryptedApiKey`; `backup-and-restore.md` only
+   ever asked for column-level exclusion. Redacting `encryptedApiKey` and
+   `salt` preserves the administrator's model and cost configuration. Bumps
+   `tableContractVersion` to 2, worth doing before anyone depends on v1.
 
-**Restore is still to design.** Its blocking questions — maintenance mode,
-transactional strategy against the measured 30s ceiling, what happens when the
-artifact's schema version is older than the database, and how the action is
-confirmed — remain open in
-`docs/data-management/beta-6-backup-restore-brief.md`. Backup now supplies the
-concrete artifact format that design needs.
-
-Database backup terminology needs care. A transactionally consistent raw
-SQLite snapshot necessarily contains encrypted API-key material, encryption-key
-records, authentication records, and other sensitive configuration. A browser-
-downloadable artifact that excludes those records is therefore a **sanitized
-logical backup**, not a byte-for-byte database snapshot. Full disaster-recovery
-snapshots remain an operator-controlled deployment concern. The in-app restore
-design must build a fresh compatible database from the sanitized artifact and
-require fresh encryption/API-key configuration afterward.
-
-The accepted backup and restore boundaries are recorded in
-`docs/data-management/backup-and-restore.md`. This was split from #50 at beta.4
-so the authority work could close on its own; as one issue it could not close
-until the riskiest piece shipped. Administrator authority (#50a) is now in
-place, which was the stated precondition.
+**Also queued:** `sanitized-backup.ts` calls `schemaVersion` "the compatibility
+key that matters." It is not — `tableContractVersion` is the gate and
+`schemaVersion` is provenance. Gating on the migration name would refuse valid
+artifacts, since most migrations do not touch exported tables.
 
 ### #49 — Document Translator upload UI bypasses current component standards
 **Priority**: Medium · **Status**: Open

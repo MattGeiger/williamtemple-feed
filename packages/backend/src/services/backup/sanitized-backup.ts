@@ -35,9 +35,12 @@ export interface BackupManifest {
   /** The FEED build that produced it. Informational — not a compatibility key. */
   feedVersion: string;
   /**
-   * The latest applied migration. This is the compatibility key that matters:
-   * a restore has to decide what to do when the database has moved on, and the
-   * migration name is the only identifier that maps to an actual schema.
+   * The latest applied migration — provenance and diagnostics, NOT the
+   * compatibility gate. `tableContractVersion` above is what restore keys on.
+   * Most migrations do not touch exported tables (beta.5 and beta.6 added
+   * none), so refusing on a migration-name mismatch would reject valid
+   * artifacts and teach people to bypass the check.
+   * See docs/data-management/beta-6-backup-restore-brief.md, "Version contract".
    */
   schemaVersion: string;
   generatedAt: string;
