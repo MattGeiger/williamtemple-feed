@@ -21,6 +21,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useIsInView } from '@/hooks/use-is-in-view';
 import { Slot, type WithAsChild } from '@/components/animate-ui/primitives/animate/slot';
+import { mergeRefs } from '@/lib/merge-refs';
 
 const staticAnimations = {
   path: {
@@ -130,7 +131,19 @@ function composeEventHandlers<E extends React.SyntheticEvent<unknown>>(
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyProps = Record<string, any>;
 
-function AnimateIcon({
+/**
+ * Wrapped in `forwardRef` because it is routinely the child of a Radix
+ * `asChild` trigger — `<TooltipTrigger asChild><AnimateIcon asChild>…` is the
+ * documented sidebar pattern. Radix's SlotClone hands its child a ref, and on
+ * React 18 a plain function component cannot receive one: React warns and the
+ * ref is dropped, so the trigger never gets the element it needs to anchor and
+ * measure against.
+ *
+ * The forwarded ref is merged with the in-view ref rather than replacing it —
+ * both consumers need the same node, and `animateOnView` breaks if the internal
+ * one is lost.
+ */
+const AnimateIcon = React.forwardRef<HTMLElement, AnimateIconProps>(function AnimateIcon({
   asChild = false,
   animate = false,
   animateOnHover = false,
@@ -147,7 +160,7 @@ function AnimateIcon({
   delay = 0,
   children,
   ...props
-}: AnimateIconProps) {
+}: AnimateIconProps, forwardedRef: React.ForwardedRef<HTMLElement>) {
   const controls = useAnimation();
 
   const [localAnimate, setLocalAnimate] = React.useState<boolean>(() => {
@@ -409,9 +422,11 @@ function AnimateIcon({
     },
   );
 
+  const composedRef = mergeRefs<HTMLElement>(inViewRef, forwardedRef);
+
   const content = asChild ? (
     <Slot
-      ref={inViewRef}
+      ref={composedRef}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       onPointerDown={handlePointerDown}
@@ -422,7 +437,7 @@ function AnimateIcon({
     </Slot>
   ) : (
     <motion.span
-      ref={inViewRef}
+      ref={composedRef}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       onPointerDown={handlePointerDown}
@@ -450,7 +465,8 @@ function AnimateIcon({
       {content}
     </AnimateIconContext.Provider>
   );
-}
+});
+AnimateIcon.displayName = 'AnimateIcon';
 
 const pathClassName =
   "**:[[stroke-dasharray='1px_1px']]:[stroke-dasharray:1px_0px]!";
