@@ -2,9 +2,26 @@
 
 ## Status
 
-Designed and approved 2026-08-02. Not yet implemented. Part of the restore work
-— see [beta-6-backup-restore-brief.md](beta-6-backup-restore-brief.md) for the
-mechanism it shares.
+Designed and approved 2026-08-02. **Not yet implemented.**
+
+**The mechanism it shares now exists and is proven.** Restore shipped in
+1.5.0-beta.7, and clean slate is the same machinery with a different source:
+build a database, populate it, swap it in, exit to restart
+(`services/restore/restore-service.ts`). What remains is specific to this
+feature and is content work rather than plumbing:
+
+- decide the three example categories and dozen items;
+- build the example builder template against them and render it to PDF, per the
+  builder validation rules in AGENTS.md;
+- split the seed into the structural / reference / illustrative layers below;
+- wire the reset action, with its own confirmation copy — it *discards* rather
+  than *recovers*, and the wording must never let those blur;
+- offer preserve (default) or clear for the roster.
+
+The mechanism deliberately was not generalised to cover seeding in advance of
+that work. `RestoreService.run` takes artifact data and a unit list; a
+`resetToSeed` path alongside it will want the same VACUUM-copy, verify,
+snapshot, swap, exit sequence with a seeding step in place of the import.
 
 ## What changed and why
 

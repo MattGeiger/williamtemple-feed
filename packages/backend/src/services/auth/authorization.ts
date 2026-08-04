@@ -49,6 +49,10 @@ export const AUDIT_ACTIONS = {
   USER_DELETED: 'USER_DELETED',
   ACCESS_POLICY_UPDATED: 'ACCESS_POLICY_UPDATED',
   BACKUP_DOWNLOADED: 'BACKUP_DOWNLOADED',
+  // Recorded before the swap, so the entry survives in the pre-restore
+  // snapshot. The restored database will not contain it — the audit log is
+  // carried across from the live file, so it does.
+  BACKUP_RESTORED: 'BACKUP_RESTORED',
 } as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[keyof typeof AUDIT_ACTIONS];

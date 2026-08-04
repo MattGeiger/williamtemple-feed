@@ -14,6 +14,10 @@ import type {
   AuditPage,
   DatabaseSummary,
   InviteResult,
+  RestorePreview,
+  RestoreResult,
+  RestoreUnitId,
+  RestoreUnitInfo,
   RosterUser,
   UserAccessState,
   UserRole,
@@ -181,6 +185,70 @@ class AdminService extends BaseApiService {
       limit: response.limit,
       offset: response.offset,
     };
+  }
+
+  /** What a partial restore can select, and what each unit drags in with it. */
+  async getRestoreUnits(): Promise<RestoreUnitInfo[]> {
+    const response = await this.get<{ units: RestoreUnitInfo[] }>(
+      config.api.endpoints.admin.restoreUnits
+    );
+    return response.units;
+  }
+
+  /**
+   * Inspect a backup file without changing anything.
+   *
+   * Multipart rather than BaseApiService's JSON path, and deliberately a
+   * separate round trip from the restore itself: the administrator sees what
+   * the file holds before anything is replaced, which is the difference between
+   * a confirmation and a dare.
+   */
+  async validateBackup(file: File): Promise<RestorePreview> {
+    const body = new FormData();
+    body.append('file', file);
+
+    const response = await fetch(
+      `${config.api.baseUrl}${config.api.endpoints.admin.base}${config.api.endpoints.admin.restoreValidate}`,
+      { method: 'POST', credentials: 'include', body }
+    );
+
+    const payload = await response.json().catch(() => null);
+
+    if (!response.ok) {
+      throw new Error(
+        payload?.error?.message ?? 'FEED could not read that file. Try another backup.'
+      );
+    }
+
+    return payload.summary as RestorePreview;
+  }
+
+  /**
+   * Replace the selected units from the file, then let FEED restart.
+   *
+   * The server responds once the swap is done and exits a moment later, so a
+   * network error after this resolves is expected rather than alarming — it is
+   * the restart.
+   */
+  async restoreBackup(file: File, units: RestoreUnitId[]): Promise<RestoreResult> {
+    const body = new FormData();
+    body.append('file', file);
+    units.forEach(unit => body.append('units', unit));
+
+    const response = await fetch(
+      `${config.api.baseUrl}${config.api.endpoints.admin.base}${config.api.endpoints.admin.restore}`,
+      { method: 'POST', credentials: 'include', body }
+    );
+
+    const payload = await response.json().catch(() => null);
+
+    if (!response.ok) {
+      throw new Error(
+        payload?.error?.message ?? 'The restore did not run. Your data has not been changed.'
+      );
+    }
+
+    return payload.restored as RestoreResult;
   }
 }
 
