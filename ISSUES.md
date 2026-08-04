@@ -340,14 +340,21 @@ capability the pantry depends on before the roster was verified. Any
 authenticated user can still reach them until that lands.
 
 ### #50b — Restore, clean slate, and the backup contract
-**Priority**: High · **Status**: Backup shipped in 1.5.0-beta.6; restore
-designed and approved 2026-08-02, not yet built
+**Priority**: High · **Status**: Backup shipped in 1.5.0-beta.6; **restore
+shipped in 1.5.0-beta.7**; clean slate designed, not yet built
 **Bucket**: Data Management / authorization
 
 **Backup shipped.** Administrator-only, audited, self-describing artifact with
 a mechanically enforced table contract. See the 1.5.0-beta.6 changelog.
 
-**Restore and clean slate are designed.** Full record in
+**Restore shipped** in 1.5.0-beta.7: build-and-swap via `VACUUM INTO`, partial
+units closed under foreign keys, in-memory maintenance mode, pre-restore
+snapshot, exit-to-restart. Two things from the design remain open — the roster
+in the artifact (needed only for restoring onto new hardware) and a streaming
+parse for artifacts past ~256MB. Both are recorded in
+`docs/data-management/beta-6-backup-restore-brief.md`.
+
+**Clean slate is still designed-only.** Full record in
 `docs/data-management/beta-6-backup-restore-brief.md`. The decisions that
 matter:
 

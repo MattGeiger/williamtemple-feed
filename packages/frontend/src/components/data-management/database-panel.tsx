@@ -22,16 +22,17 @@ import { ErrorHandlerService } from '@/services/error/ErrorHandlerService';
 import { messageService } from '@/services/message';
 import { adminService } from '@/services/admin';
 import { DATABASE_SUMMARY_GROUPS, type DatabaseSummary } from '@/types/admin';
+import { RestoreDialog } from './restore-dialog';
 
 /**
  * Administrator-only database actions, plus what the database is holding.
  *
- * Hints are native `title` attributes rather than Radix tooltips. A
- * `TooltipTrigger asChild` around an `AnimateIcon asChild` puts two Slots in
- * series, each trying to forward a ref through `AnimateIcon`, which is not a
- * forwardRef component — React warns and the ref is dropped
- * (docs/motion/ICON_ANIMATIONS.md). A one-line hint does not justify unpicking
- * that; the fuller explanation lives in the Data Management help guide.
+ * Hints are native `title` attributes rather than Radix tooltips. That was
+ * originally a workaround — `AnimateIcon` was not a forwardRef component, so a
+ * `TooltipTrigger asChild` around it dropped its ref and logged a warning. That
+ * is fixed (docs/motion/ICON_ANIMATIONS.md, "React 18 and refs"), so a tooltip
+ * would work here now; `title` stays because a one-line hint does not need a
+ * portal, a timer, and a positioning engine.
  *
  * What the backup contains and omits lives in the Data Management help guide,
  * not on screen — it is a question most people ask once. The tooltips carry the
@@ -71,11 +72,7 @@ export function DatabasePanel() {
     void loadSummary();
   }, [loadSummary]);
 
-  const handleRestore = () => {
-    messageService.info(
-      'Restoring from a backup file is coming soon. Downloading a backup works today.'
-    );
-  };
+  const [isRestoreOpen, setIsRestoreOpen] = React.useState(false);
 
   const handleDownload = async () => {
     setIsDownloading(true);
@@ -110,14 +107,20 @@ export function DatabasePanel() {
           <Button
             variant="outline"
             size="sm"
-            onClick={handleRestore}
-            title="Restoring from a backup file is not available yet."
+            onClick={() => setIsRestoreOpen(true)}
+            title="Replaces data from a backup file. FEED restarts, and nothing changes until you confirm."
           >
             <UploadIcon className="mr-2 h-4 w-4" />
             Restore Backup
           </Button>
         </AnimateIcon>
       </div>
+
+      <RestoreDialog
+        open={isRestoreOpen}
+        onOpenChange={setIsRestoreOpen}
+        onRestored={() => void loadSummary()}
+      />
 
       <Card>
         <CardHeader>

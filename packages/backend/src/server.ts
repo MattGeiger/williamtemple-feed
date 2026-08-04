@@ -32,6 +32,7 @@ import procurementRouter from './routes/procurement';
 import authTestRouter from './routes/auth-test';
 import authRouter from './routes/auth';
 import adminRouter from './routes/admin';
+import { maintenanceGuard } from './services/restore/maintenance-mode';
 import { errorHandler } from './middleware/error-handler';
 import { jsonErrorHandler } from './middleware/json-error-handler';
 import { authMiddleware, jwtAuthMiddleware } from './middleware/auth';
@@ -83,6 +84,12 @@ export const createServer = () => {
   // Add authentication middleware (before routes, after basic middleware)
   app.use(jwtAuthMiddleware);
   app.use(authMiddleware);
+
+  // After authentication, so an unauthenticated caller still gets 401 first —
+  // maintenance is not an authentication bypass. Refuses mutations with 503
+  // while a restore swaps the database underneath the process; reads keep
+  // working so staff can look things up while they wait.
+  app.use(maintenanceGuard);
 
   // Routes
   app.use('/api/global-limit', globalLimitRouter);
