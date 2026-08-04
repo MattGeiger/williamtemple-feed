@@ -13,6 +13,7 @@ import { AdminAuditService } from '../../services/auth/admin-audit-service';
 import { AUDIT_ACTIONS, AUDIT_TARGET_TYPES } from '../../services/auth/authorization';
 import { readArtifact } from '../../services/restore/artifact-reader';
 import { RestoreService } from '../../services/restore/restore-service';
+import { CleanSlateService } from '../../services/seed/clean-slate-service';
 import {
   RESTORE_UNITS,
   closeSelection,
@@ -189,6 +190,51 @@ router.post('/', upload.single('file'), async (req, res, next) => {
         backupTakenAt: result.summary.manifest.generatedAt,
       },
       // The UI uses this to switch to "FEED is restarting" and start polling.
+      restarting: outcome.swapped,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * POST /api/admin/restore/reset — return the instance to a seeded state.
+ *
+ * Lives beside restore because it is the same machinery, and separate from it
+ * because it is the opposite intent: restore recovers, reset discards. JSON
+ * rather than multipart — there is no file, which is exactly why the
+ * pre-swap snapshot is the only way back.
+ */
+router.post('/reset', async (req, res, next) => {
+  try {
+    const withExamples = req.body?.withExamples !== false;
+    const clearRoster = req.body?.clearRoster === true;
+    const actor = auditActorFrom(req);
+
+    // Recorded before the swap. The audit log is carried across rather than
+    // cleared, so the entry describing the reset survives the reset.
+    await AdminAuditService.record({
+      actor,
+      action: AUDIT_ACTIONS.CLEAN_SLATE_APPLIED,
+      targetType: AUDIT_TARGET_TYPES.DATABASE,
+      targetLabel: withExamples ? 'clean slate with examples' : 'clean slate, structure only',
+      detail: { withExamples, clearRoster },
+    });
+
+    const outcome = await CleanSlateService.run({
+      withExamples,
+      clearRoster,
+      actor: actor.label,
+    });
+
+    res.json({
+      success: true,
+      reset: {
+        withExamples,
+        rosterCleared: outcome.rosterCleared,
+        seeded: outcome.seeded,
+        clearedTables: outcome.clearedTables.length,
+      },
       restarting: outcome.swapped,
     });
   } catch (error) {

@@ -23,6 +23,7 @@ import { messageService } from '@/services/message';
 import { adminService } from '@/services/admin';
 import { DATABASE_SUMMARY_GROUPS, type DatabaseSummary } from '@/types/admin';
 import { RestoreDialog } from './restore-dialog';
+import { ResetDialog } from './reset-dialog';
 
 /**
  * Administrator-only database actions, plus what the database is holding.
@@ -73,6 +74,7 @@ export function DatabasePanel() {
   }, [loadSummary]);
 
   const [isRestoreOpen, setIsRestoreOpen] = React.useState(false);
+  const [isResetOpen, setIsResetOpen] = React.useState(false);
 
   const handleDownload = async () => {
     setIsDownloading(true);
@@ -114,6 +116,21 @@ export function DatabasePanel() {
             Restore Backup
           </Button>
         </AnimateIcon>
+
+        {/*
+          Destructive, and sited last so it is not adjacent to Download. The
+          dialog requires typing the word — a misclick here costs the pantry
+          its data, and there is no artifact to come back from.
+        */}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setIsResetOpen(true)}
+          className="text-destructive hover:text-destructive"
+          title="Deletes all pantry data and starts over from a seeded state. Not a restore."
+        >
+          Reset to Clean Slate
+        </Button>
       </div>
 
       <RestoreDialog
@@ -121,6 +138,8 @@ export function DatabasePanel() {
         onOpenChange={setIsRestoreOpen}
         onRestored={() => void loadSummary()}
       />
+
+      <ResetDialog open={isResetOpen} onOpenChange={setIsResetOpen} summary={summary} />
 
       <Card>
         <CardHeader>
