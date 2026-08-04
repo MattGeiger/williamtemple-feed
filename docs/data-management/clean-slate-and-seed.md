@@ -14,16 +14,45 @@ It lives under `src/`, not in `scripts/`, because the production image installs
 with `--omit=dev` and never copies `scripts/`. Seed content kept there cannot
 back a user-facing action; the operator CLI hit the same trap in beta.4.
 
+**The reset action shipped** in 1.5.0-beta.7 as Data Management → Database →
+Reset to Clean Slate. `buildAndSwap` was extracted from the restore service so
+both features share one proven sequence — VACUUM-copy, mutate, verify foreign
+keys, snapshot, maintenance mode, checkpoint, rename, exit — differing only in
+how they populate the scratch database. The roster preserve/clear choice
+shipped with it.
+
 **Remaining:**
 
 - the example builder template, bound to the example inventory, rendered to PDF
   per the builder validation rules in AGENTS.md;
-- the reset action itself — the same VACUUM-copy, verify, snapshot, swap, exit
-  sequence restore uses, with a seeding step in place of the import, and
-  confirmation copy that says *discards* rather than *recovers*;
-- the roster preserve (default) or clear choice;
-- retiring the duplicated arrays in `scripts/seed-all.ts` once the above lands,
-  so the development seed and the clean slate share one source.
+- retiring the duplicated arrays in `scripts/seed-all.ts`, so the development
+  seed and the clean slate share one source.
+
+### What reset clears, and what survives
+
+Cleared: every table a backup covers, plus four derived tables that either hold
+foreign keys into them (`UsageRecord`, `ShoppingListInstance`) or describe data
+that no longer exists (`ApiUsageLog`, `Alert`).
+
+Preserved deliberately: encryption keys, the audit log (a security record — a
+reset must not be a way to erase the history of privileged actions, and the
+reset itself is recorded in it), the sign-in policy, and uploaded documents.
+
+The roster is the one choice: preserved by default, cleared only if asked.
+
+**Known consequence:** clearing `ShoppingListInstance` cascades to
+`ShoppingListPDF`, whose rows point at generated files under the storage path.
+Those files are not deleted and become orphans on disk — bounded and harmless,
+but storage reconciliation is the right place to collect them rather than doing
+file deletion inside a database swap.
+
+**One implementation note.** The wipe runs with `PRAGMA foreign_keys = OFF`.
+Clearing nearly every table means no single ordering satisfies every
+constraint, and chasing a topological order by hand is fragile and pointless
+when the whole graph is going away. It is safe because `buildAndSwap` turns
+foreign keys back on and runs `foreign_key_check` before the file is trusted —
+correctness is asserted on the finished database rather than on the order it
+was built in.
 
 ## The approved example inventory
 
