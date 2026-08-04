@@ -46,6 +46,25 @@ built at all: a backup you cannot fully restore from is not a backup.
   version 1 and carry no `AIConfiguration` at all — a difference a reader has to
   be able to see, which is what the version is for.
 
+### Fixed
+
+- **Refs are no longer dropped by the ported animate-ui components.** Upstream
+  animate-ui targets React 19, where `ref` is an ordinary prop; this project is
+  on React 18.2, where it is not. `AnimateIcon` and the animate-ui `Slot` were
+  both plain function components handling `ref` as a prop, so every ref aimed at
+  them was discarded — 16 "Function components cannot be given refs" warnings on
+  a single page load.
+
+  The warnings were the visible part. The consequences were not: Radix tooltip
+  triggers never received the element they anchor and measure against, and
+  `TabsTrigger` registered `null` with the tab indicator instead of the trigger
+  it was meant to measure. Both now forward refs, merged with the internal ones
+  rather than replacing them.
+
+  Also stopped `Switch` spreading Radix's control props onto the DOM button
+  underneath it, which made React log and discard an `onCheckedChange`
+  attribute on every render. The console is now clean on load.
+
 ## [1.5.0-beta.6] — 2026-08-01
 
 Sanitized backup, a database summary, and the Data Management page restructured

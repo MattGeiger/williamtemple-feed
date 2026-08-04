@@ -83,6 +83,8 @@ The same applies to `DropdownMenuItem`, `SelectTrigger`, `PopoverTrigger`, and a
 
 When a Radix component (Button, DropdownMenuTrigger, etc.) is already inside an `asChild` Slot, you can nest: the outer `AnimateIcon asChild` Slot composes cleanly with the inner Radix Slot.
 
+Nesting the other way round — a Radix `asChild` trigger wrapping `AnimateIcon`, as the sidebar's `<TooltipTrigger asChild><AnimateIcon asChild>` does — used to log "Function components cannot be given refs" on every page load and silently drop the trigger's ref. See [React 18 and refs](#react-18-and-refs) below; both `AnimateIcon` and the animate-ui `Slot` now forward refs, so either nesting order is safe.
+
 ```tsx
 // Correct — triggers on the wrapper's hover/tap zone
 <AnimateIcon animateOnHover animateOnTap>
@@ -113,6 +115,29 @@ When a Radix component (Button, DropdownMenuTrigger, etc.) is already inside an 
 ```
 
 Passing trigger props directly to an animate-ui icon causes `IconWrapper` to internally render `<AnimateIcon asChild>`, which uses a `Slot` that attempts to forward a ref to the plain `IconComponent` function. Since `IconComponent` is not wrapped with `forwardRef`, React emits a console warning and the ref fails silently.
+
+### React 18 and refs
+
+Upstream animate-ui targets React 19, where `ref` is an ordinary prop that any
+function component receives. **This project is on React 18.2**, where React
+intercepts `ref`, keeps it off `props`, and refuses to hand it to a function
+component that is not wrapped in `forwardRef`.
+
+Three places carried the React 19 assumption and were corrected:
+
+| Component | Was | Now |
+| --- | --- | --- |
+| `AnimateIcon` | plain function; a Radix `asChild` trigger could not give it a ref | `forwardRef`, merged with its in-view ref |
+| `Slot` (`primitives/animate/slot`) | read `ref` out of props, and read `children.props.ref` | `forwardRef`; reads the child's ref from `children.ref` |
+| `Switch` (`primitives/radix/switch`) | spread Radix control props onto the DOM button | spreads only what the button takes |
+
+The failures were quiet ones. A dropped ref logs a warning but otherwise just
+leaves a consumer holding `null` — `TabsTrigger` registers `localRef.current`
+with the tab indicator so it can measure the active trigger, and it was
+registering nothing.
+
+If you port more animate-ui components, assume they were written for React 19
+and check every `ref` before trusting it.
 
 ### Imperative-Ref Icons — call `startAnimation` / `stopAnimation` via ref
 
