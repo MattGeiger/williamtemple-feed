@@ -107,18 +107,84 @@ export class RestoreService {
     /** Injected in tests so the suite never calls process.exit. */
     exit?: (code: number) => void;
   }): Promise<RestoreOutcome> {
-    const { data, units, actor, reason } = options;
-    const livePath = resolveDatabasePath();
-    const dir = dirname(livePath);
-    const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const scratchPath = join(dir, `restore-${stamp}.db`);
-    const snapshotPath = join(dir, `pre-restore-${stamp}.db`);
-
-    if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-
+    const { data, units } = options;
     const tables = tablesFor(units);
     const rowsWritten: Record<string, number> = {};
 
+    const { snapshotPath } = await buildAndSwap(
+      async scratch => {
+        // Replace, never merge — within the selected units only.
+        //
+        // Merging would have to reconcile two autoincrement id-spaces:
+        // FoodItemTranslation and the inventory events reference FoodItem and
+        // Category by id, so a name-based merge must rewrite every incoming
+        // foreign key. Getting that wrong binds a translation to the wrong food
+        // item — invisible on screen, and it survives physical reconciliation
+        // because staff verify stock, not foreign keys.
+        for (const table of deletionOrder(tables)) {
+          await delegateFor(scratch, table).deleteMany({});
+        }
+
+        for (const table of tables) {
+          const rows = data[table] ?? [];
+          if (rows.length) {
+            // createMany rather than a create per row: this is a bulk load into
+            // a file nobody is reading yet.
+            await delegateFor(scratch, table).createMany({ data: rows });
+          }
+          rowsWritten[table] = rows.length;
+        }
+
+        // Verify the new file says what the artifact said before trusting it.
+        for (const table of tables) {
+          const actual = await delegateFor(scratch, table).count();
+          if (actual !== rowsWritten[table]) {
+            throw new Error(
+              `Restore verification failed: ${table} holds ${actual} rows, expected ${rowsWritten[table]}. ` +
+                'The live database has not been touched.'
+            );
+          }
+        }
+      },
+      options
+    );
+
+    return { restoredTables: tables, rowsWritten, snapshotPath, swapped: true };
+  }
+}
+
+/**
+ * The dangerous sequence, in one place.
+ *
+ * Restore and clean slate differ only in how they populate the scratch
+ * database; everything around that — the consistent copy, foreign-key
+ * verification, the pre-swap snapshot, maintenance mode, the WAL checkpoint,
+ * the rename, and the exit — is identical and must not be reimplemented twice.
+ * Sharing it means the parts that can destroy data are exercised by both
+ * features and only have to be proven once.
+ *
+ * `mutate` receives a client bound to the scratch file. It may take as long as
+ * it needs: nothing is live, so there is no transaction clock and no lock on
+ * the pantry.
+ */
+export const buildAndSwap = async (
+  mutate: (scratch: PrismaClient) => Promise<void>,
+  options: {
+    actor: string;
+    reason: string;
+    exit?: (code: number) => void;
+  }
+): Promise<{ snapshotPath: string }> => {
+  const { actor, reason } = options;
+  const livePath = resolveDatabasePath();
+  const dir = dirname(livePath);
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const scratchPath = join(dir, `rebuild-${stamp}.db`);
+  const snapshotPath = join(dir, `pre-change-${stamp}.db`);
+
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+
+  {
     // 1. Consistent copy of the live database. Nothing is live in it, so from
     //    here until the swap there is no clock and no lock on the pantry.
     await prisma.$executeRawUnsafe(`VACUUM INTO '${scratchPath.replace(/'/g, "''")}'`);
@@ -126,40 +192,13 @@ export class RestoreService {
     const scratch = clientFor(scratchPath);
 
     try {
-      // 2. Replace, never merge — within the selected units only.
-      //
-      //    Merging would have to reconcile two autoincrement id-spaces:
-      //    FoodItemTranslation and the inventory events reference FoodItem and
-      //    Category by id, so a name-based merge must rewrite every incoming
-      //    foreign key. Getting that wrong binds a translation to the wrong
-      //    food item — invisible on screen, and it survives physical
-      //    reconciliation because staff verify stock, not foreign keys.
-      for (const table of deletionOrder(tables)) {
-        await delegateFor(scratch, table).deleteMany({});
-      }
+      // 2. Whatever this operation actually does — import an artifact, or wipe
+      //    and seed. Nothing here is live yet.
+      await mutate(scratch);
 
-      for (const table of tables) {
-        const rows = data[table] ?? [];
-        if (rows.length) {
-          // createMany rather than a create per row: this is a bulk load into a
-          // file nobody is reading yet.
-          await delegateFor(scratch, table).createMany({ data: rows });
-        }
-        rowsWritten[table] = rows.length;
-      }
-
-      // 3. Verify the new file says what the artifact said before trusting it.
-      for (const table of tables) {
-        const actual = await delegateFor(scratch, table).count();
-        const expected = rowsWritten[table];
-        if (actual !== expected) {
-          throw new Error(
-            `Restore verification failed: ${table} holds ${actual} rows, expected ${expected}. ` +
-              'The live database has not been touched.'
-          );
-        }
-      }
-
+      // 3. Referential integrity, checked before the file is trusted. This
+      //    catches a partial selection that left rows pointing at rows that
+      //    were never written.
       await scratch.$executeRawUnsafe('PRAGMA foreign_keys = ON;');
       const violations = await scratch.$queryRawUnsafe<unknown[]>('PRAGMA foreign_key_check;');
       if (Array.isArray(violations) && violations.length) {
@@ -217,6 +256,6 @@ export class RestoreService {
     //    Docker socket, no privileged access, and no host agent.
     setTimeout(() => exit(0), 250);
 
-    return { restoredTables: tables, rowsWritten, snapshotPath, swapped: true };
+    return { snapshotPath };
   }
-}
+};

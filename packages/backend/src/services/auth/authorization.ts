@@ -53,6 +53,9 @@ export const AUDIT_ACTIONS = {
   // snapshot. The restored database will not contain it — the audit log is
   // carried across from the live file, so it does.
   BACKUP_RESTORED: 'BACKUP_RESTORED',
+  // Reset discards data on purpose; restore recovers it. Separate actions so
+  // the history never blurs the two.
+  CLEAN_SLATE_APPLIED: 'CLEAN_SLATE_APPLIED',
 } as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[keyof typeof AUDIT_ACTIONS];
@@ -61,6 +64,7 @@ export const AUDIT_TARGET_TYPES = {
   USER: 'USER',
   ACCESS_POLICY: 'ACCESS_POLICY',
   BACKUP: 'BACKUP',
+  DATABASE: 'DATABASE',
 } as const;
 
 export type AuditTargetType =

@@ -12,6 +12,8 @@ import type {
   AccessPolicyUpdate,
   AdministratorSummary,
   AuditPage,
+  CleanSlateOptions,
+  CleanSlateResult,
   DatabaseSummary,
   InviteResult,
   RestorePreview,
@@ -249,6 +251,35 @@ class AdminService extends BaseApiService {
     }
 
     return payload.restored as RestoreResult;
+  }
+
+  /**
+   * Discard the current data and return to a seeded starting state.
+   *
+   * Not a restore, despite sharing its machinery: there is no file to go back
+   * to, only the snapshot FEED takes before the swap. The caller is expected to
+   * have said so plainly before getting here.
+   */
+  async resetToCleanSlate(options: CleanSlateOptions): Promise<CleanSlateResult> {
+    const response = await fetch(
+      `${config.api.baseUrl}${config.api.endpoints.admin.base}${config.api.endpoints.admin.restoreReset}`,
+      {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(options),
+      }
+    );
+
+    const payload = await response.json().catch(() => null);
+
+    if (!response.ok) {
+      throw new Error(
+        payload?.error?.message ?? 'The reset did not run. Your data has not been changed.'
+      );
+    }
+
+    return payload.reset as CleanSlateResult;
   }
 }
 

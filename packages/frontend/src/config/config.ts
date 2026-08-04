@@ -80,6 +80,7 @@ interface ApiConfig {
       restore: string;
       restoreUnits: string;
       restoreValidate: string;
+      restoreReset: string;
     };
   };
 }
@@ -163,7 +164,8 @@ const config: AppConfig = {
         databaseSummary: '/database-summary',
         restore: '/restore',
         restoreUnits: '/restore/units',
-        restoreValidate: '/restore/validate'
+        restoreValidate: '/restore/validate',
+        restoreReset: '/restore/reset'
       }
     }
   }

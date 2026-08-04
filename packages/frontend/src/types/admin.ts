@@ -194,3 +194,28 @@ export interface RestoreResult {
   rowsWritten: Record<string, number>;
   backupTakenAt: string;
 }
+
+/** Clean slate — the reset that shares restore's mechanism. */
+export interface CleanSlateOptions {
+  /** Include example categories and items. Default true. */
+  withExamples: boolean;
+  /**
+   * Also clear the roster. Default false: preserving it keeps the
+   * administrator and their colleagues signed in to their own instance.
+   * Clearing arms the fresh-instance bootstrap, so it must be chosen.
+   */
+  clearRoster: boolean;
+}
+
+export interface CleanSlateResult {
+  withExamples: boolean;
+  rosterCleared: boolean;
+  seeded: {
+    languages: number;
+    enabledLanguages: number;
+    categories: number;
+    foodItems: number;
+    globalLimit: number;
+  };
+  clearedTables: number;
+}
