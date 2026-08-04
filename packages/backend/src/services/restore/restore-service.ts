@@ -47,6 +47,15 @@ import { tablesFor, type UnitId } from './restore-units';
  * pre-swap snapshot back.
  */
 
+/**
+ * Exit code used to hand the process back to its supervisor for a restart.
+ *
+ * Must be non-zero so both supervisors act on it: Docker's `unless-stopped`
+ * restarts on any code, but `ts-node-dev --respawn` only restarts on a
+ * non-zero exit.
+ */
+export const RESTART_EXIT_CODE = 75;
+
 /** Deleting children before parents; inserting parents before children. */
 const deletionOrder = (tables: string[]): string[] => [...tables].reverse();
 
@@ -251,10 +260,18 @@ export const buildAndSwap = async (
 
     const exit = options.exit ?? ((code: number) => process.exit(code));
 
-    // 7. Exit so the container restarts against the new file. `restart:
-    //    unless-stopped` is already set on every service, so this needs no
-    //    Docker socket, no privileged access, and no host agent.
-    setTimeout(() => exit(0), 250);
+    // 7. Exit so the supervisor restarts the process against the new file.
+    //    `restart: unless-stopped` is already set on every service, so this
+    //    needs no Docker socket, no privileged access, and no host agent.
+    //
+    //    **Non-zero on purpose.** Docker restarts on any exit code, but
+    //    `ts-node-dev --respawn` — what `npm run dev` uses — treats a clean
+    //    exit(0) as intentional and does not restart. Exiting 0 therefore
+    //    worked in production and left the backend dead in development after
+    //    every restore and reset. 75 is EX_TEMPFAIL: "temporary failure, the
+    //    user is invited to retry", which is as close as the sysexits list gets
+    //    to "I am deliberately going away and expect to come back".
+    setTimeout(() => exit(RESTART_EXIT_CODE), 250);
 
     return { snapshotPath };
   }

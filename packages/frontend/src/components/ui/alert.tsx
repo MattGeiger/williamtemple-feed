@@ -10,8 +10,21 @@ import { cva, type VariantProps } from "class-variance-authority"
 
 import { cn } from "@/lib/utils"
 
+/**
+ * A single centred row: icon, then title, then description.
+ *
+ * This diverges from upstream shadcn, whose alert is a grid with the icon
+ * absolutely positioned and the title stacked *above* the description. Keeping
+ * the row layout means every child has to share one vertical rhythm — a stray
+ * margin or a different line-height on any one of them lands it on its own
+ * baseline, which is what "the icon, title, and text each sit at a different
+ * height" looks like.
+ *
+ * `[&>svg]:shrink-0` keeps the icon from being squeezed when the description is
+ * long enough to compete for width.
+ */
 const alertVariants = cva(
-  "relative w-full rounded-lg border border-slate-200 px-4 py-3 text-sm flex items-center gap-3 dark:border-slate-800 dark:[&>svg]:text-slate-50",
+  "relative w-full rounded-lg border border-slate-200 px-4 py-3 text-sm flex items-center gap-3 [&>svg]:shrink-0 dark:border-slate-800 dark:[&>svg]:text-slate-50",
   {
     variants: {
       variant: {
@@ -46,7 +59,12 @@ const AlertTitle = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <h5
     ref={ref}
-    className={cn("mb-1 font-medium leading-none tracking-tight", className)}
+    // No `mb-1` and no `leading-none`. Both are holdovers from the stacked
+    // upstream layout: inside a centred flex row a bottom margin lifts the
+    // title above its siblings, and a different line-height puts its text on a
+    // different baseline than the description beside it. Inheriting the row's
+    // `text-sm` leading is what puts all three on one line.
+    className={cn("shrink-0 font-medium tracking-tight", className)}
     {...props}
   />
 ))
