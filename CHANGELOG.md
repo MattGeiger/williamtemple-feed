@@ -51,6 +51,20 @@ All notable changes to FEED are documented here. This project adheres to
 
 ### Fixed
 
+- **The two-administrator refusal explains itself instead of saying "An
+  unexpected error occurred" (ISSUES.md #60).** The backend message was already
+  specific and actionable; it never reached the toast. The frontend caps error
+  messages at 240 characters as defence against leaked driver dumps, and this
+  one ran to 251 — so the entire explanation was replaced with the generic
+  fallback. The Domain-mode variant was 129 characters and displayed fine, which
+  is why only the two-administrator rule looked broken.
+
+  Errors that arrive with an application error code are now exempt from the
+  length cap: a code means one of our own routes wrote the prose, and a leaked
+  dump never carries one. The shape checks still apply, so the exemption cannot
+  smuggle an artifact through. The message was also cut to three sentences —
+  what happens, the rule, the way out — at 132 characters.
+
 - **A clean slate no longer leaves the instance without AI system prompts.**
   The prompts lived only in `scripts/seed-all.ts`, which the production image
   never copies, while `SystemPrompt` is part of the backup contract and so was

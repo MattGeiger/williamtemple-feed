@@ -191,11 +191,7 @@ export class RosterService {
     ) {
       const mode = await this.currentMode();
       const remaining = await countEligibleAdministrators(prisma, user.id);
-      assertAdministratorMinimum(
-        remaining,
-        mode,
-        `Changing ${user.email} to Staff`
-      );
+      assertAdministratorMinimum(remaining, mode);
     }
 
     return prisma.$transaction(async tx => {
@@ -250,11 +246,7 @@ export class RosterService {
     ) {
       const mode = await this.currentMode();
       const remaining = await countEligibleAdministrators(prisma, user.id);
-      assertAdministratorMinimum(
-        remaining,
-        mode,
-        `Revoking access for ${user.email}`
-      );
+      assertAdministratorMinimum(remaining, mode);
     }
 
     return prisma.$transaction(async tx => {
@@ -300,7 +292,7 @@ export class RosterService {
     ) {
       const mode = await this.currentMode();
       const remaining = await countEligibleAdministrators(prisma, user.id);
-      assertAdministratorMinimum(remaining, mode, `Removing ${user.email}`);
+      assertAdministratorMinimum(remaining, mode);
     }
 
     await prisma.$transaction(async tx => {

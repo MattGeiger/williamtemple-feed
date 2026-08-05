@@ -70,8 +70,7 @@ export const countEligibleAdministrators = async (
  */
 export const assertAdministratorMinimum = (
   remaining: number,
-  mode: AccessMode,
-  action: string
+  mode: AccessMode
 ): void => {
   const minimum = administratorMinimumFor(mode);
 
@@ -81,16 +80,30 @@ export const assertAdministratorMinimum = (
 
   if (minimum === ADMIN_MINIMUM_DOMAIN) {
     throw new AuthorizationError(
-      `${action} would leave FEED with no administrator. Promote another user to Administrator first.`,
+      'This change would leave FEED with no administrator. Promote another user to Administrator first.',
       409,
       'LAST_ADMINISTRATOR'
     );
   }
 
+  // Three short sentences: what happens, the rule, the way out. This lands in
+  // a toast, and an administrator hitting a failsafe wants to know what to do
+  // next — not to read a paragraph about mailboxes. The action that triggered
+  // it is deliberately not named: "This change" covers a demotion, a revoke,
+  // and a switch to Allowlist mode without a sentence per caller.
+  // "only 0 administrators" is what a template produces, not what a person
+  // writes. Both counts are spelled out.
+  const left =
+    remaining === 0
+      ? 'no administrators'
+      : remaining === 1
+        ? 'only one administrator'
+        : `only ${remaining} administrators`;
+
   throw new AuthorizationError(
-    `${action} would leave FEED with ${remaining} administrator${remaining === 1 ? '' : 's'} who can sign in. ` +
-      'Allowlist mode requires two, so a changed or lost mailbox cannot lock everyone out. ' +
-      'Promote another administrator first, or switch back to Domain mode.',
+    `This change would leave ${left}. ` +
+      'Allowlist mode requires two. ' +
+      'Promote another administrator or switch to Domain mode.',
     409,
     'ALLOWLIST_ADMINISTRATOR_MINIMUM'
   );
