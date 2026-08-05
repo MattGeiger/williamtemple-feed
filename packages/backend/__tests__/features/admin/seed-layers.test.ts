@@ -8,6 +8,12 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  EXAMPLE_SAVED_COMPONENTS,
+  TEMPLATE_BLUEPRINT,
+  TEMPLATE_REQUIRES,
+  buildExampleTemplateData,
+} from '../../../src/services/seed/example-template';
+import {
   ILLUSTRATIVE_CATEGORIES,
   ILLUSTRATIVE_FOOD_ITEMS,
   REFERENCE_LANGUAGES,
@@ -104,5 +110,59 @@ describe('clean slate: structural and reference layers', () => {
     expect(new Set(orders).size).toBe(orders.length);
     expect(Math.min(...orders)).toBe(1);
     expect(Math.max(...orders)).toBe(REFERENCE_LANGUAGES.length);
+  });
+});
+
+describe('the example Builder template', () => {
+  it('stores ids as placeholders, never as literals', () => {
+    // The authored template referenced categoryId 14 and foodItemIds in the
+    // 170s. Those come from SQLite's autoincrement high-water mark, which
+    // survives the deletes a reset performs — so they differ on every instance
+    // and after every reset. A literal id here would bind the example table to
+    // whatever rows happen to hold that id later.
+    const raw = JSON.stringify(TEMPLATE_BLUEPRINT);
+    expect(raw).not.toMatch(/"categoryId":\s*\d+/);
+    expect(raw).not.toMatch(/"foodItemId":\s*\d+/);
+    expect(raw).toMatch(/@@CAT:/);
+    expect(raw).toMatch(/@@ITEM:/);
+  });
+
+  it('only references inventory the illustrative layer creates', () => {
+    // Otherwise the template renders an empty table, which reads as a Builder
+    // bug rather than a seeding one.
+    const categories = new Set(ILLUSTRATIVE_CATEGORIES.map(c => c.name));
+    const items = new Set(ILLUSTRATIVE_FOOD_ITEMS.map(i => i.name));
+
+    for (const name of TEMPLATE_REQUIRES.categories) expect(categories).toContain(name);
+    for (const name of TEMPLATE_REQUIRES.items) expect(items).toContain(name);
+  });
+
+  it('leaves the out-of-stock item off the list', () => {
+    // Carrots is seeded out of stock, and shopping lists show what is
+    // available. Its absence from the template is the demonstration, not an
+    // oversight — if it ever appears here, one of the two is wrong.
+    expect(TEMPLATE_REQUIRES.items).not.toContain('Carrots');
+    expect(ILLUSTRATIVE_FOOD_ITEMS.find(i => i.name === 'Carrots')?.isInStock).toBe(false);
+  });
+
+  it('substitutes real ids for every placeholder', () => {
+    const categoryIds = new Map(ILLUSTRATIVE_CATEGORIES.map((c, i) => [c.name, 100 + i]));
+    const itemIds = new Map(ILLUSTRATIVE_FOOD_ITEMS.map((f, i) => [f.name, 200 + i]));
+
+    const built = JSON.stringify(buildExampleTemplateData(categoryIds, itemIds));
+
+    expect(built).not.toMatch(/@@(CAT|ITEM):/);
+    expect(built).toContain('"categoryId":100');
+  });
+
+  it('refuses to build against inventory that is missing', () => {
+    // Silently binding to nothing would ship a broken example.
+    expect(() => buildExampleTemplateData(new Map(), new Map())).toThrow(/did not create/);
+  });
+
+  it('ships the reusable blocks the template was built from', () => {
+    expect(EXAMPLE_SAVED_COMPONENTS.length).toBeGreaterThanOrEqual(8);
+    // These carry no inventory ids, so they need no substitution.
+    expect(JSON.stringify(EXAMPLE_SAVED_COMPONENTS)).not.toMatch(/foodItemId|categoryId/);
   });
 });
