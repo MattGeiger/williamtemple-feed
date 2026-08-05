@@ -25,7 +25,11 @@ import { TableSelectionOptions } from "@/types/table"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { TranslationType } from "@/types/translation"
 import type { LucideIcon } from "lucide-react";
-import { calculateVisibleColumnWidths } from "@/lib/table"
+import {
+  calculateColumnWidths,
+  calculateVisibleColumnWidths,
+  getColumnWidthStyle,
+} from "@/lib/table"
 
 const mobileResponsiveColumnIds = [
   'lastUpdated',
@@ -42,6 +46,15 @@ interface EnhancedDataTableProps<TData> {
   columns: ColumnDef<TData>[]
   data: TData[]
   isLoading?: boolean
+  /**
+   * What to show when there are no rows.
+   *
+   * Defaults to the generic line. Worth overriding wherever the table is a
+   * known set rather than a search result — "No one is on the roster yet."
+   * tells an administrator the roster is empty; "No results found." suggests
+   * their filter is wrong.
+   */
+  emptyMessage?: string
   filterColumn?: string
   filterPlaceholder?: string
   enableColumnVisibility?: boolean
@@ -76,6 +89,7 @@ export const EnhancedDataTable = React.forwardRef(function EnhancedDataTable<TDa
   columns,
   data,
   isLoading = false,
+  emptyMessage = 'No results found.',
   filterColumn,
   filterPlaceholder,
   enableColumnVisibility = true,
@@ -165,13 +179,34 @@ export const EnhancedDataTable = React.forwardRef(function EnhancedDataTable<TDa
    * mean what it appears to mean, and makes it impossible for a new table to
    * forget. `meta.style` stays as an explicit per-column override.
    */
-  const resolvedColumnStyles = calculateVisibleColumnWidths(
-    table.getVisibleLeafColumns().map((column) => ({
-      id: column.id,
-      size: column.columnDef.size ?? 100,
-      isFixed: column.id === 'select' || column.id === 'actions',
-    }))
-  )
+  const visibleColumnSizes = table.getVisibleLeafColumns().map((column) => ({
+    id: column.id,
+    size: column.columnDef.size ?? 100,
+    isFixed: column.id === 'select' || column.id === 'actions',
+  }))
+
+  /*
+   * Plain percentages on desktop, `calc()` only when columns are hidden.
+   *
+   * `calculateVisibleColumnWidths` subtracts each flexible column's share of
+   * the fixed pixel total, which is arithmetically tidier — and a fixed-layout
+   * table does not resolve a percentage inside `calc()`, so every column
+   * silently collapsed to an equal split. Consolidating these two call sites
+   * introduced exactly that: Data Management went back to eight equal columns
+   * while its inline styles still read `calc(17.17% - 12.36px)`, which is a
+   * particularly good disguise.
+   *
+   * The plain percentages slightly over-declare (they ignore the fixed columns'
+   * pixels, so the total exceeds 100%) and the browser scales them down
+   * proportionally, which is the behaviour every table shipped with.
+   */
+  const resolvedColumnStyles = isMobile
+    ? calculateVisibleColumnWidths(visibleColumnSizes)
+    : Object.fromEntries(
+        Object.entries(calculateColumnWidths(visibleColumnSizes)).map(
+          ([id, width]) => [id, getColumnWidthStyle(width)]
+        )
+      )
 
   const columnStyle = (
     column: ReturnType<typeof table.getVisibleLeafColumns>[number]
@@ -294,7 +329,7 @@ export const EnhancedDataTable = React.forwardRef(function EnhancedDataTable<TDa
                     colSpan={columns.length}
                     className="h-24 text-center py-4 sm:py-6"
                   >
-                    No results found.
+                    {emptyMessage}
                   </TableCell>
                 </TableRow>
               )}

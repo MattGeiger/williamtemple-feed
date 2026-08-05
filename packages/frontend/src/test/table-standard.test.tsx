@@ -28,9 +28,16 @@ import fg from 'fast-glob';
 
 const root = join(__dirname, '..', 'components');
 
+/**
+ * The components that *implement* the standard are exempt from it: the table
+ * resolves widths for everyone, and the sortable header owns the padding
+ * offset. Everything else is a caller and must not reimplement either.
+ */
+const IMPLEMENTS_THE_STANDARD = ['/ui/sortable-header', '/ui/enhanced-data-table/'];
+
 const sourceFiles = fg
   .sync(['**/*.tsx'], { cwd: root, absolute: true })
-  .filter(file => !file.includes('/ui/sortable-header'));
+  .filter(file => !IMPLEMENTS_THE_STANDARD.some(part => file.includes(part)));
 
 const read = (file: string) => readFileSync(file, 'utf8');
 
@@ -124,6 +131,30 @@ describe('table standard', () => {
       offenders,
       `These tables format dates directly. Use formatDate / formatDateTime / ` +
         `formatDateRange from @/lib/formatting/date:\n${offenders.join('\n')}`
+    ).toEqual([]);
+  });
+
+  test('a hand-rolled table still labels its actions column', () => {
+    // The Admin roster is a plain <Table>: five rows, no sorting, filtering, or
+    // pagination, so routing it through EnhancedDataTable would add a feature
+    // bar and pager it does not want. That is a legitimate choice — but it also
+    // put the table outside every other rule here, and it shipped with an empty
+    // 48px <TableHead> where every other table names the column. The rules that
+    // are about what a user sees still apply to it.
+    const offenders = sourceFiles
+      .filter(file => {
+        const source = code(file);
+        if (!source.includes('<TableHeader>')) return false;
+        if (!source.includes('TableActionMenu')) return false;
+        return !/<TableHead[^>]*>\s*Actions\s*</.test(source);
+      })
+      .map(relative);
+
+    expect(
+      offenders,
+      `These hand-rolled tables show an action menu under an unlabelled header. ` +
+        `Add <TableHead style={{ width: FIXED_COLUMN_WIDTHS.actions }}>Actions</TableHead>:\n` +
+        offenders.join('\n')
     ).toEqual([]);
   });
 
