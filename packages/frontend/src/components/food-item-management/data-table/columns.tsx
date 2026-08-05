@@ -6,9 +6,8 @@
 // not covered by this license; see TRADEMARKS.md.
 
 import { ColumnDef } from "@tanstack/react-table"
-import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
-import { ArrowUpDown, Box, AlertCircle, Carrot, Vegan, WheatOff, Sprout, MoonStar, Star, UtensilsCrossed, PersonStanding, Home } from "@/components/ui/icons";
+import { Box, AlertCircle, Carrot, Vegan, WheatOff, Sprout, MoonStar, Star, UtensilsCrossed, PersonStanding, Home } from "@/components/ui/icons";
 import { SquarePenIcon } from "@/components/animate-ui/icons/square-pen";
 import { Trash2Icon } from "@/components/animate-ui/icons/trash-2";
 import { XIcon } from "@/components/animate-ui/icons/x";
@@ -34,7 +33,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { ResponsiveTruncatedText } from "@/components/ui/responsive-truncated-text"
-import { calculateColumnWidths, extractColumnSizes, getColumnWidthStyle } from "@/lib/table"
+import { SortableHeader } from "@/components/ui/sortable-header"
 
 export interface FoodItemActions {
   onEdit: (item: FoodItem) => void
@@ -139,13 +138,7 @@ export const columns = ({ onEdit, onDelete, categories, onCategoryChange, onUpda
     size: 250, // Responsive width for name column
     enableHiding: false,
     header: ({ column }) => (
-      <Button
-        variant="ghost"
-        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-      >
-        Name
-        <ArrowUpDown className="ml-2 h-4 w-4" />
-      </Button>
+      <SortableHeader column={column}>Name</SortableHeader>
     ),
     cell: ({ row }) => {
       const name = row.getValue("name") as string;
@@ -166,13 +159,7 @@ export const columns = ({ onEdit, onDelete, categories, onCategoryChange, onUpda
     size: 150, // Fixed width for category column
     enableHiding: true,
     header: ({ column }) => (
-      <Button
-        variant="ghost"
-        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-      >
-        Category
-        <ArrowUpDown className="ml-2 h-4 w-4" />
-      </Button>
+      <SortableHeader column={column}>Category</SortableHeader>
     ),
     cell: ({ row }) => {
       const categoryId = row.getValue("categoryId") as number
@@ -186,13 +173,7 @@ export const columns = ({ onEdit, onDelete, categories, onCategoryChange, onUpda
     size: 180, // Fixed width for status column
     enableHiding: true,
     header: ({ column }) => (
-      <Button
-        variant="ghost"
-        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-      >
-        Status
-        <ArrowUpDown className="ml-2 h-4 w-4" />
-      </Button>
+      <SortableHeader column={column}>Status</SortableHeader>
     ),
     cell: ({ row }) => {
       const item = row.original;
@@ -239,13 +220,7 @@ export const columns = ({ onEdit, onDelete, categories, onCategoryChange, onUpda
     size: 100, // Fixed width for limit column
     enableHiding: true,
     header: ({ column }) => (
-      <Button
-        variant="ghost"
-        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-      >
-        Limit
-        <ArrowUpDown className="ml-2 h-4 w-4" />
-      </Button>
+      <SortableHeader column={column}>Limit</SortableHeader>
     ),
     cell: ({ row }) => {
       const limit = row.getValue("limit") as number
@@ -315,13 +290,7 @@ export const columns = ({ onEdit, onDelete, categories, onCategoryChange, onUpda
     size: 140, // Fixed width for date column
     enableHiding: true,
     header: ({ column }) => (
-      <Button
-        variant="ghost"
-        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-      >
-        Last Updated
-        <ArrowUpDown className="ml-2 h-4 w-4" />
-      </Button>
+      <SortableHeader column={column}>Last Updated</SortableHeader>
     ),
     cell: ({ row }) => {
       const value = row.original.updatedAt;
@@ -342,7 +311,7 @@ export const columns = ({ onEdit, onDelete, categories, onCategoryChange, onUpda
     id: "actions",
     size: 100, // Fixed width for actions column
     enableHiding: false,
-    header: () => <div className="flex justify-end">Actions</div>,
+    header: "Actions",
     cell: ({ row }) => {
       const item = row.original
       const { statusFlags } = item
@@ -447,33 +416,16 @@ export const columns = ({ onEdit, onDelete, categories, onCategoryChange, onUpda
       })
 
       return (
-        <div className="flex justify-end">
-          <TableActionMenu
-            actions={actions}
-            triggerLabel="Open food item actions"
-            size="sm"
-          />
-        </div>
+        <TableActionMenu
+          actions={actions}
+          triggerLabel="Open food item actions"
+          size="sm"
+        />
       )
     },
   },
   ]
 
-  // Calculate column widths based on size values
-  const columnSizes = extractColumnSizes(columnDefinitions)
-  const widths = calculateColumnWidths(columnSizes)
-
-  // Apply calculated widths to columns
-  columnDefinitions.forEach((col, index) => {
-    const columnId = col.id || String(col.accessorKey) || `col-${index}`
-    const width = widths[columnId]
-    if (width) {
-      col.meta = { 
-        ...col.meta, 
-        style: getColumnWidthStyle(width) 
-      }
-    }
-  })
 
   return columnDefinitions
 }

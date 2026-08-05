@@ -7,20 +7,19 @@
 
 import React from "react"
 import { ColumnDef } from "@tanstack/react-table"
-import { AlertTriangle, ArrowUpDown } from "@/components/ui/icons";
+import { AlertTriangle } from "@/components/ui/icons";
 import { DownloadIcon } from "@/components/animate-ui/icons/download";
 import { LanguagesIcon } from "@/components/animate-ui/icons/languages";
 import { FileDownIcon } from "@/components/animate-ui/icons/file-down";
 import { SquarePenIcon } from "@/components/animate-ui/icons/square-pen";
 import { Trash2Icon } from "@/components/animate-ui/icons/trash-2";
-import { Button } from "@/components/ui/button"
 import { Document } from "../types"
 import { TableRowAction } from "@/types/table"
 import { Checkbox } from "@/components/ui/checkbox"
 import { TableActionMenu } from "@/components/ui/table-action-menu"
 import { ResponsiveTruncatedText } from "@/components/ui/responsive-truncated-text"
-import { calculateColumnWidths, extractColumnSizes, getColumnWidthStyle } from "@/lib/table"
 import { useIsMobile } from "@/hooks/use-mobile"
+import { SortableHeader } from "@/components/ui/sortable-header"
 
 /**
  * The name cell, extracted from an inline `cell` renderer.
@@ -115,28 +114,16 @@ export function getColumns(
       accessorKey: "name",
       size: 350, // Responsive width for name column
       header: ({ column }) => (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Name
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      ),
+      <SortableHeader column={column}>Name</SortableHeader>
+    ),
       cell: ({ row }) => <DocumentNameCell document={row.original} />
     },
     {
       accessorKey: "type",
       size: 180, // Fixed width for type column
       header: ({ column }) => (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Type
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      ),
+      <SortableHeader column={column}>Type</SortableHeader>
+    ),
       cell: ({ row }) => {
         const document = row.original
         return document.type === 'original' ? 'Original' : `Translation (${document.language})`
@@ -146,14 +133,8 @@ export function getColumns(
       accessorKey: "fileSize",
       size: 100, // Fixed width for file size column
       header: ({ column }) => (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Size
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      ),
+      <SortableHeader column={column}>Size</SortableHeader>
+    ),
       cell: ({ row }) => row.original.fileSize || '-'
     },
     {
@@ -161,14 +142,8 @@ export function getColumns(
       accessorFn: (row) => row.updatedAt || row.createdAt,
       size: 150, // Fixed width for date column
       header: ({ column }) => (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Last Updated
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      ),
+      <SortableHeader column={column}>Last Updated</SortableHeader>
+    ),
     cell: ({ row }) => {
       const value = row.original.updatedAt;
       if (!value) return '-';
@@ -244,21 +219,6 @@ export function getColumns(
     }
   ]
 
-  // Calculate column widths based on size values
-  const columnSizes = extractColumnSizes(columnDefinitions)
-  const widths = calculateColumnWidths(columnSizes)
-
-  // Apply calculated widths to columns
-  columnDefinitions.forEach((col, index) => {
-    const columnId = col.id || ('accessorKey' in col && col.accessorKey ? String(col.accessorKey) : `col-${index}`);
-    const width = widths[columnId]
-    if (width) {
-      col.meta = { 
-        ...col.meta, 
-        style: getColumnWidthStyle(width) 
-      }
-    }
-  })
 
   return columnDefinitions
 }

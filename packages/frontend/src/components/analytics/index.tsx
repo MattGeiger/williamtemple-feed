@@ -98,6 +98,7 @@ import type { AnalyticsDateRange } from '@/types/analytics';
 import { DEFAULT_ANALYTICS_RANGE } from '@/types/analytics';
 import { CommunityDonationAnalytics } from './community-analytics';
 import { DonorAnalytics } from './donor-analytics';
+import { SortableHeader } from "@/components/ui/sortable-header"
 
 const PageTitleAnalyticsIcon = createPageTitleIcon(ChartNoAxesCombinedIcon);
 
@@ -982,9 +983,7 @@ export function ProcurementAnalyticsWorkspace({
     {
       accessorKey: 'description',
       header: ({ column }) => (
-        <Button variant="ghost" className="-ml-3" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
-          Product <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
+        <SortableHeader column={column}>Product</SortableHeader>
       ),
       size: 280,
       cell: ({ row }) => <span className="font-medium">{row.original.description}</span>,
@@ -999,18 +998,14 @@ export function ProcurementAnalyticsWorkspace({
     {
       accessorKey: 'receiptDateCount',
       header: ({ column }) => (
-        <Button variant="ghost" className="-ml-3" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
-          Receipt Dates <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
+        <SortableHeader column={column}>Receipt Dates</SortableHeader>
       ),
       size: 135,
     },
     {
       accessorKey: 'totalWeightHundredths',
       header: ({ column }) => (
-        <Button variant="ghost" className="-ml-3" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
-          Total Weight <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
+        <SortableHeader column={column}>Total Weight</SortableHeader>
       ),
       size: 145,
       cell: ({ row }) => pounds(row.original.totalWeightHundredths),
@@ -1018,9 +1013,7 @@ export function ProcurementAnalyticsWorkspace({
     {
       accessorKey: 'totalSpendCents',
       header: ({ column }) => (
-        <Button variant="ghost" className="-ml-3" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
-          Total Charges <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
+        <SortableHeader column={column}>Total Charges</SortableHeader>
       ),
       size: 140,
       // Donated products have no charge; show "—" rather than $0.
@@ -1029,9 +1022,7 @@ export function ProcurementAnalyticsWorkspace({
     {
       accessorKey: 'costPerPaidPoundCents',
       header: ({ column }) => (
-        <Button variant="ghost" className="-ml-3" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
-          Cost / Paid lb <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
+        <SortableHeader column={column}>Cost / Paid lb</SortableHeader>
       ),
       size: 140,
       // Sort purchased products to the top with a descending sort here.
@@ -1042,9 +1033,7 @@ export function ProcurementAnalyticsWorkspace({
     {
       accessorKey: 'lastReceivedDate',
       header: ({ column }) => (
-        <Button variant="ghost" className="-ml-3" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
-          Last Received <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
+        <SortableHeader column={column}>Last Received</SortableHeader>
       ),
       size: 130,
       cell: ({ row }) => tableDate(row.original.lastReceivedDate),
@@ -1054,9 +1043,7 @@ export function ProcurementAnalyticsWorkspace({
     {
       accessorKey: 'donorName',
       header: ({ column }) => (
-        <Button variant="ghost" className="-ml-3" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
-          Donor <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
+        <SortableHeader column={column}>Donor</SortableHeader>
       ),
       size: 220,
       cell: ({ row }) => <span className="font-medium">{row.original.donorName}</span>,
@@ -1064,9 +1051,7 @@ export function ProcurementAnalyticsWorkspace({
     {
       accessorKey: 'description',
       header: ({ column }) => (
-        <Button variant="ghost" className="-ml-3" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
-          Category <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
+        <SortableHeader column={column}>Category</SortableHeader>
       ),
       size: 280,
     },
@@ -1074,27 +1059,21 @@ export function ProcurementAnalyticsWorkspace({
     {
       accessorKey: 'receiptEventCount',
       header: ({ column }) => (
-        <Button variant="ghost" className="-ml-3" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
-          Receipt Events <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
+        <SortableHeader column={column}>Receipt Events</SortableHeader>
       ),
       size: 135,
     },
     {
       accessorKey: 'receivingDateCount',
       header: ({ column }) => (
-        <Button variant="ghost" className="-ml-3" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
-          Receiving Dates <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
+        <SortableHeader column={column}>Receiving Dates</SortableHeader>
       ),
       size: 140,
     },
     {
       accessorKey: 'totalWeightHundredths',
       header: ({ column }) => (
-        <Button variant="ghost" className="-ml-3" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
-          Total Weight <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
+        <SortableHeader column={column}>Total Weight</SortableHeader>
       ),
       size: 145,
       cell: ({ row }) => pounds(row.original.totalWeightHundredths),
@@ -1102,9 +1081,7 @@ export function ProcurementAnalyticsWorkspace({
     {
       accessorKey: 'lastReceivedDate',
       header: ({ column }) => (
-        <Button variant="ghost" className="-ml-3" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
-          Last Pickup <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
+        <SortableHeader column={column}>Last Pickup</SortableHeader>
       ),
       size: 130,
       cell: ({ row }) => tableDate(row.original.lastReceivedDate),
