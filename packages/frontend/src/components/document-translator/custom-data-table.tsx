@@ -15,6 +15,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Input } from "@/components/ui/input";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { TruncatedText } from "@/components/ui/truncated-text";
+import { formatDate } from '@/lib/formatting/date'
 
 interface CustomDocumentTableProps {
   documents: Document[];
@@ -294,7 +295,7 @@ export function CustomDocumentTable({
                     
                     {showDateColumn && (
                       <TableCell className="hidden md:table-cell">
-                        {new Date(document.createdAt).toLocaleDateString()}
+                        {formatDate(document.createdAt)}
                       </TableCell>
                     )}
                     

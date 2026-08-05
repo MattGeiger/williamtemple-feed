@@ -17,6 +17,7 @@ import { UnifiedConfiguration } from "@/services/unified-config"
 import { Checkbox } from "@/components/ui/checkbox"
 import { StatusBadge } from "@/components/shared/status-badge"
 import { SortableHeader } from "@/components/ui/sortable-header"
+import { formatDate } from '@/lib/formatting/date'
 
 export interface AIConfigurationActions {
   onEdit: (config: UnifiedConfiguration) => void
@@ -159,7 +160,7 @@ export const columns = ({ onEdit, onDelete, onToggleActive }: AIConfigurationAct
     ),
     cell: ({ row }) => {
       const updatedAt = row.getValue("updatedAt") as string
-      return new Date(updatedAt).toLocaleDateString()
+      return formatDate(updatedAt)
     }
   },
   {

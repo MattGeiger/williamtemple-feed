@@ -56,6 +56,7 @@ import { DataShapingRuleDialog, type RuleDialogSeed } from './data-shaping-rule-
 import { DataShapingRules } from './data-shaping-rules';
 import { LegacyImportDialog } from './legacy-import-dialog';
 import { OfbImportDialog } from './ofb-import-dialog';
+import { formatDate, formatDateRange, formatDateTime } from '@/lib/formatting/date';
 
 const PageTitleDataManagementIcon = createPageTitleIcon(DatabaseIcon);
 
@@ -71,7 +72,10 @@ const sourceLabel = (source: string) => {
   if (source === 'legacy_community') return 'Community Donations (historical)';
   return source;
 };
-const dateLabel = (date: string) => format(parseISO(date), 'MM/dd/yyyy');
+// Dates come back as bare calendar days (`2026-06-02`). parseISO reads those
+// in local time; `new Date()` would read them as UTC midnight and render the
+// previous day west of Greenwich.
+const dateLabel = (date: string) => formatDate(parseISO(date));
 const eventLabel = (kind: ProcurementImportRecord['orders'][number]['eventKind']) => {
   if (kind === 'fresh_alliance_receipt') return 'Fresh Food Alliance Receipt';
   if (kind === 'community_donation_month') return 'Community Donation Month';
@@ -260,7 +264,8 @@ export function DataManagementWorkspace() {
       id: 'dateRange',
       header: 'Delivery Dates',
       size: 220,
-      cell: ({ row }) => `${dateLabel(row.original.rangeStart)} – ${dateLabel(row.original.rangeEnd)}`,
+      cell: ({ row }) =>
+        formatDateRange(parseISO(row.original.rangeStart), parseISO(row.original.rangeEnd)),
     },
     {
       accessorKey: 'rowCount',
@@ -295,7 +300,7 @@ export function DataManagementWorkspace() {
       accessorKey: 'importedAt',
       header: 'Imported',
       size: 170,
-      cell: ({ row }) => format(new Date(row.original.importedAt), 'MM/dd/yyyy h:mm a'),
+      cell: ({ row }) => formatDateTime(row.original.importedAt),
     },
     {
       id: 'actions',

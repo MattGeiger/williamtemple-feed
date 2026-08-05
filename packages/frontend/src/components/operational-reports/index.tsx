@@ -70,6 +70,7 @@ import {
   getChartStatusColor,
 } from '@/lib/colors';
 import { SortableHeader } from "@/components/ui/sortable-header"
+import { formatDateTime } from '@/lib/formatting/date';
 
 const PageTitleAnalyticsIcon = createPageTitleIcon(ChartNoAxesCombinedIcon);
 
@@ -760,11 +761,11 @@ function sortableHeader<TData>(label: string): ColumnDef<TData>['header'] {
 const episodeColumns: ColumnDef<UnavailableEpisode>[] = [
   { accessorKey: 'itemName', header: sortableHeader('Name') },
   { accessorKey: 'categoryName', header: sortableHeader('Category') },
-  { accessorKey: 'startedAt', header: sortableHeader('Unavailable Since'), cell: ({ row }) => format(new Date(row.original.startedAt), 'MMM d, yyyy h:mm a') },
+  { accessorKey: 'startedAt', header: sortableHeader('Unavailable Since'), cell: ({ row }) => formatDateTime(row.original.startedAt) },
   {
     accessorKey: 'endedAt',
     header: sortableHeader('Available Again'),
-    cell: ({ row }) => row.original.endedAt ? format(new Date(row.original.endedAt), 'MMM d, yyyy h:mm a') : 'Ongoing',
+    cell: ({ row }) => row.original.endedAt ? formatDateTime(row.original.endedAt) : 'Ongoing',
     // Ongoing episodes (null endedAt) sort as the most recent end.
     sortingFn: (a, b) => (a.original.endedAt ?? '￿').localeCompare(b.original.endedAt ?? '￿'),
   },
@@ -778,5 +779,5 @@ const limitColumns: ColumnDef<LimitChange>[] = [
   { accessorKey: 'categoryName', header: sortableHeader('Category'), cell: ({ row }) => row.original.categoryName ?? '—' },
   { accessorKey: 'limit', header: sortableHeader('Limit'), cell: ({ row }) => row.original.isNoLimit ? 'No Limit' : row.original.limit },
   { accessorKey: 'limitType', header: sortableHeader('Applies To'), cell: ({ row }) => row.original.isNoLimit ? '—' : row.original.limitType === 'person' ? 'Per Person' : 'Per Household' },
-  { accessorKey: 'recordedAt', header: sortableHeader('Changed'), cell: ({ row }) => format(new Date(row.original.recordedAt), 'MMM d, yyyy h:mm a') },
+  { accessorKey: 'recordedAt', header: sortableHeader('Changed'), cell: ({ row }) => formatDateTime(row.original.recordedAt) },
 ];

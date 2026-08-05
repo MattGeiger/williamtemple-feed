@@ -58,6 +58,7 @@ import { ErrorHandlerService } from '@/services/error/ErrorHandlerService';
 import { messageService } from '@/services/message';
 import { adminService } from '@/services/admin';
 import type { AdministratorSummary, RosterUser } from '@/types/admin';
+import { formatDate } from '@/lib/formatting/date';
 
 interface UserRosterProps {
   users: RosterUser[];
@@ -70,11 +71,7 @@ interface UserRosterProps {
 /** A person's sign-in history, in the terms an administrator prunes by. */
 const signInSummary = (user: RosterUser): string => {
   if (user.lastLoginAt) {
-    return new Date(user.lastLoginAt).toLocaleDateString(undefined, {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
+    return formatDate(user.lastLoginAt);
   }
   // Invited but never signed in — distinct from "has an account but has not
   // signed in since last sign-in was first recorded".
