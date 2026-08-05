@@ -2,57 +2,62 @@
 
 ## Status
 
-Designed and approved 2026-08-02. **Partially implemented.**
+Designed and approved 2026-08-02. **Implemented in 1.5.0-beta.7+.**
 
-**Done** — the three layers exist as code under `src/services/seed/`
-(`layers.ts`, `seed-service.ts`, `supported-languages.ts`), with the example
-inventory approved 2026-08-04 and pinned by tests. `SeedService.apply` takes a
-Prisma client rather than the singleton, so it can populate a *scratch*
-database — which is what the clean-slate action needs.
+The three layers live under `src/services/seed/` (`layers.ts`,
+`seed-service.ts`, `supported-languages.ts`, `example-template.ts`), and the
+reset action is wired to the restore mechanism via `buildAndSwap`
+(`services/restore/restore-service.ts`) with `CleanSlateService` on top.
 
-It lives under `src/`, not in `scripts/`, because the production image installs
-with `--omit=dev` and never copies `scripts/`. Seed content kept there cannot
-back a user-facing action; the operator CLI hit the same trap in beta.4.
+Under `src/`, not `scripts/`: the production image installs with `--omit=dev`
+and never copies `scripts/`, so seed content kept there cannot back a
+user-facing action — the trap the operator CLI hit in beta.4.
 
-**The reset action shipped** in 1.5.0-beta.7 as Data Management → Database →
-Reset to Clean Slate. `buildAndSwap` was extracted from the restore service so
-both features share one proven sequence — VACUUM-copy, mutate, verify foreign
-keys, snapshot, maintenance mode, checkpoint, rename, exit — differing only in
-how they populate the scratch database. The roster preserve/clear choice
-shipped with it.
+**Remaining:** retire the duplicated arrays in `scripts/seed-all.ts` so the
+development seed and the clean slate share one source. Everything else is done.
 
-**Remaining:**
+## The example Builder template
 
-- the example builder template, bound to the example inventory, rendered to PDF
-  per the builder validation rules in AGENTS.md;
-- retiring the duplicated arrays in `scripts/seed-all.ts`, so the development
-  seed and the clean slate share one source.
+Authored by hand in the Builder against the example inventory, then captured
+into the seed. It ships with eight reusable saved components (Title, Date,
+Language tag, Custom form fields, Instructions, Legend, List number, Page flip
+notice) so a new template starts with pieces to drag in.
 
-### What reset clears, and what survives
+**Its ids are symbolic, and that is the whole design.** The authored template
+referenced categories and items by database id — `categoryId: 14`,
+`foodItemId: 177`, and component ids like `inventory-category-14-instance-...`.
+Those ids are not stable: SQLite keeps an autoincrement high-water mark in
+`sqlite_sequence` that survives the deletes a reset performs, so the same seed
+run twice produces different ids and a different instance produces different
+ids again. Embedding them literally would bind the example table to whatever
+rows happen to hold those ids later — the wrong food items, or none. It is the
+same identity problem that makes restore replace rather than merge.
 
-Cleared: every table a backup covers, plus four derived tables that either hold
-foreign keys into them (`UsageRecord`, `ShoppingListInstance`) or describe data
-that no longer exists (`ApiUsageLog`, `Alert`).
+So `example-template.ts` stores `@@CAT:Name@@` / `@@ITEM:Name@@` placeholders
+and resolves them against the rows the seed just created. Names are the stable
+key; the seed owns both sides of the mapping, and building against missing
+inventory throws rather than silently rendering an empty table.
 
-Preserved deliberately: encryption keys, the audit log (a security record — a
-reset must not be a way to erase the history of privileged actions, and the
-reset itself is recorded in it), the sign-in policy, and uploaded documents.
+Verified across three separate id-spaces: the authored template (categories
+14/15/16), a freshly migrated database (1/2/3), and a reseeded live database
+(17/18/19). Every `categoryId`, `foodItemId`, and embedded component id resolved
+correctly, with no placeholders left behind, and seeding twice leaves one
+template and eight components rather than duplicates.
 
-The roster is the one choice: preserved by default, cleared only if asked.
+The seeded template renders: `POST /api/shopping-list-builder/preview-pdf`
+returns `application/pdf`, 41,837 bytes, per the builder validation rules in
+AGENTS.md.
 
-**Known consequence:** clearing `ShoppingListInstance` cascades to
-`ShoppingListPDF`, whose rows point at generated files under the storage path.
-Those files are not deleted and become orphans on disk — bounded and harmless,
-but storage reconciliation is the right place to collect them rather than doing
-file deletion inside a database swap.
+**Carrots is deliberately absent from the template.** It is seeded out of stock,
+and shopping lists show what is available — its absence is the demonstration.
 
-**One implementation note.** The wipe runs with `PRAGMA foreign_keys = OFF`.
-Clearing nearly every table means no single ordering satisfies every
-constraint, and chasing a topological order by hand is fragile and pointless
-when the whole graph is going away. It is safe because `buildAndSwap` turns
-foreign keys back on and runs `foreign_key_check` before the file is trusted —
-correctness is asserted on the finished database rather than on the order it
-was built in.
+## Development note
+
+After a restore or reset, `npm run dev` does **not** come back on its own.
+`ts-node-dev --respawn` means "keep watching for changes after the script
+exits", not "restart on exit" — it waits for a file to change. Touch a source
+file or restart the dev server. Production is unaffected: Docker's
+`restart: unless-stopped` restarts on any exit code.
 
 ## The approved example inventory
 

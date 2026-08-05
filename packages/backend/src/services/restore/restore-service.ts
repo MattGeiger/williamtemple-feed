@@ -50,9 +50,18 @@ import { tablesFor, type UnitId } from './restore-units';
 /**
  * Exit code used to hand the process back to its supervisor for a restart.
  *
- * Must be non-zero so both supervisors act on it: Docker's `unless-stopped`
- * restarts on any code, but `ts-node-dev --respawn` only restarts on a
- * non-zero exit.
+ * 75 is EX_TEMPFAIL — "temporary failure, the user is invited to retry" — which
+ * is as close as the sysexits list gets to "going away on purpose, expecting to
+ * come back". Docker restarts on any code, so this is for the logs, not for the
+ * supervisor.
+ *
+ * **It does not make `npm run dev` recover.** `ts-node-dev --respawn` means
+ * "keep watching for changes after the script exits", not "restart when it
+ * exits" — it waits for a file to change. Measured, after a false start: the
+ * dev backend stayed down following a reset at exit 0, appeared to be fixed by
+ * a non-zero code, and then stayed down again at 75 when no file had been
+ * edited. The earlier recovery was the file edit tripping the watcher, not the
+ * exit code.
  */
 export const RESTART_EXIT_CODE = 75;
 
@@ -264,13 +273,10 @@ export const buildAndSwap = async (
     //    `restart: unless-stopped` is already set on every service, so this
     //    needs no Docker socket, no privileged access, and no host agent.
     //
-    //    **Non-zero on purpose.** Docker restarts on any exit code, but
-    //    `ts-node-dev --respawn` — what `npm run dev` uses — treats a clean
-    //    exit(0) as intentional and does not restart. Exiting 0 therefore
-    //    worked in production and left the backend dead in development after
-    //    every restore and reset. 75 is EX_TEMPFAIL: "temporary failure, the
-    //    user is invited to retry", which is as close as the sysexits list gets
-    //    to "I am deliberately going away and expect to come back".
+    //    In development this leaves the backend down: `ts-node-dev --respawn`
+    //    waits for a file change rather than restarting on exit, whatever the
+    //    code. Restart `npm run dev`, or touch a source file, after a restore
+    //    or reset. Production is unaffected — see RESTART_EXIT_CODE.
     setTimeout(() => exit(RESTART_EXIT_CODE), 250);
 
     return { snapshotPath };

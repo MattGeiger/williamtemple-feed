@@ -5,9 +5,71 @@ All notable changes to FEED are documented here. This project adheres to
 
 ## [Unreleased]
 
-Next: **clean slate** — the reset that shares restore's mechanism. Designed and
-approved in `docs/data-management/clean-slate-and-seed.md`, not yet built. The
-mechanism it needs now exists and is proven; what remains is the seed itself.
+### Added
+
+- **Reset to a clean slate, from Data Management → Database.** The reset the
+  data-management arc was built toward: an administrator can return the instance
+  to a seeded starting state without SSH, VNC, or a terminal.
+
+  It shares restore's machinery — `buildAndSwap` now holds the dangerous
+  sequence once (consistent copy, foreign-key verification, pre-swap snapshot,
+  maintenance mode, WAL checkpoint, rename, exit) so both features exercise it
+  and it only has to be proven once. It is *not* a restore, and the copy never
+  lets those blur: restore recovers, reset discards. The dialog states what will
+  be deleted with a live record count, and requires typing RESET, because the
+  button sits beside Download Backup and there is no artifact to come back from.
+
+  Two choices: **start with examples** (default) and **also remove everyone's
+  access** (off by default — clearing the roster arms the fresh-instance
+  bootstrap, which must be chosen rather than discovered).
+
+- **A clean slate in three layers.** Structural (global limit, English enabled),
+  reference (all 59 supported languages as *available*, not enabled — a fresh
+  instance with 59 switched on would put 59 columns of untranslated text in
+  front of staff on day one), and illustrative (optional examples).
+
+  The illustrative layer is three categories and nine items: Produce with no
+  limits, Dairy and Meat capped at 3 with each item at 1. One status badge per
+  category — Carrots out of stock, Chicken Limited, Yogurt Clearance — because
+  the badges are independent of the numeric limit, and putting `isLimited` on
+  every item that has a limit would demonstrate nothing.
+
+- **An example Shopping List Builder template**, authored by hand and captured
+  into the seed with eight reusable saved components. The Builder is the hardest
+  feature to discover; a template that already binds a real inventory-backed
+  section table to real categories and limits is documentation that runs.
+
+  **Its inventory ids are symbolic.** The authored template referenced
+  `categoryId: 14` and `foodItemId: 177` — ids that come from SQLite's
+  autoincrement high-water mark, which survives the deletes a reset performs, so
+  they differ on every instance and after every reset. Stored literally they
+  would bind the example table to whatever rows hold those ids later. The seed
+  stores `@@CAT:Name@@` / `@@ITEM:Name@@` and resolves them against the rows it
+  just created, throwing rather than silently rendering an empty table. Verified
+  across three id-spaces (14/15/16 authored, 1/2/3 fresh, 17/18/19 reseeded),
+  and the seeded template renders to a valid PDF.
+
+### Fixed
+
+- **Alert rows no longer stagger.** `AlertTitle` kept `mb-1` and `leading-none`
+  from upstream shadcn's *stacked* layout, but this alert is a centred flex row:
+  the margin lifted the title above its siblings and the line-height put its
+  text on a different baseline than the description. Icon, title, and
+  description now share one vertical midpoint.
+
+- **Empty analytics states name the period.** "No Usage Data Yet … will appear
+  after translation activity begins" read as *never any* and sent someone
+  looking for data loss; there was none. The ranges are calendar-based, not
+  rolling — "This Month" means since the 1st — so on the 4th of a quiet month a
+  busy previous month shows nothing. The empty state now says which period is
+  empty and that earlier activity is not shown.
+
+### Known
+
+- After a restore or reset, `npm run dev` does not come back on its own:
+  `ts-node-dev --respawn` waits for a file change rather than restarting on
+  exit. Touch a source file or restart the dev server. Production is unaffected
+  — Docker's `restart: unless-stopped` restarts on any exit code.
 
 ## [1.5.0-beta.7] — 2026-08-04
 
