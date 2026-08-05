@@ -6,8 +6,7 @@
 // not covered by this license; see TRADEMARKS.md.
 
 import { ColumnDef } from "@tanstack/react-table"
-import { Button } from "@/components/ui/button"
-import { ArrowUpDown, Settings } from "@/components/ui/icons";
+import { Settings } from "@/components/ui/icons";
 import { SquarePenIcon } from "@/components/animate-ui/icons/square-pen";
 import { Trash2Icon } from "@/components/animate-ui/icons/trash-2";
 import { ToggleLeftIcon } from "@/components/animate-ui/icons/toggle-left";
@@ -17,7 +16,7 @@ import { AIConfiguration } from "../types"
 import { UnifiedConfiguration } from "@/services/unified-config"
 import { Checkbox } from "@/components/ui/checkbox"
 import { StatusBadge } from "@/components/shared/status-badge"
-import { calculateColumnWidths, extractColumnSizes, getColumnWidthStyle } from "@/lib/table"
+import { SortableHeader } from "@/components/ui/sortable-header"
 
 export interface AIConfigurationActions {
   onEdit: (config: UnifiedConfiguration) => void
@@ -54,13 +53,7 @@ export const columns = ({ onEdit, onDelete, onToggleActive }: AIConfigurationAct
     accessorKey: "name",
     size: 200,
     header: ({ column }) => (
-      <Button
-        variant="ghost"
-        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-      >
-        Configuration Name
-        <ArrowUpDown className="ml-2 h-4 w-4" />
-      </Button>
+      <SortableHeader column={column}>Configuration Name</SortableHeader>
     ),
     cell: ({ row }) => {
       const name = row.getValue("name") as string;
@@ -76,13 +69,7 @@ export const columns = ({ onEdit, onDelete, onToggleActive }: AIConfigurationAct
     size: 140,
     enableHiding: true,
     header: ({ column }) => (
-      <Button
-        variant="ghost"
-        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-      >
-        Type
-        <ArrowUpDown className="ml-2 h-4 w-4" />
-      </Button>
+      <SortableHeader column={column}>Type</SortableHeader>
     ),
     cell: ({ row }) => {
       const type = row.getValue("type") as string
@@ -96,13 +83,7 @@ export const columns = ({ onEdit, onDelete, onToggleActive }: AIConfigurationAct
     accessorKey: "description",
     size: 300,
     header: ({ column }) => (
-      <Button
-        variant="ghost"
-        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-      >
-        Description
-        <ArrowUpDown className="ml-2 h-4 w-4" />
-      </Button>
+      <SortableHeader column={column}>Description</SortableHeader>
     ),
     cell: ({ row }) => {
       const config = row.original;
@@ -155,13 +136,7 @@ export const columns = ({ onEdit, onDelete, onToggleActive }: AIConfigurationAct
     size: 120,
     enableHiding: true,
     header: ({ column }) => (
-      <Button
-        variant="ghost"
-        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-      >
-        Status
-        <ArrowUpDown className="ml-2 h-4 w-4" />
-      </Button>
+      <SortableHeader column={column}>Status</SortableHeader>
     ),
     cell: ({ row }) => {
       const isActive = row.getValue("isActive") as boolean
@@ -180,13 +155,7 @@ export const columns = ({ onEdit, onDelete, onToggleActive }: AIConfigurationAct
     size: 140,
     enableHiding: true,
     header: ({ column }) => (
-      <Button
-        variant="ghost"
-        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-      >
-        Last Updated
-        <ArrowUpDown className="ml-2 h-4 w-4" />
-      </Button>
+      <SortableHeader column={column}>Last Updated</SortableHeader>
     ),
     cell: ({ row }) => {
       const updatedAt = row.getValue("updatedAt") as string
@@ -232,19 +201,6 @@ export const columns = ({ onEdit, onDelete, onToggleActive }: AIConfigurationAct
   },
   ]
 
-  const columnSizes = extractColumnSizes(columnDefinitions)
-  const widths = calculateColumnWidths(columnSizes)
-
-  columnDefinitions.forEach((col, index) => {
-    const columnId = col.id || String(col.accessorKey) || `col-${index}`
-    const width = widths[columnId]
-    if (width) {
-      col.meta = { 
-        ...col.meta, 
-        style: getColumnWidthStyle(width) 
-      }
-    }
-  })
 
   return columnDefinitions
 }

@@ -151,20 +151,42 @@ export const EnhancedDataTable = React.forwardRef(function EnhancedDataTable<TDa
     }
   }
 
-  const compactColumnStyles = isMobile
-    ? calculateVisibleColumnWidths(
-        table.getVisibleLeafColumns().map((column) => ({
-          id: column.id,
-          size: column.columnDef.size ?? 100,
-          isFixed: column.id === 'select' || column.id === 'actions',
-        }))
-      )
-    : null
+  /**
+   * Column widths, resolved here rather than by each caller.
+   *
+   * This used to run only on mobile; on desktop the table fell back to
+   * `meta.style`, which every column file had to compute and assign by hand.
+   * Seven did and nine did not, and the nine got `table-layout: fixed`'s even
+   * split — eight columns at exactly 262px, whatever their declared `size`.
+   * `size` looked like the knob and was inert, which is a trap rather than an
+   * API.
+   *
+   * Computing it from the visible leaf columns on every viewport makes `size`
+   * mean what it appears to mean, and makes it impossible for a new table to
+   * forget. `meta.style` stays as an explicit per-column override.
+   */
+  const resolvedColumnStyles = calculateVisibleColumnWidths(
+    table.getVisibleLeafColumns().map((column) => ({
+      id: column.id,
+      size: column.columnDef.size ?? 100,
+      isFixed: column.id === 'select' || column.id === 'actions',
+    }))
+  )
 
   const columnStyle = (
     column: ReturnType<typeof table.getVisibleLeafColumns>[number]
-  ) =>
-    compactColumnStyles?.[column.id] ?? column.columnDef.meta?.style
+  ) => column.columnDef.meta?.style ?? resolvedColumnStyles[column.id]
+
+  /**
+   * Alignment, applied to the header and the cells from one declaration.
+   *
+   * Reading it per column rather than per cell is the point: right-aligning a
+   * cell while leaving its header left-aligned is exactly the defect this
+   * replaces, and that combination is no longer expressible.
+   */
+  const alignClass = (
+    column: ReturnType<typeof table.getVisibleLeafColumns>[number]
+  ) => (column.columnDef.meta?.align === 'right' ? 'text-right' : undefined)
 
   if (isLoading) {
     return (
@@ -229,7 +251,11 @@ export const EnhancedDataTable = React.forwardRef(function EnhancedDataTable<TDa
               {table.getHeaderGroups().map((headerGroup) => (
                 <TableRow key={headerGroup.id}>
                   {headerGroup.headers.map((header) => (
-                    <TableHead key={header.id} style={columnStyle(header.column)}>
+                    <TableHead
+                      key={header.id}
+                      style={columnStyle(header.column)}
+                      className={alignClass(header.column)}
+                    >
                       {header.isPlaceholder
                         ? null
                         : flexRender(
@@ -252,7 +278,11 @@ export const EnhancedDataTable = React.forwardRef(function EnhancedDataTable<TDa
                     )}
                   >
                     {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id} style={columnStyle(cell.column)}>
+                      <TableCell
+                        key={cell.id}
+                        style={columnStyle(cell.column)}
+                        className={alignClass(cell.column)}
+                      >
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </TableCell>
                     ))}

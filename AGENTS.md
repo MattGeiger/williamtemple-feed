@@ -40,6 +40,7 @@ Read these before broad changes:
 - `packages/frontend/docs/components/ui/README.md` for Shadcn/Radix UI usage.
 - `packages/frontend/docs/styling/README.md` for centralized styling and theme conventions.
 - `docs/layout/page-layout-standard.md` before adding or restructuring any route.
+- `docs/layout/table-standard.md` before adding or changing any data table.
 - `docs/motion/ICON_ANIMATIONS.md` before adding or changing any icon.
 - `docs/layout/assistant-orientation.md` for historical orientation context. Treat `AGENTS.md` as the current source of truth if details differ.
 
@@ -124,6 +125,13 @@ This change goes against the current [pattern name] pattern. Here is why, here a
   sidebar entry uses the animated variant. Full specification, the conforming
   route list, and a one-line measurement check:
   `docs/layout/page-layout-standard.md`.
+- **Tables follow one standard**: render through `EnhancedDataTable`, declare
+  width once as `size` (the table resolves it for every viewport — never
+  compute widths in a column file), sort with `<SortableHeader>` rather than an
+  inline button, and declare alignment once as `meta.align` so the header and
+  cells move together. Aligning a cell directly is what produced the reported
+  Actions offset. Enforced by `src/test/table-standard.test.tsx`; rationale and
+  measurements in `docs/layout/table-standard.md`.
 - Use Shadcn/Radix components from `packages/frontend/src/components/ui` where possible.
 - Use Lucide icons for icon buttons when an icon exists.
 - Action menu icon convention: use `Pencil` for Rename and `SquarePen` for Edit.
