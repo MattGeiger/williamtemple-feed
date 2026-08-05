@@ -132,6 +132,11 @@ This change goes against the current [pattern name] pattern. Here is why, here a
   cells move together. Aligning a cell directly is what produced the reported
   Actions offset. Enforced by `src/test/table-standard.test.tsx`; rationale and
   measurements in `docs/layout/table-standard.md`.
+- **Dates read as data use `@/lib/formatting/date`** (`formatDate`,
+  `formatDateTime`, `formatDateRange`) — `m/d/yyyy`, no leading zeros, locale
+  pinned to `en-US` so a browser set to en-GB cannot silently render delivery
+  windows day-first. Never write a local `toLocaleDateString` options object.
+  Chart axes and prose keep the compact `MMM d` forms.
 - Use Shadcn/Radix components from `packages/frontend/src/components/ui` where possible.
 - Use Lucide icons for icon buttons when an icon exists.
 - Action menu icon convention: use `Pencil` for Rename and `SquarePen` for Edit.

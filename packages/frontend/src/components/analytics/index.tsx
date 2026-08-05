@@ -99,6 +99,7 @@ import { DEFAULT_ANALYTICS_RANGE } from '@/types/analytics';
 import { CommunityDonationAnalytics } from './community-analytics';
 import { DonorAnalytics } from './donor-analytics';
 import { SortableHeader } from "@/components/ui/sortable-header"
+import { formatDate } from '@/lib/formatting/date';
 
 const PageTitleAnalyticsIcon = createPageTitleIcon(ChartNoAxesCombinedIcon);
 
@@ -147,11 +148,14 @@ const channelLabels: Record<ProcurementChannel, string> = {
 
 const monthLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const toPounds = (hundredths: number) => hundredths / 100;
-// Tables across FEED render dates as zero-padded MM/DD/YYYY (see the shopping-list
-// and AI-configuration tables). Analytics tables follow that one standard; chart
-// axes and prose keep the friendlier "MMM d, yyyy".
-const tableDate = (iso: string) =>
-  new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' });
+// Dates in tables come from the shared formatter (lib/formatting/date). This
+// used to be a local helper whose comment claimed FEED's standard was
+// zero-padded MM/DD/YYYY, citing the shopping-list and AI-configuration tables
+// as evidence — but AI Configuration used a bare toLocaleDateString(), which
+// drops the zeros. The survey was real and the conclusion was wrong, which is
+// why the format now lives in one importable place instead of a comment.
+// Chart axes keep the compact "MMM d": an axis is a scale, not a record.
+const tableDate = (iso: string) => formatDate(iso);
 const pounds = (hundredths: number | null) =>
   hundredths === null
     ? 'Unknown'

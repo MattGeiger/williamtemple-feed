@@ -24,6 +24,7 @@ import { adminService } from '@/services/admin';
 import { DATABASE_SUMMARY_GROUPS, type DatabaseSummary } from '@/types/admin';
 import { RestoreDialog } from './restore-dialog';
 import { ResetDialog } from './reset-dialog';
+import { formatDate } from '@/lib/formatting/date';
 
 /**
  * Administrator-only database actions, plus what the database is holding.
@@ -46,12 +47,7 @@ const sizeLabel = (bytes: number | null): string => {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 };
 
-const dateLabel = (iso: string) =>
-  new Date(iso).toLocaleDateString(undefined, {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  });
+const dateLabel = (iso: string) => formatDate(iso);
 
 export function DatabasePanel() {
   const [isDownloading, setIsDownloading] = React.useState(false);

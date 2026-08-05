@@ -97,6 +97,36 @@ describe('table standard', () => {
     ).toEqual([]);
   });
 
+  test('no table formats a date itself', () => {
+    // Five date formats were in use across two libraries, because every call
+    // site chose its own options object: bare toLocaleDateString (correct by
+    // accident), an explicit 2-digit variant (07/11/2026), an undefined-locale
+    // variant (day-first on an en-GB browser), "Jul 11, 2026", and date-fns.
+    // Tables use the shared formatter so the answer is the same everywhere.
+    //
+    // Chart axes are deliberately out of scope — an axis is a scale, not a
+    // record — so this only looks at files that define columns.
+    const offenders = sourceFiles
+      .filter(file => {
+        const source = code(file);
+        if (!source.includes('ColumnDef<')) return false;
+        // Only numeric date patterns. `MMM d` is the chart/prose form and is
+        // allowed — these two files hold tables and charts side by side, so a
+        // rule that cannot tell them apart flags the wrong thing.
+        return (
+          source.includes('toLocaleDateString') ||
+          /format\([^,]+,\s*'[^']*(?:MM\/dd|M\/d|dd\/MM)[^']*'/.test(source)
+        );
+      })
+      .map(relative);
+
+    expect(
+      offenders,
+      `These tables format dates directly. Use formatDate / formatDateTime / ` +
+        `formatDateRange from @/lib/formatting/date:\n${offenders.join('\n')}`
+    ).toEqual([]);
+  });
+
   test('the shared header cancels the button padding it sits in', () => {
     // The whole point of the component. `-ml-4` offsets the ghost button's
     // px-4 so the label lands on the cell text; without it every sortable
