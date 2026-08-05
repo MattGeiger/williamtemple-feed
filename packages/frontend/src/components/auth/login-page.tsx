@@ -20,7 +20,7 @@ import { OTPTab } from "./otp-tab";
 import { AuthAttribution } from "./auth-attribution";
 
 export function LoginPage() {
-  const [activeTab, setActiveTab] = useState<"magic" | "otp">("otp");
+  const [activeTab, setActiveTab] = useState<"magic" | "otp">("magic");
 
   return (
     <Card className="w-full max-w-lg">
@@ -37,14 +37,19 @@ export function LoginPage() {
           onValueChange={(v) => setActiveTab(v as "magic" | "otp")}
           className="w-full"
         >
+          {/*
+            Trigger order and panel order below must stay in step: TabsContents
+            slides to the *panel's* index, not the trigger's, so a mismatch
+            animates away from the tab you just clicked.
+          */}
           <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="otp">
-              <KeyRound className="h-4 w-4" />
-              Verification Code
-            </TabsTrigger>
             <TabsTrigger value="magic">
               <Mail className="h-4 w-4" />
               Magic Link
+            </TabsTrigger>
+            <TabsTrigger value="otp">
+              <KeyRound className="h-4 w-4" />
+              Verification Code
             </TabsTrigger>
           </TabsList>
 
