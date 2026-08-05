@@ -301,50 +301,54 @@ export function DataManagementWorkspace() {
       header: 'Actions',
       enableHiding: false,
       size: 72,
+      // No `justify-end` wrapper. The header is the plain string 'Actions',
+      // which renders left-aligned, so pushing the trigger to the right edge
+      // left the label and the button visibly out of line. Every other table in
+      // the app pairs a plain header with an unwrapped trigger; the one that
+      // right-aligns (food items) right-aligns its header too. Alignment has to
+      // be decided for the column, not for one half of it.
       cell: ({ row }) => (
-        <div className="flex justify-end">
-          <TableActionMenu
-            size="sm"
-            triggerLabel={`Open actions for ${sourceLabel(row.original.source)} import`}
-            actions={[
-              {
-                label: 'View Details',
-                icon: Eye,
-                onClick: () => setDetailTarget(row.original),
-              },
-              ...(isAdministrator
-                ? [
-                    {
-                      // An import is something you can reshape after the fact,
-                      // not only roll back (D20). Seeded with this import's
-                      // source and window so the rule starts where the user is
-                      // looking.
-                      label: 'Shape Data',
-                      icon: SlidersHorizontal,
-                      onClick: () => openRuleDialog({
-                        scope: 'donor',
-                        source: row.original.source,
-                        startDate: row.original.rangeStart,
-                        endDate: row.original.rangeEnd,
-                      }),
-                    },
-                    row.original.status === 'active'
-                      ? {
-                          label: 'Rollback',
-                          icon: Undo2,
-                          variant: 'destructive' as const,
-                          onClick: () => setLifecycleAction({ mode: 'rollback', imports: [row.original] }),
-                        }
-                      : {
-                          label: 'Restore Import',
-                          icon: RotateCcw,
-                          onClick: () => setLifecycleAction({ mode: 'restore', imports: [row.original] }),
-                        },
-                  ]
-                : []),
-            ]}
-          />
-        </div>
+        <TableActionMenu
+          size="sm"
+          triggerLabel={`Open actions for ${sourceLabel(row.original.source)} import`}
+          actions={[
+            {
+              label: 'View Details',
+              icon: Eye,
+              onClick: () => setDetailTarget(row.original),
+            },
+            ...(isAdministrator
+              ? [
+                  {
+                    // An import is something you can reshape after the fact,
+                    // not only roll back (D20). Seeded with this import's
+                    // source and window so the rule starts where the user is
+                    // looking.
+                    label: 'Shape Data',
+                    icon: SlidersHorizontal,
+                    onClick: () => openRuleDialog({
+                      scope: 'donor',
+                      source: row.original.source,
+                      startDate: row.original.rangeStart,
+                      endDate: row.original.rangeEnd,
+                    }),
+                  },
+                  row.original.status === 'active'
+                    ? {
+                        label: 'Rollback',
+                        icon: Undo2,
+                        variant: 'destructive' as const,
+                        onClick: () => setLifecycleAction({ mode: 'rollback', imports: [row.original] }),
+                      }
+                    : {
+                        label: 'Restore Import',
+                        icon: RotateCcw,
+                        onClick: () => setLifecycleAction({ mode: 'restore', imports: [row.original] }),
+                      },
+                ]
+              : []),
+          ]}
+        />
       ),
     },
   ], [isAdministrator, openRuleDialog, pairedSourceByImportId]);
