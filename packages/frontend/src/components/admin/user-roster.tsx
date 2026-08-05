@@ -44,14 +44,6 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import { TableActionMenu } from '@/components/ui/table-action-menu';
 import type { TableRowAction } from '@/types/table';
 import { ErrorHandlerService } from '@/services/error/ErrorHandlerService';
@@ -59,6 +51,8 @@ import { messageService } from '@/services/message';
 import { adminService } from '@/services/admin';
 import type { AdministratorSummary, RosterUser } from '@/types/admin';
 import { formatDate } from '@/lib/formatting/date';
+import { EnhancedDataTable } from '@/components/ui/enhanced-data-table';
+import type { ColumnDef } from '@tanstack/react-table';
 
 interface UserRosterProps {
   users: RosterUser[];
@@ -237,6 +231,78 @@ export function UserRoster({
     ];
   };
 
+  /**
+   * The roster renders through EnhancedDataTable like every other table.
+   *
+   * It was hand-rolled — five rows, no sorting or filtering, so a plain
+   * <Table> looked like the simpler choice. What it actually bought was a
+   * second table to maintain, and it drifted immediately: an unlabelled 48px
+   * actions header where every other table names the column and pins it to 72.
+   * Widths, alignment, and the actions column now come from the standard
+   * (docs/layout/table-standard.md) rather than from this file.
+   */
+  const columns = React.useMemo<ColumnDef<RosterUser>[]>(
+    () => [
+      {
+        accessorKey: 'email',
+        header: 'Email',
+        size: 300,
+        cell: ({ row }) => (
+          <span className="font-medium">
+            {row.original.email}
+            {row.original.email === currentUserEmail && (
+              <span className="ml-2 text-xs text-muted-foreground">(you)</span>
+            )}
+          </span>
+        ),
+      },
+      {
+        accessorKey: 'role',
+        header: 'Role',
+        size: 130,
+        cell: ({ row }) => (
+          <Badge variant={row.original.role === 'ADMINISTRATOR' ? 'default' : 'secondary'}>
+            {row.original.role === 'ADMINISTRATOR' ? 'Administrator' : 'Staff'}
+          </Badge>
+        ),
+      },
+      {
+        accessorKey: 'accessState',
+        header: 'Access',
+        size: 120,
+        cell: ({ row }) => (
+          <Badge variant={row.original.accessState === 'REVOKED' ? 'destructive' : 'outline'}>
+            {row.original.accessState === 'REVOKED' ? 'Revoked' : 'Allowed'}
+          </Badge>
+        ),
+      },
+      {
+        id: 'lastSignIn',
+        header: 'Last sign-in',
+        size: 180,
+        cell: ({ row }) => (
+          <span className="text-muted-foreground">{signInSummary(row.original)}</span>
+        ),
+      },
+      {
+        id: 'actions',
+        header: 'Actions',
+        enableHiding: false,
+        size: 72,
+        cell: ({ row }) => (
+          <TableActionMenu
+            actions={actionsFor(row.original)}
+            isLoading={isSubmitting}
+            size="sm"
+          />
+        ),
+      },
+    ],
+    // `actionsFor` closes over the confirm/submit handlers, so it is rebuilt
+    // each render; the columns follow it rather than going stale.
+    [currentUserEmail, actionsFor, isSubmitting]
+  );
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -265,73 +331,16 @@ export function UserRoster({
         </AnimateIcon>
       </div>
 
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Email</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead>Access</TableHead>
-              <TableHead>Last sign-in</TableHead>
-              <TableHead className="w-12" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              Array.from({ length: 3 }).map((_, index) => (
-                <TableRow key={index}>
-                  <TableCell colSpan={5}>
-                    <Skeleton className="h-5 w-full" />
-                  </TableCell>
-                </TableRow>
-              ))
-            ) : users.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={5} className="text-center text-muted-foreground">
-                  No one is on the roster yet.
-                </TableCell>
-              </TableRow>
-            ) : (
-              users.map(user => (
-                <TableRow key={user.id}>
-                  <TableCell className="font-medium">
-                    {user.email}
-                    {user.email === currentUserEmail && (
-                      <span className="ml-2 text-xs text-muted-foreground">(you)</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={user.role === 'ADMINISTRATOR' ? 'default' : 'secondary'}
-                    >
-                      {user.role === 'ADMINISTRATOR' ? 'Administrator' : 'Staff'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={
-                        user.accessState === 'REVOKED' ? 'destructive' : 'outline'
-                      }
-                    >
-                      {user.accessState === 'REVOKED' ? 'Revoked' : 'Allowed'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {signInSummary(user)}
-                  </TableCell>
-                  <TableCell>
-                    <TableActionMenu
-                      actions={actionsFor(user)}
-                      isLoading={isSubmitting}
-                      size="sm"
-                    />
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
+      <EnhancedDataTable
+        columns={columns}
+        data={users}
+        isLoading={isLoading}
+        // A roster is a known set, not a search result: a filter box and a
+        // column picker over five rows is chrome without a job.
+        enableFiltering={false}
+        enableColumnVisibility={false}
+        emptyMessage="No one is on the roster yet."
+      />
 
       <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
         <DialogContent>

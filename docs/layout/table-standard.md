@@ -15,6 +15,11 @@ Adopted 2026-08-05, applied to all sixteen tables in one pass. Enforced by
    header and the cells together. Never align a cell directly.
 5. **Dates come from `@/lib/formatting/date`.** `formatDate`, `formatDateTime`,
    `formatDateRange`. Never a local options object.
+6. **Every actions column is labelled `Actions`.** Even where the header would
+   otherwise be blank.
+
+There is **one** table component. If a table looks too simple to need it, that
+is the argument that led to the second one.
 
 That is the whole standard. Everything below is why.
 
@@ -117,6 +122,51 @@ A comment asserting a standard is not a standard. The format now lives in one
 importable function with its own tests, so the question has an answer that can
 be executed rather than surveyed.
 
+## Column reference
+
+| Column | `size` | Renders as | Notes |
+| --- | --- | --- | --- |
+| `select` | any | `32px` fixed | Pinned from `FIXED_COLUMN_WIDTHS` |
+| `actions` | any | `72px` fixed | Header is always the word `Actions` |
+| everything else | relative weight | percentage of the remainder | Ratios, not pixels |
+
+`size` on `select` and `actions` is ignored — they are pinned. On every other
+column it is a **weight**: a column with `size: 200` beside one with `size: 100`
+takes twice the remaining width, whatever the viewport.
+
+### Percentages, not `calc()`
+
+The widths are emitted as plain percentages (`22.22%`). They deliberately
+over-declare — they ignore the pixels the fixed columns consume, so the total
+exceeds 100% and the browser scales them down proportionally.
+
+The tidier arithmetic, `calc(22.22% - 16px)`, **does not work**: a
+`table-layout: fixed` table does not resolve a percentage inside `calc()`, and
+every column silently falls back to an equal split. This was introduced while
+consolidating the two width helpers and caught only by measuring — the inline
+styles still read `calc(17.17% - 12.36px)` while the table rendered eight equal
+columns, which is a convincing disguise. The `calc()` form is still used on
+mobile, where columns are hidden and the arithmetic has to account for them.
+
+**If columns ever render equal-width, check the emitted style first.** Correct
+declared widths that do not take effect is the failure mode this project has
+hit twice.
+
+## Hand-rolled tables
+
+There are none, and there should stay none.
+
+The Admin roster was one: five rows, no sorting, filtering, or pagination, so a
+plain `<Table>` looked simpler. What it bought was a second table to maintain,
+and it drifted immediately — an unlabelled 48px actions header where every other
+table names the column and pins it to 72px. It was converted rather than
+patched.
+
+`EnhancedDataTable` scales down for small sets: `enableFiltering={false}` and
+`enableColumnVisibility={false}` remove the toolbar, and `emptyMessage` keeps
+copy that fits the table ("No one is on the roster yet." rather than "No results
+found."). Reach for those before reaching for a `<Table>`.
+
 ## Enforcement
 
 `src/test/table-standard.test.tsx` scans every component file and fails on:
@@ -127,7 +177,12 @@ be executed rather than surveyed.
 - any column definition formatting a date itself — `toLocaleDateString`, or a
   date-fns pattern with a numeric `MM/dd`. Month-name patterns pass, because
   the Analytics and operational-reports files hold tables and charts side by
-  side and the charts legitimately use them.
+  side and the charts legitimately use them;
+- any hand-rolled `<Table>` that shows an action menu under an unlabelled
+  header.
+
+`EnhancedDataTable` and `SortableHeader` are exempt: they implement the rules
+rather than follow them.
 
 It strips comments before scanning, because the first version of it failed on
 a comment explaining why a file no longer used `justify-end`.

@@ -130,7 +130,11 @@ This change goes against the current [pattern name] pattern. Here is why, here a
   compute widths in a column file), sort with `<SortableHeader>` rather than an
   inline button, and declare alignment once as `meta.align` so the header and
   cells move together. Aligning a cell directly is what produced the reported
-  Actions offset. Enforced by `src/test/table-standard.test.tsx`; rationale and
+  Actions offset. Every actions column is labelled `Actions`. There is one
+  table component — `EnhancedDataTable` scales down via `enableFiltering={false}`,
+  `enableColumnVisibility={false}`, and `emptyMessage`, so a small set is never a
+  reason to hand-roll a second `<Table>`. Enforced by
+  `src/test/table-standard.test.tsx`; rationale, the column reference, and
   measurements in `docs/layout/table-standard.md`.
 - **Dates read as data use `@/lib/formatting/date`** (`formatDate`,
   `formatDateTime`, `formatDateRange`) — `m/d/yyyy`, no leading zeros, locale
