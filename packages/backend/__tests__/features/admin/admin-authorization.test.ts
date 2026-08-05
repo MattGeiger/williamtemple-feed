@@ -111,6 +111,7 @@ import {
   administratorMinimumFor,
   assertAdministratorMinimum,
 } from '../../../src/services/auth/administrator-guards';
+import { ACCESS_MODES, type AccessMode } from '../../../src/services/auth/authorization';
 
 const ADMIN = {
   id: 'u1',
@@ -190,18 +191,18 @@ describe('administrator minimum', () => {
   });
 
   it('permits the last-but-one demotion in Domain mode', () => {
-    expect(() => assertAdministratorMinimum(1, 'DOMAIN', 'Demoting')).not.toThrow();
+    expect(() => assertAdministratorMinimum(1, 'DOMAIN')).not.toThrow();
   });
 
   it('refuses to leave Domain mode with no administrator', () => {
-    expect(() => assertAdministratorMinimum(0, 'DOMAIN', 'Demoting')).toThrow(
+    expect(() => assertAdministratorMinimum(0, 'DOMAIN')).toThrow(
       /no administrator/i
     );
   });
 
   it('refuses to leave Allowlist mode with a single administrator', () => {
-    expect(() => assertAdministratorMinimum(1, 'ALLOWLIST', 'Demoting')).toThrow(
-      /requires two/i
+    expect(() => assertAdministratorMinimum(1, 'ALLOWLIST')).toThrow(
+      /needs two|requires two/i
     );
   });
 });
@@ -265,7 +266,7 @@ describe('enabling Allowlist mode', () => {
 
     await expect(
       AccessPolicyService.update({ mode: 'ALLOWLIST' }, ACTOR)
-    ).rejects.toThrow(/requires two/i);
+    ).rejects.toThrow(/needs two|requires two/i);
 
     expect(mockDb.state.policy.mode).toBe('DOMAIN');
   });
@@ -350,7 +351,7 @@ describe('roster guards', () => {
 
     await expect(
       RosterService.setRole(SECOND_ADMIN.id, 'STAFF', ACTOR)
-    ).rejects.toThrow(/requires two/i);
+    ).rejects.toThrow(/needs two|requires two/i);
   });
 
   it('does not count a revoked administrator toward the minimum', async () => {
@@ -423,5 +424,54 @@ describe('invitations', () => {
     expect(mockDb.state.users.some(u => u.email === 'newhire@williamtemple.org')).toBe(
       true
     );
+  });
+});
+
+describe('the two-administrator refusal explains itself (ISSUES.md #60)', () => {
+  const messageFor = (remaining: number, mode: AccessMode): string => {
+    try {
+      assertAdministratorMinimum(remaining, mode);
+      return '';
+    } catch (error) {
+      return (error as Error).message;
+    }
+  };
+
+  it('names the rule, the reason, and a way forward', () => {
+    // ASK: actionable, specific, kind. A refusal that only says "no" leaves an
+    // administrator guessing whether FEED is broken or protecting them.
+    const message = messageFor(1, ACCESS_MODES.ALLOWLIST);
+
+    expect(message).toMatch(/administrator/i);
+    expect(message).toMatch(/requires two/i);
+    // Both ways out, so the administrator is never left with only "no".
+    expect(message).toMatch(/Promote another administrator/i);
+    expect(message).toMatch(/switch to Domain mode/i);
+  });
+
+  it('stays short enough to survive the toast layer', () => {
+    // It did not: at 251 characters the frontend's developer-artifact guard
+    // treated it as a dump and replaced the whole thing with "An unexpected
+    // error occurred. Please try again." The cap now exempts coded errors, and
+    // this keeps the message inside it regardless.
+    // Comfortably inside the toast guard now, not merely under it.
+    expect(messageFor(1, ACCESS_MODES.ALLOWLIST).length).toBeLessThanOrEqual(160);
+    expect(messageFor(0, ACCESS_MODES.DOMAIN).length).toBeLessThanOrEqual(160);
+  });
+
+  it('carries a code, which is what marks it as curated prose', () => {
+    try {
+      assertAdministratorMinimum(1, ACCESS_MODES.ALLOWLIST);
+      throw new Error('expected a refusal');
+    } catch (error) {
+      expect((error as { code?: string }).code).toBe('ALLOWLIST_ADMINISTRATOR_MINIMUM');
+      expect((error as { statusCode?: number }).statusCode).toBe(409);
+    }
+  });
+
+  it('still refuses the last administrator in Domain mode', () => {
+    const message = messageFor(0, ACCESS_MODES.DOMAIN);
+    expect(message).toMatch(/no administrator/i);
+    expect(message).toMatch(/Promote another user/i);
   });
 });
