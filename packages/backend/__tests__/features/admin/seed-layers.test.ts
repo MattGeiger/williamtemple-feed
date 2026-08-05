@@ -13,6 +13,7 @@ import {
   TEMPLATE_REQUIRES,
   buildExampleTemplateData,
 } from '../../../src/services/seed/example-template';
+import { SEED_SYSTEM_PROMPTS } from '../../../src/services/seed/system-prompts';
 import {
   ILLUSTRATIVE_CATEGORIES,
   ILLUSTRATIVE_FOOD_ITEMS,
@@ -164,5 +165,29 @@ describe('the example Builder template', () => {
     expect(EXAMPLE_SAVED_COMPONENTS.length).toBeGreaterThanOrEqual(8);
     // These carry no inventory ids, so they need no substitution.
     expect(JSON.stringify(EXAMPLE_SAVED_COMPONENTS)).not.toMatch(/foodItemId|categoryId/);
+  });
+});
+
+describe('system prompts are reference data', () => {
+  it('ships the prompts that drive translation behaviour', () => {
+    // These were defined only in scripts/seed-all.ts, which the production
+    // image never copies. A reset clears SystemPrompt — it is in the backup
+    // contract — and had nothing to put back, leaving the instance with no
+    // prompts at all. That is why they live under src/ now.
+    const types = SEED_SYSTEM_PROMPTS.map(p => p.promptType);
+    expect(types).toContain('CLASSIFICATION');
+    expect(types).toContain('BATCH_TRANSLATION');
+    expect(types).toContain('FOOD_TRANSLATION');
+  });
+
+  it('arrives active, or the prompts exist without taking effect', () => {
+    for (const prompt of SEED_SYSTEM_PROMPTS) {
+      expect(prompt.isActive, prompt.name).toBe(true);
+    }
+  });
+
+  it('names every prompt uniquely, since the seed upserts by name', () => {
+    const names = SEED_SYSTEM_PROMPTS.map(p => p.name);
+    expect(new Set(names).size).toBe(names.length);
   });
 });
