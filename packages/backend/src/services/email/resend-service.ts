@@ -6,10 +6,23 @@
 // not covered by this license; see TRADEMARKS.md.
 
 import { Resend } from 'resend';
+import {
+  BRAND,
+  button,
+  escapeHtml,
+  heading,
+  paragraph,
+  renderEmail,
+} from './email-layout';
 
 const resendApiKey = process.env.RESEND_API_KEY;
 const fromAddress = process.env.EMAIL_FROM || 'login@williamtemple.app';
-const from = `FEED Login <${fromAddress}>`;
+/**
+ * The display name is the only branding visible in an inbox list, and it is
+ * read before the message is opened. "FEED Login" named the system but not the
+ * organisation, so the sender line carried nothing a recipient could recognise.
+ */
+const from = `FEED at William Temple House <${fromAddress}>`;
 
 const assertEmailConfig = () => {
   if (!resendApiKey) {
@@ -39,7 +52,8 @@ export class ResendService {
         from,
         to: [email],
         subject: 'Sign in to FEED System',
-        html: this.getMagicLinkTemplate(magicLink)
+        html: this.getMagicLinkTemplate(magicLink),
+        text: this.getMagicLinkText(magicLink)
       });
 
       if (error) {
@@ -73,7 +87,8 @@ export class ResendService {
         from,
         to: [email],
         subject: 'Your FEED verification code',
-        html: this.getOTPTemplate(code)
+        html: this.getOTPTemplate(code),
+        text: this.getOTPText(code)
       });
 
       if (error) {
@@ -111,7 +126,8 @@ export class ResendService {
         from,
         to: [email],
         subject: 'You have been given access to FEED',
-        html: this.getInvitationTemplate(loginUrl, email)
+        html: this.getInvitationTemplate(loginUrl, email),
+        text: this.getInvitationText(loginUrl, email)
       });
 
       if (error) {
@@ -130,175 +146,152 @@ export class ResendService {
   /**
    * Simple HTML template for magic link email
    */
+  /** Branded magic-link email. */
   private static getMagicLinkTemplate(magicLink: string): string {
-    return `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <meta charset="utf-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1">
-          <title>Sign in to FEED</title>
-        </head>
-        <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f6f9fc;">
-          <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f6f9fc; padding: 40px 0;">
-            <tr>
-              <td align="center">
-                <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 8px; padding: 40px;">
-                  <tr>
-                    <td align="center" style="padding-bottom: 30px;">
-                      <h1 style="color: #333333; font-size: 24px; margin: 0;">Sign in to FEED System</h1>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td style="padding-bottom: 30px;">
-                      <p style="color: #555555; font-size: 16px; line-height: 24px; margin: 0;">
-                        Click the button below, then confirm on the page that opens. This link expires in 10 minutes.
-                      </p>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td align="center" style="padding: 20px 0;">
-                      <a href="${magicLink}" style="background-color: #000000; color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-size: 16px; font-weight: 600; display: inline-block;">
-                        Sign In
-                      </a>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td style="padding-top: 30px; border-top: 1px solid #eeeeee;">
-                      <p style="color: #999999; font-size: 12px; line-height: 18px; margin: 0;">
-                        If you didn't request this email, you can safely ignore it. This link will expire in 10 minutes.
-                      </p>
-                    </td>
-                  </tr>
-                </table>
-              </td>
-            </tr>
-          </table>
-        </body>
-      </html>
-    `;
+    return renderEmail({
+      title: 'Sign in to FEED',
+      preheader: 'Your sign-in link for FEED — expires in 10 minutes.',
+      content: [
+        heading('Sign in to FEED'),
+        paragraph(
+          'You asked to sign in to FEED, the food pantry management system at ' +
+            'William Temple House. Use the button below, then confirm on the page ' +
+            'that opens.'
+        ),
+        `<table width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td align="center" style="padding: 12px 0 24px 0;">${button(
+          magicLink,
+          'Sign in to FEED'
+        )}</td></tr></table>`,
+        paragraph(
+          `This link expires in <strong style="color: ${BRAND.ink};">10 minutes</strong> and can only be used once.`
+        ),
+      ].join('\n'),
+      security:
+        'If you did not ask to sign in, you can ignore this message — the link ' +
+        'expires on its own and nothing happens until it is confirmed.',
+    });
   }
 
-  /**
-   * Simple HTML template for the invitation email
-   */
+  /** Plain-text alternative. Sending HTML alone is itself a spam signal. */
+  private static getMagicLinkText(magicLink: string): string {
+    return [
+      'Sign in to FEED',
+      '',
+      'You asked to sign in to FEED, the food pantry management system at',
+      'William Temple House. Open the link below, then confirm on the page that',
+      'opens:',
+      '',
+      magicLink,
+      '',
+      'This link expires in 10 minutes and can only be used once.',
+      '',
+      'If you did not ask to sign in, you can ignore this message.',
+      'FEED will never ask you for a password.',
+      '',
+      'William Temple House - feed.williamtemple.app',
+    ].join('\n');
+  }
+
+  /** Branded invitation email. Carries no token by design — see sendInvitation. */
   private static getInvitationTemplate(loginUrl: string, email: string): string {
-    return `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <meta charset="utf-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1">
-          <title>Access to FEED</title>
-        </head>
-        <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f6f9fc;">
-          <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f6f9fc; padding: 40px 0;">
-            <tr>
-              <td align="center">
-                <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 8px; padding: 40px;">
-                  <tr>
-                    <td align="center" style="padding-bottom: 30px;">
-                      <h1 style="color: #333333; font-size: 24px; margin: 0;">You have access to FEED</h1>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td style="padding-bottom: 20px;">
-                      <p style="color: #555555; font-size: 16px; line-height: 24px; margin: 0;">
-                        An administrator has added <strong>${email}</strong> to FEED, the food pantry
-                        management system. You can sign in whenever you are ready.
-                      </p>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td align="center" style="padding: 20px 0;">
-                      <a href="${loginUrl}" style="background-color: #000000; color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-size: 16px; font-weight: 600; display: inline-block;">
-                        Go to FEED
-                      </a>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td style="padding-bottom: 10px;">
-                      <p style="color: #555555; font-size: 14px; line-height: 22px; margin: 0;">
-                        On the sign-in page, enter this email address and FEED will send you a
-                        six-digit verification code. There is no password to set up.
-                      </p>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td style="padding-top: 30px; border-top: 1px solid #eeeeee;">
-                      <p style="color: #999999; font-size: 12px; line-height: 18px; margin: 0;">
-                        If you were not expecting this, you can ignore it — no account is active
-                        until you sign in.
-                      </p>
-                    </td>
-                  </tr>
-                </table>
-              </td>
-            </tr>
-          </table>
-        </body>
-      </html>
-    `;
+    return renderEmail({
+      title: 'Access to FEED',
+      preheader: 'You have been given access to FEED at William Temple House.',
+      content: [
+        heading('You have access to FEED'),
+        paragraph(
+          `An administrator has added <strong style="color: ${BRAND.ink};">${escapeHtml(
+            email
+          )}</strong> to FEED, the food pantry management system at William Temple House.`
+        ),
+        `<table width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td align="center" style="padding: 12px 0 24px 0;">${button(
+          loginUrl,
+          'Go to FEED'
+        )}</td></tr></table>`,
+        paragraph(
+          'On the sign-in page, enter this email address and FEED will send you a ' +
+            'six-digit verification code. There is no password to set up.'
+        ),
+      ].join('\n'),
+      security:
+        'If you were not expecting this, you can ignore it — no account is active ' +
+        'until you sign in.',
+    });
   }
 
-  /**
-   * Simple HTML template for OTP email
-   */
+  /** Plain-text alternative. */
+  private static getInvitationText(loginUrl: string, email: string): string {
+    return [
+      'You have access to FEED',
+      '',
+      `An administrator has added ${email} to FEED, the food pantry management`,
+      'system at William Temple House.',
+      '',
+      `Sign in here: ${loginUrl}`,
+      '',
+      'On the sign-in page, enter this email address and FEED will send you a',
+      'six-digit verification code. There is no password to set up.',
+      '',
+      'If you were not expecting this, you can ignore it - no account is active',
+      'until you sign in.',
+      '',
+      'William Temple House - feed.williamtemple.app',
+    ].join('\n');
+  }
+
+  /** Branded verification-code email. */
   private static getOTPTemplate(code: string): string {
-    return `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <meta charset="utf-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1">
-          <title>Your verification code</title>
-        </head>
-        <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f6f9fc;">
-          <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f6f9fc; padding: 40px 0;">
-            <tr>
-              <td align="center">
-                <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 8px; padding: 40px;">
-                  <tr>
-                    <td align="center" style="padding-bottom: 30px;">
-                      <h1 style="color: #333333; font-size: 24px; margin: 0;">Your Verification Code</h1>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td style="padding-bottom: 20px;">
-                      <p style="color: #555555; font-size: 16px; line-height: 24px; margin: 0; text-align: center;">
-                        Enter this code to sign in to your FEED account:
-                      </p>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td align="center" style="padding: 20px 0;">
-                      <div style="background-color: #f6f9fc; border-radius: 8px; padding: 20px; display: inline-block;">
-                        <span style="font-size: 32px; font-weight: 700; letter-spacing: 8px; color: #000000; font-family: 'Courier New', monospace;">
-                          ${code}
-                        </span>
-                      </div>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td style="padding-top: 20px;">
-                      <p style="color: #555555; font-size: 14px; line-height: 20px; margin: 0; text-align: center;">
-                        This code expires in 3 minutes.
-                      </p>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td style="padding-top: 30px; border-top: 1px solid #eeeeee;">
-                      <p style="color: #999999; font-size: 12px; line-height: 18px; margin: 0;">
-                        If you didn't request this code, you can safely ignore this email.
-                      </p>
-                    </td>
-                  </tr>
-                </table>
-              </td>
-            </tr>
-          </table>
-        </body>
-      </html>
-    `;
+    return renderEmail({
+      title: 'Your FEED verification code',
+      preheader: `${code} is your FEED verification code — expires in 3 minutes.`,
+      content: [
+        heading('Your verification code'),
+        paragraph(
+          'Enter this code on the FEED sign-in page to finish signing in to the ' +
+            'food pantry management system at William Temple House.'
+        ),
+        `<table width="100%" cellpadding="0" cellspacing="0" border="0">
+          <tr>
+            <td align="center" style="padding: 8px 0 24px 0;">
+              <table cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td align="center" bgcolor="${BRAND.blueTint}" style="background-color: ${BRAND.blueTint}; border-radius: 8px; padding: 22px 34px;">
+                    <span style="font-family: 'SF Mono', Menlo, Consolas, 'Courier New', monospace; font-size: 34px; font-weight: 700; letter-spacing: 10px; color: ${BRAND.blue}; line-height: 1;">${escapeHtml(
+                      code
+                    )}</span>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>`,
+        paragraph(
+          `This code expires in <strong style="color: ${BRAND.ink};">3 minutes</strong>.`,
+          ' text-align: center;'
+        ),
+      ].join('\n'),
+      security:
+        'If you did not ask to sign in, you can ignore this message — the code ' +
+        'expires on its own and is useless to anyone else.',
+    });
+  }
+
+  /** Plain-text alternative. */
+  private static getOTPText(code: string): string {
+    return [
+      'Your FEED verification code',
+      '',
+      `    ${code}`,
+      '',
+      'Enter this code on the FEED sign-in page to finish signing in to the food',
+      'pantry management system at William Temple House.',
+      '',
+      'This code expires in 3 minutes.',
+      '',
+      'If you did not ask to sign in, you can ignore this message. FEED will never',
+      'ask you to reply to this message with your code.',
+      '',
+      'William Temple House - feed.williamtemple.app',
+    ].join('\n');
   }
 }
