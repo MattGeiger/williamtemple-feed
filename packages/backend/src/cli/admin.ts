@@ -209,11 +209,7 @@ const revoke = async (args: Args) => {
 
   // The CLI is subject to the same lockout guard as the Admin page. Bypassing
   // it here would make the guard advisory.
-  assertAdministratorMinimum(
-    remaining,
-    policy.mode as AccessMode,
-    `Returning ${email} to Staff`
-  );
+  assertAdministratorMinimum(remaining, policy.mode as AccessMode);
 
   await prisma.$transaction(async tx => {
     await tx.user.update({

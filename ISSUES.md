@@ -38,6 +38,43 @@ Everything else in this file. The application is shippable today.
 
 ## Open Issues
 
+### #60 — Generic error message when attempting to configure Admin with a single administrator role
+**Priority**: Medium · **Status**: **Fixed** in 1.5.0-beta.7
+**Bucket**: New feature bug
+
+The error message produce when attempting to demote an Administrator when it would violate the two-admininstrator minimum rule produces a generic 'Error An unexpected error occurred. Please try again.' This generic message violates the Error message "ASK" model (i.e., all error messages must be **Actionable**, **Specific**, and **Kind**). The expected behavior is an error message that explains to the administrator (concisely) that they must keep at least two accounts set to this permission level, to prevent locking out the system by accident. It's a failsafe mechanism.
+
+**Root cause: the frontend, not the guard.** The backend message was already
+ASK-compliant and carried a 409 with `ALLOWLIST_ADMINISTRATOR_MINIMUM`. It never
+reached the toast. `ErrorHandlerService.isUserPresentableMessage` caps messages
+at 240 characters as defence-in-depth against leaked driver dumps and stack
+traces, and the Allowlist refusal ran to **251** — so the whole explanation was
+replaced with the generic fallback. The Domain-mode variant (129 characters) was
+unaffected, which is why this only appeared for the two-administrator rule.
+
+**Two fixes.**
+
+Length is a proxy for "this looks like a dump", and it is the wrong test for
+prose the server deliberately wrote. Errors arriving with an application error
+code are curated by construction — a Prisma dump never carries one — so coded
+errors are now exempt from the length cap. The shape checks (HTML, JSON, stack
+traces, SQL, paths, driver codes) still apply to them, so the exemption cannot
+be used to leak an artifact.
+
+The message itself was also rewritten to three short sentences: what happens,
+the rule, and the way out.
+
+> This change would leave only one administrator. Allowlist mode requires two.
+> Promote another administrator or switch to Domain mode.
+
+132 characters, from 251. The `action` parameter was dropped from
+`assertAdministratorMinimum` — "This change" covers a demotion, a revoke, and a
+switch to Allowlist mode without a sentence per caller.
+
+Covered by tests on both sides: the guard names the rule and both routes out and
+stays inside the toast budget; a coded over-long message is shown while the same
+text uncoded is still capped, and a code does not excuse an actual artifact.
+
 ### #59 — Backend suite flaked under load
 **Priority**: Medium · **Status**: Fixed in 1.5.0-beta.6
 **Bucket**: developer tooling / test integrity
