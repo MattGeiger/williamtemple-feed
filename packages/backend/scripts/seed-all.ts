@@ -1,69 +1,26 @@
 const { PrismaClient } = require('@prisma/client');
+const { SeedService } = require('../src/services/seed/seed-service');
 
 const prisma = new PrismaClient();
 
-// Import seeding data
-const languages = [
-  { name: 'English', sortOrder: 1 },
-  { name: 'Chinese', sortOrder: 2 },
-  { name: 'Spanish', sortOrder: 3 },
-  { name: 'Hindi', sortOrder: 4 },
-  { name: 'Arabic', sortOrder: 5 },
-  { name: 'Portuguese', sortOrder: 6 },
-  { name: 'Bengali', sortOrder: 7 },
-  { name: 'Russian', sortOrder: 8 },
-  { name: 'Japanese', sortOrder: 9 },
-  { name: 'Punjabi', sortOrder: 10 },
-  { name: 'German', sortOrder: 11 },
-  { name: 'French', sortOrder: 12 },
-  { name: 'Urdu', sortOrder: 13 },
-  { name: 'Indonesian', sortOrder: 14 },
-  { name: 'Italian', sortOrder: 15 },
-  { name: 'Turkish', sortOrder: 16 },
-  { name: 'Vietnamese', sortOrder: 17 },
-  { name: 'Persian', sortOrder: 18 },
-  { name: 'Thai', sortOrder: 19 },
-  { name: 'Korean', sortOrder: 20 },
-  { name: 'Tamil', sortOrder: 21 },
-  { name: 'Swahili', sortOrder: 22 },
-  { name: 'Marathi', sortOrder: 23 },
-  { name: 'Telugu', sortOrder: 24 },
-  { name: 'Gujarati', sortOrder: 25 },
-  { name: 'Polish', sortOrder: 26 },
-  { name: 'Ukrainian', sortOrder: 27 },
-  { name: 'Malayalam', sortOrder: 28 },
-  { name: 'Romanian', sortOrder: 29 },
-  { name: 'Dutch', sortOrder: 30 },
-  { name: 'Hungarian', sortOrder: 31 },
-  { name: 'Greek', sortOrder: 32 },
-  { name: 'Czech', sortOrder: 33 },
-  { name: 'Swedish', sortOrder: 34 },
-  { name: 'Tagalog', sortOrder: 35 },
-  { name: 'Kazakh', sortOrder: 36 },
-  { name: 'Danish', sortOrder: 37 },
-  { name: 'Slovak', sortOrder: 38 },
-  { name: 'Slovenian', sortOrder: 39 },
-  { name: 'Serbian', sortOrder: 40 },
-  { name: 'Finnish', sortOrder: 41 },
-  { name: 'Bulgarian', sortOrder: 42 },
-  { name: 'Norwegian', sortOrder: 43 },
-  { name: 'Macedonian', sortOrder: 44 },
-  { name: 'Lithuanian', sortOrder: 45 },
-  { name: 'Latvian', sortOrder: 46 },
-  { name: 'Croatian', sortOrder: 47 },
-  { name: 'Somali', sortOrder: 48 },
-  { name: 'Albanian', sortOrder: 49 },
-  { name: 'Armenian', sortOrder: 50 },
-  { name: 'Bosnian', sortOrder: 51 },
-  { name: 'Georgian', sortOrder: 52 },
-  { name: 'Amharic', sortOrder: 53 },
-  { name: 'Burmese', sortOrder: 54 },
-  { name: 'Malay', sortOrder: 55 },
-  { name: 'Estonian', sortOrder: 56 },
-  { name: 'Catalan', sortOrder: 57 },
-  { name: 'Mongolian', sortOrder: 58 },
-  { name: 'Kannada', sortOrder: 59 },
-];
+/**
+ * Development seed.
+ *
+ * The structural and reference layers — global limit, the 59 supported
+ * languages, and the AI system prompts — are **not** defined here. They live in
+ * `src/services/seed/`, which backs the user-facing "Reset to clean slate"
+ * action, and this script calls the same code. Keeping a second copy here is
+ * how the two drifted apart in the first place: a language added to one list
+ * silently never reached the other.
+ *
+ * What stays is the development *inventory*: eight categories and ~70 food
+ * items. That is deliberately richer than the three categories and nine items a
+ * clean slate seeds, because development wants enough data to exercise
+ * analytics, procurement, and shopping lists, while a first-run instance wants
+ * an example small enough to read and easy to delete.
+ *
+ * So: shared where it is the same thing, separate where it is not.
+ */
 
 const categories = [
   { name: 'Canned Goods', limit: 10, icon: 'cylinder' },
@@ -154,101 +111,6 @@ const foodItems = [
   { name: 'Toothbrush', limit: 1, categoryName: 'Hygiene Items', isLimited: true, vegan: false, vegetarian: false, glutenFree: false, organic: false, halal: false, kosher: false, readyToEat: false },
   { name: 'Toothpaste', limit: 1, categoryName: 'Hygiene Items', isLimited: true, vegan: false, vegetarian: false, glutenFree: false, organic: false, halal: false, kosher: false, readyToEat: false }
 ];
-
-const systemPrompts = [
-  {
-    name: 'Shopping List Auto-Format',
-    promptType: 'CLASSIFICATION',
-    isActive: true,
-    isDefault: false,
-    description: 'Customized for William Temple House shopping lists',
-    skipTranslation: 'Titles like  "Shopping List", "Client Name", placeholders like "____".',
-    includeEnglish: 'Food items names such as "Kidney beans", "Apples", "Beef", "Eggs", or "Chicken Noodle Soup". Hygiene items like "Toothpaste", "Soap", "First Aid Kit", "Hygiene Kit." Exclude categories names like "Hygiene Items" "Beans" "Dairy". Exclude header names "Limit", "Quantity".',
-    skipTranslationThreshold: 0.8,
-    includeEnglishThreshold: 0.7,
-    rememberFormattingChoices: true
-  },
-  {
-    name: 'DOCX - Low Temp',
-    promptType: 'BATCH_TRANSLATION',
-    isActive: true,
-    isDefault: false,
-    description: 'Detailed translation instructions for DOCX files. Stable output',
-    serviceDescription: 'You are a translator service.',
-    translationApproach: 'Translate with the expectations of native speakers in mind, be culturally sensitive, and apply natural language.',
-    contextGuidance: 'In the context of a social services agency offering food pantry, emergency clothing, and hygiene.',
-    additionalGuidance: 'Do NOT provide any commentary about the translations. Do not request additional feedback. Always make your best guess when in doubt.',
-    temperature: 0.3,
-    topP: 1
-  },
-  {
-    name: 'Food Items and Categories',
-    promptType: 'FOOD_TRANSLATION',
-    isActive: true,
-    isDefault: false,
-    description: 'Customized for William Temple House food inventory',
-    serviceDescription: 'You are a translator service.',
-    translationApproach: 'Translate with the expectations of native speakers in mind, be culturally sensitive, and apply natural language.',
-    contextGuidance: 'In the context of a social services agency offering food pantry, emergency clothing, and hygiene items.',
-    additionalGuidance: 'Do NOT provide any commentary about the translations. Do not request additional feedback. Always make your best guess when in doubt.',
-    temperature: 1,
-    topP: 1,
-    rememberFormattingChoices: true
-  }
-];
-
-// Language seeding function
-async function seedLanguages() {
-  console.log('Starting language seeding...');
-
-  for (const language of languages) {
-    await prisma.language.upsert({
-      where: { name: language.name },
-      update: { 
-        sortOrder: language.sortOrder,
-        // Enable English and Russian by default
-        isEnabled: language.name === 'English' || language.name === 'Russian'
-      },
-      create: {
-        name: language.name,
-        sortOrder: language.sortOrder,
-        isEnabled: language.name === 'English' || language.name === 'Russian'
-      }
-    });
-  }
-
-  console.log('Language seeding completed.');
-  
-  // Verify that Russian is enabled
-  const russian = await prisma.language.findUnique({
-    where: { name: 'Russian' }
-  });
-  
-  console.log('Russian language status:', {
-    name: russian?.name,
-    isEnabled: russian?.isEnabled
-  });
-  
-  // Count enabled languages
-  const enabledCount = await prisma.language.count({
-    where: { isEnabled: true }
-  });
-  
-  console.log(`Total enabled languages: ${enabledCount}`);
-}
-
-// Global limit seeding function
-async function seedGlobalLimit() {
-  console.log('Setting global limit...');
-  
-  await prisma.globalLimit.upsert({
-    where: { id: 1 },
-    update: { value: 10 },
-    create: { id: 1, value: 10 }
-  });
-  
-  console.log('Global limit set to 10.');
-}
 
 // Category seeding function
 async function seedCategories() {
@@ -366,95 +228,20 @@ async function seedFoodItems(categories: any[]) {
   return createdFoodItems;
 }
 
-// System prompt seeding function
-async function seedSystemPrompts() {
-  console.log('Starting system prompt seeding...');
-
-  for (const prompt of systemPrompts) {
-    console.log(`Seeding system prompt: ${prompt.name}`);
-    
-    await prisma.systemPrompt.upsert({
-      where: { name: prompt.name },
-      update: {
-        promptType: prompt.promptType,
-        isActive: prompt.isActive,
-        isDefault: prompt.isDefault,
-        description: prompt.description,
-        serviceDescription: prompt.serviceDescription || null,
-        translationApproach: prompt.translationApproach || null,
-        contextGuidance: prompt.contextGuidance || null,
-        additionalGuidance: prompt.additionalGuidance || null,
-        skipTranslation: prompt.skipTranslation || null,
-        includeEnglish: prompt.includeEnglish || null,
-        skipTranslationThreshold: prompt.skipTranslationThreshold || null,
-        includeEnglishThreshold: prompt.includeEnglishThreshold || null,
-        rememberFormattingChoices: prompt.rememberFormattingChoices || true,
-        temperature: prompt.temperature || null,
-        topP: prompt.topP || null
-      },
-      create: {
-        name: prompt.name,
-        promptType: prompt.promptType,
-        isActive: prompt.isActive,
-        isDefault: prompt.isDefault,
-        description: prompt.description,
-        serviceDescription: prompt.serviceDescription || null,
-        translationApproach: prompt.translationApproach || null,
-        contextGuidance: prompt.contextGuidance || null,
-        additionalGuidance: prompt.additionalGuidance || null,
-        skipTranslation: prompt.skipTranslation || null,
-        includeEnglish: prompt.includeEnglish || null,
-        skipTranslationThreshold: prompt.skipTranslationThreshold || null,
-        includeEnglishThreshold: prompt.includeEnglishThreshold || null,
-        rememberFormattingChoices: prompt.rememberFormattingChoices || true,
-        temperature: prompt.temperature || null,
-        topP: prompt.topP || null
-      }
-    });
-    
-    console.log(`✓ Seeded: ${prompt.name} (${prompt.promptType})`);
-  }
-
-  console.log('System prompt seeding completed.');
-  
-  // Verify seeded prompts
-  const seededPrompts = await prisma.systemPrompt.findMany({
-    where: {
-      name: { in: systemPrompts.map(p => p.name) }
-    },
-    select: {
-      name: true,
-      promptType: true,
-      isActive: true
-    }
-  });
-  
-  console.log('Seeded system prompts verification:');
-  seededPrompts.forEach((prompt: any) => {
-    console.log(`  - ${prompt.name} (${prompt.promptType}) - Active: ${prompt.isActive}`);
-  });
-  
-  // Count total system prompts
-  const totalCount = await prisma.systemPrompt.count();
-  console.log(`Total system prompts in database: ${totalCount}`);
-}
-
 // Master seeding function
 async function main() {
   console.log('🌱 Starting database seeding...');
   console.log('=====================================');
 
   try {
-    // Seed global limit first
-    await seedGlobalLimit();
-    console.log('');
-    
-    // Seed languages
-    await seedLanguages();
-    console.log('');
-    
-    // Seed system prompts
-    await seedSystemPrompts();
+    // Structural + reference, from the same source the clean slate uses.
+    // `withExamples: false` leaves the illustrative layer out — this script
+    // seeds its own, larger development inventory below.
+    const shared = await SeedService.apply(prisma, { withExamples: false });
+    console.log(
+      `Seeded ${shared.languages} languages (${shared.enabledLanguages} enabled), ` +
+      `${shared.systemPrompts} system prompts, global limit ${shared.globalLimit}.`
+    );
     console.log('');
     
     // Seed categories

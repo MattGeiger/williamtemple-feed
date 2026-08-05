@@ -13,8 +13,20 @@ Under `src/`, not `scripts/`: the production image installs with `--omit=dev`
 and never copies `scripts/`, so seed content kept there cannot back a
 user-facing action — the trap the operator CLI hit in beta.4.
 
-**Remaining:** retire the duplicated arrays in `scripts/seed-all.ts` so the
-development seed and the clean slate share one source. Everything else is done.
+`scripts/seed-all.ts` no longer carries its own copies. It calls
+`SeedService.apply(prisma, { withExamples: false })` for the structural and
+reference layers and keeps only the development *inventory* — eight categories
+and ~70 items, deliberately richer than the clean slate's three and nine,
+because development wants enough data to exercise analytics and procurement
+while a first-run instance wants an example small enough to read and easy to
+delete. Shared where it is the same thing; separate where it is not.
+
+**Reference now includes the system prompts.** They previously existed only in
+`scripts/seed-all.ts`, which the production image never copies — so a reset
+cleared `SystemPrompt` (it is in the backup contract) and had nothing to put
+back, leaving the instance with no prompts driving translation at all. That was
+a real defect introduced with the reset and is now fixed and covered by tests:
+the prompts are present whether or not examples are chosen.
 
 ## The example Builder template
 
