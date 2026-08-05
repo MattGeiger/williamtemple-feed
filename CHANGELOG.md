@@ -49,6 +49,30 @@ All notable changes to FEED are documented here. This project adheres to
   across three id-spaces (14/15/16 authored, 1/2/3 fresh, 17/18/19 reseeded),
   and the seeded template renders to a valid PDF.
 
+- **Sign-in emails look like William Temple House.** The verification code,
+  magic link, and invitation messages carried no identity — a black button, grey
+  text, no logo, no organisation name, and a sender line reading "FEED Login".
+  Sign-in mail is the one message staff receive that looks exactly like what
+  security training tells them to distrust, and these gave a cautious recipient
+  nothing to recognise.
+
+  All three now render through one shell (`email-layout.ts`) with the WTH logo,
+  the app's own blue and gold, and the FEED wordmark as live text. The sender is
+  `FEED at William Temple House`.
+
+  The design assumes **images are blocked**, because in Outlook and
+  privacy-filtered clients they are: the wordmark and palette are text and
+  background colours, not image slices, so the mail still reads as WTH with the
+  logo suppressed. Each message also gained a plain-text alternative (HTML-only
+  mail scores worse with spam filters) and its own inbox preheader (without one,
+  clients scrape the first visible text, so every FEED email previewed alike).
+
+  A logo is not a security control — anyone can copy one. The line doing the
+  real work is in the footer: *FEED will never ask you for a password, and will
+  never ask you to reply to this message with a code*, which gives staff a rule
+  they can apply to the next message, including one FEED did not send. See
+  `docs/auth/email-branding.md`.
+
 ### Fixed
 
 - **The two-administrator refusal explains itself instead of saying "An
