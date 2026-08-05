@@ -18,7 +18,6 @@ import {
 } from 'recharts';
 import { Download } from 'lucide-react';
 
-import { ArrowUpDown } from '@/components/ui/icons';
 import { SectionHeader } from '@/components/shared/section-header';
 import { createPageTitleIcon } from '@/components/layout/page-title-icon';
 import { ChartNoAxesCombinedIcon } from '@/components/ui/chart-no-axes-combined';
@@ -70,6 +69,7 @@ import {
   carbonTheme,
   getChartStatusColor,
 } from '@/lib/colors';
+import { SortableHeader } from "@/components/ui/sortable-header"
 
 const PageTitleAnalyticsIcon = createPageTitleIcon(ChartNoAxesCombinedIcon);
 
@@ -754,15 +754,7 @@ function DetailHeader({ title, description, cardId, onExport }: { title: string;
 // Sortable header, matching the ghost-button + ArrowUpDown pattern used by
 // the management tables (e.g. category-management/data-table/columns.tsx).
 function sortableHeader<TData>(label: string): ColumnDef<TData>['header'] {
-  return ({ column }) => (
-    <Button
-      variant="ghost"
-      onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-    >
-      {label}
-      <ArrowUpDown className="ml-2 h-4 w-4" />
-    </Button>
-  );
+  return ({ column }) => <SortableHeader column={column}>{label}</SortableHeader>;
 }
 
 const episodeColumns: ColumnDef<UnavailableEpisode>[] = [
