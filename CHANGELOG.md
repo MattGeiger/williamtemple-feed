@@ -92,6 +92,13 @@ All notable changes to FEED are documented here. This project adheres to
   busy previous month shows nothing. The empty state now says which period is
   empty and that earlier activity is not shown.
 
+  That first pass then advised widening the range from a card that had no range
+  control: Period and Service were rendered only in the populated branch, so the
+  one state that needed them was the one state without them. Both filters are
+  now defined once and rendered by every state that can act on them. The Service
+  list falls back to the configured services when a period recorded no activity,
+  so it is a working filter rather than a dropdown with one dead entry.
+
 ### Known
 
 - After a restore or reset, `npm run dev` does not come back on its own:
