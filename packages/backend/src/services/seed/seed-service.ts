@@ -8,6 +8,11 @@
 import type { PrismaClient } from '@prisma/client';
 
 import {
+  EXAMPLE_SAVED_COMPONENTS,
+  EXAMPLE_TEMPLATE_NAME,
+  buildExampleTemplateData,
+} from './example-template';
+import {
   ILLUSTRATIVE_CATEGORIES,
   ILLUSTRATIVE_FOOD_ITEMS,
   REFERENCE_LANGUAGES,
@@ -44,6 +49,10 @@ export interface SeedSummary {
   enabledLanguages: number;
   categories: number;
   foodItems: number;
+  /** The example Builder template, when the illustrative layer is included. */
+  templates: number;
+  /** Reusable Builder blocks that ship with it. */
+  savedComponents: number;
   globalLimit: number;
 }
 
@@ -83,10 +92,15 @@ export class SeedService {
 
     let categories = 0;
     let foodItems = 0;
+    let templates = 0;
+    let savedComponents = 0;
 
     // --- Illustrative: opinions about a pantry that may not be this one. ---
     if (withExamples) {
+      // Names are the stable key between the seed and the example template:
+      // ids are assigned here and cannot be known in advance.
       const categoryIds = new Map<string, number>();
+      const itemIds = new Map<string, number>();
 
       for (const category of ILLUSTRATIVE_CATEGORIES) {
         const name = normalize(category.name);
@@ -135,13 +149,22 @@ export class SeedService {
           readyToEat: item.readyToEat,
         };
 
-        await prisma.foodItem.upsert({
+        const created = await prisma.foodItem.upsert({
           where: { nameSearch },
           update: fields,
           create: { name, nameSearch, ...fields },
         });
+        itemIds.set(item.name, created.id);
         foodItems += 1;
       }
+
+      // The template and the inventory ship as one unit. A template
+      // demonstrating a real inventory-backed section table teaches far more
+      // than one built from base components alone — and it needs categories and
+      // items to bind to. Choosing examples gets both; structure-only gets
+      // neither.
+      templates = await seedExampleTemplate(prisma, categoryIds, itemIds);
+      savedComponents = await seedSavedComponents(prisma);
     }
 
     const enabledLanguages = await prisma.language.count({ where: { isEnabled: true } });
@@ -151,7 +174,67 @@ export class SeedService {
       enabledLanguages,
       categories,
       foodItems,
+      templates,
+      savedComponents,
       globalLimit: STRUCTURAL.globalLimit,
     };
   }
 }
+
+/**
+ * Upsert the example template by name.
+ *
+ * Neither Builder table has a unique constraint on `name`, so this looks the
+ * row up first rather than using `upsert`. Seeding twice must not leave two
+ * templates called the same thing — a duplicate here is worse than untidy,
+ * because the Builder lists them side by side with no way to tell them apart.
+ */
+const seedExampleTemplate = async (
+  prisma: PrismaClient,
+  categoryIds: ReadonlyMap<string, number>,
+  itemIds: ReadonlyMap<string, number>
+): Promise<number> => {
+  const templateData = buildExampleTemplateData(categoryIds, itemIds) as object;
+
+  const existing = await prisma.shoppingListBuilderTemplate.findFirst({
+    where: { name: EXAMPLE_TEMPLATE_NAME },
+    select: { id: true },
+  });
+
+  if (existing) {
+    await prisma.shoppingListBuilderTemplate.update({
+      where: { id: existing.id },
+      data: { templateData },
+    });
+  } else {
+    await prisma.shoppingListBuilderTemplate.create({
+      data: { name: EXAMPLE_TEMPLATE_NAME, templateData },
+    });
+  }
+
+  return 1;
+};
+
+/** The reusable blocks the example template was assembled from. */
+const seedSavedComponents = async (prisma: PrismaClient): Promise<number> => {
+  for (const component of EXAMPLE_SAVED_COMPONENTS) {
+    const existing = await prisma.shoppingListBuilderComponent.findFirst({
+      where: { name: component.name },
+      select: { id: true },
+    });
+
+    const data = {
+      name: component.name,
+      componentType: component.componentType,
+      componentData: component.componentData as object,
+    };
+
+    if (existing) {
+      await prisma.shoppingListBuilderComponent.update({ where: { id: existing.id }, data });
+    } else {
+      await prisma.shoppingListBuilderComponent.create({ data });
+    }
+  }
+
+  return EXAMPLE_SAVED_COMPONENTS.length;
+};
