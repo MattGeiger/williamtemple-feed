@@ -29,7 +29,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { EnhancedDataTable } from '@/components/ui/enhanced-data-table';
-import { calculateColumnWidths, extractColumnSizes, getColumnWidthStyle } from '@/lib/table';
 import {
   Tabs,
   TabsContent,
@@ -355,28 +354,6 @@ export function DataManagementWorkspace() {
     },
     ];
 
-    // EnhancedDataTable sizes columns from `meta.style`, not from `size` — see
-    // `columnStyle` in enhanced-data-table/index.tsx. Without it the table falls
-    // back to `table-layout: fixed`, which splits the width evenly across every
-    // column: eight columns at 262px each, leaving Actions with ~190px of dead
-    // space beside a 72px trigger.
-    //
-    // This is the same three-step every other table in the app uses
-    // (document-translator, category-management, food-items, translations,
-    // ai-configuration, shopping-lists): read the declared sizes, turn them into
-    // percentages, and pin selection and actions to their fixed widths from
-    // FIXED_COLUMN_WIDTHS.
-    const widths = calculateColumnWidths(extractColumnSizes(columnDefinitions));
-
-    columnDefinitions.forEach((column, index) => {
-      const columnId =
-        column.id ??
-        ('accessorKey' in column && column.accessorKey ? String(column.accessorKey) : `col-${index}`);
-      const width = widths[columnId];
-      if (width) {
-        column.meta = { ...column.meta, style: getColumnWidthStyle(width) };
-      }
-    });
 
     return columnDefinitions;
   }, [isAdministrator, openRuleDialog, pairedSourceByImportId]);
