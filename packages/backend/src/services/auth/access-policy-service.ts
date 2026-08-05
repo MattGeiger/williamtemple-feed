@@ -287,10 +287,6 @@ export class AccessPolicyService {
     }
 
     const eligible = await countEligibleAdministrators();
-    assertAdministratorMinimum(
-      eligible,
-      ACCESS_MODES.ALLOWLIST,
-      'Switching to Allowlist mode'
-    );
+    assertAdministratorMinimum(eligible, ACCESS_MODES.ALLOWLIST);
   }
 }

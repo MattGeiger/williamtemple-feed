@@ -214,6 +214,14 @@ export class ErrorHandlerService {
       rawMessage = error.message;
     }
 
+    // A message the server labelled with an application error code is curated
+    // prose from one of our own routes — a leaked driver dump or stack trace
+    // never carries one. That distinction is what lets a long, deliberate
+    // explanation through while still blocking developer artifacts.
+    const hasServerCode =
+      typeof (error as { code?: unknown } | null)?.code === 'string' &&
+      (error as { code: string }).code.length > 0;
+
     const GENERIC_FALLBACK = 'An unexpected error occurred. Please try again.';
     let userMessage = GENERIC_FALLBACK;
 
@@ -234,7 +242,7 @@ export class ErrorHandlerService {
     // the generic text when the raw message is missing, is our own unknown
     // placeholder, or looks like a developer-facing payload (JSON / stack
     // trace / HTML) that would confuse rather than help.
-    if (!matched && this.isUserPresentableMessage(rawMessage)) {
+    if (!matched && this.isUserPresentableMessage(rawMessage, hasServerCode)) {
       userMessage = rawMessage;
     }
 
@@ -272,7 +280,10 @@ export class ErrorHandlerService {
    * payloads, stack traces and HTML pages are not. We surface the former and
    * fall back to a generic message for the latter.
    */
-  private static isUserPresentableMessage(message: string): boolean {
+  private static isUserPresentableMessage(
+    message: string,
+    hasServerCode = false
+  ): boolean {
     if (!message) return false;
     const trimmed = message.trim();
     if (trimmed.length === 0) return false;
@@ -294,7 +305,13 @@ export class ErrorHandlerService {
     // multi-line blobs, ORM invocation traces, filesystem paths, SQL, and
     // anything far longer than a sentence a person would want to read.
     if (/\r|\n/.test(trimmed)) return false;
-    if (trimmed.length > 240) return false;
+    // Length is a proxy for "this looks like a dump", and it is the wrong test
+    // for a message the server deliberately labelled. The two-administrator
+    // refusal is 251 characters of necessary explanation — it names the rule,
+    // says why the rule exists, and gives two ways forward — and this cap
+    // silently replaced all of it with "An unexpected error occurred"
+    // (ISSUES.md #60). Coded errors are exempt; everything else still capped.
+    if (!hasServerCode && trimmed.length > 240) return false;
     if (/\bprisma\.\w+\.\w+\(\)|\bInvalid `/i.test(trimmed)) return false;
     if (/Unknown argument|Argument `\w+`|available options are marked/i.test(trimmed)) return false;
     if (/(^|\s)(\/[\w.-]+){2,}\/?/.test(trimmed)) return false;
