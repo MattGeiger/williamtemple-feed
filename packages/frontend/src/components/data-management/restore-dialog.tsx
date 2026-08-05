@@ -25,6 +25,7 @@ import type {
   RestoreUnitId,
   RestoreUnitInfo,
 } from '@/types/admin';
+import { formatDateTime } from '@/lib/formatting/date';
 
 /**
  * Restore, as a walk rather than a single terrifying button.
@@ -46,11 +47,7 @@ type Step = 'choose' | 'review' | 'confirm' | 'restarting' | 'done';
 
 const dateTimeLabel = (iso: string) => {
   const date = new Date(iso);
-  return `${date.toLocaleDateString(undefined, {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  })} at ${date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}`;
+  return formatDateTime(date);
 };
 
 interface RestoreDialogProps {

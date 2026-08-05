@@ -20,6 +20,7 @@ import { TableActionMenu } from "@/components/ui/table-action-menu"
 import { ResponsiveTruncatedText } from "@/components/ui/responsive-truncated-text"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { SortableHeader } from "@/components/ui/sortable-header"
+import { formatDate } from '@/lib/formatting/date'
 
 /**
  * The name cell, extracted from an inline `cell` renderer.
@@ -148,11 +149,7 @@ export function getColumns(
       const value = row.original.updatedAt;
       if (!value) return '-';
       try {
-        return new Date(value).toLocaleDateString('en-US', {
-          year: 'numeric',
-          month: '2-digit',
-          day: '2-digit'
-        });
+        return formatDate(value);
       } catch (e) {
         console.error('Date parsing error:', e);
         return value;

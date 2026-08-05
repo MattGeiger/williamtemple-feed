@@ -22,6 +22,7 @@ import { IconDisplay } from "@/components/shared/icon-display"
 import { ResponsiveTruncatedText } from "@/components/ui/responsive-truncated-text"
 import { SavedBuilderTemplate, SectionTableBuilderComponent } from "@/components/shopping-lists/builder/types"
 import { SortableHeader } from "@/components/ui/sortable-header"
+import { formatDate } from '@/lib/formatting/date'
 
 export interface BuilderTemplateActions {
   onRename: (template: SavedBuilderTemplate) => void
@@ -40,11 +41,7 @@ export interface BuilderTemplateActions {
 
 const formatDate = (value: string) => {
   try {
-    return new Date(value).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    })
+    return formatDate(value)
   } catch {
     return value
   }

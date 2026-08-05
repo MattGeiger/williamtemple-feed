@@ -109,8 +109,9 @@ describe('Data Management', () => {
 
     // The windows differ because Fresh Alliance entry lags; both are stated
     // plainly rather than compared.
-    expect(screen.getByText('01/05/2009 – 05/01/2026')).toBeVisible();
-    expect(screen.getByText('06/01/2023 – 04/18/2026')).toBeVisible();
+    // m/d/yyyy with no leading zeros, per lib/formatting/date.
+    expect(screen.getByText('1/5/2009 – 5/1/2026')).toBeVisible();
+    expect(screen.getByText('6/1/2023 – 4/18/2026')).toBeVisible();
     expect(screen.getByText('2,100 events')).toBeVisible();
     expect(screen.getByText('826 events')).toBeVisible();
 

@@ -16,6 +16,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { ResponsiveTruncatedText } from "@/components/ui/responsive-truncated-text"
 import { SortableHeader } from "@/components/ui/sortable-header"
+import { formatDate } from '@/lib/formatting/date'
 
 export interface CategoryActions {
   onEdit: (category: Category) => void
@@ -109,8 +110,7 @@ export const columns = ({ onEdit, onDelete }: CategoryActions): ColumnDef<Catego
       <SortableHeader column={column}>Last Updated</SortableHeader>
     ),
     cell: ({ row }) => {
-      const date = new Date(row.getValue("lastUpdated") as string)
-      return date.toLocaleDateString()
+      return formatDate(row.getValue("lastUpdated") as string)
     }
   },
   {

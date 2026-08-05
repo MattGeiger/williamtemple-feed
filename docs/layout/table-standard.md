@@ -13,6 +13,8 @@ Adopted 2026-08-05, applied to all sixteen tables in one pass. Enforced by
 3. **Sorting uses `<SortableHeader column={column}>`.** Never an inline button.
 4. **Alignment is declared once, as `meta.align`.** The table applies it to the
    header and the cells together. Never align a cell directly.
+5. **Dates come from `@/lib/formatting/date`.** `formatDate`, `formatDateTime`,
+   `formatDateRange`. Never a local options object.
 
 That is the whole standard. Everything below is why.
 
@@ -69,13 +71,63 @@ deliberately did not change how anything looks except where it was misaligned.
 text label's centre, and a badge about 11px, because their boxes differ. That
 is shape, not misalignment. What matters is that *text* columns read 0.
 
+## Dates
+
+**`m/d/yyyy`** — month first, no leading zero on either part. July 11th 2026 is
+`7/11/2026`. With a time: `7/11/2026 3:04 PM`. As a range:
+`6/2/2026 – 7/31/2026`.
+
+Five formats were in use across two libraries:
+
+| Written as | Produced |
+| --- | --- |
+| `toLocaleDateString()` | `7/11/2026` — correct, by accident |
+| `toLocaleDateString('en-US', { month: '2-digit', day: '2-digit' })` | `07/11/2026` |
+| `toLocaleDateString(undefined, …)` | whatever the viewer's browser says |
+| `toLocaleDateString('en-US', { month: 'short' })` | `Jul 11, 2026` |
+| date-fns `format(d, 'MMM d, yyyy h:mm a')` | `Jul 11, 2026 3:04 PM` |
+
+The bare call was the correct one, which is the trap: writing the options out
+explicitly — the careful-looking thing — is what produced the padded variant.
+
+**The locale is pinned to `en-US`.** `toLocaleDateString(undefined, …)` formats
+in the viewer's locale, so on an en-GB browser the same delivery window renders
+day-first. That is a misread, not a preference.
+
+**Charts are out of scope.** Axis ticks keep `MMM d`, and prose keeps
+`MMM d, yyyy`. An axis is a scale and a sentence is a sentence; only data read
+as a record is standardised.
+
+### How this one drifted
+
+Differently from the others, and more instructively. Someone *did* try to
+standardise it. `analytics/index.tsx` carried this comment above a local helper:
+
+> Tables across FEED render dates as zero-padded MM/DD/YYYY (see the
+> shopping-list and AI-configuration tables). Analytics tables follow that one
+> standard.
+
+They surveyed real tables, drew a conclusion, wrote it down, and applied it —
+and were wrong, because AI Configuration used a bare `toLocaleDateString()` that
+drops the zeros. The evidence was inconsistent, so a careful reading of it
+produced a confident, incorrect rule that then looked authoritative to everyone
+after them.
+
+A comment asserting a standard is not a standard. The format now lives in one
+importable function with its own tests, so the question has an answer that can
+be executed rather than surveyed.
+
 ## Enforcement
 
 `src/test/table-standard.test.tsx` scans every component file and fails on:
 
 - any file calling `calculateColumnWidths` (computing widths by hand);
 - any file containing `toggleSorting` (an inline sortable header);
-- any column definition whose `cell` carries `justify-end` or `text-right`.
+- any column definition whose `cell` carries `justify-end` or `text-right`;
+- any column definition formatting a date itself — `toLocaleDateString`, or a
+  date-fns pattern with a numeric `MM/dd`. Month-name patterns pass, because
+  the Analytics and operational-reports files hold tables and charts side by
+  side and the charts legitimately use them.
 
 It strips comments before scanning, because the first version of it failed on
 a comment explaining why a file no longer used `justify-end`.
