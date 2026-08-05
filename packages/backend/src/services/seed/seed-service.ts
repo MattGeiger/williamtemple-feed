@@ -12,6 +12,7 @@ import {
   EXAMPLE_TEMPLATE_NAME,
   buildExampleTemplateData,
 } from './example-template';
+import { SEED_SYSTEM_PROMPTS } from './system-prompts';
 import {
   ILLUSTRATIVE_CATEGORIES,
   ILLUSTRATIVE_FOOD_ITEMS,
@@ -49,6 +50,8 @@ export interface SeedSummary {
   enabledLanguages: number;
   categories: number;
   foodItems: number;
+  /** AI system prompts — reference data, present in every clean slate. */
+  systemPrompts: number;
   /** The example Builder template, when the illustrative layer is included. */
   templates: number;
   /** Reusable Builder blocks that ship with it. */
@@ -87,6 +90,36 @@ export class SeedService {
           sortOrder: language.sortOrder,
           isEnabled,
         },
+      });
+    }
+
+    // System prompts are reference data too: they describe how FEED talks to a
+    // translation provider, not what the agency stocks. Without them a reset
+    // would leave the instance with no prompts at all, because the backup
+    // contract clears SystemPrompt.
+    for (const prompt of SEED_SYSTEM_PROMPTS) {
+      const fields = {
+        promptType: prompt.promptType,
+        isActive: prompt.isActive,
+        isDefault: prompt.isDefault,
+        description: prompt.description ?? null,
+        serviceDescription: prompt.serviceDescription ?? null,
+        translationApproach: prompt.translationApproach ?? null,
+        contextGuidance: prompt.contextGuidance ?? null,
+        additionalGuidance: prompt.additionalGuidance ?? null,
+        skipTranslation: prompt.skipTranslation ?? null,
+        includeEnglish: prompt.includeEnglish ?? null,
+        skipTranslationThreshold: prompt.skipTranslationThreshold ?? null,
+        includeEnglishThreshold: prompt.includeEnglishThreshold ?? null,
+        temperature: prompt.temperature ?? null,
+        topP: prompt.topP ?? null,
+        rememberFormattingChoices: prompt.rememberFormattingChoices ?? false,
+      };
+
+      await prisma.systemPrompt.upsert({
+        where: { name: prompt.name },
+        update: fields,
+        create: { name: prompt.name, ...fields },
       });
     }
 
@@ -172,6 +205,7 @@ export class SeedService {
     return {
       languages: REFERENCE_LANGUAGES.length,
       enabledLanguages,
+      systemPrompts: SEED_SYSTEM_PROMPTS.length,
       categories,
       foodItems,
       templates,

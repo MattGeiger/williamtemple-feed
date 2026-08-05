@@ -51,6 +51,20 @@ All notable changes to FEED are documented here. This project adheres to
 
 ### Fixed
 
+- **A clean slate no longer leaves the instance without AI system prompts.**
+  The prompts lived only in `scripts/seed-all.ts`, which the production image
+  never copies, while `SystemPrompt` is part of the backup contract and so was
+  cleared by a reset with nothing to put back. They are reference data — how
+  FEED talks to a translation provider, not agency content — and now live under
+  `src/services/seed/` and seed in every clean slate, with or without examples.
+  Found by checking what a reset actually left behind rather than what it was
+  supposed to.
+
+- **The development seed and the clean slate share one source.**
+  `scripts/seed-all.ts` had its own copies of the 59 languages, the system
+  prompts, and the global limit; it now calls the same seeding code the reset
+  uses and keeps only its larger development inventory.
+
 - **Alert rows no longer stagger.** `AlertTitle` kept `mb-1` and `leading-none`
   from upstream shadcn's *stacked* layout, but this alert is a centred flex row:
   the margin lifted the title above its siblings and the line-height put its
