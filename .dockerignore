@@ -9,6 +9,15 @@
 **/.pnp
 .pnp.js
 
+# Local development database. Not needed by any build stage — the runtime
+# image gets its database from the ./data volume — and it is 28MB of build
+# context per platform. It never reached the published image (the final stage
+# copies only dist/assets/prisma), but excluding it removes the chance that a
+# future COPY change ships it.
+**/dev.db
+**/dev.db-shm
+**/dev.db-wal
+
 # Testing
 **/__tests__
 **/coverage
