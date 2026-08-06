@@ -494,6 +494,33 @@ placeholder under Information. Do not mount the dormant template manager,
 selection provider, generation dialogs, or export pipeline there until a
 validated report-template contract is approved.
 
+**Audit 2026-08-05 (1.5.0-beta.8) — the infrastructure still runs.** Mounted
+`routes/reports.ts` on a throwaway branch at `/api/legacy-reports` and exercised
+it against current dev data. Result: **nothing is broken.**
+
+| Checked | Result |
+|---|---|
+| `tsc --noEmit` with the router mounted | 0 errors — no schema or service drift |
+| `GET /cards` | 200, 31 cards registered |
+| `POST /query` | 200 in 28ms, real data (168 items / 58 in stock) |
+| `POST /cards/:id/csv` | 200, 11.4KB, correct headers and date-ranged filename |
+| `POST /export` | 200 in 1.07s — valid 135KB ZIP: 2 CSVs, a 6-page PDF (`%PDF-1.4`, proper `startxref`/`%%EOF`), and a provenance manifest |
+| Template CRUD | create 201 / update 200 / list / delete 204 |
+| PDF HTML | 2 server-authored SVG charts with real geometry, 169 table rows, zero external references |
+
+The PDF path is **not** dormant infrastructure: `services/pdf/chromium.ts` is
+shared with the live Shopping List Builder, so puppeteer and the HTML-to-PDF
+layer are exercised in production every time a builder PDF is generated. Only
+the report-specific layer above it is cold.
+
+The probe was reverted; nothing is mounted. The first watchpoint below is the
+live concern — `/query` still returns `projectedStockoutsWithinHorizon`,
+`medianDaysOfCover`, and `daysOfCoverBands`, and the item CSV still carries
+`daily_burn`, `weekly_burn`, `days_of_cover`, `projected_stockout_at`, and
+`projected_cost_cents` columns. Those are the claims RITE rejected. They are
+unreachable today only because the router is unmounted; mounting it as-is would
+re-publish every one of them.
+
 Watchpoints:
 
 - no hidden endpoint may continue making abandoned analytical claims;
