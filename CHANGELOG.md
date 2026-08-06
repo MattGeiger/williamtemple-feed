@@ -5,6 +5,42 @@ All notable changes to FEED are documented here. This project adheres to
 
 ## [Unreleased]
 
+### Changed
+
+- **Admin → History is a standard table.** It was the last hand-rolled one on
+  the Admin page: its own pager, its own header markup, and a locale-dependent
+  `Aug 4, 2026, 5:53 PM` beside every other table's `8/4/2026 5:53 PM`. It now
+  runs through `EnhancedDataTable` with sorting, a filter, column visibility,
+  and pagination.
+
+  Sorting and filtering happen in the browser, so the whole log is loaded up
+  front rather than a page at a time — a partial load would make the filter lie,
+  reporting "no results" for an entry that exists but was never fetched. In an
+  audit log, which people consult precisely to find one past action, that is the
+  worst available failure. The table records administrative actions only, so it
+  grows by a handful of rows a month; a 2,000-entry ceiling exists so an
+  unexpectedly large log degrades visibly instead of hanging the page.
+
+### Fixed
+
+- **The two heaviest audit entries had no wording.** `BACKUP_RESTORED` and
+  `CLEAN_SLATE_APPLIED` were added to the backend in beta.5/6 and never given
+  labels, so "the database was replaced" and "the database was wiped" appeared
+  in Admin → History as raw SCREAMING_SNAKE identifiers. They now read *Backup
+  restored* and *Reset to clean slate* — deliberately distinct, because restore
+  recovers and reset discards. A test now asserts every backend audit action has
+  frontend wording, and that no wording outlives its action.
+
+- **A restore entry no longer shows a wire-format timestamp.** The Affected
+  column rendered the backup artifact's own `2026-08-04T22:20:41.415Z`.
+
+## [1.5.0-beta.7] — 2026-08-05
+
+Deployed to production 2026-08-05, from beta.2. Migrations 23 → 24. This entry
+was cut in two passes — the restore work was written up first and the rest
+accumulated under Unreleased — but all of it shipped in the same image, so it
+is one release.
+
 ### Added
 
 - **Reset to a clean slate, from Data Management → Database.** The reset the
@@ -129,8 +165,6 @@ All notable changes to FEED are documented here. This project adheres to
   `ts-node-dev --respawn` waits for a file change rather than restarting on
   exit. Touch a source file or restart the dev server. Production is unaffected
   — Docker's `restart: unless-stopped` restarts on any exit code.
-
-## [1.5.0-beta.7] — 2026-08-04
 
 **In-app restore.** An administrator can put the database back from a backup
 file without SSH, VNC, or a terminal — the point of the whole data-management

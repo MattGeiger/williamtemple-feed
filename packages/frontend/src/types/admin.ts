@@ -89,6 +89,12 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   USER_DELETED: 'Removed from roster',
   ACCESS_POLICY_UPDATED: 'Access settings changed',
   BACKUP_DOWNLOADED: 'Backup downloaded',
+  // Added to the backend in beta.5/6 and missed here, so the two heaviest
+  // actions in the log — the ones that replace or discard the whole database —
+  // rendered as raw BACKUP_RESTORED and CLEAN_SLATE_APPLIED. The wording keeps
+  // them distinct on purpose: restore recovers, reset discards.
+  BACKUP_RESTORED: 'Backup restored',
+  CLEAN_SLATE_APPLIED: 'Reset to clean slate',
 };
 
 export interface DatabaseSummary {
