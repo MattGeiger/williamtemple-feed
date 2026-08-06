@@ -5,6 +5,10 @@
 Adopted 2026-08-05, applied to all sixteen tables in one pass. Enforced by
 `src/test/table-standard.test.tsx`.
 
+Amended 2026-08-05 after the Admin history conversion: the "no hand-rolled
+tables" claim was wrong, and two rules were too narrow to catch the table that
+proved it. See "Hand-rolled tables" below.
+
 ## The rules
 
 1. **Tables render through `EnhancedDataTable`.** Directly or via `DataList`.
@@ -154,13 +158,37 @@ hit twice.
 
 ## Hand-rolled tables
 
-There are none, and there should stay none.
+**This section previously said "there are none". That was false when it was
+written** — asserted from the tables in front of me rather than checked against
+the tree, which is precisely the mistake documented under "How this one
+drifted". Four files were building tables out of the `<Table>` primitives at the
+time.
 
-The Admin roster was one: five rows, no sorting, filtering, or pagination, so a
-plain `<Table>` looked simpler. What it bought was a second table to maintain,
-and it drifted immediately — an unlabelled 48px actions header where every other
-table names the column and pins it to 72px. It was converted rather than
-patched.
+The count is enforced now rather than claimed. `KNOWN_HAND_ROLLED` in
+`src/test/table-standard.test.tsx` lists what remains; a table not on that list
+fails the suite, and deleting an entry from it is the last step of converting
+one.
+
+Converted:
+
+- **Admin roster** — five rows, no sorting or pagination, so a plain `<Table>`
+  looked simpler. What it bought was a second table to maintain, and it drifted
+  immediately: an unlabelled 48px actions header where every other table names
+  the column and pins it to 72px.
+- **Admin history** — had neither a `ColumnDef` nor an action menu, so it fell
+  through every rule here and drifted furthest: its own pager, its own header
+  markup, and `toLocaleString(undefined, { month: 'short' })` rendering
+  `Aug 4, 2026, 5:53 PM` beside tables reading `8/4/2026 5:53 PM`. Both rules
+  were widened once it was found.
+
+Outstanding:
+
+| File | Why it is still listed |
+| --- | --- |
+| `analytics/donor-analytics.tsx` | A real data table and the strongest conversion candidate. Also formats its own dates. |
+| `category-management/data-table/data-table.tsx` | Partial adopter — already shares `TableFeatureBar` and `useTableFeatures`, but renders its own rows. |
+| `document-translator/dialogs/translate-dialog.tsx` | A short selection list inside a dialog, not a data table. Arguably fine as-is. |
+| `document-translator/custom-data-table.tsx` | Imported by nothing. Delete rather than convert. |
 
 `EnhancedDataTable` scales down for small sets: `enableFiltering={false}` and
 `enableColumnVisibility={false}` remove the toolbar, and `emptyMessage` keeps
@@ -174,12 +202,19 @@ found."). Reach for those before reaching for a `<Table>`.
 - any file calling `calculateColumnWidths` (computing widths by hand);
 - any file containing `toggleSorting` (an inline sortable header);
 - any column definition whose `cell` carries `justify-end` or `text-right`;
-- any column definition formatting a date itself — `toLocaleDateString`, or a
-  date-fns pattern with a numeric `MM/dd`. Month-name patterns pass, because
-  the Analytics and operational-reports files hold tables and charts side by
-  side and the charts legitimately use them;
-- any hand-rolled `<Table>` that shows an action menu under an unlabelled
-  header.
+- any file that **defines columns or renders table markup** and formats a date
+  itself — `toLocaleDateString`, a date-form `toLocaleString`, or a date-fns
+  pattern with a numeric `MM/dd`. Month-name patterns pass, because the
+  Analytics and operational-reports files hold tables and charts side by side
+  and the charts legitimately use them. `Number.toLocaleString()` also passes:
+  it is the thousands separator, and only the date form takes `month`/`day`/
+  `year`/`hour` options;
+- any file rendering `<TableHeader>` that is not on `KNOWN_HAND_ROLLED`.
+
+The last two were widened after the Admin history conversion. The date rule
+previously only inspected files containing `ColumnDef<`, and the hand-rolled
+rule only fired when a `TableActionMenu` was also present — so a table with
+neither was invisible to both.
 
 `EnhancedDataTable` and `SortableHeader` are exempt: they implement the rules
 rather than follow them.

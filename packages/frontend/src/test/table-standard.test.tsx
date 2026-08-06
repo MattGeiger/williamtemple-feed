@@ -35,6 +35,31 @@ const root = join(__dirname, '..', 'components');
  */
 const IMPLEMENTS_THE_STANDARD = ['/ui/sortable-header', '/ui/enhanced-data-table/'];
 
+/**
+ * Tables that still build their own markup out of the `<Table>` primitives.
+ *
+ * This is acknowledged debt, not permission. It is written down so the count
+ * can only go down: a new hand-rolled table fails the suite, and removing one
+ * from this list is the last step of converting it.
+ *
+ * - `custom-data-table` is imported by nothing — dead code, delete rather than
+ *   convert.
+ * - `translate-dialog` renders a short selection list inside a dialog, not a
+ *   data table with its own toolbar and pager.
+ * - `donor-analytics` is a real data table and the strongest candidate for
+ *   conversion. It also formats its own dates, which is why it appears in the
+ *   date exemption below.
+ * - `category-management/data-table` is a partial adopter: it already shares
+ *   `TableFeatureBar` and `useTableFeatures` with EnhancedDataTable but still
+ *   renders its own rows.
+ */
+const KNOWN_HAND_ROLLED = [
+  'document-translator/custom-data-table.tsx',
+  'document-translator/dialogs/translate-dialog.tsx',
+  'analytics/donor-analytics.tsx',
+  'category-management/data-table/data-table.tsx',
+];
+
 const sourceFiles = fg
   .sync(['**/*.tsx'], { cwd: root, absolute: true })
   .filter(file => !IMPLEMENTS_THE_STANDARD.some(part => file.includes(part)));
@@ -116,16 +141,26 @@ describe('table standard', () => {
     const offenders = sourceFiles
       .filter(file => {
         const source = code(file);
-        if (!source.includes('ColumnDef<')) return false;
+        // Any file that renders a table, not only ones defining columns. The
+        // narrower version of this rule is what let the Admin audit history
+        // format its own dates for a whole release: it had table markup but no
+        // ColumnDef, so it was never inspected.
+        if (!source.includes('ColumnDef<') && !source.includes('<TableHeader>')) return false;
         // Only numeric date patterns. `MMM d` is the chart/prose form and is
         // allowed — these two files hold tables and charts side by side, so a
         // rule that cannot tell them apart flags the wrong thing.
         return (
           source.includes('toLocaleDateString') ||
+          // `toLocaleString` is also Number's thousands separator, which is
+          // fine and common. Only the date form takes these option keys.
+          /toLocaleString\([^)]*(?:month|day|year|hour|weekday)/.test(source) ||
           /format\([^,]+,\s*'[^']*(?:MM\/dd|M\/d|dd\/MM)[^']*'/.test(source)
         );
       })
-      .map(relative);
+      .map(relative)
+      // Same acknowledged debt as above; converting one of these is what
+      // removes it from both lists.
+      .filter(name => !KNOWN_HAND_ROLLED.includes(name));
 
     expect(
       offenders,
@@ -134,27 +169,26 @@ describe('table standard', () => {
     ).toEqual([]);
   });
 
-  test('a hand-rolled table still labels its actions column', () => {
-    // The Admin roster is a plain <Table>: five rows, no sorting, filtering, or
-    // pagination, so routing it through EnhancedDataTable would add a feature
-    // bar and pager it does not want. That is a legitimate choice — but it also
-    // put the table outside every other rule here, and it shipped with an empty
-    // 48px <TableHead> where every other table names the column. The rules that
-    // are about what a user sees still apply to it.
+  test('no new table is hand-rolled', () => {
+    // The previous version of this rule only fired on a hand-rolled table that
+    // *also* rendered a TableActionMenu. The Admin audit history had neither an
+    // action menu nor a ColumnDef, so it sat outside every rule here and drifted
+    // exactly as predicted — its own pager, its own header markup, and a
+    // `toLocaleString(undefined, { month: 'short' })` producing "Aug 5, 2026,
+    // 9:04 AM" beside tables reading "8/5/2026 9:04 AM".
+    //
+    // The doc claimed "hand-rolled tables: there are none". That was not true
+    // when it was written. It is enforced now instead of asserted.
     const offenders = sourceFiles
-      .filter(file => {
-        const source = code(file);
-        if (!source.includes('<TableHeader>')) return false;
-        if (!source.includes('TableActionMenu')) return false;
-        return !/<TableHead[^>]*>\s*Actions\s*</.test(source);
-      })
-      .map(relative);
+      .filter(file => code(file).includes('<TableHeader>'))
+      .map(relative)
+      .filter(name => !KNOWN_HAND_ROLLED.includes(name));
 
     expect(
       offenders,
-      `These hand-rolled tables show an action menu under an unlabelled header. ` +
-        `Add <TableHead style={{ width: FIXED_COLUMN_WIDTHS.actions }}>Actions</TableHead>:\n` +
-        offenders.join('\n')
+      `These files build a table out of the <Table> primitives. Use ` +
+        `EnhancedDataTable — enableFiltering={false} and enableColumnVisibility={false} ` +
+        `strip the toolbar if the set is small:\n${offenders.join('\n')}`
     ).toEqual([]);
   });
 

@@ -6,21 +6,13 @@
 // not covered by this license; see TRADEMARKS.md.
 
 import * as React from 'react';
-import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+import type { ColumnDef } from '@tanstack/react-table';
+import { EnhancedDataTable } from '@/components/ui/enhanced-data-table';
+import { SortableHeader } from '@/components/ui/sortable-header';
 import { ErrorHandlerService } from '@/services/error/ErrorHandlerService';
 import { adminService } from '@/services/admin';
+import { formatDateTime } from '@/lib/formatting/date';
 import { AUDIT_ACTION_LABELS, type AuditEntry } from '@/types/admin';
-
-const PAGE_SIZE = 25;
 
 /**
  * Who did what, to whom, and when.
@@ -29,118 +21,151 @@ const PAGE_SIZE = 25;
  * own mass grant, recorded as `system:beta.4-migration` so the roster's origin
  * is on the record rather than appearing as administrators from nowhere.
  */
+
+/** The server's own ceiling (`MAX_PAGE_SIZE` in `admin-audit-service.ts`). */
+const REQUEST_SIZE = 200;
+
+/**
+ * How much history the table will hold at once.
+ *
+ * Sorting and filtering happen in the browser, over whatever rows are loaded —
+ * which means a partial load makes the filter lie: it would report "no results"
+ * for an entry that exists but was never fetched. In an audit log, which people
+ * consult precisely to find one past action, that is the worst possible failure.
+ *
+ * So the whole history is loaded up front. It can afford to be: this table
+ * records administrative actions only — role changes, invitations, access
+ * changes, policy edits, backup downloads — so it grows by a handful of rows a
+ * month, not per pantry visit. The ceiling exists so an unexpectedly large log
+ * degrades visibly (see `isTruncated`) instead of hanging the page.
+ */
+const MAX_ENTRIES = 2000;
+
 const actorLabel = (entry: AuditEntry): string => {
   if (entry.actorLabel === 'system:beta.4-migration') return 'FEED upgrade';
   if (entry.actorLabel === 'operator:cli') return 'Server console';
   return entry.actorLabel;
 };
 
+/**
+ * `targetLabel` is whatever the action recorded about its subject — usually an
+ * email address, but for a restore it is the backup artifact's own timestamp,
+ * which arrived as `2026-08-04T22:20:41.415Z`. Formatted here so the one place
+ * in the table that shows a date to a person does not show it in wire format.
+ */
+const ISO_TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/;
+
+const targetLabel = (entry: AuditEntry): string => {
+  const label = entry.targetLabel;
+  if (!label) return '—';
+  return ISO_TIMESTAMP.test(label) ? formatDateTime(label) : label;
+};
+
+const columns: ColumnDef<AuditEntry>[] = [
+  {
+    // Sorts on the timestamp, not the rendered string. "8/5/2026 9:04 AM"
+    // sorted as text puts October before February.
+    id: 'createdAt',
+    accessorFn: entry => new Date(entry.createdAt).getTime(),
+    header: ({ column }) => <SortableHeader column={column}>When</SortableHeader>,
+    cell: ({ row }) => (
+      <span className="whitespace-nowrap text-muted-foreground">
+        {formatDateTime(row.original.createdAt)}
+      </span>
+    ),
+    size: 190,
+  },
+  {
+    id: 'actorLabel',
+    accessorFn: actorLabel,
+    header: ({ column }) => <SortableHeader column={column}>Who</SortableHeader>,
+    size: 220,
+  },
+  {
+    id: 'action',
+    accessorFn: entry => AUDIT_ACTION_LABELS[entry.action] ?? entry.action,
+    header: ({ column }) => <SortableHeader column={column}>Action</SortableHeader>,
+    size: 200,
+  },
+  {
+    id: 'targetLabel',
+    accessorFn: targetLabel,
+    header: ({ column }) => <SortableHeader column={column}>Affected</SortableHeader>,
+    cell: ({ row }) => (
+      <span className="text-muted-foreground">{targetLabel(row.original)}</span>
+    ),
+    size: 220,
+  },
+];
+
 export function AuditHistory() {
   const [entries, setEntries] = React.useState<AuditEntry[]>([]);
-  const [total, setTotal] = React.useState(0);
-  const [offset, setOffset] = React.useState(0);
+  const [isTruncated, setIsTruncated] = React.useState(false);
   const [isLoading, setIsLoading] = React.useState(true);
 
   React.useEffect(() => {
     let cancelled = false;
 
-    setIsLoading(true);
-    adminService
-      .getAudit({ limit: PAGE_SIZE, offset })
-      .then(page => {
-        if (cancelled) return;
-        setEntries(page.entries);
-        setTotal(page.total);
-      })
-      .catch(error => ErrorHandlerService.handleError(error, 'adminAuditHistory'))
-      .finally(() => {
+    const loadAll = async () => {
+      setIsLoading(true);
+      try {
+        const collected: AuditEntry[] = [];
+        let total = Infinity;
+
+        while (collected.length < Math.min(total, MAX_ENTRIES)) {
+          const page = await adminService.getAudit({
+            limit: REQUEST_SIZE,
+            offset: collected.length,
+          });
+          if (cancelled) return;
+
+          total = page.total;
+          collected.push(...page.entries);
+
+          // A page shorter than requested means the server has no more, whatever
+          // `total` claimed. Without this the loop spins if the two disagree.
+          if (page.entries.length < REQUEST_SIZE) break;
+        }
+
+        setEntries(collected);
+        setIsTruncated(total > collected.length);
+      } catch (error) {
+        if (!cancelled) ErrorHandlerService.handleError(error, 'adminAuditHistory');
+      } finally {
         if (!cancelled) setIsLoading(false);
-      });
+      }
+    };
+
+    void loadAll();
 
     return () => {
       cancelled = true;
     };
-  }, [offset]);
-
-  const showingTo = Math.min(offset + PAGE_SIZE, total);
+  }, []);
 
   return (
-    <div className="space-y-4">
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>When</TableHead>
-              <TableHead>Who</TableHead>
-              <TableHead>Action</TableHead>
-              <TableHead>Affected</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              Array.from({ length: 5 }).map((_, index) => (
-                <TableRow key={index}>
-                  <TableCell colSpan={4}>
-                    <Skeleton className="h-5 w-full" />
-                  </TableCell>
-                </TableRow>
-              ))
-            ) : entries.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={4} className="text-center text-muted-foreground">
-                  Nothing recorded yet.
-                </TableCell>
-              </TableRow>
-            ) : (
-              entries.map(entry => (
-                <TableRow key={entry.id}>
-                  <TableCell className="whitespace-nowrap text-muted-foreground">
-                    {new Date(entry.createdAt).toLocaleString(undefined, {
-                      year: 'numeric',
-                      month: 'short',
-                      day: 'numeric',
-                      hour: 'numeric',
-                      minute: '2-digit',
-                    })}
-                  </TableCell>
-                  <TableCell>{actorLabel(entry)}</TableCell>
-                  <TableCell>
-                    {AUDIT_ACTION_LABELS[entry.action] ?? entry.action}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {entry.targetLabel ?? '—'}
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
+    <div className="space-y-2">
+      <EnhancedDataTable
+        columns={columns}
+        data={entries}
+        isLoading={isLoading}
+        filterColumn="actorLabel"
+        filterPlaceholder="Filter by who…"
+        emptyMessage="Nothing recorded yet."
+        // The component default is 5. This table previously showed 25 at a
+        // time, and it is scanned rather than acted on, so 5 would be a visible
+        // downgrade. 10 matches the Analytics history tables — the closest
+        // equivalent — and the row-count selector still offers the rest.
+        defaultPageSize={10}
+      />
 
-      {total > PAGE_SIZE && (
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">
-            Showing {offset + 1}–{showingTo} of {total}
-          </p>
-          <div className="flex gap-2">
-            <Button
-              variant="secondary"
-              size="sm"
-              disabled={offset === 0 || isLoading}
-              onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}
-            >
-              Previous
-            </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              disabled={showingTo >= total || isLoading}
-              onClick={() => setOffset(offset + PAGE_SIZE)}
-            >
-              Next
-            </Button>
-          </div>
-        </div>
+      {isTruncated && (
+        // Said out loud rather than silently dropped: once the filter covers
+        // less than the whole log, "no results" stops meaning "never happened".
+        <p className="text-sm text-muted-foreground">
+          Showing the most recent {MAX_ENTRIES.toLocaleString()} entries. Older history is
+          not searchable here.
+        </p>
       )}
     </div>
   );
