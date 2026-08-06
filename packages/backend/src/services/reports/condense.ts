@@ -46,6 +46,14 @@ const LADDER: Grain[] = ['month', 'quarter', 'year'];
 export interface Series {
   name: string;
   values: number[];
+  /**
+   * Formatted values, when the numbers alone do not carry their meaning.
+   *
+   * A KPI card mixes pounds, counts, and days in one list, so a single numeric
+   * column would be ambiguous. Chart cards leave this unset. Condensing ignores
+   * it — the cards that need it never condense.
+   */
+  text?: string[];
 }
 
 export interface Condensed {

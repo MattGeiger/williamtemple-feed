@@ -81,7 +81,8 @@ describe('analytics card contract', () => {
       }
     }
     expect(csv.split('\r\n')[0].split(',')[0]).toBe(data.categoryColumn);
-    expect(svg.startsWith('<svg')).toBe(true);
+    // A chart prints SVG; a KPI card prints HTML tiles.
+    expect(svg.startsWith(card.kind === 'chart' ? '<svg' : '<div')).toBe(true);
   });
 
   it.each(ANALYTICS_CARDS)('$defaultTitle: chart depends on no stylesheet', card => {
@@ -91,7 +92,6 @@ describe('analytics card contract', () => {
     // the chart would render differently depending on where it was drawn.
     expect(svg).not.toMatch(/var\(--/);
     expect(svg).not.toMatch(/class=/);
-    expect(svg.startsWith('<svg')).toBe(true);
   });
 
   it('has no duplicate card ids', () => {
@@ -103,8 +103,12 @@ describe('analytics card contract', () => {
     // A filtered range can legitimately return nothing.
     for (const card of ANALYTICS_CARDS) {
       const data = card.data({});
-      expect(data.categories).toEqual([]);
       expect(() => card.print(data)).not.toThrow();
+      // A chart has nothing to draw. A KPI card still shows its tiles, reading
+      // zero or "Unknown" — which is what the screen does, so the report
+      // matches rather than going blank.
+      if (card.kind === 'chart') expect(data.categories).toEqual([]);
+      else expect(data.categories.length).toBeGreaterThan(0);
     }
   });
 });
@@ -166,6 +170,41 @@ describe('time-series grain follows the readability threshold', () => {
 
     expect(sum(fine)).toBe(24 * (1000 + 500));
     expect(sum(coarse)).toBe(201 * (1000 + 500));
+  });
+
+  it('offers both grains, and defaults to the one the chart drew', () => {
+    const data = INBOUND_WEIGHT_OVER_TIME.data(monthsPayload(201));
+
+    const condensed = cardCsv(data, 'condensed');
+    const raw = cardCsv(data, 'raw');
+
+    expect(condensed.split('\r\n')[0].split(',')[0]).toBe('quarter');
+    expect(raw.split('\r\n')[0].split(',')[0]).toBe('month');
+    expect(raw).toContain('2009-11');
+    expect(raw.trim().split('\r\n')).toHaveLength(202); // header + 201 months
+    // Default matches the picture, so an unqualified export is never a file
+    // that disagrees with the chart beside it.
+    expect(cardCsv(data)).toBe(condensed);
+  });
+
+  it('raw and condensed carry the same totals', () => {
+    // Different buckets, same weight. If these diverge, condensing is losing
+    // or inventing data.
+    const data = INBOUND_WEIGHT_OVER_TIME.data(monthsPayload(201));
+    const total = (csv: string) =>
+      csv.trim().split('\r\n').slice(1)
+        .reduce((sum, line) => sum + line.split(',').slice(1).reduce((a, b) => a + Number(b), 0), 0);
+
+    expect(total(cardCsv(data, 'raw'))).toBe(total(cardCsv(data, 'condensed')));
+  });
+
+  it('falls back to the condensed view when nothing was condensed', () => {
+    // "Raw" must mean something for every card, including ones with no
+    // coarser form — otherwise the option is a trap on short ranges.
+    const data = INBOUND_WEIGHT_OVER_TIME.data(monthsPayload(12));
+
+    expect(data.raw).toBeUndefined();
+    expect(cardCsv(data, 'raw')).toBe(cardCsv(data, 'condensed'));
   });
 
   it('condenses the CSV with the chart, so the two agree', () => {
