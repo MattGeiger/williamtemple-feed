@@ -6,11 +6,16 @@
 // not covered by this license; see TRADEMARKS.md.
 
 /**
- * SPIKE — print renderers for three live Analytics cards, to measure what
- * Approach A actually costs per card against today's data.
+ * Shared chart primitives for print.
  *
- * The primitives below are shared by every card. A card contributes only an
- * adapter: read its series off the analytics payload, hand it to a primitive.
+ * Every card draws with these; a card itself contributes only a `series()` and
+ * a one-line `print()` (see `analytics-cards.ts`). Keeping the drawing here is
+ * what makes the marginal cost of an exportable card a handful of lines.
+ *
+ * Deliberately free of CSS: colours and type are attributes on the elements, so
+ * the output is identical wherever it is rendered. There is no stylesheet to
+ * resolve, which is the property the serialized-SVG approach had to reconstruct
+ * by inlining computed styles.
  */
 
 const PALETTE = ['#2964A3', '#3090A8', '#78C0C0', '#F0D848', '#B08CC0', '#E08050', '#8FB339'];
@@ -19,8 +24,7 @@ const MUTED = '#6B7684';
 const GRID = '#E3E8EE';
 
 const esc = (s: string) => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-const lbs = (hundredths: number) => Math.round(hundredths / 100);
-const fmt = (n: number) => n.toLocaleString('en-US');
+const fmt = (n: number) => Math.round(n).toLocaleString('en-US');
 
 // ---------- shared primitives ----------
 
@@ -90,49 +94,4 @@ export function legendSvg(names: string[], width = 900): string {
   }).join('');
   const rows = Math.ceil(names.length / 4);
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${rows * 18 + 6}" font-family="Helvetica, Arial, sans-serif">${items}</svg>`;
-}
-
-// ---------- per-card adapters ----------
-// This is the marginal cost of making a card printable.
-
-type Analytics = Awaited<ReturnType<typeof import('../procurement')['getProcurementAnalytics']>>;
-
-const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-
-export function acquisitionMixCard(a: any): string {
-  const rows = a.acquisitionMix
-    .map((m: any) => ({ label: m.acquisitionClass, value: lbs(m.weightHundredths) }))
-    .sort((x: any, y: any) => y.value - x.value);
-  return hBarSvg(rows);
-}
-
-export function channelMixCard(a: any): string {
-  const rows = a.channelMix
-    .map((m: any) => ({ label: m.channel, value: lbs(m.weightHundredths) }))
-    .sort((x: any, y: any) => y.value - x.value);
-  return hBarSvg(rows);
-}
-
-export function monthlyWeightCard(a: any): string {
-  const cats = a.monthlyWeight.map((m: any) => m.month);
-  const defs: [string, string][] = [
-    ['Donated', 'donatedWeightHundredths'],
-    ['Purchased', 'purchasedWeightHundredths'],
-    ['Government', 'governmentWeightHundredths'],
-    ['OFB Warehouse', 'ofbWarehouseWeightHundredths'],
-    ['Fresh Alliance', 'freshAllianceWeightHundredths'],
-    ['Community', 'communityDonationWeightHundredths'],
-  ];
-  const series = defs
-    .map(([name, key]) => ({ name, values: a.monthlyWeight.map((m: any) => lbs(m[key] || 0)) }))
-    .filter(s => s.values.some((v: number) => v > 0));
-  return stackedBarSvg(cats, series) + legendSvg(series.map(s => s.name));
-}
-
-export function seasonalWeightCard(a: any): string {
-  const byMonth = new Map<number, number>();
-  for (const r of a.seasonalWeight) byMonth.set(r.month, (byMonth.get(r.month) || 0) + r.weightHundredths);
-  const cats = [...byMonth.keys()].sort((x, y) => x - y).map(m => MONTH_NAMES[m - 1] ?? String(m));
-  const values = [...byMonth.keys()].sort((x, y) => x - y).map(m => lbs(byMonth.get(m) || 0));
-  return stackedBarSvg(cats, [{ name: 'Inbound weight', values }]);
 }
