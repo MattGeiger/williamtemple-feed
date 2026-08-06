@@ -10,9 +10,11 @@ import { describe, expect, it } from 'vitest';
 import {
   ACQUISITION_MIX,
   ANALYTICS_CARDS,
+  INBOUND_WEIGHT_OVER_TIME,
   PROCUREMENT_CHANNELS,
   cardCsv,
 } from '../analytics-cards';
+import { MIN_BAR_MM, maxReadableCategories } from '../condense';
 
 /**
  * The card contract, enforced.
@@ -41,7 +43,7 @@ const analytics = {
 
 describe('analytics card contract', () => {
   it('labels rows the way the screen labels them', () => {
-    const labels = ACQUISITION_MIX.series(analytics).map(r => r.label);
+    const labels = ACQUISITION_MIX.data(analytics).categories;
 
     // The exact bug the spike shipped: the enum reaching paper.
     expect(labels).not.toContain('PURCH-DON');
@@ -49,37 +51,41 @@ describe('analytics card contract', () => {
   });
 
   it('stacks legacy partner history onto Fresh Alliance, as the screen does', () => {
-    const rows = PROCUREMENT_CHANNELS.series(analytics);
-    const ffa = rows.find(r => r.label === 'Fresh Food Alliance');
+    const d = PROCUREMENT_CHANNELS.data(analytics);
+    const ffa = d.series[0].values[d.categories.indexOf('Fresh Food Alliance')];
 
     // 50,000,000 + 75,000,000 hundredths = 1,250,000 lb. Omitting the legacy
     // term understates the channel by 750,000 lb.
-    expect(ffa?.value).toBe(1_250_000);
+    expect(ffa).toBe(1_250_000);
   });
 
   it('converts to display units, not wire units', () => {
-    const donated = ACQUISITION_MIX.series(analytics).find(r => r.label === 'Donated');
-    expect(donated?.value).toBe(3_074_677);
+    const d = ACQUISITION_MIX.data(analytics);
+    expect(d.series[0].values[d.categories.indexOf('Donated')]).toBe(3_074_677);
   });
 
-  it.each(ANALYTICS_CARDS)('$title: chart and CSV read the same rows', card => {
-    const rows = card.series(analytics);
-    const csv = cardCsv(card, rows);
-    const svg = card.print(rows);
+  it.each(ANALYTICS_CARDS)('$defaultTitle: chart and CSV read the same data', card => {
+    const data = card.data(analytics);
+    const csv = cardCsv(data);
+    const svg = card.print(data);
 
-    // Every row's value must appear in both outputs. If a renderer recomputed
+    // Same categories, same numbers, in both outputs. If a renderer recomputed
     // anything, one of these drifts and this fails.
-    for (const row of rows) {
-      const rounded = Math.round(row.value).toLocaleString('en-US');
-      expect(csv, `${row.label} missing from CSV`).toContain(String(row.value));
-      expect(svg, `${row.label} missing from chart`).toContain(rounded);
-      expect(svg).toContain(row.label);
+    for (const category of data.categories) {
+      expect(csv, `${category} missing from CSV`).toContain(category);
     }
-    expect(csv.split('\r\n')[0]).toBe(card.columns.join(','));
+    for (const s of data.series) {
+      expect(csv.split('\r\n')[0], 'series missing from CSV header').toContain(s.name);
+      for (const v of s.values) {
+        if (v > 0) expect(csv).toContain(String(v));
+      }
+    }
+    expect(csv.split('\r\n')[0].split(',')[0]).toBe(data.categoryColumn);
+    expect(svg.startsWith('<svg')).toBe(true);
   });
 
-  it.each(ANALYTICS_CARDS)('$title: chart depends on no stylesheet', card => {
-    const svg = card.print(card.series(analytics));
+  it.each(ANALYTICS_CARDS)('$defaultTitle: chart depends on no stylesheet', card => {
+    const svg = card.print(card.data(analytics));
 
     // The property that makes this approach deterministic. A `var()` here means
     // the chart would render differently depending on where it was drawn.
@@ -96,9 +102,116 @@ describe('analytics card contract', () => {
   it('survives an empty payload without throwing', () => {
     // A filtered range can legitimately return nothing.
     for (const card of ANALYTICS_CARDS) {
-      const rows = card.series({});
-      expect(rows).toEqual([]);
-      expect(() => card.print(rows)).not.toThrow();
+      const data = card.data({});
+      expect(data.categories).toEqual([]);
+      expect(() => card.print(data)).not.toThrow();
     }
+  });
+});
+
+/** `count` months of a single flat series, starting 2009-11. */
+const monthsPayload = (count: number, channel: string | null = null) => {
+  const monthly = Array.from({ length: count }, (_, i) => {
+    const d = new Date(Date.UTC(2009, 10 + i, 1));
+    return {
+      month: `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`,
+      donatedWeightHundredths: 100_000,
+      purchDonWeightHundredths: 0,
+      governmentWeightHundredths: 0,
+      purchasedWeightHundredths: 0,
+      ofbWarehouseWeightHundredths: 100_000,
+      freshAllianceWeightHundredths: 50_000,
+      communityDonationWeightHundredths: 0,
+    };
+  });
+  return { monthlyWeight: monthly, filters: { channel } };
+};
+
+describe('time-series grain follows the readability threshold', () => {
+  it('leaves a printable range at its native grain', () => {
+    const limit = maxReadableCategories();
+    const data = INBOUND_WEIGHT_OVER_TIME.data(monthsPayload(limit));
+
+    expect(data.grain).toBe('month');
+    expect(data.note).toBeNull();
+    expect(data.categories).toHaveLength(limit);
+  });
+
+  it('condenses one step past the threshold, and says so', () => {
+    const data = INBOUND_WEIGHT_OVER_TIME.data(monthsPayload(201));
+
+    expect(data.grain).toBe('quarter');
+    // 2009 Q4 through 2026 Q3 — partial quarters at both ends.
+    expect(data.categories).toHaveLength(68);
+    expect(data.categories[0]).toBe('2009 Q4');
+    expect(data.note).toContain('Condensed to quarters');
+    expect(data.note).toContain(`${MIN_BAR_MM}mm`);
+    // The way out is stated, not just the fact.
+    expect(data.note).toContain('Narrow the date range');
+  });
+
+  it('falls to years when quarters are still too dense', () => {
+    const data = INBOUND_WEIGHT_OVER_TIME.data(monthsPayload(1200));
+
+    expect(data.grain).toBe('year');
+    expect(data.note).toContain('Condensed to years');
+  });
+
+  it('conserves the totals it condenses', () => {
+    // Bucketing must move weight between buckets, never create or lose it.
+    const fine = INBOUND_WEIGHT_OVER_TIME.data(monthsPayload(24));
+    const coarse = INBOUND_WEIGHT_OVER_TIME.data(monthsPayload(201));
+    const sum = (d: { series: { values: number[] }[] }) =>
+      d.series.reduce((t, s) => t + s.values.reduce((a, b) => a + b, 0), 0);
+
+    expect(sum(fine)).toBe(24 * (1000 + 500));
+    expect(sum(coarse)).toBe(201 * (1000 + 500));
+  });
+
+  it('condenses the CSV with the chart, so the two agree', () => {
+    const data = INBOUND_WEIGHT_OVER_TIME.data(monthsPayload(201));
+    const csv = cardCsv(data);
+
+    // Header names the coarser grain; no monthly key survives.
+    expect(csv.split('\r\n')[0].split(',')[0]).toBe('quarter');
+    expect(csv).toContain('2009 Q4');
+    expect(csv).not.toContain('2009-11');
+    expect(csv.trim().split('\r\n')).toHaveLength(69); // header + 68 quarters
+  });
+});
+
+describe('time-series card follows the channel filter, as the screen does', () => {
+  it('no filter: one series per channel, community only when present', () => {
+    const data = INBOUND_WEIGHT_OVER_TIME.data(monthsPayload(12, null));
+
+    expect(data.title).toBe('Inbound Weight Over Time');
+    expect(data.series.map(s => s.name)).toEqual(['OFB Warehouse', 'Fresh Food Alliance']);
+  });
+
+  it('ofb_warehouse: acquisition classes, with the matching title', () => {
+    const data = INBOUND_WEIGHT_OVER_TIME.data(monthsPayload(12, 'ofb_warehouse'));
+
+    expect(data.title).toBe('Warehouse Weight by Acquisition Class');
+    expect(data.series.map(s => s.name)).toEqual([
+      'Donated', 'Purch-Don', 'Government', 'Purchased',
+    ]);
+  });
+
+  it('fresh_alliance: that channel alone', () => {
+    const data = INBOUND_WEIGHT_OVER_TIME.data(monthsPayload(12, 'fresh_alliance'));
+
+    expect(data.title).toBe('Fresh Food Alliance Weight Over Time');
+    expect(data.series.map(s => s.name)).toEqual(['Fresh Food Alliance']);
+  });
+
+  it('includes the community sidecar only when that history is loaded', () => {
+    // D22: an always-present empty line would imply every agency has a source
+    // it will never have.
+    const withCommunity = monthsPayload(12, null);
+    withCommunity.monthlyWeight[3].communityDonationWeightHundredths = 5_000;
+
+    expect(INBOUND_WEIGHT_OVER_TIME.data(withCommunity).series.map(s => s.name)).toContain(
+      'Donations (Legacy Data)'
+    );
   });
 });
