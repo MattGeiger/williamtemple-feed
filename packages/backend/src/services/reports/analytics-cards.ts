@@ -5,7 +5,7 @@
 // under AGPL-3.0-or-later; see LICENSE. William Temple House branding is
 // not covered by this license; see TRADEMARKS.md.
 
-import { hBarSvg, legendSvg, stackedBarSvg } from './analytics-print';
+import { hBarSvg, kpiGrid, legendSvg, stackedBarSvg } from './analytics-print';
 import { condenseTimeSeries, type Grain, type Series } from './condense';
 
 /**
@@ -55,24 +55,48 @@ export const CHANNEL_LABELS: Record<string, string> = {
 /** Hundredths of a pound to pounds. The screen's `toPounds`. */
 export const toPounds = (hundredths: number): number => hundredths / 100;
 
-export interface CardData {
-  /** Resolved at render time — some titles depend on the active filter. */
-  title: string;
-  /** X-axis values, or row labels for a breakdown. */
+/** Categories plus their series, at one grain. */
+export interface CardGrain {
   categories: string[];
   series: Series[];
   /** CSV heading for the category column. */
   categoryColumn: string;
+}
+
+export interface CardData extends CardGrain {
+  /** Resolved at render time — some titles depend on the active filter. */
+  title: string;
   /** Set when the grain was coarsened for readability. Printed on the card. */
   note: string | null;
   grain?: Grain;
+  /**
+   * The series before any condensing, when the two differ.
+   *
+   * The chart always draws the condensed form — that is the whole point of the
+   * readability threshold. But the CSV is a data file, not a picture, and the
+   * threshold does not apply to it, so the export offers both: `condensed` to
+   * match the chart, `raw` for the underlying grain. Absent when nothing was
+   * condensed, in which case the two are the same file.
+   */
+  raw?: CardGrain;
 }
+
+/** Which grain a CSV should carry. */
+export type CsvGrain = 'condensed' | 'raw';
 
 export interface AnalyticsCard {
   id: string;
   /** Fallback name for menus; `data().title` is what gets printed. */
   defaultTitle: string;
   lens: 'operations' | 'procurement';
+  /**
+   * `chart` prints an SVG; `kpi` prints HTML tiles.
+   *
+   * Declared rather than inferred, because the two differ in ways callers care
+   * about: a KPI card never condenses, and it legitimately renders tiles for an
+   * empty range where a chart renders nothing.
+   */
+  kind: 'chart' | 'kpi';
   data(analytics: unknown): CardData;
   print(data: CardData): string;
 }
@@ -87,6 +111,7 @@ const breakdownPrint = (data: CardData): string =>
 
 export const ACQUISITION_MIX: AnalyticsCard = {
   id: 'procurement-acquisition-mix',
+  kind: 'chart',
   defaultTitle: 'Acquisition Mix',
   lens: 'procurement',
   data: (analytics: any) => {
@@ -110,6 +135,7 @@ export const ACQUISITION_MIX: AnalyticsCard = {
 
 export const PROCUREMENT_CHANNELS: AnalyticsCard = {
   id: 'procurement-channels',
+  kind: 'chart',
   defaultTitle: 'Procurement Channels',
   lens: 'procurement',
   data: (analytics: any) => {
@@ -152,6 +178,7 @@ export const PROCUREMENT_CHANNELS: AnalyticsCard = {
  */
 export const INBOUND_WEIGHT_OVER_TIME: AnalyticsCard = {
   id: 'procurement-inbound-weight-over-time',
+  kind: 'chart',
   defaultTitle: 'Inbound Weight Over Time',
   lens: 'procurement',
   data: (analytics: any) => {
@@ -203,13 +230,129 @@ export const INBOUND_WEIGHT_OVER_TIME: AnalyticsCard = {
       categoryColumn: condensed.grain === 'month' ? 'month' : condensed.grain,
       note: condensed.note,
       grain: condensed.grain,
+      raw: condensed.condensed
+        ? { categories, series, categoryColumn: 'month' }
+        : undefined,
     };
   },
   print: data => stackedBarSvg(data.categories, data.series) + legendSvg(data.series.map(s => s.name)),
 };
 
+
+/** `pounds()` on the screen: two decimals, or "Unknown" for a null. */
+const poundsLabel = (hundredths: number | null): string =>
+  hundredths === null
+    ? 'Unknown'
+    : `${toPounds(hundredths).toLocaleString('en-US', { maximumFractionDigits: 2 })} lb`;
+
+const countLabel = (n: number): string => n.toLocaleString('en-US');
+
+/**
+ * Inbound Supply Summary.
+ *
+ * The hardest parity case so far: the channel filter changes tile *labels* and
+ * which tiles exist at all, across four conditions the screen derives
+ * (`allChannels`, `includesWarehouse`, `includesFreshAlliance`, and the
+ * fresh-alliance wording). Reproducing that faithfully is what "what you see is
+ * what you get" costs on a card like this — ~45 lines rather than the ~7 a
+ * chart card takes.
+ *
+ * Values are formatted here and carried as `text`, because the tiles mix
+ * pounds, counts, and days; a single numeric column would be ambiguous in the
+ * CSV. The numeric column is kept alongside for anything that can be summed.
+ */
+export const INBOUND_SUPPLY_SUMMARY: AnalyticsCard = {
+  id: 'procurement-inbound-supply-summary',
+  kind: 'kpi',
+  defaultTitle: 'Inbound Supply Summary',
+  lens: 'procurement',
+  data: (analytics: any) => {
+    const summary = analytics?.summary ?? {};
+    const channel: string | null = analytics?.filters?.channel ?? null;
+    const allChannels = channel === null;
+    const isFreshAlliance = channel === 'fresh_alliance';
+    const includesWarehouse = channel !== 'fresh_alliance';
+    const includesFreshAlliance = channel !== 'ofb_warehouse';
+
+    const tiles: { label: string; value: number | null; text: string }[] = [];
+    const add = (label: string, value: number | null, text: string) =>
+      tiles.push({ label, value, text });
+
+    add(
+      isFreshAlliance ? 'Partner Donation Weight' : 'Total Inbound Weight',
+      summary.totalWeightHundredths ?? null,
+      poundsLabel(summary.totalWeightHundredths ?? null)
+    );
+    if (allChannels) {
+      add('Source Events', summary.sourceEventCount ?? 0, countLabel(summary.sourceEventCount ?? 0));
+      add('OFB Warehouse Orders', summary.warehouseOrderCount ?? 0, countLabel(summary.warehouseOrderCount ?? 0));
+      add('Fresh Food Alliance Receipts', summary.freshAllianceReceiptCount ?? 0, countLabel(summary.freshAllianceReceiptCount ?? 0));
+    } else {
+      add(
+        isFreshAlliance ? 'Fresh Food Alliance Receipts' : 'OFB Warehouse Orders',
+        summary.sourceEventCount ?? 0,
+        countLabel(summary.sourceEventCount ?? 0)
+      );
+    }
+    add('Receiving Dates', summary.receivingDateCount ?? 0, countLabel(summary.receivingDateCount ?? 0));
+
+    if (!allChannels) {
+      add(
+        isFreshAlliance ? 'Typical Fresh Food Alliance Event' : 'Typical OFB Warehouse Event',
+        summary.medianEventWeightHundredths ?? null,
+        poundsLabel(summary.medianEventWeightHundredths ?? null)
+      );
+      const lower = summary.lowerQuartileEventWeightHundredths ?? null;
+      const upper = summary.upperQuartileEventWeightHundredths ?? null;
+      add(
+        isFreshAlliance ? 'Middle 50% of Fresh Events' : 'Middle 50% of Warehouse Events',
+        null,
+        lower === null || upper === null ? 'Unknown' : `${poundsLabel(lower)}–${poundsLabel(upper)}`
+      );
+      add(
+        isFreshAlliance ? 'Typical Category Lines' : 'Typical Order Lines',
+        summary.medianLinesPerEvent ?? null,
+        summary.medianLinesPerEvent?.toLocaleString('en-US', { maximumFractionDigits: 1 }) ?? 'Unknown'
+      );
+    }
+    if (includesWarehouse) {
+      add('Warehouse Products', summary.warehouseProductCodes ?? 0, countLabel(summary.warehouseProductCodes ?? 0));
+    }
+    if (includesFreshAlliance) {
+      add('Fresh Food Alliance Categories', summary.freshAllianceCategoryCodes ?? 0, countLabel(summary.freshAllianceCategoryCodes ?? 0));
+    }
+    add(
+      'Median Receiving Gap',
+      summary.medianReceivingGapDays ?? null,
+      summary.medianReceivingGapDays === null || summary.medianReceivingGapDays === undefined
+        ? 'Insufficient history'
+        : `${summary.medianReceivingGapDays.toLocaleString('en-US', { maximumFractionDigits: 1 })} days`
+    );
+
+    return {
+      title: 'Inbound Supply Summary',
+      categories: tiles.map(t => t.label),
+      series: [{
+        name: 'value',
+        values: tiles.map(t => t.value ?? 0),
+        text: tiles.map(t => t.text),
+      }],
+      categoryColumn: 'metric',
+      note: null,
+    };
+  },
+  print: data =>
+    kpiGrid(
+      data.categories.map((label, i) => ({
+        label,
+        value: data.series[0]?.text?.[i] ?? String(data.series[0]?.values[i] ?? ''),
+      }))
+    ),
+};
+
 /** Registry. A card is exportable exactly when it appears here. */
 export const ANALYTICS_CARDS: AnalyticsCard[] = [
+  INBOUND_SUPPLY_SUMMARY,
   ACQUISITION_MIX,
   PROCUREMENT_CHANNELS,
   INBOUND_WEIGHT_OVER_TIME,
@@ -218,14 +361,27 @@ export const ANALYTICS_CARDS: AnalyticsCard[] = [
 export const getAnalyticsCard = (id: string): AnalyticsCard | undefined =>
   ANALYTICS_CARDS.find(card => card.id === id);
 
-/** CSV from exactly the data the chart drew. Generic — no per-card serializer. */
-export function cardCsv(data: CardData): string {
+/**
+ * CSV from exactly the data the chart drew, or from the grain beneath it.
+ *
+ * Generic — no per-card serializer, so a new card gets its CSV for free and
+ * cannot disagree with its chart.
+ */
+export function cardCsv(data: CardData, grain: CsvGrain = 'condensed'): string {
+  // `raw` is only present when condensing actually changed something; falling
+  // back to the condensed view keeps "raw" meaningful for every card.
+  const source: CardGrain = grain === 'raw' && data.raw ? data.raw : data;
   const escape = (value: string) =>
     /[",\r\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
-  const header = [data.categoryColumn, ...data.series.map(s => s.name)].map(escape).join(',');
+  const header = [source.categoryColumn, ...source.series.map(s => s.name)].map(escape).join(',');
   const lines = [header];
-  data.categories.forEach((category, i) => {
-    lines.push([escape(category), ...data.series.map(s => s.values[i] ?? 0)].join(','));
+  source.categories.forEach((category, i) => {
+    lines.push(
+      [
+        escape(category),
+        ...source.series.map(s => (s.text ? escape(s.text[i] ?? '') : (s.values[i] ?? 0))),
+      ].join(',')
+    );
   });
   return lines.join('\r\n') + '\r\n';
 }

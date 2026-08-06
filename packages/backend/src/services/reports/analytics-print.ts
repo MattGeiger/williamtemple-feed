@@ -95,3 +95,19 @@ export function legendSvg(names: string[], width = 900): string {
   const rows = Math.ceil(names.length / 4);
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${rows * 18 + 6}" font-family="Helvetica, Arial, sans-serif">${items}</svg>`;
 }
+
+/**
+ * KPI tiles, as HTML rather than SVG.
+ *
+ * The report document is HTML on its way to Chromium, so text-only cards need
+ * no SVG at all — and get real text layout, hyphenation, and selectable output
+ * in the PDF instead of positioned glyphs.
+ */
+export function kpiGrid(tiles: { label: string; value: string }[]): string {
+  const cells = tiles.map(t => `
+    <div style="border:1px solid ${GRID};border-radius:6px;padding:9px 11px;">
+      <div style="font-size:9px;letter-spacing:.05em;text-transform:uppercase;color:${MUTED};">${esc(t.label)}</div>
+      <div style="font-size:15px;font-weight:700;color:${INK};margin-top:3px;">${esc(t.value)}</div>
+    </div>`).join('');
+  return `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">${cells}</div>`;
+}

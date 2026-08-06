@@ -1139,6 +1139,26 @@ export function ProcurementAnalyticsWorkspace({
     (row) => row.communityDonationWeightHundredths > 0
   );
 
+  /**
+   * Series for "Inbound Weight Over Time", as an array rather than a Fragment.
+   *
+   * Recharts collects its series by scanning the chart's children; it does not
+   * descend into a React Fragment, so `<>...</>` wrappers make every <Line>
+   * invisible and the chart renders axes with no data. An array is flattened by
+   * React.Children.toArray, so Recharts sees the Lines.
+   *
+   * This rendered correctly under React 18 and stopped at the React 19 upgrade
+   * (recharts 2.15.1). The console error "Accessing element.ref was removed in
+   * React 19" comes from the same incompatibility.
+   */
+  const monthlyWeightSeriesKeys = selectedChannel === 'ofb_warehouse'
+    ? ['donatedWeight', 'purchDonWeight', 'governmentWeight', 'purchasedWeight']
+    : [
+        ...(allChannels ? ['ofbWarehouseWeight'] : []),
+        'freshAllianceWeight',
+        ...(allChannels && hasCommunityDonations ? ['communityDonationWeight'] : []),
+      ];
+
   const toggleSeasonalYear = (year: string, checked: boolean) => {
     setSelectedSeasonalYears((current) => {
       if (!checked) return current.filter((value) => value !== year);
@@ -1284,22 +1304,16 @@ export function ProcurementAnalyticsWorkspace({
               <YAxis width={52} tickLine={false} axisLine={false} />
               <ChartTooltip content={<ChartTooltipContent />} />
               <ChartLegend content={<ChartLegendContent />} />
-              {selectedChannel === 'ofb_warehouse' ? (
-                <>
-                  <Line isAnimationActive={!prefersReducedMotion()} dataKey="donatedWeight" stroke="var(--color-donatedWeight)" strokeWidth={2} dot={false} />
-                  <Line isAnimationActive={!prefersReducedMotion()} dataKey="purchDonWeight" stroke="var(--color-purchDonWeight)" strokeWidth={2} dot={false} />
-                  <Line isAnimationActive={!prefersReducedMotion()} dataKey="governmentWeight" stroke="var(--color-governmentWeight)" strokeWidth={2} dot={false} />
-                  <Line isAnimationActive={!prefersReducedMotion()} dataKey="purchasedWeight" stroke="var(--color-purchasedWeight)" strokeWidth={2} dot={false} />
-                </>
-              ) : (
-                <>
-                  {allChannels && <Line isAnimationActive={!prefersReducedMotion()} dataKey="ofbWarehouseWeight" stroke="var(--color-ofbWarehouseWeight)" strokeWidth={2} dot={false} />}
-                  <Line isAnimationActive={!prefersReducedMotion()} dataKey="freshAllianceWeight" stroke="var(--color-freshAllianceWeight)" strokeWidth={2} dot={false} />
-                  {allChannels && hasCommunityDonations && (
-                    <Line isAnimationActive={!prefersReducedMotion()} dataKey="communityDonationWeight" stroke="var(--color-communityDonationWeight)" strokeWidth={2} dot={false} />
-                  )}
-                </>
-              )}
+              {monthlyWeightSeriesKeys.map((seriesKey) => (
+                <Line
+                  key={seriesKey}
+                  isAnimationActive={!prefersReducedMotion()}
+                  dataKey={seriesKey}
+                  stroke={`var(--color-${seriesKey})`}
+                  strokeWidth={2}
+                  dot={false}
+                />
+              ))}
             </LineChart>
           </ChartContainer>
         </CardContent>
