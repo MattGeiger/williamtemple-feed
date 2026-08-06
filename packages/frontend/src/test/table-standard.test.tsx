@@ -42,8 +42,6 @@ const IMPLEMENTS_THE_STANDARD = ['/ui/sortable-header', '/ui/enhanced-data-table
  * can only go down: a new hand-rolled table fails the suite, and removing one
  * from this list is the last step of converting it.
  *
- * - `custom-data-table` is imported by nothing — dead code, delete rather than
- *   convert.
  * - `translate-dialog` renders a short selection list inside a dialog, not a
  *   data table with its own toolbar and pager.
  * - `donor-analytics` is a real data table and the strongest candidate for
@@ -54,7 +52,6 @@ const IMPLEMENTS_THE_STANDARD = ['/ui/sortable-header', '/ui/enhanced-data-table
  *   renders its own rows.
  */
 const KNOWN_HAND_ROLLED = [
-  'document-translator/custom-data-table.tsx',
   'document-translator/dialogs/translate-dialog.tsx',
   'analytics/donor-analytics.tsx',
   'category-management/data-table/data-table.tsx',

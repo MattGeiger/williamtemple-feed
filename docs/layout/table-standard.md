@@ -169,6 +169,11 @@ The count is enforced now rather than claimed. `KNOWN_HAND_ROLLED` in
 fails the suite, and deleting an entry from it is the last step of converting
 one.
 
+Deleted: `document-translator/custom-data-table.tsx` — 381 lines exporting
+`CustomDocumentTable`, referenced nowhere. It was found only because the
+hand-rolled rule started listing every offender; an earlier grep for
+`CustomDataTable` (the filename, not the export) had missed it.
+
 Converted:
 
 - **Admin roster** — five rows, no sorting or pagination, so a plain `<Table>`
@@ -188,7 +193,6 @@ Outstanding:
 | `analytics/donor-analytics.tsx` | A real data table and the strongest conversion candidate. Also formats its own dates. |
 | `category-management/data-table/data-table.tsx` | Partial adopter — already shares `TableFeatureBar` and `useTableFeatures`, but renders its own rows. |
 | `document-translator/dialogs/translate-dialog.tsx` | A short selection list inside a dialog, not a data table. Arguably fine as-is. |
-| `document-translator/custom-data-table.tsx` | Imported by nothing. Delete rather than convert. |
 
 `EnhancedDataTable` scales down for small sets: `enableFiltering={false}` and
 `enableColumnVisibility={false}` remove the toolbar, and `emptyMessage` keeps
