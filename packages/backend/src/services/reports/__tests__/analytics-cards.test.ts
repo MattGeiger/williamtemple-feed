@@ -9,6 +9,8 @@ import { describe, expect, it } from 'vitest';
 
 import {
   ACQUISITION_MIX,
+  AVAILABILITY_SUMMARY,
+  FRESH_ALLIANCE_CATEGORY_MIX,
   SEASONAL_INBOUND_WEIGHT,
   PAID_PRODUCT_SPEND,
   PAID_PROCUREMENT_SUMMARY,
@@ -84,8 +86,10 @@ describe('analytics card contract', () => {
       }
     }
     expect(csv.split('\r\n')[0].split(',')[0]).toBe(data.categoryColumn);
-    // A chart prints SVG; a KPI card prints HTML tiles.
-    expect(svg.startsWith(card.kind === 'chart' ? '<svg' : '<div')).toBe(true);
+    // A chart prints SVG, a KPI card prints HTML tiles — and Availability
+    // Summary prints both, because the screen shows both in one card. The
+    // assertion is that something was drawn, not which of the two it led with.
+    expect(svg.startsWith('<svg') || svg.startsWith('<div')).toBe(true);
   });
 
   it.each(ANALYTICS_CARDS)('$defaultTitle: chart depends on no stylesheet', card => {
@@ -412,5 +416,77 @@ describe('seasonal inbound weight compares years, it does not sum them', () => {
 
     expect(csv.split('\r\n')[0]).toBe('month,2025,2024');
     expect(csv.trim().split('\r\n')).toHaveLength(13); // header + 12 months
+  });
+});
+
+describe('operations lens', () => {
+  const ops = {
+    summary: {
+      availableNow: 58, unavailableNow: 110, limitedSupplyNow: 13,
+      repeatUnavailableItems: 70, itemRationedNow: 58, categoryRationedNow: 7,
+      medianRestorationHours: 331.2,
+    },
+  };
+
+  it('carries the caveat that makes the three counts add up', () => {
+    // Without it the bars read as a partition of the catalogue: 58 + 110 + 13
+    // exceeds the tracked total because Limited Supply is a subset.
+    expect(AVAILABILITY_SUMMARY.data(ops).note).toContain(
+      'Limited Supply is included in Available Now'
+    );
+  });
+
+  it('formats restoration the way the screen does', () => {
+    const data = AVAILABILITY_SUMMARY.data(ops);
+    const i = data.categories.indexOf('Median Restoration');
+
+    expect(data.series[0].text![i]).toBe('13.8 days');
+    expect(AVAILABILITY_SUMMARY.data({ summary: { medianRestorationHours: 6.25 } })
+      .series[0].text!.at(-1)).toBe('6.3 hr');
+    expect(AVAILABILITY_SUMMARY.data({ summary: {} }).series[0].text!.at(-1)).toBe('Unknown');
+  });
+
+  it('declares the operations lens so the route loads the right payload', () => {
+    expect(AVAILABILITY_SUMMARY.lens).toBe('operations');
+  });
+});
+
+describe('fresh alliance category mix segments by donor', () => {
+  const analytics = {
+    freshAllianceDonorCategories: [
+      { description: 'Produce (Fresh Alliance)', donorName: 'Trader Joe', donorCode: 'TJ', totalWeightHundredths: 300_00 },
+      { description: 'Produce (Fresh Alliance)', donorName: 'Fred Meyer', donorCode: 'FM', totalWeightHundredths: 100_00 },
+      { description: 'Dairy (Fresh Alliance)', donorName: 'Trader Joe', donorCode: 'TJ', totalWeightHundredths: 50_00 },
+    ],
+  };
+
+  it('stacks donors within each category, biggest category first', () => {
+    const data = FRESH_ALLIANCE_CATEGORY_MIX.data(analytics);
+
+    expect(data.categories).toEqual(['Produce', 'Dairy']);
+    // Legend ordered by total weight across categories: TJ 350 > FM 100.
+    expect(data.series.map(s => s.name)).toEqual(['Trader Joe', 'Fred Meyer']);
+    expect(data.series[0].values).toEqual([300, 50]);
+    expect(data.series[1].values).toEqual([100, 0]);
+  });
+
+  it('strips the redundant channel suffix from category labels', () => {
+    expect(FRESH_ALLIANCE_CATEGORY_MIX.data(analytics).categories).not.toContain(
+      'Produce (Fresh Alliance)'
+    );
+  });
+
+  it('honours the donor filter, and says it is narrowed', () => {
+    // The filter lives on the table beneath the chart; a report generated with
+    // one donor selected must not quietly show all of them.
+    const data = FRESH_ALLIANCE_CATEGORY_MIX.data(analytics, { donorCodes: ['TJ'] });
+
+    expect(data.series.map(s => s.name)).toEqual(['Trader Joe']);
+    expect(data.series[0].values).toEqual([300, 50]);
+    expect(data.note).toBe('Narrowed to 1 donor.');
+  });
+
+  it('includes every donor when no filter travelled', () => {
+    expect(FRESH_ALLIANCE_CATEGORY_MIX.data(analytics).note).toBeNull();
   });
 });

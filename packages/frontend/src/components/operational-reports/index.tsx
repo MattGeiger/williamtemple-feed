@@ -52,6 +52,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { ErrorHandlerService } from '@/services/error/ErrorHandlerService';
+import { SelectableBlock } from '@/components/reports/selection';
 import { operationalReportsService } from '@/services/operational-reports';
 import {
   LimitChange,
@@ -399,7 +400,8 @@ export function OperationalAnalyticsWorkspace({
         </div>
       ) : result ? (
         <>
-          <Card className="min-w-0">
+          <SelectableBlock cardId="operations-availability-summary">
+            <Card className="min-w-0">
             <CardHeader className="flex flex-col items-start justify-between gap-2 space-y-0 sm:flex-row">
               <div>
                 <CardTitle>Availability Summary</CardTitle>
@@ -462,7 +464,8 @@ export function OperationalAnalyticsWorkspace({
                 </div>
               </div>
             </CardContent>
-          </Card>
+            </Card>
+          </SelectableBlock>
 
           <div className="grid min-w-0 gap-4 md:grid-cols-2">
             <Card className="min-w-0 md:col-span-2">

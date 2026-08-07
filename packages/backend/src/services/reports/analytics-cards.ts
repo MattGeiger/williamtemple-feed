@@ -5,7 +5,14 @@
 // under AGPL-3.0-or-later; see LICENSE. William Temple House branding is
 // not covered by this license; see TRADEMARKS.md.
 
-import { hBarSvg, kpiGrid, legendSvg, lineChartSvg, stackedBarSvg } from './analytics-print';
+import {
+  hBarSvg,
+  kpiGrid,
+  legendSvg,
+  lineChartSvg,
+  stackedBarSvg,
+  stackedHBarSvg,
+} from './analytics-print';
 import { condenseTimeSeries, type Grain, type Series } from './condense';
 
 /**
@@ -575,6 +582,152 @@ export const SEASONAL_INBOUND_WEIGHT: AnalyticsCard = {
     lineChartSvg(data.categories, data.series) + legendSvg(data.series.map(s => s.name)),
 };
 
+
+/** `formatDuration()` on the screen. */
+const durationLabel = (hours: number | null): string => {
+  if (hours === null || hours === undefined) return 'Unknown';
+  return hours < 24 ? `${hours.toFixed(1)} hr` : `${(hours / 24).toFixed(1)} days`;
+};
+
+/**
+ * Availability Summary — the first Operations card.
+ *
+ * Composite on screen: three current-state counts as a horizontal bar chart,
+ * beside four figures about the range. Printed the same way, in one card,
+ * because splitting them would invent two cards the screen does not have.
+ *
+ * The caveat travels with it. "Limited Supply is included in Available Now"
+ * appears on screen, and without it the three bars look like a partition of the
+ * catalogue and do not add up.
+ */
+export const AVAILABILITY_SUMMARY: AnalyticsCard = {
+  id: 'operations-availability-summary',
+  kind: 'kpi',
+  defaultTitle: 'Availability Summary',
+  lens: 'operations',
+  data: (analytics: any) => {
+    const summary = analytics?.summary ?? {};
+    const counts = [
+      { label: 'Available Now', value: summary.availableNow ?? 0 },
+      { label: 'Unavailable Now', value: summary.unavailableNow ?? 0 },
+      { label: 'Limited Supply', value: summary.limitedSupplyNow ?? 0 },
+    ];
+    const figures = [
+      { label: 'Repeat Unavailability', value: summary.repeatUnavailableItems ?? 0, text: String(summary.repeatUnavailableItems ?? 0) },
+      { label: 'Item Limits', value: summary.itemRationedNow ?? 0, text: String(summary.itemRationedNow ?? 0) },
+      { label: 'Category Limits', value: summary.categoryRationedNow ?? 0, text: String(summary.categoryRationedNow ?? 0) },
+      {
+        label: 'Median Restoration',
+        value: summary.medianRestorationHours ?? 0,
+        text: durationLabel(summary.medianRestorationHours ?? null),
+      },
+    ];
+
+    const all = [
+      ...counts.map(c => ({ ...c, text: String(c.value) })),
+      ...figures,
+    ];
+
+    return {
+      title: 'Availability Summary',
+      categories: all.map(r => r.label),
+      series: [{ name: 'value', values: all.map(r => r.value), text: all.map(r => r.text) }],
+      categoryColumn: 'metric',
+      note: 'Current recorded state; Limited Supply is included in Available Now.',
+    };
+  },
+  // Bars for the three counts, tiles for the four range figures — the same
+  // split the screen makes.
+  print: data => {
+    const bars = data.categories.slice(0, 3).map((label, i) => ({
+      label,
+      value: data.series[0]?.values[i] ?? 0,
+    }));
+    const tiles = data.categories.slice(3).map((label, i) => ({
+      label,
+      value: data.series[0]?.text?.[i + 3] ?? '',
+    }));
+    return hBarSvg(bars, 900, 34) + kpiGrid(tiles);
+  },
+};
+
+
+/**
+ * Fresh Food Alliance Category Mix — categories broken down by donor.
+ *
+ * Donor identity comes from the OFB Agency Pickups export and is never inferred
+ * beyond what it reports.
+ *
+ * The donor filter is a card-level control shared with the table beneath it, so
+ * narrowing there narrows this chart. It travels in `options.donorCodes`; a
+ * report generated with three donors selected must not quietly show all of
+ * them. Absent, every donor is included — matching the screen's default.
+ *
+ * Legend order is by total weight across all categories, the same convention
+ * the paid-product family legend uses, so the biggest contributor is first
+ * wherever a legend appears.
+ */
+export const FRESH_ALLIANCE_CATEGORY_MIX: AnalyticsCard = {
+  id: 'procurement-fresh-alliance-category-mix',
+  kind: 'chart',
+  defaultTitle: 'Fresh Food Alliance Category Mix',
+  lens: 'procurement',
+  data: (analytics: any, options?: any) => {
+    const NOT_REPORTED = 'NOT_REPORTED';
+    const selected: string[] | null = Array.isArray(options?.donorCodes)
+      ? options.donorCodes
+      : null;
+
+    const rows = (analytics?.freshAllianceDonorCategories ?? []).filter((row: any) =>
+      selected === null ? true : selected.includes(row.donorCode ?? NOT_REPORTED)
+    );
+
+    // Category → donor → pounds. The "(Fresh Alliance)" suffix is stripped
+    // because every row here is Fresh Alliance; repeating it in each label
+    // costs width that the donor segments need.
+    const byCategory = new Map<string, Map<string, number>>();
+    const donorTotals = new Map<string, number>();
+    for (const row of rows) {
+      const category = row.description.replace(/\s*\(Fresh Alliance\)\s*$/i, '');
+      const segments = byCategory.get(category) ?? new Map<string, number>();
+      const pounds = toPounds(row.totalWeightHundredths);
+      segments.set(row.donorName, (segments.get(row.donorName) ?? 0) + pounds);
+      byCategory.set(category, segments);
+      donorTotals.set(row.donorName, (donorTotals.get(row.donorName) ?? 0) + pounds);
+    }
+
+    const categories = [...byCategory.entries()]
+      .map(([category, segments]) => ({
+        category,
+        total: [...segments.values()].reduce((sum, v) => sum + v, 0),
+      }))
+      .sort((a, b) => b.total - a.total)
+      .map(entry => entry.category);
+
+    const donors = [...donorTotals.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([donor]) => donor);
+
+    const series = donors.map(donor => ({
+      name: donor,
+      values: categories.map(category => byCategory.get(category)?.get(donor) ?? 0),
+    }));
+
+    return {
+      title: 'Fresh Food Alliance Category Mix',
+      categories,
+      series,
+      categoryColumn: 'category',
+      note:
+        selected !== null && donors.length > 0
+          ? `Narrowed to ${donors.length} donor${donors.length === 1 ? '' : 's'}.`
+          : null,
+    };
+  },
+  print: data =>
+    stackedHBarSvg(data.categories, data.series) + legendSvg(data.series.map(s => s.name)),
+};
+
 /** Registry. A card is exportable exactly when it appears here. */
 export const ANALYTICS_CARDS: AnalyticsCard[] = [
   INBOUND_SUPPLY_SUMMARY,
@@ -584,6 +737,8 @@ export const ANALYTICS_CARDS: AnalyticsCard[] = [
   INBOUND_WEIGHT_OVER_TIME,
   PAID_PRODUCT_SPEND,
   SEASONAL_INBOUND_WEIGHT,
+  FRESH_ALLIANCE_CATEGORY_MIX,
+  AVAILABILITY_SUMMARY,
 ];
 
 export const getAnalyticsCard = (id: string): AnalyticsCard | undefined =>

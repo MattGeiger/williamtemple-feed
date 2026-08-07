@@ -14,6 +14,15 @@ import prisma from '../db';
 
 import { rateLimiter } from '../middleware/rate-limiter';
 import { getProcurementAnalytics } from '../services/procurement';
+import {
+  computeOperationalAnalytics,
+  getOperationalAnalyticsStartDate,
+} from '../services/operational-analytics';
+import {
+  getAppliedOperatingHoursRevisions,
+  getOperatingHoursSettings,
+} from '../services/operating-hours';
+import { resolveRange } from '../services/inventory-analytics/timezone';
 import { ANALYTICS_CARDS, getAnalyticsCard } from '../services/reports/analytics-cards';
 import { buildAnalyticsReport } from '../services/reports/analytics-report';
 import { isValidLocalDate } from '../services/inventory-analytics/timezone';
@@ -198,8 +207,44 @@ router.post('/export', rateLimiter, async (req, res, next) => {
       });
     }
 
-    const analytics = await getProcurementAnalytics(filters);
-    const report = await buildAnalyticsReport(analytics, {
+    // Only load the lenses the selection actually needs. Operations resolves
+    // its range against the pantry's operating-hours timezone and applied
+    // schedule revisions, which Procurement knows nothing about, so the two
+    // are computed separately rather than forced into one query.
+    const lenses = new Set(cardIds.map(id => getAnalyticsCard(id)?.lens).filter(Boolean));
+
+    const payloads: {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      procurement?: any;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      operations?: any;
+    } = {};
+
+    if (lenses.has('procurement')) {
+      payloads.procurement = await getProcurementAnalytics(filters);
+    }
+
+    if (lenses.has('operations')) {
+      const now = new Date();
+      const schedule = await getOperatingHoursSettings();
+      const allStart =
+        filters.preset === 'all'
+          ? await getOperationalAnalyticsStartDate(schedule.timezone)
+          : null;
+      const range = resolveRange(
+        filters.preset,
+        schedule.timezone,
+        now,
+        filters.preset === 'custom'
+          ? { startDate: filters.startDate!, endDate: filters.endDate! }
+          : undefined,
+        allStart ?? undefined
+      );
+      const revisions = await getAppliedOperatingHoursRevisions(range.startDate, range.endDate);
+      payloads.operations = await computeOperationalAnalytics(range, now, undefined, revisions);
+    }
+
+    const report = await buildAnalyticsReport(payloads, {
       cardIds,
       title,
       includePdf,

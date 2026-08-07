@@ -137,6 +137,45 @@ export function lineChartSvg(
 }
 
 /**
+ * Horizontal bars split into stacked segments, with a label column.
+ *
+ * For a breakdown-within-a-breakdown: categories down the side, each bar
+ * divided by a second dimension. Stacking is correct here — unlike the seasonal
+ * chart, the segments are parts of one whole, so the bar length is a real
+ * total.
+ */
+export function stackedHBarSvg(
+  categories: string[],
+  series: Series[],
+  width = 900,
+  rowH = 26
+): string {
+  const labelW = 230, pad = 12, valueW = 96;
+  const chartW = width - labelW - pad - valueW;
+  const totals = categories.map((_, i) => series.reduce((sum, s) => sum + (s.values[i] ?? 0), 0));
+  const max = Math.max(1, ...totals);
+  const height = categories.length * rowH + pad * 2;
+
+  const rows = categories.map((label, i) => {
+    const y = pad + i * rowH;
+    let x = labelW;
+    const segments = series.map((s, si) => {
+      const v = s.values[i] ?? 0;
+      if (v <= 0) return '';
+      const w = (v / max) * chartW;
+      const rect = `<rect x="${x.toFixed(1)}" y="${y + 4}" width="${w.toFixed(1)}" height="${rowH - 12}" fill="${PALETTE[si % PALETTE.length]}"/>`;
+      x += w;
+      return rect;
+    }).join('');
+    return `<text x="0" y="${y + rowH / 2 + 4}" font-size="11" fill="${INK}">${esc(label)}</text>` +
+      segments +
+      `<text x="${(x + 8).toFixed(1)}" y="${y + rowH / 2 + 4}" font-size="10" fill="${MUTED}">${fmt(totals[i])} lb</text>`;
+  }).join('');
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" font-family="Helvetica, Arial, sans-serif">${rows}</svg>`;
+}
+
+/**
  * KPI tiles, as HTML rather than SVG.
  *
  * The report document is HTML on its way to Chromium, so text-only cards need
