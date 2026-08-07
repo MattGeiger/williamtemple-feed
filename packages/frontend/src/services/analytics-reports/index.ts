@@ -50,6 +50,16 @@ export interface AnalyticsTemplateRequest {
   cardOptions?: Record<string, unknown>;
 }
 
+/** A saved template as stored. `templateData` is JSON written by the client. */
+export interface AnalyticsReportTemplate {
+  id: number;
+  name: string;
+  source: string;
+  templateData: unknown;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export class AnalyticsReportsService extends BaseApiService {
   constructor() {
     super('/api/analytics-reports');
@@ -69,6 +79,16 @@ export class AnalyticsReportsService extends BaseApiService {
    */
   async saveTemplate(request: AnalyticsTemplateRequest): Promise<void> {
     await this.post('/templates', request);
+  }
+
+  /** Saved templates, newest first. */
+  async getTemplates(): Promise<AnalyticsReportTemplate[]> {
+    const response = await this.get<{ templates: AnalyticsReportTemplate[] }>('/templates');
+    return response.templates;
+  }
+
+  async deleteTemplate(id: number): Promise<void> {
+    await this.delete(`/templates/${id}`);
   }
 
   /** Generates the ZIP (PDF + numbered per-card CSVs + manifest) and downloads it. */

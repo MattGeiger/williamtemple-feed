@@ -3,10 +3,19 @@
 
 import React from 'react';
 import { render, screen } from '@testing-library/react';
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
 
 import { navigationItems } from '@/components/layout/navigation';
 import { ReportsManagementWorkspace } from '@/components/reports-management';
+
+// The page loads saved templates on mount. These assertions are about its
+// structure, not the network, so the service is stubbed to an empty list.
+vi.mock('@/services/analytics-reports', () => ({
+  analyticsReportsService: {
+    getTemplates: vi.fn().mockResolvedValue([]),
+    deleteTemplate: vi.fn().mockResolvedValue(undefined),
+  },
+}));
 
 describe('Analytics and Reports information architecture', () => {
   test('places Analytics under Inventory and Reports under Information', () => {
@@ -31,16 +40,27 @@ describe('Analytics and Reports information architecture', () => {
     );
   });
 
-  test('renders a nonfunctional management placeholder with standard table controls', () => {
+  test('lists saved report templates with standard table controls', async () => {
+    // Was a hardcoded placeholder; it now reads saved templates. The controls
+    // asserted here are the table standard's, not this page's own.
     render(<ReportsManagementWorkspace />);
 
     expect(screen.getByRole('heading', { name: 'Reports Management' })).toBeVisible();
-    expect(screen.getByPlaceholderText('Filter reports...')).toBeVisible();
-    expect(screen.getByRole('columnheader', { name: 'Name' })).toBeVisible();
-    expect(screen.getByRole('columnheader', { name: 'Description' })).toBeVisible();
-    expect(screen.getByText('No results found.')).toBeVisible();
+    // Awaited: the table renders skeletons until the load settles.
+    expect(await screen.findByPlaceholderText('Filter templates...')).toBeVisible();
+    expect(screen.getByRole('columnheader', { name: /Name/ })).toBeVisible();
+    expect(screen.getByRole('columnheader', { name: 'Actions' })).toBeVisible();
     expect(screen.getByTestId('pagination-controls')).toBeVisible();
+  });
+
+  test('says where templates come from, rather than offering a Run that does nothing', () => {
+    // Running a template is not built. A disabled or inert Run action would
+    // read as broken; saying so once is honest and costs a sentence.
+    render(<ReportsManagementWorkspace />);
+
+    expect(screen.getByText(/Save as report template/)).toBeVisible();
+    expect(screen.getByText(/not available yet/)).toBeVisible();
+    expect(screen.queryByRole('button', { name: /^run/i })).toBeNull();
     expect(screen.queryByRole('button', { name: /generate report/i })).toBeNull();
-    expect(screen.queryByRole('button', { name: /create report/i })).toBeNull();
   });
 });
