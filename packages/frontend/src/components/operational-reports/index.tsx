@@ -626,7 +626,8 @@ export function OperationalAnalyticsWorkspace({
             </CardContent>
           </Card>
 
-          <Card className="min-w-0">
+          <SelectableBlock cardId="operations-category-pressure">
+            <Card className="min-w-0">
             <CardHeader className="flex flex-col items-start justify-between gap-2 space-y-0 sm:flex-row">
               <div>
                 <CardTitle>Category Pressure</CardTitle>
@@ -696,7 +697,8 @@ export function OperationalAnalyticsWorkspace({
                 </div>
               )}
             </CardContent>
-          </Card>
+            </Card>
+          </SelectableBlock>
 
           <DetailHeader title="Unavailable Episodes" description="Each recorded period when an item was unavailable" />
           <EnhancedDataTable columns={episodeColumns} data={result.episodes} isLoading={isLoading} filterColumn="itemName" filterPlaceholder="Filter items..." />
