@@ -9,6 +9,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   ACQUISITION_MIX,
+  SEASONAL_INBOUND_WEIGHT,
   PAID_PRODUCT_SPEND,
   PAID_PROCUREMENT_SUMMARY,
   ANALYTICS_CARDS,
@@ -106,11 +107,16 @@ describe('analytics card contract', () => {
     for (const card of ANALYTICS_CARDS) {
       const data = card.data({});
       expect(() => card.print(data)).not.toThrow();
-      // A chart has nothing to draw. A KPI card still shows its tiles, reading
-      // zero or "Unknown" — which is what the screen does, so the report
-      // matches rather than going blank.
-      if (card.kind === 'chart') expect(data.categories).toEqual([]);
-      else expect(data.categories.length).toBeGreaterThan(0);
+      // A KPI card still shows its tiles, reading zero or "Unknown" — what the
+      // screen does, so the report matches rather than going blank.
+      if (card.kind === 'kpi') {
+        expect(data.categories.length).toBeGreaterThan(0);
+        continue;
+      }
+      // A chart draws nothing. Asserted on the *values*, not the categories:
+      // Seasonal Inbound Weight's axis is the calendar, so it keeps twelve
+      // month labels with or without data, exactly as the screen does.
+      expect(data.series.flatMap(s => s.values).filter(v => v !== 0)).toEqual([]);
     }
   });
 });
@@ -348,5 +354,63 @@ describe('card-level options reach the report', () => {
       expect(PAID_PRODUCT_SPEND.data(analytics, options).categories).toHaveLength(3);
       expect(PAID_PRODUCT_SPEND.data(analytics, options).note).toBeNull();
     }
+  });
+});
+
+describe('seasonal inbound weight compares years, it does not sum them', () => {
+  const analytics = {
+    seasonalWeight: [
+      { year: '2025', month: 1, weightHundredths: 1_000_00 },
+      { year: '2025', month: 2, weightHundredths: 2_000_00 },
+      { year: '2024', month: 1, weightHundredths: 3_000_00 },
+    ],
+    seasonalChannelWeight: [
+      { year: '2025', month: 1, channel: 'fresh_alliance', weightHundredths: 400_00 },
+      { year: '2025', month: 1, channel: 'ofb_warehouse', weightHundredths: 600_00 },
+    ],
+  };
+
+  it('puts twelve months on the axis and one series per compared year', () => {
+    const data = SEASONAL_INBOUND_WEIGHT.data(analytics, { channel: 'all', years: ['2025', '2024'] });
+
+    expect(data.categories).toHaveLength(12);
+    expect(data.categories[0]).toBe('Jan');
+    expect(data.series.map(s => s.name)).toEqual(['2025', '2024']);
+    expect(data.series[0].values[0]).toBe(1000);
+    expect(data.series[1].values[0]).toBe(3000);
+  });
+
+  it('never condenses — the axis is a calendar month, not a timeline', () => {
+    // Twelve categories always print; the readability threshold does not apply.
+    const data = SEASONAL_INBOUND_WEIGHT.data(analytics, { channel: 'all', years: ['2025'] });
+
+    expect(data.grain).toBeUndefined();
+    expect(data.categoryColumn).toBe('month');
+  });
+
+  it('sums the per-channel source when a channel is chosen', () => {
+    // The all-channel series is pre-aggregated; the per-channel one is not.
+    const data = SEASONAL_INBOUND_WEIGHT.data(analytics, {
+      channel: 'fresh_alliance',
+      years: ['2025'],
+    });
+
+    expect(data.series[0].values[0]).toBe(400);
+    expect(data.note).toBe('Fresh Food Alliance only.');
+  });
+
+  it('says the card is empty rather than drawing nothing silently', () => {
+    const data = SEASONAL_INBOUND_WEIGHT.data(analytics, { channel: 'all', years: [] });
+
+    expect(data.series).toEqual([]);
+    expect(data.note).toContain('No calendar years were selected');
+    expect(() => SEASONAL_INBOUND_WEIGHT.print(data)).not.toThrow();
+  });
+
+  it('gives the CSV one column per year', () => {
+    const csv = cardCsv(SEASONAL_INBOUND_WEIGHT.data(analytics, { channel: 'all', years: ['2025', '2024'] }));
+
+    expect(csv.split('\r\n')[0]).toBe('month,2025,2024');
+    expect(csv.trim().split('\r\n')).toHaveLength(13); // header + 12 months
   });
 });

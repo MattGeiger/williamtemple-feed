@@ -751,6 +751,7 @@ function ReportToolbar({ filters }: { filters: ReportFilterContext }) {
     'procurement-channels': 'Procurement Channels',
     'procurement-inbound-weight-over-time': 'Inbound Weight Over Time',
     'procurement-paid-product-spend': 'Where Paid Procurement Dollars Went',
+    'procurement-seasonal-inbound-weight': 'Seasonal Inbound Weight',
   };
 
   return (
@@ -1731,7 +1732,11 @@ export function ProcurementAnalyticsWorkspace({
         />
       )}
 
-      <Card className="min-w-0">
+      <SelectableBlock
+        cardId="procurement-seasonal-inbound-weight"
+        options={{ channel: effectiveSeasonalChannel, years: seasonalYears }}
+      >
+        <Card className="min-w-0">
         <CardHeader className="flex flex-col items-start justify-between gap-3 space-y-0 sm:flex-row sm:items-center">
           <div>
             <CardTitle>Seasonal Inbound Weight</CardTitle>
@@ -1876,7 +1881,8 @@ export function ProcurementAnalyticsWorkspace({
             </ChartContainer>
           )}
         </CardContent>
-      </Card>
+        </Card>
+      </SelectableBlock>
 
       {includesFreshAlliance && <section className="space-y-3">
         <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">

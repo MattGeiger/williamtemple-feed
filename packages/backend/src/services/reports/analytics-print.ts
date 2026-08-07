@@ -18,6 +18,8 @@
  * by inlining computed styles.
  */
 
+import type { Series } from './condense';
+
 const PALETTE = ['#2964A3', '#3090A8', '#78C0C0', '#F0D848', '#B08CC0', '#E08050', '#8FB339'];
 const INK = '#231F20';
 const MUTED = '#6B7684';
@@ -94,6 +96,44 @@ export function legendSvg(names: string[], width = 900): string {
   }).join('');
   const rows = Math.ceil(names.length / 4);
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${rows * 18 + 6}" font-family="Helvetica, Arial, sans-serif">${items}</svg>`;
+}
+
+/**
+ * One polyline per series over a shared category axis.
+ *
+ * For comparisons where stacking would be a lie: a year-over-year seasonal
+ * chart stacked would sum unrelated years into a total nobody asked for. The
+ * screen draws these as lines, and so does the report.
+ */
+export function lineChartSvg(
+  categories: string[],
+  series: Series[],
+  width = 900,
+  height = 260
+): string {
+  const padL = 62, padR = 8, padT = 10, padB = 34;
+  const plotW = width - padL - padR, plotH = height - padT - padB;
+  const max = Math.max(1, ...series.flatMap(s => s.values));
+  const step = categories.length > 1 ? plotW / (categories.length - 1) : 0;
+  const x = (i: number) => padL + i * step;
+  const y = (v: number) => padT + plotH - (v / max) * plotH;
+
+  const ticks = [0, 0.25, 0.5, 0.75, 1].map(f => {
+    const ty = padT + plotH - f * plotH;
+    return `<line x1="${padL}" y1="${ty}" x2="${width - padR}" y2="${ty}" stroke="${GRID}" stroke-width="1"/>` +
+      `<text x="${padL - 8}" y="${ty + 4}" font-size="10" fill="${MUTED}" text-anchor="end">${fmt(Math.round(max * f))}</text>`;
+  }).join('');
+
+  const lines = series.map((s, si) => {
+    const points = s.values.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
+    return `<polyline points="${points}" fill="none" stroke="${PALETTE[si % PALETTE.length]}" stroke-width="2" stroke-linejoin="round"/>`;
+  }).join('');
+
+  const labels = categories.map((c, i) =>
+    `<text x="${x(i)}" y="${height - padB + 16}" font-size="10" fill="${MUTED}" text-anchor="middle">${esc(c)}</text>`
+  ).join('');
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" font-family="Helvetica, Arial, sans-serif">${ticks}${lines}${labels}</svg>`;
 }
 
 /**
