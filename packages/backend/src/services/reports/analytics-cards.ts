@@ -964,6 +964,89 @@ export const WAREHOUSE_PRODUCT_HISTORY: AnalyticsCard = {
   },
 };
 
+
+/**
+ * `formatDate` from the frontend's shared formatter: m/d/yyyy, no leading zeros.
+ *
+ * Pinned to en-US for the same reason the currency is — a filed document must
+ * not read differently depending on who generated it. The screen's formatter is
+ * already locale-pinned (docs/layout/table-standard.md), so this matches it
+ * rather than diverging.
+ */
+const tableDateLabel = (iso: string | null | undefined): string => {
+  if (!iso) return '—';
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return String(iso);
+  return date.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+    timeZone: 'UTC',
+  });
+};
+
+const freshAllianceColumns: TableColumn<any>[] = [
+  { id: 'donorName', header: 'Donor', text: r => r.donorName, sortValue: r => r.donorName, searchable: true },
+  { id: 'description', header: 'Category', text: r => r.description, sortValue: r => r.description, searchable: true },
+  { id: 'productCode', header: 'Source Code', text: r => r.productCode ?? '—', sortValue: r => r.productCode ?? '' },
+  { id: 'receiptEventCount', header: 'Receipt Events', align: 'right', text: r => String(r.receiptEventCount), sortValue: r => r.receiptEventCount },
+  { id: 'receivingDateCount', header: 'Receiving Dates', align: 'right', text: r => String(r.receivingDateCount), sortValue: r => r.receivingDateCount },
+  {
+    id: 'totalWeightHundredths',
+    header: 'Total Weight',
+    align: 'right',
+    text: r => poundsLabel(r.totalWeightHundredths),
+    sortValue: r => r.totalWeightHundredths,
+  },
+  { id: 'lastReceivedDate', header: 'Last Pickup', text: r => tableDateLabel(r.lastReceivedDate), sortValue: r => r.lastReceivedDate ?? '' },
+];
+
+/**
+ * Fresh Food Alliance Receipt Categories.
+ *
+ * Two layers of user configuration, and both must survive. The donor filter is
+ * a card-level control shared with the chart above it, and it narrows the rows
+ * *before* the table's own filter and sort see them — the same order the screen
+ * applies, since the table is handed already-filtered rows.
+ */
+export const FRESH_ALLIANCE_RECEIPT_CATEGORIES: AnalyticsCard = {
+  id: 'procurement-fresh-alliance-receipt-categories',
+  kind: 'table',
+  defaultTitle: 'Fresh Food Alliance Receipt Categories',
+  lens: 'procurement',
+  data: (analytics: any, options?: any) => {
+    const NOT_REPORTED = 'NOT_REPORTED';
+    const donorCodes: string[] | null = Array.isArray(options?.donorCodes)
+      ? options.donorCodes
+      : null;
+
+    const rows = (analytics?.freshAllianceDonorCategories ?? []).filter((row: any) =>
+      donorCodes === null ? true : donorCodes.includes(row.donorCode ?? NOT_REPORTED)
+    );
+
+    const data = tableCardData(
+      'Fresh Food Alliance Receipt Categories',
+      rows,
+      freshAllianceColumns,
+      options
+    );
+
+    // The donor filter is stated separately from the table's own filter,
+    // because they are different controls and a reader cannot tell which
+    // narrowed the rows otherwise.
+    const donorNote =
+      donorCodes !== null
+        ? `Donors narrowed to ${donorCodes.length}.`
+        : null;
+
+    return {
+      ...data,
+      note: [donorNote, data.note].filter(Boolean).join(' ') || null,
+    };
+  },
+  print: WAREHOUSE_PRODUCT_HISTORY.print,
+};
+
 /** Registry. A card is exportable exactly when it appears here. */
 export const ANALYTICS_CARDS: AnalyticsCard[] = [
   INBOUND_SUPPLY_SUMMARY,
@@ -977,6 +1060,7 @@ export const ANALYTICS_CARDS: AnalyticsCard[] = [
   AVAILABILITY_SUMMARY,
   CATEGORY_PRESSURE,
   WAREHOUSE_PRODUCT_HISTORY,
+  FRESH_ALLIANCE_RECEIPT_CATEGORIES,
 ];
 
 export const getAnalyticsCard = (id: string): AnalyticsCard | undefined =>

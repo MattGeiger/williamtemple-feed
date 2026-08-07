@@ -756,6 +756,7 @@ function ReportToolbar({ filters }: { filters: ReportFilterContext }) {
     'operations-availability-summary': 'Availability Summary',
     'operations-category-pressure': 'Category Pressure',
     'procurement-warehouse-product-history': 'OFB Warehouse Product History',
+    'procurement-fresh-alliance-receipt-categories': 'Fresh Food Alliance Receipt Categories',
   };
 
   return (
@@ -911,6 +912,13 @@ export function ProcurementAnalyticsWorkspace({
   const [paidProductSearch, setPaidProductSearch] = React.useState('');
   // Published by EnhancedDataTable. Held here so the report can reproduce the
   // filter, sort, visible columns, and page size the user configured.
+  const [freshAllianceTableView, setFreshAllianceTableView] = React.useState<{
+    search: string;
+    sort: { id: string; desc: boolean } | null;
+    visibleColumns: string[];
+    pageSize: number;
+    pageIndex: number;
+  } | null>(null);
   const [warehouseTableView, setWarehouseTableView] = React.useState<{
     search: string;
     sort: { id: string; desc: boolean } | null;
@@ -1902,7 +1910,16 @@ export function ProcurementAnalyticsWorkspace({
         </Card>
       </SelectableBlock>
 
-      {includesFreshAlliance && <section className="space-y-3">
+      {includesFreshAlliance && (
+        <SelectableBlock
+          cardId="procurement-fresh-alliance-receipt-categories"
+          variant="table"
+          options={{
+            ...(freshAllianceTableView ?? {}),
+            donorCodes: selectedFreshAllianceDonors,
+          }}
+        >
+        <section className="space-y-3">
         <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
           <div>
             <h3 className="text-lg font-semibold">Fresh Food Alliance Receipt Categories</h3>
@@ -1966,9 +1983,12 @@ export function ProcurementAnalyticsWorkspace({
             filterPlaceholder="Filter receipt categories..."
             enableColumnVisibility
             defaultPageSize={10}
+            onViewStateChange={setFreshAllianceTableView}
           />
         )}
-      </section>}
+        </section>
+        </SelectableBlock>
+      )}
 
       {includesWarehouse && (
         <SelectableBlock
