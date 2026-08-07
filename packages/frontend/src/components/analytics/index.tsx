@@ -755,6 +755,7 @@ function ReportToolbar({ filters }: { filters: ReportFilterContext }) {
     'procurement-fresh-alliance-category-mix': 'Fresh Food Alliance Category Mix',
     'operations-availability-summary': 'Availability Summary',
     'operations-category-pressure': 'Category Pressure',
+    'procurement-warehouse-product-history': 'OFB Warehouse Product History',
   };
 
   return (
@@ -908,6 +909,15 @@ export function ProcurementAnalyticsWorkspace({
   const [selectedSeasonalYears, setSelectedSeasonalYears] = React.useState<string[]>([]);
   const [selectedFreshAllianceDonors, setSelectedFreshAllianceDonors] = React.useState<string[]>([]);
   const [paidProductSearch, setPaidProductSearch] = React.useState('');
+  // Published by EnhancedDataTable. Held here so the report can reproduce the
+  // filter, sort, visible columns, and page size the user configured.
+  const [warehouseTableView, setWarehouseTableView] = React.useState<{
+    search: string;
+    sort: { id: string; desc: boolean } | null;
+    visibleColumns: string[];
+    pageSize: number;
+    pageIndex: number;
+  } | null>(null);
   const selectedChannel: 'all' | ProcurementChannel = searchParams.get('channel') === 'ofb_warehouse' ||
     searchParams.get('channel') === 'fresh_alliance'
     ? (searchParams.get('channel') as ProcurementChannel)
@@ -1960,7 +1970,13 @@ export function ProcurementAnalyticsWorkspace({
         )}
       </section>}
 
-      {includesWarehouse && <section className="space-y-3">
+      {includesWarehouse && (
+        <SelectableBlock
+          cardId="procurement-warehouse-product-history"
+          variant="table"
+          options={warehouseTableView ?? undefined}
+        >
+        <section className="space-y-3">
         <div>
           <h3 className="text-lg font-semibold">OFB Warehouse Product History</h3>
           <p className="text-sm text-muted-foreground">OFB ordered products with receiving dates, inbound weight, timing, and charges. Sort by Cost / Paid lb to bring purchased products first.</p>
@@ -1972,8 +1988,11 @@ export function ProcurementAnalyticsWorkspace({
           filterPlaceholder="Filter supplier products..."
           enableColumnVisibility
           defaultPageSize={10}
+          onViewStateChange={setWarehouseTableView}
         />
-      </section>}
+        </section>
+        </SelectableBlock>
+      )}
 
     </div>
   );

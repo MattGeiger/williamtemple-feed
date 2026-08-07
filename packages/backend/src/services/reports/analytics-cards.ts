@@ -13,6 +13,7 @@ import {
   stackedBarSvg,
   stackedHBarSvg,
   groupedHBarSvg,
+  tableHtml,
 } from './analytics-print';
 import { condenseTimeSeries, type Grain, type Series } from './condense';
 
@@ -98,13 +99,14 @@ export interface AnalyticsCard {
   defaultTitle: string;
   lens: 'operations' | 'procurement';
   /**
-   * `chart` prints an SVG; `kpi` prints HTML tiles.
+   * `chart` prints an SVG; `kpi` prints HTML tiles; `table` prints an HTML
+   * table with a repeating header and rows that do not split across pages.
    *
    * Declared rather than inferred, because the two differ in ways callers care
    * about: a KPI card never condenses, and it legitimately renders tiles for an
    * empty range where a chart renders nothing.
    */
-  kind: 'chart' | 'kpi';
+  kind: 'chart' | 'kpi' | 'table';
   /**
    * @param options this card's own controls, frozen when selection began.
    *   Cards whose state is fully described by the page filters ignore it.
@@ -780,6 +782,188 @@ export const CATEGORY_PRESSURE: AnalyticsCard = {
     groupedHBarSvg(data.categories, data.series) + legendSvg(data.series.map(s => s.name)),
 };
 
+
+/**
+ * A table column, mirrored from the frontend's ColumnDef.
+ *
+ * The frontend owns how a column looks; this owns how it prints. They are
+ * duplicated because the packages share no module — the same situation as the
+ * label maps, and covered the same way, by a parity test that reads both from
+ * source.
+ */
+interface TableColumn<T> {
+  /** Must match the frontend's `accessorKey`, since sorting travels by id. */
+  id: string;
+  header: string;
+  align?: 'left' | 'right';
+  /** Display text. Formatting lives here so the CSV and the PDF cannot differ. */
+  text: (row: T) => string;
+  /** Sort key. Sorting on formatted text would order "$9" after "$10". */
+  sortValue: (row: T) => number | string;
+  /** Included in the free-text filter, matching the screen's filter column. */
+  searchable?: boolean;
+}
+
+/**
+ * Applies the table controls a user configured on screen.
+ *
+ * Re-derived server-side rather than sent as resolved rows, because a saved
+ * template regenerates months later with no client to resolve anything. The
+ * order is the order TanStack applies it: filter, then sort, then page.
+ */
+function applyTableOptions<T>(
+  rows: T[],
+  columns: TableColumn<T>[],
+  options: any
+): { rows: T[]; columns: TableColumn<T>[]; total: number; note: string | null } {
+  const search = String(options?.search ?? '').trim().toLocaleLowerCase();
+  const sort = options?.sort as { id?: string; desc?: boolean } | undefined;
+  const visible: string[] | null = Array.isArray(options?.visibleColumns)
+    ? options.visibleColumns
+    : null;
+  const pageSize = Number(options?.pageSize) > 0 ? Number(options.pageSize) : null;
+  const pageIndex = Number(options?.pageIndex) > 0 ? Number(options.pageIndex) : 0;
+
+  let working = rows;
+  if (search.length > 0) {
+    const searchable = columns.filter(c => c.searchable);
+    working = working.filter(row =>
+      searchable.some(c => c.text(row).toLocaleLowerCase().includes(search))
+    );
+  }
+
+  if (sort?.id) {
+    const column = columns.find(c => c.id === sort.id);
+    if (column) {
+      working = [...working].sort((a, b) => {
+        const left = column.sortValue(a);
+        const right = column.sortValue(b);
+        const compared =
+          typeof left === 'number' && typeof right === 'number'
+            ? left - right
+            : String(left).localeCompare(String(right));
+        return sort.desc ? -compared : compared;
+      });
+    }
+  }
+
+  const total = working.length;
+  const notes: string[] = [];
+  if (search.length > 0) notes.push(`filtered to "${options.search}"`);
+  if (pageSize !== null) {
+    const start = pageIndex * pageSize;
+    working = working.slice(start, start + pageSize);
+    if (total > working.length) {
+      notes.push(
+        `showing rows ${start + 1}–${start + working.length} of ${total.toLocaleString('en-US')}`
+      );
+    }
+  }
+
+  const shown = visible ? columns.filter(c => visible.includes(c.id)) : columns;
+
+  return {
+    rows: working,
+    columns: shown.length > 0 ? shown : columns,
+    total,
+    note: notes.length > 0 ? `Table ${notes.join(', ')}.` : null,
+  };
+}
+
+/** Builds a CardData from a table's resolved view. */
+function tableCardData<T>(
+  title: string,
+  rows: T[],
+  columns: TableColumn<T>[],
+  options: any
+): CardData {
+  const view = applyTableOptions(rows, columns, options);
+  return {
+    title,
+    // The first column is the row label; the rest are the series.
+    categories: view.rows.map(row => view.columns[0].text(row)),
+    series: view.columns.slice(1).map(column => ({
+      name: column.header,
+      values: view.rows.map(row => {
+        const value = column.sortValue(row);
+        return typeof value === 'number' ? value : 0;
+      }),
+      text: view.rows.map(row => column.text(row)),
+    })),
+    categoryColumn: view.columns[0].header,
+    note: view.note,
+  };
+}
+
+const warehouseColumns: TableColumn<any>[] = [
+  { id: 'description', header: 'Product', text: r => r.description, sortValue: r => r.description, searchable: true },
+  { id: 'productCode', header: 'Code', text: r => r.productCode, sortValue: r => r.productCode, searchable: true },
+  {
+    id: 'acquisitionClass',
+    header: 'Acquisition',
+    text: r => ACQUISITION_LABELS[r.acquisitionClass] ?? r.acquisitionClass,
+    sortValue: r => r.acquisitionClass,
+  },
+  { id: 'receiptDateCount', header: 'Receipt Dates', align: 'right', text: r => String(r.receiptDateCount), sortValue: r => r.receiptDateCount },
+  {
+    id: 'totalWeightHundredths',
+    header: 'Total Weight',
+    align: 'right',
+    text: r => poundsLabel(r.totalWeightHundredths),
+    sortValue: r => r.totalWeightHundredths,
+  },
+  {
+    id: 'totalSpendCents',
+    header: 'Total Charges',
+    align: 'right',
+    // The screen shows an em dash for an unpaid product rather than $0.00,
+    // which would read as "we paid nothing" instead of "this was donated".
+    text: r => (r.totalSpendCents > 0 ? dollarsLabel(r.totalSpendCents) : '—'),
+    sortValue: r => r.totalSpendCents,
+  },
+  {
+    id: 'costPerPaidPoundCents',
+    header: 'Cost / Paid lb',
+    align: 'right',
+    text: r => (r.costPerPaidPoundCents ? dollarsLabel(r.costPerPaidPoundCents) : '—'),
+    sortValue: r => r.costPerPaidPoundCents ?? 0,
+  },
+  { id: 'lastReceivedDate', header: 'Last Received', text: r => r.lastReceivedDate ?? '—', sortValue: r => r.lastReceivedDate ?? '' },
+];
+
+/**
+ * OFB Warehouse Product History — the first table card.
+ *
+ * Every control the user configured travels: the filter, the sort, which
+ * columns are visible, and how many rows a page shows. A hundred-row export is
+ * a legitimate thing to ask for, and printing it properly saves the trip
+ * through Excel.
+ */
+export const WAREHOUSE_PRODUCT_HISTORY: AnalyticsCard = {
+  id: 'procurement-warehouse-product-history',
+  kind: 'table',
+  defaultTitle: 'OFB Warehouse Product History',
+  lens: 'procurement',
+  data: (analytics: any, options?: any) =>
+    tableCardData(
+      'OFB Warehouse Product History',
+      analytics?.warehouseProducts ?? [],
+      warehouseColumns,
+      options
+    ),
+  print: data => {
+    const headers = [data.categoryColumn, ...data.series.map(s => s.name)];
+    const rows = data.categories.map((category, i) => [
+      category,
+      ...data.series.map(s => s.text?.[i] ?? String(s.values[i] ?? '')),
+    ]);
+    const aligns = headers.map((_, i) =>
+      i === 0 ? ('left' as const) : ('right' as const)
+    );
+    return tableHtml(headers, rows, aligns);
+  },
+};
+
 /** Registry. A card is exportable exactly when it appears here. */
 export const ANALYTICS_CARDS: AnalyticsCard[] = [
   INBOUND_SUPPLY_SUMMARY,
@@ -792,6 +976,7 @@ export const ANALYTICS_CARDS: AnalyticsCard[] = [
   FRESH_ALLIANCE_CATEGORY_MIX,
   AVAILABILITY_SUMMARY,
   CATEGORY_PRESSURE,
+  WAREHOUSE_PRODUCT_HISTORY,
 ];
 
 export const getAnalyticsCard = (id: string): AnalyticsCard | undefined =>
