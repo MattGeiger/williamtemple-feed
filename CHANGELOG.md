@@ -5,6 +5,48 @@ All notable changes to FEED are documented here. This project adheres to
 
 ## [Unreleased]
 
+### Added
+
+- **Reports, rebuilt as an export of Analytics.** Any of the fifteen Analytics
+  cards can be selected and exported as one archive: a printable PDF, a CSV per
+  card, and a manifest recording the range and filters used.
+
+  The design decision that makes it safe is a single sentence: a report is an
+  export of what Analytics already shows, not a second analytical engine. Every
+  card renders the same numbers under the same filters, so a report makes no
+  claim the screen does not. The previous attempt had its own 31-card registry
+  computing its own answers, which is how it drifted into the claims RITE
+  rejected (ISSUES #46).
+
+  The workflow is ZEV's, revived rather than rebuilt: one **Generate Report**
+  action puts the page into selection mode, cards take an order number as they
+  are picked, and a single modal chooses PDF and/or CSV. The per-card export
+  buttons rejected during ideation were still rendering on the Operations lens
+  and have been removed.
+
+  Charts are authored server-side rather than captured from the browser. Three
+  approaches were built and measured against the same data first: printing the
+  live page produced 5.8MB and 139 raster images of application chrome;
+  serializing the DOM lost every legend. Server-authored SVG is the only one
+  that needs no browser, which is what lets a saved template regenerate later.
+  The tradeoff is explicit — the PDF shows the same numbers in a chart drawn for
+  paper, not a pixel copy of the screen.
+
+  Filters travel, including each card's own. A search box, a donor filter, a
+  year selection, or a table's sort are frozen when selection begins, because
+  the modal offers no filter controls and a run must mean what the page showed.
+  Tables keep their filter, sort, visible columns, and page size, and print with
+  a repeating header and rows that never split across a page.
+
+  Long ranges condense automatically — a bar needs 1.6mm to read as a bar — and
+  the card says so, with the way to get the detail back. Templates store the
+  card selection and filters but deliberately not the date range, which is
+  chosen each time a report is run.
+
+  Architecture in `docs/reports/analytics-report-architecture.md`; staff-facing
+  guide at Help → Generating Reports.
+
+
 ### Changed
 
 - **Admin → History is a standard table.** It was the last hand-rolled one on
