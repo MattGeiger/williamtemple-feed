@@ -14,7 +14,7 @@ import {
   type DraggableProvided,
   type DropResult,
 } from '@hello-pangea/dnd';
-import { ArrowDown, ArrowUp, GripVertical, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, GripVertical, Info, X } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -28,6 +28,12 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { useReportSelection } from '@/components/reports/selection';
 import { analyticsReportsService } from '@/services/analytics-reports';
 import { messageService } from '@/services/message';
@@ -76,6 +82,9 @@ export function AnalyticsReportDialog({
   const [includePdf, setIncludePdf] = React.useState(true);
   const [includeCsv, setIncludeCsv] = React.useState(true);
   const [csvGrain, setCsvGrain] = React.useState<'condensed' | 'raw'>('condensed');
+  // On by default: the workflow this replaces existed so a report could be
+  // repeated, and most people setting one up want it again next month.
+  const [saveTemplate, setSaveTemplate] = React.useState(true);
   const [isGenerating, setIsGenerating] = React.useState(false);
 
   const trimmed = title.trim().replace(/\s+/g, ' ');
@@ -87,6 +96,19 @@ export function AnalyticsReportDialog({
     if (!canGenerate) return;
     setIsGenerating(true);
     try {
+      if (saveTemplate) {
+        // Saved before the download so a failure here is reported on its own
+        // terms, rather than after a file has already landed.
+        await analyticsReportsService.saveTemplate({
+          name: trimmed,
+          cardIds: selectedIds,
+          channel: filters.channel,
+          acquisitionClass: filters.acquisitionClass,
+          includePdf,
+          includeCsv,
+          csvGrain,
+        });
+      }
       await analyticsReportsService.downloadReport({
         cardIds: selectedIds,
         title: trimmed,
@@ -307,6 +329,35 @@ export function AnalyticsReportDialog({
               </div>
             )}
           </div>
+        </div>
+
+        <div className="flex items-center gap-2 border-t pt-4">
+          <Checkbox
+            id="save-template"
+            checked={saveTemplate}
+            onCheckedChange={value => setSaveTemplate(value === true)}
+          />
+          <Label htmlFor="save-template" className="font-normal">
+            Save as report template
+          </Label>
+          <TooltipProvider delayDuration={200}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="What does saving a template do?"
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  <Info className="h-4 w-4" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-[280px]">
+                Keeps this card selection, order, and output choices under the report
+                title, so you can run it again from Reports. The date range is not
+                saved — you choose it each time you run it.
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
 
         <DialogFooter>

@@ -104,6 +104,7 @@ import {
   useReportSelection,
 } from '@/components/reports/selection';
 import { AnalyticsReportDialog, type ReportFilterContext } from './report-dialog';
+import { FileChartColumnIcon } from '@/components/ui/file-chart-column';
 import { SortableHeader } from "@/components/ui/sortable-header"
 import { formatDate } from '@/lib/formatting/date';
 
@@ -755,6 +756,9 @@ function ReportToolbar({ filters }: { filters: ReportFilterContext }) {
     <div className="flex flex-wrap items-center gap-2">
       {!isSelecting ? (
         <Button variant="outline" size="sm" onClick={startSelecting}>
+          {/* Same mark as the Reports page, so the action and its destination
+              read as one feature. */}
+          <FileChartColumnIcon size={16} className="mr-2" />
           Generate Report
         </Button>
       ) : (

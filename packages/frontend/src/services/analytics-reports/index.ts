@@ -37,6 +37,16 @@ export interface AnalyticsReportCard {
   kind: 'chart' | 'kpi';
 }
 
+export interface AnalyticsTemplateRequest {
+  name: string;
+  cardIds: string[];
+  channel?: 'ofb_warehouse' | 'fresh_alliance';
+  acquisitionClass?: 'DONATED' | 'PURCH-DON' | 'GOVERNMENT' | 'PURCHASED';
+  includePdf: boolean;
+  includeCsv: boolean;
+  csvGrain: 'condensed' | 'raw';
+}
+
 export class AnalyticsReportsService extends BaseApiService {
   constructor() {
     super('/api/analytics-reports');
@@ -46,6 +56,16 @@ export class AnalyticsReportsService extends BaseApiService {
   async getCards(): Promise<AnalyticsReportCard[]> {
     const response = await this.get<{ cards: AnalyticsReportCard[] }>('/cards');
     return response.cards;
+  }
+
+  /**
+   * Saves the selection as a reusable template.
+   *
+   * The date range is deliberately not stored — a template is a shape, and the
+   * range is chosen when it is run from Reports.
+   */
+  async saveTemplate(request: AnalyticsTemplateRequest): Promise<void> {
+    await this.post('/templates', request);
   }
 
   /** Generates the ZIP (PDF + numbered per-card CSVs + manifest) and downloads it. */

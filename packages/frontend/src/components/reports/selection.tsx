@@ -171,8 +171,15 @@ export function SelectableBlock({
     if (node) node.inert = isSelecting;
   }, [isSelecting]);
 
+  // The wrapper becomes the grid item wherever a card sits in a grid, so it
+  // must hand its stretched height down. Without this the card keeps its own
+  // content height and the taller sibling leaves a gap beneath it — 56px under
+  // Procurement Channels when Acquisition Mix ran longer. `h-full` is inert
+  // outside a stretching parent, so this costs nothing elsewhere.
   if (!isSelecting) {
-    return <div className={cn("min-w-0", className)}>{children}</div>;
+    return (
+      <div className={cn("min-w-0 h-full [&>*]:h-full", className)}>{children}</div>
+    );
   }
 
   return (
@@ -189,7 +196,9 @@ export function SelectableBlock({
         }
       }}
       className={cn(
-        "relative min-w-0 cursor-pointer rounded-lg outline-hidden",
+        // Same height passthrough as above, so entering selection mode does
+        // not change the layout it is selecting from.
+        "relative min-w-0 h-full [&>*]:h-full cursor-pointer rounded-lg outline-hidden",
         "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
         variant === "card" && !isSelected && "report-selectable",
         isSelected &&

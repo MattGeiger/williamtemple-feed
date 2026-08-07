@@ -8,6 +8,8 @@
 import { Router } from 'express';
 import { z } from 'zod';
 
+import prisma from '../db';
+
 import { rateLimiter } from '../middleware/rate-limiter';
 import { getProcurementAnalytics } from '../services/procurement';
 import { ANALYTICS_CARDS, getAnalyticsCard } from '../services/reports/analytics-cards';
@@ -75,6 +77,84 @@ router.get('/cards', rateLimiter, (_req, res) => {
       kind: card.kind,
     })),
   });
+});
+
+/**
+ * Saved templates: a card selection to regenerate later, from Reports.
+ *
+ * `source` is `analytics` so these never collide with the dormant workspace's
+ * templates, which describe cards this route cannot render.
+ *
+ * The stored payload deliberately omits the date range. A template is a
+ * *shape* — which cards, in which order, under which filters — and the range is
+ * chosen fresh each time it is run. Storing "last 90 days" would either freeze
+ * a stale window or silently mean something different every month; storing
+ * nothing makes the choice explicit at generate time.
+ */
+const templateSchema = z
+  .object({
+    name: z.string().trim().min(1).max(120),
+    cardIds: z.array(z.string().min(1)).min(1).max(8),
+    channel: z.enum(['ofb_warehouse', 'fresh_alliance']).optional(),
+    acquisitionClass: z.enum(['DONATED', 'PURCH-DON', 'GOVERNMENT', 'PURCHASED']).optional(),
+    includePdf: z.boolean().default(true),
+    includeCsv: z.boolean().default(true),
+    csvGrain: z.enum(['condensed', 'raw']).default('condensed'),
+  })
+  .strict();
+
+const nameSearch = (name: string) => name.trim().replace(/\s+/g, ' ').toLowerCase();
+
+router.get('/templates', rateLimiter, async (_req, res, next) => {
+  try {
+    const templates = await prisma.reportTemplate.findMany({
+      where: { source: 'analytics' },
+      orderBy: { updatedAt: 'desc' },
+    });
+    return res.json({ templates });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+/** Create or update by name, matching the Shopping List Builder's save-by-name. */
+router.post('/templates', rateLimiter, async (req, res, next) => {
+  try {
+    const parsed = templateSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: {
+          message: parsed.error.issues.map(issue => issue.message).join(' '),
+          code: 'INVALID_TEMPLATE',
+        },
+      });
+    }
+    const { name, ...templateData } = parsed.data;
+
+    const unknown = templateData.cardIds.filter(id => !getAnalyticsCard(id));
+    if (unknown.length > 0) {
+      return res.status(400).json({
+        error: {
+          message: `Unknown report cards: ${unknown.join(', ')}`,
+          code: 'UNKNOWN_CARDS',
+        },
+      });
+    }
+
+    const template = await prisma.reportTemplate.upsert({
+      where: { source_nameSearch: { source: 'analytics', nameSearch: nameSearch(name) } },
+      create: {
+        name: name.trim(),
+        nameSearch: nameSearch(name),
+        source: 'analytics',
+        templateData: { schemaVersion: 1, ...templateData },
+      },
+      update: { name: name.trim(), templateData: { schemaVersion: 1, ...templateData } },
+    });
+    return res.status(201).json({ template });
+  } catch (error) {
+    return next(error);
+  }
 });
 
 router.post('/export', rateLimiter, async (req, res, next) => {
