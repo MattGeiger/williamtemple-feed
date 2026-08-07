@@ -16,7 +16,6 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { Download } from 'lucide-react';
 
 import { SectionHeader } from '@/components/shared/section-header';
 import { createPageTitleIcon } from '@/components/layout/page-title-icon';
@@ -296,14 +295,23 @@ const formatDuration = (hours: number) => {
   return `${(hours / 24).toFixed(1)} days`;
 };
 
-function CsvButton({ cardId, onExport }: { cardId: string; onExport: (id: string) => void }) {
-  return (
-    <Button variant="ghost" size="sm" onClick={() => onExport(cardId)}>
-      <Download className="mr-1 h-4 w-4" />
-      Export CSV
-    </Button>
-  );
-}
+/*
+ * Per-card "Export CSV" and a page-level "Export Raw History" used to live
+ * here. That was the primitive export workflow rejected during ideation: a
+ * button on every card cluttered the surface and left people unsure how to
+ * produce a report at all.
+ *
+ * The chosen pattern is ZEV's — one "Generate Report" action puts the page in
+ * selection mode, cards wiggle and take an order number as you pick them, and a
+ * single modal chooses PDF and/or CSV, delivered as one ZIP. That flow already
+ * exists in components/reports/selection.tsx and
+ * components/reports/generate-report-dialog.tsx; it was mothballed with the
+ * rest of the Reports workspace in the #46 rollback, not replaced.
+ *
+ * These buttons outlived the decision and were still rendering here — eight of
+ * them on the Operations lens. Removed so the rejected pattern is not the one
+ * on screen while the intended one is revived.
+ */
 
 interface OperationalAnalyticsWorkspaceProps {
   showHeader?: boolean;
@@ -360,27 +368,6 @@ export function OperationalAnalyticsWorkspace({
     }
   }, [assortmentCategory, result]);
 
-  const exportCard = async (cardId: string) => {
-    try {
-      await operationalReportsService.downloadCardCsv(
-        cardId,
-        cardId === 'available-assortment' && assortmentCategory !== 'all'
-          ? { ...request, assortmentCategoryId: Number(assortmentCategory) }
-          : request
-      );
-    } catch (error) {
-      ErrorHandlerService.handleError(error, 'operationalReportsCsv');
-    }
-  };
-
-  const exportRaw = async () => {
-    try {
-      await operationalReportsService.downloadRawCsv(request);
-    } catch (error) {
-      ErrorHandlerService.handleError(error, 'operationalReportsRawCsv');
-    }
-  };
-
   return (
     <TooltipProvider>
     <div className={showHeader ? 'space-y-6 min-w-0 w-full pt-6' : 'space-y-6 min-w-0 w-full'}>
@@ -400,10 +387,6 @@ export function OperationalAnalyticsWorkspace({
             ? `${format(new Date(`${result.range.startDate}T00:00:00`), 'MMM d, yyyy')} – ${format(new Date(`${result.range.endDate}T00:00:00`), 'MMM d, yyyy')}`
             : 'Loading selected date range…'}
         </p>
-        <Button variant="outline" onClick={() => void exportRaw()}>
-          <Download className="mr-2 h-4 w-4" />
-          Export Raw History
-        </Button>
       </div>
 
       {isLoading && !result ? (
@@ -436,7 +419,6 @@ export function OperationalAnalyticsWorkspace({
                   </Tooltip>
                 </CardDescription>
               </div>
-              <CsvButton cardId="availability-summary" onExport={exportCard} />
             </CardHeader>
             <CardContent>
               <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:items-center">
@@ -503,7 +485,6 @@ export function OperationalAnalyticsWorkspace({
                       ))}
                     </SelectContent>
                   </Select>
-                  <CsvButton cardId="available-assortment" onExport={exportCard} />
                 </div>
               </CardHeader>
               <CardContent className="space-y-5">
@@ -563,7 +544,6 @@ export function OperationalAnalyticsWorkspace({
                   <CardTitle>Recurring Availability</CardTitle>
                   <CardDescription>Repeated item cycles; one-time unavailable items remain outside this lens</CardDescription>
                 </div>
-                <CsvButton cardId="recurring-availability" onExport={exportCard} />
               </CardHeader>
               <CardContent className="space-y-6">
                 {recurringAvailability.length > 0 ? (
@@ -618,7 +598,6 @@ export function OperationalAnalyticsWorkspace({
                 <CardTitle>Operational Pressure</CardTitle>
                 <CardDescription>Food Item pressure and separate category-policy counts during scheduled service hours</CardDescription>
               </div>
-              <CsvButton cardId="operational-pressure" onExport={exportCard} />
             </CardHeader>
             <CardContent>
               <ChartContainer config={pressureChart.config} className="h-64 min-w-0 w-full">
@@ -650,7 +629,6 @@ export function OperationalAnalyticsWorkspace({
                 <CardTitle>Category Pressure</CardTitle>
                 <CardDescription>Independent service-pressure signals and recurring unavailability by Category</CardDescription>
               </div>
-              <CsvButton cardId="category-pressure" onExport={exportCard} />
             </CardHeader>
             <CardContent>
               {result.categoryPressure.length > 0 ? (
@@ -717,10 +695,10 @@ export function OperationalAnalyticsWorkspace({
             </CardContent>
           </Card>
 
-          <DetailHeader title="Unavailable Episodes" description="Each recorded period when an item was unavailable" cardId="unavailable-episodes" onExport={exportCard} />
+          <DetailHeader title="Unavailable Episodes" description="Each recorded period when an item was unavailable" />
           <EnhancedDataTable columns={episodeColumns} data={result.episodes} isLoading={isLoading} filterColumn="itemName" filterPlaceholder="Filter items..." />
 
-          <DetailHeader title="Rationing History" description="Item and category limit-policy changes" cardId="rationing-history" onExport={exportCard} />
+          <DetailHeader title="Rationing History" description="Item and category limit-policy changes" />
           <EnhancedDataTable columns={limitColumns} data={result.limitChanges} isLoading={isLoading} filterColumn="entityName" filterPlaceholder="Filter items or categories..." />
         </>
       ) : null}
@@ -748,8 +726,15 @@ function Kpi({ label, value }: { label: string; value: string }) {
   );
 }
 
-function DetailHeader({ title, description, cardId, onExport }: { title: string; description: string; cardId: string; onExport: (id: string) => void }) {
-  return <div className="flex flex-wrap items-start justify-between gap-2"><div><h3 className="text-lg font-semibold">{title}</h3><p className="text-sm text-muted-foreground">{description}</p></div><CsvButton cardId={cardId} onExport={onExport} /></div>;
+function DetailHeader({ title, description }: { title: string; description: string }) {
+  return (
+    <div className="flex flex-wrap items-start justify-between gap-2">
+      <div>
+        <h3 className="text-lg font-semibold">{title}</h3>
+        <p className="text-sm text-muted-foreground">{description}</p>
+      </div>
+    </div>
+  );
 }
 
 // Sortable header, matching the ghost-button + ArrowUpDown pattern used by
