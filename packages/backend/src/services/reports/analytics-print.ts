@@ -109,7 +109,16 @@ export function lineChartSvg(
   categories: string[],
   series: Series[],
   width = 900,
-  height = 260
+  height = 260,
+  /**
+   * Fills under the first series.
+   *
+   * Available Assortment Over Time draws its combined total as an area and each
+   * category as a line, so the total reads as the envelope the categories sit
+   * inside. Rendering all of them as bare lines would lose that hierarchy and
+   * make the total look like just another category.
+   */
+  fillFirst = false
 ): string {
   const padL = 62, padR = 8, padT = 10, padB = 34;
   const plotW = width - padL - padR, plotH = height - padT - padB;
@@ -126,11 +135,20 @@ export function lineChartSvg(
 
   const lines = series.map((s, si) => {
     const points = s.values.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
-    return `<polyline points="${points}" fill="none" stroke="${PALETTE[si % PALETTE.length]}" stroke-width="2" stroke-linejoin="round"/>`;
+    const stroke = PALETTE[si % PALETTE.length];
+    const area =
+      fillFirst && si === 0 && s.values.length > 0
+        ? `<polygon points="${x(0).toFixed(1)},${(padT + plotH).toFixed(1)} ${points} ${x(s.values.length - 1).toFixed(1)},${(padT + plotH).toFixed(1)}" fill="${stroke}" fill-opacity="0.18"/>`
+        : '';
+    return area + `<polyline points="${points}" fill="none" stroke="${stroke}" stroke-width="2" stroke-linejoin="round"/>`;
   }).join('');
 
+  // A daily timeline cannot label every point; thin to roughly a dozen.
+  const stride = Math.max(1, Math.ceil(categories.length / 12));
   const labels = categories.map((c, i) =>
-    `<text x="${x(i)}" y="${height - padB + 16}" font-size="10" fill="${MUTED}" text-anchor="middle">${esc(c)}</text>`
+    i % stride === 0
+      ? `<text x="${x(i)}" y="${height - padB + 16}" font-size="10" fill="${MUTED}" text-anchor="middle">${esc(c)}</text>`
+      : ''
   ).join('');
 
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" font-family="Helvetica, Arial, sans-serif">${ticks}${lines}${labels}</svg>`;

@@ -755,6 +755,9 @@ function ReportToolbar({ filters }: { filters: ReportFilterContext }) {
     'procurement-fresh-alliance-category-mix': 'Fresh Food Alliance Category Mix',
     'operations-availability-summary': 'Availability Summary',
     'operations-category-pressure': 'Category Pressure',
+    'operations-available-assortment': 'Available Assortment Over Time',
+    'operations-unavailable-episodes': 'Unavailable Episodes',
+    'operations-rationing-history': 'Rationing History',
     'procurement-warehouse-product-history': 'OFB Warehouse Product History',
     'procurement-fresh-alliance-receipt-categories': 'Fresh Food Alliance Receipt Categories',
   };

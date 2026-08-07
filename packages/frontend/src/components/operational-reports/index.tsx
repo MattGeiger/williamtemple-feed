@@ -324,6 +324,15 @@ export function OperationalAnalyticsWorkspace({
   range = DEFAULT_ANALYTICS_RANGE,
 }: OperationalAnalyticsWorkspaceProps = {}) {
   const [assortmentCategory, setAssortmentCategory] = React.useState('all');
+  type TableView = {
+    search: string;
+    sort: { id: string; desc: boolean } | null;
+    visibleColumns: string[];
+    pageSize: number;
+    pageIndex: number;
+  };
+  const [episodeView, setEpisodeView] = React.useState<TableView | null>(null);
+  const [rationingView, setRationingView] = React.useState<TableView | null>(null);
   const [result, setResult] = React.useState<OperationalAnalyticsResult | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
   const request = React.useMemo(() => ({ ...range }), [range]);
@@ -468,7 +477,11 @@ export function OperationalAnalyticsWorkspace({
           </SelectableBlock>
 
           <div className="grid min-w-0 gap-4 md:grid-cols-2">
-            <Card className="min-w-0 md:col-span-2">
+            <SelectableBlock
+              cardId="operations-available-assortment"
+              options={{ categoryId: assortmentCategory }}
+            >
+              <Card className="min-w-0 md:col-span-2">
               <CardHeader className="flex flex-col items-start justify-between gap-2 space-y-0 sm:flex-row">
                 <div>
                   <CardTitle>Available Assortment Over Time</CardTitle>
@@ -539,7 +552,8 @@ export function OperationalAnalyticsWorkspace({
                   </ComposedChart>
                 </ChartContainer>
               </CardContent>
-            </Card>
+              </Card>
+            </SelectableBlock>
 
             <Card className="min-w-0 md:col-span-2">
               <CardHeader className="flex flex-col items-start justify-between gap-2 space-y-0 sm:flex-row">
@@ -700,11 +714,27 @@ export function OperationalAnalyticsWorkspace({
             </Card>
           </SelectableBlock>
 
-          <DetailHeader title="Unavailable Episodes" description="Each recorded period when an item was unavailable" />
-          <EnhancedDataTable columns={episodeColumns} data={result.episodes} isLoading={isLoading} filterColumn="itemName" filterPlaceholder="Filter items..." />
+          <SelectableBlock
+            cardId="operations-unavailable-episodes"
+            variant="table"
+            options={episodeView ?? undefined}
+          >
+            <div className="space-y-3">
+              <DetailHeader title="Unavailable Episodes" description="Each recorded period when an item was unavailable" />
+              <EnhancedDataTable columns={episodeColumns} data={result.episodes} isLoading={isLoading} filterColumn="itemName" filterPlaceholder="Filter items..." onViewStateChange={setEpisodeView} />
+            </div>
+          </SelectableBlock>
 
-          <DetailHeader title="Rationing History" description="Item and category limit-policy changes" />
-          <EnhancedDataTable columns={limitColumns} data={result.limitChanges} isLoading={isLoading} filterColumn="entityName" filterPlaceholder="Filter items or categories..." />
+          <SelectableBlock
+            cardId="operations-rationing-history"
+            variant="table"
+            options={rationingView ?? undefined}
+          >
+            <div className="space-y-3">
+              <DetailHeader title="Rationing History" description="Item and category limit-policy changes" />
+              <EnhancedDataTable columns={limitColumns} data={result.limitChanges} isLoading={isLoading} filterColumn="entityName" filterPlaceholder="Filter items or categories..." onViewStateChange={setRationingView} />
+            </div>
+          </SelectableBlock>
         </>
       ) : null}
     </div>
