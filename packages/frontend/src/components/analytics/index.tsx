@@ -842,18 +842,15 @@ export function AnalyticsWorkspace() {
             Translucent + blurred to match the one existing sticky-content
             treatment in the app (GuideToc) rather than an opaque bar. */}
         <div className="sticky top-16 z-30 -mx-4 space-y-4 border-b border-border/70 bg-background/40 px-4 py-4 backdrop-blur-[14px] backdrop-saturate-150 supports-backdrop-filter:bg-background/40 sm:-mx-6 sm:px-6">
-          <TabsList className="grid h-auto w-full grid-cols-2 sm:w-[360px]">
-            <TabsTrigger value="operations">Operations</TabsTrigger>
-            <TabsTrigger value="procurement">Procurement</TabsTrigger>
-          </TabsList>
-          <AnalyticsRangeControl value={range} onChange={setRange} />
-        </div>
-        <TabsContents>
-          <TabsContent value="operations" className="pt-4">
-            <OperationalAnalyticsWorkspace showHeader={false} range={range} />
-          </TabsContent>
-          <TabsContent value="procurement" className="pt-4">
-            <div className="mb-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <TabsList className="grid h-auto w-full grid-cols-2 sm:w-[360px]">
+              <TabsTrigger value="operations">Operations</TabsTrigger>
+              <TabsTrigger value="procurement">Procurement</TabsTrigger>
+            </TabsList>
+            {/* Only on the lens whose cards are registered. Offering it over
+                Operations would start a selection with nothing selectable —
+                this becomes unconditional once those cards are exportable. */}
+            {activeTab === 'procurement' && (
               <ReportToolbar
                 filters={{
                   preset: range.preset,
@@ -863,7 +860,15 @@ export function AnalyticsWorkspace() {
                   summary: reportRangeSummary,
                 }}
               />
-            </div>
+            )}
+          </div>
+          <AnalyticsRangeControl value={range} onChange={setRange} />
+        </div>
+        <TabsContents>
+          <TabsContent value="operations" className="pt-4">
+            <OperationalAnalyticsWorkspace showHeader={false} range={range} />
+          </TabsContent>
+          <TabsContent value="procurement" className="pt-4">
             <ProcurementAnalyticsWorkspace range={range} />
           </TabsContent>
         </TabsContents>
