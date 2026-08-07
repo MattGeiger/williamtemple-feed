@@ -179,6 +179,30 @@ router.post('/templates', rateLimiter, async (req, res, next) => {
   }
 });
 
+router.delete('/templates/:id', rateLimiter, async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) {
+      return res.status(400).json({
+        error: { message: 'Unknown report template.', code: 'INVALID_TEMPLATE_ID' },
+      });
+    }
+    // Scoped to this source so a stray id cannot reach the dormant workspace's
+    // templates through this route.
+    const deleted = await prisma.reportTemplate.deleteMany({
+      where: { id, source: 'analytics' },
+    });
+    if (deleted.count === 0) {
+      return res.status(404).json({
+        error: { message: 'That report template no longer exists.', code: 'TEMPLATE_NOT_FOUND' },
+      });
+    }
+    return res.status(204).send();
+  } catch (error) {
+    return next(error);
+  }
+});
+
 router.post('/export', rateLimiter, async (req, res, next) => {
   try {
     const parsed = requestSchema.safeParse(req.body);
