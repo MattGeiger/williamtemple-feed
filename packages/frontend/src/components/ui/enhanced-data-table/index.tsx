@@ -83,6 +83,22 @@ interface EnhancedDataTableProps<TData> {
     title?: string
   }>
   toolbarControls?: React.ReactNode
+  /**
+   * Publishes the table's live view state: filter, sort, visible columns, and
+   * page.
+   *
+   * Reports need this. A table card must reproduce what the user configured, and
+   * that configuration lives in here — not in the page that rendered the table.
+   * Published as state rather than as resolved rows because a saved template
+   * regenerates months later with no client to resolve anything.
+   */
+  onViewStateChange?: (state: {
+    search: string
+    sort: { id: string; desc: boolean } | null
+    visibleColumns: string[]
+    pageSize: number
+    pageIndex: number
+  }) => void
 }
 
 export const EnhancedDataTable = React.forwardRef(function EnhancedDataTable<TData>({
@@ -108,6 +124,7 @@ export const EnhancedDataTable = React.forwardRef(function EnhancedDataTable<TDa
   onUpdate,
   toolbarActions,
   toolbarControls,
+  onViewStateChange,
 }: EnhancedDataTableProps<TData>, ref: React.ForwardedRef<{ clearSelection?: () => void }>) {
   const isMobile = useIsMobile()
   const responsiveColumnVisibility = React.useMemo(() => {
@@ -146,6 +163,39 @@ export const EnhancedDataTable = React.forwardRef(function EnhancedDataTable<TDa
       onUpdate,
     },
   })
+
+
+  // Published after render, from the table itself, so it reflects what is on
+  // screen rather than what a caller believes it configured.
+  const state = table.getState()
+  const searchValue = filterColumn
+    ? ((table.getColumn(filterColumn)?.getFilterValue() as string) ?? '')
+    : ''
+  const sortKey = state.sorting[0]
+  const visibleKey = table
+    .getVisibleLeafColumns()
+    .map(column => column.id)
+    .join(',')
+
+  React.useEffect(() => {
+    onViewStateChange?.({
+      search: searchValue,
+      sort: sortKey ? { id: sortKey.id, desc: Boolean(sortKey.desc) } : null,
+      visibleColumns: visibleKey ? visibleKey.split(',') : [],
+      pageSize: state.pagination.pageSize,
+      pageIndex: state.pagination.pageIndex,
+    })
+    // Primitive deps only: the objects behind them are new on every render, so
+    // depending on those would loop.
+  }, [
+    onViewStateChange,
+    searchValue,
+    sortKey?.id,
+    sortKey?.desc,
+    visibleKey,
+    state.pagination.pageSize,
+    state.pagination.pageIndex,
+  ])
 
   // Update column visibility when screen size changes
   React.useEffect(() => {

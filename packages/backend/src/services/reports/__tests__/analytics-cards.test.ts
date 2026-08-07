@@ -9,6 +9,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   ACQUISITION_MIX,
+  WAREHOUSE_PRODUCT_HISTORY,
   CATEGORY_PRESSURE,
   AVAILABILITY_SUMMARY,
   FRESH_ALLIANCE_CATEGORY_MIX,
@@ -87,10 +88,11 @@ describe('analytics card contract', () => {
       }
     }
     expect(csv.split('\r\n')[0].split(',')[0]).toBe(data.categoryColumn);
-    // A chart prints SVG, a KPI card prints HTML tiles — and Availability
-    // Summary prints both, because the screen shows both in one card. The
-    // assertion is that something was drawn, not which of the two it led with.
-    expect(svg.startsWith('<svg') || svg.startsWith('<div')).toBe(true);
+    // A chart prints SVG, a KPI card HTML tiles, a table an HTML table — and
+    // Availability Summary prints a chart *and* tiles, because the screen shows
+    // both in one card. The assertion is that something was drawn, not which
+    // form it led with.
+    expect(/^<(svg|div|table)[\s>]/.test(svg)).toBe(true);
   });
 
   it.each(ANALYTICS_CARDS)('$defaultTitle: chart depends on no stylesheet', card => {
@@ -531,5 +533,82 @@ describe('category pressure keeps its signals independent', () => {
     expect(data.categories).toEqual([]);
     expect(data.note).toContain('No category pressure was recorded');
     expect(() => CATEGORY_PRESSURE.print(data)).not.toThrow();
+  });
+});
+
+describe('table cards reproduce how the user configured the table', () => {
+  const analytics = {
+    warehouseProducts: [
+      { description: 'Chicken Thighs', productCode: 'C1', acquisitionClass: 'PURCHASED', receiptDateCount: 3, totalWeightHundredths: 100_00, totalSpendCents: 900_00, costPerPaidPoundCents: 900, lastReceivedDate: '2026-07-01' },
+      { description: 'Apples', productCode: 'A1', acquisitionClass: 'DONATED', receiptDateCount: 9, totalWeightHundredths: 500_00, totalSpendCents: 0, costPerPaidPoundCents: null, lastReceivedDate: '2026-07-05' },
+      { description: 'Chicken Wings', productCode: 'C2', acquisitionClass: 'PURCHASED', receiptDateCount: 1, totalWeightHundredths: 50_00, totalSpendCents: 300_00, costPerPaidPoundCents: 600, lastReceivedDate: '2026-06-01' },
+    ],
+  };
+
+  it('sorts on the underlying value, not the formatted text', () => {
+    // "$900.00" vs "$300.00" sorts correctly as text by luck; "$9" vs "$10"
+    // would not. Sorting always uses the raw number.
+    const data = WAREHOUSE_PRODUCT_HISTORY.data(analytics, {
+      sort: { id: 'totalSpendCents', desc: true },
+    });
+
+    expect(data.categories).toEqual(['Chicken Thighs', 'Chicken Wings', 'Apples']);
+  });
+
+  it('applies filter, then sort, then page — the order the table does', () => {
+    const data = WAREHOUSE_PRODUCT_HISTORY.data(analytics, {
+      search: 'chicken',
+      sort: { id: 'totalSpendCents', desc: false },
+      pageSize: 1,
+      pageIndex: 0,
+    });
+
+    expect(data.categories).toEqual(['Chicken Wings']);
+    expect(data.note).toContain('filtered to "chicken"');
+    expect(data.note).toContain('showing rows 1–1 of 2');
+  });
+
+  it('honours which columns the user left visible', () => {
+    const data = WAREHOUSE_PRODUCT_HISTORY.data(analytics, {
+      visibleColumns: ['description', 'totalWeightHundredths'],
+    });
+
+    expect(data.categoryColumn).toBe('Product');
+    expect(data.series.map(s => s.name)).toEqual(['Total Weight']);
+  });
+
+  it('keeps the em dash for an unpaid product', () => {
+    // $0.00 would read as "we paid nothing"; the dash says the charge does not
+    // apply, which is what a donated product means.
+    const data = WAREHOUSE_PRODUCT_HISTORY.data(analytics, { sort: { id: 'description', desc: false } });
+    const charges = data.series.find(s => s.name === 'Total Charges')!;
+
+    expect(charges.text![0]).toBe('—');
+  });
+
+  it('prints a hundred rows with a repeating header and unbroken rows', () => {
+    // A long table is a legitimate export. It has to survive page breaks.
+    const many = {
+      warehouseProducts: Array.from({ length: 100 }, (_, i) => ({
+        ...analytics.warehouseProducts[0],
+        description: `Product ${i}`,
+      })),
+    };
+    const html = WAREHOUSE_PRODUCT_HISTORY.print(
+      WAREHOUSE_PRODUCT_HISTORY.data(many, { pageSize: 100 })
+    );
+
+    expect((html.match(/<tr /g) ?? [])).toHaveLength(100);
+    expect(html).toContain('table-header-group');
+    expect(html).toContain('break-inside:avoid');
+  });
+
+  it('exports the same rows to CSV that it drew', () => {
+    const data = WAREHOUSE_PRODUCT_HISTORY.data(analytics, { search: 'chicken' });
+    const csv = cardCsv(data);
+
+    expect(csv.split('\r\n')[0]).toContain('Product');
+    expect(csv).toContain('Chicken Thighs');
+    expect(csv).not.toContain('Apples');
   });
 });

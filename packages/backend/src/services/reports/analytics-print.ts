@@ -210,6 +210,45 @@ export function groupedHBarSvg(
 }
 
 /**
+ * A print-ready table.
+ *
+ * HTML, not SVG: a table is text in a grid, and Chromium already lays that out
+ * with real typography, hyphenation, and page breaks. Drawing it as SVG would
+ * mean reimplementing text measurement to no benefit.
+ *
+ * `break-inside: avoid` on rows keeps a row off a page boundary, and the header
+ * repeats on each page via `thead` — the two things that make a long table
+ * usable on paper and that a screenshot of a web table never gives you.
+ */
+export function tableHtml(
+  headers: string[],
+  rows: string[][],
+  aligns: Array<'left' | 'right'> = []
+): string {
+  const th = headers
+    .map(
+      (h, i) =>
+        `<th style="text-align:${aligns[i] ?? 'left'};border-bottom:1.5px solid ${INK};padding:5px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:${MUTED};">${esc(h)}</th>`
+    )
+    .join('');
+  const tr = rows
+    .map(
+      row =>
+        `<tr style="break-inside:avoid;page-break-inside:avoid;">${row
+          .map(
+            (cell, i) =>
+              `<td style="text-align:${aligns[i] ?? 'left'};border-bottom:1px solid ${GRID};padding:5px 8px;font-size:11px;color:${INK};">${esc(cell)}</td>`
+          )
+          .join('')}</tr>`
+    )
+    .join('');
+  return `<table style="width:100%;border-collapse:collapse;font-family:Helvetica, Arial, sans-serif;">
+    <thead style="display:table-header-group;"><tr>${th}</tr></thead>
+    <tbody>${tr}</tbody>
+  </table>`;
+}
+
+/**
  * KPI tiles, as HTML rather than SVG.
  *
  * The report document is HTML on its way to Chromium, so text-only cards need
