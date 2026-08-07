@@ -12,6 +12,7 @@ import {
   lineChartSvg,
   stackedBarSvg,
   stackedHBarSvg,
+  groupedHBarSvg,
 } from './analytics-print';
 import { condenseTimeSeries, type Grain, type Series } from './condense';
 
@@ -728,6 +729,57 @@ export const FRESH_ALLIANCE_CATEGORY_MIX: AnalyticsCard = {
     stackedHBarSvg(data.categories, data.series) + legendSvg(data.series.map(s => s.name)),
 };
 
+
+/** Percent, or a dash where the signal could not be computed. */
+const percentLabel = (value: number | null): string =>
+  value === null || value === undefined ? '—' : `${value.toFixed(1)}%`;
+
+/**
+ * Category Pressure — four independent signals per category.
+ *
+ * Grouped bars, never stacked. The card's own description on screen calls these
+ * "independent service-pressure signals"; adding them together would produce a
+ * combined bar length that means nothing. This is the same judgement the
+ * seasonal card required in reverse: what the bars *are* decides the primitive,
+ * not what looks tidier.
+ *
+ * A null percent means the signal could not be computed for that category, not
+ * zero pressure. It prints as an em dash in the CSV and as no bar in the chart,
+ * which is what the screen does.
+ */
+export const CATEGORY_PRESSURE: AnalyticsCard = {
+  id: 'operations-category-pressure',
+  kind: 'chart',
+  defaultTitle: 'Category Pressure',
+  lens: 'operations',
+  data: (analytics: any) => {
+    const rows = analytics?.categoryPressure ?? [];
+    const defs: [string, string][] = [
+      ['Limited Supply', 'limitedSupplyServicePercent'],
+      ['Clearance', 'clearanceServicePercent'],
+      ['Item Limits', 'itemRationedServicePercent'],
+      ['Category Limits', 'categoryRationedServicePercent'],
+    ];
+
+    return {
+      title: 'Category Pressure',
+      categories: rows.map((r: any) => r.categoryName),
+      series: defs.map(([name, key]) => ({
+        name,
+        values: rows.map((r: any) => r[key] ?? 0),
+        text: rows.map((r: any) => percentLabel(r[key] ?? null)),
+      })),
+      categoryColumn: 'category',
+      note:
+        rows.length === 0
+          ? 'No category pressure was recorded in this range.'
+          : 'Independent signals — the four are not parts of one total.',
+    };
+  },
+  print: data =>
+    groupedHBarSvg(data.categories, data.series) + legendSvg(data.series.map(s => s.name)),
+};
+
 /** Registry. A card is exportable exactly when it appears here. */
 export const ANALYTICS_CARDS: AnalyticsCard[] = [
   INBOUND_SUPPLY_SUMMARY,
@@ -739,6 +791,7 @@ export const ANALYTICS_CARDS: AnalyticsCard[] = [
   SEASONAL_INBOUND_WEIGHT,
   FRESH_ALLIANCE_CATEGORY_MIX,
   AVAILABILITY_SUMMARY,
+  CATEGORY_PRESSURE,
 ];
 
 export const getAnalyticsCard = (id: string): AnalyticsCard | undefined =>

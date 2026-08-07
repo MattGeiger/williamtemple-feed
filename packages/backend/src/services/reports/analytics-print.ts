@@ -176,6 +176,40 @@ export function stackedHBarSvg(
 }
 
 /**
+ * Horizontal bars grouped, not stacked: several independent measures per row.
+ *
+ * The distinction matters and is not cosmetic. `stackedHBarSvg` is for parts of
+ * one whole, where bar length is a real total. These series are independent
+ * signals — Category Pressure's own description says so — and stacking them
+ * would produce a combined length that means nothing.
+ */
+export function groupedHBarSvg(
+  categories: string[],
+  series: Series[],
+  width = 900,
+  groupH = 13
+): string {
+  const labelW = 150, pad = 12, valueW = 8;
+  const chartW = width - labelW - pad - valueW;
+  const max = Math.max(1, ...series.flatMap(s => s.values));
+  const rowH = groupH * series.length + 8;
+  const height = categories.length * rowH + pad * 2;
+
+  const rows = categories.map((label, i) => {
+    const top = pad + i * rowH;
+    const bars = series.map((s, si) => {
+      const v = s.values[i] ?? 0;
+      const w = Math.max(0, (v / max) * chartW);
+      const y = top + si * groupH;
+      return `<rect x="${labelW}" y="${y}" width="${w.toFixed(1)}" height="${groupH - 3}" rx="1.5" fill="${PALETTE[si % PALETTE.length]}"/>`;
+    }).join('');
+    return `<text x="0" y="${top + (rowH - 8) / 2 + 4}" font-size="11" fill="${INK}">${esc(label)}</text>${bars}`;
+  }).join('');
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" font-family="Helvetica, Arial, sans-serif">${rows}</svg>`;
+}
+
+/**
  * KPI tiles, as HTML rather than SVG.
  *
  * The report document is HTML on its way to Chromium, so text-only cards need

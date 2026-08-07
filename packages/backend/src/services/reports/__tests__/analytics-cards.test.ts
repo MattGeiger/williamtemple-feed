@@ -9,6 +9,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   ACQUISITION_MIX,
+  CATEGORY_PRESSURE,
   AVAILABILITY_SUMMARY,
   FRESH_ALLIANCE_CATEGORY_MIX,
   SEASONAL_INBOUND_WEIGHT,
@@ -488,5 +489,47 @@ describe('fresh alliance category mix segments by donor', () => {
 
   it('includes every donor when no filter travelled', () => {
     expect(FRESH_ALLIANCE_CATEGORY_MIX.data(analytics).note).toBeNull();
+  });
+});
+
+describe('category pressure keeps its signals independent', () => {
+  const ops = {
+    categoryPressure: [
+      {
+        categoryName: 'Beans',
+        limitedSupplyServicePercent: 98,
+        clearanceServicePercent: 0,
+        itemRationedServicePercent: 100,
+        categoryRationedServicePercent: null,
+      },
+    ],
+  };
+
+  it('exposes four series, not one total', () => {
+    const data = CATEGORY_PRESSURE.data(ops);
+
+    // 98 + 0 + 100 sums past 100 because these measure different things. A
+    // stacked bar would render a length that means nothing.
+    expect(data.series.map(s => s.name)).toEqual([
+      'Limited Supply', 'Clearance', 'Item Limits', 'Category Limits',
+    ]);
+    expect(data.note).toContain('not parts of one total');
+  });
+
+  it('distinguishes "not computed" from zero', () => {
+    // A null percent means the signal could not be computed for that category.
+    // Printing it as 0% would assert no pressure, which is a different claim.
+    const data = CATEGORY_PRESSURE.data(ops);
+
+    expect(data.series[1].text![0]).toBe('0.0%');
+    expect(data.series[3].text![0]).toBe('—');
+  });
+
+  it('says so when nothing was recorded', () => {
+    const data = CATEGORY_PRESSURE.data({ categoryPressure: [] });
+
+    expect(data.categories).toEqual([]);
+    expect(data.note).toContain('No category pressure was recorded');
+    expect(() => CATEGORY_PRESSURE.print(data)).not.toThrow();
   });
 });

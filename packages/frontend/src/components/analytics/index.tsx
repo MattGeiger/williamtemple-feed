@@ -754,6 +754,7 @@ function ReportToolbar({ filters }: { filters: ReportFilterContext }) {
     'procurement-seasonal-inbound-weight': 'Seasonal Inbound Weight',
     'procurement-fresh-alliance-category-mix': 'Fresh Food Alliance Category Mix',
     'operations-availability-summary': 'Availability Summary',
+    'operations-category-pressure': 'Category Pressure',
   };
 
   return (
