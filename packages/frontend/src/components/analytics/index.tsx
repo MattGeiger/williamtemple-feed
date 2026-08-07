@@ -752,6 +752,8 @@ function ReportToolbar({ filters }: { filters: ReportFilterContext }) {
     'procurement-inbound-weight-over-time': 'Inbound Weight Over Time',
     'procurement-paid-product-spend': 'Where Paid Procurement Dollars Went',
     'procurement-seasonal-inbound-weight': 'Seasonal Inbound Weight',
+    'procurement-fresh-alliance-category-mix': 'Fresh Food Alliance Category Mix',
+    'operations-availability-summary': 'Availability Summary',
   };
 
   return (
@@ -854,10 +856,10 @@ export function AnalyticsWorkspace() {
               <TabsTrigger value="operations">Operations</TabsTrigger>
               <TabsTrigger value="procurement">Procurement</TabsTrigger>
             </TabsList>
-            {/* Only on the lens whose cards are registered. Offering it over
-                Operations would start a selection with nothing selectable —
-                this becomes unconditional once those cards are exportable. */}
-            {activeTab === 'procurement' && (
+            {/* Both lenses now have registered cards, so the action is
+                unconditional. Selection persists across the tabs, so a report
+                can mix Operations and Procurement cards. */}
+            {(
               <ReportToolbar
                 filters={{
                   preset: range.preset,
@@ -1623,7 +1625,11 @@ export function ProcurementAnalyticsWorkspace({
       )}
 
       {includesFreshAlliance && (
-        <Card className="min-w-0">
+        <SelectableBlock
+          cardId="procurement-fresh-alliance-category-mix"
+          options={{ donorCodes: selectedFreshAllianceDonors }}
+        >
+          <Card className="min-w-0">
           <CardHeader>
             <CardTitle>Fresh Food Alliance Category Mix</CardTitle>
             <CardDescription>
@@ -1712,7 +1718,8 @@ export function ProcurementAnalyticsWorkspace({
             )}
             <p className="mt-3 text-xs text-muted-foreground">Does not include legacy donations data.</p>
           </CardContent>
-        </Card>
+          </Card>
+        </SelectableBlock>
       )}
 
       {includesFreshAlliance && (

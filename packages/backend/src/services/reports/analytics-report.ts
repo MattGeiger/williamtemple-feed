@@ -50,7 +50,8 @@ const escapeHtml = (value: string): string =>
 /** The printed document. Cards keep the order they were selected in. */
 const documentHtml = (
   title: string,
-  analytics: { range: { startDate: string; endDate: string; preset: string; timeZone: string }; filters: { channel: string | null; acquisitionClass: string | null }; dataAsOf: string },
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  analytics: any,
   cards: { data: CardData; svg: string }[]
 ): string => `<!doctype html><html><head><meta charset="utf-8"><style>
   @page { size: letter landscape; margin: 0.5in; }
@@ -69,8 +70,13 @@ const documentHtml = (
   <header>
     <h1>${escapeHtml(title)}</h1>
     <div class="meta">
-      Range ${analytics.range.startDate} – ${analytics.range.endDate} (${analytics.range.preset}) · ${analytics.range.timeZone}<br>
-      Filters: channel ${analytics.filters.channel ?? 'all'} · acquisition class ${analytics.filters.acquisitionClass ?? 'all'}<br>
+      Range ${analytics.range.startDate} – ${analytics.range.endDate}${
+        analytics.range.preset ? ` (${analytics.range.preset})` : ''
+      } · ${analytics.range.timeZone}<br>${
+        analytics.filters
+          ? `Filters: channel ${analytics.filters.channel ?? 'all'} · acquisition class ${analytics.filters.acquisitionClass ?? 'all'}<br>`
+          : ''
+      }
       Data as of ${analytics.dataAsOf}
     </div>
   </header>
@@ -83,9 +89,23 @@ const documentHtml = (
     .join('')}
 </body></html>`;
 
-export async function buildAnalyticsReport(
+/**
+ * One payload per lens.
+ *
+ * Operations and Procurement are computed by different services with different
+ * range semantics — Operations resolves its range against the pantry's
+ * operating-hours timezone and applied schedule revisions. A card reads the
+ * payload for its own lens, so the two never have to agree on a shape.
+ */
+export interface LensPayloads {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  analytics: any,
+  procurement?: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  operations?: any;
+}
+
+export async function buildAnalyticsReport(
+  payloads: LensPayloads,
   request: AnalyticsReportRequest
 ): Promise<AnalyticsReportResult> {
   const ids = request.cardIds.slice(0, MAX_CARDS);
@@ -100,9 +120,19 @@ export async function buildAnalyticsReport(
       unknownCardIds.push(id);
       continue;
     }
-    const data = card.data(analytics, request.cardOptions?.[id]);
+    const payload = payloads[card.lens];
+    // A card whose lens was not loaded is a client bug, but it must not produce
+    // a plausible-looking empty chart: skip it and report it like a stale id.
+    if (!payload) {
+      unknownCardIds.push(id);
+      continue;
+    }
+    const data = card.data(payload, request.cardOptions?.[id]);
     resolved.push({ id, data, svg: card.print(data) });
   }
+
+  // Provenance is reported from whichever lens the report drew on.
+  const meta = payloads.procurement ?? payloads.operations ?? { dataAsOf: null, range: null };
 
   const zip = new JSZip();
 
@@ -114,7 +144,7 @@ export async function buildAnalyticsReport(
   }
 
   if (request.includePdf) {
-    const html = documentHtml(request.title, analytics, resolved);
+    const html = documentHtml(request.title, payloads.procurement ?? payloads.operations, resolved);
     const pdf = await renderHtmlToPdf(html, {
       width: '11in',
       height: '8.5in',
@@ -135,9 +165,9 @@ export async function buildAnalyticsReport(
       {
         title: request.title,
         generatedAt: new Date().toISOString(),
-        dataAsOf: analytics.dataAsOf,
-        range: analytics.range,
-        filters: analytics.filters,
+        dataAsOf: meta.dataAsOf,
+        range: meta.range,
+        filters: meta.filters ?? null,
         cards: resolved.map(c => ({ id: c.id, title: c.data.title, grain: c.data.grain ?? null, note: c.data.note })),
         csvGrain: request.csvGrain,
         cardOptions: request.cardOptions ?? {},
@@ -150,7 +180,7 @@ export async function buildAnalyticsReport(
 
   return {
     zip: await zip.generateAsync({ type: 'nodebuffer' }),
-    filename: `${slug(request.title)}-${analytics.range.startDate}-to-${analytics.range.endDate}.zip`,
+    filename: `${slug(request.title)}-${meta.range?.startDate}-to-${meta.range?.endDate}.zip`,
     unknownCardIds,
   };
 }
