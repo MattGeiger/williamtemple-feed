@@ -1047,6 +1047,160 @@ export const FRESH_ALLIANCE_RECEIPT_CATEGORIES: AnalyticsCard = {
   print: WAREHOUSE_PRODUCT_HISTORY.print,
 };
 
+
+/**
+ * Available Assortment Over Time.
+ *
+ * The combined assortment as an area, each category as a line inside it — the
+ * hierarchy the screen draws, and the reason the area matters: the total is the
+ * envelope, not another category.
+ *
+ * The card's category selector travels in `options.categoryId`. Choosing one
+ * category on screen drops the others *and* the combined area, because with a
+ * single category the two would be the same line drawn twice.
+ *
+ * Dates on the axis are `MMM d`, which the table standard exempts from the
+ * m/d/yyyy rule: an axis is a scale, not a record.
+ */
+export const AVAILABLE_ASSORTMENT_OVER_TIME: AnalyticsCard = {
+  id: 'operations-available-assortment',
+  kind: 'chart',
+  defaultTitle: 'Available Assortment Over Time',
+  lens: 'operations',
+  data: (analytics: any, options?: any) => {
+    const timeline = analytics?.timeline ?? [];
+    const allSeries = analytics?.assortmentCategorySeries ?? [];
+    const categoryId =
+      options?.categoryId === undefined || options?.categoryId === null || options?.categoryId === 'all'
+        ? null
+        : Number(options.categoryId);
+
+    const chosen =
+      categoryId === null
+        ? allSeries
+        : allSeries.filter((s: any) => s.categoryId === categoryId);
+
+    const axis = timeline.map((point: any) => {
+      const date = new Date(`${point.date}T00:00:00Z`);
+      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+    });
+
+    const series = [
+      // Combined first so the area renders behind the category lines. Dropped
+      // when one category is selected: it would duplicate that category's line.
+      ...(categoryId === null
+        ? [{ name: 'Combined', values: timeline.map((p: any) => p.available ?? 0) }]
+        : []),
+      ...chosen.map((s: any) => ({
+        name: s.categoryName,
+        values: timeline.map((p: any) => p.availableByCategory?.[String(s.categoryId)] ?? 0),
+      })),
+    ];
+
+    return {
+      title: 'Available Assortment Over Time',
+      categories: axis,
+      series,
+      categoryColumn: 'date',
+      note:
+        categoryId === null
+          ? null
+          : `Narrowed to ${chosen[0]?.categoryName ?? 'one category'}.`,
+    };
+  },
+  print: data =>
+    lineChartSvg(data.categories, data.series, 900, 300, true) +
+    legendSvg(data.series.map(s => s.name)),
+};
+
+
+/**
+ * `formatDateTime` from the frontend's shared formatter: `7/11/2026 3:04 PM`.
+ *
+ * Composed from two formatters joined by a space, exactly as
+ * `lib/formatting/date.ts` does. A single `toLocaleString` call is the obvious
+ * shortcut and produces `7/11/2026, 3:04 PM` — with a comma the screen never
+ * shows. That is the drift this whole contract exists to catch, and it got as
+ * far as a rendered CSV before being noticed.
+ */
+const dateTimeLabel = (iso: string | null | undefined): string => {
+  if (!iso) return '—';
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return String(iso);
+  const day = date.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+  });
+  const time = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  return `${day} ${time}`;
+};
+
+const RESOLUTION_LABELS: Record<string, string> = {
+  restored: 'Restored',
+  deleted: 'Item deleted',
+  open_at_range_end: 'Ongoing',
+};
+
+const episodeColumns: TableColumn<any>[] = [
+  { id: 'itemName', header: 'Name', text: r => r.itemName, sortValue: r => r.itemName, searchable: true },
+  { id: 'categoryName', header: 'Category', text: r => r.categoryName ?? '—', sortValue: r => r.categoryName ?? '', searchable: true },
+  { id: 'startedAt', header: 'Unavailable Since', text: r => dateTimeLabel(r.startedAt), sortValue: r => r.startedAt ?? '' },
+  {
+    id: 'endedAt',
+    header: 'Available Again',
+    // "Ongoing", not a blank: the episode has not ended, which is different
+    // from an unknown end. Sorted as the most recent end, matching the
+    // screen's sortingFn, so ongoing episodes group together at one end.
+    text: r => (r.endedAt ? dateTimeLabel(r.endedAt) : 'Ongoing'),
+    sortValue: r => r.endedAt ?? '\uFFFF',
+  },
+  { id: 'durationHours', header: 'Duration', align: 'right', text: r => durationLabel(r.durationHours), sortValue: r => r.durationHours ?? 0 },
+  { id: 'resolution', header: 'Resolution', text: r => RESOLUTION_LABELS[r.resolution] ?? r.resolution, sortValue: r => r.resolution },
+];
+
+const limitColumns: TableColumn<any>[] = [
+  { id: 'entityName', header: 'Name', text: r => r.entityName, sortValue: r => r.entityName, searchable: true },
+  { id: 'entityType', header: 'Type', text: r => (r.entityType === 'food_item' ? 'Food Item' : 'Category'), sortValue: r => r.entityType },
+  { id: 'categoryName', header: 'Category', text: r => r.categoryName ?? '—', sortValue: r => r.categoryName ?? '', searchable: true },
+  {
+    id: 'limit',
+    header: 'Limit',
+    align: 'right',
+    // "No Limit" is a real policy, not a missing value. Printing the sentinel
+    // number instead would read as a limit of that size.
+    text: r => (r.isNoLimit ? 'No Limit' : String(r.limit)),
+    sortValue: r => (r.isNoLimit ? Number.MAX_SAFE_INTEGER : (r.limit ?? 0)),
+  },
+  {
+    id: 'limitType',
+    header: 'Applies To',
+    text: r => (r.isNoLimit ? '—' : r.limitType === 'person' ? 'Per Person' : 'Per Household'),
+    sortValue: r => r.limitType ?? '',
+  },
+  { id: 'recordedAt', header: 'Changed', text: r => dateTimeLabel(r.recordedAt), sortValue: r => r.recordedAt ?? '' },
+];
+
+export const UNAVAILABLE_EPISODES: AnalyticsCard = {
+  id: 'operations-unavailable-episodes',
+  kind: 'table',
+  defaultTitle: 'Unavailable Episodes',
+  lens: 'operations',
+  data: (analytics: any, options?: any) =>
+    tableCardData('Unavailable Episodes', analytics?.episodes ?? [], episodeColumns, options),
+  print: WAREHOUSE_PRODUCT_HISTORY.print,
+};
+
+export const RATIONING_HISTORY: AnalyticsCard = {
+  id: 'operations-rationing-history',
+  kind: 'table',
+  defaultTitle: 'Rationing History',
+  lens: 'operations',
+  data: (analytics: any, options?: any) =>
+    tableCardData('Rationing History', analytics?.limitChanges ?? [], limitColumns, options),
+  print: WAREHOUSE_PRODUCT_HISTORY.print,
+};
+
 /** Registry. A card is exportable exactly when it appears here. */
 export const ANALYTICS_CARDS: AnalyticsCard[] = [
   INBOUND_SUPPLY_SUMMARY,
@@ -1059,8 +1213,11 @@ export const ANALYTICS_CARDS: AnalyticsCard[] = [
   FRESH_ALLIANCE_CATEGORY_MIX,
   AVAILABILITY_SUMMARY,
   CATEGORY_PRESSURE,
+  AVAILABLE_ASSORTMENT_OVER_TIME,
   WAREHOUSE_PRODUCT_HISTORY,
   FRESH_ALLIANCE_RECEIPT_CATEGORIES,
+  UNAVAILABLE_EPISODES,
+  RATIONING_HISTORY,
 ];
 
 export const getAnalyticsCard = (id: string): AnalyticsCard | undefined =>
