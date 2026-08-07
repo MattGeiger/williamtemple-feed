@@ -6,7 +6,15 @@
 // not covered by this license; see TRADEMARKS.md.
 
 import * as React from 'react';
-import { ArrowDown, ArrowUp, X } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import {
+  DragDropContext,
+  Draggable,
+  Droppable,
+  type DraggableProvided,
+  type DropResult,
+} from '@hello-pangea/dnd';
+import { ArrowDown, ArrowUp, GripVertical, X } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -63,7 +71,7 @@ export function AnalyticsReportDialog({
   filters: ReportFilterContext;
   onGenerated: () => void;
 }) {
-  const { selectedIds, moveCard, removeCard } = useReportSelection();
+  const { selectedIds, applySelection, moveCard, removeCard } = useReportSelection();
   const [title, setTitle] = React.useState('Procurement Report');
   const [includePdf, setIncludePdf] = React.useState(true);
   const [includeCsv, setIncludeCsv] = React.useState(true);
@@ -103,6 +111,68 @@ export function AnalyticsReportDialog({
     }
   };
 
+  const handleDragEnd = (result: DropResult) => {
+    if (!result.destination || result.destination.index === result.source.index) return;
+    const next = [...selectedIds];
+    const [moved] = next.splice(result.source.index, 1);
+    next.splice(result.destination.index, 0, moved);
+    applySelection(next);
+  };
+
+  const renderRow = (
+    cardId: string,
+    index: number,
+    provided: DraggableProvided,
+    isDragging: boolean
+  ) => (
+    <li
+      ref={provided.innerRef}
+      {...provided.draggableProps}
+      className={`flex items-center gap-2 rounded-md border bg-background px-3 py-2 text-sm ${
+        isDragging ? 'shadow-lg ring-2 ring-primary/40' : ''
+      }`}
+    >
+      <span
+        {...provided.dragHandleProps}
+        aria-label={`Reorder ${titles[cardId] ?? cardId}`}
+        className="cursor-grab text-muted-foreground active:cursor-grabbing"
+      >
+        <GripVertical className="h-4 w-4" />
+      </span>
+      <span className="w-5 shrink-0 tabular-nums text-muted-foreground">{index + 1}</span>
+      <span className="min-w-0 flex-1 truncate">{titles[cardId] ?? cardId}</span>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-7 w-7"
+        aria-label={`Move ${titles[cardId] ?? cardId} up`}
+        disabled={index === 0}
+        onClick={() => moveCard(cardId, -1)}
+      >
+        <ArrowUp className="h-4 w-4" />
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-7 w-7"
+        aria-label={`Move ${titles[cardId] ?? cardId} down`}
+        disabled={index === selectedIds.length - 1}
+        onClick={() => moveCard(cardId, 1)}
+      >
+        <ArrowDown className="h-4 w-4" />
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-7 w-7"
+        aria-label={`Remove ${titles[cardId] ?? cardId}`}
+        onClick={() => removeCard(cardId)}
+      >
+        <X className="h-4 w-4" />
+      </Button>
+    </li>
+  );
+
   return (
     <Dialog open={open} onOpenChange={next => !isGenerating && onOpenChange(next)}>
       <DialogContent className="sm:max-w-[560px]">
@@ -125,51 +195,51 @@ export function AnalyticsReportDialog({
           </div>
 
           {/* Order is meaningful: it is the order the cards appear in the PDF
-              and the number prefix on each CSV. */}
+              and the number prefix on each CSV.
+              
+              Drag is the primary interaction, but the move buttons stay. This
+              library ships a keyboard drag mode (space to lift, arrows to move,
+              space to drop) and it does NOT work inside a Radix dialog —
+              verified here with real key events: the lift never starts, the
+              order never changes, and no announcement fires. Removing the
+              buttons on the assumption that keyboard drag covers them would
+              have made this list pointer-only. */}
           <div className="space-y-2">
-            <Label>Included cards, in order</Label>
-            <ol className="space-y-1">
-              {selectedIds.map((cardId, index) => (
-                <li
-                  key={cardId}
-                  className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm"
-                >
-                  <span className="w-5 shrink-0 tabular-nums text-muted-foreground">
-                    {index + 1}
-                  </span>
-                  <span className="min-w-0 flex-1 truncate">{titles[cardId] ?? cardId}</span>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7"
-                    aria-label={`Move ${titles[cardId] ?? cardId} up`}
-                    disabled={index === 0}
-                    onClick={() => moveCard(cardId, -1)}
+            <Label id="card-order-label">Included cards, in order</Label>
+            <p className="text-xs text-muted-foreground">
+              Drag to reorder, or use the move buttons.
+            </p>
+            <DragDropContext onDragEnd={handleDragEnd}>
+              <Droppable
+                droppableId="report-cards"
+                renderClone={(provided, _snapshot, rubric) =>
+                  // Rendered into the body, not in place. Radix's dialog is
+                  // positioned with a transform, and a transformed ancestor
+                  // breaks position: fixed — without this the dragged card
+                  // follows the cursor at an offset.
+                  createPortal(
+                    renderRow(selectedIds[rubric.source.index], rubric.source.index, provided, true),
+                    document.body
+                  )
+                }
+              >
+                {droppable => (
+                  <ol
+                    ref={droppable.innerRef}
+                    {...droppable.droppableProps}
+                    aria-labelledby="card-order-label"
+                    className="space-y-1"
                   >
-                    <ArrowUp className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7"
-                    aria-label={`Move ${titles[cardId] ?? cardId} down`}
-                    disabled={index === selectedIds.length - 1}
-                    onClick={() => moveCard(cardId, 1)}
-                  >
-                    <ArrowDown className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7"
-                    aria-label={`Remove ${titles[cardId] ?? cardId}`}
-                    onClick={() => removeCard(cardId)}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </li>
-              ))}
-            </ol>
+                    {selectedIds.map((cardId, index) => (
+                      <Draggable key={cardId} draggableId={cardId} index={index}>
+                        {provided => renderRow(cardId, index, provided, false)}
+                      </Draggable>
+                    ))}
+                    {droppable.placeholder}
+                  </ol>
+                )}
+              </Droppable>
+            </DragDropContext>
           </div>
 
           <div className="space-y-3">
