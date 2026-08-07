@@ -23,6 +23,8 @@ export interface AnalyticsReportRequest {
   includePdf: boolean;
   includeCsv: boolean;
   csvGrain: 'condensed' | 'raw';
+  /** Per-card controls, frozen when selection began. */
+  cardOptions?: Record<string, unknown>;
   preset: string;
   startDate?: string;
   endDate?: string;
@@ -45,6 +47,7 @@ export interface AnalyticsTemplateRequest {
   includePdf: boolean;
   includeCsv: boolean;
   csvGrain: 'condensed' | 'raw';
+  cardOptions?: Record<string, unknown>;
 }
 
 export class AnalyticsReportsService extends BaseApiService {

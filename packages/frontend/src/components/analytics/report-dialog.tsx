@@ -77,7 +77,8 @@ export function AnalyticsReportDialog({
   filters: ReportFilterContext;
   onGenerated: () => void;
 }) {
-  const { selectedIds, applySelection, moveCard, removeCard } = useReportSelection();
+  const { selectedIds, applySelection, moveCard, removeCard, cardOptions } =
+    useReportSelection();
   const [title, setTitle] = React.useState('Procurement Report');
   const [includePdf, setIncludePdf] = React.useState(true);
   const [includeCsv, setIncludeCsv] = React.useState(true);
@@ -107,6 +108,7 @@ export function AnalyticsReportDialog({
           includePdf,
           includeCsv,
           csvGrain,
+          cardOptions: selectedOptions,
         });
       }
       await analyticsReportsService.downloadReport({
@@ -115,6 +117,7 @@ export function AnalyticsReportDialog({
         includePdf,
         includeCsv,
         csvGrain,
+        cardOptions: selectedOptions,
         preset: filters.preset,
         startDate: filters.startDate,
         endDate: filters.endDate,
@@ -132,6 +135,12 @@ export function AnalyticsReportDialog({
       setIsGenerating(false);
     }
   };
+
+  // Only the chosen cards' options travel; sending every card's state would
+  // put filters for cards nobody selected into the manifest.
+  const selectedOptions = Object.fromEntries(
+    selectedIds.filter(id => cardOptions[id] !== undefined).map(id => [id, cardOptions[id]])
+  );
 
   const handleDragEnd = (result: DropResult) => {
     if (!result.destination || result.destination.index === result.source.index) return;

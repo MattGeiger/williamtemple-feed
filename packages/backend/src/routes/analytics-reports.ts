@@ -8,6 +8,8 @@
 import { Router } from 'express';
 import { z } from 'zod';
 
+import { Prisma } from '@prisma/client';
+
 import prisma from '../db';
 
 import { rateLimiter } from '../middleware/rate-limiter';
@@ -38,6 +40,10 @@ const requestSchema = z
     includePdf: z.boolean().default(true),
     includeCsv: z.boolean().default(true),
     csvGrain: z.enum(['condensed', 'raw']).default('condensed'),
+    // Each card's own controls, keyed by card id. Unvalidated shape by design:
+    // a card owns the meaning of its options, and an unknown key is ignored
+    // rather than rejected so an older client stays compatible.
+    cardOptions: z.record(z.string(), z.unknown()).optional().default({}),
     // Mirrors the Analytics page's own query contract, so a report is generated
     // against exactly what the user was looking at.
     preset: z
@@ -100,6 +106,7 @@ const templateSchema = z
     includePdf: z.boolean().default(true),
     includeCsv: z.boolean().default(true),
     csvGrain: z.enum(['condensed', 'raw']).default('condensed'),
+    cardOptions: z.record(z.string(), z.unknown()).optional().default({}),
   })
   .strict();
 
@@ -147,9 +154,15 @@ router.post('/templates', rateLimiter, async (req, res, next) => {
         name: name.trim(),
         nameSearch: nameSearch(name),
         source: 'analytics',
-        templateData: { schemaVersion: 1, ...templateData },
+        // Cast at the boundary: cardOptions is deliberately `unknown`-valued,
+        // which Prisma's InputJsonValue cannot express. It is JSON by
+        // construction — it arrived as parsed JSON.
+        templateData: { schemaVersion: 1, ...templateData } as unknown as Prisma.InputJsonValue,
       },
-      update: { name: name.trim(), templateData: { schemaVersion: 1, ...templateData } },
+      update: {
+        name: name.trim(),
+        templateData: { schemaVersion: 1, ...templateData } as unknown as Prisma.InputJsonValue,
+      },
     });
     return res.status(201).json({ template });
   } catch (error) {
@@ -170,7 +183,8 @@ router.post('/export', rateLimiter, async (req, res, next) => {
       });
     }
 
-    const { cardIds, title, includePdf, includeCsv, csvGrain, ...filters } = parsed.data;
+    const { cardIds, title, includePdf, includeCsv, csvGrain, cardOptions, ...filters } =
+      parsed.data;
 
     // Refuse a request that names nothing renderable, rather than returning an
     // archive holding only a manifest of what went missing.
@@ -191,6 +205,7 @@ router.post('/export', rateLimiter, async (req, res, next) => {
       includePdf,
       includeCsv,
       csvGrain,
+      cardOptions,
     });
 
     res.setHeader('Content-Type', 'application/zip');

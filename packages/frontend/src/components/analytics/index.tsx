@@ -750,6 +750,7 @@ function ReportToolbar({ filters }: { filters: ReportFilterContext }) {
     'procurement-acquisition-mix': 'Acquisition Mix',
     'procurement-channels': 'Procurement Channels',
     'procurement-inbound-weight-over-time': 'Inbound Weight Over Time',
+    'procurement-paid-product-spend': 'Where Paid Procurement Dollars Went',
   };
 
   return (
@@ -1444,7 +1445,11 @@ export function ProcurementAnalyticsWorkspace({
       </SelectableBlock>}
 
       {selectedChannel !== 'fresh_alliance' && (
-        <Card className="min-w-0">
+        <SelectableBlock
+          cardId="procurement-paid-product-spend"
+          options={{ search: paidProductSearch }}
+        >
+          <Card className="min-w-0">
           <CardHeader>
             <CardTitle>Where Paid Procurement Dollars Went</CardTitle>
             <CardDescription>
@@ -1568,7 +1573,8 @@ export function ProcurementAnalyticsWorkspace({
               </div>
             )}
           </CardContent>
-        </Card>
+          </Card>
+        </SelectableBlock>
       )}
 
       {(includesWarehouse || allChannels) && (
