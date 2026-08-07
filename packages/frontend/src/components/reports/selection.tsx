@@ -28,6 +28,21 @@ import { MAX_REPORT_SELECTION } from "@/types/reports";
 interface ReportSelectionContextValue {
   isSelecting: boolean;
   selectedIds: string[];
+  /**
+   * Each card's own controls, frozen when selection began.
+   *
+   * Some cards carry state the page-level filters do not describe — a search
+   * box, a donor filter, a year picker. A report must reproduce what was on
+   * screen, so that state travels with the request.
+   *
+   * Frozen at `startSelecting`, not read at generate time: the modal offers no
+   * filter controls, so the run must mean what the page showed when the user
+   * chose to make a report. Changing a card's filter afterwards would otherwise
+   * silently rewrite a selection already made.
+   */
+  cardOptions: Record<string, unknown>;
+  /** Cards publish their current controls here; cheap, and never re-renders. */
+  registerOptions: (cardId: string, options: unknown) => void;
   startSelecting: () => void;
   cancelSelecting: () => void;
   toggleCard: (cardId: string) => void;
@@ -83,12 +98,24 @@ export function ReportSelectionProvider({
 }) {
   const [isSelecting, setIsSelecting] = React.useState(false);
   const [selectedIds, setSelectedIds] = React.useState<string[]>([]);
+  const [cardOptions, setCardOptions] = React.useState<Record<string, unknown>>({});
+  // A ref, not state: cards write on every render, and storing this in state
+  // would loop. Only the snapshot taken at startSelecting becomes state.
+  const liveOptions = React.useRef<Record<string, unknown>>({});
+  const registerOptions = React.useCallback((cardId: string, options: unknown) => {
+    liveOptions.current[cardId] = options;
+  }, []);
 
   const value = React.useMemo<ReportSelectionContextValue>(
     () => ({
       isSelecting,
       selectedIds,
-      startSelecting: () => setIsSelecting(true),
+      startSelecting: () => {
+        setCardOptions({ ...liveOptions.current });
+        setIsSelecting(true);
+      },
+      cardOptions,
+      registerOptions,
       cancelSelecting: () => {
         setIsSelecting(false);
         setSelectedIds([]);
@@ -127,7 +154,7 @@ export function ReportSelectionProvider({
         setIsSelecting(true);
       },
     }),
-    [isSelecting, selectedIds]
+    [isSelecting, selectedIds, cardOptions, registerOptions]
   );
 
   return (
@@ -146,13 +173,21 @@ export function SelectableBlock({
   children,
   variant = "card",
   className,
+  options,
 }: {
   cardId: string;
   children: React.ReactNode;
   variant?: "card" | "table";
   className?: string;
+  /** This card's own controls, when it has any the page filters do not cover. */
+  options?: unknown;
 }) {
   const selection = useOptionalReportSelection();
+  const registerOptions = selection?.registerOptions;
+  // Published during render rather than in an effect: startSelecting can fire
+  // before an effect has flushed, and a stale snapshot is the whole failure
+  // mode this exists to prevent.
+  if (registerOptions && options !== undefined) registerOptions(cardId, options);
   const isSelecting = selection?.isSelecting ?? false;
   const selectedIds = selection?.selectedIds ?? EMPTY_SELECTION;
   const toggleCard = selection?.toggleCard;

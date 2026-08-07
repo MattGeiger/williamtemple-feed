@@ -9,6 +9,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   ACQUISITION_MIX,
+  PAID_PRODUCT_SPEND,
   PAID_PROCUREMENT_SUMMARY,
   ANALYTICS_CARDS,
   INBOUND_WEIGHT_OVER_TIME,
@@ -296,5 +297,56 @@ describe('paid procurement summary follows the channel filter', () => {
     expect(data.categories).toEqual([]);
     expect(data.note).toContain('Not applicable to Fresh Food Alliance');
     expect(() => PAID_PROCUREMENT_SUMMARY.print(data)).not.toThrow();
+  });
+});
+
+describe('card-level options reach the report', () => {
+  const products = [
+    { description: 'Meat, Chicken Drumsticks', productCode: 'C1', totalSpendCents: 500_00 },
+    { description: 'Meals, Chili, Chicken', productCode: 'C2', totalSpendCents: 300_00 },
+    { description: 'Condiment, Vegetable Oil', productCode: 'V1', totalSpendCents: 900_00 },
+  ];
+  const analytics = { paidProducts: products };
+
+  it('shows the unfiltered ranking when the card had no query', () => {
+    const data = PAID_PRODUCT_SPEND.data(analytics);
+
+    expect(data.categories).toEqual([
+      'Meat, Chicken Drumsticks',
+      'Meals, Chili, Chicken',
+      'Condiment, Vegetable Oil',
+    ]);
+    expect(data.note).toBeNull();
+  });
+
+  it('applies the cardptions search, matching the screen', () => {
+    // Without this the report would show the full ranking while the screen
+    // showed two rows — right-looking and wrong.
+    const data = PAID_PRODUCT_SPEND.data(analytics, { search: 'chicken' });
+
+    expect(data.categories).toEqual(['Meat, Chicken Drumsticks', 'Meals, Chili, Chicken']);
+    expect(data.series[0].values).toEqual([500, 300]);
+  });
+
+  it('says on the card that it is filtered', () => {
+    // A filtered report that does not declare itself is the misread the whole
+    // parity contract exists to prevent.
+    const data = PAID_PRODUCT_SPEND.data(analytics, { search: 'chicken' });
+
+    expect(data.note).toContain('Filtered to "chicken"');
+    expect(data.note).toContain('2 matching products');
+  });
+
+  it('matches on product code as well as description', () => {
+    expect(PAID_PRODUCT_SPEND.data(analytics, { search: 'V1' }).categories).toEqual([
+      'Condiment, Vegetable Oil',
+    ]);
+  });
+
+  it('treats a blank or missing query as unfiltered', () => {
+    for (const options of [undefined, {}, { search: '' }, { search: '   ' }]) {
+      expect(PAID_PRODUCT_SPEND.data(analytics, options).categories).toHaveLength(3);
+      expect(PAID_PRODUCT_SPEND.data(analytics, options).note).toBeNull();
+    }
   });
 });

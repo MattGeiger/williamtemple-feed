@@ -97,7 +97,11 @@ export interface AnalyticsCard {
    * empty range where a chart renders nothing.
    */
   kind: 'chart' | 'kpi';
-  data(analytics: unknown): CardData;
+  /**
+   * @param options this card's own controls, frozen when selection began.
+   *   Cards whose state is fully described by the page filters ignore it.
+   */
+  data(analytics: unknown, options?: unknown): CardData;
   print(data: CardData): string;
 }
 
@@ -434,6 +438,77 @@ export const PAID_PROCUREMENT_SUMMARY: AnalyticsCard = {
     ),
 };
 
+
+/**
+ * Where Paid Procurement Dollars Went.
+ *
+ * The first card whose own control reaches the report. Its search box is not a
+ * page filter, so without `options` an export would show the unfiltered top 15
+ * while the screen showed three matching rows — a report that looks right and
+ * is not what was asked for.
+ *
+ * Mirrors the screen exactly: with a query, the matching products up to the
+ * search limit; without one, the top 15 by spend plus a grouped tail. The tail
+ * is grouped because individually those products are hairlines — the largest is
+ * about 1% of paid spend — so stacking them would be unreadable.
+ */
+const PAID_PRODUCT_SEARCH_LIMIT = 25;
+const PAID_PRODUCT_TOP_N = 15;
+
+export const PAID_PRODUCT_SPEND: AnalyticsCard = {
+  id: 'procurement-paid-product-spend',
+  kind: 'chart',
+  defaultTitle: 'Where Paid Procurement Dollars Went',
+  lens: 'procurement',
+  data: (analytics: any, options?: any) => {
+    const products = analytics?.paidProducts ?? [];
+    const query = String(options?.search ?? '').trim().toLocaleLowerCase();
+
+    let rows: { label: string; value: number }[];
+    let note: string | null = null;
+
+    if (query.length > 0) {
+      const matches = products.filter(
+        (p: any) =>
+          p.description.toLocaleLowerCase().includes(query) ||
+          p.productCode.toLocaleLowerCase().includes(query)
+      );
+      rows = matches
+        .slice(0, PAID_PRODUCT_SEARCH_LIMIT)
+        .map((p: any) => ({ label: p.description, value: p.totalSpendCents / 100 }));
+      // Stated on the card: a filtered report that does not say it is filtered
+      // is the misread this whole contract exists to prevent.
+      note =
+        `Filtered to "${options.search}" — ${matches.length} matching product` +
+        `${matches.length === 1 ? '' : 's'}` +
+        (matches.length > PAID_PRODUCT_SEARCH_LIMIT
+          ? `, showing the first ${PAID_PRODUCT_SEARCH_LIMIT}.`
+          : '.');
+    } else {
+      rows = products
+        .slice(0, PAID_PRODUCT_TOP_N)
+        .map((p: any) => ({ label: p.description, value: p.totalSpendCents / 100 }));
+      const tail = products.slice(PAID_PRODUCT_TOP_N);
+      const tailCents = tail.reduce((sum: number, p: any) => sum + p.totalSpendCents, 0);
+      if (tailCents > 0) {
+        rows.push({
+          label: `Other paid products (${tail.length} ${tail.length === 1 ? 'code' : 'codes'})`,
+          value: tailCents / 100,
+        });
+      }
+    }
+
+    return {
+      title: 'Where Paid Procurement Dollars Went',
+      categories: rows.map(r => r.label),
+      series: [{ name: 'spend_usd', values: rows.map(r => r.value) }],
+      categoryColumn: 'product',
+      note,
+    };
+  },
+  print: breakdownPrint,
+};
+
 /** Registry. A card is exportable exactly when it appears here. */
 export const ANALYTICS_CARDS: AnalyticsCard[] = [
   INBOUND_SUPPLY_SUMMARY,
@@ -441,6 +516,7 @@ export const ANALYTICS_CARDS: AnalyticsCard[] = [
   ACQUISITION_MIX,
   PROCUREMENT_CHANNELS,
   INBOUND_WEIGHT_OVER_TIME,
+  PAID_PRODUCT_SPEND,
 ];
 
 export const getAnalyticsCard = (id: string): AnalyticsCard | undefined =>

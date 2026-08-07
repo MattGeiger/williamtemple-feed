@@ -30,6 +30,8 @@ export interface AnalyticsReportRequest {
   includePdf: boolean;
   includeCsv: boolean;
   csvGrain: CsvGrain;
+  /** Per-card controls, frozen client-side when selection began. */
+  cardOptions?: Record<string, unknown>;
 }
 
 export interface AnalyticsReportResult {
@@ -98,7 +100,7 @@ export async function buildAnalyticsReport(
       unknownCardIds.push(id);
       continue;
     }
-    const data = card.data(analytics);
+    const data = card.data(analytics, request.cardOptions?.[id]);
     resolved.push({ id, data, svg: card.print(data) });
   }
 
@@ -138,6 +140,7 @@ export async function buildAnalyticsReport(
         filters: analytics.filters,
         cards: resolved.map(c => ({ id: c.id, title: c.data.title, grain: c.data.grain ?? null, note: c.data.note })),
         csvGrain: request.csvGrain,
+        cardOptions: request.cardOptions ?? {},
         unknownCardIds,
       },
       null,
