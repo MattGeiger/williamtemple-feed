@@ -5,7 +5,7 @@
 // under AGPL-3.0-or-later; see LICENSE. William Temple House branding is
 // not covered by this license; see TRADEMARKS.md.
 
-import { hBarSvg, kpiGrid, legendSvg, stackedBarSvg } from './analytics-print';
+import { hBarSvg, kpiGrid, legendSvg, lineChartSvg, stackedBarSvg } from './analytics-print';
 import { condenseTimeSeries, type Grain, type Series } from './condense';
 
 /**
@@ -509,6 +509,72 @@ export const PAID_PRODUCT_SPEND: AnalyticsCard = {
   print: breakdownPrint,
 };
 
+
+const MONTH_LABELS = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+];
+
+/**
+ * Seasonal Inbound Weight — twelve months across, one series per compared year.
+ *
+ * Not a time series: the x-axis is the calendar month, so it never condenses.
+ * Twelve categories are always printable.
+ *
+ * Two card-level controls travel in `options`:
+ *
+ * - `channel` — the card offers its own breakdown *only* when the page filter
+ *   is All Channels; otherwise the payload is already scoped and a second
+ *   control could contradict the filter visible at the top of the page
+ *   (procurement-unification-plan.md: one source of truth). The client sends
+ *   the effective value, so that resolution is not duplicated here.
+ * - `years` — which calendar years are being compared. Absent, nothing is
+ *   drawn, because "all years" is not what the screen shows either: it shows
+ *   the years the user selected.
+ */
+export const SEASONAL_INBOUND_WEIGHT: AnalyticsCard = {
+  id: 'procurement-seasonal-inbound-weight',
+  kind: 'chart',
+  defaultTitle: 'Seasonal Inbound Weight',
+  lens: 'procurement',
+  data: (analytics: any, options?: any) => {
+    const channel: string = options?.channel ?? 'all';
+    const years: string[] = Array.isArray(options?.years) ? options.years : [];
+
+    // Same source split the screen uses: the all-channel series is
+    // pre-aggregated, the per-channel one is not and must be summed.
+    const points =
+      channel === 'all'
+        ? (analytics?.seasonalWeight ?? []).map((p: any) => ({ ...p, channel: 'all' }))
+        : (analytics?.seasonalChannelWeight ?? []).filter((p: any) => p.channel === channel);
+
+    const series = years.map(year => {
+      const values = new Array(12).fill(0);
+      for (const point of points) {
+        if (String(point.year) !== String(year)) continue;
+        values[point.month - 1] += toPounds(point.weightHundredths);
+      }
+      return { name: year, values };
+    });
+
+    return {
+      title: 'Seasonal Inbound Weight',
+      categories: MONTH_LABELS,
+      series,
+      categoryColumn: 'month',
+      note:
+        years.length === 0
+          ? 'No calendar years were selected for comparison, so this card is empty.'
+          : channel === 'all'
+            ? null
+            : `${CHANNEL_LABELS[channel] ?? channel} only.`,
+    };
+  },
+  // Lines, not stacked bars: stacking years would sum unrelated periods into a
+  // total the screen never shows and nobody asked for.
+  print: data =>
+    lineChartSvg(data.categories, data.series) + legendSvg(data.series.map(s => s.name)),
+};
+
 /** Registry. A card is exportable exactly when it appears here. */
 export const ANALYTICS_CARDS: AnalyticsCard[] = [
   INBOUND_SUPPLY_SUMMARY,
@@ -517,6 +583,7 @@ export const ANALYTICS_CARDS: AnalyticsCard[] = [
   PROCUREMENT_CHANNELS,
   INBOUND_WEIGHT_OVER_TIME,
   PAID_PRODUCT_SPEND,
+  SEASONAL_INBOUND_WEIGHT,
 ];
 
 export const getAnalyticsCard = (id: string): AnalyticsCard | undefined =>
