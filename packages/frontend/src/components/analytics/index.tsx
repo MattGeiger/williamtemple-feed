@@ -745,6 +745,7 @@ function ReportToolbar({ filters }: { filters: ReportFilterContext }) {
 
   const titles: Record<string, string> = {
     'procurement-inbound-supply-summary': 'Inbound Supply Summary',
+    'procurement-paid-summary': 'Paid Procurement Summary',
     'procurement-acquisition-mix': 'Acquisition Mix',
     'procurement-channels': 'Procurement Channels',
     'procurement-inbound-weight-over-time': 'Inbound Weight Over Time',
@@ -1419,7 +1420,8 @@ export function ProcurementAnalyticsWorkspace({
         </Card>
       </SelectableBlock>
 
-      {selectedChannel !== 'fresh_alliance' && <Card>
+      {selectedChannel !== 'fresh_alliance' && <SelectableBlock cardId="procurement-paid-summary">
+        <Card>
         <CardHeader>
           <CardTitle>Paid Procurement Summary</CardTitle>
           <CardDescription>
@@ -1434,7 +1436,8 @@ export function ProcurementAnalyticsWorkspace({
           <ProcurementKpi label="Grants Applied" value={attributableDollars(summary.grantsAppliedCents)} />
           <ProcurementKpi label="Net Recorded Charge" value={attributableDollars(summary.netRecordedCostCents)} />
         </CardContent>
-      </Card>}
+        </Card>
+      </SelectableBlock>}
 
       {selectedChannel !== 'fresh_alliance' && (
         <Card className="min-w-0">
