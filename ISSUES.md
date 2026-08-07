@@ -513,6 +513,14 @@ shared with the live Shopping List Builder, so puppeteer and the HTML-to-PDF
 layer are exercised in production every time a builder PDF is generated. Only
 the report-specific layer above it is cold.
 
+**Removed 2026-08-06 (beta.8):** `frontend/src/components/dashboard/logistics-cards.tsx`
+(110 lines, last touched `a60951b`, 2026-07-11). Imported by nothing — not the
+path, not the symbol, not a test. It rendered Projected Stockouts, Quantity
+Coverage, Median Days of Cover, and Known 30-Day Replenishment Cost as
+`SelectableBlock`s on the Dashboard: four of the exact claims RITE rejected,
+one reconnection away from being live again. Recoverable from `a60951b` if the
+selection integration is ever wanted, but the cards it wrapped are not.
+
 The probe was reverted; nothing is mounted. The first watchpoint below is the
 live concern — `/query` still returns `projectedStockoutsWithinHorizon`,
 `medianDaysOfCover`, and `daysOfCoverBands`, and the item CSV still carries
