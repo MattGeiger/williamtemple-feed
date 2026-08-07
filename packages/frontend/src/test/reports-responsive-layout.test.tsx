@@ -87,7 +87,12 @@ describe('Operational Analytics phone-width layout contract', () => {
     expect(screen.getByRole('tab', { name: '90d' })).toHaveAttribute('data-state', 'active');
     expect(screen.getByRole('button', { name: 'Custom range' })).toHaveClass('w-full');
     expect(screen.getByRole('combobox', { name: 'Assortment Category' })).toHaveClass('w-full');
-    expect(screen.getByRole('button', { name: 'Export Raw History' })).toBeInTheDocument();
+    // The rejected pattern, asserted absent rather than deleted from the test.
+    // Per-card "Export CSV" and this page-level "Export Raw History" cluttered
+    // the surface and obscured how to produce a report; the chosen flow is one
+    // "Generate Report" action into a selection mode and a single modal.
+    expect(screen.queryByRole('button', { name: 'Export Raw History' })).toBeNull();
+    expect(screen.queryAllByRole('button', { name: 'Export CSV' })).toHaveLength(0);
     expect(screen.getAllByRole('tablist')).toHaveLength(2);
 
     const wrapper = container.firstElementChild as HTMLElement;
