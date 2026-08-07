@@ -350,9 +350,94 @@ export const INBOUND_SUPPLY_SUMMARY: AnalyticsCard = {
     ),
 };
 
+
+/** `dollars()` on the screen. Locale pinned — see the note below. */
+const dollarsLabel = (cents: number): string =>
+  (cents / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+
+/** `attributableDollars()`: null means the figure cannot be attributed. */
+const attributableDollarsLabel = (cents: number | null): string =>
+  cents === null || cents === undefined ? 'Not attributable' : dollarsLabel(cents);
+
+/**
+ * Paid Procurement Summary.
+ *
+ * Absent entirely when the channel filter is Fresh Alliance, matching the
+ * screen: those are donation receipts, so product charges do not apply. An
+ * empty cost card there would imply the charges were zero rather than absent.
+ *
+ * Three of the four figures are nullable on purpose. Service fees, grants, and
+ * net cost sit on the order, not the product line, so under an acquisition-class
+ * filter they cannot be attributed to one class — the screen says "Not
+ * attributable" rather than showing a number that would be a guess, and so does
+ * the report.
+ *
+ * The screen formats these with `toLocaleString(undefined, ...)`, so its
+ * currency grouping follows the viewer's locale. This pins en-US: a report is a
+ * document that gets filed and re-read, and the same export should not differ
+ * by who generated it. That leaves a small screen/report difference on
+ * non-en-US browsers, which is the screen's drift to fix, not the report's to
+ * copy.
+ */
+export const PAID_PROCUREMENT_SUMMARY: AnalyticsCard = {
+  id: 'procurement-paid-summary',
+  kind: 'kpi',
+  defaultTitle: 'Paid Procurement Summary',
+  lens: 'procurement',
+  data: (analytics: any) => {
+    const summary = analytics?.summary ?? {};
+    const isFreshAlliance = analytics?.filters?.channel === 'fresh_alliance';
+
+    const tiles: { label: string; value: number | null; text: string }[] = isFreshAlliance
+      ? []
+      : [
+          {
+            label: 'Gross Product Charges',
+            value: summary.calculatedGrossProductChargesCents ?? 0,
+            text: dollarsLabel(summary.calculatedGrossProductChargesCents ?? 0),
+          },
+          {
+            label: 'Service Fees',
+            value: summary.serviceFeesCents ?? null,
+            text: attributableDollarsLabel(summary.serviceFeesCents ?? null),
+          },
+          {
+            label: 'Grants Applied',
+            value: summary.grantsAppliedCents ?? null,
+            text: attributableDollarsLabel(summary.grantsAppliedCents ?? null),
+          },
+          {
+            label: 'Net Recorded Charge',
+            value: summary.netRecordedCostCents ?? null,
+            text: attributableDollarsLabel(summary.netRecordedCostCents ?? null),
+          },
+        ];
+
+    return {
+      title: 'Paid Procurement Summary',
+      categories: tiles.map(t => t.label),
+      series: [
+        { name: 'value_cents', values: tiles.map(t => t.value ?? 0), text: tiles.map(t => t.text) },
+      ],
+      categoryColumn: 'metric',
+      note: isFreshAlliance
+        ? 'Not applicable to Fresh Food Alliance, which records donations rather than purchases.'
+        : null,
+    };
+  },
+  print: data =>
+    kpiGrid(
+      data.categories.map((label, i) => ({
+        label,
+        value: data.series[0]?.text?.[i] ?? String(data.series[0]?.values[i] ?? ''),
+      }))
+    ),
+};
+
 /** Registry. A card is exportable exactly when it appears here. */
 export const ANALYTICS_CARDS: AnalyticsCard[] = [
   INBOUND_SUPPLY_SUMMARY,
+  PAID_PROCUREMENT_SUMMARY,
   ACQUISITION_MIX,
   PROCUREMENT_CHANNELS,
   INBOUND_WEIGHT_OVER_TIME,

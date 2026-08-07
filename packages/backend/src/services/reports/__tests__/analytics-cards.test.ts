@@ -9,6 +9,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   ACQUISITION_MIX,
+  PAID_PROCUREMENT_SUMMARY,
   ANALYTICS_CARDS,
   INBOUND_WEIGHT_OVER_TIME,
   PROCUREMENT_CHANNELS,
@@ -252,5 +253,48 @@ describe('time-series card follows the channel filter, as the screen does', () =
     expect(INBOUND_WEIGHT_OVER_TIME.data(withCommunity).series.map(s => s.name)).toContain(
       'Donations (Legacy Data)'
     );
+  });
+});
+
+describe('paid procurement summary follows the channel filter', () => {
+  const costs = {
+    summary: {
+      calculatedGrossProductChargesCents: 1_234_500,
+      serviceFeesCents: 45_600,
+      grantsAppliedCents: null,
+      netRecordedCostCents: null,
+    },
+    filters: { channel: null },
+  };
+
+  it('formats currency and says when a figure cannot be attributed', () => {
+    const data = PAID_PROCUREMENT_SUMMARY.data(costs);
+    const text = data.series[0].text!;
+
+    expect(text[0]).toBe('$12,345.00');
+    expect(text[1]).toBe('$456.00');
+    // Order-level figures under an acquisition filter: the screen refuses to
+    // guess, and so does the report.
+    expect(text[2]).toBe('Not attributable');
+    expect(text[3]).toBe('Not attributable');
+  });
+
+  it('pins the locale so the same export does not vary by who made it', () => {
+    // The screen uses toLocaleString(undefined, ...). A filed document must not
+    // depend on the generating browser.
+    expect(PAID_PROCUREMENT_SUMMARY.data(costs).series[0].text![0]).toBe('$12,345.00');
+  });
+
+  it('is empty for Fresh Alliance, and says why', () => {
+    // Donation receipts have no product charges. Zeroes would read as "we paid
+    // nothing" rather than "this does not apply".
+    const data = PAID_PROCUREMENT_SUMMARY.data({
+      ...costs,
+      filters: { channel: 'fresh_alliance' },
+    });
+
+    expect(data.categories).toEqual([]);
+    expect(data.note).toContain('Not applicable to Fresh Food Alliance');
+    expect(() => PAID_PROCUREMENT_SUMMARY.print(data)).not.toThrow();
   });
 });
