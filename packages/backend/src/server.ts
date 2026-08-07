@@ -27,6 +27,7 @@ import systemPromptsRouter from './routes/system-prompts';
 import systemRouter from './routes/system';
 import publicInventoryRouter from './routes/public-inventory';
 import operationalReportsRouter from './routes/operational-reports';
+import analyticsReportsRouter from './routes/analytics-reports';
 import settingsRouter from './routes/settings';
 import procurementRouter from './routes/procurement';
 import authTestRouter from './routes/auth-test';
@@ -96,6 +97,9 @@ export const createServer = () => {
   app.use('/api/categories', categoriesRouter);
   app.use('/api/food-items', foodItemsRouter);
   app.use('/api/reports', operationalReportsRouter);
+  // Report generation for the Analytics lenses. Separate from /api/reports so
+  // it cannot inherit the dormant registry's rejected claims (ISSUES #46).
+  app.use('/api/analytics-reports', analyticsReportsRouter);
   app.use('/api/settings', settingsRouter);
   app.use('/api/procurement', procurementRouter);
   app.use('/api/languages', languagesRouter);

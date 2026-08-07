@@ -1,0 +1,129 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Matt Geiger
+//
+// FEED — Food Equity & Efficient Delivery. Application code licensed
+// under AGPL-3.0-or-later; see LICENSE. William Temple House branding is
+// not covered by this license; see TRADEMARKS.md.
+
+import { Router } from 'express';
+import { z } from 'zod';
+
+import { rateLimiter } from '../middleware/rate-limiter';
+import { getProcurementAnalytics } from '../services/procurement';
+import { ANALYTICS_CARDS, getAnalyticsCard } from '../services/reports/analytics-cards';
+import { buildAnalyticsReport } from '../services/reports/analytics-report';
+import { isValidLocalDate } from '../services/inventory-analytics/timezone';
+
+/**
+ * Report generation for the Analytics lenses.
+ *
+ * Mounted separately from `/api/reports`, which belongs to the operational
+ * workspace, and from the dormant `routes/reports.ts`, whose card registry
+ * still describes the claims RITE rejected (ISSUES #46). This route only knows
+ * `ANALYTICS_CARDS` — every card it can render is one Analytics already shows,
+ * so the report makes no claim the screen does not.
+ *
+ * One endpoint, one archive. There is deliberately no per-card export: that was
+ * the workflow rejected during ideation.
+ */
+const router = Router();
+
+const requestSchema = z
+  .object({
+    // Selection order is report order, so this array is ordered, not a set.
+    cardIds: z.array(z.string().min(1)).min(1).max(8),
+    title: z.string().trim().min(1).max(120).default('FEED Analytics Report'),
+    includePdf: z.boolean().default(true),
+    includeCsv: z.boolean().default(true),
+    csvGrain: z.enum(['condensed', 'raw']).default('condensed'),
+    // Mirrors the Analytics page's own query contract, so a report is generated
+    // against exactly what the user was looking at.
+    preset: z
+      .enum(['last-7-days', 'last-30-days', 'last-90-days', 'ytd', 'all', 'custom'])
+      .default('last-90-days'),
+    startDate: z.string().optional(),
+    endDate: z.string().optional(),
+    channel: z.enum(['ofb_warehouse', 'fresh_alliance']).optional(),
+    acquisitionClass: z.enum(['DONATED', 'PURCH-DON', 'GOVERNMENT', 'PURCHASED']).optional(),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    if (!value.includePdf && !value.includeCsv) {
+      context.addIssue({
+        code: 'custom',
+        path: ['includePdf'],
+        message: 'Choose PDF, CSV, or both.',
+      });
+    }
+    if (value.preset === 'custom') {
+      if (!value.startDate || !isValidLocalDate(value.startDate)) {
+        context.addIssue({ code: 'custom', path: ['startDate'], message: 'Choose a valid start date.' });
+      }
+      if (!value.endDate || !isValidLocalDate(value.endDate)) {
+        context.addIssue({ code: 'custom', path: ['endDate'], message: 'Choose a valid end date.' });
+      }
+    }
+  });
+
+/** What the client can offer for selection. */
+router.get('/cards', rateLimiter, (_req, res) => {
+  res.json({
+    cards: ANALYTICS_CARDS.map(card => ({
+      id: card.id,
+      title: card.defaultTitle,
+      lens: card.lens,
+      kind: card.kind,
+    })),
+  });
+});
+
+router.post('/export', rateLimiter, async (req, res, next) => {
+  try {
+    const parsed = requestSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: {
+          message: parsed.error.issues.map(issue => issue.message).join(' '),
+          code: 'INVALID_REPORT_REQUEST',
+          details: parsed.error.issues,
+        },
+      });
+    }
+
+    const { cardIds, title, includePdf, includeCsv, csvGrain, ...filters } = parsed.data;
+
+    // Refuse a request that names nothing renderable, rather than returning an
+    // archive holding only a manifest of what went missing.
+    const known = cardIds.filter(id => getAnalyticsCard(id));
+    if (known.length === 0) {
+      return res.status(400).json({
+        error: {
+          message: 'None of the selected cards can be exported. Reselect and try again.',
+          code: 'NO_EXPORTABLE_CARDS',
+        },
+      });
+    }
+
+    const analytics = await getProcurementAnalytics(filters);
+    const report = await buildAnalyticsReport(analytics, {
+      cardIds,
+      title,
+      includePdf,
+      includeCsv,
+      csvGrain,
+    });
+
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="${report.filename}"`);
+    // Lets the client tell the user which saved cards no longer exist without
+    // opening the archive.
+    if (report.unknownCardIds.length > 0) {
+      res.setHeader('X-Unknown-Card-Ids', report.unknownCardIds.join(','));
+    }
+    return res.send(report.zip);
+  } catch (error) {
+    return next(error);
+  }
+});
+
+export default router;

@@ -37,6 +37,9 @@ interface ReportSelectionContextValue {
   applySelection: (cardIds: string[]) => void;
 }
 
+/** Stable empty array: a new literal each render would churn dependent effects. */
+const EMPTY_SELECTION: string[] = [];
+
 const ReportSelectionContext =
   React.createContext<ReportSelectionContextValue | null>(null);
 
@@ -49,6 +52,20 @@ const hashString = (value: string): number => {
   return hash;
 };
 
+/**
+ * Selection state, or `null` outside a provider.
+ *
+ * `SelectableBlock` uses this rather than the throwing hook: selection is an
+ * enhancement, so wrapping a card in it must never decide whether the page
+ * renders. Twelve Analytics tests mount the procurement workspace directly,
+ * with no report context, and a page has no business crashing because a
+ * reporting feature is absent.
+ */
+export function useOptionalReportSelection(): ReportSelectionContextValue | null {
+  return React.useContext(ReportSelectionContext);
+}
+
+/** Selection state, required. For the toolbar and modal, which cannot work without it. */
 export function useReportSelection(): ReportSelectionContextValue {
   const context = React.useContext(ReportSelectionContext);
   if (!context) {
@@ -135,7 +152,10 @@ export function SelectableBlock({
   variant?: "card" | "table";
   className?: string;
 }) {
-  const { isSelecting, selectedIds, toggleCard } = useReportSelection();
+  const selection = useOptionalReportSelection();
+  const isSelecting = selection?.isSelecting ?? false;
+  const selectedIds = selection?.selectedIds ?? EMPTY_SELECTION;
+  const toggleCard = selection?.toggleCard;
   const contentRef = React.useRef<HTMLDivElement>(null);
   const selectedIndex = selectedIds.indexOf(cardId);
   const isSelected = selectedIndex >= 0;
@@ -161,11 +181,11 @@ export function SelectableBlock({
       aria-checked={isSelected}
       aria-label={`Select report block ${cardId}`}
       tabIndex={0}
-      onClick={() => toggleCard(cardId)}
+      onClick={() => toggleCard?.(cardId)}
       onKeyDown={(event) => {
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
-          toggleCard(cardId);
+          toggleCard?.(cardId);
         }
       }}
       className={cn(
