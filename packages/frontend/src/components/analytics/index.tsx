@@ -98,6 +98,12 @@ import type { AnalyticsDateRange } from '@/types/analytics';
 import { DEFAULT_ANALYTICS_RANGE } from '@/types/analytics';
 import { CommunityDonationAnalytics } from './community-analytics';
 import { DonorAnalytics } from './donor-analytics';
+import {
+  ReportSelectionProvider,
+  SelectableBlock,
+  useReportSelection,
+} from '@/components/reports/selection';
+import { AnalyticsReportDialog, type ReportFilterContext } from './report-dialog';
 import { SortableHeader } from "@/components/ui/sortable-header"
 import { formatDate } from '@/lib/formatting/date';
 
@@ -147,6 +153,15 @@ const channelLabels: Record<ProcurementChannel, string> = {
 };
 
 const monthLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/** Plain wording for the range, shown in the report modal. */
+const RANGE_SUMMARY_LABELS: Record<string, string> = {
+  'last-7-days': 'Last 7 days',
+  'last-30-days': 'Last 30 days',
+  'last-90-days': 'Last 90 days',
+  ytd: 'Year to date',
+  all: 'All recorded history',
+};
 const toPounds = (hundredths: number) => hundredths / 100;
 // Dates in tables come from the shared formatter (lib/formatting/date). This
 // used to be a local helper whose comment claimed FEED's standard was
@@ -714,6 +729,58 @@ function PaidProductSearch({
   );
 }
 
+/**
+ * The ZEV entry point: one action, not a button per card.
+ *
+ * "Generate Report" puts the page into selection mode; cards wiggle and take an
+ * order number as they are picked; "Review N cards" opens the single modal that
+ * chooses PDF and/or CSV. The per-card export buttons this replaces were
+ * rejected during ideation for cluttering the surface and obscuring how to
+ * produce a report at all.
+ */
+function ReportToolbar({ filters }: { filters: ReportFilterContext }) {
+  const { isSelecting, selectedIds, startSelecting, cancelSelecting, clearSelection } =
+    useReportSelection();
+  const [dialogOpen, setDialogOpen] = React.useState(false);
+
+  const titles: Record<string, string> = {
+    'procurement-inbound-supply-summary': 'Inbound Supply Summary',
+    'procurement-acquisition-mix': 'Acquisition Mix',
+    'procurement-channels': 'Procurement Channels',
+    'procurement-inbound-weight-over-time': 'Inbound Weight Over Time',
+  };
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      {!isSelecting ? (
+        <Button variant="outline" size="sm" onClick={startSelecting}>
+          Generate Report
+        </Button>
+      ) : (
+        <>
+          <Button size="sm" disabled={selectedIds.length === 0} onClick={() => setDialogOpen(true)}>
+            Review {selectedIds.length} card{selectedIds.length === 1 ? '' : 's'}
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => { clearSelection(); cancelSelecting(); }}>
+            Cancel
+          </Button>
+          <span className="text-sm text-muted-foreground">
+            Choose the cards to include, in order.
+          </span>
+        </>
+      )}
+
+      <AnalyticsReportDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        titles={titles}
+        filters={filters}
+        onGenerated={() => { clearSelection(); cancelSelecting(); }}
+      />
+    </div>
+  );
+}
+
 export function AnalyticsWorkspace() {
   const [searchParams, setSearchParams] = useSearchParams();
   const searchKey = searchParams.toString();
@@ -733,6 +800,17 @@ export function AnalyticsWorkspace() {
     setSearchParams(next, { replace: true });
   }, [searchParams, setSearchParams]);
 
+  // The report is generated against exactly what the page is showing, so both
+  // come from the URL — the same source ProcurementAnalyticsWorkspace reads.
+  const reportChannel = (() => {
+    const value = searchParams.get('channel');
+    return value === 'ofb_warehouse' || value === 'fresh_alliance' ? value : undefined;
+  })();
+  const reportRangeSummary =
+    range.preset === 'custom' && range.startDate && range.endDate
+      ? `${range.startDate} – ${range.endDate}`
+      : RANGE_SUMMARY_LABELS[range.preset] ?? range.preset;
+
   const setActiveTab = (tab: string) => updateSearchParams((next) => {
     if (tab === 'procurement') next.set('tab', tab);
     else next.delete('tab');
@@ -750,6 +828,7 @@ export function AnalyticsWorkspace() {
   });
 
   return (
+    <ReportSelectionProvider>
     <div className="space-y-6 min-w-0 w-full pt-6">
       <SectionHeader
         title="Analytics"
@@ -774,11 +853,23 @@ export function AnalyticsWorkspace() {
             <OperationalAnalyticsWorkspace showHeader={false} range={range} />
           </TabsContent>
           <TabsContent value="procurement" className="pt-4">
+            <div className="mb-4">
+              <ReportToolbar
+                filters={{
+                  preset: range.preset,
+                  startDate: range.startDate,
+                  endDate: range.endDate,
+                  channel: reportChannel,
+                  summary: reportRangeSummary,
+                }}
+              />
+            </div>
             <ProcurementAnalyticsWorkspace range={range} />
           </TabsContent>
         </TabsContents>
       </Tabs>
     </div>
+    </ReportSelectionProvider>
   );
 }
 
@@ -1217,7 +1308,8 @@ export function ProcurementAnalyticsWorkspace({
         </Alert>
       )}
 
-      <Card>
+      <SelectableBlock cardId="procurement-inbound-supply-summary">
+        <Card>
         <CardHeader>
           <CardTitle>Inbound Supply Summary</CardTitle>
           <CardDescription>
@@ -1272,9 +1364,11 @@ export function ProcurementAnalyticsWorkspace({
           <FreshAlliancePendingNote pending={summary.freshAlliancePending} />
           <DataShapingNote dataShaping={analytics.dataShaping} />
         </CardContent>
-      </Card>
+        </Card>
+      </SelectableBlock>
 
-      <Card className="min-w-0">
+      <SelectableBlock cardId="procurement-inbound-weight-over-time">
+        <Card className="min-w-0">
         <CardHeader>
           <CardTitle>
             {allChannels
@@ -1317,7 +1411,8 @@ export function ProcurementAnalyticsWorkspace({
             </LineChart>
           </ChartContainer>
         </CardContent>
-      </Card>
+        </Card>
+      </SelectableBlock>
 
       {selectedChannel !== 'fresh_alliance' && <Card>
         <CardHeader>
@@ -1466,7 +1561,8 @@ export function ProcurementAnalyticsWorkspace({
 
       {(includesWarehouse || allChannels) && (
         <div className={`grid min-w-0 gap-4 ${allChannels ? 'lg:grid-cols-2' : ''}`}>
-        {includesWarehouse && <Card className="min-w-0">
+        {includesWarehouse && <SelectableBlock cardId="procurement-acquisition-mix">
+          <Card className="min-w-0">
           <CardHeader><CardTitle>Acquisition Mix</CardTitle><CardDescription>Inbound pounds by OFB acquisition class</CardDescription></CardHeader>
           <CardContent>
             <ChartContainer config={acquisitionMixConfig} className="h-72 min-w-0 w-full">
@@ -1480,9 +1576,11 @@ export function ProcurementAnalyticsWorkspace({
             </ChartContainer>
             <MixDetails total={acquisitionWeightTotal} rows={analytics.acquisitionMix.map((row) => ({ label: acquisitionLabels[row.acquisitionClass], weight: row.weightHundredths }))} />
           </CardContent>
-        </Card>}
+          </Card>
+        </SelectableBlock>}
 
-        {allChannels && <Card className="min-w-0">
+        {allChannels && <SelectableBlock cardId="procurement-channels">
+          <Card className="min-w-0">
           <CardHeader><CardTitle>Procurement Channels</CardTitle><CardDescription>Fresh Food Alliance remains distinct from OFB warehouse supply</CardDescription></CardHeader>
           <CardContent>
             <ChartContainer config={channelMixConfig} className="h-72 min-w-0 w-full">
@@ -1500,7 +1598,8 @@ export function ProcurementAnalyticsWorkspace({
               rows={channelMix.map((row) => ({ label: row.channel, weight: (row.primaryWeight + row.legacyWeight) * 100 }))}
             />
           </CardContent>
-        </Card>}
+          </Card>
+        </SelectableBlock>}
         </div>
       )}
 
