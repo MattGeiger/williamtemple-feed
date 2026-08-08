@@ -26,6 +26,7 @@ const MUTED = '#6B7684';
 const GRID = '#E3E8EE';
 
 const esc = (s: string) => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const escAttribute = (s: string) => esc(s).replace(/"/g, '&quot;');
 const fmt = (n: number) => Math.round(n).toLocaleString('en-US');
 
 // ---------- label fitting ----------
@@ -129,28 +130,46 @@ export type BarValueFormat = (value: number) => string;
 
 export const POUNDS: BarValueFormat = v => `${fmt(v)} lb`;
 export const COUNT: BarValueFormat = v => fmt(v);
+export const PERCENT: BarValueFormat = v => `${v.toFixed(1)}%`;
 /** Matches the screen's `dollars()`: currency style, en-US. */
 export const DOLLARS: BarValueFormat = v =>
   v.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
 
 /** Horizontal bars with a label column. Used for any "mix" breakdown. */
 export function hBarSvg(
-  rows: { label: string; value: number }[],
+  rows: {
+    label: string;
+    value: number;
+    /** Optional adjacent pieces of this row's total, drawn as one stacked bar. */
+    segments?: { name: string; value: number }[];
+  }[],
   width = 900,
   rowH = 30,
-  formatValue: BarValueFormat = POUNDS
+  formatValue: BarValueFormat = POUNDS,
+  segmentNames: string[] = []
 ): string {
   const labelW = 220, pad = 12, chartW = width - labelW - pad - 90;
   // The bars begin at `labelW`, so a label may occupy everything up to it less
   // a small gutter. Anything longer is cut rather than drawn over the bar.
   const labelMaxW = labelW - 10;
   const max = Math.max(1, ...rows.map(r => r.value));
+  const segmentColor = new Map(segmentNames.map((name, index) => [name, PALETTE[index % PALETTE.length]]));
   const height = rows.length * rowH + pad * 2;
   const bars = rows.map((r, i) => {
     const y = pad + i * rowH;
     const w = Math.max(1, (r.value / max) * chartW);
+    const usableSegments = r.segments?.filter(segment => segment.value > 0) ?? [];
+    let segmentX = labelW;
+    const rects = usableSegments.length > 0
+      ? usableSegments.map((segment, segmentIndex) => {
+          const segmentW = r.value > 0 ? (segment.value / r.value) * w : 0;
+          const rect = `<rect data-segment="${escAttribute(segment.name)}" x="${segmentX}" y="${y + 5}" width="${segmentW}" height="${rowH - 14}" fill="${segmentColor.get(segment.name) ?? PALETTE[segmentIndex % PALETTE.length]}"/>`;
+          segmentX += segmentW;
+          return rect;
+        }).join('')
+      : `<rect x="${labelW}" y="${y + 5}" width="${w}" height="${rowH - 14}" rx="2" fill="${PALETTE[i % PALETTE.length]}"/>`;
     return `<text x="0" y="${y + rowH / 2 + 4}" font-size="12" fill="${INK}">${esc(truncateToWidth(r.label, labelMaxW, 12))}</text>` +
-      `<rect x="${labelW}" y="${y + 5}" width="${w}" height="${rowH - 14}" rx="2" fill="${PALETTE[i % PALETTE.length]}"/>` +
+      rects +
       `<text x="${labelW + w + 8}" y="${y + rowH / 2 + 4}" font-size="11" fill="${MUTED}">${esc(formatValue(r.value))}</text>`;
   }).join('');
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" font-family="Helvetica, Arial, sans-serif">${bars}</svg>`;
@@ -229,11 +248,19 @@ export function lineChartSvg(
    * inside. Rendering all of them as bare lines would lose that hierarchy and
    * make the total look like just another category.
    */
-  fillFirst = false
+  fillFirst = false,
+  options: {
+    /** Show the latest defined value beside every line. */
+    endLabels?: boolean;
+    formatValue?: BarValueFormat;
+  } = {}
 ): string {
-  const padL = 62, padR = 8, padT = 10, padB = 34;
+  const padL = 62, padR = options.endLabels ? 86 : 8, padT = 10, padB = 34;
   const plotW = width - padL - padR, plotH = height - padT - padB;
-  const max = Math.max(1, ...series.flatMap(s => s.values));
+  const max = Math.max(
+    1,
+    ...series.flatMap(s => s.values.filter((_, index) => s.defined?.[index] !== false))
+  );
   const step = categories.length > 1 ? plotW / (categories.length - 1) : 0;
   const x = (i: number) => padL + i * step;
   const y = (v: number) => padT + plotH - (v / max) * plotH;
@@ -245,13 +272,28 @@ export function lineChartSvg(
   }).join('');
 
   const lines = series.map((s, si) => {
-    const points = s.values.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
     const stroke = PALETTE[si % PALETTE.length];
-    const area =
-      fillFirst && si === 0 && s.values.length > 0
-        ? `<polygon points="${x(0).toFixed(1)},${(padT + plotH).toFixed(1)} ${points} ${x(s.values.length - 1).toFixed(1)},${(padT + plotH).toFixed(1)}" fill="${stroke}" fill-opacity="0.18"/>`
-        : '';
-    return area + `<polyline points="${points}" fill="none" stroke="${stroke}" stroke-width="2" stroke-linejoin="round"/>`;
+    const runs: number[][] = [];
+    s.values.forEach((_, index) => {
+      if (s.defined?.[index] === false) return;
+      const previous = runs[runs.length - 1];
+      if (!previous || previous[previous.length - 1] !== index - 1) runs.push([index]);
+      else previous.push(index);
+    });
+
+    return runs.map(run => {
+      const points = run
+        .map(index => `${x(index).toFixed(1)},${y(s.values[index]).toFixed(1)}`)
+        .join(' ');
+      const area =
+        fillFirst && si === 0 && run.length > 1
+          ? `<polygon points="${x(run[0]).toFixed(1)},${(padT + plotH).toFixed(1)} ${points} ${x(run[run.length - 1]).toFixed(1)},${(padT + plotH).toFixed(1)}" fill="${stroke}" fill-opacity="0.18"/>`
+          : '';
+      const mark = run.length === 1
+        ? `<circle cx="${x(run[0]).toFixed(1)}" cy="${y(s.values[run[0]]).toFixed(1)}" r="2.5" fill="${stroke}"/>`
+        : `<polyline points="${points}" fill="none" stroke="${stroke}" stroke-width="2" stroke-linejoin="round"/>`;
+      return area + mark;
+    }).join('');
   }).join('');
 
   // A daily timeline cannot label every point; thin to roughly a dozen.
@@ -262,7 +304,41 @@ export function lineChartSvg(
       : ''
   ).join('');
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" font-family="Helvetica, Arial, sans-serif">${ticks}${lines}${labels}</svg>`;
+  const endLabels = options.endLabels
+    ? (() => {
+        const candidates = series.flatMap((s, si) => {
+          let index = s.values.length - 1;
+          while (index >= 0 && s.defined?.[index] === false) index -= 1;
+          return index >= 0
+            ? [{ series: s, si, index, desiredY: y(s.values[index]) }]
+            : [];
+        }).sort((left, right) => left.desiredY - right.desiredY);
+        const minGap = 12;
+        const bottom = padT + plotH;
+        const positions = candidates.map((candidate, index) => ({
+          ...candidate,
+          labelY: Math.max(candidate.desiredY, index === 0 ? padT : 0),
+        }));
+        for (let i = 1; i < positions.length; i += 1) {
+          positions[i].labelY = Math.max(positions[i].desiredY, positions[i - 1].labelY + minGap);
+        }
+        if (positions.length > 0 && positions[positions.length - 1].labelY > bottom) {
+          positions[positions.length - 1].labelY = bottom;
+          for (let i = positions.length - 2; i >= 0; i -= 1) {
+            positions[i].labelY = Math.min(positions[i].labelY, positions[i + 1].labelY - minGap);
+          }
+        }
+        return positions.map(candidate => {
+          const pointX = x(candidate.index);
+          const pointY = candidate.desiredY;
+          const color = PALETTE[candidate.si % PALETTE.length];
+          return `<line x1="${pointX.toFixed(1)}" y1="${pointY.toFixed(1)}" x2="${(pointX + 5).toFixed(1)}" y2="${candidate.labelY.toFixed(1)}" stroke="${color}" stroke-width="1"/>` +
+            `<text data-end-label="${escAttribute(candidate.series.name)}" x="${(pointX + 8).toFixed(1)}" y="${(candidate.labelY + 4).toFixed(1)}" font-size="10" font-weight="700" fill="${color}">${esc((options.formatValue ?? COUNT)(candidate.series.values[candidate.index]))}</text>`;
+        }).join('');
+      })()
+    : '';
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" font-family="Helvetica, Arial, sans-serif">${ticks}${lines}${labels}${endLabels}</svg>`;
 }
 
 /**
@@ -317,27 +393,60 @@ export function groupedHBarSvg(
   categories: string[],
   series: Series[],
   width = 900,
-  groupH = 13
+  groupH = 13,
+  options: {
+    /** Fixed semantic maximum, such as 100 for percentages. */
+    max?: number;
+    showAxis?: boolean;
+    formatValue?: BarValueFormat;
+  } = {}
 ): string {
-  const labelW = 150, pad = 12, valueW = 8;
+  const labelW = 150, pad = 12, valueW = options.formatValue ? 68 : 8;
   const chartW = width - labelW - pad - valueW;
   const labelMaxW = labelW - 10;
-  const max = Math.max(1, ...series.flatMap(s => s.values));
+  const observedMax = Math.max(1, options.max ?? Math.max(1, ...series.flatMap(s => s.values)));
+  const integerStep = options.showAxis && options.formatValue === COUNT
+    ? Math.max(1, Math.ceil(observedMax / 4))
+    : null;
+  const max = integerStep === null
+    ? observedMax
+    : Math.ceil(observedMax / integerStep) * integerStep;
   const rowH = groupH * series.length + 8;
-  const height = categories.length * rowH + pad * 2;
+  const axisH = options.showAxis ? 24 : 0;
+  const height = categories.length * rowH + pad * 2 + axisH;
 
   const rows = categories.map((label, i) => {
     const top = pad + i * rowH;
     const bars = series.map((s, si) => {
+      if (s.defined?.[i] === false) return '';
       const v = s.values[i] ?? 0;
       const w = Math.max(0, (v / max) * chartW);
       const y = top + si * groupH;
-      return `<rect x="${labelW}" y="${y}" width="${w.toFixed(1)}" height="${groupH - 3}" rx="1.5" fill="${PALETTE[si % PALETTE.length]}"/>`;
+      const value = options.formatValue
+        ? `<text data-bar-value="${escAttribute(s.name)}" x="${(labelW + w + 5).toFixed(1)}" y="${y + groupH - 4}" font-size="10" fill="${MUTED}">${esc(options.formatValue(v))}</text>`
+        : '';
+      return `<rect x="${labelW}" y="${y}" width="${w.toFixed(1)}" height="${groupH - 3}" rx="1.5" fill="${PALETTE[si % PALETTE.length]}"/>${value}`;
     }).join('');
     return `<text x="0" y="${top + (rowH - 8) / 2 + 4}" font-size="11" fill="${INK}">${esc(truncateToWidth(label, labelMaxW, 11))}</text>${bars}`;
   }).join('');
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" font-family="Helvetica, Arial, sans-serif">${rows}</svg>`;
+  const axisY = pad + categories.length * rowH;
+  const axisValues = integerStep === null
+    ? [0, max * 0.25, max * 0.5, max * 0.75, max]
+    : Array.from({ length: Math.round(max / integerStep) + 1 }, (_, index) => index * integerStep);
+  const axis = options.showAxis
+    ? axisValues.map(value => {
+        const fraction = value / max;
+        const x = labelW + chartW * fraction;
+        const formatted = options.formatValue === PERCENT
+          ? `${Math.round(value)}%`
+          : fmt(Math.round(value));
+        return `<line data-axis-tick="true" x1="${x.toFixed(1)}" y1="${pad}" x2="${x.toFixed(1)}" y2="${axisY}" stroke="${GRID}" stroke-width="1"/>` +
+          `<text x="${x.toFixed(1)}" y="${axisY + 16}" font-size="10" fill="${MUTED}" text-anchor="middle">${formatted}</text>`;
+      }).join('')
+    : '';
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" font-family="Helvetica, Arial, sans-serif">${axis}${rows}</svg>`;
 }
 
 /**

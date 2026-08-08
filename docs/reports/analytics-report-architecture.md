@@ -92,11 +92,11 @@ asserts no `var(--` and no `class=` appears in any card's output.
 
 | Primitive | For |
 | --- | --- |
-| `hBarSvg` | A labelled breakdown. |
+| `hBarSvg` | A labelled breakdown; optional per-row stacked segments. |
 | `stackedBarSvg` | One timeline split by source. |
 | `stackedHBarSvg` | Parts of one whole, per row. |
-| `groupedHBarSvg` | **Independent** measures per row. |
-| `lineChartSvg` | Comparisons; optional fill under the first series. |
+| `groupedHBarSvg` | **Independent** measures per row; optional scale and end values. |
+| `lineChartSvg` | Comparisons; optional fill and collision-aware latest values. |
 | `kpiGrid` | Text tiles, as HTML. |
 | `tableHtml` | A table, as HTML. |
 
@@ -128,6 +128,20 @@ independent signals where Beans reads 98% / 0% / 100% / 0%; stacked, that is a
 198%-long bar meaning nothing. FFA Category Mix *is* parts of a whole, so it
 stacks. What the bars **are** decides the primitive.
 
+**Absence is not zero.** A `Series` may carry a `defined` mask beside its
+numeric values. Seasonal comparison uses it to stop the opening and closing
+years at the requested boundary months, and Category Pressure uses it when a
+percentage could not be computed. Print and CSV helpers preserve the
+difference: an in-range numeric zero is drawn and exported as zero; an
+out-of-range or unknown point is omitted and its CSV cell is blank.
+
+Static paper must replace the information a screen supplies on hover. The
+affected Operations adapters opt into restrained annotations on the existing
+primitives: integer ticks and bar-end counts for Recurring Availability, a
+fixed 0–100% axis and percent labels for Category Pressure, and only the latest
+value of each Operational Pressure line, collision-adjusted. Other cards keep
+the existing primitive defaults.
+
 ## Filters and card options
 
 Two layers, and both must survive into the report.
@@ -142,14 +156,16 @@ shows an entirely different series set under another.
 table's sort — live in React and are not in the payload. They travel as
 `cardOptions`, keyed by card id.
 
-They are **frozen when selection begins**, not read at generate time. The modal
-offers no filter controls, so a run must mean what the page showed when the user
-chose to make a report; changing a card's filter afterwards would silently
-rewrite a selection already made.
+They are **frozen when that visible card is selected**, not read at generate
+time. The modal offers no filter controls, so a run must mean what the card
+showed when the user chose it. Selection-time capture also matters across
+lenses: inactive Radix tab content is unmounted, so a start-time snapshot could
+contain a stale value from an earlier visit or no value at all.
 
-Options are published during *render*, not in an effect: `startSelecting` can
-fire before an effect has flushed, and a stale snapshot is precisely the failure
-this prevents.
+Options are published during *render*, not in an effect, so clicking a visible
+card cannot race an effect and capture its previous controls. Automatic
+seasonal years are stored as `yearMode: 'all-available'` and derived from the
+new run-time payload; only `yearMode: 'selected'` persists a concrete subset.
 
 ## Readability-driven grain
 
@@ -188,6 +204,12 @@ that out with real typography and page breaks. The header repeats on every page
 and rows never split across a boundary — the two things that make a long table
 usable on paper, and that screenshotting a web table never gives you. A
 hundred-row export is a legitimate request and is tested as one.
+
+`SelectableBlock` keeps the same wrapper/content DOM shape before, during and
+after selection. Inserting a wrapper only during selection remounted
+`EnhancedDataTable` and reset its internal sort/page state. The content node's
+`inert` property is assigned both ways, with cleanup, so sortable controls are
+interactive immediately after Cancel or a completed report.
 
 ## Cross-lens loading
 

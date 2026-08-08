@@ -47,6 +47,14 @@ export interface Series {
   name: string;
   values: number[];
   /**
+   * Whether each numeric slot represents a point the chart may draw.
+   *
+   * A zero is data; `false` is outside coverage. Seasonal comparisons need
+   * both meanings on the same twelve-month axis. Most series cover every slot
+   * and omit this field.
+   */
+  defined?: boolean[];
+  /**
    * Formatted values, when the numbers alone do not carry their meaning.
    *
    * A KPI card mixes pounds, counts, and days in one list, so a single numeric
@@ -93,10 +101,14 @@ const bucket = (categories: string[], series: Series[], grain: Grain) => {
   }
   const bucketed = series.map(s => {
     const values = new Array(order.length).fill(0);
+    const defined = s.defined ? new Array(order.length).fill(false) : undefined;
     categories.forEach((category, i) => {
-      values[index.get(keyFor(category, grain))!] += s.values[i] ?? 0;
+      const target = index.get(keyFor(category, grain))!;
+      if (s.defined?.[i] === false) return;
+      values[target] += s.values[i] ?? 0;
+      if (defined) defined[target] = true;
     });
-    return { name: s.name, values };
+    return { name: s.name, values, ...(defined ? { defined } : {}) };
   });
   return { categories: order, series: bucketed };
 };

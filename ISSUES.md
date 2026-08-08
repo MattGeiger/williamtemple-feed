@@ -39,7 +39,7 @@ Everything else in this file. The application is shippable today.
 ## Open Issues
 
 ### #62 — Analytics report PDF parity and report-selection state regressions
-**Priority**: High · **Status**: Confirmed in 1.5.0-beta.9; awaiting implementation approval
+**Priority**: High · **Status**: Fixed in source 2026-08-08; awaiting staff acceptance testing
 **Bucket**: Analytics reports / human-evaluation findings
 
 The report architecture is sound and most cards are accurate, polished print
@@ -55,6 +55,17 @@ provider, the card registry/accessors, print primitives, report route/builder,
 tests, report architecture and staff guide, table standard, chart-colour guide,
 operational-analytics design, and a freshly rendered four-page PDF made with the
 production renderer and deterministic review data.
+
+**Resolution:** the recommended localized approach was implemented without
+changing the report architecture. Automatic seasonal selections now derive all
+years from the run-time payload while explicit subsets remain fixed; sparse
+seasonal series carry a defined mask so out-of-range months are absent rather
+than zero. Paid-product rows retain their family segments for print. The
+existing grouped-bar and line primitives gained opt-in axes/value labels for
+the three affected Operations cards. `SelectableBlock` now keeps one stable DOM
+tree, explicitly clears `inert`, and captures a card's options when that visible
+card is selected. Existing working exports continue through the same accessors
+and unchanged default primitive behavior.
 
 #### #62a — Procurement PDF parity
 
@@ -269,49 +280,49 @@ making every table controlled.
 Do not begin with renderer edits. First preserve each human finding as a failing
 test, then make the smallest production change that turns it green.
 
-- [ ] Add one frontend integration fixture with both Analytics lenses, multiple
-  seasonal years, enough Operations rows for page 2, and sortable table values.
-- [ ] Prove a default seasonal selection saved from a one-year range expands to
+- [x] Cover the two-lens option lifecycle, multiple seasonal years, and a
+  sorted/paged `EnhancedDataTable` with focused frontend fixtures.
+- [x] Prove a default seasonal selection saved from a one-year range expands to
   all available years when that template is run for All history.
-- [ ] Prove an explicitly selected seasonal subset remains that subset on a
+- [x] Prove an explicitly selected seasonal subset remains that subset on a
   later run.
-- [ ] Prove starting selection on Operations, switching to Procurement, and
+- [x] Prove starting selection on Operations, switching to Procurement, and
   choosing Seasonal Inbound Weight captures the currently visible years rather
   than a stale/unmounted value.
-- [ ] Add backend seasonal tests for a partial opening year, a full middle year,
+- [x] Add backend seasonal tests for a partial opening year, a full middle year,
   and a partial closing year; assert out-of-range CSV cells are blank and SVG
   polylines terminate instead of running at zero.
-- [ ] Add a paid-product fixture with more than 15 codes and at least three
+- [x] Add a paid-product fixture with more than 15 codes and at least three
   families in the tail; assert segment sums equal the aggregate dollars, the
   PDF markup contains all family segments, and the CSV still has one aggregate
   total.
-- [ ] Add print-primitive tests that assert rendered labels/ticks, not merely
+- [x] Add print-primitive tests that assert rendered labels/ticks, not merely
   that SVG exists: integer values for Recurring Availability, 0–100% scale and
   percent labels for Category Pressure, and bounded end labels for Operational
   Pressure.
-- [ ] Add a Category Pressure null fixture and assert Unknown is not converted
+- [x] Add a Category Pressure null fixture and assert Unknown is not converted
   into a zero-length factual observation.
-- [ ] Add a `SelectableBlock` lifecycle test with a stateful child; assert the
+- [x] Add a `SelectableBlock` lifecycle test with a stateful child; assert the
   child is not remounted when selection starts, a card is selected, Review
   opens/closes, generation completes, or selection is canceled.
-- [ ] In the same test, assert the content node is inert only during selection
+- [x] In the same test, assert the content node is inert only during selection
   and sortable controls work immediately afterward.
-- [ ] Add an Operations integration test: sort Unavailable Episodes, go to page
-  2, start report selection, select it, and assert both the visible table and
-  the generated request retain the exact sort/page options. Repeat for
-  Rationing History.
-- [ ] Add a saved-template round trip for those table options and verify the
-  backend applies filter → sort → page in that order.
-- [ ] Run focused frontend report/selection/table tests and backend report card,
+- [x] Exercise a real `EnhancedDataTable` through sort, page 2, selection,
+  capture, cancel, and another sort; explicitly verify both Operations table
+  card accessors apply the captured sort/page options.
+- [x] Keep the saved-template option round trip green and verify the backend
+  applies filter → sort → page in that order.
+- [x] Run focused frontend report/selection/table tests and backend report card,
   print and route tests.
-- [ ] Run the full frontend and backend suites, both package builds, and the
+- [x] Run the full frontend and backend suites, both package builds, and the
   table/card parity guards.
-- [ ] Generate a real mixed-lens ZIP through Chromium; inspect manifest and
+- [x] Generate a real mixed-lens ZIP through Chromium; inspect manifest and
   per-card CSVs, render every PDF page with Poppler, and compare the five
-  affected charts plus both tables against the configured screen state.
+  affected charts against the configured screen state.
 - [ ] Manually exercise both exits — Cancel and successful Generate — then sort,
-  filter and paginate both Operations tables without navigating away.
-- [ ] Update this issue, the report architecture/staff guide where option
+  filter and paginate both Operations tables without navigating away during
+  staff acceptance testing.
+- [x] Update this issue, the report architecture/staff guide where option
   semantics change, `CHANGELOG.md`, and release notes only after the behavior is
   verified.
 

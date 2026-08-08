@@ -32,11 +32,13 @@ picked — charts, the summary tiles, and the tables. If something on the page
 does not wiggle, that is a fault worth reporting, not a card that was left out
 on purpose.
 
-### Set your filters first
+### Set up each card before selecting it
 
-Your filters are locked in the moment you click **Generate Report**. That is
-deliberate — it means the report is a snapshot of what you were looking at when
-you decided to make it.
+The date range and page filters are locked when you click **Generate Report**.
+A card's own controls — such as a seasonal year choice, donor selection, search,
+or table sort and page — are locked when you click that card. This lets you move
+between Operations and Procurement and still capture each card exactly as it is
+shown when you choose it.
 
 If you realise you wanted a different date range, click **Cancel**, change it,
 and start again.
@@ -138,8 +140,9 @@ filters is easy to misread, so FEED keeps them attached.
 ## Things worth knowing
 
 **Charts look different from the screen.** They are drawn for paper — plainer
-colours, no hover tooltips, sized for a printed page. The numbers are identical;
-only the styling differs.
+colours and sized for a printed page. Values that the screen reveals on hover
+are printed as axes or restrained labels where needed. The numbers are
+identical; only the styling differs.
 
 **A dash means "does not apply", not zero.** A donated product shows `—` for
 charges rather than `$0.00`, because zero would suggest you paid nothing for

@@ -919,6 +919,7 @@ export function ProcurementAnalyticsWorkspace({
   const [analytics, setAnalytics] = React.useState<ProcurementAnalytics | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
   const [selectedSeasonalYears, setSelectedSeasonalYears] = React.useState<string[]>([]);
+  const [seasonalYearMode, setSeasonalYearMode] = React.useState<'all-available' | 'selected'>('all-available');
   const [selectedFreshAllianceDonors, setSelectedFreshAllianceDonors] = React.useState<string[]>([]);
   const [paidProductSearch, setPaidProductSearch] = React.useState('');
   // Published by EnhancedDataTable. Held here so the report can reproduce the
@@ -959,6 +960,7 @@ export function ProcurementAnalyticsWorkspace({
         if (!active) return;
         setAnalytics(result);
         setSelectedSeasonalYears(result.availableYears);
+        setSeasonalYearMode('all-available');
         setSelectedFreshAllianceDonors([...new Set(
           result.freshAllianceDonorCategories.map((row) => row.donorCode ?? NOT_REPORTED_DONOR_CODE)
         )]);
@@ -1295,6 +1297,7 @@ export function ProcurementAnalyticsWorkspace({
       ];
 
   const toggleSeasonalYear = (year: string, checked: boolean) => {
+    setSeasonalYearMode('selected');
     setSelectedSeasonalYears((current) => {
       if (!checked) return current.filter((value) => value !== year);
       if (current.includes(year)) return current;
@@ -1771,7 +1774,11 @@ export function ProcurementAnalyticsWorkspace({
 
       <SelectableBlock
         cardId="procurement-seasonal-inbound-weight"
-        options={{ channel: effectiveSeasonalChannel, years: seasonalYears }}
+        options={{
+          channel: effectiveSeasonalChannel,
+          yearMode: seasonalYearMode,
+          ...(seasonalYearMode === 'selected' ? { years: seasonalYears } : {}),
+        }}
       >
         <Card className="min-w-0">
         <CardHeader className="flex flex-col items-start justify-between gap-3 space-y-0 sm:flex-row sm:items-center">
@@ -1828,6 +1835,7 @@ export function ProcurementAnalyticsWorkspace({
                 onSelect={(event) => {
                   event.preventDefault();
                   setSelectedSeasonalYears(analytics.availableYears);
+                  setSeasonalYearMode('all-available');
                 }}
               >
                 Select all years
@@ -1836,6 +1844,7 @@ export function ProcurementAnalyticsWorkspace({
                 onSelect={(event) => {
                   event.preventDefault();
                   setSelectedSeasonalYears([]);
+                  setSeasonalYearMode('selected');
                 }}
               >
                 Clear all years

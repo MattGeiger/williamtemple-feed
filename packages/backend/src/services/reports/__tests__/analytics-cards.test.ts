@@ -19,6 +19,10 @@ import {
   ANALYTICS_CARDS,
   INBOUND_WEIGHT_OVER_TIME,
   PROCUREMENT_CHANNELS,
+  RECURRING_AVAILABILITY,
+  OPERATIONAL_PRESSURE,
+  UNAVAILABLE_EPISODES,
+  RATIONING_HISTORY,
   cardCsv,
 } from '../analytics-cards';
 import { MIN_BAR_MM, maxReadableCategories } from '../condense';
@@ -362,10 +366,45 @@ describe('card-level options reach the report', () => {
       expect(PAID_PRODUCT_SPEND.data(analytics, options).note).toBeNull();
     }
   });
+
+  it('keeps the paid-product tail split into the families shown on screen', () => {
+    const many = {
+      paidProducts: Array.from({ length: 18 }, (_, index) => ({
+        description: `${['Meat', 'Veg', 'Meals'][index % 3]}, Product ${index + 1}`,
+        productCode: `P${index + 1}`,
+        totalSpendCents: (1800 - index * 50) * 100,
+      })),
+    };
+
+    const data = PAID_PRODUCT_SPEND.data(many);
+    const tailIndex = data.categories.findIndex(category => category.startsWith('Other paid products'));
+    const tailSegments = data.rowSegments?.[tailIndex] ?? [];
+
+    expect(tailSegments.map(segment => segment.name).sort()).toEqual(['Meals', 'Meat', 'Veg']);
+    expect(tailSegments.reduce((sum, segment) => sum + segment.value, 0)).toBe(
+      data.series[0].values[tailIndex]
+    );
+
+    const svg = PAID_PRODUCT_SPEND.print(data);
+    expect(svg).toContain('data-segment="Meat"');
+    expect(svg).toContain('data-segment="Veg"');
+    expect(svg).toContain('data-segment="Meals"');
+    expect(svg).toContain('>Meat<');
+
+    const csv = cardCsv(data);
+    expect(csv.match(/Other paid products/g)).toHaveLength(1);
+  });
 });
 
 describe('seasonal inbound weight compares years, it does not sum them', () => {
   const analytics = {
+    range: {
+      preset: 'all',
+      startDate: '2024-03-15',
+      endDate: '2025-02-20',
+      timeZone: 'America/Los_Angeles',
+    },
+    availableYears: ['2025', '2024'],
     seasonalWeight: [
       { year: '2025', month: 1, weightHundredths: 1_000_00 },
       { year: '2025', month: 2, weightHundredths: 2_000_00 },
@@ -378,7 +417,11 @@ describe('seasonal inbound weight compares years, it does not sum them', () => {
   };
 
   it('puts twelve months on the axis and one series per compared year', () => {
-    const data = SEASONAL_INBOUND_WEIGHT.data(analytics, { channel: 'all', years: ['2025', '2024'] });
+    const data = SEASONAL_INBOUND_WEIGHT.data(analytics, {
+      channel: 'all',
+      yearMode: 'selected',
+      years: ['2025', '2024'],
+    });
 
     expect(data.categories).toHaveLength(12);
     expect(data.categories[0]).toBe('Jan');
@@ -389,7 +432,11 @@ describe('seasonal inbound weight compares years, it does not sum them', () => {
 
   it('never condenses — the axis is a calendar month, not a timeline', () => {
     // Twelve categories always print; the readability threshold does not apply.
-    const data = SEASONAL_INBOUND_WEIGHT.data(analytics, { channel: 'all', years: ['2025'] });
+    const data = SEASONAL_INBOUND_WEIGHT.data(analytics, {
+      channel: 'all',
+      yearMode: 'selected',
+      years: ['2025'],
+    });
 
     expect(data.grain).toBeUndefined();
     expect(data.categoryColumn).toBe('month');
@@ -399,6 +446,7 @@ describe('seasonal inbound weight compares years, it does not sum them', () => {
     // The all-channel series is pre-aggregated; the per-channel one is not.
     const data = SEASONAL_INBOUND_WEIGHT.data(analytics, {
       channel: 'fresh_alliance',
+      yearMode: 'selected',
       years: ['2025'],
     });
 
@@ -407,7 +455,11 @@ describe('seasonal inbound weight compares years, it does not sum them', () => {
   });
 
   it('says the card is empty rather than drawing nothing silently', () => {
-    const data = SEASONAL_INBOUND_WEIGHT.data(analytics, { channel: 'all', years: [] });
+    const data = SEASONAL_INBOUND_WEIGHT.data(analytics, {
+      channel: 'all',
+      yearMode: 'selected',
+      years: [],
+    });
 
     expect(data.series).toEqual([]);
     expect(data.note).toContain('No calendar years were selected');
@@ -415,10 +467,53 @@ describe('seasonal inbound weight compares years, it does not sum them', () => {
   });
 
   it('gives the CSV one column per year', () => {
-    const csv = cardCsv(SEASONAL_INBOUND_WEIGHT.data(analytics, { channel: 'all', years: ['2025', '2024'] }));
+    const csv = cardCsv(SEASONAL_INBOUND_WEIGHT.data(analytics, {
+      channel: 'all',
+      yearMode: 'selected',
+      years: ['2025', '2024'],
+    }));
 
     expect(csv.split('\r\n')[0]).toBe('month,2025,2024');
     expect(csv.trim().split('\r\n')).toHaveLength(13); // header + 12 months
+  });
+
+  it('derives all years from the new range unless the user chose a subset', () => {
+    const automatic = SEASONAL_INBOUND_WEIGHT.data(analytics, {
+      channel: 'all',
+      // Legacy templates persisted a concrete default year list without a
+      // mode. It must not narrow a later All-history run.
+      years: ['2025'],
+    });
+    const selected = SEASONAL_INBOUND_WEIGHT.data(analytics, {
+      channel: 'all',
+      yearMode: 'selected',
+      years: ['2025'],
+    });
+
+    expect(automatic.series.map((series) => series.name)).toEqual(['2025', '2024']);
+    expect(selected.series.map((series) => series.name)).toEqual(['2025']);
+  });
+
+  it('marks only the months inside the resolved range as drawable', () => {
+    const data = SEASONAL_INBOUND_WEIGHT.data(analytics, {
+      channel: 'all',
+      yearMode: 'selected',
+      years: ['2025', '2024'],
+    });
+
+    expect(data.series[0].defined).toEqual([
+      true, true, false, false, false, false, false, false, false, false, false, false,
+    ]);
+    expect(data.series[1].defined).toEqual([
+      false, false, true, true, true, true, true, true, true, true, true, true,
+    ]);
+
+    const csv = cardCsv(data).split('\r\n');
+    expect(csv[1]).toBe('Jan,1000,');
+    expect(csv[3]).toBe('Mar,,0');
+
+    const svg = SEASONAL_INBOUND_WEIGHT.print(data);
+    expect(svg).not.toContain('points="62.0,226.0 137.5,226.0 213.0,226.0');
   });
 });
 
@@ -525,6 +620,9 @@ describe('category pressure keeps its signals independent', () => {
 
     expect(data.series[1].text![0]).toBe('0.0%');
     expect(data.series[3].text![0]).toBe('—');
+    expect(data.series[3].defined![0]).toBe(false);
+    expect(CATEGORY_PRESSURE.print(data)).toContain('>100%<');
+    expect(CATEGORY_PRESSURE.print(data)).toContain('>98.0%<');
   });
 
   it('says so when nothing was recorded', () => {
@@ -533,6 +631,77 @@ describe('category pressure keeps its signals independent', () => {
     expect(data.categories).toEqual([]);
     expect(data.note).toContain('No category pressure was recorded');
     expect(() => CATEGORY_PRESSURE.print(data)).not.toThrow();
+  });
+});
+
+describe('operations print charts expose their scale and values', () => {
+  it('labels recurring availability counts', () => {
+    const data = RECURRING_AVAILABILITY.data({
+      recurringAvailability: [
+        { itemName: 'Rice', unavailableEntries: 5, restorations: 4 },
+      ],
+      summary: {},
+    });
+    const svg = RECURRING_AVAILABILITY.print(data);
+
+    expect(svg).toContain('data-axis-tick="true"');
+    expect(svg).toContain('data-bar-value="Unavailable Entries"');
+    expect(svg).toContain('>5<');
+  });
+
+  it('labels the latest operational-pressure value for every line', () => {
+    const data = OPERATIONAL_PRESSURE.data({
+      timeline: [
+        { date: '2026-07-01', limitedSupply: 2, clearance: 1, categoryRationed: 3 },
+        { date: '2026-07-02', limitedSupply: 5, clearance: 4, categoryRationed: 3 },
+      ],
+      rationedLimitSeries: [],
+    });
+    const svg = OPERATIONAL_PRESSURE.print(data);
+
+    expect(svg.match(/data-end-label=/g)).toHaveLength(3);
+    expect(svg).toContain('data-end-label="Limited Supply"');
+  });
+});
+
+describe('operations table cards retain the selected view', () => {
+  it('applies the Unavailable Episodes sort and page captured by selection', () => {
+    const episodes = Array.from({ length: 6 }, (_, index) => ({
+      itemName: `Item ${index + 1}`,
+      categoryName: 'Pantry',
+      startedAt: '2026-07-01T12:00:00.000Z',
+      endedAt: '2026-07-02T12:00:00.000Z',
+      durationHours: index + 1,
+      resolution: 'restored',
+    }));
+    const data = UNAVAILABLE_EPISODES.data({ episodes }, {
+      sort: { id: 'durationHours', desc: true },
+      pageSize: 2,
+      pageIndex: 1,
+    });
+
+    expect(data.categories).toEqual(['Item 4', 'Item 3']);
+    expect(data.note).toContain('showing rows 3–4 of 6');
+  });
+
+  it('applies the Rationing History sort and page captured by selection', () => {
+    const limitChanges = Array.from({ length: 6 }, (_, index) => ({
+      entityName: `Policy ${index + 1}`,
+      entityType: 'food_item',
+      categoryName: 'Pantry',
+      limit: index + 1,
+      limitType: 'person',
+      isNoLimit: false,
+      recordedAt: '2026-07-01T12:00:00.000Z',
+    }));
+    const data = RATIONING_HISTORY.data({ limitChanges }, {
+      sort: { id: 'limit', desc: true },
+      pageSize: 2,
+      pageIndex: 1,
+    });
+
+    expect(data.categories).toEqual(['Policy 4', 'Policy 3']);
+    expect(data.note).toContain('showing rows 3–4 of 6');
   });
 });
 
