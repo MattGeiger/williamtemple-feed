@@ -22,7 +22,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { foodIcons, getIconComponent, iconsByCategory, DEFAULT_ICON, IconCategory } from "@/lib/food-icons";
+import { foodIcons, getIconComponent, iconsByCategory, DEFAULT_ICON, ICON_CATEGORY_LABELS, IconCategory } from "@/lib/food-icons";
 
 interface IconSelectorProps {
   value: string;
@@ -32,7 +32,10 @@ interface IconSelectorProps {
 
 export function IconSelector({ value, onChange, disabled = false }: IconSelectorProps) {
   const [open, setOpen] = React.useState(false);
-  const categoryOrder: IconCategory[] = ['food', 'drink', 'health', 'household', 'clothing', 'other'];
+  // `pets` was defined but missing here, so its icons never appeared. `outdoor`
+  // is still omitted deliberately — surfacing bikes and tents is a separate
+  // product decision, not part of adding animals.
+  const categoryOrder: IconCategory[] = ['food', 'drink', 'health', 'household', 'clothing', 'pets', 'other'];
 
   const getDisplayContent = () => {
     const icon = foodIcons.find(i => i.value === value);
@@ -70,7 +73,10 @@ export function IconSelector({ value, onChange, disabled = false }: IconSelector
           <CommandList className="max-h-[300px]">
             <CommandEmpty>No icon found.</CommandEmpty>
             {categoryOrder.map((category) => (
-              <CommandGroup key={category} heading={category.charAt(0).toUpperCase() + category.slice(1)}>
+              <CommandGroup
+                key={category}
+                heading={ICON_CATEGORY_LABELS[category] ?? category.charAt(0).toUpperCase() + category.slice(1)}
+              >
                 {iconsByCategory[category]?.map((icon) => {
                   const Icon = icon.component;
                   return (
