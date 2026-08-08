@@ -1,6 +1,6 @@
 # FEED — Known Issues & Future Work
 
-**Last Updated**: July 14, 2026
+**Last Updated**: August 7, 2026
 **Status**: v1.0.0 release prep in progress (see `docs/V1-RELEASE-PLAN.md`)
 **Production**: https://feed.williamtemple.app
 
@@ -439,6 +439,29 @@ matter:
 key that matters." It is not — `tableContractVersion` is the gate and
 `schemaVersion` is provenance. Gating on the migration name would refuse valid
 artifacts, since most migrations do not touch exported tables.
+
+### #61 — Fresh Food Alliance Pickup History is a hand-rolled table
+**Priority**: Medium · **Status**: Open
+**Bucket**: table standard
+
+`components/analytics/donor-analytics.tsx` renders this card with a bare
+`<Table>` rather than `EnhancedDataTable`, which the table standard
+(`docs/layout/table-standard.md`) says is the one table component. It therefore
+has no filter, no sort, no column visibility, and no pagination, and it does not
+publish an `onViewStateChange` view.
+
+That has a reporting consequence now that the card is exportable (beta.9): the
+other two table cards preserve the filter, sort, visible columns, and page size
+the user configured, and this one cannot, because there is no state to preserve.
+Its report card exports every partner in payload order. The backend card
+(`FRESH_ALLIANCE_PICKUP_HISTORY`) is already built on the shared
+`tableCardData` helper, so when the screen moves onto `EnhancedDataTable` the
+card gains view-state handling by passing the published view through — no
+backend change needed.
+
+Also not covered by `table-column-parity.test.ts`, which compares screen
+`ColumnDef` arrays against report columns; there is no `ColumnDef` array here to
+compare against.
 
 ### #49 — Document Translator upload UI bypasses current component standards
 **Priority**: Medium · **Status**: Open
@@ -1526,6 +1549,37 @@ flow in git history or older docs.
 ---
 
 ## Recently Resolved
+
+### August 2026
+- **Analytics report coverage** (Aug 7 2026): eight cards rendered on the
+  Analytics lenses but were not in the report registry, so a user could see
+  them and not export them — Recurring Availability, Operational Pressure,
+  Grocery Partner Mix, Recorded Donated Value, Fresh Food Alliance Pickup
+  History, Fresh Food Alliance Donations Over Time, and the two legacy
+  donation cards. All eight registered; the registry now holds 23.
+  `src/test/analytics-card-coverage.test.ts` fails if a card renders on a lens
+  without a `SelectableBlock`, or if a registered card loses its home on the
+  page. Nothing enforced this before, which is why the gap went unnoticed.
+- **Printed chart units** (Aug 7 2026): `hBarSvg` hard-coded a `lb` suffix, so
+  "Where Paid Procurement Dollars Went" printed `43,245 lb` for $43,245 of
+  spend and Availability Summary printed `58 lb` for a count of items. The unit
+  is the caller's business now. Found by rendering a PDF, not by a test.
+- **Printed chart labels ran under their bars** (Aug 7 2026): the label column
+  is a fixed width and long product names were drawn without truncation.
+  Labels are now measured against real Helvetica metrics and cut with an
+  ellipsis; the CSV beside the PDF still carries every name in full.
+- **Available Assortment Over Time rendered at half width** (Aug 7 2026): its
+  `md:col-span-2` sat on the inner `Card` while `SelectableBlock` was the grid
+  item, so the span applied to a non-child. The wrapping two-column grid was
+  redundant — both children were full width — and was removed. Same class of
+  defect as the earlier 56px card gap.
+- **Recurring Availability stranded a KPI beside dead space** (Aug 7 2026):
+  `max-w-4xl` capped the divider and chart at roughly half the card.
+- **Tables did not animate in selection mode** (Aug 7 2026): `variant="table"`
+  suppressed the wiggle, which read as "this block is not selectable". Every
+  block wiggles now, with tilt scaled inversely to block width so a wide table
+  and a narrow card displace about the same distance. The `variant` prop is
+  gone.
 
 ### July 2026
 - **#48** (Jul 13 2026): Replaced the catalog-wide availability

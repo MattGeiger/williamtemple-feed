@@ -148,7 +148,7 @@ export function DataCoverageTab(props: ReportTabProps<CoverageResult>) {
             </Card></SelectableBlock>
           </div>
 
-          <SelectableBlock cardId={DATA_COVERAGE_CARDS.gapsTable} variant="table"><div className="space-y-2">
+          <SelectableBlock cardId={DATA_COVERAGE_CARDS.gapsTable}><div className="space-y-2">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-lg font-semibold">Item-Level Data Gaps</h3>

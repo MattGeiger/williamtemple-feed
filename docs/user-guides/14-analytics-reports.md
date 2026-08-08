@@ -27,7 +27,10 @@ Your report downloads as a ZIP file. Open it and you will find:
 - one **CSV** per card, numbered in the same order, that opens in Excel;
 - a small `manifest.json` recording the date range and filters used.
 
-You can pick up to **eight cards** in one report.
+You can pick up to **eight cards** in one report. Every card on both tabs can be
+picked — charts, the summary tiles, and the tables. If something on the page
+does not wiggle, that is a fault worth reporting, not a card that was left out
+on purpose.
 
 ### Set your filters first
 

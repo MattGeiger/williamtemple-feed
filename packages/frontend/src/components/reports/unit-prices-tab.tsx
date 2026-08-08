@@ -163,7 +163,7 @@ export function UnitPricesTab(props: ReportTabProps<UnitPricesResult>) {
             </Card></SelectableBlock>
           </div>
 
-          <SelectableBlock cardId={UNIT_PRICES_CARDS.historyTable} variant="table"><div className="space-y-2">
+          <SelectableBlock cardId={UNIT_PRICES_CARDS.historyTable}><div className="space-y-2">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-lg font-semibold">Price History</h3>

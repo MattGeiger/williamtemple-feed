@@ -177,7 +177,7 @@ export function InventoryOutlookTab(
             </div>
 
             {/* Detail table: item outlook */}
-            <SelectableBlock cardId={INVENTORY_OUTLOOK_CARDS.itemTable} variant="table"><div className="space-y-2">
+            <SelectableBlock cardId={INVENTORY_OUTLOOK_CARDS.itemTable}><div className="space-y-2">
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-lg font-semibold">Item Outlook</h3>

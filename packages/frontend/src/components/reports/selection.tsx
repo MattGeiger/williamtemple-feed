@@ -165,19 +165,47 @@ export function ReportSelectionProvider({
 }
 
 /**
- * Wraps one selectable report block. `variant="table"` keeps the ring/check
- * state without wiggling the whole table.
+ * The width a block has to be for the full wiggle amplitude to look right —
+ * roughly a half-width card on a desktop viewport.
+ */
+const WIGGLE_REFERENCE_WIDTH = 560;
+const WIGGLE_BASE_TILT_DEG = 1.6;
+const WIGGLE_MIN_TILT_DEG = 0.5;
+
+/**
+ * How far to tilt a block of this width.
+ *
+ * A rotation about the centre displaces the far corner by roughly
+ * `(width / 2) × sin(angle)`, so a fixed angle makes a wide block sweep much
+ * further than a narrow one. Scaling the angle by `reference / width` holds
+ * that displacement roughly constant, which is what "the same wiggle" actually
+ * means to someone looking at the page. The floor keeps a very wide block from
+ * damping down to no perceptible motion at all.
+ */
+export function wiggleTiltDeg(width: number): number {
+  if (!Number.isFinite(width) || width <= 0) return WIGGLE_BASE_TILT_DEG;
+  const scaled = WIGGLE_BASE_TILT_DEG * (WIGGLE_REFERENCE_WIDTH / width);
+  return Math.min(WIGGLE_BASE_TILT_DEG, Math.max(WIGGLE_MIN_TILT_DEG, scaled));
+}
+
+/**
+ * Wraps one selectable report block.
+ *
+ * Everything wiggles, tables included. There used to be a `variant="table"`
+ * escape hatch that held tables still, on the theory that swaying a whole table
+ * was too much; in use it read as the table simply not being selectable, which
+ * is the opposite of what the motion is for. Width-scaled amplitude solves the
+ * real problem — a table is wide, so it tilts less — without needing a second
+ * visual language for the same action.
  */
 export function SelectableBlock({
   cardId,
   children,
-  variant = "card",
   className,
   options,
 }: {
   cardId: string;
   children: React.ReactNode;
-  variant?: "card" | "table";
   className?: string;
   /** This card's own controls, when it has any the page filters do not cover. */
   options?: unknown;
@@ -192,9 +220,28 @@ export function SelectableBlock({
   const selectedIds = selection?.selectedIds ?? EMPTY_SELECTION;
   const toggleCard = selection?.toggleCard;
   const contentRef = React.useRef<HTMLDivElement>(null);
+  const blockRef = React.useRef<HTMLDivElement>(null);
   const selectedIndex = selectedIds.indexOf(cardId);
   const isSelected = selectedIndex >= 0;
   const wiggleHash = Math.abs(hashString(cardId));
+
+  // Measured continuously, not only while selecting: the width has to be known
+  // the instant selection begins, or every block would start at full amplitude
+  // and visibly settle. The ref is attached in both branches for the same
+  // reason. ResizeObserver also covers viewport changes and a table growing a
+  // column, which a one-off measurement would miss.
+  const [blockWidth, setBlockWidth] = React.useState(0);
+  React.useEffect(() => {
+    const node = blockRef.current;
+    if (!node || typeof ResizeObserver === "undefined") return;
+    setBlockWidth(node.getBoundingClientRect().width);
+    const observer = new ResizeObserver((entries) => {
+      const width = entries[0]?.contentRect.width;
+      if (width) setBlockWidth(width);
+    });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [isSelecting]);
 
   // Nested controls (export buttons, table paging, chart tooltips) become
   // inert only during selection so the card itself is one big target.
@@ -213,12 +260,15 @@ export function SelectableBlock({
   // outside a stretching parent, so this costs nothing elsewhere.
   if (!isSelecting) {
     return (
-      <div className={cn("min-w-0 h-full [&>*]:h-full", className)}>{children}</div>
+      <div ref={blockRef} className={cn("min-w-0 h-full [&>*]:h-full", className)}>
+        {children}
+      </div>
     );
   }
 
   return (
     <div
+      ref={blockRef}
       role="checkbox"
       aria-checked={isSelected}
       aria-label={`Select report block ${cardId}`}
@@ -235,13 +285,13 @@ export function SelectableBlock({
         // not change the layout it is selecting from.
         "relative min-w-0 h-full [&>*]:h-full cursor-pointer rounded-lg outline-hidden",
         "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-        variant === "card" && !isSelected && "report-selectable",
+        !isSelected && "report-selectable",
         isSelected &&
           "report-selectable-selected ring-2 ring-primary ring-offset-2 ring-offset-background",
         className
       )}
       style={
-        variant === "card" && !isSelected
+        !isSelected
           ? ({
               // Match ZEV's rapid, organic selection motion: short loops
               // with small per-card duration and start-time differences.
@@ -249,6 +299,7 @@ export function SelectableBlock({
               "--report-wiggle-duration": `${
                 820 + (wiggleHash % 5) * 75
               }ms`,
+              "--report-wiggle-tilt": `${wiggleTiltDeg(blockWidth).toFixed(2)}deg`,
             } as React.CSSProperties)
           : undefined
       }
