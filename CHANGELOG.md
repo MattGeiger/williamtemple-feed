@@ -5,6 +5,14 @@ All notable changes to FEED are documented here. This project adheres to
 
 ## [Unreleased]
 
+### Changed
+
+- **New Analytics reports suggest a title from their selected lenses.** A
+  Procurement-only selection starts as `Procurement Report`, an Operations-only
+  selection starts as `Operations Report`, and a mixed selection starts as
+  `Combined Report`. The title remains an ordinary editable field, and once the
+  user changes it FEED does not overwrite their wording.
+
 ### Fixed
 
 - **Analytics report PDF parity and table lifecycle.** Seasonal Inbound Weight

@@ -43,6 +43,10 @@
 - **Operations tables keep working through report generation.** Unavailable
   Episodes and Rationing History retain their sort and page in the report, and
   remain sortable immediately after generating or canceling.
+- **New reports start with a name that matches their contents.** Procurement
+  cards suggest *Procurement Report*, Operations cards suggest *Operations
+  Report*, and a mix suggests *Combined Report*. You can type any report name
+  you prefer before generating it.
 
 ## Version 1.5.0-beta.8 — not deployed
 
