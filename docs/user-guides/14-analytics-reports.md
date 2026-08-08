@@ -18,8 +18,10 @@ behind the scenes.
 3. The cards start to wiggle. Click the ones you want. Each gets a number
    showing where it will appear in the report.
 4. Click **Review**.
-5. Give the report a name, drag the cards into the order you want, choose what
-   to include, and click **Generate**.
+5. FEED suggests **Procurement Report**, **Operations Report**, or **Combined
+   Report** from the cards you chose. Keep that name or type your own, drag the
+   cards into the order you want, choose what to include, and click
+   **Generate**.
 
 Your report downloads as a ZIP file. Open it and you will find:
 

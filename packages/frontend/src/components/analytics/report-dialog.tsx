@@ -53,6 +53,22 @@ import { messageService } from '@/services/message';
 const TITLE_MIN = 3;
 const TITLE_MAX = 120;
 
+/**
+ * Names a new report from the Analytics lenses represented in its selection.
+ *
+ * Analytics card ids deliberately carry their lens as a prefix. Keeping this
+ * derivation here lets the dialog react to removals/reordering without adding a
+ * second frontend registry that could drift from the backend card contract.
+ */
+export function defaultAnalyticsReportTitle(cardIds: string[]): string {
+  const hasProcurement = cardIds.some(id => id.startsWith('procurement-'));
+  const hasOperations = cardIds.some(id => id.startsWith('operations-'));
+
+  if (hasProcurement && !hasOperations) return 'Procurement Report';
+  if (hasOperations && !hasProcurement) return 'Operations Report';
+  return 'Combined Report';
+}
+
 export interface ReportFilterContext {
   preset: string;
   startDate?: string;
@@ -79,7 +95,13 @@ export function AnalyticsReportDialog({
 }) {
   const { selectedIds, applySelection, moveCard, removeCard, cardOptions } =
     useReportSelection();
-  const [title, setTitle] = React.useState('Procurement Report');
+  const suggestedTitle = React.useMemo(
+    () => defaultAnalyticsReportTitle(selectedIds),
+    [selectedIds]
+  );
+  const [title, setTitle] = React.useState(() => suggestedTitle);
+  const titleCustomized = React.useRef(false);
+  const wasOpen = React.useRef(false);
   const [includePdf, setIncludePdf] = React.useState(true);
   const [includeCsv, setIncludeCsv] = React.useState(true);
   const [csvGrain, setCsvGrain] = React.useState<'condensed' | 'raw'>('condensed');
@@ -92,6 +114,21 @@ export function AnalyticsReportDialog({
   const titleValid = trimmed.length >= TITLE_MIN && trimmed.length <= TITLE_MAX;
   const outputValid = includePdf || includeCsv;
   const canGenerate = titleValid && outputValid && selectedIds.length > 0 && !isGenerating;
+
+  React.useEffect(() => {
+    const justOpened = open && !wasOpen.current;
+    if (justOpened) {
+      // Every new workflow starts from the current selection's suggestion.
+      // A title customized during an earlier run must not leak into this one.
+      titleCustomized.current = false;
+      setTitle(suggestedTitle);
+    } else if (open && !titleCustomized.current) {
+      // Removing the last card from one lens may change Combined → Operations
+      // or Procurement. Keep the suggestion live until the user edits it.
+      setTitle(suggestedTitle);
+    }
+    wasOpen.current = open;
+  }, [open, suggestedTitle]);
 
   const handleGenerate = async () => {
     if (!canGenerate) return;
@@ -220,7 +257,10 @@ export function AnalyticsReportDialog({
             <Input
               id="report-title"
               value={title}
-              onChange={event => setTitle(event.target.value)}
+              onChange={event => {
+                titleCustomized.current = true;
+                setTitle(event.target.value);
+              }}
               maxLength={TITLE_MAX}
             />
           </div>
