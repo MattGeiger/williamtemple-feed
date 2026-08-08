@@ -189,7 +189,7 @@ export function ScarcityTab(props: ReportTabProps<ScarcityResult>) {
             </Card></SelectableBlock>
           </div>
 
-          <SelectableBlock cardId={SCARCITY_CARDS.episodesTable} variant="table"><div className="space-y-2">
+          <SelectableBlock cardId={SCARCITY_CARDS.episodesTable}><div className="space-y-2">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-lg font-semibold">Stockout Episodes</h3>

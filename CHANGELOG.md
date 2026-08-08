@@ -5,9 +5,14 @@ All notable changes to FEED are documented here. This project adheres to
 
 ## [Unreleased]
 
+## [1.5.0-beta.9] — 2026-08-07
+
+Supersedes 1.5.0-beta.8, which was never deployed — its work (the Admin History
+table, the rebuilt Analytics reports, saved-template runs) ships here.
+
 ### Added
 
-- **Reports, rebuilt as an export of Analytics.** Any of the fifteen Analytics
+- **Reports, rebuilt as an export of Analytics.** Any of the twenty-three Analytics
   cards can be selected and exported as one archive: a printable PDF, a CSV per
   card, and a manifest recording the range and filters used.
 
@@ -97,6 +102,63 @@ All notable changes to FEED are documented here. This project adheres to
 
 - **A restore entry no longer shows a wire-format timestamp.** The Affected
   column rendered the backup artifact's own `2026-08-04T22:20:41.415Z`.
+
+- **Eight Analytics cards could be seen but not exported.** Recurring
+  Availability, Operational Pressure, Grocery Partner Mix, Recorded Donated
+  Value, Fresh Food Alliance Pickup History, Fresh Food Alliance Donations Over
+  Time, and both legacy donation cards were never wrapped for selection, so
+  they sat still while everything around them wiggled and could not be put in a
+  report. All eight are registered; the registry holds 23.
+
+  Their card-level controls travel like every other card's: the partner picker
+  and the Show Legacy Data switch on the donations timeline, the source picker
+  on the legacy timeline. A partner's silent month exports as a zero rather
+  than a gap, because a gap lets the line bridge it and draw a delivery that
+  never happened.
+
+  A test now reads the lens components and fails when a card renders without a
+  `SelectableBlock`, or when a registered card loses its place on the page.
+  Nothing enforced this before, which is why eight cards drifted out of reach.
+
+- **Printed charts labelled dollars and item counts as pounds.** The bar
+  primitive hard-coded a `lb` suffix, so "Where Paid Procurement Dollars Went"
+  printed `43,245 lb` for $43,245 of spend, and Availability Summary printed
+  `58 lb` for a count of items. Each card states its own unit now. Found by
+  rendering a PDF and reading it, not by a test — the CSV had it right all
+  along, which is exactly how it stayed invisible.
+
+- **Long product names printed over their own bars.** The label column is a
+  fixed width and nothing truncated, so "Meat, Chicken Drumsticks (12/3.4 lb
+  trays)" ran straight through the bar beside it. Labels are measured against
+  real Helvetica advance widths — an average character width mis-cuts a name in
+  capitals and a name in narrow lowercase in opposite directions — and cut with
+  an ellipsis. The CSV still carries every name in full, so the abbreviation is
+  only ever in the picture.
+
+- **Available Assortment Over Time rendered at half width** with empty space
+  beside it. Its `md:col-span-2` was on the inner card while the selection
+  wrapper was the actual grid item, so the span applied to something that was
+  not a grid child. The two-column grid was doing nothing — both cards in it
+  were full width — and is gone.
+
+- **Recurring Availability stranded a KPI beside dead space.** A `max-w-4xl`
+  cap ended the divider under the third tile and held the chart to about half
+  the card, so the fourth tile floated above nothing and the chart read as a
+  fragment. It fills the card, and the item-name axis has the room to prove it.
+
+### Changed
+
+- **Tables wiggle in selection mode, like every other block.** They were held
+  deliberately still, on the theory that swaying a whole table was too much; in
+  use that read as "this one is not selectable", which is the opposite of what
+  the motion is for.
+
+  Amplitude is now scaled to block width. A rotation throws the far corner
+  further the wider the element is, so one fixed angle makes a full-width table
+  sway several times as far as a half-width card; the angle scales by
+  `reference / width`, holding the visible sweep roughly constant. Wide cards
+  get the same treatment, not just tables. The `variant="table"` prop existed
+  only to suppress motion and has been removed.
 
 ## [1.5.0-beta.7] — 2026-08-05
 

@@ -2,7 +2,7 @@
 
 ## Status
 
-Built 2026-08-06/07 for 1.5.0-beta.8. Fifteen cards, both lenses, generating a
+Built 2026-08-06/07 for 1.5.0-beta.9. Twenty-three cards, both lenses, generating a
 ZIP of PDF + per-card CSV + manifest. Templates save from Analytics and re-run
 from Reports Management against a date range chosen at run time.
 
@@ -99,6 +99,27 @@ asserts no `var(--` and no `class=` appears in any card's output.
 | `lineChartSvg` | Comparisons; optional fill under the first series. |
 | `kpiGrid` | Text tiles, as HTML. |
 | `tableHtml` | A table, as HTML. |
+
+### Labels and units
+
+Two things the primitives got wrong until beta.9, both invisible in a test that
+only asserts an SVG came back.
+
+**The label column is a fixed width and nothing enforced it.** Long product
+names were drawn from `x=0` with no truncation, straight through the bars that
+begin at the column's right edge. Labels are now measured against real Helvetica
+advance widths and cut with an ellipsis. Real metrics, not an average character
+width: `MMMMM` and `iiiii` are the same length and nowhere near the same width,
+so an average cuts one far too early and lets the other overrun. Arial was drawn
+to Helvetica's widths, so one table serves the whole font stack. The CSV carries
+every name in full — the abbreviation only ever exists in the picture.
+
+**The unit was hard-coded to `lb`.** "Where Paid Procurement Dollars Went"
+printed `43,245 lb` for $43,245 of spend, and Availability Summary printed
+`58 lb` for a count of items. `hBarSvg` takes a `BarValueFormat` now
+(`POUNDS`, `COUNT`, `DOLLARS`), because only the card knows what it measures.
+Both defects survived every existing test and were found by rendering a PDF and
+reading it — worth remembering when adding a primitive.
 
 **Stacked versus grouped is a correctness decision, not a style one.** Seasonal
 Inbound Weight compares calendar years — stacking would sum unrelated years into
@@ -249,8 +270,21 @@ unchecked duplication.
 | `analytics-card-parity.test.ts` | Display labels and unit conversion. |
 | `table-column-parity.test.ts` | Column **ids** and headers. Ids matter most — sorting travels by id, so a renamed `accessorKey` silently reorders the exported table while everything still renders. |
 | `analytics-cards.test.ts` | Chart and CSV read the same rows; no `var()`; empty payloads do not throw. |
+| `analytics-card-coverage.test.ts` | **Every card on a lens is exportable, and every registered card still has a home.** Reads the lens components as source and fails on a `<CardTitle>` outside a `SelectableBlock`, on a `cardId` that names nothing in the registry, and on a registered card no longer selected anywhere. |
+| `analytics-print.test.ts` | Label fitting and bar units. |
 
 Each guard was verified by breaking it deliberately and watching it fail.
+
+The coverage guard reads source rather than rendering, deliberately: half these
+cards appear only under a particular channel filter or when legacy data exists,
+so a render-based check would cover whichever subset the fixture happened to
+produce. It carries a short `NOT_EXPORTABLE` allowlist — currently one empty
+state — which is the escape hatch that keeps it honest rather than the place
+unregistered cards go to hide.
+
+It exists because eight cards shipped that a user could see and could not
+export, and the only way to notice was to enter selection mode and count what
+wiggled.
 
 ### Known gap
 

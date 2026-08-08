@@ -1052,21 +1052,30 @@
    subtle staggered wiggle; selected cards stop moving and show a
    token-based ring + checkmark + order number. Reduced-motion users get
    the static ring/check affordances only. */
+/* Tilt is a variable because a rotation's visible motion scales with the
+   element's width: the same 1.6deg that reads as a nudge on a half-width card
+   throws the corner of a full-width table several times as far. SelectableBlock
+   measures each block and scales the angle down so every block displaces about
+   the same distance. The defaults reproduce the original fixed amplitude
+   exactly, so a block that is never measured looks as it always did.
+
+   The horizontal slide is NOT scaled: a translate moves the same 2px whatever
+   the element's width, so it needs no correction. */
 @keyframes report-card-wiggle {
   0% {
-    transform: translate3d(-2px, 0, 0) rotate(-1.6deg);
+    transform: translate3d(-2px, 0, 0) rotate(calc(var(--report-wiggle-tilt, 1.6deg) * -1));
   }
   25% {
-    transform: translate3d(2px, 0, 0) rotate(1.6deg);
+    transform: translate3d(2px, 0, 0) rotate(var(--report-wiggle-tilt, 1.6deg));
   }
   50% {
-    transform: translate3d(-1px, 0, 0) rotate(-1deg);
+    transform: translate3d(-1px, 0, 0) rotate(calc(var(--report-wiggle-tilt, 1.6deg) * -0.625));
   }
   75% {
-    transform: translate3d(1px, 0, 0) rotate(1deg);
+    transform: translate3d(1px, 0, 0) rotate(calc(var(--report-wiggle-tilt, 1.6deg) * 0.625));
   }
   100% {
-    transform: translate3d(-2px, 0, 0) rotate(-1.6deg);
+    transform: translate3d(-2px, 0, 0) rotate(calc(var(--report-wiggle-tilt, 1.6deg) * -1));
   }
 }
 

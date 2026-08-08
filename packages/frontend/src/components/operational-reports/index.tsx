@@ -476,12 +476,19 @@ export function OperationalAnalyticsWorkspace({
             </Card>
           </SelectableBlock>
 
-          <div className="grid min-w-0 gap-4 md:grid-cols-2">
-            <SelectableBlock
-              cardId="operations-available-assortment"
-              options={{ categoryId: assortmentCategory }}
-            >
-              <Card className="min-w-0 md:col-span-2">
+          {/*
+            No wrapping grid. Both of these cards are full width, and the
+            two-column grid they used to sit in did nothing but break them:
+            SelectableBlock is the grid item, so the `md:col-span-2` on the
+            inner Card applied to a non-child and Assortment rendered at half
+            width with dead space beside it. They now sit in the page's own
+            `space-y-6` flow, like every other full-width card here.
+          */}
+          <SelectableBlock
+            cardId="operations-available-assortment"
+            options={{ categoryId: assortmentCategory }}
+          >
+              <Card className="min-w-0">
               <CardHeader className="flex flex-col items-start justify-between gap-2 space-y-0 sm:flex-row">
                 <div>
                   <CardTitle>Available Assortment Over Time</CardTitle>
@@ -553,9 +560,10 @@ export function OperationalAnalyticsWorkspace({
                 </ChartContainer>
               </CardContent>
               </Card>
-            </SelectableBlock>
+          </SelectableBlock>
 
-            <Card className="min-w-0 md:col-span-2">
+          <SelectableBlock cardId="operations-recurring-availability">
+            <Card className="min-w-0">
               <CardHeader className="flex flex-col items-start justify-between gap-2 space-y-0 sm:flex-row">
                 <div>
                   <CardTitle>Recurring Availability</CardTitle>
@@ -577,21 +585,28 @@ export function OperationalAnalyticsWorkspace({
                       />
                     </div>
 
-                    <div className="min-w-0 max-w-4xl space-y-3 border-t pt-6">
+                    {/*
+                      Full card width. `max-w-4xl` capped this block at roughly
+                      half the card, which stopped the divider under the third
+                      KPI and left the fourth stranded above empty space — the
+                      chart read as a fragment of a wider one. The item-name
+                      axis gets the room a full-width chart can afford.
+                    */}
+                    <div className="min-w-0 space-y-3 border-t pt-6">
                         <div>
                           <h3 className="font-medium">Items Cycling Most Often</h3>
                           <p className="text-sm text-muted-foreground">Up to eight recurring items, ranked by unavailable entries</p>
                         </div>
-                        <ChartContainer config={recurringAvailabilityConfig} className="h-72 min-w-0 w-full">
+                        <ChartContainer config={recurringAvailabilityConfig} className="h-80 min-w-0 w-full">
                           <BarChart
                             accessibilityLayer
                             data={recurringAvailability}
                             layout="vertical"
-                            margin={{ left: 8, right: 16 }}
+                            margin={{ left: 8, right: 24 }}
                           >
                             <CartesianGrid horizontal={false} />
                             <XAxis type="number" allowDecimals={false} tickLine={false} axisLine={false} />
-                            <YAxis dataKey="itemName" type="category" width={112} tickLine={false} axisLine={false} />
+                            <YAxis dataKey="itemName" type="category" width={168} tickLine={false} axisLine={false} />
                             <ChartTooltip content={<ChartTooltipContent />} />
                             <ChartLegend content={<ChartLegendContent />} />
                             <Bar isAnimationActive={!prefersReducedMotion()} dataKey="unavailableEntries" fill="var(--color-unavailableEntries)" radius={3} />
@@ -607,8 +622,9 @@ export function OperationalAnalyticsWorkspace({
                 )}
               </CardContent>
             </Card>
-          </div>
+          </SelectableBlock>
 
+          <SelectableBlock cardId="operations-operational-pressure">
           <Card className="min-w-0">
             <CardHeader className="flex flex-col items-start justify-between gap-2 space-y-0 sm:flex-row">
               <div>
@@ -639,6 +655,7 @@ export function OperationalAnalyticsWorkspace({
               </ChartContainer>
             </CardContent>
           </Card>
+          </SelectableBlock>
 
           <SelectableBlock cardId="operations-category-pressure">
             <Card className="min-w-0">
@@ -716,7 +733,6 @@ export function OperationalAnalyticsWorkspace({
 
           <SelectableBlock
             cardId="operations-unavailable-episodes"
-            variant="table"
             options={episodeView ?? undefined}
           >
             <div className="space-y-3">
@@ -727,7 +743,6 @@ export function OperationalAnalyticsWorkspace({
 
           <SelectableBlock
             cardId="operations-rationing-history"
-            variant="table"
             options={rationingView ?? undefined}
           >
             <div className="space-y-3">

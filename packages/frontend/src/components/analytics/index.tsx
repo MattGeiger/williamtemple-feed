@@ -760,6 +760,14 @@ function ReportToolbar({ filters }: { filters: ReportFilterContext }) {
     'operations-rationing-history': 'Rationing History',
     'procurement-warehouse-product-history': 'OFB Warehouse Product History',
     'procurement-fresh-alliance-receipt-categories': 'Fresh Food Alliance Receipt Categories',
+    'operations-recurring-availability': 'Recurring Availability',
+    'operations-operational-pressure': 'Operational Pressure',
+    'procurement-grocery-partner-mix': 'Grocery Partner Mix',
+    'procurement-donated-value': 'Recorded Donated Value',
+    'procurement-fresh-alliance-pickup-history': 'Fresh Food Alliance Pickup History',
+    'procurement-fresh-alliance-donations-over-time': 'Fresh Food Alliance Donations Over Time',
+    'procurement-legacy-donation-history': 'Donation History From Legacy Data',
+    'procurement-legacy-donations-over-time': 'Other Donations Over Time (Legacy Data)',
   };
 
   return (
@@ -1916,7 +1924,6 @@ export function ProcurementAnalyticsWorkspace({
       {includesFreshAlliance && (
         <SelectableBlock
           cardId="procurement-fresh-alliance-receipt-categories"
-          variant="table"
           options={{
             ...(freshAllianceTableView ?? {}),
             donorCodes: selectedFreshAllianceDonors,
@@ -1996,7 +2003,6 @@ export function ProcurementAnalyticsWorkspace({
       {includesWarehouse && (
         <SelectableBlock
           cardId="procurement-warehouse-product-history"
-          variant="table"
           options={warehouseTableView ?? undefined}
         >
         <section className="space-y-3">

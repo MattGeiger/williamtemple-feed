@@ -1,5 +1,68 @@
 # Release Notes
 
+## Version 1.5.0-beta.9 — 2026-08-07
+
+*Beta — deployed to production for evaluation before the final 1.5.0 tag.*
+
+- **You can turn any Analytics card into a report.** Set up the Analytics page
+  the way you want it — pick a date range, choose a channel, filter a table —
+  then click **Generate Report** at the top right. The cards start to wiggle;
+  click the ones you want, in the order you want them, and click **Review**.
+  You get a single ZIP holding a printable PDF, a spreadsheet per card, and a
+  small file recording the dates and filters used.
+- **Every card on both tabs can now go in a report.** Eight of them could not
+  before — Recurring Availability, Operational Pressure, Grocery Partner Mix,
+  Recorded Donated Value, Fresh Food Alliance Pickup History, Fresh Food
+  Alliance Donations Over Time, and the two legacy donation cards. They sat
+  still while the others wiggled, which is how you would have noticed. Tables
+  wiggle now too; they used to stay still and look unselectable.
+- **Reports remember themselves.** Tick **Save as report template** before
+  generating and the card selection, order, filters, and PDF/CSV choices are
+  kept under the report's name. Run it again from **Reports**, choose a new date
+  range, and get the same report for the new period. The date range is
+  deliberately not saved — you pick it each time, which is what makes a monthly
+  report straightforward.
+- **Long product names no longer print across their own bars** in the PDF. Names
+  too long for the space are shortened with a "…". The spreadsheet still has
+  every name in full.
+- **A chart of dollars now says dollars.** "Where Paid Procurement Dollars Went"
+  was printing `43,245 lb` where it meant `$43,245`, and the Availability
+  Summary was labelling a count of items as pounds. Only the printed PDF was
+  affected; the figures on screen and in the spreadsheets were always right.
+- **Two cards were laid out badly and are fixed.** *Available Assortment Over
+  Time* was taking up half the width with blank space beside it, and *Recurring
+  Availability* had its chart squeezed into the left half with one figure
+  stranded on the right.
+- **Admin → History reads like every other table**, with sorting, a filter,
+  column choices, and paging.
+
+## Version 1.5.0-beta.8 — not deployed
+
+*Rolled into beta.9. No separate release.*
+
+## Version 1.5.0-beta.7 — 2026-08-05
+
+*Beta — deployed to production for evaluation before the final 1.5.0 tag.*
+
+- **You can now restore FEED from a backup file**, under **Data Management →
+  Database**. Choose a file and FEED shows you what is in it before anything
+  changes. You can restore everything, or just a part — inventory, languages
+  and translations, or shopping list templates. FEED builds the new data
+  alongside the old and swaps at the end, so a failure part-way leaves your
+  current data untouched. The app puts itself into maintenance mode while it
+  works and restarts itself when it is done.
+- **You can also reset FEED to a clean slate** from the same tab. This wipes
+  your pantry's working data and starts fresh. It asks twice, and it is
+  administrator-only. Take a backup first — this is the one action that cannot
+  be undone.
+- **Sign-in emails look like William Temple House**, with the logo and the
+  house colours, rather than plain unstyled text.
+- **An example Shopping List Builder template** is included, so you have
+  something real to start from rather than a blank page.
+- Fixed: the refusal you get when trying to remove the second-to-last
+  administrator now explains itself instead of saying "An error occurred".
+- Fixed: empty analytics cards now name the period they found nothing in.
+
 ## Version 1.5.0-beta.6 — 2026-08-01
 
 *Beta — deployed to production for evaluation before the final 1.5.0 tag.*

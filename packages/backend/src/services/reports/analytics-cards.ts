@@ -6,6 +6,8 @@
 // not covered by this license; see TRADEMARKS.md.
 
 import {
+  COUNT,
+  DOLLARS,
   hBarSvg,
   kpiGrid,
   legendSvg,
@@ -88,6 +90,19 @@ export interface CardData extends CardGrain {
    * condensed, in which case the two are the same file.
    */
   raw?: CardGrain;
+  /**
+   * Headline figures printed above the chart, for a card that shows both.
+   *
+   * Recurring Availability is the case: four summary tiles over a per-item
+   * chart. They are not rows of the card's dataset — they summarise it — so
+   * folding them into `categories` would put "Repeat Episodes" in the same
+   * column as "Spaghetti" and make the CSV nonsense. They print on the card
+   * and are recorded in the manifest; the CSV carries the card's rows.
+   *
+   * A card whose tiles *are* its data (Recorded Donated Value) uses metric
+   * rows instead, so its CSV has the figures.
+   */
+  tiles?: { label: string; value: string }[];
 }
 
 /** Which grain a CSV should carry. */
@@ -369,6 +384,18 @@ export const INBOUND_SUPPLY_SUMMARY: AnalyticsCard = {
 const dollarsLabel = (cents: number): string =>
   (cents / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD' });
 
+/**
+ * `dollars()` on the donor cards: whole dollars, no cents.
+ *
+ * Deliberately not `dollarsLabel`. The donor value is a sum of per-pound rates
+ * across thousands of receipts, and the screen rounds it because the cents are
+ * an artefact of the arithmetic rather than a figure anyone reported. Printing
+ * `$12,345.00` beside a screen showing `$12,345` is exactly the drift the card
+ * contract exists to prevent — it was caught here by a test, not by eye.
+ */
+const wholeDollarsLabel = (cents: number): string =>
+  `$${Math.round(cents / 100).toLocaleString('en-US')}`;
+
 /** `attributableDollars()`: null means the figure cannot be attributed. */
 const attributableDollarsLabel = (cents: number | null): string =>
   cents === null || cents === undefined ? 'Not attributable' : dollarsLabel(cents);
@@ -516,7 +543,15 @@ export const PAID_PRODUCT_SPEND: AnalyticsCard = {
       note,
     };
   },
-  print: breakdownPrint,
+  // Dollars, not the default pounds. This card printed "43,245 lb" for
+  // $43,245 of spend until the unit became the caller's business.
+  print: data =>
+    hBarSvg(
+      data.categories.map((label, i) => ({ label, value: data.series[0]?.values[i] ?? 0 })),
+      900,
+      30,
+      DOLLARS
+    ),
 };
 
 
@@ -650,7 +685,7 @@ export const AVAILABILITY_SUMMARY: AnalyticsCard = {
       label,
       value: data.series[0]?.text?.[i + 3] ?? '',
     }));
-    return hBarSvg(bars, 900, 34) + kpiGrid(tiles);
+    return hBarSvg(bars, 900, 34, COUNT) + kpiGrid(tiles);
   },
 };
 
@@ -1201,6 +1236,460 @@ export const RATIONING_HISTORY: AnalyticsCard = {
   print: WAREHOUSE_PRODUCT_HISTORY.print,
 };
 
+/**
+ * Recurring Availability.
+ *
+ * Four summary tiles over a per-item chart, the way the screen draws it. The
+ * chart is grouped rather than stacked: unavailable entries and restorations
+ * are independent counts of the same item, and stacking them would produce a
+ * combined bar that means nothing — an item can be restored fewer times than
+ * it went unavailable, which is the interesting case, and stacking hides it.
+ *
+ * The screen takes the top eight; so does this, or the report would show a
+ * cohort the user never saw.
+ */
+export const RECURRING_AVAILABILITY: AnalyticsCard = {
+  id: 'operations-recurring-availability',
+  kind: 'chart',
+  defaultTitle: 'Recurring Availability',
+  lens: 'operations',
+  data: (analytics: any) => {
+    const summary = analytics?.summary ?? {};
+    const items = (analytics?.recurringAvailability ?? []).slice(0, 8);
+
+    return {
+      title: 'Recurring Availability',
+      categories: items.map((item: any) => item.itemName),
+      series: [
+        { name: 'Unavailable Entries', values: items.map((i: any) => i.unavailableEntries ?? 0) },
+        { name: 'Restorations', values: items.map((i: any) => i.restorations ?? 0) },
+      ],
+      categoryColumn: 'item',
+      tiles: [
+        { label: 'Recurring Items', value: countLabel(summary.repeatUnavailableItems ?? 0) },
+        { label: 'Repeat Episodes', value: countLabel(summary.recurringUnavailableEntries ?? 0) },
+        { label: 'Currently Unavailable', value: countLabel(summary.recurringOngoingEpisodes ?? 0) },
+        {
+          label: 'Recurring Median Restoration',
+          value: durationLabel(summary.recurringMedianRestorationHours ?? null),
+        },
+      ],
+      note:
+        items.length === 0
+          ? 'No items completed enough availability cycles to enter the recurring cohort in this date range.'
+          : null,
+    };
+  },
+  print: data =>
+    kpiGrid(data.tiles ?? []) +
+    groupedHBarSvg(data.categories, data.series) +
+    legendSvg(data.series.map(s => s.name)),
+};
+
+
+/**
+ * Operational Pressure.
+ *
+ * One line per limit configuration present in the range, alongside Limited
+ * Supply, Clearance, and a count of categories carrying a limit. Category rules
+ * are never expanded into implied Food Item counts — a category limit applies
+ * to a category, and multiplying it out would invent item-level rationing the
+ * pantry never recorded.
+ */
+export const OPERATIONAL_PRESSURE: AnalyticsCard = {
+  id: 'operations-operational-pressure',
+  kind: 'chart',
+  defaultTitle: 'Operational Pressure',
+  lens: 'operations',
+  data: (analytics: any) => {
+    const timeline = analytics?.timeline ?? [];
+    const limitSeries = analytics?.rationedLimitSeries ?? [];
+
+    const categories = timeline.map((point: any) => {
+      const date = new Date(`${point.date}T00:00:00Z`);
+      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+    });
+
+    const series: Series[] = [
+      { name: 'Limited Supply', values: timeline.map((p: any) => p.limitedSupply ?? 0) },
+      { name: 'Clearance', values: timeline.map((p: any) => p.clearance ?? 0) },
+      { name: 'Categories with Limits', values: timeline.map((p: any) => p.categoryRationed ?? 0) },
+      ...limitSeries.map((limit: any) => ({
+        name: `${limit.limit} Per ${limit.limitType === 'person' ? 'Person' : 'Household'}`,
+        values: timeline.map((p: any) => p.rationedByLimit?.[limit.key] ?? 0),
+      })),
+    ];
+
+    const condensed = condenseTimeSeries(categories, series);
+
+    return {
+      title: 'Operational Pressure',
+      categories: condensed.categories,
+      series: condensed.series,
+      categoryColumn: condensed.grain === 'month' ? 'date' : condensed.grain,
+      note: condensed.note,
+      grain: condensed.grain,
+      raw: condensed.condensed ? { categories, series, categoryColumn: 'date' } : undefined,
+    };
+  },
+  print: data =>
+    lineChartSvg(data.categories, data.series, 900, 300) +
+    legendSvg(data.series.map(s => s.name)),
+};
+
+
+/**
+ * Grocery Partner Mix.
+ *
+ * Partner identity is received from the OFB Agency Pickups export, never
+ * inferred. Legacy donations are excluded here exactly as they are on screen:
+ * they predate the partner reporting this card is built from, so folding them
+ * in would attribute pre-2023 weight to a partner record that did not yet
+ * describe it.
+ */
+export const GROCERY_PARTNER_MIX: AnalyticsCard = {
+  id: 'procurement-grocery-partner-mix',
+  kind: 'chart',
+  defaultTitle: 'Grocery Partner Mix',
+  lens: 'procurement',
+  data: (analytics: any) => {
+    const donors = analytics?.donors ?? [];
+    return {
+      title: 'Grocery Partner Mix',
+      categories: donors.map((d: any) => d.donorName),
+      series: [
+        { name: 'Received Pounds', values: donors.map((d: any) => toPounds(d.weightHundredths ?? 0)) },
+      ],
+      categoryColumn: 'partner',
+      note: 'Does not include legacy donations data.',
+    };
+  },
+  print: breakdownPrint,
+};
+
+
+/**
+ * Recorded Donated Value.
+ *
+ * Tiles are this card's whole dataset, so they are metric rows and the CSV
+ * carries them. The split between valued and unvalued pounds is the point of
+ * the card, not a footnote: OFB leaves the rate blank on a large share of
+ * historical rows, so the recorded value is a partial sum, and a reader who
+ * sees only the dollar figure will read it as the value of all donated supply.
+ */
+export const RECORDED_DONATED_VALUE: AnalyticsCard = {
+  id: 'procurement-donated-value',
+  kind: 'kpi',
+  defaultTitle: 'Recorded Donated Value',
+  lens: 'procurement',
+  data: (analytics: any) => {
+    const value = analytics?.donorValue ?? {};
+    const rows = [
+      {
+        label: 'Recorded value',
+        value: (value.recordedValueCents ?? 0) / 100,
+        text: wholeDollarsLabel(value.recordedValueCents ?? 0),
+      },
+      {
+        label: 'Pounds with a recorded rate',
+        value: toPounds(value.valuedWeightHundredths ?? 0),
+        text: poundsLabel(value.valuedWeightHundredths ?? 0),
+      },
+      {
+        label: 'Pounds without a recorded rate',
+        value: toPounds(value.unvaluedWeightHundredths ?? 0),
+        text: poundsLabel(value.unvaluedWeightHundredths ?? 0),
+      },
+    ];
+
+    return {
+      title: 'Recorded Donated Value',
+      categories: rows.map(r => r.label),
+      series: [{ name: 'value', values: rows.map(r => r.value), text: rows.map(r => r.text) }],
+      categoryColumn: 'metric',
+      note:
+        'FEED reports the value Oregon Food Bank reported and does not estimate a rate for other donations.',
+    };
+  },
+  print: data =>
+    kpiGrid(
+      data.categories.map((label, i) => ({ label, value: data.series[0]?.text?.[i] ?? '' }))
+    ),
+};
+
+
+const pickupHistoryColumns: TableColumn<any>[] = [
+  { id: 'donorName', header: 'Partner', text: r => r.donorName, sortValue: r => r.donorName, searchable: true },
+  { id: 'pickupCount', header: 'Pickups', align: 'right', text: r => countLabel(r.pickupCount ?? 0), sortValue: r => r.pickupCount ?? 0 },
+  {
+    id: 'weightHundredths',
+    header: 'Received',
+    align: 'right',
+    text: r => poundsLabel(r.weightHundredths ?? 0),
+    sortValue: r => r.weightHundredths ?? 0,
+  },
+  {
+    id: 'share',
+    header: 'Share',
+    align: 'right',
+    // The denominator is every partner in the range, so the share must be
+    // computed against that total rather than the rows the table is showing —
+    // otherwise filtering to one partner would report it as 100%.
+    text: r => (r.__totalWeightHundredths ? `${Math.round(100 * (r.weightHundredths ?? 0) / r.__totalWeightHundredths)}%` : '—'),
+    sortValue: r => (r.__totalWeightHundredths ? (r.weightHundredths ?? 0) / r.__totalWeightHundredths : 0),
+  },
+  {
+    id: 'averageWeightPerPickupHundredths',
+    header: 'Average load',
+    align: 'right',
+    text: r => poundsLabel(r.averageWeightPerPickupHundredths ?? 0),
+    sortValue: r => r.averageWeightPerPickupHundredths ?? 0,
+  },
+  {
+    id: 'categories',
+    header: 'Categories',
+    align: 'right',
+    text: r => countLabel(r.categories?.length ?? 0),
+    sortValue: r => r.categories?.length ?? 0,
+  },
+  {
+    id: 'observedRange',
+    header: 'Observed range',
+    text: r => `${tableDateLabel(r.firstReceivedDate)} – ${tableDateLabel(r.lastReceivedDate)}`,
+    sortValue: r => r.firstReceivedDate ?? '',
+  },
+];
+
+/**
+ * Fresh Food Alliance Pickup History.
+ *
+ * The screen renders this with a plain `<Table>` rather than
+ * `EnhancedDataTable`, so it has no filter, sort, or paging state to preserve —
+ * every partner in the range, in payload order. See ISSUES.md #61: bringing it
+ * onto the table standard is its own change, and when it happens this card
+ * gains the same view-state handling the other two table cards already have.
+ */
+export const FRESH_ALLIANCE_PICKUP_HISTORY: AnalyticsCard = {
+  id: 'procurement-fresh-alliance-pickup-history',
+  kind: 'table',
+  defaultTitle: 'Fresh Food Alliance Pickup History',
+  lens: 'procurement',
+  data: (analytics: any, options?: any) => {
+    const donors = analytics?.donors ?? [];
+    const total = donors.reduce((sum: number, d: any) => sum + (d.weightHundredths ?? 0), 0);
+    const rows = donors.map((d: any) => ({ ...d, __totalWeightHundredths: total }));
+
+    return {
+      ...tableCardData('Fresh Food Alliance Pickup History', rows, pickupHistoryColumns, options),
+      note: 'Fresh Food Alliance Pickups only. Does not include legacy data.',
+    };
+  },
+  print: WAREHOUSE_PRODUCT_HISTORY.print,
+};
+
+
+/**
+ * Fresh Food Alliance Donations Over Time.
+ *
+ * Two card-level controls travel, and both change what the numbers mean. The
+ * partner picker is `options.donorCodes`; `options.showLegacy` extends each
+ * partner's line back before June 2023 with pre-Primarius records. Legacy ends
+ * May 2023 and Fresh Alliance begins June 2023, so the two abut with no overlap
+ * and no month is double-counted — which is the only reason they can share a
+ * line at all.
+ */
+export const FRESH_ALLIANCE_DONATIONS_OVER_TIME: AnalyticsCard = {
+  id: 'procurement-fresh-alliance-donations-over-time',
+  kind: 'chart',
+  defaultTitle: 'Fresh Food Alliance Donations Over Time',
+  lens: 'procurement',
+  data: (analytics: any, options?: any) => {
+    const allDonors = analytics?.donors ?? [];
+    const selected: string[] | null = Array.isArray(options?.donorCodes)
+      ? options.donorCodes
+      : null;
+    const showLegacy = options?.showLegacy === true;
+
+    const donors = selected === null
+      ? allDonors
+      : allDonors.filter((d: any) => selected.includes(d.donorCode));
+
+    const rows = [
+      ...(showLegacy ? (analytics?.freshAllianceLegacyMonthlyWeight ?? []) : []),
+      ...(analytics?.donorMonthlyWeight ?? []),
+    ];
+    const codes = new Set(donors.map((d: any) => d.donorCode));
+    const months = [...new Set(rows.map((r: any) => r.month))].sort() as string[];
+
+    const series: Series[] = donors.map((donor: any) => ({
+      name: donor.donorName,
+      // Zero-filled rather than sparse: a gap would let the line bridge a month
+      // the partner did not deliver in, drawing a delivery that never happened.
+      values: months.map(month =>
+        toPounds(
+          rows
+            .filter((r: any) => r.month === month && r.donorCode === donor.donorCode)
+            .reduce((sum: number, r: any) => sum + (r.weightHundredths ?? 0), 0)
+        )
+      ),
+    }));
+
+    const condensed = condenseTimeSeries(months, series);
+    const notes = [
+      selected !== null ? `Partners narrowed to ${donors.length}.` : null,
+      showLegacy ? 'Extended before June 2023 with legacy records.' : null,
+      condensed.note,
+    ].filter(Boolean);
+
+    return {
+      title: 'Fresh Food Alliance Donations Over Time',
+      categories: condensed.categories,
+      series: condensed.series,
+      categoryColumn: condensed.grain === 'month' ? 'month' : condensed.grain,
+      note: notes.join(' ') || null,
+      grain: condensed.grain,
+      raw: condensed.condensed
+        ? { categories: months, series, categoryColumn: 'month' }
+        : undefined,
+    };
+  },
+  print: data =>
+    lineChartSvg(data.categories, data.series, 900, 300) +
+    legendSvg(data.series.map(s => s.name)),
+};
+
+
+/**
+ * How many community sources get their own name before the tail is folded into
+ * one bucket. Mirrors `COMMUNITY_NAMED_LIMIT` in the screen's
+ * `community-analytics.tsx`; the parity test reads both.
+ */
+const COMMUNITY_NAMED_LIMIT = 12;
+const OTHER_SOURCES_LABEL = 'Other Community sources';
+
+/**
+ * Donation History From Legacy Data.
+ *
+ * Legacy data only — internal William Temple House records, discontinued June
+ * 2023. The provenance is on the card because a legacy pound and a current
+ * pound are not the same observation, and a report that gets forwarded loses
+ * the tab heading that said so on screen.
+ */
+export const LEGACY_DONATION_HISTORY: AnalyticsCard = {
+  id: 'procurement-legacy-donation-history',
+  kind: 'chart',
+  defaultTitle: 'Donation History From Legacy Data',
+  lens: 'procurement',
+  data: (analytics: any) => {
+    const sources = analytics?.communitySources ?? [];
+    const named = sources.slice(0, COMMUNITY_NAMED_LIMIT);
+    const folded = sources.slice(COMMUNITY_NAMED_LIMIT);
+
+    const categories = named.map((s: any) => s.sourceName);
+    const values = named.map((s: any) => toPounds(s.weightHundredths ?? 0));
+    if (folded.length > 0) {
+      categories.push(OTHER_SOURCES_LABEL);
+      values.push(
+        toPounds(folded.reduce((sum: number, s: any) => sum + (s.weightHundredths ?? 0), 0))
+      );
+    }
+
+    return {
+      title: 'Donation History From Legacy Data',
+      categories,
+      series: [{ name: 'Received Pounds', values }],
+      categoryColumn: 'source',
+      note:
+        'Legacy data only, based on internal William Temple House records. Record discontinued June 2023.' +
+        (folded.length > 0 ? ` ${folded.length} smaller sources folded into "${OTHER_SOURCES_LABEL}".` : ''),
+    };
+  },
+  print: breakdownPrint,
+};
+
+
+/**
+ * Other Donations Over Time (Legacy Data).
+ *
+ * Scoped to non-Fresh-Alliance sources, as on screen. A partner's pre-2023
+ * timeline belongs to the Fresh Alliance card, and drawing it here as well
+ * would put the same pounds on the page twice under two different names.
+ */
+export const LEGACY_DONATIONS_OVER_TIME: AnalyticsCard = {
+  id: 'procurement-legacy-donations-over-time',
+  kind: 'chart',
+  defaultTitle: 'Other Donations Over Time (Legacy Data)',
+  lens: 'procurement',
+  data: (analytics: any, options?: any) => {
+    const allSources = (analytics?.communitySources ?? []).filter(
+      (s: any) => !s.isFreshAlliancePartner
+    );
+    const partnerNames = new Set(
+      (analytics?.communitySources ?? [])
+        .filter((s: any) => s.isFreshAlliancePartner)
+        .map((s: any) => s.sourceName)
+    );
+    const monthly = (analytics?.communityMonthlyWeight ?? []).filter(
+      (entry: any) => !partnerNames.has(entry.sourceName)
+    );
+
+    const named = allSources.slice(0, COMMUNITY_NAMED_LIMIT);
+    const foldedNames = new Set(
+      allSources.slice(COMMUNITY_NAMED_LIMIT).map((s: any) => s.sourceName)
+    );
+
+    const selected: string[] | null = Array.isArray(options?.sourceNames)
+      ? options.sourceNames
+      : null;
+    const isVisible = (name: string) => selected === null || selected.includes(name);
+
+    const months = [...new Set(monthly.map((r: any) => r.month))].sort() as string[];
+    const weightFor = (month: string, match: (name: string) => boolean) =>
+      toPounds(
+        monthly
+          .filter((r: any) => r.month === month && match(r.sourceName))
+          .reduce((sum: number, r: any) => sum + (r.weightHundredths ?? 0), 0)
+      );
+
+    const series: Series[] = named
+      .filter((s: any) => isVisible(s.sourceName))
+      .map((source: any) => ({
+        name: source.sourceName,
+        values: months.map(month => weightFor(month, name => name === source.sourceName)),
+      }));
+
+    if (foldedNames.size > 0 && isVisible(OTHER_SOURCES_LABEL)) {
+      series.push({
+        name: OTHER_SOURCES_LABEL,
+        values: months.map(month => weightFor(month, name => foldedNames.has(name))),
+      });
+    }
+
+    const condensed = condenseTimeSeries(months, series);
+    const notes = [
+      'Monthly received pounds by sources other than Fresh Alliance partners.',
+      selected !== null ? `Sources narrowed to ${series.length}.` : null,
+      condensed.note,
+    ].filter(Boolean);
+
+    return {
+      title: 'Other Donations Over Time (Legacy Data)',
+      categories: condensed.categories,
+      series: condensed.series,
+      categoryColumn: condensed.grain === 'month' ? 'month' : condensed.grain,
+      note: notes.join(' ') || null,
+      grain: condensed.grain,
+      raw: condensed.condensed
+        ? { categories: months, series, categoryColumn: 'month' }
+        : undefined,
+    };
+  },
+  print: data =>
+    lineChartSvg(data.categories, data.series, 900, 300) +
+    legendSvg(data.series.map(s => s.name)),
+};
+
+
 /** Registry. A card is exportable exactly when it appears here. */
 export const ANALYTICS_CARDS: AnalyticsCard[] = [
   INBOUND_SUPPLY_SUMMARY,
@@ -1218,6 +1707,14 @@ export const ANALYTICS_CARDS: AnalyticsCard[] = [
   FRESH_ALLIANCE_RECEIPT_CATEGORIES,
   UNAVAILABLE_EPISODES,
   RATIONING_HISTORY,
+  RECURRING_AVAILABILITY,
+  OPERATIONAL_PRESSURE,
+  GROCERY_PARTNER_MIX,
+  RECORDED_DONATED_VALUE,
+  FRESH_ALLIANCE_PICKUP_HISTORY,
+  FRESH_ALLIANCE_DONATIONS_OVER_TIME,
+  LEGACY_DONATION_HISTORY,
+  LEGACY_DONATIONS_OVER_TIME,
 ];
 
 export const getAnalyticsCard = (id: string): AnalyticsCard | undefined =>
