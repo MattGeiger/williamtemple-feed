@@ -46,6 +46,28 @@ All notable changes to FEED are documented here. This project adheres to
   Architecture in `docs/reports/analytics-report-architecture.md`; staff-facing
   guide at Help → Generating Reports.
 
+- **Saved templates run from Reports Management.** A template is listed with its
+  cards, outputs and filters, and **Run report** regenerates it for a period
+  chosen at run time. The dialog asks for the date range and nothing else,
+  because the template supplies the rest — and it asks with the same range
+  control the Analytics page uses, so a template's second run means what its
+  first one did.
+
+  Each run starts from the default period rather than inheriting the previous
+  one. A range carried over silently is exactly the mistake that "a template has
+  no date range" exists to prevent.
+
+  Cards can be retired from the registry after a template names one. That is now
+  surfaced *before* generating — an "N unavailable" badge in the table, a warning
+  in the run dialog, a disabled Run when nothing survives — and only the
+  surviving cards are requested. The server's `X-Unknown-Card-Ids` header still
+  reports them, but telling someone their report is short a card after they have
+  downloaded it is not telling them.
+
+  An unread card registry is distinguished from an empty one: a failed lookup
+  reports nothing missing rather than announcing that every saved card has been
+  deleted.
+
 
 ### Changed
 

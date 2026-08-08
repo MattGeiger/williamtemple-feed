@@ -3,8 +3,8 @@
 ## Status
 
 Built 2026-08-06/07 for 1.5.0-beta.8. Fifteen cards, both lenses, generating a
-ZIP of PDF + per-card CSV + manifest. Templates save; the Reports Management
-surface that re-runs them is not built yet.
+ZIP of PDF + per-card CSV + manifest. Templates save from Analytics and re-run
+from Reports Management against a date range chosen at run time.
 
 ## What a report is
 
@@ -201,6 +201,42 @@ something different in April. The range is chosen when the template is run.
 Saved with `source: 'analytics'` so these never collide with the dormant
 workspace's templates, which describe cards this route cannot render.
 
+### Running one
+
+Reports Management lists them and runs them. The dialog asks for one thing —
+the period — because the template supplies everything else, and it asks with
+**the same `AnalyticsRangeControl` the Analytics page uses**. Two pickers with
+two notions of "last 90 days" is the obvious way for a template's second run to
+stop meaning what its first one did.
+
+The period is not carried between runs: each open resets to the default range.
+A stale range inherited from the previous template is precisely the mistake the
+"a template has no date range" rule exists to prevent.
+
+`templateData` is JSON written by whatever client saved it, so it is narrowed
+once in `template-spec.ts` (`parseTemplateSpec`) and every consumer works from
+the result. Absent output flags default to *on*, matching the server's zod
+defaults — the two must not disagree about what an old payload meant.
+
+### Cards that no longer exist
+
+A card can be removed from the registry after a template names it. That is
+resolved **before** generation: the card list is fetched once by Reports
+Management, `cardAvailability()` partitions each template's ids against it, and
+the result drives three things — an "N unavailable" badge in the table, a
+warning in the run dialog, and a disabled Run action when nothing survives.
+Only the surviving ids are sent, so the request matches what the dialog said it
+would produce.
+
+The server still reports unknown ids in `X-Unknown-Card-Ids` and in the
+manifest. That is now a backstop rather than the notification: telling someone
+their report is short a card *after* they have downloaded it is not telling them.
+
+`cardAvailability()` distinguishes an **unread** registry (null) from an
+**empty** one. They are different facts, and conflating them would tell the user
+every card in every template had been deleted because one request failed. An
+unread registry reports nothing missing and lets the server decide.
+
 ## Drift guards
 
 The two packages share no module, so anything duplicated across them is checked
@@ -227,7 +263,9 @@ source text, which is a different mechanism than the one built here.
 
 ## What is not built
 
-- **Reports Management** — templates save, but nothing lists or re-runs them.
+- **Editing a template** — a template is replaced by saving from Analytics
+  under the same name. Cards and filters cannot be changed from Reports
+  Management, only run or deleted.
 - **Formatter parity** — the gap above.
 - **Operations card options** — no Operations card yet has card-level controls
   that need freezing; the mechanism is there when one does.

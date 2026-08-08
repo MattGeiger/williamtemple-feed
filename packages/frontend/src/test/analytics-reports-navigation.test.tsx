@@ -13,7 +13,9 @@ import { ReportsManagementWorkspace } from '@/components/reports-management';
 vi.mock('@/services/analytics-reports', () => ({
   analyticsReportsService: {
     getTemplates: vi.fn().mockResolvedValue([]),
+    getCards: vi.fn().mockResolvedValue([]),
     deleteTemplate: vi.fn().mockResolvedValue(undefined),
+    downloadReport: vi.fn().mockResolvedValue(undefined),
   },
 }));
 
@@ -53,14 +55,12 @@ describe('Analytics and Reports information architecture', () => {
     expect(screen.getByTestId('pagination-controls')).toBeVisible();
   });
 
-  test('says where templates come from, rather than offering a Run that does nothing', () => {
-    // Running a template is not built. A disabled or inert Run action would
-    // read as broken; saying so once is honest and costs a sentence.
+  test('says where templates come from — they cannot be created on this page', () => {
     render(<ReportsManagementWorkspace />);
 
     expect(screen.getByText(/Save as report template/)).toBeVisible();
-    expect(screen.getByText(/not available yet/)).toBeVisible();
-    expect(screen.queryByRole('button', { name: /^run/i })).toBeNull();
-    expect(screen.queryByRole('button', { name: /generate report/i })).toBeNull();
+    // The page once said running a template was not available. It is now, so
+    // that sentence must not survive: stale reassurance is worse than none.
+    expect(screen.queryByText(/not available yet/)).toBeNull();
   });
 });

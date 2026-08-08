@@ -95,8 +95,33 @@ makes a monthly report straightforward — same cards, same layout, new dates.
 
 If you only need a one-off, untick the box before generating.
 
-> **Note:** running a saved template from the Reports page is not available yet.
-> Templates you save now are stored and will be ready when it is.
+## Running a saved report again
+
+Go to **Reports**. Every saved template is listed with the cards it contains,
+what it produces, and the filters it was saved with.
+
+1. Click the **⋯** button at the end of the row and choose **Run report**.
+2. Pick the date range — the same 7d / 30d / 90d / YTD / All buttons and custom
+   range picker you use on Analytics.
+3. Click **Generate**.
+
+You get the same report, for the new dates. Nothing else needs setting up: the
+cards, their order, the filters and your PDF and CSV choices all come from the
+template.
+
+To change what a report contains, set it up on Analytics again and save it under
+the same name — that replaces the template. To get rid of one, use **Delete
+template** in the same menu.
+
+### "1 unavailable" beside the card count
+
+FEED's cards change occasionally, and a template can name one that no longer
+exists. When that happens you will see it in the Cards column before you open
+anything, and again in the run dialog, which marks the card **Unavailable**.
+
+The report still runs, with the cards that remain. Save a fresh template from
+Analytics when you get the chance. If *none* of a template's cards still exist,
+**Run report** is greyed out — save a new template and delete the old one.
 
 ## Reading a report
 
