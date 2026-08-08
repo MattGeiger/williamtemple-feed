@@ -35,6 +35,14 @@
   stranded on the right.
 - **Admin → History reads like every other table**, with sorting, a filter,
   column choices, and paging.
+- **Fixed several specific PDF chart mismatches found in evaluation.** Seasonal
+  Inbound Weight now includes all available years and stops at the chosen date
+  boundaries; the paid-product “Other” bar keeps its family stack; and the
+  three affected Operations charts print the scales and values that were
+  previously available only by hovering on screen.
+- **Operations tables keep working through report generation.** Unavailable
+  Episodes and Rationing History retain their sort and page in the report, and
+  remain sortable immediately after generating or canceling.
 
 ## Version 1.5.0-beta.8 — not deployed
 

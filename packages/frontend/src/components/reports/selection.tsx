@@ -29,16 +29,16 @@ interface ReportSelectionContextValue {
   isSelecting: boolean;
   selectedIds: string[];
   /**
-   * Each card's own controls, frozen when selection began.
+   * Each selected card's own controls, frozen when that card was selected.
    *
    * Some cards carry state the page-level filters do not describe — a search
    * box, a donor filter, a year picker. A report must reproduce what was on
    * screen, so that state travels with the request.
    *
-   * Frozen at `startSelecting`, not read at generate time: the modal offers no
-   * filter controls, so the run must mean what the page showed when the user
-   * chose to make a report. Changing a card's filter afterwards would otherwise
-   * silently rewrite a selection already made.
+   * Frozen when the visible card is selected, not read at generate time: the
+   * modal offers no filter controls, so the run must mean what the card showed
+   * when the user chose it. Capturing at selection also supports cross-lens
+   * reports, because inactive Radix tab content is unmounted.
    */
   cardOptions: Record<string, unknown>;
   /** Cards publish their current controls here; cheap, and never re-renders. */
@@ -100,7 +100,7 @@ export function ReportSelectionProvider({
   const [selectedIds, setSelectedIds] = React.useState<string[]>([]);
   const [cardOptions, setCardOptions] = React.useState<Record<string, unknown>>({});
   // A ref, not state: cards write on every render, and storing this in state
-  // would loop. Only the snapshot taken at startSelecting becomes state.
+  // would loop. Only the option captured when a card is selected becomes state.
   const liveOptions = React.useRef<Record<string, unknown>>({});
   const registerOptions = React.useCallback((cardId: string, options: unknown) => {
     liveOptions.current[cardId] = options;
@@ -111,7 +111,12 @@ export function ReportSelectionProvider({
       isSelecting,
       selectedIds,
       startSelecting: () => {
-        setCardOptions({ ...liveOptions.current });
+        // Card options belong to the card the user actually selects, not to
+        // every card that happened to be mounted when selection mode began.
+        // Radix unmounts the inactive Analytics lens, so a start-time snapshot
+        // could only contain a stale option from an earlier visit (or no option
+        // at all). Each visible card is captured below when it is selected.
+        setCardOptions({});
         setIsSelecting(true);
       },
       cardOptions,
@@ -119,20 +124,30 @@ export function ReportSelectionProvider({
       cancelSelecting: () => {
         setIsSelecting(false);
         setSelectedIds([]);
+        setCardOptions({});
       },
       toggleCard: (cardId) => {
-        setSelectedIds((current) => {
-          if (current.includes(cardId)) {
-            return current.filter((id) => id !== cardId);
-          }
-          if (current.length >= MAX_REPORT_SELECTION) {
-            messageService.error(
-              `Reports can include at most ${MAX_REPORT_SELECTION} blocks. Remove one before adding another.`
-            );
-            return current;
-          }
-          return [...current, cardId];
-        });
+        if (selectedIds.includes(cardId)) {
+          setSelectedIds(selectedIds.filter((id) => id !== cardId));
+          setCardOptions((current) => {
+            const next = { ...current };
+            delete next[cardId];
+            return next;
+          });
+          return;
+        }
+        if (selectedIds.length >= MAX_REPORT_SELECTION) {
+          messageService.error(
+            `Reports can include at most ${MAX_REPORT_SELECTION} blocks. Remove one before adding another.`
+          );
+          return;
+        }
+
+        setSelectedIds([...selectedIds, cardId]);
+        const option = liveOptions.current[cardId];
+        if (option !== undefined) {
+          setCardOptions((current) => ({ ...current, [cardId]: option }));
+        }
       },
       moveCard: (cardId, direction) => {
         setSelectedIds((current) => {
@@ -146,9 +161,18 @@ export function ReportSelectionProvider({
           return next;
         });
       },
-      removeCard: (cardId) =>
-        setSelectedIds((current) => current.filter((id) => id !== cardId)),
-      clearSelection: () => setSelectedIds([]),
+      removeCard: (cardId) => {
+        setSelectedIds((current) => current.filter((id) => id !== cardId));
+        setCardOptions((current) => {
+          const next = { ...current };
+          delete next[cardId];
+          return next;
+        });
+      },
+      clearSelection: () => {
+        setSelectedIds([]);
+        setCardOptions({});
+      },
       applySelection: (cardIds) => {
         setSelectedIds(cardIds.slice(0, MAX_REPORT_SELECTION));
         setIsSelecting(true);
@@ -215,7 +239,9 @@ export function SelectableBlock({
   // Published during render rather than in an effect: startSelecting can fire
   // before an effect has flushed, and a stale snapshot is the whole failure
   // mode this exists to prevent.
-  if (registerOptions && options !== undefined) registerOptions(cardId, options);
+  // Publish `undefined` too: a freshly mounted card with no current option must
+  // clear any value left by an earlier visit to an unmounted lens.
+  if (registerOptions) registerOptions(cardId, options);
   const isSelecting = selection?.isSelecting ?? false;
   const selectedIds = selection?.selectedIds ?? EMPTY_SELECTION;
   const toggleCard = selection?.toggleCard;
@@ -250,7 +276,14 @@ export function SelectableBlock({
     const node = contentRef.current as
       | (HTMLDivElement & { inert: boolean })
       | null;
-    if (node) node.inert = isSelecting;
+    if (!node) return;
+    node.inert = isSelecting;
+    // `inert` is assigned imperatively, so React cannot remove it for us.
+    // Explicit cleanup also protects this node if its owner ever unmounts
+    // during selection.
+    return () => {
+      node.inert = false;
+    };
   }, [isSelecting]);
 
   // The wrapper becomes the grid item wherever a card sits in a grid, so it
@@ -258,23 +291,16 @@ export function SelectableBlock({
   // content height and the taller sibling leaves a gap beneath it — 56px under
   // Procurement Channels when Acquisition Mix ran longer. `h-full` is inert
   // outside a stretching parent, so this costs nothing elsewhere.
-  if (!isSelecting) {
-    return (
-      <div ref={blockRef} className={cn("min-w-0 h-full [&>*]:h-full", className)}>
-        {children}
-      </div>
-    );
-  }
-
   return (
     <div
       ref={blockRef}
-      role="checkbox"
-      aria-checked={isSelected}
-      aria-label={`Select report block ${cardId}`}
-      tabIndex={0}
-      onClick={() => toggleCard?.(cardId)}
+      role={isSelecting ? "checkbox" : undefined}
+      aria-checked={isSelecting ? isSelected : undefined}
+      aria-label={isSelecting ? `Select report block ${cardId}` : undefined}
+      tabIndex={isSelecting ? 0 : undefined}
+      onClick={isSelecting ? () => toggleCard?.(cardId) : undefined}
       onKeyDown={(event) => {
+        if (!isSelecting) return;
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
           toggleCard?.(cardId);
@@ -283,15 +309,15 @@ export function SelectableBlock({
       className={cn(
         // Same height passthrough as above, so entering selection mode does
         // not change the layout it is selecting from.
-        "relative min-w-0 h-full [&>*]:h-full cursor-pointer rounded-lg outline-hidden",
-        "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-        !isSelected && "report-selectable",
-        isSelected &&
+        "relative min-w-0 h-full rounded-lg outline-hidden",
+        isSelecting && "cursor-pointer focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+        isSelecting && !isSelected && "report-selectable",
+        isSelecting && isSelected &&
           "report-selectable-selected ring-2 ring-primary ring-offset-2 ring-offset-background",
         className
       )}
       style={
-        !isSelected
+        isSelecting && !isSelected
           ? ({
               // Match ZEV's rapid, organic selection motion: short loops
               // with small per-card duration and start-time differences.
@@ -304,7 +330,7 @@ export function SelectableBlock({
           : undefined
       }
     >
-      {isSelected && (
+      {isSelecting && isSelected && (
         <span className="absolute -right-2 -top-2 z-10 flex items-center gap-1">
           <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
             {selectedIndex + 1}
@@ -314,7 +340,10 @@ export function SelectableBlock({
           </span>
         </span>
       )}
-      <div ref={contentRef} className="min-w-0">{children}</div>
+      {/* Keep this exact wrapper in both modes. Changing the child tree here
+          remounts stateful tables, resetting their sort and page before the
+          user can select them for a report. */}
+      <div ref={contentRef} className="min-w-0 h-full [&>*]:h-full">{children}</div>
     </div>
   );
 }

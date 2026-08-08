@@ -5,6 +5,18 @@ All notable changes to FEED are documented here. This project adheres to
 
 ## [Unreleased]
 
+### Fixed
+
+- **Analytics report PDF parity and table lifecycle.** Seasonal Inbound Weight
+  now includes every available year for automatic/All selections, retains an
+  explicitly chosen subset, and stops lines at the selected range instead of
+  drawing out-of-range zeroes. Where Paid Procurement Dollars Went preserves
+  the on-screen family stack in its aggregate tail bar. Recurring Availability
+  and Category Pressure now print axes and bar-end values, while Operational
+  Pressure prints collision-aware latest values. Starting or finishing the
+  report workflow no longer remounts Operations tables or leaves them inert, so
+  their sort and page state reach the report and remain usable afterward.
+
 ## [1.5.0-beta.9] — 2026-08-07
 
 Supersedes 1.5.0-beta.8, which was never deployed — its work (the Admin History

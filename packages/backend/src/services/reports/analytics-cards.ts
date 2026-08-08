@@ -8,6 +8,7 @@
 import {
   COUNT,
   DOLLARS,
+  PERCENT,
   hBarSvg,
   kpiGrid,
   legendSvg,
@@ -103,6 +104,10 @@ export interface CardData extends CardGrain {
    * rows instead, so its CSV has the figures.
    */
   tiles?: { label: string; value: string }[];
+  /** Optional per-row pieces for a horizontal bar whose total remains one CSV row. */
+  rowSegments?: Array<Array<{ name: string; value: number }>>;
+  /** Stable legend/color order shared by every segmented row in the card. */
+  segmentNames?: string[];
 }
 
 /** Which grain a CSV should carry. */
@@ -491,6 +496,15 @@ export const PAID_PROCUREMENT_SUMMARY: AnalyticsCard = {
  */
 const PAID_PRODUCT_SEARCH_LIMIT = 25;
 const PAID_PRODUCT_TOP_N = 15;
+const UNCLASSIFIED_PRODUCT_FAMILY = 'Unclassified';
+
+/** Mirrors the screen's display-only family grouping for paid product names. */
+const paidProductFamily = (description: string): string => {
+  const match = /^([^,]{2,40}),/.exec(description.trim());
+  if (!match) return UNCLASSIFIED_PRODUCT_FAMILY;
+  const family = match[1].trim();
+  return family.length > 0 ? family : UNCLASSIFIED_PRODUCT_FAMILY;
+};
 
 export const PAID_PRODUCT_SPEND: AnalyticsCard = {
   id: 'procurement-paid-product-spend',
@@ -501,7 +515,7 @@ export const PAID_PRODUCT_SPEND: AnalyticsCard = {
     const products = analytics?.paidProducts ?? [];
     const query = String(options?.search ?? '').trim().toLocaleLowerCase();
 
-    let rows: { label: string; value: number }[];
+    let rows: { label: string; value: number; segments: { name: string; value: number }[] }[];
     let note: string | null = null;
 
     if (query.length > 0) {
@@ -512,7 +526,11 @@ export const PAID_PRODUCT_SPEND: AnalyticsCard = {
       );
       rows = matches
         .slice(0, PAID_PRODUCT_SEARCH_LIMIT)
-        .map((p: any) => ({ label: p.description, value: p.totalSpendCents / 100 }));
+        .map((p: any) => ({
+          label: p.description,
+          value: p.totalSpendCents / 100,
+          segments: [{ name: paidProductFamily(p.description), value: p.totalSpendCents / 100 }],
+        }));
       // Stated on the card: a filtered report that does not say it is filtered
       // is the misread this whole contract exists to prevent.
       note =
@@ -524,16 +542,38 @@ export const PAID_PRODUCT_SPEND: AnalyticsCard = {
     } else {
       rows = products
         .slice(0, PAID_PRODUCT_TOP_N)
-        .map((p: any) => ({ label: p.description, value: p.totalSpendCents / 100 }));
+        .map((p: any) => ({
+          label: p.description,
+          value: p.totalSpendCents / 100,
+          segments: [{ name: paidProductFamily(p.description), value: p.totalSpendCents / 100 }],
+        }));
       const tail = products.slice(PAID_PRODUCT_TOP_N);
       const tailCents = tail.reduce((sum: number, p: any) => sum + p.totalSpendCents, 0);
       if (tailCents > 0) {
+        const familyCents = new Map<string, number>();
+        for (const product of tail) {
+          const family = paidProductFamily(product.description);
+          familyCents.set(family, (familyCents.get(family) ?? 0) + product.totalSpendCents);
+        }
         rows.push({
           label: `Other paid products (${tail.length} ${tail.length === 1 ? 'code' : 'codes'})`,
           value: tailCents / 100,
+          segments: [...familyCents.entries()]
+            .map(([name, cents]) => ({ name, value: cents / 100 }))
+            .sort((left, right) => right.value - left.value),
         });
       }
     }
+
+    const segmentTotals = new Map<string, number>();
+    for (const row of rows) {
+      for (const segment of row.segments) {
+        segmentTotals.set(segment.name, (segmentTotals.get(segment.name) ?? 0) + segment.value);
+      }
+    }
+    const segmentNames = [...segmentTotals.entries()]
+      .sort((left, right) => right[1] - left[1])
+      .map(([name]) => name);
 
     return {
       title: 'Where Paid Procurement Dollars Went',
@@ -541,17 +581,24 @@ export const PAID_PRODUCT_SPEND: AnalyticsCard = {
       series: [{ name: 'spend_usd', values: rows.map(r => r.value) }],
       categoryColumn: 'product',
       note,
+      rowSegments: rows.map(row => row.segments),
+      segmentNames,
     };
   },
   // Dollars, not the default pounds. This card printed "43,245 lb" for
   // $43,245 of spend until the unit became the caller's business.
   print: data =>
     hBarSvg(
-      data.categories.map((label, i) => ({ label, value: data.series[0]?.values[i] ?? 0 })),
+      data.categories.map((label, i) => ({
+        label,
+        value: data.series[0]?.values[i] ?? 0,
+        segments: data.rowSegments?.[i],
+      })),
       900,
       30,
-      DOLLARS
-    ),
+      DOLLARS,
+      data.segmentNames
+    ) + legendSvg(data.segmentNames ?? []),
 };
 
 
@@ -572,9 +619,9 @@ const MONTH_LABELS = [
  *   control could contradict the filter visible at the top of the page
  *   (procurement-unification-plan.md: one source of truth). The client sends
  *   the effective value, so that resolution is not duplicated here.
- * - `years` — which calendar years are being compared. Absent, nothing is
- *   drawn, because "all years" is not what the screen shows either: it shows
- *   the years the user selected.
+ * - `yearMode` / `years` — an explicit subset is persisted; the automatic
+ *   default is re-derived from the run-time payload so a saved template's new
+ *   date range is not narrowed by the range from which it was saved.
  */
 export const SEASONAL_INBOUND_WEIGHT: AnalyticsCard = {
   id: 'procurement-seasonal-inbound-weight',
@@ -583,7 +630,9 @@ export const SEASONAL_INBOUND_WEIGHT: AnalyticsCard = {
   lens: 'procurement',
   data: (analytics: any, options?: any) => {
     const channel: string = options?.channel ?? 'all';
-    const years: string[] = Array.isArray(options?.years) ? options.years : [];
+    const years: string[] = options?.yearMode === 'selected'
+      ? (Array.isArray(options?.years) ? options.years : [])
+      : (analytics?.availableYears ?? []);
 
     // Same source split the screen uses: the all-channel series is
     // pre-aggregated, the per-channel one is not and must be summed.
@@ -592,13 +641,22 @@ export const SEASONAL_INBOUND_WEIGHT: AnalyticsCard = {
         ? (analytics?.seasonalWeight ?? []).map((p: any) => ({ ...p, channel: 'all' }))
         : (analytics?.seasonalChannelWeight ?? []).filter((p: any) => p.channel === channel);
 
+    const startMonth = String(analytics?.range?.startDate ?? '').slice(0, 7);
+    const endMonth = String(analytics?.range?.endDate ?? '').slice(0, 7);
+    const hasResolvedCoverage = /^\d{4}-\d{2}$/.test(startMonth) && /^\d{4}-\d{2}$/.test(endMonth);
+
     const series = years.map(year => {
       const values = new Array(12).fill(0);
       for (const point of points) {
         if (String(point.year) !== String(year)) continue;
         values[point.month - 1] += toPounds(point.weightHundredths);
       }
-      return { name: year, values };
+      const defined = MONTH_LABELS.map((_, index) => {
+        if (!hasResolvedCoverage) return true;
+        const month = `${year}-${String(index + 1).padStart(2, '0')}`;
+        return month >= startMonth && month <= endMonth;
+      });
+      return { name: year, values, defined };
     });
 
     return {
@@ -805,6 +863,7 @@ export const CATEGORY_PRESSURE: AnalyticsCard = {
         name,
         values: rows.map((r: any) => r[key] ?? 0),
         text: rows.map((r: any) => percentLabel(r[key] ?? null)),
+        defined: rows.map((r: any) => r[key] !== null && r[key] !== undefined),
       })),
       categoryColumn: 'category',
       note:
@@ -814,7 +873,11 @@ export const CATEGORY_PRESSURE: AnalyticsCard = {
     };
   },
   print: data =>
-    groupedHBarSvg(data.categories, data.series) + legendSvg(data.series.map(s => s.name)),
+    groupedHBarSvg(data.categories, data.series, 900, 13, {
+      max: 100,
+      showAxis: true,
+      formatValue: PERCENT,
+    }) + legendSvg(data.series.map(s => s.name)),
 };
 
 
@@ -1282,7 +1345,10 @@ export const RECURRING_AVAILABILITY: AnalyticsCard = {
   },
   print: data =>
     kpiGrid(data.tiles ?? []) +
-    groupedHBarSvg(data.categories, data.series) +
+    groupedHBarSvg(data.categories, data.series, 900, 13, {
+      showAxis: true,
+      formatValue: COUNT,
+    }) +
     legendSvg(data.series.map(s => s.name)),
 };
 
@@ -1333,7 +1399,10 @@ export const OPERATIONAL_PRESSURE: AnalyticsCard = {
     };
   },
   print: data =>
-    lineChartSvg(data.categories, data.series, 900, 300) +
+    lineChartSvg(data.categories, data.series, 900, 300, false, {
+      endLabels: true,
+      formatValue: COUNT,
+    }) +
     legendSvg(data.series.map(s => s.name)),
 };
 
@@ -1738,7 +1807,10 @@ export function cardCsv(data: CardData, grain: CsvGrain = 'condensed'): string {
     lines.push(
       [
         escape(category),
-        ...source.series.map(s => (s.text ? escape(s.text[i] ?? '') : (s.values[i] ?? 0))),
+        ...source.series.map(s => {
+          if (s.defined?.[i] === false) return '';
+          return s.text ? escape(s.text[i] ?? '') : (s.values[i] ?? 0);
+        }),
       ].join(',')
     );
   });

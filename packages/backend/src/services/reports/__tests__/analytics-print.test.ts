@@ -12,6 +12,8 @@ import {
   DOLLARS,
   groupedHBarSvg,
   hBarSvg,
+  lineChartSvg,
+  PERCENT,
   stackedHBarSvg,
   textWidth,
   truncateToWidth,
@@ -129,5 +131,52 @@ describe('bar value units', () => {
 
     expect(svg).toContain('>58<');
     expect(svg).not.toContain('lb');
+  });
+});
+
+describe('print chart scales and values', () => {
+  it('labels grouped count bars and gives them an integer scale', () => {
+    const svg = groupedHBarSvg(
+      ['Rice'],
+      [{ name: 'Unavailable Entries', values: [5] }],
+      900,
+      13,
+      { showAxis: true, formatValue: COUNT }
+    );
+
+    expect(svg).toContain('data-axis-tick="true"');
+    expect(svg).toContain('data-bar-value="Unavailable Entries"');
+    expect(svg).toContain('>5<');
+  });
+
+  it('uses a fixed percent range and omits undefined category-pressure bars', () => {
+    const svg = groupedHBarSvg(
+      ['Beans'],
+      [{ name: 'Category Limits', values: [0], defined: [false] }],
+      900,
+      13,
+      { showAxis: true, max: 100, formatValue: PERCENT }
+    );
+
+    expect(svg).toContain('>100%<');
+    expect(svg).not.toContain('data-bar-value="Category Limits"');
+  });
+
+  it('prints collision-aware endpoint values on operational lines', () => {
+    const svg = lineChartSvg(
+      ['Jul 1', 'Jul 2'],
+      [
+        { name: 'Limited Supply', values: [2, 5] },
+        { name: 'Clearance', values: [3, 5] },
+      ],
+      900,
+      300,
+      false,
+      { endLabels: true, formatValue: COUNT }
+    );
+
+    expect(svg.match(/data-end-label=/g)).toHaveLength(2);
+    expect(svg).toContain('data-end-label="Limited Supply"');
+    expect(svg).toContain('>5<');
   });
 });
