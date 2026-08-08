@@ -6,7 +6,7 @@
 // not covered by this license; see TRADEMARKS.md.
 
 import * as React from "react";
-import { foodIcons, IconCategory, DEFAULT_ICON } from "@/lib/food-icons";
+import { foodIcons, IconCategory, DEFAULT_ICON, ICON_CATEGORY_LABELS } from "@/lib/food-icons";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -20,8 +20,12 @@ interface SimpleIconSelectorProps {
 export function SimpleIconSelector({ value, onChange, disabled = false }: SimpleIconSelectorProps) {
   const [searchTerm, setSearchTerm] = React.useState("");
   
-  // Group icons by category
-  const categories: IconCategory[] = ['food', 'drink', 'health', 'household', 'clothing', 'other'];
+  // Group icons by category.
+  //
+  // `pets` was defined in food-icons.ts but missing here, so five icons were
+  // unreachable. `outdoor` stays omitted deliberately — surfacing bikes and
+  // tents is a separate product decision.
+  const categories: IconCategory[] = ['food', 'drink', 'health', 'household', 'clothing', 'pets', 'other'];
 
   // Filter icons based on search term
   const filteredIcons = searchTerm 
@@ -51,7 +55,10 @@ export function SimpleIconSelector({ value, onChange, disabled = false }: Simple
         <div className="p-4">
           {groupedIcons.map(group => (
             <div key={group.category} className="mb-4">
-              <h4 className="mb-2 text-sm font-medium">{group.category.charAt(0).toUpperCase() + group.category.slice(1)}</h4>
+              <h4 className="mb-2 text-sm font-medium">
+                {ICON_CATEGORY_LABELS[group.category] ??
+                  group.category.charAt(0).toUpperCase() + group.category.slice(1)}
+              </h4>
               <div className="grid grid-cols-4 gap-2">
                 {group.icons.map(icon => {
                   const IconComponent = icon.component;

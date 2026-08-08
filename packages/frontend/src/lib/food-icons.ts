@@ -7,6 +7,7 @@
 
 import {
   Apple,
+  Bird,
   Baby,
   Ban,
   Banana,
@@ -48,6 +49,7 @@ import {
   Flashlight,
   Footprints,
   Fuel,
+  Glasses,
   Gem,
   Gift,
   GlassWater,
@@ -76,6 +78,7 @@ import {
   Refrigerator,
   Salad,
   Sandwich,
+  Rabbit,
   Shirt,
   ShoppingBasket,
   ShoppingCart,
@@ -118,6 +121,16 @@ export type IconCategory =
   | 'pets'
   | 'outdoor'
   | 'other';
+
+/**
+ * Display names for the picker's group headings.
+ *
+ * The picker used to title-case the key, which cannot produce "Animals &
+ * Pets" from `pets`. Anything absent here still falls back to the key.
+ */
+export const ICON_CATEGORY_LABELS: Partial<Record<IconCategory, string>> = {
+  pets: 'Animals & Pets',
+};
 
 export const DEFAULT_ICON = 'package';
 
@@ -202,19 +215,27 @@ export const foodIcons: FoodIcon[] = [
   
   // Clothing category
   { value: 'shirt', label: 'Clothing', category: 'clothing', component: Shirt },
+  { value: 'glasses', label: 'Glasses', category: 'clothing', component: Glasses },
+  // Moved here from `outdoor`, where it was labelled "Tracking" and was
+  // unreachable — the picker never rendered that group. Same `value`, so
+  // categories already using it are unaffected.
+  { value: 'footprints', label: 'Footwear', category: 'clothing', component: Footprints },
   
-  // Pets category
+  // Animals & Pets. Existed already but was never rendered: the picker's
+  // category order omitted it, stranding five icons. Extended rather than
+  // duplicated into a second group.
   { value: 'bone', label: 'Pet Treats', category: 'pets', component: Bone },
   { value: 'cat', label: 'Cat', category: 'pets', component: Cat },
   { value: 'dog', label: 'Dog', category: 'pets', component: Dog },
   { value: 'paw-print', label: 'Pets', category: 'pets', component: PawPrint },
   { value: 'bug-off', label: 'No Pests', category: 'pets', component: BugOff },
+  { value: 'rabbit', label: 'Rabbit', category: 'pets', component: Rabbit },
+  { value: 'bird', label: 'Bird', category: 'pets', component: Bird },
   
   // Outdoor category
   { value: 'bike', label: 'Bike', category: 'outdoor', component: Bike },
   { value: 'tent', label: 'Camping', category: 'outdoor', component: Tent },
   { value: 'flashlight', label: 'Flashlight', category: 'outdoor', component: Flashlight },
-  { value: 'footprints', label: 'Tracking', category: 'outdoor', component: Footprints },
   { value: 'fuel', label: 'Fuel', category: 'outdoor', component: Fuel },
   { value: 'waves', label: 'Water', category: 'outdoor', component: Waves },
   
