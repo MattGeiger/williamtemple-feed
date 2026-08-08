@@ -1,6 +1,6 @@
 # FEED — Known Issues & Future Work
 
-**Last Updated**: August 7, 2026
+**Last Updated**: August 8, 2026
 **Status**: v1.0.0 release prep in progress (see `docs/V1-RELEASE-PLAN.md`)
 **Production**: https://feed.williamtemple.app
 
@@ -37,6 +37,283 @@ Everything else in this file. The application is shippable today.
 ---
 
 ## Open Issues
+
+### #62 — Analytics report PDF parity and report-selection state regressions
+**Priority**: High · **Status**: Confirmed in 1.5.0-beta.9; awaiting implementation approval
+**Bucket**: Analytics reports / human-evaluation findings
+
+The report architecture is sound and most cards are accurate, polished print
+representations of Analytics. Human evaluation of beta.9 found a small set of
+localized parity failures in newly connected cards. This issue deliberately
+preserves the current model — server-authored SVG/HTML, one card accessor for
+PDF and CSV, and the ZEV selection workflow — and records the narrow changes
+needed to make these cards meet it.
+
+Investigation covered the report commits from `5b6306f` through `00ad2b2`, the
+Analytics and Operations components, `EnhancedDataTable`, the report selection
+provider, the card registry/accessors, print primitives, report route/builder,
+tests, report architecture and staff guide, table standard, chart-colour guide,
+operational-analytics design, and a freshly rendered four-page PDF made with the
+production renderer and deterministic review data.
+
+#### #62a — Procurement PDF parity
+
+##### Seasonal Inbound Weight exports only the current year for All history
+
+**Observed:** an All-history PDF can contain only the current-year series even
+though Analytics has earlier years.
+
+**Root cause is card-option state, not procurement data.** The local All query
+resolves to 2009-11-09 through 2026-08-08 and returns all 18 years. The backend
+card also renders one series per year when those years reach it. The failure is
+that the print accessor renders only `cardOptions.years`, while the client
+serializes a concrete year array derived from the range that happened to be
+loaded when options were captured:
+
+- a saved template stores the default resolved array (often only the current
+  year from a 90-day range), even though templates intentionally do not store a
+  date range; running that template for All history therefore reuses the old
+  range's year list;
+- report selection snapshots every live card option at **selection start**.
+  Inactive Radix tab content is unmounted, and the provider neither unregisters
+  nor refreshes its old entry. Starting on the other lens can therefore freeze
+  a stale one-year seasonal option before the Procurement card is visible;
+- absent years currently mean `[]` on the backend, so there is no safe dynamic
+  default when a template or cross-lens selection has no current option.
+
+**Approaches:**
+
+1. Ignore the option and always derive every available year from the report
+   payload. Smallest backend change and fixes All immediately, but removes the
+   intentional year-picker behavior from exports.
+2. Distinguish an automatic selection from an explicit subset, for example
+   `yearMode: 'all-available' | 'selected'` plus `years` only for the latter;
+   derive `all-available` from the newly requested payload. Snapshot card
+   options when that card is selected, while it is mounted and visible, rather
+   than freezing every current/stale entry when selection mode begins. This
+   keeps user-selected subsets and lets saved templates adapt to their new
+   run-time range.
+3. Put the seasonal selection in URL/page filters and make the table/chart
+   controls fully controlled from a shared report store. This gives one global
+   source of truth, but broadens a local card control into page navigation and
+   is disproportionate to this defect.
+
+**Recommendation:** approach 2. It preserves both promises: explicit card
+choices reproduce exactly, while a template's intentionally fresh date range
+cannot be narrowed by an implicit default saved from an older range.
+
+##### Seasonal lines falsely continue at zero outside the selected range
+
+**Observed:** a year with data for only part of the selected interval falls to
+zero and continues across out-of-range months, visually asserting zero inbound
+weight where the report did not ask a question.
+
+**Root cause:** the screen leaves missing month/year cells undefined and uses
+`connectNulls={false}`. The report accessor instead starts every selected year
+with `new Array(12).fill(0)`, and `lineChartSvg` unconditionally joins all twelve
+values into one polyline. A rendered fixture reproduced the false baseline from
+the last observed month through December (and before the first in-range month
+for the opening year).
+
+**Approaches:**
+
+1. Use zero only for observed/in-range zeroes and carry an optional defined
+   mask per series; teach `lineChartSvg` to draw separate contiguous runs. This
+   keeps the existing numeric `Series.values` contract intact for every other
+   chart and lets the CSV write blanks outside coverage.
+2. Widen every `Series.values` entry to `number | null` and make all chart,
+   condensation and CSV helpers null-aware. This is conceptually clean, but a
+   broad contract migration for one card and risks changing working charts.
+3. Add a seasonal-only SVG renderer that accepts sparse points. It is local and
+   low risk, but duplicates axes, colour and legend behavior already owned by
+   `lineChartSvg`.
+
+**Recommendation:** approach 1. An optional defined mask is the smallest
+general extension of the working line primitive. The seasonal accessor should
+derive coverage from the resolved start/end dates, terminate at those boundary
+months, and never turn out-of-range absence into zero.
+
+##### Where Paid Procurement Dollars Went loses the stacked aggregate bar
+
+**Observed:** Analytics divides `Other paid products (146 codes)` into adjacent
+product-family segments; the PDF prints it as one solid bar.
+
+**Root cause:** the frontend datum retains `familyBreakdown` and its custom bar
+shape renders those segments. The report accessor reduces every row — including
+the aggregate — to only `{ label, value }`, and `hBarSvg` has no row-segment
+input. The aggregate composition is discarded before printing. A rendered
+fixture reproduced the single-colour tail bar.
+
+**Approaches:**
+
+1. Add optional per-row segment metadata to `CardData` and a shared segmented
+   horizontal-bar print path. Keep total spend as the CSV value and use the
+   segments only to explain that total visually; extend the existing formatter
+   parameter so labels remain dollars.
+2. Create a paid-products-only renderer and duplicate the frontend family
+   parsing/segment layout in it. This is quick, but creates another print
+   primitive and an unchecked second implementation of the same chart.
+3. Move the entire paid-product presentation model into the procurement API so
+   screen and report consume pre-grouped rows and segments. This maximizes
+   semantic sharing, but changes a stable API and more working screen code than
+   this export defect requires.
+
+**Recommendation:** approach 1, with focused frontend/backend parity tests for
+family classification and segment totals. It extends the current print
+vocabulary without changing the API or redesigning the card.
+
+#### #62b — Operations PDF charts omit the values needed off-screen
+
+**Observed:** Recurring Availability and Category Pressure render proportional
+bars but no numeric axis or end values. Operational Pressure has grid/tick
+marks, but no static values for its series; the screen's hover tooltip has no
+PDF equivalent. The resulting pictures show direction and relative length but
+do not let a reader recover the values being reported.
+
+**Root cause:** `groupedHBarSvg` emits only category labels and rectangles — no
+axis, tick labels, units, or bar-end text. Both Recurring Availability and
+Category Pressure use it directly. `lineChartSvg` emits a shared y-axis scale,
+but deliberately emits no point/end labels; Operational Pressure therefore
+loses the exact values supplied interactively by Recharts. Existing tests check
+series names and data arrays but never assert that print markup makes those
+values readable. The rendered review PDF confirmed the gap.
+
+Category Pressure has one additional correctness edge: its accessor maps an
+unknown percentage (`null`) to numeric zero for the SVG while retaining an em
+dash only in `series.text`. The comment says unknown should draw no bar, but the
+print primitive never reads `text`, so zero and Unknown are visually
+indistinguishable.
+
+**Approaches for each affected chart:**
+
+1. **Print value labels:** add formatter-aware labels to grouped bars and
+   restrained labels to the line chart (for example end-of-series values, with
+   collision handling). Exact and consistent with other report bars, but every
+   point on a long line would be cluttered if labels are not deliberately
+   limited.
+2. **Axes only:** give grouped bars integer or fixed 0–100% axes and rely on the
+   existing Operational Pressure axes. Clean and compact, but readers still
+   have to estimate exact values and the PDF remains weaker than the tooltip.
+3. **Companion data grids:** print a small value table below each graph. Exact
+   and accessible, but duplicates the chart, increases page count, and changes
+   the established appearance more than necessary.
+
+**Recommendation:** a targeted hybrid of approaches 1 and 2, implemented as
+options on the existing primitives:
+
+- Recurring Availability: integer x-axis ticks plus integer labels at the ends
+  of its two bars;
+- Category Pressure: a fixed 0–100% axis plus percent labels at bar ends, with
+  Unknown carried as undefined/no bar rather than zero;
+- Operational Pressure: retain its existing x/y scale and add collision-aware
+  latest/end labels for each series rather than labeling every daily point.
+
+This supplies range and exact values without turning dense time-series pages
+into label fields. It is an extension of the print adapters that already work,
+not a new export concept.
+
+#### #62c — Entering and leaving report selection corrupts table state
+
+##### Tables reset before their options are selected for export
+
+**Observed:** Unavailable Episodes and Rationing History return to the first
+page and unsorted order as soon as **Generate Report** starts selection mode.
+
+**Root cause:** `SelectableBlock` returns two different child trees. Outside
+selection it renders `{children}` directly; during selection it inserts a new
+`<div ref={contentRef}>` around them. React remounts the stateful
+`EnhancedDataTable` subtree, whose sort and pagination are internal hook state,
+so both reset to defaults. `onViewStateChange` can publish the previous view to
+the parent, and the backend correctly applies options when it receives them,
+but the visible table no longer matches what the user is being asked to select.
+The selection provider's start-time snapshot also makes cross-lens/stale option
+capture possible, as described in #62a.
+
+##### Tables remain inert after the workflow
+
+**Observed:** after generating/canceling a report, the two tables no longer
+respond to sortable headers until the route remounts.
+
+**Root cause:** while selecting, an effect imperatively sets
+`contentRef.current.inert = true`; it has no cleanup. Because the direct child
+before selection and the inserted content wrapper are both `<div>` elements,
+React reuses the same DOM node across both branches. When selection ends the ref
+is detached, so the effect cannot set that reused node back to false. React does
+not know about the imperatively added property and leaves `inert=true` on the
+restored table container. An isolated React/jsdom reproduction confirmed both
+DOM-node reuse transitions and the surviving final inert property.
+
+**Approaches:**
+
+1. Render one stable wrapper/content DOM shape in both modes; conditionally add
+   checkbox semantics, animation classes and badges, and always assign the
+   content node's inert state both ways (with cleanup). Snapshot each card's
+   live options when the user selects that visible card. This preserves the
+   table instance and its state and prevents stale cross-tab options.
+2. Lift all `EnhancedDataTable` sorting, filtering, visibility and pagination
+   into controlled parent/provider state. This makes remounts survivable and
+   reusable, but expands the table API and migrates working callers to solve a
+   wrapper-lifecycle bug.
+3. Force-mount both Analytics tabs and restore each table from published
+   `initialState` after every selection transition. This retains more DOM and
+   potentially duplicate data work, still visibly remounts, and is fragile
+   because `useTableFeatures` currently ignores `initialState.sorting`.
+
+**Recommendation:** approach 1. The wrapper owns both regressions and should be
+fixed at their source. A stable tree also preserves focus and scroll state,
+while per-card selection-time capture satisfies cross-lens reports without
+making every table controlled.
+
+#### TDD implementation checklist
+
+Do not begin with renderer edits. First preserve each human finding as a failing
+test, then make the smallest production change that turns it green.
+
+- [ ] Add one frontend integration fixture with both Analytics lenses, multiple
+  seasonal years, enough Operations rows for page 2, and sortable table values.
+- [ ] Prove a default seasonal selection saved from a one-year range expands to
+  all available years when that template is run for All history.
+- [ ] Prove an explicitly selected seasonal subset remains that subset on a
+  later run.
+- [ ] Prove starting selection on Operations, switching to Procurement, and
+  choosing Seasonal Inbound Weight captures the currently visible years rather
+  than a stale/unmounted value.
+- [ ] Add backend seasonal tests for a partial opening year, a full middle year,
+  and a partial closing year; assert out-of-range CSV cells are blank and SVG
+  polylines terminate instead of running at zero.
+- [ ] Add a paid-product fixture with more than 15 codes and at least three
+  families in the tail; assert segment sums equal the aggregate dollars, the
+  PDF markup contains all family segments, and the CSV still has one aggregate
+  total.
+- [ ] Add print-primitive tests that assert rendered labels/ticks, not merely
+  that SVG exists: integer values for Recurring Availability, 0–100% scale and
+  percent labels for Category Pressure, and bounded end labels for Operational
+  Pressure.
+- [ ] Add a Category Pressure null fixture and assert Unknown is not converted
+  into a zero-length factual observation.
+- [ ] Add a `SelectableBlock` lifecycle test with a stateful child; assert the
+  child is not remounted when selection starts, a card is selected, Review
+  opens/closes, generation completes, or selection is canceled.
+- [ ] In the same test, assert the content node is inert only during selection
+  and sortable controls work immediately afterward.
+- [ ] Add an Operations integration test: sort Unavailable Episodes, go to page
+  2, start report selection, select it, and assert both the visible table and
+  the generated request retain the exact sort/page options. Repeat for
+  Rationing History.
+- [ ] Add a saved-template round trip for those table options and verify the
+  backend applies filter → sort → page in that order.
+- [ ] Run focused frontend report/selection/table tests and backend report card,
+  print and route tests.
+- [ ] Run the full frontend and backend suites, both package builds, and the
+  table/card parity guards.
+- [ ] Generate a real mixed-lens ZIP through Chromium; inspect manifest and
+  per-card CSVs, render every PDF page with Poppler, and compare the five
+  affected charts plus both tables against the configured screen state.
+- [ ] Manually exercise both exits — Cancel and successful Generate — then sort,
+  filter and paginate both Operations tables without navigating away.
+- [ ] Update this issue, the report architecture/staff guide where option
+  semantics change, `CHANGELOG.md`, and release notes only after the behavior is
+  verified.
 
 ### #60 — Generic error message when attempting to configure Admin with a single administrator role
 **Priority**: Medium · **Status**: **Fixed** in 1.5.0-beta.7
