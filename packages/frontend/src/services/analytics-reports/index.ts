@@ -36,7 +36,7 @@ export interface AnalyticsReportCard {
   id: string;
   title: string;
   lens: 'operations' | 'procurement';
-  kind: 'chart' | 'kpi';
+  kind: 'chart' | 'kpi' | 'table';
 }
 
 export interface AnalyticsTemplateRequest {
