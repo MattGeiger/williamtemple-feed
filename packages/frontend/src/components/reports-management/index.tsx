@@ -9,23 +9,14 @@ import * as React from 'react';
 import type { ColumnDef } from '@tanstack/react-table';
 import { AlertTriangle, Play, Trash2 } from 'lucide-react';
 
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
 import { SectionHeader } from '@/components/shared/section-header';
 import { createPageTitleIcon } from '@/components/layout/page-title-icon';
 import { FileChartColumnIcon } from '@/components/ui/file-chart-column';
+import { Checkbox } from '@/components/ui/checkbox';
 import { EnhancedDataTable } from '@/components/ui/enhanced-data-table';
 import { SortableHeader } from '@/components/ui/sortable-header';
 import { TableActionMenu } from '@/components/ui/table-action-menu';
-import type { TableRowAction } from '@/types/table';
+import type { TableBulkAction, TableRowAction } from '@/types/table';
 import { formatDateTime } from '@/lib/formatting/date';
 import { ErrorHandlerService } from '@/services/error/ErrorHandlerService';
 import { messageService } from '@/services/message';
@@ -34,6 +25,7 @@ import {
   type AnalyticsReportTemplate,
 } from '@/services/analytics-reports';
 import { RunTemplateDialog, type RunTemplateTarget } from './run-dialog';
+import { BulkDeleteDialog } from './bulk-delete-dialog';
 import {
   cardAvailability,
   outputsLabel,
@@ -84,9 +76,10 @@ const toRow = (template: AnalyticsReportTemplate): TemplateRow => {
 export function ReportsManagementWorkspace() {
   const [templates, setTemplates] = React.useState<TemplateRow[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
-  const [pendingDelete, setPendingDelete] = React.useState<TemplateRow | null>(null);
+  const [pendingDelete, setPendingDelete] = React.useState<TemplateRow[]>([]);
   const [runTarget, setRunTarget] = React.useState<RunTemplateTarget | null>(null);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const tableRef = React.useRef<{ clearSelection?: () => void }>(null);
   // Null means "not known yet, or the lookup failed". Distinct from an empty
   // map: an empty map would say every saved card has been removed, which is a
   // far more alarming claim than "we could not check".
@@ -144,7 +137,7 @@ export function ReportsManagementWorkspace() {
           label: 'Delete template',
           icon: Trash2,
           variant: 'destructive',
-          onClick: () => setPendingDelete(row),
+          onClick: () => setPendingDelete([row]),
         },
       ];
     },
@@ -153,6 +146,29 @@ export function ReportsManagementWorkspace() {
 
   const columns = React.useMemo<ColumnDef<TemplateRow>[]>(
     () => [
+      {
+        id: 'select',
+        size: 10,
+        enableSorting: false,
+        enableHiding: false,
+        header: ({ table }) => (
+          <Checkbox
+            checked={
+              table.getIsAllPageRowsSelected() ||
+              (table.getIsSomePageRowsSelected() && 'indeterminate')
+            }
+            onCheckedChange={value => table.toggleAllPageRowsSelected(Boolean(value))}
+            aria-label="Select all"
+          />
+        ),
+        cell: ({ row }) => (
+          <Checkbox
+            checked={row.getIsSelected()}
+            onCheckedChange={value => row.toggleSelected(Boolean(value))}
+            aria-label="Select row"
+          />
+        ),
+      },
       {
         accessorKey: 'name',
         header: ({ column }) => <SortableHeader column={column}>Name</SortableHeader>,
@@ -205,13 +221,32 @@ export function ReportsManagementWorkspace() {
     [actionsFor, isSubmitting, missingCount]
   );
 
-  const confirmDelete = async () => {
-    if (!pendingDelete) return;
+  const bulkActions = React.useMemo<TableBulkAction<TemplateRow>[]>(
+    () => [
+      {
+        label: 'Delete Selected',
+        icon: Trash2,
+        variant: 'destructive',
+        action: selected => setPendingDelete(selected),
+      },
+    ],
+    []
+  );
+
+  const confirmDelete = async (templatesToDelete: TemplateRow[]) => {
+    if (templatesToDelete.length === 0) return;
     setIsSubmitting(true);
     try {
-      await analyticsReportsService.deleteTemplate(pendingDelete.id);
-      messageService.success(`Deleted "${pendingDelete.name}".`);
-      setPendingDelete(null);
+      const result = await analyticsReportsService.deleteTemplates(
+        templatesToDelete.map(template => template.id)
+      );
+      messageService.success(
+        result.deleted === 1
+          ? `Deleted "${templatesToDelete[0].name}".`
+          : `Deleted ${result.deleted} report templates.`
+      );
+      setPendingDelete([]);
+      tableRef.current?.clearSelection?.();
       await load();
     } catch (error) {
       ErrorHandlerService.handleError(error, 'analyticsReportTemplateDelete');
@@ -237,6 +272,7 @@ export function ReportsManagementWorkspace() {
       </p>
 
       <EnhancedDataTable
+        ref={tableRef}
         columns={columns}
         data={templates}
         isLoading={isLoading}
@@ -245,6 +281,7 @@ export function ReportsManagementWorkspace() {
         enableColumnVisibility
         defaultPageSize={10}
         emptyMessage="No report templates saved yet."
+        selection={{ enabled: true, selectionColumn: true, bulkActions }}
       />
 
       <RunTemplateDialog
@@ -253,32 +290,13 @@ export function ReportsManagementWorkspace() {
         cardTitles={cardTitles}
       />
 
-      <AlertDialog
-        open={pendingDelete !== null}
-        onOpenChange={open => !open && !isSubmitting && setPendingDelete(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete "{pendingDelete?.name}"?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This removes the saved card selection and filters for everyone.
-              Reports already downloaded are unaffected.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isSubmitting}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={event => {
-                event.preventDefault();
-                void confirmDelete();
-              }}
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? 'Deleting…' : 'Delete'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <BulkDeleteDialog
+        templates={pendingDelete}
+        open={pendingDelete.length > 0}
+        onOpenChange={open => !open && !isSubmitting && setPendingDelete([])}
+        onConfirm={confirmDelete}
+        isLoading={isSubmitting}
+      />
     </div>
   );
 }

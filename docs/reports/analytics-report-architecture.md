@@ -261,6 +261,22 @@ once in `template-spec.ts` (`parseTemplateSpec`) and every consumer works from
 the result. Absent output flags default to *on*, matching the server's zod
 defaults — the two must not disagree about what an old payload meant.
 
+### Managing and deleting templates
+
+Reports Management follows the same selection pattern as the Food Items,
+Categories, and Translations tables: row checkboxes, current-page select-all,
+the shared selected count and Clear control, and bulk actions in the standard
+Actions menu. **Delete Selected** is intentionally the first bulk action; a
+bulk run has no honest meaning until the product defines how different ranges,
+filters, outputs, and card options should be packaged.
+
+Single-row and bulk deletion converge on the same confirmation. The API accepts
+the selected ids as one operation, verifies every id inside a transaction with
+`source: 'analytics'`, then deletes the selection as a unit. A missing,
+wrong-source, or concurrently removed template aborts the whole operation.
+Source scoping matters because Analytics and the dormant report workspace share
+the `ReportTemplate` table but do not share a card contract.
+
 ### Cards that no longer exist
 
 A card can be removed from the registry after a template names it. That is

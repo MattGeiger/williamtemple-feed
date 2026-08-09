@@ -91,6 +91,11 @@ export class AnalyticsReportsService extends BaseApiService {
     await this.delete(`/templates/${id}`);
   }
 
+  /** Delete one Reports Management table selection as one operation. */
+  async deleteTemplates(ids: number[]): Promise<{ deleted: number }> {
+    return this.delete<{ deleted: number }>('/templates/bulk', { ids });
+  }
+
   /** Generates the ZIP (PDF + numbered per-card CSVs + manifest) and downloads it. */
   async downloadReport(request: AnalyticsReportRequest): Promise<void> {
     const { blob, filename } = await this.requestBinary('/export', {

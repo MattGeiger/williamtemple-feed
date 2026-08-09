@@ -7,6 +7,15 @@ All notable changes to FEED are documented here. This project adheres to
 
 ### Changed
 
+- **Reports Management now supports the standard bulk-selection workflow.**
+  Staff can select individual templates or the current page, see and clear the
+  selected count, and choose **Delete Selected** from the shared Actions menu.
+  Row-level and bulk deletion use the same established confirmation, including
+  the warning that report templates are shared across the organization. The
+  backend validates and deletes the full Analytics-template selection in one
+  source-scoped transaction, so stale or mixed-source selections cannot partly
+  succeed.
+
 - **New Analytics reports suggest a title from their selected lenses.** A
   Procurement-only selection starts as `Procurement Report`, an Operations-only
   selection starts as `Operations Report`, and a mixed selection starts as

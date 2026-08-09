@@ -22,6 +22,10 @@
   range, and get the same report for the new period. The date range is
   deliberately not saved — you pick it each time, which is what makes a monthly
   report straightforward.
+- **Reports Management now has the same bulk controls as other management
+  tables.** Select report templates with the row checkboxes, use the heading
+  checkbox for the current page, and choose **Delete Selected** from Actions.
+  FEED confirms the full selection and deletes it as one operation.
 - **Long product names no longer print across their own bars** in the PDF. Names
   too long for the space are shortened with a "…". The spreadsheet still has
   every name in full.

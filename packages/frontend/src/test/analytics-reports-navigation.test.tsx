@@ -15,6 +15,7 @@ vi.mock('@/services/analytics-reports', () => ({
     getTemplates: vi.fn().mockResolvedValue([]),
     getCards: vi.fn().mockResolvedValue([]),
     deleteTemplate: vi.fn().mockResolvedValue(undefined),
+    deleteTemplates: vi.fn().mockResolvedValue({ deleted: 0 }),
     downloadReport: vi.fn().mockResolvedValue(undefined),
   },
 }));
@@ -55,8 +56,11 @@ describe('Analytics and Reports information architecture', () => {
     expect(screen.getByTestId('pagination-controls')).toBeVisible();
   });
 
-  test('says where templates come from — they cannot be created on this page', () => {
+  test('says where templates come from — they cannot be created on this page', async () => {
     render(<ReportsManagementWorkspace />);
+
+    // Let both initial service requests settle before the test is cleaned up.
+    await screen.findByPlaceholderText('Filter templates...');
 
     expect(screen.getByText(/Save as report template/)).toBeVisible();
     // The page once said running a template was not available. It is now, so
