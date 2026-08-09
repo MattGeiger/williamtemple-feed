@@ -8,13 +8,44 @@ is the standardized Oregon Food Bank (OFB) CSV exporter.
 
 The staff workflow is intentionally short:
 
-1. Open **Information → Data Management**.
-2. Drop or select the unified OFB export (Order History → the single export
-   action).
-3. Review the import result and any calm data-quality warnings.
-4. Leave. The uploaded file is no longer retained.
+1. Install the **OFB Order CSV Exporter Chrome Extension** from the download in
+   **Information → Data Management → Import OFB Data** if it is not already
+   active.
+2. Open Primarius **Order History**, choose the date range, and use **Export
+   unified CSV**.
+3. Return to **Import OFB Data** and drop or select the CSV.
+4. Review the import result and any calm data-quality warnings.
+5. Leave. The uploaded file is no longer retained.
 
 No mapping, row-by-row confirmation, or correction queue is required.
+
+## Required Chrome extension
+
+The unified import is not a native Primarius download. It requires OFB Order
+CSV Exporter version 2.0.0 or later, which reads Warehouse Completed orders and
+Fresh Alliance Pending and Completed pickups for one inclusive date range and
+reconciles them before producing one CSV.
+
+FEED serves the approved versioned package at
+`/downloads/OFB-Order-CSV-Exporter-v2.0.0.zip`. The archive contains:
+
+- `OFB-Order-CSV-Exporter-v2.0.0/` - the extension folder whose root contains
+  `manifest.json`;
+- `OFB-Order-CSV-Exporter-Installation-Instructions.pdf` - the staff guide with
+  installation screenshot, verification, export, import, and troubleshooting
+  steps.
+
+Installation follows Google's documented unpacked-extension workflow: unzip
+the package, open `chrome://extensions`, enable **Developer mode**, select
+**Load unpacked**, and choose the extension folder. Chrome loads the extension
+from that folder, so staff should keep it in place. Reload an already-open
+Primarius Order History page after installation. Google's reference is
+[Hello World extension: Load an unpacked extension](https://developer.chrome.com/docs/extensions/get-started/tutorial/hello-world#load-unpacked).
+
+The package includes the extension's README, privacy notice, support document,
+changelog, assets, and AGPL license. The extension runs only on matching
+Primarius Order History and View Order pages, uses the existing signed-in
+browser session, and does not transmit Primarius data to another service.
 
 ## Data boundary
 

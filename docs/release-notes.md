@@ -26,6 +26,12 @@
   tables.** Select report templates with the row checkboxes, use the heading
   checkbox for the current page, and choose **Delete Selected** from Actions.
   FEED confirms the full selection and deletes it as one operation.
+- **Import OFB Data now gives staff the required exporter.** The shorter dialog
+  links to Primarius and downloads one package containing the OFB Order CSV
+  Exporter Chrome Extension plus illustrated PDF instructions. The guide shows
+  how to unzip it, turn on Chrome Developer mode, use Load unpacked, confirm the
+  extension is active, export from Order History, and import the resulting CSV
+  into FEED.
 - **Long product names no longer print across their own bars** in the PDF. Names
   too long for the space are shortened with a "…". The spreadsheet still has
   every name in full.

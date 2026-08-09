@@ -7,6 +7,15 @@ All notable changes to FEED are documented here. This project adheres to
 
 ### Changed
 
+- **The OFB import dialog now supplies its required Chrome extension.** The
+  shorter copy links directly to Primarius and to a FEED-hosted version 2.0.0
+  exporter package. The ZIP includes the unpacked extension in its own folder
+  and a visually verified two-page PDF guide covering Chrome Developer mode,
+  Load unpacked, installation confirmation, Primarius export, FEED import,
+  troubleshooting, and privacy. The previous channel-by-channel paragraph was
+  removed from the modal; those schema details remain in the procurement
+  documentation where they can be maintained without crowding the task.
+
 - **Reports Management now supports the standard bulk-selection workflow.**
   Staff can select individual templates or the current page, see and clear the
   selected count, and choose **Delete Selected** from the shared Actions menu.
