@@ -167,7 +167,27 @@ export function OfbImportDialog({
         <DialogHeader>
           <DialogTitle>Import OFB Data</DialogTitle>
           <DialogDescription>
-            Import the unified OFB export from Order History — one file covering Warehouse Completed orders and Fresh Alliance Pending and Completed pickups. The source file is discarded after import and never retained.
+            Import the unified OFB export from Order History in{' '}
+            <a
+              href="https://ofb.primarius.app/PWW/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium text-foreground underline-offset-4 hover:underline"
+            >
+              Primarius
+            </a>
+            .
+            <span className="mt-2 block">
+              Required: Download the{' '}
+              <a
+                href="/downloads/OFB-Order-CSV-Exporter-v2.0.0.zip"
+                download
+                className="font-medium text-foreground underline-offset-4 hover:underline"
+              >
+                OFB Order CSV Exporter Chrome Extension and installation guide
+              </a>
+              .
+            </span>
           </DialogDescription>
         </DialogHeader>
 

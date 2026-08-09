@@ -38,6 +38,30 @@ Everything else in this file. The application is shippable today.
 
 ## Open Issues
 
+### #64 — OFB importer did not provide its required exporter
+**Priority**: Medium · **Status**: Fixed in source 2026-08-09; awaiting staff acceptance testing
+**Bucket**: Data Management / procurement imports
+
+FEED accepts the unified 26-column OFB schema produced by the OFB Order CSV
+Exporter, but the Import OFB Data dialog previously assumed staff already had
+that custom Chrome extension. Its long description explained the file's
+channel coverage while omitting the prerequisite that makes the file possible.
+
+**Resolution:** the dialog now says only where the export comes from, links
+directly to Primarius, and identifies the exporter as required. The download is
+served with FEED's static assets and contains the version 2.0.0 extension in a
+clearly named folder plus a two-page PDF installation guide. The guide follows
+Google's official unpacked-extension workflow, uses the staff-supplied Chrome
+Extensions screenshot with numbered callouts, and carries the user through
+installation, verification, Primarius export, FEED import, troubleshooting, and
+the extension's privacy boundary.
+
+The extension remains a custom unpacked Chrome extension, not a Chrome Web
+Store installation. Staff must unzip the package, enable Developer mode, load
+the folder containing `manifest.json`, and keep that folder in place. The ZIP
+retains the extension's README, privacy notice, support document, changelog,
+assets, and AGPL license.
+
 ### #63 — Reports Management bulk selection and deletion
 **Priority**: Medium · **Status**: Fixed in source 2026-08-09; awaiting staff acceptance testing
 **Bucket**: Reports Management / table consistency

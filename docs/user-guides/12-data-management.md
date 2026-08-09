@@ -6,12 +6,31 @@ Food Bank completed-orders CSV.
 
 ## Import Oregon Food Bank Data
 
-1. Export completed orders with the approved OFB browser exporter.
-2. Open **Information → Data Management**.
-3. Select **Import OFB Data**.
-4. Drop the CSV into the import area, or choose it from your device.
-5. Select **Import Data**.
-6. Review the short result summary and any data-quality notes.
+The OFB Order CSV Exporter Chrome Extension is required because Primarius does
+not provide FEED's unified CSV directly.
+
+If the extension is not installed yet:
+
+1. Open **Information → Data Management** and select **Import OFB Data**.
+2. Select the **OFB Order CSV Exporter Chrome Extension and installation guide**
+   link.
+3. Unzip the downloaded package and open the included PDF instructions.
+4. In Chrome, open `chrome://extensions`, turn on **Developer mode**, and select
+   **Load unpacked**.
+5. Choose the package's `OFB-Order-CSV-Exporter-v2.0.0` folder. Keep that folder
+   in place after installation.
+
+To import data:
+
+1. Open **Order History** in Primarius and reload the page if the extension was
+   just installed.
+2. Choose the Start date and End date, then select **Export unified CSV**.
+3. Keep Primarius open until the exporter reports success and downloads the
+   CSV.
+4. Return to **Information → Data Management → Import OFB Data**.
+5. Drop the CSV into the import area, or choose it from your device.
+6. Select **Import Data** and review the short result summary and any
+   data-quality notes.
 
 FEED reads the CSV, stores normalized procurement observations, and discards
 the uploaded file. An overlapping export is safe: orders FEED already has are
