@@ -27,6 +27,7 @@ vi.mock('@/services/analytics-reports', () => ({
     getTemplates: vi.fn(),
     getCards: vi.fn(),
     deleteTemplate: vi.fn().mockResolvedValue(undefined),
+    deleteTemplates: vi.fn().mockResolvedValue({ deleted: 0 }),
     downloadReport: vi.fn().mockResolvedValue(undefined),
   },
 }));
@@ -200,6 +201,49 @@ describe('Reports Management', () => {
 
     const row = await screen.findByRole('row', { name: /Monthly Procurement/ });
     expect(await within(row).findByText('1 unavailable')).toBeVisible();
+  });
+
+  test('deletes selected templates through the standard bulk action', async () => {
+    service.getTemplates.mockResolvedValue([
+      {
+        id: 7,
+        name: 'Monthly Procurement',
+        source: 'analytics',
+        templateData: { cardIds: ['procurement-channels'] },
+        createdAt: '2026-07-01T10:00:00.000Z',
+        updatedAt: '2026-07-01T10:00:00.000Z',
+      },
+      {
+        id: 8,
+        name: 'Weekly Operations',
+        source: 'analytics',
+        templateData: { cardIds: ['operations-recurring-availability'] },
+        createdAt: '2026-07-02T10:00:00.000Z',
+        updatedAt: '2026-07-02T10:00:00.000Z',
+      },
+    ]);
+    service.deleteTemplates.mockResolvedValue({ deleted: 2 });
+
+    render(<ReportsManagementWorkspace />);
+
+    const rowCheckboxes = await screen.findAllByRole('checkbox', { name: 'Select row' });
+    fireEvent.click(rowCheckboxes[0]);
+    expect(screen.getByText('1 selected')).toBeVisible();
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Select all' }));
+    expect(screen.getByText('2 selected')).toBeVisible();
+
+    // Keyboard activation is a supported Radix trigger path and is stable in jsdom.
+    fireEvent.keyDown(screen.getByTestId('bulk-actions-button'), { key: 'Enter' });
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Delete Selected' }));
+
+    expect(screen.getByText(/permanently delete 2 report templates/i)).toBeVisible();
+    expect(screen.getByText(/Monthly Procurement, Weekly Operations/)).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Anyway' }));
+
+    await waitFor(() =>
+      expect(service.deleteTemplates).toHaveBeenCalledWith([7, 8])
+    );
+    await waitFor(() => expect(screen.queryByText('2 selected')).toBeNull());
   });
 });
 

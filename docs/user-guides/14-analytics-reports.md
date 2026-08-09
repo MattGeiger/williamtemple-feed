@@ -117,8 +117,14 @@ cards, their order, the filters and your PDF and CSV choices all come from the
 template.
 
 To change what a report contains, set it up on Analytics again and save it under
-the same name — that replaces the template. To get rid of one, use **Delete
-template** in the same menu.
+the same name — that replaces the template.
+
+To remove one template, use **Delete template** in its row menu. To remove
+several, tick their checkboxes, open **Actions**, and choose **Delete Selected**.
+The checkbox in the heading selects the templates on the current page. FEED
+shows the selected count and asks for confirmation before deleting anything.
+Templates are shared with everyone using FEED; reports already downloaded are
+not affected.
 
 ### "1 unavailable" beside the card count
 

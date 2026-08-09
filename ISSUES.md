@@ -1,6 +1,6 @@
 # FEED — Known Issues & Future Work
 
-**Last Updated**: August 8, 2026
+**Last Updated**: August 9, 2026
 **Status**: v1.0.0 release prep in progress (see `docs/V1-RELEASE-PLAN.md`)
 **Production**: https://feed.williamtemple.app
 
@@ -37,6 +37,34 @@ Everything else in this file. The application is shippable today.
 ---
 
 ## Open Issues
+
+### #63 — Reports Management bulk selection and deletion
+**Priority**: Medium · **Status**: Fixed in source 2026-08-09; awaiting staff acceptance testing
+**Bucket**: Reports Management / table consistency
+
+Reports Management was the only current management table without row
+selection or bulk actions. Food Items, Categories, and Translations already use
+the shared `EnhancedDataTable` selection feature, selected-row count, Actions
+menu, and bulk-delete confirmation. Reports instead exposed deletion only from
+each row's action menu.
+
+**Resolution:** Reports Management now uses that established table pattern: a
+checkbox column, current-page select-all, selected count, Clear control, and a
+destructive **Delete Selected** action. Single-row and multi-row deletion share
+the standard bulk-delete confirmation, supplemented with the existing warning
+that templates are organization-wide and downloaded reports are unaffected.
+Successful deletion clears selection before reloading the table.
+
+Deletion is one source-scoped backend transaction rather than one request per
+row. Every requested id must exist with `source = 'analytics'`; a stale,
+wrong-source, or concurrently changed selection rolls back as a unit. This
+prevents partial deletion and prevents the Analytics route from reaching the
+dormant report workspace's templates. No schema migration was needed.
+
+**Deliberate boundary:** **Run Selected** was not added. Templates can carry
+different filters, outputs, card options, and run-time date ranges, so a bulk
+run needs a separately reviewed product contract for whether it creates
+multiple downloads, one archive, or a combined report.
 
 ### #62 — Analytics report PDF parity and report-selection state regressions
 **Priority**: High · **Status**: Fixed in source 2026-08-08; awaiting staff acceptance testing

@@ -121,6 +121,20 @@ const templateSchema = z
 
 const nameSearch = (name: string) => name.trim().replace(/\s+/g, ' ').toLowerCase();
 
+const bulkTemplateDeleteSchema = z
+  .object({
+    ids: z
+      .array(z.number().int().positive())
+      .min(1)
+      .max(100)
+      .refine(ids => new Set(ids).size === ids.length, {
+        message: 'Each report template can only be selected once.',
+      }),
+  })
+  .strict();
+
+class TemplateSelectionChangedError extends Error {}
+
 router.get('/templates', rateLimiter, async (_req, res, next) => {
   try {
     const templates = await prisma.reportTemplate.findMany({
@@ -175,6 +189,71 @@ router.post('/templates', rateLimiter, async (req, res, next) => {
     });
     return res.status(201).json({ template });
   } catch (error) {
+    return next(error);
+  }
+});
+
+/**
+ * Delete one table selection as one operation.
+ *
+ * Resolve every id inside the transaction before deleting anything. Reports
+ * are shared across the organization, so a stale mixed selection must fail as
+ * a unit rather than leaving the user to discover which subset disappeared.
+ */
+router.delete('/templates/bulk', rateLimiter, async (req, res, next) => {
+  try {
+    const parsed = bulkTemplateDeleteSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({
+        error: {
+          message: parsed.error.issues.map(issue => issue.message).join(' '),
+          code: 'INVALID_TEMPLATE_SELECTION',
+          details: parsed.error.issues,
+        },
+      });
+    }
+
+    const result = await prisma.$transaction(async transaction => {
+      const templates = await transaction.reportTemplate.findMany({
+        where: { id: { in: parsed.data.ids }, source: 'analytics' },
+        select: { id: true },
+      });
+
+      if (templates.length !== parsed.data.ids.length) {
+        return { deleted: 0, missing: true } as const;
+      }
+
+      const deleted = await transaction.reportTemplate.deleteMany({
+        where: { id: { in: parsed.data.ids }, source: 'analytics' },
+      });
+      // A concurrent deletion between the read and write must roll this
+      // transaction back. Reporting a smaller success count would violate the
+      // all-or-nothing confirmation the user just accepted.
+      if (deleted.count !== parsed.data.ids.length) {
+        throw new TemplateSelectionChangedError();
+      }
+      return { deleted: deleted.count, missing: false } as const;
+    });
+
+    if (result.missing) {
+      return res.status(404).json({
+        error: {
+          message: 'One or more report templates no longer exist. Refresh the table and try again.',
+          code: 'TEMPLATE_NOT_FOUND',
+        },
+      });
+    }
+
+    return res.json({ deleted: result.deleted });
+  } catch (error) {
+    if (error instanceof TemplateSelectionChangedError) {
+      return res.status(404).json({
+        error: {
+          message: 'One or more report templates no longer exist. Refresh the table and try again.',
+          code: 'TEMPLATE_NOT_FOUND',
+        },
+      });
+    }
     return next(error);
   }
 });
