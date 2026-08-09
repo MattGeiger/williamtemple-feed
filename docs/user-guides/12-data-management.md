@@ -9,18 +9,28 @@ Food Bank completed-orders CSV.
 The OFB Order CSV Exporter Chrome Extension is required because Primarius does
 not provide FEED's unified CSV directly.
 
-If the extension is not installed yet:
+### Preparation
 
-1. Open **Information → Data Management** and select **Import OFB Data**.
-2. Select the **OFB Order CSV Exporter Chrome Extension and installation guide**
-   link.
-3. Unzip the downloaded package and open the included PDF instructions.
-4. In Chrome, open `chrome://extensions`, turn on **Developer mode**, and select
-   **Load unpacked**.
-5. Choose the package's `OFB-Order-CSV-Exporter-v2.0.0` folder. Keep that folder
-   in place after installation.
+**Download and unzip the package.** Open **Information → Data Management**,
+select **Import OFB Data**, then select the **OFB Order CSV Exporter Chrome
+Extension and installation guide** link. Extract the ZIP to a folder you can
+keep, such as Documents. The package includes an illustrated PDF guide.
 
-To import data:
+**Open Chrome Extensions.** In a new Chrome tab, type or paste
+`chrome://extensions` in the address bar and press Enter.
+
+### Install the extension
+
+1. Turn on **Developer mode** in the upper-right corner. The **Load unpacked**
+   button appears.
+2. Select **Load unpacked**, open the extracted package, and choose the
+   `OFB-Order-CSV-Exporter-v2.0.0` folder containing `manifest.json`.
+3. Find **OFB Order CSV Exporter 2.0.0** and make sure its switch is on.
+
+Keep the extracted extension folder in place. Moving or deleting it can
+disable the extension.
+
+### Export and import OFB data
 
 1. Open **Order History** in Primarius and reload the page if the extension was
    just installed.
