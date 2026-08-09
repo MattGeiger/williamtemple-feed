@@ -96,6 +96,31 @@ describe("user guide parsing", () => {
     )
 
     expect(dataManagementEntry).toBeTruthy()
-    expect(dataManagementEntry?.content).toMatch(/discards the uploaded file/i)
+    expect(dataManagementEntry?.content).toMatch(/Chrome Extension is required/i)
+
+    const preparationEntry = index.find(
+      (item) =>
+        item.guideSlug === "data-management" &&
+        item.sectionTitle === "Preparation"
+    )
+    expect(preparationEntry?.content).toMatch(/download and unzip the package/i)
+    expect(preparationEntry?.content).toMatch(/chrome:\/\/extensions/i)
+
+    const installationEntry = index.find(
+      (item) =>
+        item.guideSlug === "data-management" &&
+        item.sectionTitle === "Install the extension"
+    )
+    expect(installationEntry).toBeTruthy()
+    expect(installationEntry?.content).toMatch(/1\. Turn on Developer mode/i)
+    expect(installationEntry?.content).toMatch(/2\. Select Load unpacked/i)
+    expect(installationEntry?.content).toMatch(/3\. Find OFB Order CSV Exporter 2\.0\.0/i)
+
+    const importEntry = index.find(
+      (item) =>
+        item.guideSlug === "data-management" &&
+        item.sectionTitle === "Export and import OFB data"
+    )
+    expect(importEntry?.content).toMatch(/discards the uploaded file/i)
   })
 })
