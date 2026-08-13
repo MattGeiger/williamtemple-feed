@@ -41,6 +41,7 @@ export interface ServiceMetricConfiguration {
   currentRevision: ServiceMetricRevision;
   revisionCount: number;
   hasObservations: boolean;
+  displayPosition: number;
 }
 
 export interface ServiceMetricConfigurationInput {
@@ -53,7 +54,7 @@ export interface ServiceMetricConfigurationInput {
   capacityTarget: number | null;
   effectiveStartDate: string;
   effectiveEndDate: string | null;
-  displayOrder: number;
+  displayPosition: number;
   isActive: boolean;
 }
 

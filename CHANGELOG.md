@@ -5,6 +5,28 @@ All notable changes to FEED are documented here. This project adheres to
 
 ## [Unreleased]
 
+### Changed
+
+- **Service Metric ordering now uses plain ordinal positions.** The Add/Edit
+  dialog presents `1st`, `2nd`, `3rd`, and so on instead of exposing internal
+  numerical sort values. Creating or moving a metric atomically rebalances the
+  shared metric list while preserving append-only definition revisions.
+
+### Fixed
+
+- **Service Metric changes now take effect on the open Service Log
+  immediately.** Saving, adding, or seeding metric definitions refreshes both
+  the configuration table and the current day's field definitions without a
+  page reload. The silent refresh preserves any unsaved daily-entry values
+  already typed by staff.
+
+- **Document integrity checks now report state changes instead of repeating the
+  same missing-file error on every document-list read.** A missing DOCX is
+  marked and logged once, routine checks leave the existing warning unchanged,
+  and the warning is cleared if the file later becomes available again. This
+  also avoids repeatedly changing the document's `updatedAt` timestamp for an
+  already-known storage issue.
+
 ### Added
 
 - **Unified Add Data now supports the one-time WTH service Tracking

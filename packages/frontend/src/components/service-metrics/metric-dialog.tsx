@@ -30,11 +30,12 @@ import type {
   ServiceMetricUnit,
   ServiceMetricValueType,
 } from '@/services/service';
+import { formatOrdinalPosition } from './position';
 
 interface MetricDialogProps {
   open: boolean;
   metric: ServiceMetricConfiguration | null;
-  defaultDisplayOrder: number;
+  metricCount: number;
   isSaving: boolean;
   onOpenChange: (open: boolean) => void;
   onSave: (input: ServiceMetricConfigurationInput) => Promise<void>;
@@ -46,7 +47,7 @@ const localToday = () => {
   return new Date(date.getTime() - offset).toISOString().slice(0, 10);
 };
 
-const blankMetric = (displayOrder: number): ServiceMetricConfigurationInput => ({
+const blankMetric = (displayPosition: number): ServiceMetricConfigurationInput => ({
   displayName: '',
   description: null,
   valueType: 'count',
@@ -56,7 +57,7 @@ const blankMetric = (displayOrder: number): ServiceMetricConfigurationInput => (
   capacityTarget: null,
   effectiveStartDate: localToday(),
   effectiveEndDate: null,
-  displayOrder,
+  displayPosition,
   isActive: true,
 });
 
@@ -72,7 +73,7 @@ const inputFromMetric = (metric: ServiceMetricConfiguration): ServiceMetricConfi
     capacityTarget: revision.capacityTarget,
     effectiveStartDate: revision.effectiveStartDate,
     effectiveEndDate: revision.effectiveEndDate,
-    displayOrder: revision.displayOrder,
+    displayPosition: metric.displayPosition,
     isActive: revision.isActive,
   };
 };
@@ -102,17 +103,18 @@ const unitLabels: Record<ServiceMetricUnit, string> = {
 export function MetricDialog({
   open,
   metric,
-  defaultDisplayOrder,
+  metricCount,
   isSaving,
   onOpenChange,
   onSave,
 }: MetricDialogProps) {
-  const [form, setForm] = React.useState<ServiceMetricConfigurationInput>(() => blankMetric(defaultDisplayOrder));
+  const defaultDisplayPosition = metricCount + 1;
+  const [form, setForm] = React.useState<ServiceMetricConfigurationInput>(() => blankMetric(defaultDisplayPosition));
 
   React.useEffect(() => {
     if (!open) return;
-    setForm(metric ? inputFromMetric(metric) : blankMetric(defaultDisplayOrder));
-  }, [defaultDisplayOrder, metric, open]);
+    setForm(metric ? inputFromMetric(metric) : blankMetric(defaultDisplayPosition));
+  }, [defaultDisplayPosition, metric, open]);
 
   const set = <K extends keyof ServiceMetricConfigurationInput>(
     key: K,
@@ -166,6 +168,10 @@ export function MetricDialog({
   const canContribute = form.semanticRole === 'served_household_method'
     && form.valueType === 'count'
     && form.unit === 'households';
+  const availablePositions = Array.from(
+    { length: metric ? metricCount : metricCount + 1 },
+    (_, index) => index + 1,
+  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -257,15 +263,20 @@ export function MetricDialog({
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="service-metric-order">Display order</Label>
-                <Input
-                  id="service-metric-order"
-                  type="number"
-                  min={0}
-                  step={1}
-                  value={form.displayOrder}
-                  onChange={(event) => set('displayOrder', Math.max(0, Number(event.target.value) || 0))}
-                />
+                <Label htmlFor="service-metric-position">Position</Label>
+                <Select
+                  value={String(form.displayPosition)}
+                  onValueChange={(value) => set('displayPosition', Number(value))}
+                >
+                  <SelectTrigger id="service-metric-position"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {availablePositions.map((position) => (
+                      <SelectItem key={position} value={String(position)}>
+                        {formatOrdinalPosition(position)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 

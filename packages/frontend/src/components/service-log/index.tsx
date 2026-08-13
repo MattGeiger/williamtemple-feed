@@ -173,6 +173,19 @@ export function ServiceLogWorkspace() {
 
   React.useEffect(() => { void loadDay(serviceDate); }, [loadDay, serviceDate]);
 
+  const refreshMetricDefinitions = React.useCallback(async () => {
+    try {
+      const loaded = await serviceApi.getDay(serviceDate);
+      setDay(loaded);
+      setValues((current) => Object.fromEntries(loaded.metrics.map((metric) => [
+        metric.id,
+        current[metric.id] ?? valueFromMetric(metric),
+      ])));
+    } catch (error) {
+      ErrorHandlerService.handleError(error, 'ServiceLog.refreshMetricDefinitions');
+    }
+  }, [serviceDate]);
+
   const updateValue = (metricId: number, value: EntryValue) => {
     setValues((current) => ({ ...current, [metricId]: value }));
   };
@@ -382,7 +395,7 @@ export function ServiceLogWorkspace() {
       {isAdministrator && (
         <>
           <Separator />
-          <ServiceMetricsSettings />
+          <ServiceMetricsSettings onMetricsChanged={refreshMetricDefinitions} />
         </>
       )}
     </div>

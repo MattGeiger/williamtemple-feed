@@ -35,7 +35,7 @@ const metricConfigurationSchema = z.object({
   capacityTarget: z.number().int().nonnegative().nullable(),
   effectiveStartDate: localDate,
   effectiveEndDate: localDate.nullable(),
-  displayOrder: z.number().int().nonnegative(),
+  displayPosition: z.number().int().positive(),
   isActive: z.boolean(),
 }).strict();
 const updateMetricConfigurationSchema = metricConfigurationSchema.extend({

@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Matt Geiger
 
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { ServiceLogWorkspace } from '@/components/service-log';
@@ -14,6 +14,7 @@ import {
   dateInTimezone,
 } from '@/components/service-log/service-date';
 import { ServiceMetricsSettings } from '@/components/service-metrics';
+import { formatOrdinalPosition } from '@/components/service-metrics/position';
 import { DEFAULT_OPERATING_HOURS, DEFAULT_OPERATING_HOURS_SETTINGS } from '@/types/settings';
 
 const serviceMocks = vi.hoisted(() => ({
@@ -107,6 +108,25 @@ const serviceDay = {
   },
 };
 
+const longListsMetric = {
+  ...serviceDay.metrics[0],
+  id: 3,
+  metricKey: 'long_lists',
+  displayName: 'Long Lists',
+  description: 'Households served through long shopping lists.',
+  displayOrder: 20,
+};
+
+const serviceDayBeforeMetricRefresh = {
+  ...serviceDay,
+  metrics: [serviceDay.metrics[0], longListsMetric, serviceDay.metrics[1]],
+};
+
+const serviceDayAfterMetricRefresh = {
+  ...serviceDay,
+  metrics: [longListsMetric, serviceDay.metrics[0], serviceDay.metrics[1]],
+};
+
 describe('native Service workflow', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -179,6 +199,46 @@ describe('native Service workflow', () => {
     const viewport = dialog.querySelector('[data-radix-scroll-area-viewport]');
     expect(viewport?.parentElement).not.toHaveClass('px-2');
     expect(viewport?.querySelector('.p-4')).toBeInTheDocument();
+  });
+
+  test('presents Service metric order as a plain ordinal position', async () => {
+    render(<MemoryRouter><ServiceMetricsSettings /></MemoryRouter>);
+    fireEvent.click(await screen.findByRole('button', { name: 'Add Metric' }));
+
+    expect(screen.getByLabelText('Position')).toHaveTextContent('1st');
+    expect(screen.queryByLabelText('Display order')).not.toBeInTheDocument();
+    expect(formatOrdinalPosition(2)).toBe('2nd');
+    expect(formatOrdinalPosition(3)).toBe('3rd');
+    expect(formatOrdinalPosition(11)).toBe('11th');
+    expect(formatOrdinalPosition(22)).toBe('22nd');
+  });
+
+  test('applies metric changes immediately without discarding unsaved daily entry', async () => {
+    serviceMocks.getDay
+      .mockResolvedValueOnce(serviceDayBeforeMetricRefresh)
+      .mockResolvedValueOnce(serviceDayAfterMetricRefresh);
+
+    render(<MemoryRouter><ServiceLogWorkspace /></MemoryRouter>);
+
+    const shoppingInput = await screen.findByLabelText('Downstairs Shopping Visits');
+    fireEvent.change(shoppingInput, { target: { value: '12' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add Metric' }));
+
+    const dialog = await screen.findByRole('dialog', { name: 'Add Service Metric' });
+    fireEvent.change(within(dialog).getByLabelText('Display name'), {
+      target: { value: 'Delivery Requests' },
+    });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Add Metric' }));
+
+    await waitFor(() => expect(serviceMocks.getDay).toHaveBeenCalledTimes(2));
+    expect(serviceMocks.createMetric).toHaveBeenCalledTimes(1);
+    expect(screen.getByLabelText('Downstairs Shopping Visits')).toHaveValue(12);
+
+    const longLists = screen.getByText('Long Lists');
+    const shoppingVisits = screen.getByText('Downstairs Shopping Visits');
+    expect(
+      longLists.compareDocumentPosition(shoppingVisits) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
   });
 });
 

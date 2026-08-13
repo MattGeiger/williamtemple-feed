@@ -3,6 +3,7 @@
 
 import { describe, expect, test } from 'vitest';
 import {
+  placeServiceMetricAtPosition,
   serviceMetricObservationSnapshotHash,
   validateServiceDayStatus,
   validateServiceMetricDefinition,
@@ -41,6 +42,16 @@ const countObservation: ServiceMetricObservationDraft = {
 };
 
 describe('Service operational metric contract', () => {
+  test('places metrics at ordinal positions without duplicate ordering', () => {
+    expect(placeServiceMetricAtPosition([1, 2, 3, 4], 4, 2)).toEqual([1, 4, 2, 3]);
+    expect(placeServiceMetricAtPosition([1, 2, 3], 4, 2)).toEqual([1, 4, 2, 3]);
+  });
+
+  test('rejects a stale ordinal position instead of guessing', () => {
+    expect(() => placeServiceMetricAtPosition([1, 2, 3], 2, 4)).toThrow(/positions changed/i);
+    expect(() => placeServiceMetricAtPosition([1, 2, 3], 4, 5)).toThrow(/positions changed/i);
+  });
+
   test('counts explicit zero as recorded while keeping blank out of denominator coverage', () => {
     expect(summarizeOperationalTotal([
       { contributesToOperationalTotal: true, observation: { countValue: 0 } },

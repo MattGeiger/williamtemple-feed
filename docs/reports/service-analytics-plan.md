@@ -443,7 +443,7 @@ Administrators configure:
 - semantic role;
 - whether it contributes to an operational total;
 - effective start/end dates;
-- display order and active/retired state;
+- ordinal position (`1st`, `2nd`, `3rd`, and so on) and active/retired state;
 - optional capacity target;
 - revision history.
 
@@ -464,6 +464,10 @@ The implemented UX separates routine entry from infrequent configuration:
   **Service → Service Log**, beneath the routine-entry cards. It follows the
   Inventory management pattern with the standard data table and Add/Edit dialog
   without introducing a second page or sidebar destination.
+- Successful metric configuration changes refresh the current Service Log
+  definitions immediately and merge them with in-progress daily values; staff
+  do not reload the page or lose unsaved entry when an administrator changes
+  the shared order.
 
 William Temple House defaults are installed through an explicit, idempotent
 administrator action. They are not a database migration or a universal seed:
