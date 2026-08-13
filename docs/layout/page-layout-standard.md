@@ -47,11 +47,15 @@ to shrink and pushes the whole page into horizontal overflow.
    inner container, not the root.
 2. **`SectionHeader` is the first child**, and it is the only place a page title
    lives. Do not hand-roll an `<h1>`/`<h2>` heading block.
-3. **The header icon is static, not animated.** Its parent is not interactive,
-   and an animated icon there signals a false affordance — see Rule 4 in
-   `docs/motion/ICON_ANIMATIONS.md`. Import it from `@/components/ui/icons`.
-   The matching *sidebar* entry for the same route **is** interactive and uses
-   the animated variant from `@/components/animate-ui/icons/`.
+3. **The header icon follows the page-title animation pattern.** Use an
+   imperative-ref icon from `@/components/ui` through `createPageTitleIcon`, as
+   Categories and Food Items do. It plays once on mount and replays when the
+   icon itself is hovered. The wrapper supplies the established 28px internal
+   SVG inside SectionHeader's `h-6 w-6 mt-1` slot. Do not substitute a direct
+   24px Lucide SVG; it renders perceptibly smaller. The matching *sidebar*
+   entry uses a native animate-ui variant and responds to the full link's hover
+   and tap without animating on initial sidebar render. See the narrow
+   page-title exception in `docs/motion/ICON_ANIMATIONS.md` Rule 4.
 4. **`description` is one sentence**, sentence case, no trailing period
    ambiguity — it wraps under the title at any width and should still read as a
    single thought on a narrow viewport.

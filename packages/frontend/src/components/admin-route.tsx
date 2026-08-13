@@ -46,8 +46,7 @@ export const AdminRoute = () => {
               <CardTitle>Administrators only</CardTitle>
             </div>
             <CardDescription>
-              Managing staff access and reviewing the activity history is limited
-              to administrators.
+              This organization-level configuration is limited to administrators.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">

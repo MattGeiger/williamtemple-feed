@@ -67,14 +67,21 @@ but are not trusted as validation.
 ## FEED page pattern
 
 Settings appears under **Information** in the sidebar and uses the standard
-FEED page shell, breadcrumbs, `SectionHeader`, Shadcn Card, Checkbox, Input,
-Select, AlertDialog, centralized error handling, and animated Lucide save
-action. The page is intentionally narrow enough for comfortable schedule
-editing and stacks each day cleanly at phone width.
+FEED page shell, breadcrumbs, `SectionHeader`, semantic sections, Shadcn
+Checkbox, Input, Select, Separator, AlertDialog, centralized error handling,
+and animated Lucide save action. The Operating Hours section is intentionally
+narrow enough for comfortable schedule editing and stacks each day cleanly at
+phone width.
 
 Settings is intended to grow as organization-level configuration becomes
 necessary. New settings should use existing FEED patterns and should not turn
 this page into an unrelated collection of user preferences.
+
+Service Metrics belongs to the Service workflow rather than general Settings.
+Administrators configure those organization-wide fields at the bottom of the
+Service Log page, directly beneath the routine-entry workspace. Staff without
+administrator authority do not see the configuration section, and the server
+continues to enforce the privileged writes.
 
 ## Recorded service-hour assortment
 

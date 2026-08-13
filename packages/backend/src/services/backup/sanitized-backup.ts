@@ -12,6 +12,7 @@ import { Prisma } from '@prisma/client';
 import prisma from '../../db';
 import {
   ARTIFACT_KIND,
+  BACKUP_QUERY_ARGS,
   EXCLUDED_TABLES,
   INCLUDED_TABLES,
   REDACTED_COLUMNS,
@@ -68,7 +69,7 @@ export interface SanitizedBackup {
  */
 const delegateFor = (table: IncludedTable) => {
   const key = table.charAt(0).toLowerCase() + table.slice(1);
-  const delegate = (prisma as unknown as Record<string, { findMany: () => Promise<unknown[]> }>)[key];
+  const delegate = (prisma as unknown as Record<string, { findMany: (args?: object) => Promise<unknown[]> }>)[key];
 
   if (!delegate?.findMany) {
     throw new Error(
@@ -164,7 +165,7 @@ export class SanitizedBackupService {
 
     await prisma.$transaction(async () => {
       for (const table of INCLUDED_TABLES) {
-        data[table] = redact(table, await delegateFor(table).findMany());
+        data[table] = redact(table, await delegateFor(table).findMany(BACKUP_QUERY_ARGS[table]));
       }
     });
 

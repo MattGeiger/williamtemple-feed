@@ -10,6 +10,7 @@
     "test:delete-operations": "vitest --run __tests__/features/shopping-lists/delete-operations.test.ts",
     "test:shopping-lists": "vitest --run __tests__/features/shopping-lists/",
     "generate:shopping-list-reference": "node scripts/generate-reference-shopping-list-pdf.mjs",
+    "export:wth-tracking": "ts-node scripts/export-wth-tracking.ts",
     "validate:status-flags": "ts-node scripts/validate-status-flags.ts",
     "fix:status-flags": "ts-node scripts/fix-status-flags.ts",
     "generate:test-data": "ts-node scripts/generate-test-data.ts",

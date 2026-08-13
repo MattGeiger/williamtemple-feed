@@ -25,8 +25,8 @@ vi.mock('@/contexts/AuthContext', () => ({
 import type {
   DataShapingCatalogEntry,
   DataShapingRule,
-  ProcurementImportRecord,
 } from '@/types/procurement';
+import type { ImportHistoryRecord } from '@/services/data-import';
 
 const CATALOG: DataShapingCatalogEntry[] = [
   { flag: 'pass_through', family: 'exclusion', description: 'Relayed to another agency.' },
@@ -57,7 +57,6 @@ const shapingRule = (overrides: Partial<DataShapingRule> = {}): DataShapingRule 
 
 vi.mock('@/services/procurement', () => ({
   procurementService: {
-    getImports: vi.fn(() => Promise.resolve([])),
     getStatus: vi.fn(() => Promise.resolve({
       hasData: true,
       latestDeliveryDate: '2026-05-01',
@@ -88,6 +87,79 @@ vi.mock('@/services/procurement', () => ({
   },
 }));
 
+vi.mock('@/services/data-import', () => ({
+  dataImportService: {
+    getHistory: vi.fn(() => Promise.resolve([])),
+    changeHistoryStatus: vi.fn(),
+    upload: vi.fn(),
+    decide: vi.fn(),
+    activate: vi.fn(),
+    cancel: vi.fn(),
+  },
+}));
+
+const procurementHistory = (
+  overrides: Partial<ImportHistoryRecord> & Pick<ImportHistoryRecord, 'id' | 'source'>,
+): ImportHistoryRecord => {
+  const { id, source, ...rest } = overrides;
+  return ({
+  key: `procurement:${id}`,
+  id,
+  domain: 'procurement',
+  source,
+  datasetKind: 'orders',
+  status: 'active',
+  schemaVersion: 1,
+  sourceRowCount: 10,
+  recordCount: 2,
+  recordUnit: 'events',
+  warningCount: 0,
+  rangeStart: '2026-06-01',
+  rangeEnd: '2026-06-02',
+  importedAt: '2026-07-22T20:00:00.000Z',
+  rolledBackAt: null,
+  restoredAt: null,
+  relatedUploadKey: null,
+  details: { kind: 'procurement', warnings: [], orders: [] },
+  ...rest,
+} as ImportHistoryRecord);
+};
+
+const serviceHistory = (
+  overrides: Partial<ImportHistoryRecord> & Pick<ImportHistoryRecord, 'id' | 'source'>,
+): ImportHistoryRecord => {
+  const { id, source, ...rest } = overrides;
+  return ({
+  key: `service:${id}`,
+  id,
+  domain: 'service',
+  source,
+  datasetKind: 'visits',
+  status: 'active',
+  schemaVersion: 1,
+  sourceRowCount: 27,
+  recordCount: 18,
+  recordUnit: 'visits',
+  warningCount: 2,
+  rangeStart: '2026-08-01',
+  rangeEnd: '2026-08-06',
+  importedAt: '2026-08-11T20:00:00.000Z',
+  rolledBackAt: null,
+  restoredAt: null,
+  relatedUploadKey: null,
+  details: {
+    kind: 'service',
+    encounterRevisionCount: 18,
+    clientProfileRevisionCount: 10,
+    personProfileRevisionCount: 21,
+    metricObservationRevisionCount: 0,
+    qualityIssueCount: 3,
+    qualityGroups: [{ code: 'SIMC_MEMBER_COUNT_MISMATCH', severity: 'warning', count: 2 }],
+  },
+  ...rest,
+} as ImportHistoryRecord);
+};
+
 describe('Data Management', () => {
   test('uses the standard management table and surfaces stale procurement data', async () => {
     render(<DataManagementWorkspace />);
@@ -95,9 +167,11 @@ describe('Data Management', () => {
     expect(screen.getByRole('heading', { name: 'Data Management' })).toBeVisible();
     expect(await screen.findByText('Procurement data may be out of date')).toBeVisible();
     expect(screen.getByPlaceholderText('Filter imports...')).toBeVisible();
-    expect(screen.getByRole('button', { name: 'Import OFB Data' })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Add Data' })).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Import OFB Data' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Import Legacy' })).toBeNull();
     expect(screen.getByRole('columnheader', { name: 'Source' })).toBeVisible();
-    expect(screen.getByRole('columnheader', { name: 'Events' })).toBeVisible();
+    expect(screen.getByRole('columnheader', { name: 'Records' })).toBeVisible();
     expect(screen.getByRole('columnheader', { name: 'Actions' })).toBeVisible();
     expect(screen.getByTestId('pagination-controls')).toBeVisible();
   });
@@ -123,29 +197,13 @@ describe('Data Management', () => {
   });
 
   test('names the sibling row a unified upload produced, and only that row', async () => {
-    const record = (overrides: Partial<ProcurementImportRecord> & Pick<ProcurementImportRecord, 'id' | 'source'>): ProcurementImportRecord => ({
-      status: 'active',
-      schemaVersion: 1,
-      rowCount: 10,
-      orderCount: 2,
-      warningCount: 0,
-      warnings: [],
-      rangeStart: '2026-06-01',
-      rangeEnd: '2026-06-02',
-      importedAt: '2026-07-22T20:00:00.000Z',
-      rolledBackAt: null,
-      restoredAt: null,
-      unifiedFileHash: null,
-      orders: [],
-      ...overrides,
-    });
-    const { procurementService } = await import('@/services/procurement');
-    vi.mocked(procurementService.getImports).mockResolvedValueOnce([
-      record({ id: 1, source: 'ofb', unifiedFileHash: 'hash-a' }),
-      record({ id: 2, source: 'ofb_pickup', unifiedFileHash: 'hash-a' }),
+    const { dataImportService } = await import('@/services/data-import');
+    vi.mocked(dataImportService.getHistory).mockResolvedValueOnce([
+      procurementHistory({ id: 1, source: 'ofb', relatedUploadKey: 'hash-a' }),
+      procurementHistory({ id: 2, source: 'ofb_pickup', relatedUploadKey: 'hash-a' }),
       // A standalone import (or one predating the column) shares no hash and
       // must not be labeled as paired with anything.
-      record({ id: 3, source: 'ofb', unifiedFileHash: null }),
+      procurementHistory({ id: 3, source: 'ofb', relatedUploadKey: null }),
     ]);
 
     render(<DataManagementWorkspace />);
@@ -153,6 +211,32 @@ describe('Data Management', () => {
     expect(await screen.findByText('Paired with OFB Agency Pickups')).toBeVisible();
     expect(screen.getByText('Paired with OFB Completed Orders')).toBeVisible();
     expect(screen.getAllByText(/Paired with/)).toHaveLength(2);
+  });
+
+  test('lists Service and procurement imports through one history contract', async () => {
+    const { dataImportService } = await import('@/services/data-import');
+    vi.mocked(dataImportService.getHistory).mockResolvedValueOnce([
+      serviceHistory({ id: 1, source: 'link2feed', sourceRowCount: 78_308, recordCount: 78_308 }),
+      serviceHistory({ id: 2, source: 'simc', sourceRowCount: 4_727, recordCount: 3_305 }),
+      serviceHistory({
+        id: 3,
+        source: 'wth_tracking',
+        datasetKind: 'operational_metrics',
+        sourceRowCount: 1_114,
+        recordCount: 1_114,
+        recordUnit: 'observations',
+      }),
+      procurementHistory({ id: 4, source: 'legacy_community' }),
+    ]);
+
+    render(<DataManagementWorkspace />);
+
+    expect(await screen.findByText('Link2Feed')).toBeVisible();
+    expect(screen.getByText('SIMC')).toBeVisible();
+    expect(screen.getByText('WTH Tracking')).toBeVisible();
+    expect(screen.getByText('Community Donations (historical)')).toBeVisible();
+    expect(screen.getByText('3,305 visits')).toBeVisible();
+    expect(screen.getByText('1,114 observations')).toBeVisible();
   });
 });
 
@@ -171,6 +255,7 @@ describe('Database tab visibility by role', () => {
 
       // The content is still there — staff lose the Database actions, not the page.
       expect(await screen.findByText('Data Rules')).toBeVisible();
+      expect(screen.getByRole('button', { name: 'Add Data' })).toBeVisible();
 
       // A single tab is chrome without a choice, so there is no tab strip.
       expect(screen.queryByRole('tablist')).toBeNull();
@@ -281,35 +366,27 @@ describe('Data rules (D19/D20)', () => {
 });
 
 describe('Legacy community import (D22: a single-agency sidecar)', () => {
-  test('offers a separate action, so the standard flow stays "drop an OFB export"', async () => {
+  test('uses the single Add Data action for OFB and historical procurement files', async () => {
     render(<DataManagementWorkspace />);
 
-    expect(await screen.findByRole('button', { name: /Import OFB Data/ })).toBeVisible();
-    const legacy = screen.getByRole('button', { name: /Import Legacy/ });
-    expect(legacy).toBeVisible();
-    // Distinct actions, never one drop-zone that guesses which format arrived.
-    expect(legacy).not.toBe(screen.getByRole('button', { name: /Import OFB Data/ }));
+    expect(await screen.findByRole('button', { name: /Add Data/ })).toBeVisible();
+    expect(screen.queryByRole('button', { name: /Import OFB Data/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Import Legacy/ })).toBeNull();
   });
 
   test('names the legacy source without dressing it up as an OFB export', async () => {
-    const { procurementService } = await import('@/services/procurement');
-    vi.mocked(procurementService.getImports).mockResolvedValueOnce([{
-      id: 9,
-      source: 'legacy_community',
-      status: 'active',
-      schemaVersion: 1,
-      rowCount: 596,
-      orderCount: 550,
-      warningCount: 0,
-      warnings: [],
-      rangeStart: '2016-10-01',
-      rangeEnd: '2023-05-01',
-      importedAt: '2026-07-23T20:00:00.000Z',
-      rolledBackAt: null,
-      restoredAt: null,
-      unifiedFileHash: null,
-      orders: [],
-    }]);
+    const { dataImportService } = await import('@/services/data-import');
+    vi.mocked(dataImportService.getHistory).mockResolvedValueOnce([
+      procurementHistory({
+        id: 9,
+        source: 'legacy_community',
+        sourceRowCount: 596,
+        recordCount: 550,
+        rangeStart: '2016-10-01',
+        rangeEnd: '2023-05-01',
+        importedAt: '2026-07-23T20:00:00.000Z',
+      }),
+    ]);
 
     render(<DataManagementWorkspace />);
 

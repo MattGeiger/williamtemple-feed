@@ -9,9 +9,9 @@ import * as React from 'react';
 import type { ColumnDef } from '@tanstack/react-table';
 import { AlertTriangle, Play, Trash2 } from 'lucide-react';
 
-import { SectionHeader } from '@/components/shared/section-header';
 import { createPageTitleIcon } from '@/components/layout/page-title-icon';
-import { FileChartColumnIcon } from '@/components/ui/file-chart-column';
+import { SectionHeader } from '@/components/shared/section-header';
+import { FileChartPieIcon } from '@/components/ui/file-chart-pie';
 import { Checkbox } from '@/components/ui/checkbox';
 import { EnhancedDataTable } from '@/components/ui/enhanced-data-table';
 import { SortableHeader } from '@/components/ui/sortable-header';
@@ -34,6 +34,8 @@ import {
   type AnalyticsTemplateSpec,
 } from './template-spec';
 
+const PageTitleFileChartPieIcon = createPageTitleIcon(FileChartPieIcon);
+
 /**
  * Saved report templates.
  *
@@ -47,8 +49,6 @@ import {
  * no longer exist — and a template that cannot be run should say so in the
  * table, before anyone opens it.
  */
-
-const PageTitleReportsIcon = createPageTitleIcon(FileChartColumnIcon);
 
 interface TemplateRow {
   id: number;
@@ -260,7 +260,7 @@ export function ReportsManagementWorkspace() {
       <SectionHeader
         title="Reports Management"
         description="Manage reusable report templates for consistent, repeatable reporting."
-        icon={PageTitleReportsIcon}
+        icon={PageTitleFileChartPieIcon}
       />
 
       {/* Where templates come from is not discoverable from this page alone —

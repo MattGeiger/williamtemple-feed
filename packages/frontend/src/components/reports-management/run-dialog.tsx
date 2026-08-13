@@ -17,7 +17,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { AnalyticsRangeControl } from '@/components/analytics/range-control';
+import { DateRangeControl } from '@/components/shared/date-range-control';
 import { DEFAULT_ANALYTICS_RANGE, type AnalyticsDateRange } from '@/types/analytics';
 import { analyticsReportsService } from '@/services/analytics-reports';
 import { messageService } from '@/services/message';
@@ -124,7 +124,7 @@ export function RunTemplateDialog({
         </DialogHeader>
 
         <div className="space-y-5">
-          <AnalyticsRangeControl value={range} onChange={setRange} />
+          <DateRangeControl value={range} onChange={setRange} />
 
           {missing.length > 0 && (
             // Said before the Generate button, not after the download. The

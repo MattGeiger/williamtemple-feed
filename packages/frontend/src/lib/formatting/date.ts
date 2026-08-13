@@ -53,7 +53,21 @@ const EMPTY = '—';
 
 const toDate = (value: DateInput): Date | null => {
   if (value === null || value === undefined || value === '') return null;
-  const date = value instanceof Date ? value : new Date(value);
+  // API date-only values describe a calendar day, not an instant in UTC.
+  // Construct them in local time so western time zones do not display the
+  // preceding day (for example, `2025-11-01` as `10/31/2025`).
+  const dateOnlyMatch = typeof value === 'string'
+    ? /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
+    : null;
+  const date = dateOnlyMatch
+    ? new Date(
+        Number(dateOnlyMatch[1]),
+        Number(dateOnlyMatch[2]) - 1,
+        Number(dateOnlyMatch[3]),
+      )
+    : value instanceof Date
+      ? value
+      : new Date(value);
   return Number.isNaN(date.getTime()) ? null : date;
 };
 

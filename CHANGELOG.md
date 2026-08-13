@@ -5,10 +5,180 @@ All notable changes to FEED are documented here. This project adheres to
 
 ## [Unreleased]
 
+### Added
+
+- **Unified Add Data now supports the one-time WTH service Tracking
+  migration.** A WTH-owned exporter converts the changing workbook cross-tab
+  into a versioned long-form CSV rather than making spreadsheet coordinates a
+  permanent FEED API. It retains only directly entered approved metrics,
+  preserves blank and formula-generated future zeroes separately from directly
+  entered zero, excludes Total and Notes, and carries worksheet/cell
+  provenance. The operational adapter validates
+  effective-dated metric definitions, previews new/revised/unchanged
+  observations, reconciles regular methods against active Link2Feed/SIMC formal
+  household totals without adding the sources together, and activates or
+  no-ops atomically. Invalid source cells block export with an exact reference.
+  Service-week dates are anchored to the Tuesday–Thursday block that intersects
+  the start of each month; they are not inferred as the nth occurrence of each
+  weekday. This prevents a fifth-row November value from being misdated into
+  December. After the identified source cell was corrected, the supplied
+  34-sheet workbook exported successfully as 1,114 direct observations across
+  318 service dates from October 17, 2023 through August 6, 2026, and the
+  operational adapter accepted the complete artifact without a duplicate or
+  contract warning. Staff then repeated the documented export command against
+  the corrected workbook and received the same 1,114-observation result. The
+  additive `20260811200000_add_wth_tracking_ingestion`
+  migration was also applied successfully in local testing; it stores durable
+  workbook provenance and transient normalized review rows. Sanitized backup
+  table contract version 7 preserves the new optional provenance fields. The
+  final Add Data review activated all 1,114 historical revisions with no
+  warning or unresolved issue. On 303 complete formal-overlap dates, regular
+  methods were 59 households higher overall with a 4.27 mean absolute daily
+  difference; four incomplete dates were excluded without treating blanks as
+  zero.
+
+- **Unified Add Data now imports SIMC service visits.** A representative
+  sanitized export establishes one formal household
+  encounter per Visit ID, SIMC-scoped household and person identities, linked
+  encounter membership, household composition, birth-year-only person
+  profiles, and field-specific demographic participation. Additional Notes and
+  every non-allowlisted column are discarded. The adapter stages a review,
+  reports member completeness and repeat same-day household visits, reconciles
+  new/revised/unchanged visits and profiles, and activates or no-ops atomically.
+  The reviewed June–August sample
+  reconciles 3,305 SIMC visits against 3,247 regular-method Tracking households
+  and 200 separately recorded Emergency Bags, preserving SIMC as formal
+  authority and Tracking as operational detail. WTH's actual source transition
+  remains Link2Feed through late May and SIMC from the first week of June; the
+  shorter sanitized extracts do not manufacture a production coverage gap.
+  The complete localhost workflow was also activated successfully: 3,305 visit
+  revisions, 1,443 household profiles, and 2,166 person profiles, representing
+  4,760 reported people; 36 non-allowlisted columns were ignored and 21
+  structured quality warnings were retained.
+
+- **FEED now has a native, organization-wide Service Log.** Authenticated staff
+  can record effective-dated count, yes/no, and time fields for a service day,
+  preserve blank separately from explicit zero, save a draft, finalize a day,
+  or mark the pantry closed. Every save appends auditable day and observation
+  revisions while maintaining one shared current projection. Administrators
+  manage the metric vocabulary through the standard table and Add/Edit dialog;
+  an explicit idempotent action installs WTH's historical aliases, seven stable
+  metrics, and its 145-household regular capacity plan without making those
+  organization-specific defaults universal. Current entry uses Downstairs
+  Shopping Visits, Long Lists, Emergency Bags, capacity time, and camping-gear
+  requests; effective-dated history retains Visits, Lists, and Turned Away.
+
+- **Unified Add Data now has an operational Link2Feed visits branch.** The
+  administrator-only modal streams the detected CSV into private staging,
+  projects only the public `link2feed_visits_v1` allowlist, discards Notes and
+  full birth dates, normalizes demographic participation, and previews new,
+  revised, and unchanged facts before activation. Unusually large anonymous
+  people counts require an explicit keep-as-household or event-tally decision;
+  the confirmed November 24, 2025 WTH outdoor market is applied through a
+  WTH-owned source-resolution preset outside the reusable parser. Reviewed
+  revisions materialize under a non-visible pending import, then one short
+  transaction activates them. A full-scale 78,308-row synthetic regression
+  produced 78,308 encounters, 9,509 latest client profiles, and 133,126
+  normalized response rows; an identical second artifact was a no-op.
+
+- **The canonical Service foundation now has its first persistent contract.**
+  New organization-wide tables retain Service import provenance, source-scoped
+  client identities, immutable encounter/profile revisions, canonical profile
+  responses, and append-only source resolutions without coupling them to
+  Procurement. Domain validation preserves identified, anonymous, special-event
+  people aggregates, and formal aggregate record kinds. Demographic source
+  values normalize to `provided` or `not_provided`, while an absent source
+  question remains unavailable. Configurable outlier review raises a warning
+  without capping or reclassifying source values. Effective-dated operational
+  metrics preserve typed count/boolean/time observations, capacity targets,
+  blank-versus-zero, and daily draft/finalized state. Effective-dated capacity
+  plans keep the overall formal-service target distinct from operational-method
+  targets. Structured quality findings and append-only operator decisions make
+  reviewed exceptions auditable. Service is also a complete, independent
+  sanitized backup/restore unit under table contract version 5.
+
+- **Unified Add Data now has its ingestion lifecycle foundation.** Transient
+  database jobs and append-only progress events track staging, inspection,
+  review, activation, completion, failure, and cancellation without entering
+  sanitized backups. CSV bytes stream to server-generated private files under
+  a 64 MB ceiling, are SHA-256 hashed during transfer, and are re-hashed and
+  re-detected before activation. Unknown, failed, cancelled, completed, and
+  expired artifacts have explicit deletion paths. Shared helpers detect
+  unchanged snapshots, record `no_op` separately from `imported`, confine active
+  fact writes to one transaction, and recompute Service revision winners during
+  rollback or restore. The Link2Feed visits adapter is the first production
+  branch; other detected contracts remain on their existing or pending paths.
+
+- **Unified Add Data detection now has a backend source of truth.** A read-only,
+  administrator-only header-inspection route recognizes registered Procurement and
+  Service contracts without receiving CSV data rows, returns only
+  recognized/ignored counts, and never offers a parser override. Procurement
+  header constants were extracted from their parsers so existing importers and
+  the global classifier cannot drift.
+
+- **Data Management now includes a unified Add Data workflow.** One
+  modal inspects a CSV locally, identifies existing OFB and WTH historical
+  procurement contracts plus provisional Link2Feed visit/client and WTH
+  service-tracking contracts, and opens the correct source-specific flow.
+  The Link2Feed, SIMC, and WTH Tracking branches can now validate, reconcile,
+  and activate data; OFB and historical procurement use the same modal while
+  retaining their established import services. Synthetic fixtures verify that original
+  Link2Feed exports may contain extra personal columns while FEED recognizes
+  only the reviewed allowlist.
+
 ### Changed
 
-- **The OFB import dialog now supplies its required Chrome extension.** The
-  shorter copy links directly to Primarius and to a FEED-hosted version 2.0.0
+- **Shopping Lists, Service Log, and Admin now have clearer Lucide identities.**
+  Their page headings use `clipboard-pen`, `users-round`, and `shield-user`,
+  respectively, through the same 28px mount-and-hover title animation as
+  Categories and Food Items. Native animate-ui sidebar variants preserve the
+  exact resting geometry while animating the pen stroke, assembling the
+  service household, or drawing the administrative shield on full-link hover
+  and tap. The Information sidebar also shortens **Data Management** to
+  **Data** without changing its route or page title.
+
+- **Reports Management now uses Lucide's `file-chart-pie` icon.** Its 28px
+  page-title variant animates on mount and direct hover, matching Categories
+  and Food Items, while the native animate-ui sidebar variant traces the file
+  and chart before the pie slice fans into place on full-link hover and tap.
+
+- **Service Log now keeps entry, trends, and metric configuration together.**
+  The shared 7d/30d/90d/YTD/All/Custom range control is ready for Service
+  visualization cards. Daily entry defaults to **Today** in the pantry timezone;
+  arrow actions move only across weekdays enabled in Operating Hours, while a
+  single-date version of the established Custom range calendar permits past
+  special-event dates outside the recurring schedule. Administrator-only
+  Service Metrics now sits beneath the daily-entry cards instead of general
+  Settings, without adding another sidebar destination.
+
+- **The Add Data spreadsheet hero now traces into view.** Its Lucide
+  `file-spreadsheet` geometry is preserved verbatim in a native animate-ui icon;
+  the file outline, folded corner, and spreadsheet marks draw on when the modal
+  opens and replay when the drop target is hovered or pressed.
+
+- **Data Management now has one minimal Add Data experience.** The separate
+  OFB and Legacy toolbar actions are removed. One modal identifies a CSV before
+  upload, then routes unified OFB and WTH historical procurement files through
+  their established importers or routes Link2Feed, SIMC, and canonical WTH
+  Tracking files through staged Service review and activation. Staff retain
+  procurement import access; Service imports remain administrator-only. The
+  modal adopts the Document Translator's focused upload flow and AI
+  Configuration's concise hero treatment, removes step counters and technical
+  transformation prose, and reports only information needed for the next
+  decision. Older single-channel OFB exports are recognized but direct users
+  to the supported unified export.
+
+- **The Service Analytics contract now distinguishes formal authority from
+  operational detail.** Link2Feed and future SIMC facts supply authoritative
+  household/individual and demographic measures; WTH Tracking and the future
+  native FEED Service Log supply service-method, capacity, unmet-demand, and
+  ancillary observations without replacing formal totals. The plan now defines
+  demographic participation/denominators, discards unreliable Link2Feed Notes,
+  resolves the November 24, 2025 `264` value as a Thanksgiving special-event
+  people tally, and specifies the Tracking-to-FEED cutover.
+
+- **The Add Data modal supplies the OFB Chrome extension.** Its concise upload
+  state links directly to a FEED-hosted version 2.0.0
   exporter package. The ZIP includes the unpacked extension in its own folder
   and a visually verified two-page PDF guide covering Chrome Developer mode,
   Load unpacked, installation confirmation, Primarius export, FEED import,
@@ -32,6 +202,30 @@ All notable changes to FEED are documented here. This project adheres to
   user changes it FEED does not overwrite their wording.
 
 ### Fixed
+
+- **The Imports table now shows every durable Add Data activation.** Its read
+  path previously queried only `ProcurementImport`, so Link2Feed, SIMC, and WTH
+  Tracking were active but invisible beside OFB and Community Donations. Data
+  Management now reads a cross-domain provenance projection over both
+  `ProcurementImport` and `ServiceImport`; it reports generic data dates,
+  meaningful imported-record counts, warnings, status, and import time while
+  preserving domain-specific details and rollback/restore behavior. Transient
+  jobs and pending Service materialization remain excluded from history.
+
+- **WTH Tracking review no longer rejects approved source aliases or reports
+  workflow failures as CSV row errors.** The first 500-row staging callback
+  encountered `Downstairs Shopping Visits` in November 2024 while the
+  effective FEED display alias was still `Visits`, then surfaced the callback
+  failure as an unreadable row 501. Approved exporter labels now remain source
+  provenance after their canonical metric key is established; editable UI
+  display aliases do not determine whether a historical fact is valid. CSV
+  syntax errors are still reported by row, while configuration and persistence
+  errors retain their own ASK-aligned messages.
+
+- **Service metric fields no longer lose their edge shadows inside the Add/Edit
+  dialog.** The fixed-height Shadcn ScrollArea now uses the established
+  padded content wrapper, keeping focus rings and control shadows inset inside
+  the Radix viewport instead of clipping them at the modal body's edges.
 
 - **Analytics report PDF parity and table lifecycle.** Seasonal Inbound Weight
   now includes every available year for automatic/All selections, retains an

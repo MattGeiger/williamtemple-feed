@@ -58,6 +58,26 @@ export const INCLUDED_TABLES = [
   'ProcurementProduct',
   'ProcurementLine',
   'ProcurementDataRule',
+  // Formal Service imports and non-destructive interpretation overlays
+  'ServiceImport',
+  'ServiceClient',
+  'ServicePerson',
+  'ServiceEncounterRevision',
+  'ServiceEncounterPerson',
+  'ServiceClientProfileRevision',
+  'ServiceClientProfileResponse',
+  'ServicePersonProfileRevision',
+  'ServicePersonProfileResponse',
+  'ServiceQualityIssue',
+  'ServiceQualityIssueDecision',
+  'ServiceSourceResolution',
+  'ServiceMetricDefinition',
+  'ServiceMetricDefinitionRevision',
+  'ServiceMetricObservationRevision',
+  'ServiceDayStatusRevision',
+  'ServiceCapacityPlan',
+  'ServiceCapacityPlanRevision',
+  'ServiceCapacityTarget',
 ] as const;
 
 export type IncludedTable = (typeof INCLUDED_TABLES)[number];
@@ -95,6 +115,24 @@ export const EXCLUDED_TABLES: Record<string, string> = {
   ApiUsageLog: 'Per-request AI telemetry. Large, derived, and not organization operating data.',
   UsageRecord: 'Aggregated usage telemetry, rebuilt from operation rather than restored.',
   Alert: 'Transient notifications, regenerated from current state.',
+  DataImportJob:
+    'Transient unified-import workflow state. Staged source files are separately deleted and never belong in a portable organization-data artifact.',
+  DataImportJobEvent:
+    'Transient progress events for DataImportJob; completed imports retain their durable provenance in domain-specific import tables.',
+  Link2FeedVisitStagingRow:
+    'Transient allowlisted Link2Feed projection used only during import review; activated facts move into the durable Service tables.',
+  SimcVisitStagingRow:
+    'Transient allowlisted SIMC household-visit projection used only during import review.',
+  SimcPersonStagingRow:
+    'Transient allowlisted SIMC person-profile projection used only during import review.',
+  SimcEncounterPersonStagingRow:
+    'Transient SIMC encounter-membership projection used only during import review.',
+  WthTrackingStagingRow:
+    'Transient normalized WTH Tracking observations used only during import review.',
+  DataImportReviewIssue:
+    'Transient pre-activation quality review. Issues needed to explain active facts become durable ServiceQualityIssue rows.',
+  DataImportReviewDecision:
+    'Transient operator decision attached to a staged review issue; activation copies its audit meaning into durable Service decisions and resolutions.',
 
   // --- Dormant. ---
   ReportTemplate:
@@ -121,11 +159,58 @@ export const REDACTED_COLUMNS: Record<string, readonly string[]> = {
 };
 
 /**
+ * Pending Service revisions are durable staging, not organization facts. They
+ * are deliberately queryable for activation recovery but must never cross the
+ * sanitized-backup boundary before their import becomes active.
+ */
+export const BACKUP_QUERY_ARGS: Partial<Record<IncludedTable, object>> = {
+  ServiceImport: { where: { status: { not: 'pending' } } },
+  ServiceClient: {
+    where: {
+      OR: [
+        { encounters: { some: { import: { status: { not: 'pending' } } } } },
+        { profileRevisions: { some: { import: { status: { not: 'pending' } } } } },
+      ],
+    },
+  },
+  ServicePerson: {
+    where: {
+      OR: [
+        { encounterLinks: { some: { encounter: { import: { status: { not: 'pending' } } } } } },
+        { profileRevisions: { some: { import: { status: { not: 'pending' } } } } },
+      ],
+    },
+  },
+  ServiceEncounterRevision: { where: { import: { status: { not: 'pending' } } } },
+  ServiceEncounterPerson: { where: { encounter: { import: { status: { not: 'pending' } } } } },
+  ServiceClientProfileRevision: { where: { import: { status: { not: 'pending' } } } },
+  ServiceClientProfileResponse: {
+    where: { profileRevision: { import: { status: { not: 'pending' } } } },
+  },
+  ServicePersonProfileRevision: { where: { import: { status: { not: 'pending' } } } },
+  ServicePersonProfileResponse: {
+    where: { profileRevision: { import: { status: { not: 'pending' } } } },
+  },
+  ServiceQualityIssue: { where: { import: { status: { not: 'pending' } } } },
+  ServiceQualityIssueDecision: {
+    where: { issue: { import: { status: { not: 'pending' } } } },
+  },
+  ServiceSourceResolution: {
+    where: {
+      OR: [
+        { qualityIssueId: null },
+        { qualityIssue: { import: { status: { not: 'pending' } } } },
+      ],
+    },
+  },
+};
+
+/**
  * Bumped when the shape of `data` changes in a way a reader must notice —
  * a table added or removed, or a payload restructured. Distinct from the FEED
  * version and from the migration name: an artifact can be produced by many FEED
  * builds while remaining the same contract.
  */
-export const TABLE_CONTRACT_VERSION = 2;
+export const TABLE_CONTRACT_VERSION = 7;
 
 export const ARTIFACT_KIND = 'feed-sanitized-backup';

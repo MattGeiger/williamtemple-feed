@@ -10,6 +10,7 @@ import { join } from 'path';
 import { describe, expect, it } from 'vitest';
 
 import {
+  BACKUP_QUERY_ARGS,
   EXCLUDED_TABLES,
   INCLUDED_TABLES,
   REDACTED_COLUMNS,
@@ -87,10 +88,29 @@ describe('sanitized backup table contract', () => {
     }
   });
 
-  it('has bumped the contract version for the redaction change', () => {
+  it('has bumped the contract version for SIMC person and membership records', () => {
     // Readers key on this, so a shape change that does not bump it is a silent
     // incompatibility.
-    expect(TABLE_CONTRACT_VERSION).toBeGreaterThanOrEqual(2);
+    expect(TABLE_CONTRACT_VERSION).toBe(7);
+  });
+
+  it('keeps prepared Service imports outside the portable organization snapshot', () => {
+    for (const table of [
+      'ServiceImport',
+      'ServiceClient',
+      'ServicePerson',
+      'ServiceEncounterRevision',
+      'ServiceEncounterPerson',
+      'ServiceClientProfileRevision',
+      'ServiceClientProfileResponse',
+      'ServicePersonProfileRevision',
+      'ServicePersonProfileResponse',
+      'ServiceQualityIssue',
+      'ServiceQualityIssueDecision',
+      'ServiceSourceResolution',
+    ]) {
+      expect(BACKUP_QUERY_ARGS).toHaveProperty(table);
+    }
   });
 
   it('excludes every table that carries secrets or authority', () => {
@@ -119,6 +139,7 @@ describe('sanitized backup table contract', () => {
       'Translation',
       'ShoppingListBuilderTemplate',
       'ProcurementImport',
+      'ServiceEncounterRevision',
       'OperatingHoursRevision',
     ]) {
       expect(INCLUDED_TABLES).toContain(table);

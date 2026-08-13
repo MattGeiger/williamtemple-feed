@@ -24,7 +24,6 @@ import { Toaster } from './components/ui/toaster'
 import { RootLayout } from './components/layout'
 import wthLogo from './assets/WTH_Logo_Horizontal.png'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './components/ui/card'
-import { Button } from './components/ui/button'
 import { TranslationManagement } from './components/translation-management'
 import { LanguageManagement } from './components/language-management'
 import { LanguageProvider } from './contexts/LanguageContext'
@@ -51,6 +50,7 @@ import { HelpGuidePage } from './components/help/HelpGuidePage'
 import { HelpPage } from './components/help/HelpPage'
 import { SettingsWorkspace } from './components/settings'
 import { DataManagementWorkspace } from './components/data-management'
+import { ServiceLogWorkspace } from './components/service-log'
 import { getUserGuideBySlug } from './lib/user-guides'
 import DashboardErrorBoundary from './components/dashboard/dashboard-error-boundary'
 // Removed PrintView and in-browser print route (deprecated)
@@ -127,6 +127,20 @@ function DataManagementPage() {
       ]}
     >
       <DataManagementWorkspace />
+    </RootLayout>
+  )
+}
+
+function ServiceLogPage() {
+  return (
+    <RootLayout
+      breadcrumbs={[
+        { title: "Dashboard (Home)", href: "/" },
+        { title: "Service" },
+        { title: "Service Log" },
+      ]}
+    >
+      <ServiceLogWorkspace />
     </RootLayout>
   )
 }
@@ -451,6 +465,7 @@ function App() {
                       <Route path="/admin" element={<AdminPage />} />
                     </Route>
                     <Route path="/data-management" element={<DataManagementPage />} />
+                    <Route path="/service-log" element={<ServiceLogPage />} />
                     <Route path="/help" element={<HelpIndexPage />} />
                     <Route path="/help/:slug" element={<HelpDetailPage />} />
                   

@@ -119,19 +119,19 @@ model ReportTemplate {
 // source files are parsed from memory and discarded; only normalized records,
 // hashes, validation summaries, and reversible lifecycle state are retained.
 model ProcurementImport {
-  id            Int                        @id @default(autoincrement())
+  id            Int       @id @default(autoincrement())
   source        String
   fileHash      String
-  schemaVersion Int                        @default(1)
-  status        String                     @default("active")
+  schemaVersion Int       @default(1)
+  status        String    @default("active")
   rowCount      Int
   orderCount    Int
-  warningCount  Int                        @default(0)
-  warnings      Json                       @default("[]")
+  warningCount  Int       @default(0)
+  warnings      Json      @default("[]")
   rangeStart    String
   rangeEnd      String
   importedBy    String?
-  importedAt    DateTime                   @default(now())
+  importedAt    DateTime  @default(now())
   rolledBackBy  String?
   rolledBackAt  DateTime?
   restoredBy    String?
@@ -146,7 +146,7 @@ model ProcurementImport {
   // format.
   unifiedFileHash String?
 
-  orders        ProcurementOrderRevision[]
+  orders ProcurementOrderRevision[]
 
   @@index([source, importedAt])
   @@index([unifiedFileHash])
@@ -159,27 +159,27 @@ model ProcurementImport {
 // are Warehouse Orders. A later snapshot appends a revision without
 // manufacturing a second identity.
 model ProcurementOrderRevision {
-  id                   Int               @id @default(autoincrement())
+  id                   Int      @id @default(autoincrement())
   importId             Int
   source               String
   sourceOrderReference String
-  eventKind             String            @default("ofb_warehouse_order")
+  eventKind            String   @default("ofb_warehouse_order")
   deliveryDate         String
   revision             Int
   snapshotHash         String
   warningCodes         Json
-  isCurrent            Boolean           @default(true)
-  createdAt            DateTime          @default(now())
+  isCurrent            Boolean  @default(true)
+  createdAt            DateTime @default(now())
 
   // Agency Pickups provenance. Null for Completed Orders revisions, which
   // report no donor. FEED records the donor the source reports and never
   // infers one. `pickupTime` is null when the source emitted its 12:00 AM
   // missing-time placeholder.
-  sourcePickupId       String?
-  pickupTime           String?
-  submittedAt          String?
-  donorCode            String?
-  donorName            String?
+  sourcePickupId String?
+  pickupTime     String?
+  submittedAt    String?
+  donorCode      String?
+  donorName      String?
 
   // Whether OFB has reviewed and confirmed this Fresh Alliance receipt
   // (Primarius's own `SystemReceived` flag, reported not inferred). Null for
@@ -188,7 +188,7 @@ model ProcurementOrderRevision {
   // through the current 19-column contract sets this true, because that
   // contract structurally can only carry OFB-confirmed rows today. See
   // fresh-alliance-pending-pickups.md (D13).
-  isConfirmed          Boolean?
+  isConfirmed Boolean?
 
   // Set when a Fresh Alliance import covers this event's receiving date, so
   // the donor-attributed observation replaces the Completed Orders AGPCKUP
@@ -196,8 +196,8 @@ model ProcurementOrderRevision {
   // import is rolled back. See procurement-unification-plan.md (D1).
   supersededByImportId Int?
 
-  import               ProcurementImport @relation(fields: [importId], references: [id])
-  lines                ProcurementLine[]
+  import ProcurementImport @relation(fields: [importId], references: [id])
+  lines  ProcurementLine[]
 
   @@unique([source, sourceOrderReference, revision])
   @@index([source, sourceOrderReference, isCurrent])
@@ -229,7 +229,7 @@ model ProcurementProduct {
 // The source and calculated price totals are both retained so deterministic
 // reconciliation never overwrites provenance.
 model ProcurementLine {
-  id                        Int                      @id @default(autoincrement())
+  id                        Int     @id @default(autoincrement())
   orderRevisionId           Int
   productId                 Int
   sourceRowNumber           Int
@@ -260,8 +260,8 @@ model ProcurementLine {
   donorValuePerPoundCents    Int?
   hasDonorValuation          Boolean?
 
-  orderRevision             ProcurementOrderRevision @relation(fields: [orderRevisionId], references: [id])
-  product                   ProcurementProduct       @relation(fields: [productId], references: [id])
+  orderRevision ProcurementOrderRevision @relation(fields: [orderRevisionId], references: [id])
+  product       ProcurementProduct       @relation(fields: [productId], references: [id])
 
   @@unique([orderRevisionId, sourceRowNumber])
   @@index([productId, orderRevisionId])
@@ -284,14 +284,14 @@ model ProcurementLine {
 // precisely what makes the per-import Actions menu able to reshape
 // retroactively rather than only roll back.
 model ProcurementDataRule {
-  id    Int    @id @default(autoincrement())
+  id Int @id @default(autoincrement())
 
   // The classification applied. Exclusion flags (pass_through,
   // other_exclusion) change a metric's total; annotation flags (at_risk, estimated,
   // program_bound) change meaning and confidence but never the math. The
   // family is derived from the flag in code, not stored, so the two can never
   // drift apart -- see FLAG_FAMILY in services/procurement/data-shaping.ts.
-  flag  String
+  flag String
 
   // Narrowest scope that is true: 'donor' | 'category' | 'date_range' |
   // 'event'. Stored explicitly rather than inferred from which matchers are
@@ -320,7 +320,7 @@ model ProcurementDataRule {
 
   // Why the agency set this. Institutional knowledge the data itself cannot
   // carry; it belongs with the rule rather than in someone's memory.
-  note      String?
+  note String?
 
   createdBy String?
   createdAt DateTime @default(now())
@@ -330,6 +330,634 @@ model ProcurementDataRule {
   @@index([donorName])
   @@index([donorCode])
   @@index([orderRevisionId])
+}
+
+// Organization-wide provenance for formal Service imports. Procurement keeps
+// its mature lifecycle model; the unified Add Data experience routes here only
+// after the source classifier identifies a Service dataset. Uploaded files are
+// never retained.
+model ServiceImport {
+  id                 Int                                @id @default(autoincrement())
+  source             String
+  datasetKind        String
+  fileHash           String
+  schemaVersion      Int                                @default(1)
+  status             String                             @default("active")
+  rowCount           Int
+  warningCount       Int                                @default(0)
+  warnings           Json                               @default("[]")
+  rangeStart         String?
+  rangeEnd           String?
+  importedBy         String?
+  importedAt         DateTime                           @default(now())
+  rolledBackBy       String?
+  rolledBackAt       DateTime?
+  restoredBy         String?
+  restoredAt         DateTime?
+  encounters         ServiceEncounterRevision[]
+  clientProfiles     ServiceClientProfileRevision[]
+  personProfiles     ServicePersonProfileRevision[]
+  metricObservations ServiceMetricObservationRevision[]
+  qualityIssues      ServiceQualityIssue[]
+
+  @@index([source, datasetKind, importedAt])
+  @@index([fileHash])
+  @@index([status, importedAt])
+}
+
+// Stable identity inside one formal intake source. Link2Feed and SIMC ids are
+// deliberately different namespaces and are never matched to each other.
+// Anonymous encounters have no ServiceClient row.
+model ServiceClient {
+  id               Int                            @id @default(autoincrement())
+  source           String
+  sourceClientId   String
+  createdAt        DateTime                       @default(now())
+  encounters       ServiceEncounterRevision[]
+  profileRevisions ServiceClientProfileRevision[]
+
+  @@unique([source, sourceClientId])
+  @@index([source])
+}
+
+// Stable person identity inside one formal source. SIMC Household ID remains
+// the ServiceClient/case identity used by encounters; Neighbor ID belongs here
+// so household and person denominators cannot be conflated. Source namespaces
+// are never matched automatically across intake systems.
+model ServicePerson {
+  id               Int                            @id @default(autoincrement())
+  source           String
+  sourcePersonId   String
+  createdAt        DateTime                       @default(now())
+  profileRevisions ServicePersonProfileRevision[]
+  encounterLinks   ServiceEncounterPerson[]
+
+  @@unique([source, sourcePersonId])
+  @@index([source])
+}
+
+// One immutable interpretation of one source observation. Later imports append
+// revisions; they do not overwrite source history. `reportedPeopleCount` is a
+// source-reported measure, not necessarily a household-size observation.
+model ServiceEncounterRevision {
+  id                     Int                            @id @default(autoincrement())
+  importId               Int
+  clientId               Int?
+  source                 String
+  sourceRecordKey        String
+  serviceDate            String
+  revision               Int
+  snapshotHash           String
+  recordKind             String
+  clientVisitStatus      String                         @default("unknown")
+  reportedHouseholdCount Int?
+  reportedPeopleCount    Int?
+  sourceEventId          String?
+  sourceRecordedAt       String?
+  numberAdults           Int?
+  numberChildren         Int?
+  numberSeniors          Int?
+  numberUnknownAge       Int?
+  warningCodes           Json                           @default("[]")
+  isCurrent              Boolean                        @default(true)
+  createdAt              DateTime                       @default(now())
+  import                 ServiceImport                  @relation(fields: [importId], references: [id])
+  client                 ServiceClient?                 @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  profileRevisions       ServiceClientProfileRevision[]
+  people                 ServiceEncounterPerson[]
+
+  @@unique([source, sourceRecordKey, revision])
+  @@index([source, sourceRecordKey, isCurrent])
+  @@index([source, serviceDate, isCurrent])
+  @@index([importId])
+  @@index([clientId, serviceDate])
+  @@index([snapshotHash])
+  @@index([recordKind])
+}
+
+// One identified person represented in one immutable encounter revision.
+// A new encounter revision receives a new membership set; old membership stays
+// attached to the old interpretation for auditability.
+model ServiceEncounterPerson {
+  id                  Int                      @id @default(autoincrement())
+  encounterRevisionId Int
+  personId            Int
+  isHeadOfHousehold   Boolean                  @default(false)
+  encounter           ServiceEncounterRevision @relation(fields: [encounterRevisionId], references: [id], onDelete: Restrict)
+  person              ServicePerson            @relation(fields: [personId], references: [id], onDelete: Restrict)
+
+  @@unique([encounterRevisionId, personId])
+  @@index([personId, encounterRevisionId])
+}
+
+// Immutable client/profile evidence from either a visit-linked row or a
+// standalone client export. Full dates of birth are transformed to birth year
+// before this boundary. A profile may be tied to the encounter that supplied
+// it, while standalone client imports remain order-independent.
+model ServiceClientProfileRevision {
+  id                      Int                            @id @default(autoincrement())
+  importId                Int
+  clientId                Int
+  encounterRevisionId     Int?
+  source                  String
+  sourceProfileKey        String
+  observedDate            String?
+  revision                Int
+  snapshotHash            String
+  birthYear               Int?
+  birthYearEstimated      Boolean?
+  birthYearResponseStatus String                         @default("not_provided")
+  isCurrent               Boolean                        @default(true)
+  createdAt               DateTime                       @default(now())
+  import                  ServiceImport                  @relation(fields: [importId], references: [id])
+  client                  ServiceClient                  @relation(fields: [clientId], references: [id])
+  encounter               ServiceEncounterRevision?      @relation(fields: [encounterRevisionId], references: [id], onDelete: Restrict)
+  responses               ServiceClientProfileResponse[]
+
+  @@unique([source, sourceProfileKey, revision])
+  @@index([source, sourceProfileKey, isCurrent])
+  @@index([clientId, observedDate, isCurrent])
+  @@index([importId])
+  @@index([encounterRevisionId])
+}
+
+// One canonical question/dimension on one profile revision. Values are a JSON
+// string array because several reviewed dimensions are multi-select; the
+// dimension and response-status vocabularies are closed and validated in the
+// Service domain layer. Non-answer source labels never persist as values.
+model ServiceClientProfileResponse {
+  id                Int                          @id @default(autoincrement())
+  profileRevisionId Int
+  dimension         String
+  responseStatus    String
+  values            Json                         @default("[]")
+  profileRevision   ServiceClientProfileRevision @relation(fields: [profileRevisionId], references: [id])
+
+  @@unique([profileRevisionId, dimension])
+  @@index([dimension, responseStatus])
+}
+
+// Immutable person-level evidence. SIMC supplies one Neighbor profile across
+// many household visits; the latest normalized observation in each artifact
+// becomes a revision only when its snapshot changes.
+model ServicePersonProfileRevision {
+  id                      Int                            @id @default(autoincrement())
+  importId                Int
+  personId                Int
+  source                  String
+  sourceProfileKey        String
+  observedDate            String?
+  revision                Int
+  snapshotHash            String
+  birthYear               Int?
+  birthYearEstimated      Boolean?
+  birthYearResponseStatus String                         @default("not_provided")
+  isCurrent               Boolean                        @default(true)
+  createdAt               DateTime                       @default(now())
+  import                  ServiceImport                  @relation(fields: [importId], references: [id])
+  person                  ServicePerson                  @relation(fields: [personId], references: [id])
+  responses               ServicePersonProfileResponse[]
+
+  @@unique([source, sourceProfileKey, revision])
+  @@index([source, sourceProfileKey, isCurrent])
+  @@index([personId, observedDate, isCurrent])
+  @@index([importId])
+}
+
+model ServicePersonProfileResponse {
+  id                Int                          @id @default(autoincrement())
+  profileRevisionId Int
+  dimension         String
+  responseStatus    String
+  values            Json                         @default("[]")
+  profileRevision   ServicePersonProfileRevision @relation(fields: [profileRevisionId], references: [id])
+
+  @@unique([profileRevisionId, dimension])
+  @@index([dimension, responseStatus])
+}
+
+// Append-only agency interpretation of one source observation. This is the
+// reusable mechanism for known quirks such as a special-event clicker tally;
+// the parser itself never hard-codes an agency, date, or value. The newest
+// revision applies, and an explicit `revoke` action restores source meaning.
+model ServiceSourceResolution {
+  id                     Int                  @id @default(autoincrement())
+  source                 String
+  sourceRecordKey        String
+  revision               Int
+  action                 String
+  recordKind             String?
+  reportedHouseholdCount Int?
+  reportedPeopleCount    Int?
+  eventLabel             String?
+  reason                 String
+  createdBy              String?
+  createdAt              DateTime             @default(now())
+  qualityIssueId         Int?
+  qualityIssue           ServiceQualityIssue? @relation(fields: [qualityIssueId], references: [id])
+
+  @@unique([source, sourceRecordKey, revision])
+  @@index([source, sourceRecordKey, createdAt])
+  @@index([qualityIssueId])
+}
+
+// Persistent, structured quality evidence attached to an activated Service
+// import. Pre-activation parser findings live on the transient DataImportJob;
+// only issues needed to explain active facts cross the activation boundary.
+// `safeDetails` may contain counts, dates, field names, and source record keys,
+// but never raw ignored-column values or notes.
+model ServiceQualityIssue {
+  id                Int                           @id @default(autoincrement())
+  importId          Int
+  source            String
+  sourceRecordKey   String?
+  code              String
+  severity          String
+  field             String?
+  safeDetails       Json                          @default("{}")
+  detectedAt        DateTime                      @default(now())
+  import            ServiceImport                 @relation(fields: [importId], references: [id])
+  sourceResolutions ServiceSourceResolution[]
+  decisions         ServiceQualityIssueDecision[]
+
+  @@index([importId, detectedAt])
+  @@index([source, sourceRecordKey])
+  @@index([code, severity])
+}
+
+// Append-only operator decisions. The latest revision establishes whether an
+// issue is resolved, dismissed as non-impacting, or reopened; the original
+// finding is never rewritten. A meaning-changing correction additionally
+// links through ServiceSourceResolution.
+model ServiceQualityIssueDecision {
+  id        Int                 @id @default(autoincrement())
+  issueId   Int
+  revision  Int
+  action    String
+  reason    String
+  createdBy String?
+  createdAt DateTime            @default(now())
+  issue     ServiceQualityIssue @relation(fields: [issueId], references: [id])
+
+  @@unique([issueId, revision])
+  @@index([issueId, createdAt])
+}
+
+// Stable organization-wide identity for a locally configured operational
+// Service metric. Display wording and semantics live in append-only revisions;
+// the key remains stable when staff only rename an alias.
+model ServiceMetricDefinition {
+  id              Int                                @id @default(autoincrement())
+  metricKey       String                             @unique
+  createdAt       DateTime                           @default(now())
+  revisions       ServiceMetricDefinitionRevision[]
+  observations    ServiceMetricObservationRevision[]
+  capacityTargets ServiceCapacityTarget[]
+}
+
+// Stable organization-wide identity for an effective-dated capacity policy.
+// WTH may revise the operating plan without rewriting the historical target
+// that governed an earlier service date.
+model ServiceCapacityPlan {
+  id        Int                           @id @default(autoincrement())
+  planKey   String                        @unique
+  createdAt DateTime                      @default(now())
+  revisions ServiceCapacityPlanRevision[]
+}
+
+model ServiceCapacityPlanRevision {
+  id                 Int                     @id @default(autoincrement())
+  planId             Int
+  revision           Int
+  displayName        String
+  description        String?
+  timezone           String
+  effectiveStartDate String
+  effectiveEndDate   String?
+  isActive           Boolean                 @default(true)
+  createdBy          String?
+  createdAt          DateTime                @default(now())
+  plan               ServiceCapacityPlan     @relation(fields: [planId], references: [id])
+  targets            ServiceCapacityTarget[]
+
+  @@unique([planId, revision])
+  @@index([planId, effectiveStartDate, effectiveEndDate])
+}
+
+// One target within a capacity-plan revision. `metricId` is present when the
+// target corresponds to a configured operational metric (for example,
+// shopping visits); an overall formal household target intentionally has no
+// metric relation because formal totals and operational methods stay distinct.
+model ServiceCapacityTarget {
+  id             Int                         @id @default(autoincrement())
+  planRevisionId Int
+  targetKey      String
+  displayName    String
+  unit           String
+  targetValue    Int
+  metricId       Int?
+  displayOrder   Int                         @default(0)
+  planRevision   ServiceCapacityPlanRevision @relation(fields: [planRevisionId], references: [id])
+  metric         ServiceMetricDefinition?    @relation(fields: [metricId], references: [id])
+
+  @@unique([planRevisionId, targetKey])
+  @@index([metricId])
+}
+
+// Effective-dated metric configuration. Historical definitions are retired,
+// never deleted; a meaning change creates a successor ServiceMetricDefinition.
+model ServiceMetricDefinitionRevision {
+  id                            Int                                @id @default(autoincrement())
+  metricId                      Int
+  revision                      Int
+  displayName                   String
+  description                   String?
+  valueType                     String
+  unit                          String
+  semanticRole                  String
+  contributesToOperationalTotal Boolean                            @default(false)
+  capacityTarget                Int?
+  effectiveStartDate            String
+  effectiveEndDate              String?
+  displayOrder                  Int                                @default(0)
+  isActive                      Boolean                            @default(true)
+  createdBy                     String?
+  createdAt                     DateTime                           @default(now())
+  metric                        ServiceMetricDefinition            @relation(fields: [metricId], references: [id])
+  observations                  ServiceMetricObservationRevision[]
+
+  @@unique([metricId, revision])
+  @@index([metricId, effectiveStartDate, effectiveEndDate])
+  @@index([isActive, displayOrder])
+}
+
+// One immutable typed value for one metric/day/source observation. No row means
+// not recorded; an explicit numeric zero is a real row with countValue = 0.
+model ServiceMetricObservationRevision {
+  id                   Int                             @id @default(autoincrement())
+  metricId             Int
+  definitionRevisionId Int
+  importId             Int?
+  source               String
+  sourceRecordKey      String
+  serviceDate          String
+  revision             Int
+  snapshotHash         String
+  countValue           Int?
+  booleanValue         Boolean?
+  timeValue            String?
+  sourceMetricLabel    String?
+  sourceSheet          String?
+  sourceCell           String?
+  entryState           String                          @default("finalized")
+  warningCodes         Json                            @default("[]")
+  isCurrent            Boolean                         @default(true)
+  recordedBy           String?
+  recordedAt           DateTime                        @default(now())
+  metric               ServiceMetricDefinition         @relation(fields: [metricId], references: [id])
+  definitionRevision   ServiceMetricDefinitionRevision @relation(fields: [definitionRevisionId], references: [id])
+  import               ServiceImport?                  @relation(fields: [importId], references: [id], onDelete: Restrict)
+
+  @@unique([source, sourceRecordKey, revision])
+  @@index([metricId, serviceDate, isCurrent])
+  @@index([definitionRevisionId])
+  @@index([importId])
+  @@index([entryState, serviceDate])
+  @@index([snapshotHash])
+}
+
+// Append-only daily workflow state for native FEED entry. This answers whether
+// the pantry was open/closed and whether staff consider that day's entry draft
+// or finalized without turning missing metric rows into zeroes.
+model ServiceDayStatusRevision {
+  id           Int      @id @default(autoincrement())
+  serviceDate  String
+  revision     Int
+  pantryStatus String
+  entryState   String
+  isCurrent    Boolean  @default(true)
+  recordedBy   String?
+  recordedAt   DateTime @default(now())
+
+  @@unique([serviceDate, revision])
+  @@index([serviceDate, isCurrent])
+  @@index([entryState, serviceDate])
+}
+
+// Shared lifecycle for the unified Add Data workflow. These rows and their
+// staged files are transient operational state, not organization data, and are
+// intentionally excluded from sanitized backups. No original filename or
+// source-row value is retained here.
+model DataImportJob {
+  id                     String                          @id @default(cuid())
+  contractId             String?
+  domain                 String?
+  source                 String?
+  datasetKind            String?
+  status                 String                          @default("staging")
+  fileHash               String?
+  fileSizeBytes          Int                             @default(0)
+  stagedFileKey          String?
+  recognizedFieldCount   Int                             @default(0)
+  ignoredFieldCount      Int                             @default(0)
+  totalRows              Int?
+  processedRows          Int                             @default(0)
+  warningCount           Int                             @default(0)
+  unresolvedIssueCount   Int                             @default(0)
+  reviewSummary          Json?
+  pendingServiceImportId Int?
+  activationOutcome      String?
+  errorCode              String?
+  errorMessage           String?
+  createdBy              String?
+  expiresAt              DateTime
+  createdAt              DateTime                        @default(now())
+  updatedAt              DateTime                        @updatedAt
+  completedAt            DateTime?
+  events                 DataImportJobEvent[]
+  link2FeedVisitRows     Link2FeedVisitStagingRow[]
+  simcVisitRows          SimcVisitStagingRow[]
+  simcPersonRows         SimcPersonStagingRow[]
+  simcEncounterPeople    SimcEncounterPersonStagingRow[]
+  wthTrackingRows        WthTrackingStagingRow[]
+  reviewIssues           DataImportReviewIssue[]
+
+  @@index([status, updatedAt])
+  @@index([fileHash])
+  @@index([expiresAt])
+}
+
+// Transient allowlisted projection of a Link2Feed visit artifact. Raw rows,
+// ignored columns, Notes, and full dates of birth never cross this boundary.
+// Rows exist only while their DataImportJob is under review and are deleted on
+// completion, cancellation, failure, or expiry.
+model Link2FeedVisitStagingRow {
+  id                      Int           @id @default(autoincrement())
+  jobId                   String
+  sourceRowNumber         Int
+  sourceRecordKey         String
+  serviceDate             String
+  sourceClientId          String?
+  recordedAtSerial        Float
+  clientVisitStatus       String        @default("unknown")
+  encounterSnapshotHash   String
+  recordKind              String
+  reportedHouseholdCount  Int?
+  reportedPeopleCount     Int?
+  sourceProfileKey        String?
+  profileSnapshotHash     String?
+  birthYear               Int?
+  birthYearEstimated      Boolean?
+  birthYearResponseStatus String?
+  profileResponses        Json          @default("[]")
+  warningCodes            Json          @default("[]")
+  job                     DataImportJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@unique([jobId, sourceRecordKey])
+  @@index([jobId, serviceDate])
+  @@index([jobId, sourceClientId])
+}
+
+// Transient allowlisted SIMC projection. One row represents one Visit ID after
+// source member rows have been grouped and validated. Notes, full DOB, ignored
+// fields, and original source rows never cross this boundary.
+model SimcVisitStagingRow {
+  id                     Int           @id @default(autoincrement())
+  jobId                  String
+  sourceRowNumber        Int
+  sourceRecordKey        String
+  serviceDate            String
+  sourceHouseholdId      String?
+  sourceEventId          String?
+  sourceRecordedAt       String?
+  encounterSnapshotHash  String
+  recordKind             String
+  reportedHouseholdCount Int?
+  reportedPeopleCount    Int?
+  numberAdults           Int?
+  numberChildren         Int?
+  numberSeniors          Int?
+  numberUnknownAge       Int?
+  sourceProfileKey       String?
+  profileSnapshotHash    String?
+  profileResponses       Json          @default("[]")
+  warningCodes           Json          @default("[]")
+  job                    DataImportJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@unique([jobId, sourceRecordKey])
+  @@index([jobId, serviceDate])
+  @@index([jobId, sourceHouseholdId])
+}
+
+model SimcPersonStagingRow {
+  id                      Int           @id @default(autoincrement())
+  jobId                   String
+  sourcePersonId          String
+  sourceProfileKey        String
+  observedDate            String
+  profileSnapshotHash     String
+  birthYear               Int?
+  birthYearEstimated      Boolean?
+  birthYearResponseStatus String
+  profileResponses        Json          @default("[]")
+  job                     DataImportJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@unique([jobId, sourcePersonId])
+  @@index([jobId, sourceProfileKey])
+}
+
+model SimcEncounterPersonStagingRow {
+  id                Int           @id @default(autoincrement())
+  jobId             String
+  sourceRecordKey   String
+  sourcePersonId    String
+  isHeadOfHousehold Boolean       @default(false)
+  job               DataImportJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@unique([jobId, sourceRecordKey, sourcePersonId])
+  @@index([jobId, sourcePersonId])
+}
+
+// Transient projection of the versioned WTH long-form Tracking export. The
+// changing workbook coordinates are handled by the one-time WTH exporter;
+// Add Data receives only these normalized metric observations.
+model WthTrackingStagingRow {
+  id                   Int           @id @default(autoincrement())
+  jobId                String
+  sourceRowNumber      Int
+  metricId             Int
+  definitionRevisionId Int
+  sourceRecordKey      String
+  serviceDate          String
+  metricKey            String
+  sourceMetricLabel    String
+  valueType            String
+  countValue           Int?
+  booleanValue         Boolean?
+  timeValue            String?
+  sourceSheet          String
+  sourceCell           String
+  snapshotHash         String
+  warningCodes         Json          @default("[]")
+  job                  DataImportJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@unique([jobId, sourceRecordKey])
+  @@index([jobId, serviceDate])
+  @@index([jobId, metricKey])
+}
+
+// Pre-activation quality review. Only the same restricted safe-detail
+// vocabulary as durable ServiceQualityIssue is allowed. It becomes durable
+// quality evidence during activation, then this transient copy is deleted.
+model DataImportReviewIssue {
+  id               Int                        @id @default(autoincrement())
+  jobId            String
+  sourceRecordKey  String?
+  code             String
+  severity         String
+  requiresDecision Boolean                    @default(false)
+  field            String?
+  safeDetails      Json                       @default("{}")
+  createdAt        DateTime                   @default(now())
+  job              DataImportJob              @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  decisions        DataImportReviewDecision[]
+
+  @@unique([jobId, sourceRecordKey, code])
+  @@index([jobId, severity])
+}
+
+model DataImportReviewDecision {
+  id                     Int                   @id @default(autoincrement())
+  issueId                Int
+  revision               Int
+  action                 String
+  recordKind             String?
+  reportedHouseholdCount Int?
+  reportedPeopleCount    Int?
+  eventLabel             String?
+  reason                 String
+  createdBy              String?
+  createdAt              DateTime              @default(now())
+  issue                  DataImportReviewIssue @relation(fields: [issueId], references: [id], onDelete: Cascade)
+
+  @@unique([issueId, revision])
+  @@index([issueId, createdAt])
+}
+
+model DataImportJobEvent {
+  id            Int           @id @default(autoincrement())
+  jobId         String
+  sequence      Int
+  status        String
+  processedRows Int           @default(0)
+  totalRows     Int?
+  warningCount  Int           @default(0)
+  safeMessage   String?
+  createdAt     DateTime      @default(now())
+  job           DataImportJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@unique([jobId, sequence])
+  @@index([jobId, createdAt])
 }
 
 // Append-only inventory ledger. Events survive food-item deletion:

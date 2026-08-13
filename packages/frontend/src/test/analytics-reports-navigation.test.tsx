@@ -37,7 +37,7 @@ describe('Analytics and Reports information architecture', () => {
     );
     expect(information?.items).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ title: 'Data Management', href: '/data-management' }),
+        expect.objectContaining({ title: 'Data', href: '/data-management' }),
         expect.objectContaining({ title: 'Reports', href: '/reports' }),
       ])
     );
@@ -48,7 +48,11 @@ describe('Analytics and Reports information architecture', () => {
     // asserted here are the table standard's, not this page's own.
     render(<ReportsManagementWorkspace />);
 
-    expect(screen.getByRole('heading', { name: 'Reports Management' })).toBeVisible();
+    const heading = screen.getByRole('heading', { name: 'Reports Management' });
+    expect(heading).toBeVisible();
+    const pageIcon = heading.parentElement?.parentElement?.querySelector('svg');
+    expect(pageIcon).toHaveAttribute('width', '28');
+    expect(pageIcon).toHaveAttribute('height', '28');
     // Awaited: the table renders skeletons until the load settles.
     expect(await screen.findByPlaceholderText('Filter templates...')).toBeVisible();
     expect(screen.getByRole('columnheader', { name: /Name/ })).toBeVisible();

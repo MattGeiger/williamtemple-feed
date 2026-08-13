@@ -355,6 +355,9 @@ function createFallbackIcon(iconName: string, iconNode: IconNode) {
   return FallbackIcon;
 }
 
+// Native animate-ui components expose icon-specific prop unions; the adapter
+// intentionally accepts that heterogeneous component surface.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function createAnimateUiIcon<T extends React.ComponentType<any>>(
   iconName: string,
   Icon: T,

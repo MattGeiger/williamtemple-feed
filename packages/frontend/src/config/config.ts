@@ -66,6 +66,9 @@ interface ApiConfig {
       base: string;
       operatingHours: string;
     };
+    service: {
+      base: string;
+    };
     admin: {
       base: string;
       users: string;
@@ -150,6 +153,9 @@ const config: AppConfig = {
       settings: {
         base: '/api/settings',
         operatingHours: '/operating-hours'
+      },
+      service: {
+        base: '/api/service'
       },
       admin: {
         base: '/api/admin',
