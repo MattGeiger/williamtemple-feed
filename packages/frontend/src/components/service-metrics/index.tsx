@@ -15,7 +15,11 @@ import {
 import { serviceMetricColumns } from './columns';
 import { MetricDialog } from './metric-dialog';
 
-export function ServiceMetricsSettings() {
+interface ServiceMetricsSettingsProps {
+  onMetricsChanged?: () => Promise<void> | void;
+}
+
+export function ServiceMetricsSettings({ onMetricsChanged }: ServiceMetricsSettingsProps = {}) {
   const [metrics, setMetrics] = React.useState<ServiceMetricConfiguration[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [isSaving, setIsSaving] = React.useState(false);
@@ -49,18 +53,20 @@ export function ServiceMetricsSettings() {
   const saveMetric = async (input: ServiceMetricConfigurationInput) => {
     setIsSaving(true);
     try {
+      let successMessage: string;
       if (editingMetric) {
         await serviceApi.updateMetric(editingMetric.id, {
           ...input,
           expectedRevision: editingMetric.currentRevision.revision,
         });
-        showSuccess('Service metric revision saved');
+        successMessage = 'Service metric revision saved';
       } else {
         await serviceApi.createMetric(input);
-        showSuccess('Service metric added');
+        successMessage = 'Service metric added';
       }
       setDialogOpen(false);
-      await load();
+      await Promise.all([load(), onMetricsChanged?.()]);
+      showSuccess(successMessage);
     } catch (error) {
       ErrorHandlerService.handleError(error, 'ServiceMetrics.save');
     } finally {
@@ -72,12 +78,11 @@ export function ServiceMetricsSettings() {
     setIsSaving(true);
     try {
       const result = await serviceApi.seedWthDefaults();
-      if (result.metricsCreated === 0 && !result.capacityPlanCreated) {
-        showSuccess('WTH Service defaults are already configured');
-      } else {
-        showSuccess(`Configured ${result.metricsCreated} WTH Service ${result.metricsCreated === 1 ? 'metric' : 'metrics'}`);
-      }
-      await load();
+      const successMessage = result.metricsCreated === 0 && !result.capacityPlanCreated
+        ? 'WTH Service defaults are already configured'
+        : `Configured ${result.metricsCreated} WTH Service ${result.metricsCreated === 1 ? 'metric' : 'metrics'}`;
+      await Promise.all([load(), onMetricsChanged?.()]);
+      showSuccess(successMessage);
     } catch (error) {
       ErrorHandlerService.handleError(error, 'ServiceMetrics.seedWthDefaults');
     } finally {
@@ -86,11 +91,6 @@ export function ServiceMetricsSettings() {
   };
 
   const columns = React.useMemo(() => serviceMetricColumns(openEdit), [openEdit]);
-  const nextOrder = metrics.reduce(
-    (maximum, metric) => Math.max(maximum, metric.currentRevision.displayOrder),
-    0,
-  ) + 10;
-
   return (
     <>
       <section
@@ -139,7 +139,7 @@ export function ServiceMetricsSettings() {
       <MetricDialog
         open={dialogOpen}
         metric={editingMetric}
-        defaultDisplayOrder={nextOrder}
+        metricCount={metrics.length}
         isSaving={isSaving}
         onOpenChange={setDialogOpen}
         onSave={saveMetric}

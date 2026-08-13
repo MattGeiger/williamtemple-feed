@@ -58,6 +58,7 @@ describe('Service Log routes', () => {
     });
     serviceMocks.getServiceDay.mockResolvedValue(emptyDay);
     serviceMocks.saveServiceDay.mockResolvedValue(emptyDay);
+    serviceMocks.createServiceMetricConfiguration.mockResolvedValue({ id: 1 });
   });
 
   test('keeps metric configuration administrator-only', async () => {
@@ -74,6 +75,37 @@ describe('Service Log routes', () => {
     expect(response.status).toBe(201);
     expect(response.body.metricsCreated).toBe(7);
     expect(serviceMocks.seedWthServiceConfiguration).toHaveBeenCalledWith('administrator-user');
+  });
+
+  test('accepts an ordinal metric position and rejects the internal order field', async () => {
+    const metric = {
+      displayName: 'Delivery Requests',
+      description: null,
+      valueType: 'count',
+      unit: 'requests',
+      semanticRole: 'ancillary_service',
+      contributesToOperationalTotal: false,
+      capacityTarget: null,
+      effectiveStartDate: '2026-08-13',
+      effectiveEndDate: null,
+      displayPosition: 2,
+      isActive: true,
+    };
+    const accepted = await request(appWithRole('ADMINISTRATOR'))
+      .post('/api/service/metrics')
+      .send(metric);
+    expect(accepted.status).toBe(201);
+    expect(serviceMocks.createServiceMetricConfiguration).toHaveBeenCalledWith(
+      metric,
+      'administrator-user',
+    );
+
+    const { displayPosition: _displayPosition, ...withoutPosition } = metric;
+    const rejected = await request(appWithRole('ADMINISTRATOR'))
+      .post('/api/service/metrics')
+      .send({ ...withoutPosition, displayOrder: 20 });
+    expect(rejected.status).toBe(400);
+    expect(serviceMocks.createServiceMetricConfiguration).toHaveBeenCalledTimes(1);
   });
 
   test('lets staff read and save the shared daily log', async () => {

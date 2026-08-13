@@ -44,7 +44,14 @@ export interface ServiceMetricConfigurationInput {
   isActive: boolean;
 }
 
-export interface UpdateServiceMetricConfigurationInput extends ServiceMetricConfigurationInput {
+export type ServiceMetricConfigurationRequest = Omit<
+  ServiceMetricConfigurationInput,
+  'displayOrder'
+> & {
+  displayPosition: number;
+};
+
+export interface UpdateServiceMetricConfigurationInput extends ServiceMetricConfigurationRequest {
   expectedRevision: number;
 }
 
@@ -94,6 +101,24 @@ const definitionDraft = (
   input: ServiceMetricConfigurationInput,
 ): ServiceMetricDefinitionDraft => validateServiceMetricDefinition({ metricKey, ...input });
 
+const requestDefinitionDraft = (
+  metricKey: string,
+  input: ServiceMetricConfigurationRequest,
+  displayOrder: number,
+): ServiceMetricDefinitionDraft => definitionDraft(metricKey, {
+  displayName: input.displayName,
+  description: input.description,
+  valueType: input.valueType,
+  unit: input.unit,
+  semanticRole: input.semanticRole,
+  contributesToOperationalTotal: input.contributesToOperationalTotal,
+  capacityTarget: input.capacityTarget,
+  effectiveStartDate: input.effectiveStartDate,
+  effectiveEndDate: input.effectiveEndDate,
+  displayOrder,
+  isActive: input.isActive,
+});
+
 const revisionData = (
   definition: ServiceMetricDefinitionDraft,
   revision: number,
@@ -114,7 +139,7 @@ const revisionData = (
   createdBy,
 });
 
-export async function listServiceMetricConfigurations(client: ReadClient = prisma) {
+const currentMetricConfigurations = async (client: ReadClient) => {
   const definitions = await client.serviceMetricDefinition.findMany({
     include: {
       revisions: { orderBy: { revision: 'desc' } },
@@ -125,28 +150,121 @@ export async function listServiceMetricConfigurations(client: ReadClient = prism
 
   return definitions
     .filter((definition) => definition.revisions[0])
-    .map((definition) => ({
-      id: definition.id,
-      metricKey: definition.metricKey,
-      createdAt: definition.createdAt,
-      currentRevision: definition.revisions[0],
-      revisionCount: definition.revisions.length,
-      hasObservations: definition._count.observations > 0,
-    }))
     .sort((left, right) => (
-      left.currentRevision.displayOrder - right.currentRevision.displayOrder
-      || left.currentRevision.displayName.localeCompare(right.currentRevision.displayName)
+      left.revisions[0].displayOrder - right.revisions[0].displayOrder
+      || left.revisions[0].displayName.localeCompare(right.revisions[0].displayName)
+      || left.id - right.id
     ));
+};
+
+export function placeServiceMetricAtPosition(
+  currentMetricIds: number[],
+  metricId: number,
+  displayPosition: number,
+): number[] {
+  const metricAlreadyExists = currentMetricIds.includes(metricId);
+  const maximumPosition = metricAlreadyExists
+    ? currentMetricIds.length
+    : currentMetricIds.length + 1;
+  if (
+    !Number.isSafeInteger(displayPosition)
+    || displayPosition < 1
+    || displayPosition > maximumPosition
+  ) {
+    throw new ServiceLogError(
+      'The available Service metric positions changed. Refresh the page and choose a position again.',
+      'SERVICE_METRIC_POSITION_CONFLICT',
+      409,
+    );
+  }
+
+  const reordered = currentMetricIds.filter((currentId) => currentId !== metricId);
+  reordered.splice(displayPosition - 1, 0, metricId);
+  return reordered;
+}
+
+const normalizedDisplayOrder = (index: number): number => (index + 1) * 10;
+
+const revisionDefinitionDraft = (
+  metricKey: string,
+  revision: {
+    displayName: string;
+    description: string | null;
+    valueType: string;
+    unit: string;
+    semanticRole: string;
+    contributesToOperationalTotal: boolean;
+    capacityTarget: number | null;
+    effectiveStartDate: string;
+    effectiveEndDate: string | null;
+    isActive: boolean;
+  },
+  displayOrder: number,
+): ServiceMetricDefinitionDraft => definitionDraft(metricKey, {
+  displayName: revision.displayName,
+  description: revision.description,
+  valueType: revision.valueType as ServiceMetricValueType,
+  unit: revision.unit as ServiceMetricUnit,
+  semanticRole: revision.semanticRole as ServiceMetricSemanticRole,
+  contributesToOperationalTotal: revision.contributesToOperationalTotal,
+  capacityTarget: revision.capacityTarget,
+  effectiveStartDate: revision.effectiveStartDate,
+  effectiveEndDate: revision.effectiveEndDate,
+  displayOrder,
+  isActive: revision.isActive,
+});
+
+export async function listServiceMetricConfigurations(client: ReadClient = prisma) {
+  const definitions = await currentMetricConfigurations(client);
+  return definitions.map((definition, index) => ({
+    id: definition.id,
+    metricKey: definition.metricKey,
+    createdAt: definition.createdAt,
+    currentRevision: definition.revisions[0],
+    revisionCount: definition.revisions.length,
+    hasObservations: definition._count.observations > 0,
+    displayPosition: index + 1,
+  }));
 }
 
 export async function createServiceMetricConfiguration(
-  input: ServiceMetricConfigurationInput,
+  input: ServiceMetricConfigurationRequest,
   createdBy: string | null,
   client: PrismaClient = prisma,
 ) {
   return client.$transaction(async (tx) => {
+    const currentMetrics = await currentMetricConfigurations(tx);
+    const pendingMetricId = -1;
+    const orderedIds = placeServiceMetricAtPosition(
+      currentMetrics.map((metric) => metric.id),
+      pendingMetricId,
+      input.displayPosition,
+    );
+    const desiredOrders = new Map(orderedIds.map((id, index) => [id, normalizedDisplayOrder(index)]));
+
+    for (const currentMetric of currentMetrics) {
+      const latest = currentMetric.revisions[0];
+      const displayOrder = desiredOrders.get(currentMetric.id)!;
+      if (latest.displayOrder === displayOrder) continue;
+      const definition = revisionDefinitionDraft(
+        currentMetric.metricKey,
+        latest,
+        displayOrder,
+      );
+      await tx.serviceMetricDefinitionRevision.create({
+        data: {
+          metricId: currentMetric.id,
+          ...revisionData(definition, latest.revision + 1, createdBy),
+        },
+      });
+    }
+
     const metricKey = await availableMetricKey(input.displayName, tx);
-    const definition = definitionDraft(metricKey, input);
+    const definition = requestDefinitionDraft(
+      metricKey,
+      input,
+      desiredOrders.get(pendingMetricId)!,
+    );
     return tx.serviceMetricDefinition.create({
       data: {
         metricKey,
@@ -164,11 +282,9 @@ export async function updateServiceMetricConfiguration(
   client: PrismaClient = prisma,
 ) {
   return client.$transaction(async (tx) => {
-    const metric = await tx.serviceMetricDefinition.findUnique({
-      where: { id: metricId },
-      include: { revisions: { orderBy: { revision: 'desc' }, take: 1 } },
-    });
-    if (!metric?.revisions[0]) {
+    const currentMetrics = await currentMetricConfigurations(tx);
+    const metric = currentMetrics.find((candidate) => candidate.id === metricId);
+    if (!metric) {
       throw new ServiceLogError(
         'This Service metric no longer exists. Refresh the page and try again.',
         'SERVICE_METRIC_NOT_FOUND',
@@ -184,18 +300,37 @@ export async function updateServiceMetricConfiguration(
       );
     }
 
-    const definition = definitionDraft(metric.metricKey, {
-      ...input,
-      valueType: latest.valueType as ServiceMetricValueType,
-      unit: latest.unit as ServiceMetricUnit,
-      semanticRole: latest.semanticRole as ServiceMetricSemanticRole,
-    });
-    return tx.serviceMetricDefinitionRevision.create({
-      data: {
-        metricId,
-        ...revisionData(definition, latest.revision + 1, createdBy),
-      },
-    });
+    const orderedIds = placeServiceMetricAtPosition(
+      currentMetrics.map((candidate) => candidate.id),
+      metricId,
+      input.displayPosition,
+    );
+    const desiredOrders = new Map(orderedIds.map((id, index) => [id, normalizedDisplayOrder(index)]));
+    let updatedRevision = null;
+
+    for (const currentMetric of currentMetrics) {
+      const currentRevision = currentMetric.revisions[0];
+      const displayOrder = desiredOrders.get(currentMetric.id)!;
+      if (currentMetric.id !== metricId && currentRevision.displayOrder === displayOrder) continue;
+
+      const definition = currentMetric.id === metricId
+        ? requestDefinitionDraft(currentMetric.metricKey, {
+          ...input,
+          valueType: latest.valueType as ServiceMetricValueType,
+          unit: latest.unit as ServiceMetricUnit,
+          semanticRole: latest.semanticRole as ServiceMetricSemanticRole,
+        }, displayOrder)
+        : revisionDefinitionDraft(currentMetric.metricKey, currentRevision, displayOrder);
+      const revision = await tx.serviceMetricDefinitionRevision.create({
+        data: {
+          metricId: currentMetric.id,
+          ...revisionData(definition, currentRevision.revision + 1, createdBy),
+        },
+      });
+      if (currentMetric.id === metricId) updatedRevision = revision;
+    }
+
+    return updatedRevision!;
   });
 }
 

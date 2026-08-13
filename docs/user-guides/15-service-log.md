@@ -42,6 +42,12 @@ Select **Add Metric** to configure another field, or use a row's **Actions**
 menu to edit an existing definition. Staff can use configured metrics but
 cannot change the organization-wide definitions.
 
+Choose the metric's **Position** as `1st`, `2nd`, `3rd`, and so on. Moving a
+metric updates the shared Service Log order automatically; staff never need to
+manage numerical sort values. Saved metric changes appear immediately on the
+open Service Log without a page refresh, while unsaved daily-entry values remain
+in place.
+
 ## What To Read Next
 
 - To change the recurring pantry schedule, read [Settings](11-settings.md).
