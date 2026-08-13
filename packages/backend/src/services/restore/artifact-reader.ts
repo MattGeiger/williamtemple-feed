@@ -31,7 +31,7 @@ import { RESTORE_UNITS, type UnitId } from './restore-units';
  */
 
 /** Contract versions this build can read. Add a reader before adding a number. */
-export const SUPPORTED_CONTRACT_VERSIONS = [1, 2] as const;
+export const SUPPORTED_CONTRACT_VERSIONS = [1, 2, 3, 4, 5, 6, 7] as const;
 
 export interface ArtifactProblem {
   code:
@@ -74,6 +74,26 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
  * v1 → v2: v1 excluded `AIConfiguration` wholesale. There is nothing to
  * back-fill; the table is simply absent, and a restore from a v1 file leaves AI
  * configuration untouched rather than clearing it.
+ *
+ * v2 → v3: v2 predates Service tables. Missing Service sections likewise mean
+ * that Service is unavailable as a restore unit; existing Service data is not
+ * cleared by selecting another unit from the older artifact.
+ *
+ * v3 → v4: v3 contains the first Service fact family but predates capacity
+ * plans and persistent quality evidence. Those absent sections stay absent;
+ * no policy or operator decision is inferred during restore.
+ *
+ * v4 → v5: v4 Service encounters predate `clientVisitStatus`. Prisma applies
+ * the schema default `unknown` when those rows are restored; a reader must not
+ * infer first/returning status from any other field.
+ *
+ * v5 → v6: v5 predates SIMC person identities, person profiles, and encounter
+ * membership. Those sections remain unavailable in older artifacts; FEED does
+ * not derive people from household counts during restore.
+ *
+ * v6 → v7: v6 operational observations predate optional source metric labels
+ * and workbook-cell provenance. Prisma leaves those nullable fields empty for
+ * older artifacts; FEED never invents workbook provenance during restore.
  */
 const adapt = (
   version: number,
@@ -150,7 +170,7 @@ export const readArtifact = (raw: string): ReadResult => {
     };
   }
 
-  if (!SUPPORTED_CONTRACT_VERSIONS.includes(version as 1 | 2)) {
+  if (!SUPPORTED_CONTRACT_VERSIONS.includes(version as 1 | 2 | 3 | 4 | 5 | 6 | 7)) {
     return {
       ok: false,
       problem: {

@@ -23,11 +23,8 @@ import {
 } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
-import {
-  AnalyticsRangeControl,
-  analyticsRangeFromSearchParams,
-  RANGE_URL_VALUES,
-} from '@/components/analytics/range-control';
+import { DateRangeControl } from '@/components/shared/date-range-control';
+import { RANGE_URL_VALUES, dateRangeFromSearchParams } from '@/lib/date-range';
 import { createPageTitleIcon } from '@/components/layout/page-title-icon';
 import { OperationalAnalyticsWorkspace } from '@/components/operational-reports';
 import { SectionHeader } from '@/components/shared/section-header';
@@ -811,7 +808,7 @@ export function AnalyticsWorkspace() {
     ? 'procurement'
     : 'operations';
   const range = React.useMemo(
-    () => analyticsRangeFromSearchParams(searchParams),
+    () => dateRangeFromSearchParams(searchParams),
     // The serialized query is the stable source of truth for the range.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [searchKey]
@@ -885,7 +882,7 @@ export function AnalyticsWorkspace() {
               />
             )}
           </div>
-          <AnalyticsRangeControl value={range} onChange={setRange} />
+          <DateRangeControl value={range} onChange={setRange} />
         </div>
         <TabsContents>
           <TabsContent value="operations" className="pt-4">

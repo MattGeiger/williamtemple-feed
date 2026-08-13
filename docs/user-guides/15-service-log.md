@@ -1,0 +1,48 @@
+# Service Log
+
+Service Log records the operational details of each pantry service day. The
+log is shared: everyone using FEED sees the same draft or finalized entry.
+
+## Choose A Service Day
+
+Open **Service → Service Log**. FEED starts on **Today** in the pantry's
+configured timezone.
+
+Use the left and right arrows to move between the weekdays enabled under
+Operating Hours. For example, a Tuesday-through-Thursday schedule moves from
+Thursday back to Wednesday, or forward to the following Tuesday when needed.
+
+Select the date between the arrows to open the calendar. The calendar can
+choose a different past date even when it falls outside the recurring schedule,
+such as a special food-distribution event.
+
+## Record The Day
+
+1. Choose whether the pantry was **Open** or **Closed**.
+2. Enter the available service, capacity, demand, and other operational fields.
+3. Select **Save Draft** if the entry still needs review, or **Finalize Day**
+   when it is complete.
+
+A blank field means the value was not recorded. Entering `0` means staff
+explicitly recorded that none occurred. Marking the pantry closed clears the
+current values for that day while preserving the revision history.
+
+## Choose A Visualization Range
+
+The **Date Range** buttons prepare the page's Service visualizations. Choose
+**7d**, **30d**, **90d**, **YTD**, **All**, or **Custom range**. The daily entry
+controls continue to edit only the one Service Date selected below them.
+
+## Configure Service Metrics
+
+Administrators can manage **Service Metrics** beneath the daily Service Log.
+These definitions determine which fields staff see when recording a day.
+
+Select **Add Metric** to configure another field, or use a row's **Actions**
+menu to edit an existing definition. Staff can use configured metrics but
+cannot change the organization-wide definitions.
+
+## What To Read Next
+
+- To change the recurring pantry schedule, read [Settings](11-settings.md).
+- To import formal service history or operational tracking, read [Data Management](12-data-management.md).

@@ -9,15 +9,21 @@ is the standardized Oregon Food Bank (OFB) CSV exporter.
 The staff workflow is intentionally short:
 
 1. Install the **OFB Order CSV Exporter Chrome Extension** from the download in
-   **Information → Data Management → Import OFB Data** if it is not already
+   **Information → Data Management → Add Data** if it is not already
    active.
 2. Open Primarius **Order History**, choose the date range, and use **Export
    unified CSV**.
-3. Return to **Import OFB Data** and drop or select the CSV.
+3. Return to **Add Data** and drop or select the CSV. FEED identifies the OFB
+   contract automatically.
 4. Review the import result and any calm data-quality warnings.
 5. Leave. The uploaded file is no longer retained.
 
 No mapping, row-by-row confirmation, or correction queue is required.
+
+Data Management has no separate OFB or Legacy import buttons. The single Add
+Data modal also recognizes WTH's curated historical community-donation ledger,
+while preserving that ledger's dedicated importer and monthly grain behind the
+shared UX.
 
 ## Required Chrome extension
 

@@ -21,8 +21,15 @@ Interactive elements outside the Sidebar should also animate their icons on init
 
 The Sidebar icons intentionally do not animate on page load. The sidebar is persistent UI; animating its icons on every page load would be repetitive and distracting. This exception is by design and should not be changed.
 
-**4. Non-interactive elements use static Lucide icons.**
-If a parent element is not clickable and not linked to any action, its icon must be a static Lucide variant — not an animated one. Animated icons on static elements create false affordance.
+**4. Non-interactive elements use static Lucide icons, except page titles.**
+If a parent element is not clickable and not linked to any action, its icon must
+normally be a static Lucide variant. The one established exception is the
+`SectionHeader` page-identity icon: Categories, Food Items, and equivalent
+management pages use `createPageTitleIcon` to play one entrance animation on
+mount and replay on direct icon hover. This is page-arrival orientation, not an
+action affordance. New page-title icons must match that wrapper's 28px internal
+SVG, standard `h-6 w-6 mt-1` slot, placement, and timing rather than rendering a
+24px Lucide SVG directly.
 
 **5. Shopping List Builder canvas and templates use only static icons.**
 The Shopping List Builder's template canvas renders content for print. Printed output cannot animate, and the Preview Canvas should faithfully represent the printed page. No animated icons are used on template components or within the canvas. Standard UI chrome surrounding the builder (toolbar buttons, panel controls) may use animated icons where interactive.
@@ -39,7 +46,7 @@ Motion/React-based icons that use Framer Motion variants. They are driven by an 
 
 **Examples:** `UndoIcon`, `CopyIcon`, `Trash2Icon`, `SquarePenIcon`, `XIcon`, `TagIcon`, `ArrowLeftRightIcon`, `SunIcon`, `MoonIcon`, `SunMoonIcon`, `GaugeIcon`, `BotIcon`, `PlusIcon`, `FileDownIcon`, `SettingsIcon`
 
-**Hand-rolled here** (no upstream registry version; Lucide geometry verbatim): `UploadIcon`, `SearchCheckIcon`, `FolderCheckIcon`, `GlobeLockIcon`, `LogOutIcon`, `PanelLeftCloseIcon`, `BellIcon`
+**Hand-rolled here** (no upstream registry version; Lucide geometry verbatim): `UploadIcon`, `SearchCheckIcon`, `FolderCheckIcon`, `GlobeLockIcon`, `FileChartPieIcon`, `ClipboardPenIcon`, `UsersRoundIcon`, `ShieldUserIcon`, `LogOutIcon`, `PanelLeftCloseIcon`, `BellIcon`
 
 **File location:** `packages/frontend/src/components/animate-ui/icons/`
 
@@ -575,6 +582,7 @@ Unlike `TableActionMenu`, the correct fix for sidebar icons is **not** to cycle 
 | Icon in `TableActionMenu` or any `<AnimateIcon asChild>` row | **Native animate-ui icon** (imperative-ref will fail `animate` + `animateOnHover`) |
 | Icon animates when its direct parent is hovered/clicked | animate-ui icon + `<AnimateIcon animateOnHover>` wrapper |
 | Icon animates when a larger container is hovered (e.g., a card) | Imperative-ref icon + `useRef` + container `onMouseEnter`/`onMouseLeave` |
+| `SectionHeader` / DataList page-title identity | Imperative-ref icon + `createPageTitleIcon` (28px internal SVG; mount + direct-hover animation) |
 | Icon needs `animate` (mount) or `animateOnHover` inside a parent context | **Convert to a native animate-ui icon** — do not use `BridgedAnimatedIcon` |
 | Icon only needs `animateOnTap` inside a parent context (acceptable bridge use) | Imperative-ref icon + `BridgedAnimatedIcon` |
 | Animation is purely decorative, plays on page load/scroll-into-view | animate-ui icon + `<AnimateIcon animateOnView animateOnViewOnce>` |

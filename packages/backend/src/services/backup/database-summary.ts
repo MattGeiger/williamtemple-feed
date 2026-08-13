@@ -7,7 +7,7 @@
 
 import prisma from '../../db';
 import { AUDIT_ACTIONS } from '../auth/authorization';
-import { INCLUDED_TABLES } from './table-contract';
+import { BACKUP_QUERY_ARGS, INCLUDED_TABLES } from './table-contract';
 
 /**
  * What the database currently holds.
@@ -30,7 +30,7 @@ export interface DatabaseSummary {
 
 const delegateFor = (table: string) => {
   const key = table.charAt(0).toLowerCase() + table.slice(1);
-  return (prisma as unknown as Record<string, { count: () => Promise<number> }>)[key];
+  return (prisma as unknown as Record<string, { count: (args?: object) => Promise<number> }>)[key];
 };
 
 /**
@@ -77,7 +77,7 @@ export class DatabaseSummaryService {
     const counts = await Promise.all(
       INCLUDED_TABLES.map(async table => {
         const delegate = delegateFor(table);
-        return [table, delegate ? await delegate.count() : 0] as const;
+        return [table, delegate ? await delegate.count(BACKUP_QUERY_ARGS[table]) : 0] as const;
       })
     );
 

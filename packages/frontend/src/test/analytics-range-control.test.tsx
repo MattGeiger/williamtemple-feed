@@ -6,15 +6,15 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, test, vi } from 'vitest';
 
 import {
-  AnalyticsRangeControl,
-  analyticsRangeFromSearchParams,
-} from '@/components/analytics/range-control';
+  DateRangeControl,
+} from '@/components/shared/date-range-control';
 import { Calendar } from '@/components/ui/calendar';
+import { dateRangeFromSearchParams } from '@/lib/date-range';
 
-describe('AnalyticsRangeControl', () => {
+describe('DateRangeControl', () => {
   test('parses only complete, ordered custom ranges from the URL', () => {
     expect(
-      analyticsRangeFromSearchParams(
+      dateRangeFromSearchParams(
         new URLSearchParams('range=custom&from=2025-06-10&to=2025-06-20')
       )
     ).toEqual({
@@ -23,7 +23,7 @@ describe('AnalyticsRangeControl', () => {
       endDate: '2025-06-20',
     });
     expect(
-      analyticsRangeFromSearchParams(
+      dateRangeFromSearchParams(
         new URLSearchParams('range=custom&from=2025-06-20&to=2025-06-10')
       )
     ).toEqual({ preset: 'last-90-days' });
@@ -31,7 +31,7 @@ describe('AnalyticsRangeControl', () => {
 
   test('renders one compact calendar with working month and year captions', () => {
     render(
-      <AnalyticsRangeControl
+      <DateRangeControl
         value={{ preset: 'last-90-days' }}
         onChange={vi.fn()}
       />
@@ -57,7 +57,7 @@ describe('AnalyticsRangeControl', () => {
   test('keeps typed dates and the applied custom range in sync', () => {
     const onChange = vi.fn();
     render(
-      <AnalyticsRangeControl
+      <DateRangeControl
         value={{ preset: 'last-90-days' }}
         onChange={onChange}
       />

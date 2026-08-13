@@ -1,6 +1,6 @@
 # FEED — Known Issues & Future Work
 
-**Last Updated**: August 9, 2026
+**Last Updated**: August 11, 2026
 **Status**: v1.0.0 release prep in progress (see `docs/V1-RELEASE-PLAN.md`)
 **Production**: https://feed.williamtemple.app
 
@@ -38,6 +38,24 @@ Everything else in this file. The application is shippable today.
 
 ## Open Issues
 
+### #65 — Imports table omitted Service import history
+**Priority**: High · **Status**: Fixed in source 2026-08-11; awaiting staff acceptance testing
+**Bucket**: Data Management / unified imports
+
+The unified Add Data modal correctly activated Link2Feed, SIMC, and WTH
+Tracking into `ServiceImport`, but the Imports table retained its earlier
+procurement-only state and API call. This made successful Service activations
+look absent even though their facts and durable provenance were intact.
+
+**Resolution:** Data Management now reads an organization-wide, cross-domain
+history projection over durable `ProcurementImport` and `ServiceImport` rows.
+The shared table uses generic source, data-date, record-count, warning, status,
+and imported-at concepts; its details remain domain-specific. Service record
+counts describe imported visits or metric observations rather than blindly
+repeating raw CSV row counts. Temporary `DataImportJob` rows and pending Service
+materialization are excluded. All authenticated staff can read history;
+rollback and restore remain administrator-only.
+
 ### #64 — OFB importer did not provide its required exporter
 **Priority**: Medium · **Status**: Fixed in source 2026-08-09; awaiting staff acceptance testing
 **Bucket**: Data Management / procurement imports
@@ -47,10 +65,10 @@ Exporter, but the Import OFB Data dialog previously assumed staff already had
 that custom Chrome extension. Its long description explained the file's
 channel coverage while omitting the prerequisite that makes the file possible.
 
-**Resolution:** the dialog now says only where the export comes from, links
-directly to Primarius, and identifies the exporter as required. The download is
-served with FEED's static assets and contains the version 2.0.0 extension in a
-clearly named folder plus a two-page PDF installation guide. The guide follows
+**Resolution:** the unified **Add Data** dialog keeps a concise **Download the
+exporter** link beside its source-neutral upload control. The download is served
+with FEED's static assets and contains the version 2.0.0 extension in a clearly
+named folder plus a two-page PDF installation guide. The guide follows
 Google's official unpacked-extension workflow, uses the staff-supplied Chrome
 Extensions screenshot with numbered callouts, and carries the user through
 installation, verification, Primarius export, FEED import, troubleshooting, and
@@ -1891,6 +1909,26 @@ flow in git history or older docs.
 ## Recently Resolved
 
 ### August 2026
+- **Tracking review mislabeled a configuration callback as unreadable row 501**
+  (Aug 11 2026): the first 500-row staging batch contained approved
+  `Downstairs Shopping Visits` source wording before the effective FEED display
+  alias changed from `Visits`. Historical source wording was incorrectly
+  required to equal editable UI wording, and the parser catch converted the
+  callback failure into a CSV-row error. Approved labels now map through the
+  stable metric key and remain provenance; semantic contract and effective
+  coverage are still enforced. Only actual CSV parser failures receive row
+  messaging, and the complete 1,114-row artifact validates against the local
+  configured metric revisions.
+- **Tracking service-week dates crossed worksheet boundaries** (Aug 11 2026):
+  the migration exporter initially interpreted “Week of the Month” as the nth
+  weekday. November 2023 week 5 was therefore projected to Tuesday, December 5
+  and collided with December's real December 5 observation. Tracking rows are
+  Tuesday–Thursday service blocks: the first block intersects the beginning of
+  the month and later rows advance seven days. The exporter now applies that
+  calendar rule, reports both workbook cells if a true duplicate remains, and
+  has a regression for the November 28 case. The corrected full workbook
+  exports and parses as 1,114 observations across 318 dates with no duplicate
+  identity or contract warning.
 - **Analytics report coverage** (Aug 7 2026): eight cards rendered on the
   Analytics lenses but were not in the report registry, so a user could see
   them and not export them — Recurring Availability, Operational Pressure,

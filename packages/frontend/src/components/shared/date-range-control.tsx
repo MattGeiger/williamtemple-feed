@@ -18,11 +18,11 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type {
-  AnalyticsDateRange,
-  AnalyticsRangePreset,
-} from '@/types/analytics';
+  DateRangePreset,
+  DateRangeSelection,
+} from '@/types/date-range';
 
-const PRESETS: Array<{ preset: Exclude<AnalyticsRangePreset, 'custom'>; label: string }> = [
+const PRESETS: Array<{ preset: Exclude<DateRangePreset, 'custom'>; label: string }> = [
   { preset: 'last-7-days', label: '7d' },
   { preset: 'last-30-days', label: '30d' },
   { preset: 'last-90-days', label: '90d' },
@@ -30,37 +30,13 @@ const PRESETS: Array<{ preset: Exclude<AnalyticsRangePreset, 'custom'>; label: s
   { preset: 'all', label: 'All' },
 ];
 
-export const RANGE_URL_VALUES: Record<AnalyticsRangePreset, string> = {
-  'last-7-days': '7d',
-  'last-30-days': '30d',
-  'last-90-days': '90d',
-  ytd: 'ytd',
-  all: 'all',
-  custom: 'custom',
-};
-
-const URL_RANGE_PRESETS = Object.fromEntries(
-  Object.entries(RANGE_URL_VALUES).map(([preset, value]) => [value, preset])
-) as Record<string, AnalyticsRangePreset>;
-
 const validDate = (value: string | null): value is string => {
   if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
   const parsed = parseISO(value);
   return isValid(parsed) && format(parsed, 'yyyy-MM-dd') === value;
 };
 
-export function analyticsRangeFromSearchParams(params: URLSearchParams): AnalyticsDateRange {
-  const preset = URL_RANGE_PRESETS[params.get('range') ?? ''] ?? 'last-90-days';
-  if (preset !== 'custom') return { preset };
-  const startDate = params.get('from');
-  const endDate = params.get('to');
-  if (!validDate(startDate) || !validDate(endDate) || startDate > endDate) {
-    return { preset: 'last-90-days' };
-  }
-  return { preset, startDate, endDate };
-}
-
-const dateRangeFromValue = (value: AnalyticsDateRange): DateRange | undefined => {
+const dateRangeFromValue = (value: DateRangeSelection): DateRange | undefined => {
   if (value.preset === 'custom' && value.startDate && value.endDate) {
     return { from: parseISO(value.startDate), to: parseISO(value.endDate) };
   }
@@ -80,14 +56,14 @@ const dateRangeFromValue = (value: AnalyticsDateRange): DateRange | undefined =>
   }
 };
 
-interface AnalyticsRangeControlProps {
-  value: AnalyticsDateRange;
-  onChange: (range: AnalyticsDateRange) => void;
+interface DateRangeControlProps {
+  value: DateRangeSelection;
+  onChange: (range: DateRangeSelection) => void;
 }
 
 const textOf = (date: Date | undefined) => (date ? format(date, 'yyyy-MM-dd') : '');
 
-export function AnalyticsRangeControl({ value, onChange }: AnalyticsRangeControlProps) {
+export function DateRangeControl({ value, onChange }: DateRangeControlProps) {
   const [isOpen, setIsOpen] = React.useState(false);
   const [draft, setDraft] = React.useState<DateRange | undefined>(
     dateRangeFromValue(value)
@@ -173,10 +149,10 @@ export function AnalyticsRangeControl({ value, onChange }: AnalyticsRangeControl
       <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
         <Tabs
           value={value.preset}
-          onValueChange={(preset) => onChange({ preset: preset as AnalyticsRangePreset })}
+          onValueChange={(preset) => onChange({ preset: preset as DateRangePreset })}
           className="w-full sm:w-auto"
         >
-          <TabsList aria-label="Analytics date range" className="grid h-auto w-full grid-cols-5 sm:flex sm:w-auto">
+          <TabsList aria-label="Date range presets" className="grid h-auto w-full grid-cols-5 sm:flex sm:w-auto">
             {PRESETS.map((option) => (
               <TabsTrigger key={option.preset} value={option.preset}>
                 {option.label}

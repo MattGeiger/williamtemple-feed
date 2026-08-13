@@ -6,6 +6,7 @@
 // not covered by this license; see TRADEMARKS.md.
 
 import { Info, Package, Globe2, Settings } from "@/components/ui/icons";
+import type { ComponentType } from 'react';
 import {
   AdminNavIcon,
   AIConfigurationNavIcon,
@@ -20,13 +21,18 @@ import {
   DataManagementNavIcon,
   LanguagesNavIcon,
   ShoppingListsNavIcon,
+  ServiceLogNavIcon,
+  ServiceNavIcon,
   TranslationsNavIcon,
 } from './animated-nav-icons';
 
 export interface NavItem {
   title: string;
   href: string;
-  icon: any;
+  icon: ComponentType<{
+    className?: string;
+    'aria-hidden'?: boolean | 'true' | 'false';
+  }>;
   items?: NavItem[];
   isActive?: boolean;
   isFuture?: boolean;  // For planned features
@@ -84,6 +90,18 @@ export const navigationItems: NavItem[] = [
     ]
   },
   {
+    title: "Service",
+    href: "#",
+    icon: ServiceNavIcon,
+    items: [
+      {
+        title: "Service Log",
+        href: "/service-log",
+        icon: ServiceLogNavIcon,
+      },
+    ],
+  },
+  {
     title: "Tools",
     href: "#",
     icon: Settings,
@@ -116,7 +134,7 @@ export const navigationItems: NavItem[] = [
         icon: SettingsNavIcon,
       },
       {
-        title: "Data Management",
+        title: "Data",
         href: "/data-management",
         icon: DataManagementNavIcon,
       },

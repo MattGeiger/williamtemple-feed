@@ -24,7 +24,6 @@ import { TablePagination } from "./components/TablePagination"
 import { TableSelectionOptions } from "@/types/table"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { TranslationType } from "@/types/translation"
-import type { LucideIcon } from "lucide-react";
 import {
   calculateColumnWidths,
   calculateVisibleColumnWidths,
@@ -73,7 +72,8 @@ interface EnhancedDataTableProps<TData> {
   onUpdate?: (item: TData) => Promise<void>
   toolbarActions?: Array<{
     label: string
-    icon?: LucideIcon
+    // TableFeatureBar intentionally accepts both Lucide and animate-ui icons.
+    icon?: React.ComponentType<any>
     // 'outline', not 'outline-solid'. The Tailwind v4 codemod rewrote this union
     // member as though it were a utility class name (that rename is real for
     // classes, not for these values), leaving a variant Button does not accept
@@ -81,6 +81,8 @@ interface EnhancedDataTableProps<TData> {
     variant: 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link'
     action: () => void
     title?: string
+    /** Optional trigger ref for dialogs that must restore focus on close. */
+    buttonRef?: React.Ref<HTMLButtonElement>
   }>
   toolbarControls?: React.ReactNode
   /**

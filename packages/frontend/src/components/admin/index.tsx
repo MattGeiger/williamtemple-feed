@@ -6,11 +6,8 @@
 // not covered by this license; see TRADEMARKS.md.
 
 import * as React from 'react';
-// Static, not animated: the section header icon is decorative and its parent is
-// not interactive. Animating it would signal a false affordance
-// (docs/motion/ICON_ANIMATIONS.md, Rule 4). The sidebar entry for this page is
-// interactive and uses the animated UserRoundCog.
-import { UserRoundCog } from '@/components/ui/icons';
+import { createPageTitleIcon } from '@/components/layout/page-title-icon';
+import { ShieldUserIcon } from '@/components/ui/shield-user';
 import { SectionHeader } from '@/components/shared/section-header';
 import {
   Tabs,
@@ -30,6 +27,8 @@ import type {
 import { AccessSettings } from './access-settings';
 import { AuditHistory } from './audit-history';
 import { UserRoster } from './user-roster';
+
+const PageTitleShieldUserIcon = createPageTitleIcon(ShieldUserIcon);
 
 /**
  * Administrator surfaces: who can use FEED, how sign-in works, and what has
@@ -78,7 +77,7 @@ export function AdminPage() {
       <SectionHeader
         title="Admin"
         description="Manage who can use FEED, choose how sign-in works, and review what administrators have changed."
-        icon={UserRoundCog}
+        icon={PageTitleShieldUserIcon}
       />
 
       <Tabs defaultValue="users">

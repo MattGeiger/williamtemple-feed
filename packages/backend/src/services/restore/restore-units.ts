@@ -24,6 +24,7 @@ export type UnitId =
   | 'languages'
   | 'shoppingLists'
   | 'procurement'
+  | 'service'
   | 'configuration';
 
 export interface RestoreUnit {
@@ -88,6 +89,33 @@ export const RESTORE_UNITS: readonly RestoreUnit[] = [
       'ProcurementProduct',
       'ProcurementLine',
       'ProcurementDataRule',
+    ],
+    requires: [],
+  },
+  {
+    id: 'service',
+    label: 'Service',
+    description: 'Formal service imports, profiles, quality evidence, capacity plans, and operational metrics.',
+    tables: [
+      'ServiceImport',
+      'ServiceClient',
+      'ServicePerson',
+      'ServiceEncounterRevision',
+      'ServiceEncounterPerson',
+      'ServiceClientProfileRevision',
+      'ServiceClientProfileResponse',
+      'ServicePersonProfileRevision',
+      'ServicePersonProfileResponse',
+      'ServiceQualityIssue',
+      'ServiceQualityIssueDecision',
+      'ServiceSourceResolution',
+      'ServiceMetricDefinition',
+      'ServiceMetricDefinitionRevision',
+      'ServiceMetricObservationRevision',
+      'ServiceDayStatusRevision',
+      'ServiceCapacityPlan',
+      'ServiceCapacityPlanRevision',
+      'ServiceCapacityTarget',
     ],
     requires: [],
   },

@@ -39,6 +39,8 @@ interface ToolbarAction {
   action: () => void
   /** Native title attribute — a one-line hint, matching TableRowAction.title. */
   title?: string
+  /** Optional trigger ref for dialogs that must restore focus on close. */
+  buttonRef?: React.Ref<HTMLButtonElement>
 }
 
 interface TableFeatureBarProps<TData> {
@@ -121,6 +123,7 @@ export function TableFeatureBar<TData>({
               size="sm"
               onClick={action.action}
               title={action.title}
+              ref={action.buttonRef}
             >
               {action.icon && <action.icon className="h-4 w-4 mr-2" />}
               {action.label}

@@ -30,6 +30,8 @@ import operationalReportsRouter from './routes/operational-reports';
 import analyticsReportsRouter from './routes/analytics-reports';
 import settingsRouter from './routes/settings';
 import procurementRouter from './routes/procurement';
+import dataImportRouter from './routes/data-import';
+import serviceRouter from './routes/service';
 import authTestRouter from './routes/auth-test';
 import authRouter from './routes/auth';
 import adminRouter from './routes/admin';
@@ -102,6 +104,8 @@ export const createServer = () => {
   app.use('/api/analytics-reports', analyticsReportsRouter);
   app.use('/api/settings', settingsRouter);
   app.use('/api/procurement', procurementRouter);
+  app.use('/api/data-import', dataImportRouter);
+  app.use('/api/service', serviceRouter);
   app.use('/api/languages', languagesRouter);
   app.use('/api/translations', translationsRouter);
   app.use('/api/alerts', alertsRouter);

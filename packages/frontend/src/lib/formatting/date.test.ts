@@ -34,6 +34,11 @@ describe('formatDate', () => {
     expect(formatDate(new Date(2026, 6, 11).getTime())).toBe('7/11/2026');
   });
 
+  test('treats date-only API values as calendar dates rather than UTC instants', () => {
+    expect(formatDate('2025-11-01')).toBe('11/1/2025');
+    expect(formatDateRange('2024-05-01', '2025-10-31')).toBe('5/1/2024 – 10/31/2025');
+  });
+
   test('shows a dash rather than "Invalid Date"', () => {
     // A null lastLoginAt is normal for an invited user who has not signed in.
     expect(formatDate(null)).toBe('—');

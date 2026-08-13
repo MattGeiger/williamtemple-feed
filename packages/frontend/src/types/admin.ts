@@ -151,6 +151,25 @@ export const DATABASE_SUMMARY_GROUPS: {
     ],
   },
   {
+    label: 'Service',
+    tables: [
+      { table: 'ServiceImport', label: 'Imports' },
+      { table: 'ServiceClient', label: 'Source clients' },
+      { table: 'ServiceEncounterRevision', label: 'Encounter revisions' },
+      { table: 'ServiceClientProfileRevision', label: 'Client profile revisions' },
+      { table: 'ServiceClientProfileResponse', label: 'Profile responses' },
+      { table: 'ServiceQualityIssue', label: 'Quality issues' },
+      { table: 'ServiceQualityIssueDecision', label: 'Quality decisions' },
+      { table: 'ServiceSourceResolution', label: 'Source resolutions' },
+      { table: 'ServiceMetricDefinition', label: 'Metric definitions' },
+      { table: 'ServiceMetricObservationRevision', label: 'Metric observations' },
+      { table: 'ServiceDayStatusRevision', label: 'Daily entry revisions' },
+      { table: 'ServiceCapacityPlan', label: 'Capacity plans' },
+      { table: 'ServiceCapacityPlanRevision', label: 'Capacity plan revisions' },
+      { table: 'ServiceCapacityTarget', label: 'Capacity targets' },
+    ],
+  },
+  {
     label: 'Recorded history',
     tables: [
       { table: 'FoodItemInventoryEvent', label: 'Food item changes' },
@@ -173,6 +192,7 @@ export type RestoreUnitId =
   | 'languages'
   | 'shoppingLists'
   | 'procurement'
+  | 'service'
   | 'configuration';
 
 export interface RestoreUnitInfo {

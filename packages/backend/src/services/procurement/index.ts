@@ -22,6 +22,7 @@ import {
 } from './data-shaping';
 import { clearSupersede, reapplySupersede } from './fresh-alliance';
 import { chunk } from './bulk';
+import { OFB_HEADERS } from './contracts';
 import {
   ACQUISITION_CLASSES,
   AcquisitionClass,
@@ -51,6 +52,7 @@ export {
   ProcurementImportError,
 } from './parsing';
 export type { AcquisitionClass } from './parsing';
+export { OFB_HEADERS } from './contracts';
 
 export const OFB_IMPORT_SCHEMA_VERSION = 4;
 export const PROCUREMENT_STALE_AFTER_DAYS = 30;
@@ -73,21 +75,6 @@ export const PROCUREMENT_EVENT_KINDS = [
 ] as const;
 export type ProcurementChannel = typeof PROCUREMENT_CHANNELS[number];
 export type ProcurementEventKind = typeof PROCUREMENT_EVENT_KINDS[number];
-
-export const OFB_HEADERS = [
-  'Date',
-  'Period',
-  'Order #',
-  'Product #',
-  'Product Description',
-  'Category',
-  'Qty',
-  'Weight',
-  'Unit Price',
-  'Price Total',
-  'Service Fee',
-  'Grants Applied',
-] as const;
 
 export type ProcurementWarningCode =
   | 'PRICE_TOTAL_MISMATCH'

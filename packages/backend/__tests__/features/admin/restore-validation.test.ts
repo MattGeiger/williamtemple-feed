@@ -201,6 +201,14 @@ describe('restore units are closed under foreign keys', () => {
     expect(added).toEqual([]);
   });
 
+  it('leaves Service independent', () => {
+    // Service identity is source-scoped and does not point at Inventory or
+    // Procurement, so its complete fact family is a standalone restore unit.
+    const { units, added } = closeSelection(['service']);
+    expect(units).toEqual(['service']);
+    expect(added).toEqual([]);
+  });
+
   it('reports nothing added when the user already chose the dependency', () => {
     const { added } = closeSelection(['inventory', 'languages']);
     expect(added).toEqual([]);

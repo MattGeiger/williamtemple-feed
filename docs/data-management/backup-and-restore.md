@@ -70,9 +70,23 @@ replace-never-merge, partial units closed under foreign keys, the roster
 resolution above, and the clean-slate model — are recorded in
 [beta-6-backup-restore-brief.md](beta-6-backup-restore-brief.md), which also
 named two prerequisites that had to land first: editable API keys, and
-`AIConfiguration` redaction in place of exclusion. **Both are implemented**, and
-the artifact now declares table contract version 2 — beta.6 artifacts declare
-version 1 and carry no `AIConfiguration` at all.
+`AIConfiguration` redaction in place of exclusion. **Both are implemented.**
+The artifact now declares table contract version 7: version 2 added sanitized
+`AIConfiguration`; version 3 added the first formal Service and operational
+metric fact family; version 4 adds effective-dated Service capacity plans,
+structured quality issues, and append-only operator decisions; and version 5
+adds explicit first/returning/unknown status to formal Service encounters; and
+version 6 adds SIMC source-scoped people, person-profile revisions, and
+encounter membership; and version 7 adds optional source metric labels and
+workbook-cell provenance to operational observation revisions. Older artifacts
+do not manufacture person records or workbook provenance.
+Version 4 artifacts restore with that new status defaulted to `unknown`; FEED
+never infers it from unrelated fields. Transient `DataImportJob` progress and
+staged source files remain excluded. Normalized Service revisions prepared
+under a `pending` import are also filtered out, including pending-only client
+identities; only activated or historical lifecycle data belongs in the portable
+organization snapshot. Beta.6
+artifacts declare version 1 and carry no `AIConfiguration` or Service tables.
 
 ## Restore safety contract
 
@@ -92,3 +106,6 @@ workflow must:
 
 Procurement rollback is not database restore. It is a reversible domain action
 that changes which retained import revisions contribute to Analytics.
+Service imports and source resolutions form their own foreign-key-closed restore
+unit. Restoring Service does not restore Procurement, Inventory, or user
+authority.
