@@ -197,6 +197,7 @@ describe('native Service workflow', () => {
     render(<MemoryRouter><ServiceLogWorkspace /></MemoryRouter>);
 
     expect(await screen.findByTestId('service-metric-icon-1')).toHaveClass('lucide-shopping-basket');
+    expect(screen.getByText('Special items or irregular service types.')).toBeInTheDocument();
     expect(screen.getByTestId('service-metric-section-service')).not.toHaveClass('lg:col-span-2');
     expect(screen.getByTestId('service-metric-section-capacity')).not.toHaveClass('lg:col-span-2');
   });
