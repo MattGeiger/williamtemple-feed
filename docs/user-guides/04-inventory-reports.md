@@ -77,7 +77,7 @@ including morning updates before service. Current “Available Now” and
 ## Read Procurement Analytics
 
 The Procurement tab uses Oregon Food Bank portal exports imported under
-**Information → Data Management**. The portal contains both requested OFB
+**Information → Data**. The portal contains both requested OFB
 Warehouse Orders and agency-reported Fresh Food Alliance grocery-partner receipts.
 
 - **Inbound Supply Summary** keeps OFB Warehouse Orders, Fresh Food Alliance
@@ -124,18 +124,16 @@ Select **Manage Procurement Data** to import a fresh export or review import
 history. FEED shows a refresh warning when the latest receiving date is more
 than 30 calendar days old.
 
-## Export Analytics Data
+## Generate Analytics Reports
 
-Select **Export CSV** beside any summary, chart, or table to download the data
-behind that block. Select **Export Raw History** to download every atomic Food
-Item and Category event in the chosen range.
+Select **Generate Report** to choose up to eight visible cards across the
+Operations and Procurement tabs. FEED downloads one ZIP containing a printable
+PDF, a CSV for each selected card, and a manifest recording the active date
+range and filters. Reports can also be saved as shared templates and run again
+for another date range.
 
-Raw history identifies whether an event contributed to the five-minute
-sampled analysis. This makes it possible to audit a result without losing the
-record of a quick staff correction.
-
-CSV exports are spreadsheet-ready. Unknown values remain blank instead of
-being silently changed to zero.
+Read [Generating Reports](14-analytics-reports.md) for card selection, condensed
+versus raw CSV data, saved templates, and table behavior.
 
 ## Dashboard Shortcuts
 
@@ -153,5 +151,5 @@ reliably.
 
 - To update the information used by analytics, read [Inventory](03-inventory.md).
 - To update the pantry schedule used by analytics, read [Operating Hours](11-settings.md).
-- To import or reverse Oregon Food Bank data, read [Data Management](12-data-management.md).
+- To import or reverse external data, read [Data Management](12-data-management.md).
 - To turn current inventory into client-facing lists, read [Shopping Lists](07-shopping-lists.md).

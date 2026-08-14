@@ -15,17 +15,21 @@ Everyone who signs in sees the same shared information. If one person updates a 
 - Translate documents for clients.
 - Manage supported languages.
 - Build and print shopping lists from templates.
+- Record pantry service and review historical service dates.
+- Import supported procurement and Service data from one Add Data window.
 - Monitor translation cost and activity.
-- Configure AI models to enhance the quality of translations and classifications
+- Configure AI models to enhance the quality of translations and classifications.
 
 ## How To Sign In
 
 1. Open the FEED website https://feed.williamtemple.app.
 2. Enter your valid williamtemple.org email address.
-3. Use the one-time code sent to your email.
+3. Open the sign-in link in the email, or enter its one-time code.
 4. After sign-in, FEED opens to the Dashboard.
 
-**NOTE:** FEED supports Magic Link sign-in, but this feature *does not work* due to email security policies set by William Temple House's IT Admin.
+The email link opens a confirmation page before signing you in. This keeps an
+email security scanner from using the link before you do. The six-digit code is
+always available as an alternative.
 
 If the OTP email does not arrive, check spam or junk mail first. Then ask Social Services staff or your IT administrator for help.
 
@@ -38,8 +42,10 @@ Use the left sidebar to move through FEED.
 - Dashboard: see the current system overview.
 - Inventory: manage Categories and Food Items.
 - Language & Translation: manage languages and translation records.
+- Service: record daily pantry service and configure Service Metrics.
 - Tools: use Shopping Lists, Document Translator, and AI Configuration.
-- Information: read Help and About pages.
+- Information: manage Settings and Data, run saved Reports, administer access,
+  and open Help.
 
 ## Before You Make Changes
 
