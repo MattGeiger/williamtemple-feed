@@ -194,12 +194,30 @@ describe('native Service workflow', () => {
   });
 
   test('renders the configured icon and keeps one- or two-metric sections at half width', async () => {
+    serviceMocks.getDay.mockResolvedValue({
+      ...serviceDay,
+      metrics: [
+        ...serviceDay.metrics,
+        {
+          ...serviceDay.metrics[0],
+          id: 3,
+          metricKey: 'camping_gear_requests',
+          displayName: 'Camping Gear Requests',
+          iconName: 'tent-tree',
+          semanticRole: 'ancillary_service',
+          contributesToOperationalTotal: false,
+          capacityTarget: null,
+          displayOrder: 30,
+        },
+      ],
+    });
     render(<MemoryRouter><ServiceLogWorkspace /></MemoryRouter>);
 
     expect(await screen.findByTestId('service-metric-icon-1')).toHaveClass('lucide-shopping-basket');
     expect(screen.getByText('Special items or irregular service types.')).toBeInTheDocument();
     expect(screen.getByTestId('service-metric-section-service')).not.toHaveClass('lg:col-span-2');
     expect(screen.getByTestId('service-metric-section-capacity')).not.toHaveClass('lg:col-span-2');
+    expect(screen.getByTestId('service-metric-section-other')).not.toHaveClass('lg:col-span-2');
   });
 
   test('expands a section with three metrics and keeps its metric cards two per row', async () => {
