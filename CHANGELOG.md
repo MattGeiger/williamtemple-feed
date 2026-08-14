@@ -5,6 +5,13 @@ All notable changes to FEED are documented here. This project adheres to
 
 ## [Unreleased]
 
+## [1.5.0-beta.10] — 2026-08-14
+
+Adds FEED's canonical Service data foundation, unified external-data entry,
+native pantry-service logging, and the operational migration path from WTH's
+Tracking workbook. It also consolidates the related navigation and management
+interfaces established through localhost acceptance testing.
+
 ### Changed
 
 - **Service Metrics now use location-neutral pantry terminology.** The WTH
@@ -139,8 +146,8 @@ All notable changes to FEED are documented here. This project adheres to
 
 - **FEED now has a native, organization-wide Service Log.** Authenticated staff
   can record effective-dated count, yes/no, and time fields for a service day,
-  preserve blank separately from explicit zero, save a draft, finalize a day,
-  or mark the pantry closed. Every save appends auditable day and observation
+  preserve blank separately from explicit zero, save the shared day, or mark
+  the pantry closed. Every save appends auditable day and observation
   revisions while maintaining one shared current projection. Administrators
   manage the metric vocabulary through the standard table and Add/Edit dialog;
   an explicit idempotent action installs WTH's historical aliases, seven stable
@@ -172,7 +179,7 @@ All notable changes to FEED are documented here. This project adheres to
   question remains unavailable. Configurable outlier review raises a warning
   without capping or reclassifying source values. Effective-dated operational
   metrics preserve typed count/boolean/time observations, capacity targets,
-  blank-versus-zero, and daily draft/finalized state. Effective-dated capacity
+  blank-versus-zero, and daily revision history. Effective-dated capacity
   plans keep the overall formal-service target distinct from operational-method
   targets. Structured quality findings and append-only operator decisions make
   reviewed exceptions auditable. Service is also a complete, independent
@@ -199,8 +206,9 @@ All notable changes to FEED are documented here. This project adheres to
 
 - **Data Management now includes a unified Add Data workflow.** One
   modal inspects a CSV locally, identifies existing OFB and WTH historical
-  procurement contracts plus provisional Link2Feed visit/client and WTH
-  service-tracking contracts, and opens the correct source-specific flow.
+  procurement contracts, operational Link2Feed visit, SIMC, and WTH
+  service-tracking contracts, plus the pending Link2Feed client contract, and
+  opens the correct source-specific flow.
   The Link2Feed, SIMC, and WTH Tracking branches can now validate, reconcile,
   and activate data; OFB and historical procurement use the same modal while
   retaining their established import services. Synthetic fixtures verify that original
@@ -250,7 +258,7 @@ All notable changes to FEED are documented here. This project adheres to
   to the supported unified export.
 
 - **The Service Analytics contract now distinguishes formal authority from
-  operational detail.** Link2Feed and future SIMC facts supply authoritative
+  operational detail.** Link2Feed and SIMC facts supply authoritative
   household/individual and demographic measures; WTH Tracking and the future
   native FEED Service Log supply service-method, capacity, unmet-demand, and
   ancillary observations without replacing formal totals. The plan now defines

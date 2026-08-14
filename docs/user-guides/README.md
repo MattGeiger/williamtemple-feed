@@ -28,5 +28,7 @@ technical manuals.
 
 ## Screenshots
 
-The first Help release is text-only. Track screenshot needs in
-`screenshot-plan.md` so future captures are intentional and workflow-based.
+Help supports paired light- and dark-mode screenshots from
+`packages/frontend/public/help-screenshots/`. Track completed and planned
+captures in `screenshot-plan.md` so additions remain intentional,
+privacy-safe, and workflow-based.

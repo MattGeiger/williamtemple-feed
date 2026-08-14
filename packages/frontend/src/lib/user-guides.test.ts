@@ -82,12 +82,12 @@ describe("user guide parsing", () => {
     const reportsEntry = index.find(
       (item) =>
         item.guideSlug === "inventory-reports" &&
-        item.sectionTitle === "Export Analytics Data"
+        item.sectionTitle === "Generate Analytics Reports"
     )
 
     expect(reportsEntry).toBeTruthy()
-    expect(reportsEntry?.sectionId).toBe("export-analytics-data")
-    expect(reportsEntry?.content).toMatch(/export raw history/i)
+    expect(reportsEntry?.sectionId).toBe("generate-analytics-reports")
+    expect(reportsEntry?.content).toMatch(/generate report/i)
 
     const dataManagementEntry = index.find(
       (item) =>
@@ -103,7 +103,8 @@ describe("user guide parsing", () => {
         item.guideSlug === "data-management" &&
         item.sectionTitle === "Preparation"
     )
-    expect(preparationEntry?.content).toMatch(/download and unzip the package/i)
+    expect(preparationEntry?.content).toMatch(/Download the exporter/i)
+    expect(preparationEntry?.content).toMatch(/Extract the ZIP/i)
     expect(preparationEntry?.content).toMatch(/chrome:\/\/extensions/i)
 
     const installationEntry = index.find(
@@ -121,6 +122,23 @@ describe("user guide parsing", () => {
         item.guideSlug === "data-management" &&
         item.sectionTitle === "Export and import OFB data"
     )
-    expect(importEntry?.content).toMatch(/discards the uploaded file/i)
+    expect(importEntry?.content).toMatch(/discards the uploaded CSV/i)
+
+    const addDataEntry = index.find(
+      (item) =>
+        item.guideSlug === "data-management" &&
+        item.sectionTitle === "Add Data"
+    )
+    expect(addDataEntry?.content).toMatch(/identifies the file from its structure/i)
+    expect(addDataEntry?.content).toMatch(/those imports require an administrator/i)
+
+    const serviceEntry = index.find(
+      (item) =>
+        item.guideSlug === "service-log" &&
+        item.sectionTitle === "Record The Day"
+    )
+    expect(serviceEntry?.content).toMatch(/Select Save/i)
+    expect(serviceEntry?.content).toMatch(/historical WTH Tracking workbook/i)
+    expect(serviceEntry?.content).not.toMatch(/Save Draft|Finalize Day/i)
   })
 })

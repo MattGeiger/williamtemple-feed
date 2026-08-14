@@ -18,7 +18,7 @@ food-distribution programs at scale.
 
 **Production deployment:** https://feed.williamtemple.app
 **License:** [AGPL-3.0-or-later](./LICENSE)
-**Status:** v1.5.0-beta.3 — evaluating the Tailwind v4 migration and procurement import throughput on production hardware
+**Status:** v1.5.0-beta.10 — evaluating unified data ingestion and native pantry-service logging
 
 ---
 
@@ -47,6 +47,14 @@ software. FEED supports the common operational reality of food pantries:
 - **Dashboards** — translation throughput, cost projections, token
   usage by provider, response-time monitoring; all with proper
   empty-state handling for fresh installs.
+- **Operations and procurement analytics** — effective-dated inventory history,
+  imported Oregon Food Bank supply records, and reusable PDF/CSV report
+  templates.
+- **Pantry service operations** — a shared daily Service Log with configurable
+  metrics, historical Link2Feed and SIMC visit imports, and WTH operational-log
+  migration support.
+- **Unified data management** — one source-detecting Add Data workflow, durable
+  cross-domain import history, rollback/restore, and sanitized backup/restore.
 - **In-app Help** — searchable staff guides written in plain language,
   plus a concise About page with project and license information.
 - **Magic-link OTP authentication** — no passwords. Email-based

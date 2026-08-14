@@ -1,5 +1,54 @@
 # Release Notes
 
+## Version 1.5.0-beta.10 — 2026-08-14
+
+*Beta — current evaluation build before the final 1.5.0 tag.*
+
+- **Data now enters FEED through one Add Data window.** Open **Information →
+  Data**, select **Add Data**, and choose or drop a CSV. FEED identifies Oregon
+  Food Bank, Link2Feed, Service Insights Meal Connect, WTH service Tracking,
+  and supported historical procurement files, then opens the right review
+  flow. Staff retain OFB access; Service imports require an administrator.
+- **The Imports table now shows the complete history.** OFB, Community
+  Donations, Link2Feed, SIMC, and WTH Tracking activations appear together with
+  their date coverage, record counts, warnings, status, and import time.
+  Rollback and restore preserve the audit trail instead of deleting it.
+- **FEED now has a shared Service Log.** Choose a service date, record whether
+  the pantry was open or closed, enter the configured counts or operational
+  markers, and select **Save**. Blank remains different from an explicitly
+  recorded zero, and every save retains revision history.
+- **Historical Tracking values continue as living Service Log data.** Open a
+  historical service date to review or correct an imported value. A staff edit
+  becomes the current value without erasing the original workbook provenance.
+- **Service dates are easier to navigate.** The selected date includes its
+  weekday and full calendar date. Previous and next follow the weekdays enabled
+  under Operating Hours, while the calendar can select an exceptional service
+  day outside the normal schedule.
+- **Administrators configure Service Metrics on the Service Log page.** The
+  compact three-step Add/Edit window covers the display name, description,
+  icon, classification, value type, unit, position, effective dates, total
+  participation, and daily-entry availability. Saved changes appear on the
+  open Service Log without a refresh.
+- **Service Metric cards adapt to the organization's configuration.** Small
+  sections share the page; larger sections expand to full width and place two
+  metrics per row. Inputs align along the bottom even when names or descriptions
+  wrap. The default shopping method now uses the location-neutral name
+  **Pantry Shopping Visits**.
+- **The Service archive import foundation is operational.** Reviewed Link2Feed
+  and SIMC exports preserve formal visits, household and people totals,
+  source-scoped identities, demographic response coverage, and quality
+  findings while discarding Notes and non-allowlisted columns.
+- **WTH's Tracking workbook has a migration path out of Google Sheets.** Its
+  exporter retains directly entered service-method observations and source-cell
+  provenance, excludes spreadsheet totals and notes, and keeps operational
+  detail separate from formal Link2Feed or SIMC totals.
+- **Navigation and iconography are cleaner.** The sidebar calls Data Management
+  simply **Data**. Shopping Lists, Service Log, Reports, and Admin use distinct
+  animated Lucide icons that match their page headings.
+- **Document integrity warnings no longer flood the backend log.** A missing
+  stored document is reported when its state changes instead of once on every
+  document-list refresh.
+
 ## Version 1.5.0-beta.9 — 2026-08-07
 
 *Beta — deployed to production for evaluation before the final 1.5.0 tag.*

@@ -61,8 +61,8 @@ keys.
 
 ## Status
 
-**Backup shipped in 1.5.0-beta.6. Restore shipped in 1.5.0-beta.7. Clean slate
-is designed and approved, not yet built.**
+**Backup shipped in 1.5.0-beta.6. Restore and clean-slate reset are both
+implemented.**
 
 The design pass this document called for has happened. Its decisions —
 build-and-swap rather than a live transaction, in-memory maintenance mode,

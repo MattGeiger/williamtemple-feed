@@ -98,7 +98,7 @@ the step where a deploy can silently install the wrong build.
 ```bash
 # ~/feed/.env  (compose reads this automatically)
 DOCKER_REGISTRY=yourusername
-VERSION=1.5.0-beta.2
+VERSION=1.5.0-beta.10
 CLOUDFLARE_TUNNEL_TOKEN=your-tunnel-token
 ```
 
@@ -350,7 +350,7 @@ cd ~/apps/williamtemple-feed && git --no-pager pull --ff-only
 Set the version in `.env`, verify, then deploy:
 
 ```bash
-sed -i 's/^VERSION=.*/VERSION=1.5.0-beta.2/' .env && grep -E "^VERSION|^DOCKER_REGISTRY" .env
+sed -i 's/^VERSION=.*/VERSION=1.5.0-beta.10/' .env && grep -E "^VERSION|^DOCKER_REGISTRY" .env
 ```
 
 ```bash
@@ -370,7 +370,7 @@ docker ps --format "table {{.Names}}\t{{.Image}}\t{{.Status}}"
 Same discipline: edit `.env`, confirm resolution, then deploy.
 
 ```bash
-sed -i 's/^VERSION=.*/VERSION=1.5.0-beta.1/' .env && docker compose config | grep "image:"
+sed -i 's/^VERSION=.*/VERSION=1.5.0-beta.9/' .env && docker compose config | grep "image:"
 ```
 
 ```bash
@@ -382,7 +382,7 @@ version was pushed to the registry; if it was not, the only path back is
 rebuilding from the corresponding commit.
 
 ```bash
-docker manifest inspect et2geiger/feed-backend:1.5.0-beta.1 > /dev/null && echo "tag exists"
+docker manifest inspect et2geiger/feed-backend:1.5.0-beta.9 > /dev/null && echo "tag exists"
 ```
 
 **Rolling back across a migration is not symmetrical.** `prisma migrate deploy`

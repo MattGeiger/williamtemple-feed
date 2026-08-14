@@ -28,7 +28,7 @@ telling the reader what to do.
 | High | Inventory | How To Update Stock Status | How do I mark an item in stock? | Food Items table with status filter and row menu | Captured authenticated dev data; row menu screenshot can be added later if needed | Added |
 | Medium | Inventory | Categories | Where do limits change? | Category edit dialog | Use common category example | Planned |
 | High | Inventory Analytics | Read The Analytics | Where do I review availability and service pressure? | Analytics workspace with date range, summary, charts, and history tables | Use representative inventory data without client information | Planned |
-| High | Inventory Analytics | Export Analytics Data | How do I export one block or the audit history? | Per-block Export CSV and Export Raw History controls | Avoid showing locally downloaded files or identifying data | Planned |
+| High | Inventory Analytics | Generate Analytics Reports | How do I combine cards into one report? | Analytics selection mode and Generate Report review | Avoid showing locally downloaded files or identifying data | Planned |
 | Medium | Inventory | Optional Supply Information | Where can I add an optional estimate or supply source? | Food Item editor with Supply tab selected | Show Unknown defaults and no client information | Planned |
 | High | Languages & Translations | What Translations Does | Where do translations live? | Translations table | Captured authenticated dev data | Added |
 | High | Languages & Translations | How To Find Missing Translations | How do I repair gaps? | Find Missing Translations dialog | Captured authenticated dev data | Added |
@@ -38,5 +38,8 @@ telling the reader what to do.
 | High | Shopping List Builder | What You Build | What am I editing? | Builder canvas with side panels | Captured authenticated dev data | Added |
 | High | Shopping List Builder | Translation Settings | How do I show English and translation? | Translation Settings dialog | Show row settings when possible | Planned |
 | Medium | AI Configuration | What It Controls | Where are provider settings? | AI Configuration list | Captured authenticated dev data; no API key values visible | Added |
+| High | Data Management | Add Data | Where do I import a CSV? | Unified Add Data drop area and detected-source review | Use a synthetic file with no client data | Planned |
+| High | Service Log | Record The Day | Where do I record service counts? | Service Date control and configured metric cards | Use synthetic counts and generic metric names | Planned |
+| Medium | Service Log | Configure Service Metrics | How do I add or edit a metric? | Three-step metric dialog with icon selection | Use generic pantry terminology | Planned |
 | Medium | Support & Troubleshooting | Opening Help | Where do I search for help? | Help search results | Captured authenticated dev data | Added |
 | Medium | AI Configuration | Cost Limits | Where are spending limits? | Cost or usage step in model dialog | Use safe example values | Planned |

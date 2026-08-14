@@ -16,7 +16,9 @@ If the code does not arrive:
 2. Wait a minute and try again.
 3. Ask a staff lead or administrator for help.
 
-**NOTE:** Always sign in with One-Time Passcode. William Temple House's IT Administrators do not allow Magic Links. This is a known issue. 
+You can use either the email link or its six-digit one-time code. The link first
+opens a confirmation page so an email security scanner cannot sign in before
+you do.
 
 ## A Food Item Looks Wrong
 
