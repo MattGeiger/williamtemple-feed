@@ -4,8 +4,8 @@
 import JSZip from 'jszip';
 import { WTH_SERVICE_TRACKING_HEADERS } from '../data-import/source-contracts';
 import {
-  WTH_TRACKING_METRIC_CONTRACTS,
   WTH_TRACKING_SCHEMA_VERSION,
+  wthTrackingMetricForSourceLabel,
 } from './adapters/wth-tracking';
 
 export const WTH_TRACKING_EXPORT_HEADERS = WTH_SERVICE_TRACKING_HEADERS;
@@ -62,16 +62,15 @@ const normalize = (value: unknown): string => String(value ?? '')
   .replace(/\s+/g, ' ')
   .toLocaleLowerCase('en-US');
 
-const METRICS = new Map<string, MetricContract>(
-  Object.entries(WTH_TRACKING_METRIC_CONTRACTS).flatMap(([metricKey, contract]) => (
-    contract.labels.map((label) => [normalize(label), {
-      metricKey,
-      valueType: contract.valueType,
-      unit: contract.unit,
-      semanticRole: contract.semanticRole,
-    }] as const)
-  )),
-);
+const metricContractForLabel = (label: string): MetricContract | null => {
+  const match = wthTrackingMetricForSourceLabel(label);
+  return match ? {
+    metricKey: match.metricKey,
+    valueType: match.contract.valueType,
+    unit: match.contract.unit,
+    semanticRole: match.contract.semanticRole,
+  } : null;
+};
 
 const decodeXml = (value: string): string => value
   .replace(/&#x([0-9a-f]+);/gi, (_match, hex: string) => String.fromCodePoint(Number.parseInt(hex, 16)))
@@ -278,7 +277,7 @@ export async function exportWthTrackingWorkbook(buffer: Buffer): Promise<{
     const metricColumns = new Map<number, { label: string; contract: MetricContract; weekday: Weekday }>();
     for (let column = 1; column <= maxColumn; column += 1) {
       const label = String(sheet.cells.get(`${columnLetters(column)}${headerRow}`)?.value ?? '').trim().replace(/\s+/g, ' ');
-      const contract = METRICS.get(normalize(label));
+      const contract = metricContractForLabel(label);
       const weekday = weekdays.get(column);
       if (contract && weekday) metricColumns.set(column, { label, contract, weekday });
     }

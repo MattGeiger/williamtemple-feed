@@ -71,7 +71,7 @@ interface MetricFieldProps {
 function MetricField({ metric, value, disabled, onChange }: MetricFieldProps) {
   const Icon = getIconComponent(metric.iconName);
   return (
-    <div className="space-y-2 rounded-md border p-4">
+    <div className="flex h-full flex-col rounded-md border p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-start gap-2.5">
           <Icon
@@ -91,44 +91,46 @@ function MetricField({ metric, value, disabled, onChange }: MetricFieldProps) {
         <Badge variant="secondary" className="shrink-0">{unitLabel(metric)}</Badge>
       </div>
 
-      {metric.valueType === 'count' && (
-        <Input
-          id={`service-metric-${metric.id}`}
-          type="number"
-          min={0}
-          step={1}
-          inputMode="numeric"
-          value={value.countValue}
-          disabled={disabled}
-          onChange={(event) => onChange({ ...value, countValue: event.target.value })}
-        />
-      )}
-      {metric.valueType === 'boolean' && (
-        <Select
-          value={value.booleanValue || 'not_recorded'}
-          disabled={disabled}
-          onValueChange={(next) => onChange({
-            ...value,
-            booleanValue: next === 'not_recorded' ? '' : next as 'true' | 'false',
-          })}
-        >
-          <SelectTrigger id={`service-metric-${metric.id}`}><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="not_recorded">Not recorded</SelectItem>
-            <SelectItem value="true">Yes</SelectItem>
-            <SelectItem value="false">No</SelectItem>
-          </SelectContent>
-        </Select>
-      )}
-      {metric.valueType === 'time_of_day' && (
-        <Input
-          id={`service-metric-${metric.id}`}
-          type="time"
-          value={value.timeValue}
-          disabled={disabled}
-          onChange={(event) => onChange({ ...value, timeValue: event.target.value })}
-        />
-      )}
+      <div className="mt-auto pt-4">
+        {metric.valueType === 'count' && (
+          <Input
+            id={`service-metric-${metric.id}`}
+            type="number"
+            min={0}
+            step={1}
+            inputMode="numeric"
+            value={value.countValue}
+            disabled={disabled}
+            onChange={(event) => onChange({ ...value, countValue: event.target.value })}
+          />
+        )}
+        {metric.valueType === 'boolean' && (
+          <Select
+            value={value.booleanValue || 'not_recorded'}
+            disabled={disabled}
+            onValueChange={(next) => onChange({
+              ...value,
+              booleanValue: next === 'not_recorded' ? '' : next as 'true' | 'false',
+            })}
+          >
+            <SelectTrigger id={`service-metric-${metric.id}`}><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="not_recorded">Not recorded</SelectItem>
+              <SelectItem value="true">Yes</SelectItem>
+              <SelectItem value="false">No</SelectItem>
+            </SelectContent>
+          </Select>
+        )}
+        {metric.valueType === 'time_of_day' && (
+          <Input
+            id={`service-metric-${metric.id}`}
+            type="time"
+            value={value.timeValue}
+            disabled={disabled}
+            onChange={(event) => onChange({ ...value, timeValue: event.target.value })}
+          />
+        )}
+      </div>
     </div>
   );
 }

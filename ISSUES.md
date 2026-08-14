@@ -1928,8 +1928,8 @@ flow in git history or older docs.
 ### August 2026
 - **Tracking review mislabeled a configuration callback as unreadable row 501**
   (Aug 11 2026): the first 500-row staging batch contained approved
-  `Downstairs Shopping Visits` source wording before the effective FEED display
-  alias changed from `Visits`. Historical source wording was incorrectly
+  location-qualified shopping-visit source wording before the effective FEED
+  display alias changed from `Visits`. Historical source wording was incorrectly
   required to equal editable UI wording, and the parser catch converted the
   callback failure into a CSV-row error. Approved labels now map through the
   stable metric key and remain provenance; semantic contract and effective

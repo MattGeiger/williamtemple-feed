@@ -316,13 +316,14 @@ seven-day increments. This handles months such as November 2023, where week 1
 begins on Tuesday, October 31 and week 5 begins on Tuesday, November 28. Cached
 Calendar Dates values are presentation formulas and are not date authority.
 
-Approved source labels such as `Visits` and `Downstairs Shopping Visits` map to
-the same stable metric key. The CSV retains the exact source label and workbook
-cell as provenance, but FEED does not require that historical wording to equal
-the editable display alias effective in Service Metrics. Type, unit, semantic
-role, active state, and effective coverage remain enforced. Parser errors are
-reported by CSV row; errors raised by staging, configuration, or persistence
-retain their workflow meaning instead of being relabeled as malformed CSV.
+Approved source labels such as `Visits`, `Shopping Visits`, and
+location-qualified shopping-visit labels map to the same stable metric key. The
+CSV retains the exact source label and workbook cell as provenance, but FEED
+does not require that historical wording to equal the editable display alias
+effective in Service Metrics. Type, unit, semantic role, active state, and
+effective coverage remain enforced. Parser errors are reported by CSV row;
+errors raised by staging, configuration, or persistence retain their workflow
+meaning instead of being relabeled as malformed CSV.
 
 The corrected 34-sheet source workbook was successfully exported and parsed in
 local verification: 1,114 observations across 318 service dates from October

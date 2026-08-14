@@ -390,7 +390,7 @@ Multi-select dimensions may sum above 100%. Missing/unavailable is never zero.
 
 | Tracking label | Meaning | Semantic role | Counts toward operational households served? |
 |---|---|---|---|
-| Visits / Downstairs Shopping Visits | Household shops in the pantry for itself and/or others | Served household by method | Yes |
+| Visits / Pantry Shopping Visits | Household shops in the pantry for itself and/or others | Served household by method | Yes |
 | Lists / Long Lists | Long shopping list, equivalent in quantity/variety to pantry shopping | Served household by method | Yes |
 | Premade Bags | Ready-to-eat/basic bag plus a short-list choice of three additional items | Served household by method | Yes |
 | Emergency Bags | Small staple-food bag after regular capacity or during the final 30 minutes | Served household by method | Yes, but outside regular-service capacity |
@@ -643,9 +643,9 @@ workbook and reproduced the same 34-worksheet, 1,114-observation artifact. The
 exporter portion of the Tracking migration is therefore accepted.
 
 The first Add Data acceptance attempt exposed a boundary error rather than a
-bad export row: approved `Downstairs Shopping Visits` source wording began in
+bad export row: a location-qualified shopping-visit source label began in
 November 2024, while FEED's configured display alias remained `Visits` for that
-period. Source labels are now retained as provenance without controlling
+period. Source labels are retained as provenance without controlling
 canonical validity; effective type, unit, semantic role, active state, and date
 coverage still gate the observation. The complete artifact validates against
 the actual configured metric revisions after this correction.

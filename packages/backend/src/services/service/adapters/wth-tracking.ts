@@ -7,7 +7,7 @@ import { inspectCsvHeader } from '../../data-import/source-contracts';
 
 export const WTH_TRACKING_CONTRACT_ID = 'wth_service_tracking_v1';
 export const WTH_TRACKING_SOURCE = 'wth_tracking';
-export const WTH_TRACKING_ADAPTER_VERSION = 1;
+export const WTH_TRACKING_ADAPTER_VERSION = 2;
 export const WTH_TRACKING_SCHEMA_VERSION = 'wth-service-tracking/1.0';
 
 type ValueType = 'count' | 'time_of_day';
@@ -19,12 +19,14 @@ interface MetricContract {
   unit: Unit;
   semanticRole: SemanticRole;
   labels: readonly string[];
+  labelPatterns?: readonly RegExp[];
 }
 
 export const WTH_TRACKING_METRIC_CONTRACTS: Readonly<Record<string, MetricContract>> = {
   shopping_visits: {
     valueType: 'count', unit: 'households', semanticRole: 'served_household_method',
-    labels: ['Visits', 'Downstairs Shopping Visits'],
+    labels: ['Visits', 'Shopping Visits', 'Pantry Shopping Visits'],
+    labelPatterns: [/^.+\s+shopping visits$/i],
   },
   long_lists: {
     valueType: 'count', unit: 'households', semanticRole: 'served_household_method',
@@ -50,6 +52,21 @@ export const WTH_TRACKING_METRIC_CONTRACTS: Readonly<Record<string, MetricContra
     valueType: 'time_of_day', unit: 'marker', semanticRole: 'capacity_marker',
     labels: ['Time Capacity Was Reached'],
   },
+};
+
+export const wthTrackingMetricForSourceLabel = (sourceLabel: string): {
+  metricKey: string;
+  contract: MetricContract;
+} | null => {
+  const cleanedLabel = clean(sourceLabel);
+  const normalizedLabel = normalized(cleanedLabel);
+  for (const [metricKey, contract] of Object.entries(WTH_TRACKING_METRIC_CONTRACTS)) {
+    if (
+      contract.labels.some((label) => normalized(label) === normalizedLabel)
+      || contract.labelPatterns?.some((pattern) => pattern.test(cleanedLabel))
+    ) return { metricKey, contract };
+  }
+  return null;
 };
 
 export interface WthTrackingStagingDraft {
@@ -200,7 +217,7 @@ export async function parseWthTrackingCsv(
         rowNumber,
       );
       const sourceMetricLabel = clean(source['Metric Label']);
-      if (!contract.labels.some((label) => normalized(label) === normalized(sourceMetricLabel))) {
+      if (wthTrackingMetricForSourceLabel(sourceMetricLabel)?.metricKey !== metricKey) {
         throw new WthTrackingImportError(
           `Row ${rowNumber} has a metric label that does not match ${metricKey}. Correct the export and retry.`,
           'INVALID_WTH_TRACKING_METRIC_LABEL',

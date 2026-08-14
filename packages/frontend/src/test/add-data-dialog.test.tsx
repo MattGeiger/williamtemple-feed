@@ -303,7 +303,7 @@ describe('Add Data workflow', () => {
       recognizedFieldCount: 10,
       ignoredFieldCount: 0,
       reviewSummary: {
-        adapterVersion: 1,
+        adapterVersion: 2,
         rowCount: 1,
         serviceDateCount: 1,
         rangeStart: '2026-08-04',

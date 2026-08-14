@@ -58,7 +58,7 @@ const row = (overrides: Record<string, string> = {}) => {
     'FEED Schema Version': 'wth-service-tracking/1.0',
     'Service Date': '2026-08-04',
     'Metric Key': 'shopping_visits',
-    'Metric Label': 'Downstairs Shopping Visits',
+    'Metric Label': 'Pantry Shopping Visits',
     Value: '70',
     'Value Type': 'count',
     Unit: 'households',
@@ -154,7 +154,7 @@ describe('WTH Tracking long-form adapter', () => {
 
   test('preserves direct observations, explicit zero, time, and workbook provenance', async () => {
     const result = await parseFixture(csv([
-      row(),
+      row({ 'Metric Label': 'East Wing Shopping Visits' }),
       row({
         'Metric Key': 'emergency_bags', 'Metric Label': 'Emergency Bags',
         Value: '0', 'Source Cell': 'H3',
@@ -176,6 +176,10 @@ describe('WTH Tracking long-form adapter', () => {
       capacityReachedDayCount: 1,
     });
     expect(result.rows).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        metricKey: 'shopping_visits', countValue: 70,
+        sourceMetricLabel: 'East Wing Shopping Visits',
+      }),
       expect.objectContaining({
         metricKey: 'emergency_bags', countValue: 0,
         sourceSheet: 'August 2026', sourceCell: 'H3',
@@ -202,7 +206,7 @@ describe('WTH Tracking long-form adapter', () => {
     expect(selectEffectiveWthMetricRevision([revision], {
       serviceDate: '2024-11-05',
       metricKey: 'shopping_visits',
-      sourceMetricLabel: 'Downstairs Shopping Visits',
+      sourceMetricLabel: 'East Wing Shopping Visits',
     })).toBe(revision);
   });
 
