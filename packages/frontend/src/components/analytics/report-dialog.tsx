@@ -267,7 +267,7 @@ export function AnalyticsReportDialog({
 
           {/* Order is meaningful: it is the order the cards appear in the PDF
               and the number prefix on each CSV.
-              
+
               Drag is the primary interaction, but the move buttons stay. This
               library ships a keyboard drag mode (space to lift, arrows to move,
               space to drop) and it does NOT work inside a Radix dialog —
