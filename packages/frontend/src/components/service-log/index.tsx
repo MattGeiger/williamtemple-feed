@@ -407,7 +407,7 @@ export function ServiceLogWorkspace() {
             <MetricSection
               sectionKey="capacity"
               title="Capacity and Demand"
-              description="Operational pressure that does not count as households served"
+              description="Operational pressure that does not count as households served."
               metrics={groups.capacity}
               values={values}
               disabled={pantryStatus === 'closed'}
@@ -416,6 +416,7 @@ export function ServiceLogWorkspace() {
             <MetricSection
               sectionKey="other"
               title="Other Services and Requests"
+              description="Special items or irregular service types."
               metrics={groups.other}
               values={values}
               disabled={pantryStatus === 'closed'}
