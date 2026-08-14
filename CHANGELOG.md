@@ -7,6 +7,13 @@ All notable changes to FEED are documented here. This project adheres to
 
 ### Changed
 
+- **Service Metrics now use location-neutral pantry terminology.** The WTH
+  default is `Pantry Shopping Visits`; existing seeded configurations are
+  updated by migration without changing the stable `shopping_visits` identity
+  or imported observations. Tracking adapter version 2 still recognizes
+  location-qualified source labels and retains their original text solely as
+  import provenance.
+
 - **Service Metric configuration now uses a compact three-step dialog.** Add
   and Edit share the AI Configuration Back/Next navigation pattern while
   keeping each panel on the dialog surface: name, description, and the shared
@@ -40,6 +47,10 @@ All notable changes to FEED are documented here. This project adheres to
   shared metric list while preserving append-only definition revisions.
 
 ### Fixed
+
+- **Service Log metric inputs now align consistently along the bottom of each
+  card.** User-defined names and descriptions can wrap without shifting the
+  count, choice, or time controls out of alignment with neighboring metrics.
 
 - **Imported WTH Tracking observations now continue as editable Service Log
   data.** Historical values populate the native daily fields instead of
@@ -134,8 +145,8 @@ All notable changes to FEED are documented here. This project adheres to
   manage the metric vocabulary through the standard table and Add/Edit dialog;
   an explicit idempotent action installs WTH's historical aliases, seven stable
   metrics, and its 145-household regular capacity plan without making those
-  organization-specific defaults universal. Current entry uses Downstairs
-  Shopping Visits, Long Lists, Emergency Bags, capacity time, and camping-gear
+  organization-specific defaults universal. Current entry uses Pantry Shopping
+  Visits, Long Lists, Emergency Bags, capacity time, and camping-gear
   requests; effective-dated history retains Visits, Lists, and Turned Away.
 
 - **Unified Add Data now has an operational Link2Feed visits branch.** The
@@ -284,12 +295,12 @@ All notable changes to FEED are documented here. This project adheres to
 
 - **WTH Tracking review no longer rejects approved source aliases or reports
   workflow failures as CSV row errors.** The first 500-row staging callback
-  encountered `Downstairs Shopping Visits` in November 2024 while the
-  effective FEED display alias was still `Visits`, then surfaced the callback
-  failure as an unreadable row 501. Approved exporter labels now remain source
-  provenance after their canonical metric key is established; editable UI
-  display aliases do not determine whether a historical fact is valid. CSV
-  syntax errors are still reported by row, while configuration and persistence
+  encountered a location-qualified shopping-visit label in November 2024 while
+  the effective FEED display alias was still `Visits`, then surfaced the
+  callback failure as an unreadable row 501. Approved exporter labels now
+  remain source provenance after their canonical metric key is established;
+  editable UI display aliases do not determine whether a historical fact is
+  valid. CSV syntax errors are still reported by row, while configuration and persistence
   errors retain their own ASK-aligned messages.
 
 - **Service metric fields no longer lose their edge shadows inside the Add/Edit

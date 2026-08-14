@@ -696,7 +696,7 @@ const WTH_METRICS: Array<{
     metricKey: 'shopping_visits',
     revisions: [
       { displayName: 'Visits', description: 'Households shopping in the food pantry.', iconName: 'shopping-basket', valueType: 'count', unit: 'households', semanticRole: 'served_household_method', contributesToOperationalTotal: true, capacityTarget: 75, effectiveStartDate: '2023-10-17', effectiveEndDate: '2025-10-31', displayOrder: 10, isActive: true },
-      { displayName: 'Downstairs Shopping Visits', description: 'Households shopping for themselves or others in the downstairs food pantry.', iconName: 'shopping-basket', valueType: 'count', unit: 'households', semanticRole: 'served_household_method', contributesToOperationalTotal: true, capacityTarget: 75, effectiveStartDate: '2025-11-01', effectiveEndDate: null, displayOrder: 10, isActive: true },
+      { displayName: 'Pantry Shopping Visits', description: 'Households shopping for themselves or others in the food pantry.', iconName: 'shopping-basket', valueType: 'count', unit: 'households', semanticRole: 'served_household_method', contributesToOperationalTotal: true, capacityTarget: 75, effectiveStartDate: '2025-11-01', effectiveEndDate: null, displayOrder: 10, isActive: true },
     ],
   },
   {

@@ -64,7 +64,7 @@ const serviceDay = {
       metricKey: 'shopping_visits',
       definitionRevisionId: 2,
       definitionRevision: 2,
-      displayName: 'Downstairs Shopping Visits',
+      displayName: 'Pantry Shopping Visits',
       description: 'Households shopping in the pantry.',
       iconName: 'shopping-basket',
       valueType: 'count' as const,
@@ -141,7 +141,7 @@ const configuredMetric = {
     id: 2,
     metricId: 1,
     revision: 2,
-    displayName: 'Downstairs Shopping Visits',
+    displayName: 'Pantry Shopping Visits',
     description: 'Households shopping in the pantry.',
     iconName: 'shopping-basket',
     valueType: 'count' as const,
@@ -214,6 +214,7 @@ describe('native Service workflow', () => {
     render(<MemoryRouter><ServiceLogWorkspace /></MemoryRouter>);
 
     expect(await screen.findByTestId('service-metric-icon-1')).toHaveClass('lucide-shopping-basket');
+    expect(screen.getByLabelText('Pantry Shopping Visits').parentElement).toHaveClass('mt-auto', 'pt-4');
     expect(screen.getByText('Special items or irregular service types.')).toBeInTheDocument();
     expect(screen.getByTestId('service-metric-section-service')).not.toHaveClass('lg:col-span-2');
     expect(screen.getByTestId('service-metric-section-capacity')).not.toHaveClass('lg:col-span-2');
@@ -249,7 +250,7 @@ describe('native Service workflow', () => {
   test('preserves an explicit zero when staff save the service day', async () => {
     render(<MemoryRouter><ServiceLogWorkspace /></MemoryRouter>);
 
-    const shopping = await screen.findByLabelText('Downstairs Shopping Visits');
+    const shopping = await screen.findByLabelText('Pantry Shopping Visits');
     fireEvent.change(shopping, { target: { value: '0' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
@@ -288,7 +289,7 @@ describe('native Service workflow', () => {
 
     render(<MemoryRouter><ServiceLogWorkspace /></MemoryRouter>);
 
-    const shopping = await screen.findByLabelText('Downstairs Shopping Visits');
+    const shopping = await screen.findByLabelText('Pantry Shopping Visits');
     expect(shopping).toHaveValue(75);
     expect(shopping).toBeEnabled();
     fireEvent.change(shopping, { target: { value: '76' } });
@@ -379,7 +380,7 @@ describe('native Service workflow', () => {
 
     render(<MemoryRouter><ServiceLogWorkspace /></MemoryRouter>);
 
-    const shoppingInput = await screen.findByLabelText('Downstairs Shopping Visits');
+    const shoppingInput = await screen.findByLabelText('Pantry Shopping Visits');
     fireEvent.change(shoppingInput, { target: { value: '12' } });
     fireEvent.click(screen.getByRole('button', { name: 'Add Metric' }));
 
@@ -393,10 +394,10 @@ describe('native Service workflow', () => {
 
     await waitFor(() => expect(serviceMocks.getDay).toHaveBeenCalledTimes(2));
     expect(serviceMocks.createMetric).toHaveBeenCalledTimes(1);
-    expect(screen.getByLabelText('Downstairs Shopping Visits')).toHaveValue(12);
+    expect(screen.getByLabelText('Pantry Shopping Visits')).toHaveValue(12);
 
     const longLists = screen.getByText('Long Lists');
-    const shoppingVisits = screen.getByText('Downstairs Shopping Visits');
+    const shoppingVisits = screen.getByText('Pantry Shopping Visits');
     expect(
       longLists.compareDocumentPosition(shoppingVisits) & Node.DOCUMENT_POSITION_FOLLOWING
     ).toBeTruthy();
@@ -415,7 +416,7 @@ describe('native Service workflow', () => {
       />,
     );
 
-    expect(screen.getByLabelText('Display name')).toHaveValue('Downstairs Shopping Visits');
+    expect(screen.getByLabelText('Display name')).toHaveValue('Pantry Shopping Visits');
     expect(screen.getByText('Basket')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
     expect(screen.getByText('Classification')).toBeInTheDocument();
@@ -423,7 +424,7 @@ describe('native Service workflow', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save Revision' }));
 
     expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
-      displayName: 'Downstairs Shopping Visits',
+      displayName: 'Pantry Shopping Visits',
       iconName: 'shopping-basket',
       capacityTarget: 75,
     }));

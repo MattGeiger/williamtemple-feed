@@ -31,7 +31,7 @@ const wthPlan: ServiceCapacityPlanRevisionDraft = {
       displayName: 'Shopping visits',
       unit: 'households',
       targetValue: 75,
-      metricKey: 'downstairs_shopping_visits',
+      metricKey: 'shopping_visits',
       displayOrder: 1,
     },
     {

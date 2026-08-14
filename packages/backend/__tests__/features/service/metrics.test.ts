@@ -15,7 +15,7 @@ import {
 
 const shoppingVisits: ServiceMetricDefinitionDraft = {
   metricKey: 'shopping_visits',
-  displayName: 'Downstairs Shopping Visits',
+  displayName: 'Pantry Shopping Visits',
   description: 'Households that shop in the pantry.',
   iconName: 'shopping-basket',
   valueType: 'count',
