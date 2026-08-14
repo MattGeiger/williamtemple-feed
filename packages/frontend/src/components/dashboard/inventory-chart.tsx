@@ -21,7 +21,6 @@ import {
   ChartContainer,
   ChartTooltip,
 } from "@/components/ui/chart"
-import { ChartTooltipContent } from "@/components/ui/chart/ChartTooltipContent"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useInventoryChartData } from "@/hooks/dashboard/useInventoryChartData"
 import { chartConfigPresets } from "@/lib/colors"

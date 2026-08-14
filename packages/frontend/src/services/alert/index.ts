@@ -77,7 +77,7 @@ export class AlertService extends BaseApiService {
       this.eventSource.close();
     }
 
-    let streamUrl = `${this.baseUrl}/stream`;
+    const streamUrl = `${this.baseUrl}/stream`;
 
     this.eventSource = new EventSource(streamUrl, { withCredentials: true });
 

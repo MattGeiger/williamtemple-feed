@@ -1,11 +1,11 @@
-# Operating Hours
+# Settings
 
 Settings holds organization-wide choices that apply to everyone using FEED.
-The first setting is the pantry's recurring service schedule.
+It contains the pantry's recurring service schedule.
 
 ## Open Operating Hours
 
-Open **Information → Settings** in the sidebar. The Operating Hours card shows
+Open **Information → Settings** in the sidebar. The Operating Hours section shows
 all seven days and the pantry timezone.
 
 ## Update The Weekly Schedule
@@ -42,5 +42,6 @@ closures or other one-day exceptions.
 
 ## What To Read Next
 
+- To record a pantry day or configure its fields, read [Service Log](15-service-log.md).
 - To understand availability history, read [Inventory Analytics](04-inventory-reports.md).
 - To update Food Item status and limits, read [Inventory](03-inventory.md).

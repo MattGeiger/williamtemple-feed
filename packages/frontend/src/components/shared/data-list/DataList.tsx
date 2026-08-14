@@ -27,7 +27,7 @@ interface DataItem {
 interface ToolbarAction {
   label: string
   icon: LucideIcon
-  variant: 'default' | 'destructive' | 'outline-solid' | 'secondary' | 'ghost' | 'link'
+  variant: 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link'
   action: () => void
 }
 
@@ -110,13 +110,11 @@ export const DataList = forwardRef(function DataList<T extends DataItem>({
     <div className="space-y-6 min-w-0 w-full pt-6" data-testid="data-list">
       {/* Use shared SectionHeader */}
       {Icon && (
-        <div className="w-full min-w-0">
-          <SectionHeader
-            title={title}
-            description={description}
-            icon={Icon}
-          />
-        </div>
+        <SectionHeader
+          title={title}
+          description={description}
+          icon={Icon}
+        />
       )}
 
       {/* Table Section — outer overflow:auto removed so shadows on rows,

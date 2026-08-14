@@ -7,7 +7,9 @@ legacy retirement, 2026-07-22). Analytics pending-weight decision settled (D15,
 2026-07-23 (D16–D22); implementation underway — 2a (rule foundation + Data
 Management UI), 2b (Analytics honors flags), 2c (legacy community
 integration), and the analytics-polish + Fresh Alliance legacy-weave pass landed
-2026-07-23/24.
+2026-07-23/24. D23 (2026-08-10) moves the eventual UI entry point into the
+global classifier-driven Add Data workflow without changing any procurement
+source semantics.
 **Owner doc:** this file is the North Star for procurement data ingestion. Update
 it as each phase lands. Do not rely on session memory for any decision recorded
 here.
@@ -323,11 +325,30 @@ live OFB Fresh Alliance data and to legacy `legacy_community` data, because the 
 attaches to donor identity, not to a source.
 
 ### D22 — The legacy import is a permanent single-agency sidecar
-A dedicated admin "Import Legacy" action in Data Management, separate from the
-standard OFB drop-zone, ingesting the two curated artifacts (ledger + map). It
-teaches the system nothing general and, under future white-label support, is hidden
-— it applies only to WTH. FEED's analytics foundation stays the OFB Primarius
+The legacy contract remains a permanent WTH-only source adapter. It teaches the
+system nothing general and, under future white-label support, is hidden — it
+applies only to WTH. FEED's analytics foundation stays the OFB Primarius
 exports; this is an annex, not a second foundation.
+
+The original D22 UI decision used a dedicated **Import Legacy** action separate
+from OFB. That button remains operational during the Phase 0 transition, but its
+placement is superseded by D23; the source namespace, schema, and agency-only
+scope are unchanged.
+
+### D23 — External data enters through one classifier-driven Add Data workflow
+
+Decided 2026-08-10 after comparing the existing FEED import flows with the ZEV
+Data Library's tested source-detection pattern. Data Management will converge on
+one **Add Data** action. FEED identifies the artifact's structural contract and
+routes it to OFB, legacy procurement, Link2Feed, SIMC, WTH Tracking, or another
+registered adapter. Users do not choose or force a parser.
+
+This unifies orchestration, not data semantics: D22's legacy source remains a
+WTH-only sidecar and OFB remains the standard procurement foundation. The
+current separate buttons are removed only after their Add Data branches prove
+functional, error, warning, rollback, authorization, accessibility, and corpus
+parity. Full transition contract:
+[unified-add-data.md](unified-add-data.md).
 
 ## Phases
 
@@ -616,6 +637,8 @@ backend total, frontend procurement-area tests green.
 Design intent recorded in
 [data-shaping-and-legacy-integration.md](data-shaping-and-legacy-integration.md)
 and D16–D22. Stage 1 (documentation) and Stage 2 (implementation) complete.
+The dedicated import buttons described below remain operational during D23's
+incremental Add Data transition.
 - [x] 2a — Flag/rule foundation: `ProcurementDataRule` model + migration, pure
       matching/resolution service, CRUD + REST API, Data Management rules UI with a
       per-import "Shape Data" action, donor autocomplete from observed donors
@@ -827,7 +850,8 @@ Claims about this feature should be checkable, not remembered:
 ## Related documents
 
 - [procurement-imports.md](procurement-imports.md) — the import contract
-- [data-shaping-and-legacy-integration.md](data-shaping-and-legacy-integration.md) — Phase 8 design intent (flags/rules + legacy community integration; D16–D22)
+- [data-shaping-and-legacy-integration.md](data-shaping-and-legacy-integration.md) — Phase 8 design intent (flags/rules + legacy community integration; D16–D23)
+- [unified-add-data.md](unified-add-data.md) — D23 global import orchestration and transition contract
 - [fresh-alliance-coverage-verification.md](fresh-alliance-coverage-verification.md) — Phase 1 evidence
 - [fresh-alliance-pending-pickups.md](fresh-alliance-pending-pickups.md) — Phase 6 evidence: the live Primarius investigation, D13's basis
 - `docs/reports/operational-analytics-design.md` — analytics source of truth

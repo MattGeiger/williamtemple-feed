@@ -9,6 +9,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { VerificationService } from '../../services/auth/verification-service';
 import { TokenService } from '../../services/auth/token-service';
+import { AccessPolicyService } from '../../services/auth/access-policy-service';
 
 const router = Router();
 const cookieDomain = process.env.COOKIE_DOMAIN?.trim();
@@ -29,11 +30,16 @@ const otpVerifySchema = z.object({
 });
 
 /**
- * Domain validation - @williamtemple.org only
+ * Every entry point below consults `AccessPolicyService.assertMayAuthenticate`,
+ * which owns both the domain rule and the roster allowlist. It replaces the
+ * local domain check that used to be duplicated across three handlers — and
+ * that `/callback` never had at all, so a magic link could complete for an
+ * address the OTP path would have refused.
+ *
+ * The gate is applied at request *and* at verify. Checking only at request
+ * would honour a code or link issued moments before an administrator revoked
+ * someone's access.
  */
-const isAllowedDomain = (email: string): boolean => {
-  return email.toLowerCase().endsWith('@williamtemple.org');
-};
 
 /**
  * POST /api/auth/magic-link/request
@@ -52,11 +58,7 @@ router.post('/magic-link/request', async (req: Request, res: Response, next: Nex
 
     const { email } = result.data;
 
-    if (!isAllowedDomain(email)) {
-      const error = new Error('Only @williamtemple.org email addresses are allowed') as Error & { statusCode?: number };
-      error.statusCode = 403;
-      throw error;
-    }
+    await AccessPolicyService.assertMayAuthenticate(email);
 
     await VerificationService.sendMagicLink(email);
 
@@ -73,39 +75,83 @@ router.post('/magic-link/request', async (req: Request, res: Response, next: Nex
  * GET /api/auth/callback
  * Verify magic link and authenticate user
  */
-router.get('/callback', async (req: Request, res: Response, next: NextFunction) => {
+router.get('/callback', async (req: Request, res: Response) => {
+  // Consumes nothing. It forwards to the confirmation page, which asks the
+  // recipient to press a button that POSTs the token to /magic-link/verify.
+  //
+  // Inbound mail security (Microsoft Defender, among others) prefetches every
+  // link in a message to scan it. Against the old handler — which verified on
+  // GET — that scan burned the single-use token before the recipient ever
+  // clicked, which is why magic links are unusable at William Temple House and
+  // OTP became the working path. Scanners follow GET; they do not POST a form
+  // they have not rendered and had a human submit. Moving consumption to a
+  // POST therefore survives the bot without weakening anything: the token is
+  // still single-use, still short-lived, and still bound to one address.
+  //
+  // Kept as a redirect rather than deleted so links already sitting in inboxes
+  // continue to work, and they become scanner-safe in the process.
+  const result = magicLinkVerifySchema.safeParse(req.query);
+  const appUrl = process.env.APP_URL || 'http://localhost:5173';
+
+  if (!result.success) {
+    return res.redirect(`${appUrl}/login?error=invalid_link`);
+  }
+
+  const { email, token } = result.data;
+  const query = new URLSearchParams({ email, token }).toString();
+
+  res.redirect(`${appUrl}/sign-in/confirm?${query}`);
+});
+
+/**
+ * POST /api/auth/magic-link/verify
+ * Consume a magic-link token and start the session.
+ *
+ * The counterpart to the GET above. This is the only place a magic-link token
+ * is spent.
+ */
+router.post('/magic-link/verify', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const result = magicLinkVerifySchema.safeParse(req.query);
+    const result = magicLinkVerifySchema.safeParse(req.body);
 
     if (!result.success) {
-      return res.redirect(`${process.env.APP_URL}/login?error=invalid_link`);
+      const error = new Error('That sign-in link is not valid. Request a new one.') as Error & { statusCode?: number; code?: string };
+      error.statusCode = 400;
+      error.code = 'INVALID_MAGIC_LINK';
+      throw error;
     }
 
     const { email, token } = result.data;
 
+    // Re-checked at verify, not only when the link was sent: a link issued
+    // before an administrator revoked someone's access must not still resolve.
+    await AccessPolicyService.assertMayAuthenticate(email);
+
     const userId = await VerificationService.verifyMagicLink(email, token);
 
     if (!userId) {
-      return res.redirect(`${process.env.APP_URL}/login?error=expired_link`);
+      const error = new Error('That sign-in link has expired or has already been used. Request a new one.') as Error & { statusCode?: number; code?: string };
+      error.statusCode = 401;
+      error.code = 'MAGIC_LINK_EXPIRED';
+      throw error;
     }
 
-    // Generate JWT
     const jwtToken = TokenService.generateJWT(userId, email);
 
-    // Set httpOnly cookie
     res.cookie('auth_token', jwtToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       domain: cookieDomainOption
     });
 
-    // Redirect to dashboard
-    res.redirect(process.env.APP_URL || 'http://localhost:5173');
+    res.json({
+      success: true,
+      user: { id: userId, email }
+    });
   } catch (error) {
-    console.error('[Auth] Callback error:', error);
-    res.redirect(`${process.env.APP_URL}/login?error=verification_failed`);
+    next(error);
   }
 });
 
@@ -126,11 +172,7 @@ router.post('/otp/request', async (req: Request, res: Response, next: NextFuncti
 
     const { email } = result.data;
 
-    if (!isAllowedDomain(email)) {
-      const error = new Error('Only @williamtemple.org email addresses are allowed') as Error & { statusCode?: number };
-      error.statusCode = 403;
-      throw error;
-    }
+    await AccessPolicyService.assertMayAuthenticate(email);
 
     await VerificationService.sendOTP(email);
 
@@ -160,11 +202,7 @@ router.post('/otp/verify', async (req: Request, res: Response, next: NextFunctio
 
     const { email, code } = result.data;
 
-    if (!isAllowedDomain(email)) {
-      const error = new Error('Only @williamtemple.org email addresses are allowed') as Error & { statusCode?: number };
-      error.statusCode = 403;
-      throw error;
-    }
+    await AccessPolicyService.assertMayAuthenticate(email);
 
     const userId = await VerificationService.verifyOTP(email, code);
 
@@ -201,24 +239,21 @@ router.post('/otp/verify', async (req: Request, res: Response, next: NextFunctio
  */
 router.get('/session', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const token = req.cookies.auth_token;
-
-    if (!token) {
-      return res.json({ authenticated: false, user: null });
-    }
-
-    const payload = TokenService.verifyJWT(token);
-
-    if (!payload) {
-      res.clearCookie('auth_token');
+    // `jwtAuthMiddleware` has already verified the cookie and loaded the
+    // caller's current role and access state from the database, so this reads
+    // what it attached rather than re-decoding the token. A revoked or deleted
+    // account never reaches here — the middleware ends that session with a 401.
+    if (!req.auth?.userId) {
       return res.json({ authenticated: false, user: null });
     }
 
     res.json({
       authenticated: true,
       user: {
-        id: payload.userId,
-        email: payload.email
+        id: req.auth.userId,
+        email: req.auth.email,
+        role: req.auth.role,
+        accessState: req.auth.accessState
       }
     });
   } catch (error) {

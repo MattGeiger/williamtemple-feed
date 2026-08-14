@@ -7,6 +7,7 @@
 
 import { renderHook, act } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
+import type { MockedClass } from 'vitest';
 import { useFoodItemData } from './useFoodData';
 import { FoodItemService } from '@/services/food-item';
 import { ErrorHandlerService } from '@/services/error/ErrorHandlerService';
@@ -35,7 +36,7 @@ describe('useFoodItemData', () => {
   });
 
   it('should fetch food items successfully', async () => {
-    const mockedService = FoodItemService as vi.MockedClass<typeof FoodItemService>;
+    const mockedService = FoodItemService as MockedClass<typeof FoodItemService>;
     mockedService.prototype.getFoodItems.mockResolvedValue(mockFoodItems);
     
     const { result } = renderHook(() => useFoodItemData());
@@ -51,7 +52,7 @@ describe('useFoodItemData', () => {
 
   it('should handle errors when fetching food items', async () => {
     const error = new Error('Failed to fetch');
-    const mockedService = FoodItemService as vi.MockedClass<typeof FoodItemService>;
+    const mockedService = FoodItemService as MockedClass<typeof FoodItemService>;
     mockedService.prototype.getFoodItems.mockRejectedValue(error);
 
     const { result } = renderHook(() => useFoodItemData());
@@ -67,7 +68,7 @@ describe('useFoodItemData', () => {
 
   it('should handle errors when creating a food item', async () => {
     const error = new Error('Creation failed');
-    const mockedService = FoodItemService as vi.MockedClass<typeof FoodItemService>;
+    const mockedService = FoodItemService as MockedClass<typeof FoodItemService>;
     mockedService.prototype.createFoodItem.mockRejectedValue(error);
 
     const { result } = renderHook(() => useFoodItemData());
@@ -85,7 +86,7 @@ describe('useFoodItemData', () => {
 
   it('should handle errors when updating a food item', async () => {
     const error = new Error('Update failed');
-    const mockedService = FoodItemService as vi.MockedClass<typeof FoodItemService>;
+    const mockedService = FoodItemService as MockedClass<typeof FoodItemService>;
     mockedService.prototype.updateFoodItem.mockRejectedValue(error);
 
     const { result } = renderHook(() => useFoodItemData());
@@ -102,7 +103,7 @@ describe('useFoodItemData', () => {
   });
 
   it('should forward keepTranslations to the service when updating', async () => {
-    const mockedService = FoodItemService as vi.MockedClass<typeof FoodItemService>;
+    const mockedService = FoodItemService as MockedClass<typeof FoodItemService>;
     mockedService.prototype.updateFoodItem.mockResolvedValue(mockFoodItems[0]);
 
     const { result } = renderHook(() => useFoodItemData());
@@ -118,7 +119,7 @@ describe('useFoodItemData', () => {
 
   it('should handle errors when deleting a food item', async () => {
     const error = new Error('Deletion failed');
-    const mockedService = FoodItemService as vi.MockedClass<typeof FoodItemService>;
+    const mockedService = FoodItemService as MockedClass<typeof FoodItemService>;
     mockedService.prototype.deleteFoodItem.mockRejectedValue(error);
 
     const { result } = renderHook(() => useFoodItemData());
@@ -136,7 +137,7 @@ describe('useFoodItemData', () => {
 
   it('should handle errors during bulk update', async () => {
     const error = new Error('Bulk update failed');
-    const mockedService = FoodItemService as vi.MockedClass<typeof FoodItemService>;
+    const mockedService = FoodItemService as MockedClass<typeof FoodItemService>;
     mockedService.prototype.bulkUpdateFoodItems.mockRejectedValue(error);
 
     const { result } = renderHook(() => useFoodItemData());
@@ -154,7 +155,7 @@ describe('useFoodItemData', () => {
 
   it('should handle errors during bulk delete', async () => {
     const error = new Error('Bulk delete failed');
-    const mockedService = FoodItemService as vi.MockedClass<typeof FoodItemService>;
+    const mockedService = FoodItemService as MockedClass<typeof FoodItemService>;
     mockedService.prototype.bulkDeleteFoodItems.mockRejectedValue(error);
 
     const { result } = renderHook(() => useFoodItemData());

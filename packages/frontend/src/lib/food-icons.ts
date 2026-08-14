@@ -6,8 +6,12 @@
 // not covered by this license; see TRADEMARKS.md.
 
 import {
+  Accessibility,
   Apple,
+  Astroid,
+  Bird,
   Baby,
+  Backpack,
   Ban,
   Banana,
   Bandage,
@@ -19,35 +23,51 @@ import {
   Bike,
   Bone,
   BriefcaseMedical,
+  Bug,
   BugOff,
+  Calculator,
   Cake,
   CakeSlice,
   CalendarSync,
   Candy,
   Carrot,
+  Caravan,
   Cat,
   ChefHat,
   Cigarette,
+  Circle,
+  CircleParking,
+  CircleSmall,
   Citrus,
+  ClipboardMinus,
+  Club,
   Coffee,
+  Cone,
   Cookie,
   Croissant,
   Cross,
   CupSoda,
+  Cuboid,
   Cylinder,
   Dessert,
+  Diamond,
   Dna,
   DnaOff,
   Dog,
   Donut,
   Drumstick,
+  Eclipse,
   Egg,
   EggFried,
+  Ellipse,
   Fish,
   Flame,
+  FlameKindling,
   Flashlight,
+  Flower2,
   Footprints,
   Fuel,
+  Glasses,
   Gem,
   Gift,
   GlassWater,
@@ -58,25 +78,42 @@ import {
   HandPlatter,
   Headphones,
   Heater,
+  Heart,
+  HeartPulse,
+  Hexagon,
   Hop,
   HopOff,
   IceCreamBowl,
   IceCreamCone,
   LeafyGreen,
+  LensConcave,
+  ListTodo,
+  Luggage,
   Microwave,
+  Music,
   Nut,
   Package,
   Palette,
+  PaperBag,
   PawPrint,
+  Pentagon,
   PillBottle,
   Pizza,
   Popcorn,
   Popsicle,
+  Pointer,
+  Pyramid,
   Recycle,
+  Radiation,
+  ReceiptText,
   Refrigerator,
   Salad,
   Sandwich,
+  ScrollText,
+  Rabbit,
+  Rose,
   Shirt,
+  ShoppingBag,
   ShoppingBasket,
   ShoppingCart,
   ShowerHead,
@@ -84,12 +121,18 @@ import {
   Snowflake,
   Sofa,
   Soup,
+  Spade,
+  Square,
+  Star,
+  Stone,
   Syringe,
   Tent,
+  TentTree,
   ThermometerSnowflake,
   Toilet,
   Torus,
   Trash2,
+  Triangle,
   Utensils,
   UtensilsCrossed,
   VenusAndMars,
@@ -116,8 +159,21 @@ export type IconCategory =
   | 'household' 
   | 'clothing' 
   | 'pets'
+  | 'shapes'
   | 'outdoor'
   | 'other';
+
+/**
+ * Display names for the picker's group headings.
+ *
+ * The picker used to title-case the key, which cannot produce "Animals &
+ * Pets" from `pets`. Anything absent here still falls back to the key.
+ */
+export const ICON_CATEGORY_LABELS: Partial<Record<IconCategory, string>> = {
+  pets: 'Animals & Pets',
+  shapes: 'Shapes & Symbols',
+  outdoor: 'Outdoors',
+};
 
 export const DEFAULT_ICON = 'package';
 
@@ -172,7 +228,6 @@ export const foodIcons: FoodIcon[] = [
   
   // Health category
   { value: 'bandage', label: 'Bandage', category: 'health', component: Bandage },
-  { value: 'ban', label: 'Prohibited', category: 'health', component: Ban },
   { value: 'battery-plus', label: 'Energy', category: 'health', component: BatteryPlus },
   { value: 'briefcase-medical', label: 'Medical Kit', category: 'health', component: BriefcaseMedical },
   { value: 'cigarette', label: 'Cigarette', category: 'health', component: Cigarette },
@@ -202,19 +257,60 @@ export const foodIcons: FoodIcon[] = [
   
   // Clothing category
   { value: 'shirt', label: 'Clothing', category: 'clothing', component: Shirt },
+  { value: 'glasses', label: 'Glasses', category: 'clothing', component: Glasses },
+  // Moved here from `outdoor`, where it was labelled "Tracking" and was
+  // unreachable — the picker never rendered that group. Same `value`, so
+  // categories already using it are unaffected.
+  { value: 'footprints', label: 'Footwear', category: 'clothing', component: Footprints },
   
-  // Pets category
+  // Animals & Pets. Existed already but was never rendered: the picker's
+  // category order omitted it, stranding five icons. Extended rather than
+  // duplicated into a second group.
   { value: 'bone', label: 'Pet Treats', category: 'pets', component: Bone },
   { value: 'cat', label: 'Cat', category: 'pets', component: Cat },
   { value: 'dog', label: 'Dog', category: 'pets', component: Dog },
   { value: 'paw-print', label: 'Pets', category: 'pets', component: PawPrint },
   { value: 'bug-off', label: 'No Pests', category: 'pets', component: BugOff },
+  { value: 'rabbit', label: 'Rabbit', category: 'pets', component: Rabbit },
+  { value: 'bird', label: 'Bird', category: 'pets', component: Bird },
+
+  // Shapes & Symbols category
+  { value: 'ellipse', label: 'Ellipse', category: 'shapes', component: Ellipse },
+  { value: 'circle', label: 'Circle', category: 'shapes', component: Circle },
+  { value: 'square', label: 'Square', category: 'shapes', component: Square },
+  { value: 'triangle', label: 'Triangle', category: 'shapes', component: Triangle },
+  { value: 'astroid', label: 'Astroid', category: 'shapes', component: Astroid },
+  { value: 'circle-small', label: 'Small Circle', category: 'shapes', component: CircleSmall },
+  { value: 'diamond', label: 'Diamond', category: 'shapes', component: Diamond },
+  { value: 'hexagon', label: 'Hexagon', category: 'shapes', component: Hexagon },
+  { value: 'pentagon', label: 'Pentagon', category: 'shapes', component: Pentagon },
+  { value: 'cuboid', label: 'Cuboid', category: 'shapes', component: Cuboid },
+  { value: 'pyramid', label: 'Pyramid', category: 'shapes', component: Pyramid },
+  { value: 'cone', label: 'Cone', category: 'shapes', component: Cone },
+  { value: 'lens-concave', label: 'Concave Lens', category: 'shapes', component: LensConcave },
+  { value: 'star', label: 'Star', category: 'shapes', component: Star },
+  { value: 'heart', label: 'Heart', category: 'shapes', component: Heart },
+  { value: 'spade', label: 'Spade', category: 'shapes', component: Spade },
+  { value: 'club', label: 'Club', category: 'shapes', component: Club },
+  { value: 'ban', label: 'Prohibited', category: 'shapes', component: Ban },
+  { value: 'accessibility', label: 'Accessibility', category: 'shapes', component: Accessibility },
+  { value: 'heart-pulse', label: 'Heart Pulse', category: 'shapes', component: HeartPulse },
+  { value: 'music', label: 'Music', category: 'shapes', component: Music },
+  { value: 'circle-parking', label: 'Parking', category: 'shapes', component: CircleParking },
+  { value: 'radiation', label: 'Radiation', category: 'shapes', component: Radiation },
   
-  // Outdoor category
+  // Outdoors category
   { value: 'bike', label: 'Bike', category: 'outdoor', component: Bike },
   { value: 'tent', label: 'Camping', category: 'outdoor', component: Tent },
+  { value: 'tent-tree', label: 'Campsite', category: 'outdoor', component: TentTree },
+  { value: 'flame-kindling', label: 'Kindling', category: 'outdoor', component: FlameKindling },
+  { value: 'caravan', label: 'Caravan', category: 'outdoor', component: Caravan },
+  { value: 'backpack', label: 'Backpack', category: 'outdoor', component: Backpack },
+  { value: 'rose', label: 'Rose', category: 'outdoor', component: Rose },
+  { value: 'stone', label: 'Stone', category: 'outdoor', component: Stone },
+  { value: 'flower-2', label: 'Flower', category: 'outdoor', component: Flower2 },
+  { value: 'bug', label: 'Bug', category: 'outdoor', component: Bug },
   { value: 'flashlight', label: 'Flashlight', category: 'outdoor', component: Flashlight },
-  { value: 'footprints', label: 'Tracking', category: 'outdoor', component: Footprints },
   { value: 'fuel', label: 'Fuel', category: 'outdoor', component: Fuel },
   { value: 'waves', label: 'Water', category: 'outdoor', component: Waves },
   
@@ -228,6 +324,16 @@ export const foodIcons: FoodIcon[] = [
   { value: 'headphones', label: 'Electronics', category: 'other', component: Headphones },
   { value: 'package', label: 'Package', category: 'other', component: Package },
   { value: 'palette', label: 'Art', category: 'other', component: Palette },
+  { value: 'paper-bag', label: 'Paper Bag', category: 'other', component: PaperBag },
+  { value: 'luggage', label: 'Luggage', category: 'other', component: Luggage },
+  { value: 'shopping-bag', label: 'Shopping Bag', category: 'other', component: ShoppingBag },
+  { value: 'scroll-text', label: 'Scroll Text', category: 'other', component: ScrollText },
+  { value: 'receipt-text', label: 'Receipt', category: 'other', component: ReceiptText },
+  { value: 'list-todo', label: 'To-do List', category: 'other', component: ListTodo },
+  { value: 'calculator', label: 'Calculator', category: 'other', component: Calculator },
+  { value: 'pointer', label: 'Pointer', category: 'other', component: Pointer },
+  { value: 'eclipse', label: 'Eclipse', category: 'other', component: Eclipse },
+  { value: 'clipboard-minus', label: 'Clipboard Minus', category: 'other', component: ClipboardMinus },
   { value: 'recycle', label: 'Recycle', category: 'other', component: Recycle },
   { value: 'shopping-basket', label: 'Basket', category: 'other', component: ShoppingBasket },
   { value: 'shopping-cart', label: 'Cart', category: 'other', component: ShoppingCart },

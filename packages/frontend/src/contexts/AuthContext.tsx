@@ -7,16 +7,25 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import config from '@/config/config';
+import type { UserRole, UserAccessState } from '@/types/admin';
 
 interface User {
   name: string;
   email: string;
+  role: UserRole;
+  accessState: UserAccessState;
 }
 
 interface AuthContextType {
   isAuthenticated: boolean;
   user: User | null;
   isLoading: boolean;
+  /**
+   * Whether to show administrator surfaces. Presentation only — every
+   * privileged route enforces authority independently on the server, and a
+   * hidden menu item is not a security boundary.
+   */
+  isAdministrator: boolean;
   checkSession: () => Promise<void>;
   logout: () => Promise<void>;
 }
@@ -25,6 +34,7 @@ const AuthContext = createContext<AuthContextType>({
   isAuthenticated: false,
   user: null,
   isLoading: true,
+  isAdministrator: false,
   checkSession: async () => {},
   logout: async () => {},
 });
@@ -49,7 +59,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setIsAuthenticated(true);
         setUser({
           name: data.user.email.split('@')[0], // Use email prefix as name
-          email: data.user.email
+          email: data.user.email,
+          // The server reads these from the database on every request, so a
+          // demotion or revocation is reflected on the next session check
+          // rather than whenever the seven-day token happens to expire.
+          role: (data.user.role as UserRole) ?? 'STAFF',
+          accessState: (data.user.accessState as UserAccessState) ?? 'ALLOWED'
         });
       } else {
         setIsAuthenticated(false);
@@ -81,7 +96,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, user, isLoading, checkSession, logout }}>
+    <AuthContext.Provider
+      value={{
+        isAuthenticated,
+        user,
+        isLoading,
+        isAdministrator: user?.role === 'ADMINISTRATOR',
+        checkSession,
+        logout,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

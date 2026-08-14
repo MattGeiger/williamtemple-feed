@@ -23,11 +23,8 @@ import {
 } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
-import {
-  AnalyticsRangeControl,
-  analyticsRangeFromSearchParams,
-  RANGE_URL_VALUES,
-} from '@/components/analytics/range-control';
+import { DateRangeControl } from '@/components/shared/date-range-control';
+import { RANGE_URL_VALUES, dateRangeFromSearchParams } from '@/lib/date-range';
 import { createPageTitleIcon } from '@/components/layout/page-title-icon';
 import { OperationalAnalyticsWorkspace } from '@/components/operational-reports';
 import { SectionHeader } from '@/components/shared/section-header';
@@ -98,6 +95,15 @@ import type { AnalyticsDateRange } from '@/types/analytics';
 import { DEFAULT_ANALYTICS_RANGE } from '@/types/analytics';
 import { CommunityDonationAnalytics } from './community-analytics';
 import { DonorAnalytics } from './donor-analytics';
+import {
+  ReportSelectionProvider,
+  SelectableBlock,
+  useReportSelection,
+} from '@/components/reports/selection';
+import { AnalyticsReportDialog, type ReportFilterContext } from './report-dialog';
+import { FileChartColumnIcon } from '@/components/ui/file-chart-column';
+import { SortableHeader } from "@/components/ui/sortable-header"
+import { formatDate } from '@/lib/formatting/date';
 
 const PageTitleAnalyticsIcon = createPageTitleIcon(ChartNoAxesCombinedIcon);
 
@@ -145,12 +151,24 @@ const channelLabels: Record<ProcurementChannel, string> = {
 };
 
 const monthLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/** Plain wording for the range, shown in the report modal. */
+const RANGE_SUMMARY_LABELS: Record<string, string> = {
+  'last-7-days': 'Last 7 days',
+  'last-30-days': 'Last 30 days',
+  'last-90-days': 'Last 90 days',
+  ytd: 'Year to date',
+  all: 'All recorded history',
+};
 const toPounds = (hundredths: number) => hundredths / 100;
-// Tables across FEED render dates as zero-padded MM/DD/YYYY (see the shopping-list
-// and AI-configuration tables). Analytics tables follow that one standard; chart
-// axes and prose keep the friendlier "MMM d, yyyy".
-const tableDate = (iso: string) =>
-  new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' });
+// Dates in tables come from the shared formatter (lib/formatting/date). This
+// used to be a local helper whose comment claimed FEED's standard was
+// zero-padded MM/DD/YYYY, citing the shopping-list and AI-configuration tables
+// as evidence — but AI Configuration used a bare toLocaleDateString(), which
+// drops the zeros. The survey was real and the conclusion was wrong, which is
+// why the format now lives in one importable place instead of a comment.
+// Chart axes keep the compact "MMM d": an axis is a scale, not a record.
+const tableDate = (iso: string) => formatDate(iso);
 const pounds = (hundredths: number | null) =>
   hundredths === null
     ? 'Unknown'
@@ -709,6 +727,80 @@ function PaidProductSearch({
   );
 }
 
+/**
+ * The ZEV entry point: one action, not a button per card.
+ *
+ * "Generate Report" puts the page into selection mode; cards wiggle and take an
+ * order number as they are picked; "Review N cards" opens the single modal that
+ * chooses PDF and/or CSV. The per-card export buttons this replaces were
+ * rejected during ideation for cluttering the surface and obscuring how to
+ * produce a report at all.
+ */
+function ReportToolbar({ filters }: { filters: ReportFilterContext }) {
+  const { isSelecting, selectedIds, startSelecting, cancelSelecting, clearSelection } =
+    useReportSelection();
+  const [dialogOpen, setDialogOpen] = React.useState(false);
+
+  const titles: Record<string, string> = {
+    'procurement-inbound-supply-summary': 'Inbound Supply Summary',
+    'procurement-paid-summary': 'Paid Procurement Summary',
+    'procurement-acquisition-mix': 'Acquisition Mix',
+    'procurement-channels': 'Procurement Channels',
+    'procurement-inbound-weight-over-time': 'Inbound Weight Over Time',
+    'procurement-paid-product-spend': 'Where Paid Procurement Dollars Went',
+    'procurement-seasonal-inbound-weight': 'Seasonal Inbound Weight',
+    'procurement-fresh-alliance-category-mix': 'Fresh Food Alliance Category Mix',
+    'operations-availability-summary': 'Availability Summary',
+    'operations-category-pressure': 'Category Pressure',
+    'operations-available-assortment': 'Available Assortment Over Time',
+    'operations-unavailable-episodes': 'Unavailable Episodes',
+    'operations-rationing-history': 'Rationing History',
+    'procurement-warehouse-product-history': 'OFB Warehouse Product History',
+    'procurement-fresh-alliance-receipt-categories': 'Fresh Food Alliance Receipt Categories',
+    'operations-recurring-availability': 'Recurring Availability',
+    'operations-operational-pressure': 'Operational Pressure',
+    'procurement-grocery-partner-mix': 'Grocery Partner Mix',
+    'procurement-donated-value': 'Recorded Donated Value',
+    'procurement-fresh-alliance-pickup-history': 'Fresh Food Alliance Pickup History',
+    'procurement-fresh-alliance-donations-over-time': 'Fresh Food Alliance Donations Over Time',
+    'procurement-legacy-donation-history': 'Donation History From Legacy Data',
+    'procurement-legacy-donations-over-time': 'Other Donations Over Time (Legacy Data)',
+  };
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      {!isSelecting ? (
+        <Button variant="outline" size="sm" onClick={startSelecting}>
+          {/* Same mark as the Reports page, so the action and its destination
+              read as one feature. */}
+          <FileChartColumnIcon size={16} className="mr-2" />
+          Generate Report
+        </Button>
+      ) : (
+        <>
+          <Button size="sm" disabled={selectedIds.length === 0} onClick={() => setDialogOpen(true)}>
+            Review {selectedIds.length} card{selectedIds.length === 1 ? '' : 's'}
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => { clearSelection(); cancelSelecting(); }}>
+            Cancel
+          </Button>
+          <span className="text-sm text-muted-foreground">
+            Choose the cards to include, in order.
+          </span>
+        </>
+      )}
+
+      <AnalyticsReportDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        titles={titles}
+        filters={filters}
+        onGenerated={() => { clearSelection(); cancelSelecting(); }}
+      />
+    </div>
+  );
+}
+
 export function AnalyticsWorkspace() {
   const [searchParams, setSearchParams] = useSearchParams();
   const searchKey = searchParams.toString();
@@ -716,7 +808,7 @@ export function AnalyticsWorkspace() {
     ? 'procurement'
     : 'operations';
   const range = React.useMemo(
-    () => analyticsRangeFromSearchParams(searchParams),
+    () => dateRangeFromSearchParams(searchParams),
     // The serialized query is the stable source of truth for the range.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [searchKey]
@@ -727,6 +819,17 @@ export function AnalyticsWorkspace() {
     update(next);
     setSearchParams(next, { replace: true });
   }, [searchParams, setSearchParams]);
+
+  // The report is generated against exactly what the page is showing, so both
+  // come from the URL — the same source ProcurementAnalyticsWorkspace reads.
+  const reportChannel = (() => {
+    const value = searchParams.get('channel');
+    return value === 'ofb_warehouse' || value === 'fresh_alliance' ? value : undefined;
+  })();
+  const reportRangeSummary =
+    range.preset === 'custom' && range.startDate && range.endDate
+      ? `${range.startDate} – ${range.endDate}`
+      : RANGE_SUMMARY_LABELS[range.preset] ?? range.preset;
 
   const setActiveTab = (tab: string) => updateSearchParams((next) => {
     if (tab === 'procurement') next.set('tab', tab);
@@ -745,6 +848,7 @@ export function AnalyticsWorkspace() {
   });
 
   return (
+    <ReportSelectionProvider>
     <div className="space-y-6 min-w-0 w-full pt-6">
       <SectionHeader
         title="Analytics"
@@ -758,11 +862,27 @@ export function AnalyticsWorkspace() {
             Translucent + blurred to match the one existing sticky-content
             treatment in the app (GuideToc) rather than an opaque bar. */}
         <div className="sticky top-16 z-30 -mx-4 space-y-4 border-b border-border/70 bg-background/40 px-4 py-4 backdrop-blur-[14px] backdrop-saturate-150 supports-backdrop-filter:bg-background/40 sm:-mx-6 sm:px-6">
-          <TabsList className="grid h-auto w-full grid-cols-2 sm:w-[360px]">
-            <TabsTrigger value="operations">Operations</TabsTrigger>
-            <TabsTrigger value="procurement">Procurement</TabsTrigger>
-          </TabsList>
-          <AnalyticsRangeControl value={range} onChange={setRange} />
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <TabsList className="grid h-auto w-full grid-cols-2 sm:w-[360px]">
+              <TabsTrigger value="operations">Operations</TabsTrigger>
+              <TabsTrigger value="procurement">Procurement</TabsTrigger>
+            </TabsList>
+            {/* Both lenses now have registered cards, so the action is
+                unconditional. Selection persists across the tabs, so a report
+                can mix Operations and Procurement cards. */}
+            {(
+              <ReportToolbar
+                filters={{
+                  preset: range.preset,
+                  startDate: range.startDate,
+                  endDate: range.endDate,
+                  channel: reportChannel,
+                  summary: reportRangeSummary,
+                }}
+              />
+            )}
+          </div>
+          <DateRangeControl value={range} onChange={setRange} />
         </div>
         <TabsContents>
           <TabsContent value="operations" className="pt-4">
@@ -774,6 +894,7 @@ export function AnalyticsWorkspace() {
         </TabsContents>
       </Tabs>
     </div>
+    </ReportSelectionProvider>
   );
 }
 
@@ -795,8 +916,25 @@ export function ProcurementAnalyticsWorkspace({
   const [analytics, setAnalytics] = React.useState<ProcurementAnalytics | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
   const [selectedSeasonalYears, setSelectedSeasonalYears] = React.useState<string[]>([]);
+  const [seasonalYearMode, setSeasonalYearMode] = React.useState<'all-available' | 'selected'>('all-available');
   const [selectedFreshAllianceDonors, setSelectedFreshAllianceDonors] = React.useState<string[]>([]);
   const [paidProductSearch, setPaidProductSearch] = React.useState('');
+  // Published by EnhancedDataTable. Held here so the report can reproduce the
+  // filter, sort, visible columns, and page size the user configured.
+  const [freshAllianceTableView, setFreshAllianceTableView] = React.useState<{
+    search: string;
+    sort: { id: string; desc: boolean } | null;
+    visibleColumns: string[];
+    pageSize: number;
+    pageIndex: number;
+  } | null>(null);
+  const [warehouseTableView, setWarehouseTableView] = React.useState<{
+    search: string;
+    sort: { id: string; desc: boolean } | null;
+    visibleColumns: string[];
+    pageSize: number;
+    pageIndex: number;
+  } | null>(null);
   const selectedChannel: 'all' | ProcurementChannel = searchParams.get('channel') === 'ofb_warehouse' ||
     searchParams.get('channel') === 'fresh_alliance'
     ? (searchParams.get('channel') as ProcurementChannel)
@@ -819,6 +957,7 @@ export function ProcurementAnalyticsWorkspace({
         if (!active) return;
         setAnalytics(result);
         setSelectedSeasonalYears(result.availableYears);
+        setSeasonalYearMode('all-available');
         setSelectedFreshAllianceDonors([...new Set(
           result.freshAllianceDonorCategories.map((row) => row.donorCode ?? NOT_REPORTED_DONOR_CODE)
         )]);
@@ -982,9 +1121,7 @@ export function ProcurementAnalyticsWorkspace({
     {
       accessorKey: 'description',
       header: ({ column }) => (
-        <Button variant="ghost" className="-ml-3" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
-          Product <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
+        <SortableHeader column={column}>Product</SortableHeader>
       ),
       size: 280,
       cell: ({ row }) => <span className="font-medium">{row.original.description}</span>,
@@ -999,18 +1136,14 @@ export function ProcurementAnalyticsWorkspace({
     {
       accessorKey: 'receiptDateCount',
       header: ({ column }) => (
-        <Button variant="ghost" className="-ml-3" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
-          Receipt Dates <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
+        <SortableHeader column={column}>Receipt Dates</SortableHeader>
       ),
       size: 135,
     },
     {
       accessorKey: 'totalWeightHundredths',
       header: ({ column }) => (
-        <Button variant="ghost" className="-ml-3" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
-          Total Weight <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
+        <SortableHeader column={column}>Total Weight</SortableHeader>
       ),
       size: 145,
       cell: ({ row }) => pounds(row.original.totalWeightHundredths),
@@ -1018,9 +1151,7 @@ export function ProcurementAnalyticsWorkspace({
     {
       accessorKey: 'totalSpendCents',
       header: ({ column }) => (
-        <Button variant="ghost" className="-ml-3" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
-          Total Charges <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
+        <SortableHeader column={column}>Total Charges</SortableHeader>
       ),
       size: 140,
       // Donated products have no charge; show "—" rather than $0.
@@ -1029,9 +1160,7 @@ export function ProcurementAnalyticsWorkspace({
     {
       accessorKey: 'costPerPaidPoundCents',
       header: ({ column }) => (
-        <Button variant="ghost" className="-ml-3" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
-          Cost / Paid lb <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
+        <SortableHeader column={column}>Cost / Paid lb</SortableHeader>
       ),
       size: 140,
       // Sort purchased products to the top with a descending sort here.
@@ -1042,9 +1171,7 @@ export function ProcurementAnalyticsWorkspace({
     {
       accessorKey: 'lastReceivedDate',
       header: ({ column }) => (
-        <Button variant="ghost" className="-ml-3" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
-          Last Received <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
+        <SortableHeader column={column}>Last Received</SortableHeader>
       ),
       size: 130,
       cell: ({ row }) => tableDate(row.original.lastReceivedDate),
@@ -1054,9 +1181,7 @@ export function ProcurementAnalyticsWorkspace({
     {
       accessorKey: 'donorName',
       header: ({ column }) => (
-        <Button variant="ghost" className="-ml-3" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
-          Donor <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
+        <SortableHeader column={column}>Donor</SortableHeader>
       ),
       size: 220,
       cell: ({ row }) => <span className="font-medium">{row.original.donorName}</span>,
@@ -1064,9 +1189,7 @@ export function ProcurementAnalyticsWorkspace({
     {
       accessorKey: 'description',
       header: ({ column }) => (
-        <Button variant="ghost" className="-ml-3" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
-          Category <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
+        <SortableHeader column={column}>Category</SortableHeader>
       ),
       size: 280,
     },
@@ -1074,27 +1197,21 @@ export function ProcurementAnalyticsWorkspace({
     {
       accessorKey: 'receiptEventCount',
       header: ({ column }) => (
-        <Button variant="ghost" className="-ml-3" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
-          Receipt Events <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
+        <SortableHeader column={column}>Receipt Events</SortableHeader>
       ),
       size: 135,
     },
     {
       accessorKey: 'receivingDateCount',
       header: ({ column }) => (
-        <Button variant="ghost" className="-ml-3" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
-          Receiving Dates <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
+        <SortableHeader column={column}>Receiving Dates</SortableHeader>
       ),
       size: 140,
     },
     {
       accessorKey: 'totalWeightHundredths',
       header: ({ column }) => (
-        <Button variant="ghost" className="-ml-3" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
-          Total Weight <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
+        <SortableHeader column={column}>Total Weight</SortableHeader>
       ),
       size: 145,
       cell: ({ row }) => pounds(row.original.totalWeightHundredths),
@@ -1102,9 +1219,7 @@ export function ProcurementAnalyticsWorkspace({
     {
       accessorKey: 'lastReceivedDate',
       header: ({ column }) => (
-        <Button variant="ghost" className="-ml-3" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
-          Last Pickup <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
+        <SortableHeader column={column}>Last Pickup</SortableHeader>
       ),
       size: 130,
       cell: ({ row }) => tableDate(row.original.lastReceivedDate),
@@ -1158,7 +1273,28 @@ export function ProcurementAnalyticsWorkspace({
     (row) => row.communityDonationWeightHundredths > 0
   );
 
+  /**
+   * Series for "Inbound Weight Over Time", as an array rather than a Fragment.
+   *
+   * Recharts collects its series by scanning the chart's children; it does not
+   * descend into a React Fragment, so `<>...</>` wrappers make every <Line>
+   * invisible and the chart renders axes with no data. An array is flattened by
+   * React.Children.toArray, so Recharts sees the Lines.
+   *
+   * This rendered correctly under React 18 and stopped at the React 19 upgrade
+   * (recharts 2.15.1). The console error "Accessing element.ref was removed in
+   * React 19" comes from the same incompatibility.
+   */
+  const monthlyWeightSeriesKeys = selectedChannel === 'ofb_warehouse'
+    ? ['donatedWeight', 'purchDonWeight', 'governmentWeight', 'purchasedWeight']
+    : [
+        ...(allChannels ? ['ofbWarehouseWeight'] : []),
+        'freshAllianceWeight',
+        ...(allChannels && hasCommunityDonations ? ['communityDonationWeight'] : []),
+      ];
+
   const toggleSeasonalYear = (year: string, checked: boolean) => {
+    setSeasonalYearMode('selected');
     setSelectedSeasonalYears((current) => {
       if (!checked) return current.filter((value) => value !== year);
       if (current.includes(year)) return current;
@@ -1216,7 +1352,8 @@ export function ProcurementAnalyticsWorkspace({
         </Alert>
       )}
 
-      <Card>
+      <SelectableBlock cardId="procurement-inbound-supply-summary">
+        <Card>
         <CardHeader>
           <CardTitle>Inbound Supply Summary</CardTitle>
           <CardDescription>
@@ -1271,9 +1408,11 @@ export function ProcurementAnalyticsWorkspace({
           <FreshAlliancePendingNote pending={summary.freshAlliancePending} />
           <DataShapingNote dataShaping={analytics.dataShaping} />
         </CardContent>
-      </Card>
+        </Card>
+      </SelectableBlock>
 
-      <Card className="min-w-0">
+      <SelectableBlock cardId="procurement-inbound-weight-over-time">
+        <Card className="min-w-0">
         <CardHeader>
           <CardTitle>
             {allChannels
@@ -1303,28 +1442,24 @@ export function ProcurementAnalyticsWorkspace({
               <YAxis width={52} tickLine={false} axisLine={false} />
               <ChartTooltip content={<ChartTooltipContent />} />
               <ChartLegend content={<ChartLegendContent />} />
-              {selectedChannel === 'ofb_warehouse' ? (
-                <>
-                  <Line isAnimationActive={!prefersReducedMotion()} dataKey="donatedWeight" stroke="var(--color-donatedWeight)" strokeWidth={2} dot={false} />
-                  <Line isAnimationActive={!prefersReducedMotion()} dataKey="purchDonWeight" stroke="var(--color-purchDonWeight)" strokeWidth={2} dot={false} />
-                  <Line isAnimationActive={!prefersReducedMotion()} dataKey="governmentWeight" stroke="var(--color-governmentWeight)" strokeWidth={2} dot={false} />
-                  <Line isAnimationActive={!prefersReducedMotion()} dataKey="purchasedWeight" stroke="var(--color-purchasedWeight)" strokeWidth={2} dot={false} />
-                </>
-              ) : (
-                <>
-                  {allChannels && <Line isAnimationActive={!prefersReducedMotion()} dataKey="ofbWarehouseWeight" stroke="var(--color-ofbWarehouseWeight)" strokeWidth={2} dot={false} />}
-                  <Line isAnimationActive={!prefersReducedMotion()} dataKey="freshAllianceWeight" stroke="var(--color-freshAllianceWeight)" strokeWidth={2} dot={false} />
-                  {allChannels && hasCommunityDonations && (
-                    <Line isAnimationActive={!prefersReducedMotion()} dataKey="communityDonationWeight" stroke="var(--color-communityDonationWeight)" strokeWidth={2} dot={false} />
-                  )}
-                </>
-              )}
+              {monthlyWeightSeriesKeys.map((seriesKey) => (
+                <Line
+                  key={seriesKey}
+                  isAnimationActive={!prefersReducedMotion()}
+                  dataKey={seriesKey}
+                  stroke={`var(--color-${seriesKey})`}
+                  strokeWidth={2}
+                  dot={false}
+                />
+              ))}
             </LineChart>
           </ChartContainer>
         </CardContent>
-      </Card>
+        </Card>
+      </SelectableBlock>
 
-      {selectedChannel !== 'fresh_alliance' && <Card>
+      {selectedChannel !== 'fresh_alliance' && <SelectableBlock cardId="procurement-paid-summary">
+        <Card>
         <CardHeader>
           <CardTitle>Paid Procurement Summary</CardTitle>
           <CardDescription>
@@ -1339,10 +1474,15 @@ export function ProcurementAnalyticsWorkspace({
           <ProcurementKpi label="Grants Applied" value={attributableDollars(summary.grantsAppliedCents)} />
           <ProcurementKpi label="Net Recorded Charge" value={attributableDollars(summary.netRecordedCostCents)} />
         </CardContent>
-      </Card>}
+        </Card>
+      </SelectableBlock>}
 
       {selectedChannel !== 'fresh_alliance' && (
-        <Card className="min-w-0">
+        <SelectableBlock
+          cardId="procurement-paid-product-spend"
+          options={{ search: paidProductSearch }}
+        >
+          <Card className="min-w-0">
           <CardHeader>
             <CardTitle>Where Paid Procurement Dollars Went</CardTitle>
             <CardDescription>
@@ -1466,12 +1606,14 @@ export function ProcurementAnalyticsWorkspace({
               </div>
             )}
           </CardContent>
-        </Card>
+          </Card>
+        </SelectableBlock>
       )}
 
       {(includesWarehouse || allChannels) && (
         <div className={`grid min-w-0 gap-4 ${allChannels ? 'lg:grid-cols-2' : ''}`}>
-        {includesWarehouse && <Card className="min-w-0">
+        {includesWarehouse && <SelectableBlock cardId="procurement-acquisition-mix">
+          <Card className="min-w-0">
           <CardHeader><CardTitle>Acquisition Mix</CardTitle><CardDescription>Inbound pounds by OFB acquisition class</CardDescription></CardHeader>
           <CardContent>
             <ChartContainer config={acquisitionMixConfig} className="h-72 min-w-0 w-full">
@@ -1485,9 +1627,11 @@ export function ProcurementAnalyticsWorkspace({
             </ChartContainer>
             <MixDetails total={acquisitionWeightTotal} rows={analytics.acquisitionMix.map((row) => ({ label: acquisitionLabels[row.acquisitionClass], weight: row.weightHundredths }))} />
           </CardContent>
-        </Card>}
+          </Card>
+        </SelectableBlock>}
 
-        {allChannels && <Card className="min-w-0">
+        {allChannels && <SelectableBlock cardId="procurement-channels">
+          <Card className="min-w-0">
           <CardHeader><CardTitle>Procurement Channels</CardTitle><CardDescription>Fresh Food Alliance remains distinct from OFB warehouse supply</CardDescription></CardHeader>
           <CardContent>
             <ChartContainer config={channelMixConfig} className="h-72 min-w-0 w-full">
@@ -1505,12 +1649,17 @@ export function ProcurementAnalyticsWorkspace({
               rows={channelMix.map((row) => ({ label: row.channel, weight: (row.primaryWeight + row.legacyWeight) * 100 }))}
             />
           </CardContent>
-        </Card>}
+          </Card>
+        </SelectableBlock>}
         </div>
       )}
 
       {includesFreshAlliance && (
-        <Card className="min-w-0">
+        <SelectableBlock
+          cardId="procurement-fresh-alliance-category-mix"
+          options={{ donorCodes: selectedFreshAllianceDonors }}
+        >
+          <Card className="min-w-0">
           <CardHeader>
             <CardTitle>Fresh Food Alliance Category Mix</CardTitle>
             <CardDescription>
@@ -1599,7 +1748,8 @@ export function ProcurementAnalyticsWorkspace({
             )}
             <p className="mt-3 text-xs text-muted-foreground">Does not include legacy donations data.</p>
           </CardContent>
-        </Card>
+          </Card>
+        </SelectableBlock>
       )}
 
       {includesFreshAlliance && (
@@ -1619,7 +1769,15 @@ export function ProcurementAnalyticsWorkspace({
         />
       )}
 
-      <Card className="min-w-0">
+      <SelectableBlock
+        cardId="procurement-seasonal-inbound-weight"
+        options={{
+          channel: effectiveSeasonalChannel,
+          yearMode: seasonalYearMode,
+          ...(seasonalYearMode === 'selected' ? { years: seasonalYears } : {}),
+        }}
+      >
+        <Card className="min-w-0">
         <CardHeader className="flex flex-col items-start justify-between gap-3 space-y-0 sm:flex-row sm:items-center">
           <div>
             <CardTitle>Seasonal Inbound Weight</CardTitle>
@@ -1674,6 +1832,7 @@ export function ProcurementAnalyticsWorkspace({
                 onSelect={(event) => {
                   event.preventDefault();
                   setSelectedSeasonalYears(analytics.availableYears);
+                  setSeasonalYearMode('all-available');
                 }}
               >
                 Select all years
@@ -1682,6 +1841,7 @@ export function ProcurementAnalyticsWorkspace({
                 onSelect={(event) => {
                   event.preventDefault();
                   setSelectedSeasonalYears([]);
+                  setSeasonalYearMode('selected');
                 }}
               >
                 Clear all years
@@ -1764,9 +1924,18 @@ export function ProcurementAnalyticsWorkspace({
             </ChartContainer>
           )}
         </CardContent>
-      </Card>
+        </Card>
+      </SelectableBlock>
 
-      {includesFreshAlliance && <section className="space-y-3">
+      {includesFreshAlliance && (
+        <SelectableBlock
+          cardId="procurement-fresh-alliance-receipt-categories"
+          options={{
+            ...(freshAllianceTableView ?? {}),
+            donorCodes: selectedFreshAllianceDonors,
+          }}
+        >
+        <section className="space-y-3">
         <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
           <div>
             <h3 className="text-lg font-semibold">Fresh Food Alliance Receipt Categories</h3>
@@ -1830,11 +1999,19 @@ export function ProcurementAnalyticsWorkspace({
             filterPlaceholder="Filter receipt categories..."
             enableColumnVisibility
             defaultPageSize={10}
+            onViewStateChange={setFreshAllianceTableView}
           />
         )}
-      </section>}
+        </section>
+        </SelectableBlock>
+      )}
 
-      {includesWarehouse && <section className="space-y-3">
+      {includesWarehouse && (
+        <SelectableBlock
+          cardId="procurement-warehouse-product-history"
+          options={warehouseTableView ?? undefined}
+        >
+        <section className="space-y-3">
         <div>
           <h3 className="text-lg font-semibold">OFB Warehouse Product History</h3>
           <p className="text-sm text-muted-foreground">OFB ordered products with receiving dates, inbound weight, timing, and charges. Sort by Cost / Paid lb to bring purchased products first.</p>
@@ -1846,8 +2023,11 @@ export function ProcurementAnalyticsWorkspace({
           filterPlaceholder="Filter supplier products..."
           enableColumnVisibility
           defaultPageSize={10}
+          onViewStateChange={setWarehouseTableView}
         />
-      </section>}
+        </section>
+        </SelectableBlock>
+      )}
 
     </div>
   );

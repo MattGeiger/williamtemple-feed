@@ -6,8 +6,7 @@
 // not covered by this license; see TRADEMARKS.md.
 
 import { ColumnDef } from "@tanstack/react-table"
-import { Button } from "@/components/ui/button"
-import { ArrowUpDown, Languages } from "@/components/ui/icons";
+import { Languages } from "@/components/ui/icons";
 import { SquarePenIcon } from "@/components/animate-ui/icons/square-pen";
 import { Trash2Icon } from "@/components/animate-ui/icons/trash-2";
 import { RotateCcwIcon } from "@/components/animate-ui/icons/rotate-ccw";
@@ -20,7 +19,7 @@ import { ResponsiveTruncatedText } from "@/components/ui/responsive-truncated-te
 import { isValidLanguageName } from "@/config/language-config"
 
 import { StatusBadge } from "@/components/shared/status-badge";
-import { calculateColumnWidths, extractColumnSizes, getColumnWidthStyle } from "@/lib/table"
+import { SortableHeader } from "@/components/ui/sortable-header"
 
 export interface TranslationActions {
   onEdit: (translation: Translation) => void
@@ -61,13 +60,7 @@ export const columns = ({ onEdit, onDelete, onRetry, onToggleOriginal, capabilit
     accessorKey: "originalText",
     size: 250, // Responsive width for original text column
     header: ({ column }) => (
-      <Button
-        variant="ghost"
-        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-      >
-        Original Text
-        <ArrowUpDown className="ml-2 h-4 w-4" />
-      </Button>
+      <SortableHeader column={column}>Original Text</SortableHeader>
     ),
     cell: ({ row }) => {
       const text = row.getValue("originalText") as string;
@@ -87,13 +80,7 @@ export const columns = ({ onEdit, onDelete, onRetry, onToggleOriginal, capabilit
     accessorKey: "translatedText",
     size: 250, // Responsive width for translated text column
     header: ({ column }) => (
-      <Button
-        variant="ghost"
-        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-      >
-        Translation Text
-        <ArrowUpDown className="ml-2 h-4 w-4" />
-      </Button>
+      <SortableHeader column={column}>Translation Text</SortableHeader>
     ),
     cell: ({ row }) => {
       const text = row.getValue("translatedText") as string;
@@ -114,13 +101,7 @@ export const columns = ({ onEdit, onDelete, onRetry, onToggleOriginal, capabilit
     size: 120, // Fixed width for language column
     enableHiding: true,
     header: ({ column }) => (
-      <Button
-        variant="ghost"
-        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-      >
-        Language
-        <ArrowUpDown className="ml-2 h-4 w-4" />
-      </Button>
+      <SortableHeader column={column}>Language</SortableHeader>
     ),
     cell: ({ row }) => {
       const language = row.getValue("language") as string;
@@ -135,13 +116,7 @@ export const columns = ({ onEdit, onDelete, onRetry, onToggleOriginal, capabilit
     size: 140, // Fixed width for type column
     enableHiding: true,
     header: ({ column }) => (
-      <Button
-        variant="ghost"
-        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-      >
-        Type
-        <ArrowUpDown className="ml-2 h-4 w-4" />
-      </Button>
+      <SortableHeader column={column}>Type</SortableHeader>
     ),
     cell: ({ row }) => {
       const type = row.getValue("type") as string
@@ -157,13 +132,7 @@ export const columns = ({ onEdit, onDelete, onRetry, onToggleOriginal, capabilit
     size: 120, // Fixed width for status column
     enableHiding: true,
     header: ({ column }) => (
-      <Button
-        variant="ghost"
-        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-      >
-        Status
-        <ArrowUpDown className="ml-2 h-4 w-4" />
-      </Button>
+      <SortableHeader column={column}>Status</SortableHeader>
     ),
     cell: ({ row }) => {
       const status = row.getValue("status") as string || 'pending'  // Default to pending if undefined
@@ -237,21 +206,6 @@ export const columns = ({ onEdit, onDelete, onRetry, onToggleOriginal, capabilit
   },
   ]
 
-  // Calculate column widths based on size values
-  const columnSizes = extractColumnSizes(columnDefinitions)
-  const widths = calculateColumnWidths(columnSizes)
-
-  // Apply calculated widths to columns
-  columnDefinitions.forEach((col, index) => {
-    const columnId = col.id || String(col.accessorKey) || `col-${index}`
-    const width = widths[columnId]
-    if (width) {
-      col.meta = { 
-        ...col.meta, 
-        style: getColumnWidthStyle(width) 
-      }
-    }
-  })
 
   return columnDefinitions
 }

@@ -12,7 +12,7 @@ import * as React from "react";
 // (`@/components/ui/*` — exposes startAnimation/stopAnimation via ref) so the
 // page title's icon:
 //   - fires its animation once on mount (page load), drawing attention to the
-//     section as it appears (ICON_ANIMATIONS.md Rule 3), and
+//     section as it appears (ICON_ANIMATIONS.md Rule 4 page-title exception), and
 //   - replays on hover.
 // Used as a DataList `toolbarIcon`, which renders it via SectionHeader as
 // `<Icon className="h-6 w-6 …" />` (no size prop — the icon's own default

@@ -10,6 +10,7 @@
 import * as React from 'react';
 import { motion, isMotionComponent, type HTMLMotionProps } from 'motion/react';
 import { cn } from '@/lib/utils';
+import { mergeRefs } from '@/lib/merge-refs';
 
 type AnyProps = Record<string, unknown>;
 
@@ -26,21 +27,6 @@ type SlotProps<T extends HTMLElement = HTMLElement> = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   children?: any;
 } & DOMMotionProps<T>;
-
-function mergeRefs<T>(
-  ...refs: (React.Ref<T> | undefined)[]
-): React.RefCallback<T> {
-  return (node) => {
-    refs.forEach((ref) => {
-      if (!ref) return;
-      if (typeof ref === 'function') {
-        ref(node);
-      } else {
-        (ref as React.RefObject<T | null>).current = node;
-      }
-    });
-  };
-}
 
 function mergeProps<T extends HTMLElement>(
   childProps: AnyProps,
@@ -65,11 +51,23 @@ function mergeProps<T extends HTMLElement>(
   return merged;
 }
 
-function Slot<T extends HTMLElement = HTMLElement>({
+/**
+ * `forwardRef` rather than reading `ref` out of props.
+ *
+ * Upstream animate-ui targets React 19, where `ref` is an ordinary prop. This
+ * project is on React 18, where React intercepts `ref` and never places it in
+ * props — so the destructured `ref` was always `undefined`, React logged both
+ * "Function components cannot be given refs" and "`ref` is not a prop", and
+ * every ref aimed at a Slot was silently dropped.
+ *
+ * That was not only noise. `AnimateIcon` routes its in-view ref through here,
+ * and `TabsTrigger` registers `localRef.current` with the tab indicator so it
+ * can measure the active trigger; both got nothing.
+ */
+const Slot = React.forwardRef<HTMLElement, Omit<SlotProps, 'ref'>>(function Slot({
   children,
-  ref,
   ...props
-}: SlotProps<T>) {
+}, forwardedRef) {
   const isAlreadyMotion =
     typeof children.type === 'object' &&
     children.type !== null &&
@@ -85,14 +83,23 @@ function Slot<T extends HTMLElement = HTMLElement>({
 
   if (!React.isValidElement(children)) return null;
 
-  const { ref: childRef, ...childProps } = children.props as AnyProps;
+  // React 18 keeps `ref` on the element, not in props, and defines a warning
+  // getter at `props.ref` — so destructuring it here both logged "`ref` is not
+  // a prop" and always yielded undefined, quietly dropping the child's own ref.
+  const childProps = children.props as AnyProps;
+  const childRef = (children as React.ReactElement & { ref?: React.Ref<HTMLElement> })
+    .ref;
 
   const mergedProps = mergeProps(childProps, props);
 
   return (
-    <Base {...mergedProps} ref={mergeRefs(childRef as React.Ref<T>, ref)} />
+    <Base
+      {...mergedProps}
+      ref={mergeRefs(childRef, forwardedRef)}
+    />
   );
-}
+});
+Slot.displayName = 'Slot';
 
 export {
   Slot,

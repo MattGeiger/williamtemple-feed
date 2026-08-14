@@ -43,6 +43,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { carbonCategoricalTheme, carbonTheme } from '@/lib/colors';
+import { SelectableBlock } from '@/components/reports/selection';
 import type { ProcurementAnalytics } from '@/types/procurement';
 
 // How many sources get their own name, color, bar, and line. The rest fold into
@@ -214,8 +215,13 @@ export function CommunityDonationAnalytics({
   const receivedNote =
     'Legacy data only, based on internal William Temple House records. Record discontinued June 2023.';
 
+  // Absent unless the picker actually narrowed the roster, so the printed card
+  // never claims a filter the user did not apply.
+  const selectedSourceNames = hidden.length > 0 ? visibleKeys : undefined;
+
   return (
     <>
+      <SelectableBlock cardId="procurement-legacy-donation-history">
       <Card className="min-w-0">
         <CardHeader>
           <CardTitle>Donation History From Legacy Data</CardTitle>
@@ -276,7 +282,12 @@ export function CommunityDonationAnalytics({
           </ChartContainer>
         </CardContent>
       </Card>
+      </SelectableBlock>
 
+      <SelectableBlock
+        cardId="procurement-legacy-donations-over-time"
+        options={{ sourceNames: selectedSourceNames }}
+      >
       <Card className="min-w-0">
         <CardHeader className="flex flex-col items-start justify-between gap-3 space-y-0 sm:flex-row sm:items-center">
           <div>
@@ -396,6 +407,7 @@ export function CommunityDonationAnalytics({
           <p className="mt-3 text-xs text-muted-foreground">{receivedNote}</p>
         </CardContent>
       </Card>
+      </SelectableBlock>
     </>
   );
 }

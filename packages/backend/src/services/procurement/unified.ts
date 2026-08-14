@@ -38,37 +38,11 @@ import {
   parseOfbCsv,
 } from './index';
 import { ProcurementImportError, invalidRow, toCsvLine } from './parsing';
+import { UNIFIED_HEADERS } from './contracts';
+
+export { UNIFIED_HEADERS } from './contracts';
 
 export const UNIFIED_SCHEMA_VERSION = '2.0';
-
-export const UNIFIED_HEADERS = [
-  'Schema Version',
-  'Record Type',
-  'Confirmed',
-  'Date',
-  'Period',
-  'Source Reference',
-  'Product #',
-  'Product Description',
-  'Category',
-  'Qty',
-  'Weight',
-  'Unit Price',
-  'Price Total',
-  'Service Fee',
-  'Grants Applied',
-  'Pickup Time',
-  'Pickup ID',
-  'Pickup Line ID',
-  'Donor Code',
-  'Donor Name',
-  'Fresh Alliance Category',
-  'Received Qty',
-  'Received Weight',
-  'Temperature',
-  'Submitted Date/Time',
-  'Donor Value Per Pound',
-] as const;
 
 const RECORD_TYPES = ['warehouse_order', 'agency_pickup'] as const;
 type RecordType = typeof RECORD_TYPES[number];

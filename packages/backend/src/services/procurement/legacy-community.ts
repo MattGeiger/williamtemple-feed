@@ -34,22 +34,11 @@ import {
   LEGACY_COMMUNITY_SOURCE,
   ProcurementImportError,
 } from './parsing';
+import { LEGACY_LEDGER_HEADERS } from './contracts';
+
+export { LEGACY_LEDGER_HEADERS } from './contracts';
 
 /** The exact contract of the curated ledger. Anything else is rejected. */
-export const LEGACY_LEDGER_HEADERS = [
-  'calendar_year',
-  'month_num',
-  'month',
-  'source_canonical',
-  'disposition',
-  'in_ofb',
-  'weight_pounds',
-  'source_as_written',
-  'fiscal_year',
-  'source_file',
-  'caveat',
-] as const;
-
 /**
  * Attached to every legacy line. Not a product code and not meant to look like
  * one: these records have no product detail, and this makes that visible rather

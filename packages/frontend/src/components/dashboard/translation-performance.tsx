@@ -158,6 +158,18 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   );
 };
 
+/**
+ * Ranges are calendar-based, not rolling: "This Month" means since the 1st, not
+ * the last 30 days. Naming the selected period in the empty state is what makes
+ * an empty card self-explanatory instead of alarming.
+ */
+const TIME_RANGE_LABELS: Record<string, string> = {
+  today: 'today',
+  'this-week': 'this week',
+  'this-month': 'this month',
+  'this-year': 'this year',
+};
+
 // Service-specific color configuration
 const getServiceColor = (serviceType: ServiceProvider | 'all') => {
   const serviceColors = {
@@ -234,8 +246,64 @@ export function TranslationPerformance() {
   // Get available services for tabs
   const availableServices = React.useMemo(() => {
     if (!data) return [];
-    return [...new Set(data.services.map(service => service.serviceType))];
+    const fromUsage = [...new Set(data.services.map(service => service.serviceType))];
+    if (fromUsage.length > 0) return fromUsage;
+    // A quiet period has no services *in the data*, but the configurations are
+    // still there — so the filter lists what is configured rather than
+    // collapsing to a single dead "All Services" entry.
+    return [...new Set(
+      data.configurations
+        .map(configuration => configuration.serviceType)
+        .filter((value): value is ServiceProvider => Boolean(value))
+    )];
   }, [data]);
+
+  /**
+   * Period and Service, rendered by every state that can act on them.
+   *
+   * These used to live only in the populated branch, so the empty state said
+   * "try a longer range" beside no control to change it — advice the user could
+   * not take. Defining them once means a new state cannot inherit that problem
+   * by forgetting to copy them in.
+   */
+  const filters = (
+    <div className="flex items-center gap-4">
+      <div className="flex items-center gap-2">
+        <label className="text-sm font-medium">Period:</label>
+        <Select value={timeRange} onValueChange={(value) => setTimeRange(value)}>
+          <SelectTrigger className="w-[130px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="today">Today</SelectItem>
+            <SelectItem value="this-week">This Week</SelectItem>
+            <SelectItem value="this-month">This Month</SelectItem>
+            <SelectItem value="this-year">This Year</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <label className="text-sm font-medium">Service:</label>
+        <Select
+          value={selectedService}
+          onValueChange={(value) => setSelectedService(value as ServiceProvider | 'all')}
+        >
+          <SelectTrigger className="w-[160px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Services</SelectItem>
+            {availableServices.map((service, index) => (
+              <SelectItem key={`${service}-${index}`} value={service}>
+                {service}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+    </div>
+  );
 
   if (isLoading) {
     return (
@@ -303,8 +371,17 @@ export function TranslationPerformance() {
     )
   }
 
-  // Services configured but no usage data yet
+  // Configurations exist, but nothing was recorded inside the selected period.
+  //
+  // The previous copy here said "No Usage Data Yet ... performance data will
+  // appear after translation activity begins", which reads as *never any* and
+  // sent at least one person looking for data loss. The period is the whole
+  // explanation: the ranges are calendar-based (This Month starts on the 1st,
+  // not 30 days ago), so on the 4th of a quiet month a busy previous month
+  // shows nothing at all.
   if (data.configurations.length > 0 && data.services.length === 0) {
+    const periodLabel = TIME_RANGE_LABELS[timeRange] ?? 'this period';
+
     return (
       <Card>
         <CardHeader className="flex items-center gap-2 space-y-0 border-b py-5 sm:flex-row">
@@ -317,12 +394,14 @@ export function TranslationPerformance() {
             </CardDescription>
           </div>
         </CardHeader>
-        <CardContent className="px-2 pt-4 sm:px-6 sm:pt-6">
+        <CardContent className="space-y-4 px-2 pt-4 sm:px-6 sm:pt-6">
+          {filters}
           <Alert>
             <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>No Usage Data Yet</AlertTitle>
+            <AlertTitle>No activity {periodLabel}</AlertTitle>
             <AlertDescription>
-              Run translation operations to generate performance metrics. Performance data will appear after translation activity begins.
+              Nothing was translated in this period. Choose a longer period above to see earlier
+              activity.
             </AlertDescription>
           </Alert>
         </CardContent>
@@ -366,46 +445,7 @@ export function TranslationPerformance() {
       </CardHeader>
       <CardContent className="px-2 sm:p-6">
         <div className="space-y-4">
-          {/* Time Range and Service Selection */}
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <label className="text-sm font-medium">Period:</label>
-              <Select
-                value={timeRange}
-                onValueChange={(value) => setTimeRange(value)}
-              >
-                <SelectTrigger className="w-[130px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="today">Today</SelectItem>
-                  <SelectItem value="this-week">This Week</SelectItem>
-                  <SelectItem value="this-month">This Month</SelectItem>
-                  <SelectItem value="this-year">This Year</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div className="flex items-center gap-2">
-              <label className="text-sm font-medium">Service:</label>
-              <Select
-                value={selectedService}
-                onValueChange={(value) => setSelectedService(value as ServiceProvider | 'all')}
-              >
-                <SelectTrigger className="w-[160px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Services</SelectItem>
-                  {availableServices.map((service, index) => (
-                    <SelectItem key={`${service}-${index}`} value={service}>
-                      {service}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+          {filters}
 
           {/* Chart Display */}
           <ChartContainer

@@ -30,6 +30,12 @@ Routes in `packages/backend/src/routes/documents.ts` expose document services:
 
 Prisma models store document records and cached translations. A position‑based translation engine writes translations directly to the correct text runs.
 
+Document-list reads verify stored source files without mutating healthy records.
+Integrity metadata is transition-based: the first missing-file result marks and
+reports the document, repeated checks preserve that state without another write
+or log message, and a later successful check clears the warning. Explicit
+administrator reconciliation remains available for investigation and repair.
+
 ## Translation Integration
 
 The feature shares translation services with the rest of the application. Languages are filtered against the enabled list, and statistics are recorded in `UsageRecord` entries. Cached segments are reused across documents when possible to reduce cost.

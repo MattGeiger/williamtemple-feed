@@ -5,12 +5,13 @@
 // under AGPL-3.0-or-later; see LICENSE. William Temple House branding is
 // not covered by this license; see TRADEMARKS.md.
 
-import { PrismaClient, Document } from '@prisma/client';
+import { Prisma, PrismaClient, Document } from '@prisma/client';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { randomUUID } from 'crypto';
 import { storageService } from '../storage';
 import { storageReconciliationService } from '../storage/reconciliation';
+import { documentIntegrityStateChange } from './integrity-state';
 
 interface CreateDocumentInput {
   name: string;
@@ -438,21 +439,7 @@ class DocumentService {
     if (!document.storagePath) return;
     
     const exists = await storageService.verifyIntegrity(document.storagePath);
-    
-    // If file doesn't exist, update metadata
-    if (!exists) {
-      console.error(`Integrity check: File for document ${document.id} not found at ${document.storagePath}`);
-      await this.prisma.document.update({
-        where: { id: document.id },
-        data: {
-          metadata: {
-            ...document.metadata as object,
-            integrityIssue: true,
-            lastCheckAt: new Date().toISOString()
-          }
-        }
-      });
-    }
+    await this.persistDocumentIntegrityTransition(document, exists);
   }
   
   /**
@@ -468,22 +455,33 @@ class DocumentService {
     // Check integrity of all files
     const { missing } = await storageService.checkIntegrity(paths);
     
-    // For each missing file, update document metadata
+    const missingPaths = new Set(missing);
+
+    // Persist only state transitions. Repeated list reads should not rewrite
+    // the same metadata or repeat an already-reported missing-file message.
     for (const doc of documentsWithFiles) {
-      if (doc.storagePath && missing.includes(doc.storagePath)) {
-        console.error(`Integrity check: File for document ${doc.id} not found at ${doc.storagePath}`);
-        await this.prisma.document.update({
-          where: { id: doc.id },
-          data: {
-            metadata: {
-              ...doc.metadata as object,
-              integrityIssue: true,
-              lastCheckAt: new Date().toISOString()
-            }
-          }
-        });
-      }
+      if (!doc.storagePath) continue;
+      await this.persistDocumentIntegrityTransition(doc, !missingPaths.has(doc.storagePath));
     }
+  }
+
+  private async persistDocumentIntegrityTransition(
+    document: Document,
+    fileExists: boolean,
+  ): Promise<void> {
+    const stateChange = documentIntegrityStateChange(document.metadata, fileExists);
+    if (!stateChange) return;
+
+    if (stateChange.transition === 'missing') {
+      console.error(`Integrity check: File for document ${document.id} not found at ${document.storagePath}`);
+    } else {
+      console.info(`Integrity check: File for document ${document.id} is available again at ${document.storagePath}`);
+    }
+
+    await this.prisma.document.update({
+      where: { id: document.id },
+      data: { metadata: stateChange.metadata as Prisma.InputJsonObject },
+    });
   }
   
   /**

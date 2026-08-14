@@ -39,6 +39,9 @@ Read these before broad changes:
 - `docs/toast/unified-error-handling.md` for ASK-aligned error handling.
 - `packages/frontend/docs/components/ui/README.md` for Shadcn/Radix UI usage.
 - `packages/frontend/docs/styling/README.md` for centralized styling and theme conventions.
+- `docs/layout/page-layout-standard.md` before adding or restructuring any route.
+- `docs/layout/table-standard.md` before adding or changing any data table.
+- `docs/motion/ICON_ANIMATIONS.md` before adding or changing any icon.
 - `docs/layout/assistant-orientation.md` for historical orientation context. Treat `AGENTS.md` as the current source of truth if details differ.
 
 Read these before shopping list work:
@@ -112,6 +115,32 @@ This change goes against the current [pattern name] pattern. Here is why, here a
 ## UI Standards
 
 - Use TypeScript `.ts` and `.tsx`; do not add JSX files.
+- **Page layout is fixed.** Every route's root element is exactly
+  `space-y-6 min-w-0 w-full pt-6`, with `SectionHeader` as its first child.
+  `RootLayout`'s `<main>` already supplies the horizontal padding
+  (`px-4 sm:px-6`) and the bottom padding, so a page contributes only the top —
+  `p-6` or any `px-*` on a page root double-pads it and insets that route
+  further than the rest of the app. The header icon is **static** (from
+  `@/components/ui/icons`) because its parent is not interactive; the matching
+  sidebar entry uses the animated variant. Full specification, the conforming
+  route list, and a one-line measurement check:
+  `docs/layout/page-layout-standard.md`.
+- **Tables follow one standard**: render through `EnhancedDataTable`, declare
+  width once as `size` (the table resolves it for every viewport — never
+  compute widths in a column file), sort with `<SortableHeader>` rather than an
+  inline button, and declare alignment once as `meta.align` so the header and
+  cells move together. Aligning a cell directly is what produced the reported
+  Actions offset. Every actions column is labelled `Actions`. There is one
+  table component — `EnhancedDataTable` scales down via `enableFiltering={false}`,
+  `enableColumnVisibility={false}`, and `emptyMessage`, so a small set is never a
+  reason to hand-roll a second `<Table>`. Enforced by
+  `src/test/table-standard.test.tsx`; rationale, the column reference, and
+  measurements in `docs/layout/table-standard.md`.
+- **Dates read as data use `@/lib/formatting/date`** (`formatDate`,
+  `formatDateTime`, `formatDateRange`) — `m/d/yyyy`, no leading zeros, locale
+  pinned to `en-US` so a browser set to en-GB cannot silently render delivery
+  windows day-first. Never write a local `toLocaleDateString` options object.
+  Chart axes and prose keep the compact `MMM d` forms.
 - Use Shadcn/Radix components from `packages/frontend/src/components/ui` where possible.
 - Use Lucide icons for icon buttons when an icon exists.
 - Action menu icon convention: use `Pencil` for Rename and `SquarePen` for Edit.

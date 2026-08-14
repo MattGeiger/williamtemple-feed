@@ -21,8 +21,15 @@ Interactive elements outside the Sidebar should also animate their icons on init
 
 The Sidebar icons intentionally do not animate on page load. The sidebar is persistent UI; animating its icons on every page load would be repetitive and distracting. This exception is by design and should not be changed.
 
-**4. Non-interactive elements use static Lucide icons.**
-If a parent element is not clickable and not linked to any action, its icon must be a static Lucide variant — not an animated one. Animated icons on static elements create false affordance.
+**4. Non-interactive elements use static Lucide icons, except page titles.**
+If a parent element is not clickable and not linked to any action, its icon must
+normally be a static Lucide variant. The one established exception is the
+`SectionHeader` page-identity icon: Categories, Food Items, and equivalent
+management pages use `createPageTitleIcon` to play one entrance animation on
+mount and replay on direct icon hover. This is page-arrival orientation, not an
+action affordance. New page-title icons must match that wrapper's 28px internal
+SVG, standard `h-6 w-6 mt-1` slot, placement, and timing rather than rendering a
+24px Lucide SVG directly.
 
 **5. Shopping List Builder canvas and templates use only static icons.**
 The Shopping List Builder's template canvas renders content for print. Printed output cannot animate, and the Preview Canvas should faithfully represent the printed page. No animated icons are used on template components or within the canvas. Standard UI chrome surrounding the builder (toolbar buttons, panel controls) may use animated icons where interactive.
@@ -39,7 +46,7 @@ Motion/React-based icons that use Framer Motion variants. They are driven by an 
 
 **Examples:** `UndoIcon`, `CopyIcon`, `Trash2Icon`, `SquarePenIcon`, `XIcon`, `TagIcon`, `ArrowLeftRightIcon`, `SunIcon`, `MoonIcon`, `SunMoonIcon`, `GaugeIcon`, `BotIcon`, `PlusIcon`, `FileDownIcon`, `SettingsIcon`
 
-**Hand-rolled here** (no upstream registry version; Lucide geometry verbatim): `UploadIcon`, `SearchCheckIcon`, `FolderCheckIcon`, `GlobeLockIcon`, `LogOutIcon`, `PanelLeftCloseIcon`, `BellIcon`
+**Hand-rolled here** (no upstream registry version; Lucide geometry verbatim): `UploadIcon`, `SearchCheckIcon`, `FolderCheckIcon`, `GlobeLockIcon`, `FileChartPieIcon`, `ClipboardPenIcon`, `UsersRoundIcon`, `ShieldUserIcon`, `LogOutIcon`, `PanelLeftCloseIcon`, `BellIcon`
 
 **File location:** `packages/frontend/src/components/animate-ui/icons/`
 
@@ -83,6 +90,8 @@ The same applies to `DropdownMenuItem`, `SelectTrigger`, `PopoverTrigger`, and a
 
 When a Radix component (Button, DropdownMenuTrigger, etc.) is already inside an `asChild` Slot, you can nest: the outer `AnimateIcon asChild` Slot composes cleanly with the inner Radix Slot.
 
+Nesting the other way round — a Radix `asChild` trigger wrapping `AnimateIcon`, as the sidebar's `<TooltipTrigger asChild><AnimateIcon asChild>` does — used to log "Function components cannot be given refs" on every page load and silently drop the trigger's ref. See [React 18 and refs](#react-18-and-refs) below; both `AnimateIcon` and the animate-ui `Slot` now forward refs, so either nesting order is safe.
+
 ```tsx
 // Correct — triggers on the wrapper's hover/tap zone
 <AnimateIcon animateOnHover animateOnTap>
@@ -105,14 +114,58 @@ When a Radix component (Button, DropdownMenuTrigger, etc.) is already inside an 
 </AnimateIcon>
 ```
 
-**Anti-pattern — do not pass trigger props directly to the icon:**
+**Prefer wrapping the parent over passing trigger props to the icon:**
 
 ```tsx
-// Wrong — causes "Function components cannot be given refs" React warning
+// Discouraged — the trigger zone is only the icon's own bounding box
 <SunIcon size={16} animateOnHover animateOnTap />
 ```
 
-Passing trigger props directly to an animate-ui icon causes `IconWrapper` to internally render `<AnimateIcon asChild>`, which uses a `Slot` that attempts to forward a ref to the plain `IconComponent` function. Since `IconComponent` is not wrapped with `forwardRef`, React emits a console warning and the ref fails silently.
+This makes `IconWrapper` render `<AnimateIcon asChild>` around the icon, so only
+hovering the glyph itself fires the animation — the Rule 2 problem described
+above. Wrap the interactive parent instead.
+
+It no longer *breaks*: every generated `IconComponent` is wrapped in
+`forwardRef` and puts the ref on its root `motion.svg`, so the `Slot` has
+somewhere to put it. Until that change this pattern also logged "Function
+components cannot be given refs" and dropped the ref — see
+[React 18 and refs](#react-18-and-refs).
+
+### React 18 and refs
+
+Upstream animate-ui targets React 19, where `ref` is an ordinary prop that any
+function component receives. **This project is on React 18.2**, where React
+intercepts `ref`, keeps it off `props`, and refuses to hand it to a function
+component that is not wrapped in `forwardRef`.
+
+These places carried the React 19 assumption and were corrected:
+
+| Component | Was | Now |
+| --- | --- | --- |
+| `AnimateIcon` | plain function; a Radix `asChild` trigger could not give it a ref | `forwardRef`, merged with its in-view ref |
+| `Slot` (`primitives/animate/slot`) | read `ref` out of props, and read `children.props.ref` | `forwardRef`; reads the child's ref from `children.ref` |
+| `Switch` (`primitives/radix/switch`) | spread Radix control props onto the DOM button | spreads only what the button takes |
+| All 69 generated icons | `function IconComponent(...)` | `React.forwardRef<SVGSVGElement, …>`, ref on the root `motion.svg` |
+
+**If you add or regenerate an icon**, apply the same shape — the generator emits
+the React 19 form:
+
+```tsx
+const IconComponent = React.forwardRef<SVGSVGElement, FooProps>(
+  function IconComponent({ size, ...props }, ref) {
+    return <motion.svg ref={ref} …>
+  },
+);
+IconComponent.displayName = 'IconComponent';
+```
+
+The failures were quiet ones. A dropped ref logs a warning but otherwise just
+leaves a consumer holding `null` — `TabsTrigger` registers `localRef.current`
+with the tab indicator so it can measure the active trigger, and it was
+registering nothing.
+
+If you port more animate-ui components, assume they were written for React 19
+and check every `ref` before trusting it.
 
 ### Imperative-Ref Icons — call `startAnimation` / `stopAnimation` via ref
 
@@ -529,6 +582,7 @@ Unlike `TableActionMenu`, the correct fix for sidebar icons is **not** to cycle 
 | Icon in `TableActionMenu` or any `<AnimateIcon asChild>` row | **Native animate-ui icon** (imperative-ref will fail `animate` + `animateOnHover`) |
 | Icon animates when its direct parent is hovered/clicked | animate-ui icon + `<AnimateIcon animateOnHover>` wrapper |
 | Icon animates when a larger container is hovered (e.g., a card) | Imperative-ref icon + `useRef` + container `onMouseEnter`/`onMouseLeave` |
+| `SectionHeader` / DataList page-title identity | Imperative-ref icon + `createPageTitleIcon` (28px internal SVG; mount + direct-hover animation) |
 | Icon needs `animate` (mount) or `animateOnHover` inside a parent context | **Convert to a native animate-ui icon** — do not use `BridgedAnimatedIcon` |
 | Icon only needs `animateOnTap` inside a parent context (acceptable bridge use) | Imperative-ref icon + `BridgedAnimatedIcon` |
 | Animation is purely decorative, plays on page load/scroll-into-view | animate-ui icon + `<AnimateIcon animateOnView animateOnViewOnce>` |

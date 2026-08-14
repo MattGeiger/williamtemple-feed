@@ -5,12 +5,11 @@
 // under AGPL-3.0-or-later; see LICENSE. William Temple House branding is
 // not covered by this license; see TRADEMARKS.md.
 
-import { ChevronRight, Info } from "@/components/ui/icons"
+import { Info, SquareTerminal } from "@/components/ui/icons"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { SectionHeader } from "@/components/shared/section-header"
 import { APP_VERSION } from "@/config/app-version"
-import { Github } from "lucide-react"
 
 const aboutFacts = [
   { label: "Version", value: APP_VERSION },
@@ -115,7 +114,7 @@ export function AboutCard() {
               target="_blank"
               rel="noopener noreferrer"
             >
-              <Github className="h-4 w-4" aria-hidden="true" />
+              <SquareTerminal className="h-4 w-4" aria-hidden="true" />
               Source Code on GitHub
             </a>
           </Button>

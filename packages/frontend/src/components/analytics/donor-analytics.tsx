@@ -20,6 +20,7 @@ import { ChevronDown } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
+import { SelectableBlock } from '@/components/reports/selection';
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -177,8 +178,16 @@ export function DonorAnalytics({
     );
   }
 
+  // Sent only when the picker has actually narrowed the roster. Absent means
+  // "every partner", which is the screen's default — and it keeps the printed
+  // card from claiming a filter the user never applied.
+  const selectedDonorCodes = hiddenDonors.length > 0
+    ? visibleDonors.map((donor) => donor.donorCode)
+    : undefined;
+
   return (
     <>
+      <SelectableBlock cardId="procurement-grocery-partner-mix">
       <Card className="min-w-0">
         <CardHeader>
           <CardTitle>Grocery Partner Mix</CardTitle>
@@ -199,7 +208,9 @@ export function DonorAnalytics({
           <p className="mt-3 text-xs text-muted-foreground">Does not include legacy donations data.</p>
         </CardContent>
       </Card>
+      </SelectableBlock>
 
+      <SelectableBlock cardId="procurement-donated-value">
       <Card className="min-w-0">
         <CardHeader>
           <CardTitle>Recorded Donated Value</CardTitle>
@@ -239,7 +250,12 @@ export function DonorAnalytics({
           </p>
         </CardContent>
       </Card>
+      </SelectableBlock>
 
+      <SelectableBlock
+        cardId="procurement-fresh-alliance-donations-over-time"
+        options={{ donorCodes: selectedDonorCodes, showLegacy }}
+      >
       <Card className="min-w-0">
         <CardHeader className="flex flex-col items-start justify-between gap-3 space-y-0 sm:flex-row sm:items-center">
           <div>
@@ -337,7 +353,9 @@ export function DonorAnalytics({
           )}
         </CardContent>
       </Card>
+      </SelectableBlock>
 
+      <SelectableBlock cardId="procurement-fresh-alliance-pickup-history">
       <Card className="min-w-0">
         <CardHeader>
           <CardTitle>Fresh Food Alliance Pickup History</CardTitle>
@@ -390,6 +408,7 @@ export function DonorAnalytics({
           </div>
         </CardContent>
       </Card>
+      </SelectableBlock>
     </>
   );
 }

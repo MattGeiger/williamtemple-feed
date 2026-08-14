@@ -1,6 +1,6 @@
 # FEED — Known Issues & Future Work
 
-**Last Updated**: July 14, 2026
+**Last Updated**: August 11, 2026
 **Status**: v1.0.0 release prep in progress (see `docs/V1-RELEASE-PLAN.md`)
 **Production**: https://feed.williamtemple.app
 
@@ -38,43 +38,805 @@ Everything else in this file. The application is shippable today.
 
 ## Open Issues
 
+### #66 — Imported Tracking observations were invisible in the Service Log
+**Priority**: High · **Status**: Fixed in source 2026-08-13; awaiting staff acceptance testing
+**Bucket**: Service Log / operational continuity
+
+The Tracking adapter activated 1,114 valid operational observations, but the
+daily Service Log queried only rows whose source was `feed_service_log`. This
+incorrectly treated migrated history as a parallel read-only source and left
+historical entry fields blank.
+
+**Resolution:** operational observation identity is now the organization-wide
+metric/date pair rather than metric/date/source. Tracking activation seeds that
+living fact; a normal Service Log save appends the next native revision and
+preserves the imported workbook provenance. An intentional clear is stored as
+an auditable current clear revision so restoring an import cannot resurrect the
+old value. The database enforces at most one current revision for each
+metric/date, and lifecycle projection always prefers a later native decision.
+
+### #65 — Imports table omitted Service import history
+**Priority**: High · **Status**: Fixed in source 2026-08-11; awaiting staff acceptance testing
+**Bucket**: Data Management / unified imports
+
+The unified Add Data modal correctly activated Link2Feed, SIMC, and WTH
+Tracking into `ServiceImport`, but the Imports table retained its earlier
+procurement-only state and API call. This made successful Service activations
+look absent even though their facts and durable provenance were intact.
+
+**Resolution:** Data Management now reads an organization-wide, cross-domain
+history projection over durable `ProcurementImport` and `ServiceImport` rows.
+The shared table uses generic source, data-date, record-count, warning, status,
+and imported-at concepts; its details remain domain-specific. Service record
+counts describe imported visits or metric observations rather than blindly
+repeating raw CSV row counts. Temporary `DataImportJob` rows and pending Service
+materialization are excluded. All authenticated staff can read history;
+rollback and restore remain administrator-only.
+
+### #64 — OFB importer did not provide its required exporter
+**Priority**: Medium · **Status**: Fixed in source 2026-08-09; awaiting staff acceptance testing
+**Bucket**: Data Management / procurement imports
+
+FEED accepts the unified 26-column OFB schema produced by the OFB Order CSV
+Exporter, but the Import OFB Data dialog previously assumed staff already had
+that custom Chrome extension. Its long description explained the file's
+channel coverage while omitting the prerequisite that makes the file possible.
+
+**Resolution:** the unified **Add Data** dialog keeps a concise **Download the
+exporter** link beside its source-neutral upload control. The download is served
+with FEED's static assets and contains the version 2.0.0 extension in a clearly
+named folder plus a two-page PDF installation guide. The guide follows
+Google's official unpacked-extension workflow, uses the staff-supplied Chrome
+Extensions screenshot with numbered callouts, and carries the user through
+installation, verification, Primarius export, FEED import, troubleshooting, and
+the extension's privacy boundary.
+
+The extension remains a custom unpacked Chrome extension, not a Chrome Web
+Store installation. Staff must unzip the package, enable Developer mode, load
+the folder containing `manifest.json`, and keep that folder in place. The ZIP
+retains the extension's README, privacy notice, support document, changelog,
+assets, and AGPL license.
+
+### #63 — Reports Management bulk selection and deletion
+**Priority**: Medium · **Status**: Fixed in source 2026-08-09; awaiting staff acceptance testing
+**Bucket**: Reports Management / table consistency
+
+Reports Management was the only current management table without row
+selection or bulk actions. Food Items, Categories, and Translations already use
+the shared `EnhancedDataTable` selection feature, selected-row count, Actions
+menu, and bulk-delete confirmation. Reports instead exposed deletion only from
+each row's action menu.
+
+**Resolution:** Reports Management now uses that established table pattern: a
+checkbox column, current-page select-all, selected count, Clear control, and a
+destructive **Delete Selected** action. Single-row and multi-row deletion share
+the standard bulk-delete confirmation, supplemented with the existing warning
+that templates are organization-wide and downloaded reports are unaffected.
+Successful deletion clears selection before reloading the table.
+
+Deletion is one source-scoped backend transaction rather than one request per
+row. Every requested id must exist with `source = 'analytics'`; a stale,
+wrong-source, or concurrently changed selection rolls back as a unit. This
+prevents partial deletion and prevents the Analytics route from reaching the
+dormant report workspace's templates. No schema migration was needed.
+
+**Deliberate boundary:** **Run Selected** was not added. Templates can carry
+different filters, outputs, card options, and run-time date ranges, so a bulk
+run needs a separately reviewed product contract for whether it creates
+multiple downloads, one archive, or a combined report.
+
+### #62 — Analytics report PDF parity and report-selection state regressions
+**Priority**: High · **Status**: Fixed in source 2026-08-08; awaiting staff acceptance testing
+**Bucket**: Analytics reports / human-evaluation findings
+
+The report architecture is sound and most cards are accurate, polished print
+representations of Analytics. Human evaluation of beta.9 found a small set of
+localized parity failures in newly connected cards. This issue deliberately
+preserves the current model — server-authored SVG/HTML, one card accessor for
+PDF and CSV, and the ZEV selection workflow — and records the narrow changes
+needed to make these cards meet it.
+
+Investigation covered the report commits from `5b6306f` through `00ad2b2`, the
+Analytics and Operations components, `EnhancedDataTable`, the report selection
+provider, the card registry/accessors, print primitives, report route/builder,
+tests, report architecture and staff guide, table standard, chart-colour guide,
+operational-analytics design, and a freshly rendered four-page PDF made with the
+production renderer and deterministic review data.
+
+**Resolution:** the recommended localized approach was implemented without
+changing the report architecture. Automatic seasonal selections now derive all
+years from the run-time payload while explicit subsets remain fixed; sparse
+seasonal series carry a defined mask so out-of-range months are absent rather
+than zero. Paid-product rows retain their family segments for print. The
+existing grouped-bar and line primitives gained opt-in axes/value labels for
+the three affected Operations cards. `SelectableBlock` now keeps one stable DOM
+tree, explicitly clears `inert`, and captures a card's options when that visible
+card is selected. Existing working exports continue through the same accessors
+and unchanged default primitive behavior.
+
+#### #62a — Procurement PDF parity
+
+##### Seasonal Inbound Weight exports only the current year for All history
+
+**Observed:** an All-history PDF can contain only the current-year series even
+though Analytics has earlier years.
+
+**Root cause is card-option state, not procurement data.** The local All query
+resolves to 2009-11-09 through 2026-08-08 and returns all 18 years. The backend
+card also renders one series per year when those years reach it. The failure is
+that the print accessor renders only `cardOptions.years`, while the client
+serializes a concrete year array derived from the range that happened to be
+loaded when options were captured:
+
+- a saved template stores the default resolved array (often only the current
+  year from a 90-day range), even though templates intentionally do not store a
+  date range; running that template for All history therefore reuses the old
+  range's year list;
+- report selection snapshots every live card option at **selection start**.
+  Inactive Radix tab content is unmounted, and the provider neither unregisters
+  nor refreshes its old entry. Starting on the other lens can therefore freeze
+  a stale one-year seasonal option before the Procurement card is visible;
+- absent years currently mean `[]` on the backend, so there is no safe dynamic
+  default when a template or cross-lens selection has no current option.
+
+**Approaches:**
+
+1. Ignore the option and always derive every available year from the report
+   payload. Smallest backend change and fixes All immediately, but removes the
+   intentional year-picker behavior from exports.
+2. Distinguish an automatic selection from an explicit subset, for example
+   `yearMode: 'all-available' | 'selected'` plus `years` only for the latter;
+   derive `all-available` from the newly requested payload. Snapshot card
+   options when that card is selected, while it is mounted and visible, rather
+   than freezing every current/stale entry when selection mode begins. This
+   keeps user-selected subsets and lets saved templates adapt to their new
+   run-time range.
+3. Put the seasonal selection in URL/page filters and make the table/chart
+   controls fully controlled from a shared report store. This gives one global
+   source of truth, but broadens a local card control into page navigation and
+   is disproportionate to this defect.
+
+**Recommendation:** approach 2. It preserves both promises: explicit card
+choices reproduce exactly, while a template's intentionally fresh date range
+cannot be narrowed by an implicit default saved from an older range.
+
+##### Seasonal lines falsely continue at zero outside the selected range
+
+**Observed:** a year with data for only part of the selected interval falls to
+zero and continues across out-of-range months, visually asserting zero inbound
+weight where the report did not ask a question.
+
+**Root cause:** the screen leaves missing month/year cells undefined and uses
+`connectNulls={false}`. The report accessor instead starts every selected year
+with `new Array(12).fill(0)`, and `lineChartSvg` unconditionally joins all twelve
+values into one polyline. A rendered fixture reproduced the false baseline from
+the last observed month through December (and before the first in-range month
+for the opening year).
+
+**Approaches:**
+
+1. Use zero only for observed/in-range zeroes and carry an optional defined
+   mask per series; teach `lineChartSvg` to draw separate contiguous runs. This
+   keeps the existing numeric `Series.values` contract intact for every other
+   chart and lets the CSV write blanks outside coverage.
+2. Widen every `Series.values` entry to `number | null` and make all chart,
+   condensation and CSV helpers null-aware. This is conceptually clean, but a
+   broad contract migration for one card and risks changing working charts.
+3. Add a seasonal-only SVG renderer that accepts sparse points. It is local and
+   low risk, but duplicates axes, colour and legend behavior already owned by
+   `lineChartSvg`.
+
+**Recommendation:** approach 1. An optional defined mask is the smallest
+general extension of the working line primitive. The seasonal accessor should
+derive coverage from the resolved start/end dates, terminate at those boundary
+months, and never turn out-of-range absence into zero.
+
+##### Where Paid Procurement Dollars Went loses the stacked aggregate bar
+
+**Observed:** Analytics divides `Other paid products (146 codes)` into adjacent
+product-family segments; the PDF prints it as one solid bar.
+
+**Root cause:** the frontend datum retains `familyBreakdown` and its custom bar
+shape renders those segments. The report accessor reduces every row — including
+the aggregate — to only `{ label, value }`, and `hBarSvg` has no row-segment
+input. The aggregate composition is discarded before printing. A rendered
+fixture reproduced the single-colour tail bar.
+
+**Approaches:**
+
+1. Add optional per-row segment metadata to `CardData` and a shared segmented
+   horizontal-bar print path. Keep total spend as the CSV value and use the
+   segments only to explain that total visually; extend the existing formatter
+   parameter so labels remain dollars.
+2. Create a paid-products-only renderer and duplicate the frontend family
+   parsing/segment layout in it. This is quick, but creates another print
+   primitive and an unchecked second implementation of the same chart.
+3. Move the entire paid-product presentation model into the procurement API so
+   screen and report consume pre-grouped rows and segments. This maximizes
+   semantic sharing, but changes a stable API and more working screen code than
+   this export defect requires.
+
+**Recommendation:** approach 1, with focused frontend/backend parity tests for
+family classification and segment totals. It extends the current print
+vocabulary without changing the API or redesigning the card.
+
+#### #62b — Operations PDF charts omit the values needed off-screen
+
+**Observed:** Recurring Availability and Category Pressure render proportional
+bars but no numeric axis or end values. Operational Pressure has grid/tick
+marks, but no static values for its series; the screen's hover tooltip has no
+PDF equivalent. The resulting pictures show direction and relative length but
+do not let a reader recover the values being reported.
+
+**Root cause:** `groupedHBarSvg` emits only category labels and rectangles — no
+axis, tick labels, units, or bar-end text. Both Recurring Availability and
+Category Pressure use it directly. `lineChartSvg` emits a shared y-axis scale,
+but deliberately emits no point/end labels; Operational Pressure therefore
+loses the exact values supplied interactively by Recharts. Existing tests check
+series names and data arrays but never assert that print markup makes those
+values readable. The rendered review PDF confirmed the gap.
+
+Category Pressure has one additional correctness edge: its accessor maps an
+unknown percentage (`null`) to numeric zero for the SVG while retaining an em
+dash only in `series.text`. The comment says unknown should draw no bar, but the
+print primitive never reads `text`, so zero and Unknown are visually
+indistinguishable.
+
+**Approaches for each affected chart:**
+
+1. **Print value labels:** add formatter-aware labels to grouped bars and
+   restrained labels to the line chart (for example end-of-series values, with
+   collision handling). Exact and consistent with other report bars, but every
+   point on a long line would be cluttered if labels are not deliberately
+   limited.
+2. **Axes only:** give grouped bars integer or fixed 0–100% axes and rely on the
+   existing Operational Pressure axes. Clean and compact, but readers still
+   have to estimate exact values and the PDF remains weaker than the tooltip.
+3. **Companion data grids:** print a small value table below each graph. Exact
+   and accessible, but duplicates the chart, increases page count, and changes
+   the established appearance more than necessary.
+
+**Recommendation:** a targeted hybrid of approaches 1 and 2, implemented as
+options on the existing primitives:
+
+- Recurring Availability: integer x-axis ticks plus integer labels at the ends
+  of its two bars;
+- Category Pressure: a fixed 0–100% axis plus percent labels at bar ends, with
+  Unknown carried as undefined/no bar rather than zero;
+- Operational Pressure: retain its existing x/y scale and add collision-aware
+  latest/end labels for each series rather than labeling every daily point.
+
+This supplies range and exact values without turning dense time-series pages
+into label fields. It is an extension of the print adapters that already work,
+not a new export concept.
+
+#### #62c — Entering and leaving report selection corrupts table state
+
+##### Tables reset before their options are selected for export
+
+**Observed:** Unavailable Episodes and Rationing History return to the first
+page and unsorted order as soon as **Generate Report** starts selection mode.
+
+**Root cause:** `SelectableBlock` returns two different child trees. Outside
+selection it renders `{children}` directly; during selection it inserts a new
+`<div ref={contentRef}>` around them. React remounts the stateful
+`EnhancedDataTable` subtree, whose sort and pagination are internal hook state,
+so both reset to defaults. `onViewStateChange` can publish the previous view to
+the parent, and the backend correctly applies options when it receives them,
+but the visible table no longer matches what the user is being asked to select.
+The selection provider's start-time snapshot also makes cross-lens/stale option
+capture possible, as described in #62a.
+
+##### Tables remain inert after the workflow
+
+**Observed:** after generating/canceling a report, the two tables no longer
+respond to sortable headers until the route remounts.
+
+**Root cause:** while selecting, an effect imperatively sets
+`contentRef.current.inert = true`; it has no cleanup. Because the direct child
+before selection and the inserted content wrapper are both `<div>` elements,
+React reuses the same DOM node across both branches. When selection ends the ref
+is detached, so the effect cannot set that reused node back to false. React does
+not know about the imperatively added property and leaves `inert=true` on the
+restored table container. An isolated React/jsdom reproduction confirmed both
+DOM-node reuse transitions and the surviving final inert property.
+
+**Approaches:**
+
+1. Render one stable wrapper/content DOM shape in both modes; conditionally add
+   checkbox semantics, animation classes and badges, and always assign the
+   content node's inert state both ways (with cleanup). Snapshot each card's
+   live options when the user selects that visible card. This preserves the
+   table instance and its state and prevents stale cross-tab options.
+2. Lift all `EnhancedDataTable` sorting, filtering, visibility and pagination
+   into controlled parent/provider state. This makes remounts survivable and
+   reusable, but expands the table API and migrates working callers to solve a
+   wrapper-lifecycle bug.
+3. Force-mount both Analytics tabs and restore each table from published
+   `initialState` after every selection transition. This retains more DOM and
+   potentially duplicate data work, still visibly remounts, and is fragile
+   because `useTableFeatures` currently ignores `initialState.sorting`.
+
+**Recommendation:** approach 1. The wrapper owns both regressions and should be
+fixed at their source. A stable tree also preserves focus and scroll state,
+while per-card selection-time capture satisfies cross-lens reports without
+making every table controlled.
+
+#### TDD implementation checklist
+
+Do not begin with renderer edits. First preserve each human finding as a failing
+test, then make the smallest production change that turns it green.
+
+- [x] Cover the two-lens option lifecycle, multiple seasonal years, and a
+  sorted/paged `EnhancedDataTable` with focused frontend fixtures.
+- [x] Prove a default seasonal selection saved from a one-year range expands to
+  all available years when that template is run for All history.
+- [x] Prove an explicitly selected seasonal subset remains that subset on a
+  later run.
+- [x] Prove starting selection on Operations, switching to Procurement, and
+  choosing Seasonal Inbound Weight captures the currently visible years rather
+  than a stale/unmounted value.
+- [x] Add backend seasonal tests for a partial opening year, a full middle year,
+  and a partial closing year; assert out-of-range CSV cells are blank and SVG
+  polylines terminate instead of running at zero.
+- [x] Add a paid-product fixture with more than 15 codes and at least three
+  families in the tail; assert segment sums equal the aggregate dollars, the
+  PDF markup contains all family segments, and the CSV still has one aggregate
+  total.
+- [x] Add print-primitive tests that assert rendered labels/ticks, not merely
+  that SVG exists: integer values for Recurring Availability, 0–100% scale and
+  percent labels for Category Pressure, and bounded end labels for Operational
+  Pressure.
+- [x] Add a Category Pressure null fixture and assert Unknown is not converted
+  into a zero-length factual observation.
+- [x] Add a `SelectableBlock` lifecycle test with a stateful child; assert the
+  child is not remounted when selection starts, a card is selected, Review
+  opens/closes, generation completes, or selection is canceled.
+- [x] In the same test, assert the content node is inert only during selection
+  and sortable controls work immediately afterward.
+- [x] Exercise a real `EnhancedDataTable` through sort, page 2, selection,
+  capture, cancel, and another sort; explicitly verify both Operations table
+  card accessors apply the captured sort/page options.
+- [x] Keep the saved-template option round trip green and verify the backend
+  applies filter → sort → page in that order.
+- [x] Run focused frontend report/selection/table tests and backend report card,
+  print and route tests.
+- [x] Run the full frontend and backend suites, both package builds, and the
+  table/card parity guards.
+- [x] Generate a real mixed-lens ZIP through Chromium; inspect manifest and
+  per-card CSVs, render every PDF page with Poppler, and compare the five
+  affected charts against the configured screen state.
+- [ ] Manually exercise both exits — Cancel and successful Generate — then sort,
+  filter and paginate both Operations tables without navigating away during
+  staff acceptance testing.
+- [x] Update this issue, the report architecture/staff guide where option
+  semantics change, `CHANGELOG.md`, and release notes only after the behavior is
+  verified.
+
+### #60 — Generic error message when attempting to configure Admin with a single administrator role
+**Priority**: Medium · **Status**: **Fixed** in 1.5.0-beta.7
+**Bucket**: New feature bug
+
+The error message produce when attempting to demote an Administrator when it would violate the two-admininstrator minimum rule produces a generic 'Error An unexpected error occurred. Please try again.' This generic message violates the Error message "ASK" model (i.e., all error messages must be **Actionable**, **Specific**, and **Kind**). The expected behavior is an error message that explains to the administrator (concisely) that they must keep at least two accounts set to this permission level, to prevent locking out the system by accident. It's a failsafe mechanism.
+
+**Root cause: the frontend, not the guard.** The backend message was already
+ASK-compliant and carried a 409 with `ALLOWLIST_ADMINISTRATOR_MINIMUM`. It never
+reached the toast. `ErrorHandlerService.isUserPresentableMessage` caps messages
+at 240 characters as defence-in-depth against leaked driver dumps and stack
+traces, and the Allowlist refusal ran to **251** — so the whole explanation was
+replaced with the generic fallback. The Domain-mode variant (129 characters) was
+unaffected, which is why this only appeared for the two-administrator rule.
+
+**Two fixes.**
+
+Length is a proxy for "this looks like a dump", and it is the wrong test for
+prose the server deliberately wrote. Errors arriving with an application error
+code are curated by construction — a Prisma dump never carries one — so coded
+errors are now exempt from the length cap. The shape checks (HTML, JSON, stack
+traces, SQL, paths, driver codes) still apply to them, so the exemption cannot
+be used to leak an artifact.
+
+The message itself was also rewritten to three short sentences: what happens,
+the rule, and the way out.
+
+> This change would leave only one administrator. Allowlist mode requires two.
+> Promote another administrator or switch to Domain mode.
+
+132 characters, from 251. The `action` parameter was dropped from
+`assertAdministratorMinimum` — "This change" covers a demotion, a revoke, and a
+switch to Allowlist mode without a sentence per caller.
+
+Covered by tests on both sides: the guard names the rule and both routes out and
+stays inside the toast budget; a coded over-long message is shown while the same
+text uncoded is still capped, and a code does not excuse an actual artifact.
+
+### #59 — Backend suite flaked under load
+**Priority**: Medium · **Status**: Fixed in 1.5.0-beta.6
+**Bucket**: developer tooling / test integrity
+
+The backend suite failed two tests in one run and three different ones in the
+next, all passing in isolation.
+
+**The first diagnosis in this entry was wrong and is corrected here.** It
+attributed the flakiness to test files sharing one `dev.db` while Vitest ran
+them in parallel. That was inferred from `DATABASE_URL` plus Vitest's default
+parallelism, and never checked. Every one of the eleven test files that imports
+`src/db` also mocks it — no test touches a real database, so a shared fixture
+could not have been the cause. Serialising the suite appeared to fix it, which
+made the wrong explanation look confirmed.
+
+**The actual cause** is a timeout that is too short for what the tests do. The
+Shopping List Builder's `preview-pdf` tests launch Chromium and render a real
+PDF, which takes ~5.6s on this hardware. Vitest's default `testTimeout` is
+5000ms. They were already over the line in a *serial* run and passed only when
+they happened to land under it; any extra load — parallel workers, a running
+dev server, a concurrent build — pushed them over. Serialising helped only
+because it reduced contention, not because it removed a conflict.
+
+**Fixed** with `testTimeout`/`hookTimeout` of 30s, and parallelism restored.
+Verified across four consecutive parallel runs, and again with eight cores
+deliberately saturated — 35 files, 488 passing, 2 skipped, every time.
+
+**Retroactive note stands, for a different reason than first recorded.** Green
+backend runs before this were genuinely at risk, because two tests sat past the
+default timeout and passed on timing luck. The counts quoted through
+beta.4–beta.6 were accurate for the runs that produced them.
+
+Lesson worth keeping: "passes in isolation, fails in a suite" is not
+automatically a shared-fixture problem. Read the failure message before
+choosing a cause — this one said `TimeoutError`, which pointed straight at the
+answer and was not looked at first.
+
+### #58 — Tailwind v4 codemod renamed a variant *value*, not just classes
+**Priority**: Medium · **Status**: Fixed in 1.5.0-beta.6
+**Bucket**: Tailwind v4 fallout
+
+The v4 upgrade codemod rewrote `outline` → `outline-solid` across the 72-file
+template pass. That rename is correct for utility *classes*; it was also
+applied to eight `variant="outline"` **prop values** and to two TypeScript
+union members declaring them.
+
+Neither `Button` nor `Badge` has an `outline-solid` variant, so every affected
+control rendered with no variant styling at all — silently, because
+`class-variance-authority` falls through to the base classes rather than
+throwing. Affected: pagination's active-page button, the Document Translator's
+pagination, the Data Management import-status badge, a Shopping List Builder
+badge, and three buttons in the Find Missing Translations dialog.
+
+It survived the migration's utility-by-utility stylesheet diff because that
+compared *classes*; these are prop values, which never reach the stylesheet.
+It was found while adding a toolbar button, when the union rejected the
+`'outline'` every caller was already passing.
+
+Fixed in all eight call sites and both unions. tsc 288 → 280.
+
+Worth a check if other codemod-era prop values were caught the same way — the
+class rename list is the place to start.
+
+
+### #57 — Magic links were burned by inbound mail scanning
+**Priority**: Medium · **Status**: Fixed in 1.5.0-beta.5
+**Bucket**: authentication
+
+Microsoft Defender, used by William Temple House's IT vendor, prefetches every
+link in an inbound message to scan it for malicious payloads. `/api/auth/callback`
+verified on GET, so that scan **spent the single-use token before the recipient
+ever clicked**. Magic links therefore never worked in practice here, and OTP
+became the only usable path — which is why FEED's sign-in copy leads with the
+six-digit code.
+
+The workaround of letting a token survive its first use was considered and
+rejected: a token good for two uses is a token an attacker can replay, and no
+server-side signal reliably separates a scanner from a human.
+
+**Fix.** Consumption moved from GET to POST. The emailed link now points at a
+confirmation *page* (`/sign-in/confirm`), which consumes nothing on load and
+asks the recipient to press a button; that button POSTs to
+`/api/auth/magic-link/verify`, which is the only place a token is spent.
+Scanners follow GET and do not submit a form they have not rendered and had a
+human press. The token remains single-use, ten-minute, and bound to one
+address — nothing is weakened, at the cost of one extra click.
+
+`GET /api/auth/callback` is retained as a redirect rather than deleted, so
+links already sitting in inboxes keep working and become scanner-safe in the
+process.
+
+**The confirmation page must never auto-submit.** An effect that posted on
+mount would hand the token straight back to the bot and undo the entire fix.
+This is stated at the top of `magic-link-confirm.tsx` because it is the kind of
+thing a later refactor "tidies away".
+
+Verified against a real database, not only mocks: two GETs left the token in
+`VerificationToken`, issued no cookie, and a subsequent POST consumed it,
+recorded `lastLoginAt`, and issued the session. Replaying the spent token
+returned 401 `MAGIC_LINK_EXPIRED`.
+
+Relevant to white-labelling: other agencies may not run equally aggressive mail
+security, but the interstitial costs them nothing and protects any that do.
+
+### #56 — Admin page drifted from the standard route layout
+**Priority**: Low · **Status**: Fixed in 1.5.0-beta.4
+**Bucket**: UI consistency
+
+The Admin page wrapped its content in `space-y-6 p-6` while every other route
+uses `space-y-6 min-w-0 w-full pt-6`. `RootLayout`'s `<main>` already supplies
+the horizontal and bottom padding, so `p-6` added a second horizontal inset no
+other page has — pushing the icon, title, description, and all tab content
+further right — and the missing `min-w-0 w-full` removed the guard that keeps a
+wide child from forcing horizontal overflow.
+
+Fixed, and measured against Data Management to confirm: icon x=24, title x=64,
+header top y=88 on both.
+
+The layout was previously conventional rather than specified, which is how it
+drifted. It is now written down in `docs/layout/page-layout-standard.md`, with a
+summary rule in AGENTS.md under UI Standards so a future page does not
+rediscover it. That document also records the one real inconsistency between
+existing pages: `settings/index.tsx` and `shared/data-list/DataList.tsx` wrap
+`SectionHeader` in a redundant extra `<div>`, which new pages should not copy.
+
+### #55 — Theme transition radiated from viewport top-centre in Chrome 150
+**Priority**: Low · **Status**: Fixed in 1.5.0-beta.4
+**Bucket**: motion / browser compatibility
+
+The light/dark reveal radiated from the top centre of the viewport instead of
+the Theme Switcher button — **in Chrome 150 only**. Safari and Chromium 148
+(Electron) were correct on the same machine and the same 2× display, which is
+why the first investigation could not reproduce it.
+
+**Cause.** `clip-path` on `::view-transition-new(root)` resolves against that
+pseudo-element's own box, not the viewport. The two coincide only while the
+browser sizes the snapshot in CSS pixels. Diagnostics from the affected browser
+showed FEED requesting exactly the right thing —
+`circle(20px at 889px 31.5px)`, the button's true centre, on the correct
+pseudo-element, with `animationName: none` confirming our `@layer base`
+override won, no extensions, no forced colors, zoom 1 — and Chrome drawing it
+elsewhere. With `innerWidth` 965 and `devicePixelRatio` 2, an origin 92% of the
+way across a CSS-pixel box falls at 46% of a device-pixel one: top centre,
+exactly as reported.
+
+**Fix.** The reveal is expressed in percentages rather than pixels, so the
+origin tracks the button proportionally against whatever box the browser uses.
+The end radius is converted through the `sqrt(w² + h²) / sqrt(2)` reference that
+percentage radii resolve against, so the geometry is equivalent to the pixel
+form rather than an approximation of it. (The duration and easing were then
+retuned separately as a feel change — 1200ms on
+`cubic-bezier(0.64, 0, 0.36, 1)` — which is independent of this fix.) Verified on
+Chromium 148 by pausing the animation at 20% progress: emitted origin
+`89.31% / 3.70%` matches the button's computed proportional position, and the
+rendered frame is identical to the pixel version. **Confirmed correct in
+Chrome 150 by the reporter**, on the machine where the fault was observed.
+
+The earlier hypotheses — Tailwind v4's real cascade layers, an extension, a
+Chrome force-dark flag — were each tested and disproved; the notes below are
+retained because they rule those out for any future recurrence.
+
+**Superseded investigation notes (2026-07-31).** Measured in the running app at
+711×832 and again after resize:
+
+- `runThemeTransition` computed `circle(20px at 635px 31.5px)` → the trigger
+  button's exact centre, taken from `getBoundingClientRect()`;
+- the animation was paused at 20% progress and the rendered frame showed the
+  circle centred on the button, with the outgoing theme surviving longest in the
+  opposite (bottom-left) corner, which is the correct geometry;
+- `getComputedStyle(html, '::view-transition-new(root)')` reports
+  `animationName: none`, so the `@layer base` override in `index.css` is
+  winning and the WAAPI animation is the only one running — the Tailwind v4
+  real-cascade-layer hypothesis is disproved;
+- `html`/`body` carry no `transform`, `filter`, or `backdrop-filter`, so no
+  snapshot containing block is displacing the pseudo-element;
+- `git show 10a8f24 -- src/lib/theme-transition.ts` is empty: the v4 commit
+  changed only `supports-[backdrop-filter]:` → `supports-backdrop-filter:` class
+  syntax in `theme-switcher.tsx`, and did not touch the transition code or the
+  `::view-transition` rules.
+
+The one genuine weakness found is the fallback in `getTransitionOrigin`: when
+`trigger` is null it uses a hard-coded `(innerWidth - 56, 56)` rather than the
+button, which would put the origin near the top-right regardless of layout.
+`ThemeSwitcher` is the only mount and does pass its ref, so this path is not
+currently reached.
+
+**Needed to proceed:** window size, page, and light→dark vs dark→light
+direction where it was observed, plus whether the sidebar was collapsed.
+
+### #54 — Admin action-menu icons bypassed the animation standard
+**Priority**: Medium · **Status**: Fixed in 1.5.0-beta.4
+**Bucket**: motion standards
+
+The Admin roster shipped with raw `lucide-react` icons in `TableActionMenu` and
+on the Invite button. `docs/motion/ICON_ANIMATIONS.md` requires **native
+animate-ui icons** in action menus: only those read `AnimateIconContext`, so
+static Lucide icons ignore the `animate` (menu-open) and `animateOnHover`
+triggers entirely. "Change to Staff" and "Revoke access" also shared a single
+`UserMinus` glyph, which read as the same action twice.
+
+Fixed by hand-rolling six native animate-ui icons — neither registry ships
+animate-ui builds of them, and the lucide-animated versions are imperative-ref,
+which the standard forbids here. Geometry is verbatim from lucide-react's
+`__iconNode`.
+
+The icons now carry the distinction the actions have: the **shield family**
+(`shield-check`, `shield-minus`) is role, the **person/ban family** (`ban`,
+`user-round-check`) is access. A role change and an access change can no longer
+look identical.
+
+### #53 — Admin page icon was semantically wrong
+**Priority**: Low · **Status**: Fixed in 1.5.0-beta.4
+**Bucket**: UI semantics
+
+The Admin sidebar entry and section header used a shield-with-checkmark, which
+reads as security verification rather than managing people. Both now use
+`user-round-cog`: animated in the sidebar (interactive), static in the section
+header (decorative parent — Rule 4 of the motion standards, which forbids
+animating a non-interactive element and creating a false affordance).
+
+### #52 — Refused sign-in advanced to the code-entry step
+**Priority**: High · **Status**: Fixed in 1.5.0-beta.4
+**Bucket**: authentication UX
+
+Found while testing revoked access. Requesting a code for a revoked or
+unauthorised address produced a screen that said **"Code sent to
+&lt;address&gt;"** directly above **"FEED access is limited to authorized
+staff."**, and offered a six-digit field for a code that was never sent. Resend
+confirmed no email left the system — the backend was correct; only the UI lied.
+
+`OTPTab` had a single `error` status covering two different failures. The render
+guard returned the email form for `idle | requesting` and fell through to the
+code form for everything else, so a failed *request* landed on the code step. A
+failed *verification* belongs there, which is why one status could not serve
+both.
+
+Split into `requestFailed` (stay on the email step, show the reason inline,
+clear it when the address is edited) and `error` (a failed verification, stay on
+the code step). Covered by `src/test/auth/otp-tab-denied.test.tsx`, which
+asserts the refusal message and the *absence* of both "Code sent to" and the
+code prompt.
+
 ### #51 — Frontend lint command is not runnable
-**Priority**: Medium · **Status**: Open
+**Priority**: Medium · **Status**: Runnable as of 1.5.0-beta.4; backlog open
 **Bucket**: developer tooling
 
 `packages/frontend` uses a flat `eslint.config.js`, but its `lint` script still
-passes the legacy `--ext` flag, which ESLint rejects when flat configuration is
-active. Running ESLint without that flag then fails because the configuration
-imports `typescript-eslint`, which is not declared in the frontend package.
-Builds and tests remain available, but they are not a substitute for the lint
-gate. Repair the script and declare a compatible `typescript-eslint` dependency
-before treating frontend lint as part of release validation.
+passed the legacy `--ext` flag, which ESLint rejects when flat configuration is
+active. Removing that flag then failed because the configuration imports
+`typescript-eslint` — the unified v7+ package — which was never declared; only
+the split v6 `@typescript-eslint/{parser,eslint-plugin}` were.
 
-### #50 — Administrator authority and sanitized in-app backups
-**Priority**: High · **Status**: Design approved; implementation deferred
-**Bucket**: Data Management / authorization
+**Fixed.** `typescript-eslint ^8.65.0` is declared (compatible with the
+installed ESLint 8.57.1) and the script runs under flat config. This was not a
+new dependency in substance — the config already required it.
+
+The first successful run found **three `react-hooks/rules-of-hooks`
+violations**, all real and all fixed: a `useMemo` after an early return in
+`usage-summary.tsx`, and `useState`/`useEffect` called inside a column
+definition's `cell` in the Document Translator's `columns.tsx` (extracted to a
+`DocumentNameCell` component, which also removed a duplicate 768px mobile
+breakpoint that `useIsMobile` already owns).
+
+**Still open: the backlog.** 497 problems remain — `no-unused-vars` (190),
+`react-refresh/only-export-components` (125), `no-explicit-any` (116),
+`react-hooks/exhaustive-deps` (36), and a long tail. `--max-warnings 0` is
+deliberately off the script until that is cleared: a gate nothing can pass is
+not a gate. The `exhaustive-deps` warnings are the ones most likely to hide
+real bugs and are the sensible next slice.
+
+Consider a lint ratchet mirroring the type-check one
+(`npm run typecheck:ratchet`, see `docs/TSC-DEBT.md`) so the count cannot grow
+while the backlog is worked down.
+
+### #50a — Administrator authority and the Admin page
+**Priority**: High · **Status**: Implemented in 1.5.0-beta.4; route tightening
+open for beta.5
+**Bucket**: authorization
 
 FEED's shared organization-wide data model does not imply that every signed-in
-user should be able to change privileges, download sensitive configuration, or
-replace the database. The approved direction is to make the first verified user
-on a fresh installation an Administrator through an atomic bootstrap rule, add
-Staff and Administrator roles, hide the future Admin page from Staff, and—more
-importantly—enforce authorization on every privileged backend endpoint. Hiding
-navigation is not a security boundary.
+user should be able to change privileges or replace the database. beta.4 adds
+Staff and Administrator roles, a unified user roster, a Domain/Allowlist sign-in
+policy, a privileged-action audit log, an operator recovery CLI, and the Admin
+page at `/admin`.
 
-Database backup terminology also needs care. A transactionally consistent raw
-SQLite snapshot necessarily contains encrypted API-key material, encryption-key
-records, authentication records, and other sensitive configuration. A browser-
-downloadable artifact that excludes those records is therefore a **sanitized
-logical backup**, not a byte-for-byte database snapshot. Full disaster-recovery
-snapshots remain an operator-controlled deployment concern. The in-app restore
-design must build a fresh compatible database from the sanitized artifact and
-require fresh encryption/API-key configuration afterward.
+Two decisions departed from the original design and are recorded in
+`docs/auth/admin-page-implementation-plan.md`:
 
-The accepted authority, bootstrap, backup, and restore boundaries are recorded
-in `docs/auth/administrator-authorization.md` and
-`docs/data-management/backup-and-restore.md`. Implementation is intentionally
-deferred until the Data Management and OFB import pilot is complete.
+- **Bootstrap on a populated instance.** "First verified user becomes
+  Administrator" assumes an empty `User` table, which production is not. The
+  migration promotes every pre-existing user and the roster is pruned manually.
+  New users created afterwards default to Staff.
+- **Authority is read per request, not from the JWT.** A seven-day token would
+  have made revocation advisory.
+
+**Still open for beta.5:** existing privileged routes — procurement rollback and
+restore, AI configuration, data-shaping rules — are *not* yet behind
+`requireAdmin`. Gating them in the same release as the migration risked removing
+capability the pantry depends on before the roster was verified. Any
+authenticated user can still reach them until that lands.
+
+### #50b — Restore, clean slate, and the backup contract
+**Priority**: High · **Status**: Backup shipped in 1.5.0-beta.6; **restore
+shipped in 1.5.0-beta.7**; clean slate designed, not yet built
+**Bucket**: Data Management / authorization
+
+**Backup shipped.** Administrator-only, audited, self-describing artifact with
+a mechanically enforced table contract. See the 1.5.0-beta.6 changelog.
+
+**Restore shipped** in 1.5.0-beta.7: build-and-swap via `VACUUM INTO`, partial
+units closed under foreign keys, in-memory maintenance mode, pre-restore
+snapshot, exit-to-restart. Two things from the design remain open — the roster
+in the artifact (needed only for restoring onto new hardware) and a streaming
+parse for artifacts past ~256MB. Both are recorded in
+`docs/data-management/beta-6-backup-restore-brief.md`.
+
+**Clean slate is still designed-only.** Full record in
+`docs/data-management/beta-6-backup-restore-brief.md`. The decisions that
+matter:
+
+- **Build and swap, not a live transaction.** A single interactive transaction
+  cannot hold a full restore — the largest procurement import is 17,814 rows at
+  ~18s against a 30s ceiling, and a restore is an order of magnitude larger.
+  The scratch file sits on the same bind mount, so `rename(2)` supplies
+  atomicity and the ceiling never applies. The app restarts itself by exiting;
+  `restart: unless-stopped` does the rest.
+- **Maintenance mode is in-memory and process-local**, never a database flag —
+  the flag would live in the file being replaced, and a crashed restore must
+  not strand the instance.
+- **Replace, never merge.** The blocker is identity, not fragility:
+  `FoodItem.id` and `Category.id` are autoincrement and referenced by id from
+  translations and inventory events, so merging two id-spaces risks binding a
+  translation to the wrong item — invisible on screen and untouched by physical
+  reconciliation. Procurement is the one tractable exception, because its
+  source references are natural keys; that is a named follow-up.
+- **The roster is carried, with roles neutralised.** Excluding `User` does not
+  preserve it under build-and-swap — it destroys it, arming the bootstrap and
+  recreating the beta.4 privilege-escalation race. It is now included, every
+  restored role lands as `STAFF`, and the restoring administrator is
+  re-granted.
+- **Clean slate is the same mechanism with a seed as its source**, offering
+  "With examples" (default) or "Structure only", and preserving the roster by
+  default. Design in `docs/data-management/clean-slate-and-seed.md`; the seed
+  currently covers five models and demonstrates nothing of the Shopping List
+  Builder.
+
+**Two prerequisites must land first:**
+
+1. **API keys are not editable in the UI.** `PUT /api/ai-config/:id` accepts
+   `apiKey` and re-encrypts, but `EditAIModelDialog` renders no field —
+   rotating a key today means deleting the configuration and recreating it,
+   losing its model, costs, and limits. Restore ends with "re-enter your
+   provider keys," which needs somewhere to enter one. Fix: render the field
+   with a `••••••••••••` placeholder and send `apiKey` only when non-empty.
+2. **`AIConfiguration` should be redacted, not excluded.** beta.6 dropped the
+   whole table because it holds `encryptedApiKey`; `backup-and-restore.md` only
+   ever asked for column-level exclusion. Redacting `encryptedApiKey` and
+   `salt` preserves the administrator's model and cost configuration. Bumps
+   `tableContractVersion` to 2, worth doing before anyone depends on v1.
+
+**Also queued:** `sanitized-backup.ts` calls `schemaVersion` "the compatibility
+key that matters." It is not — `tableContractVersion` is the gate and
+`schemaVersion` is provenance. Gating on the migration name would refuse valid
+artifacts, since most migrations do not touch exported tables.
+
+### #61 — Fresh Food Alliance Pickup History is a hand-rolled table
+**Priority**: Medium · **Status**: Open
+**Bucket**: table standard
+
+`components/analytics/donor-analytics.tsx` renders this card with a bare
+`<Table>` rather than `EnhancedDataTable`, which the table standard
+(`docs/layout/table-standard.md`) says is the one table component. It therefore
+has no filter, no sort, no column visibility, and no pagination, and it does not
+publish an `onViewStateChange` view.
+
+That has a reporting consequence now that the card is exportable (beta.9): the
+other two table cards preserve the filter, sort, visible columns, and page size
+the user configured, and this one cannot, because there is no state to preserve.
+Its report card exports every partner in payload order. The backend card
+(`FRESH_ALLIANCE_PICKUP_HISTORY`) is already built on the shared
+`tableCardData` helper, so when the screen moves onto `EnhancedDataTable` the
+card gains view-state handling by passing the published view through — no
+backend change needed.
+
+Also not covered by `table-column-parity.test.ts`, which compares screen
+`ColumnDef` arrays against report columns; there is no `ColumnDef` array here to
+compare against.
 
 ### #49 — Document Translator upload UI bypasses current component standards
 **Priority**: Medium · **Status**: Open
@@ -129,6 +891,41 @@ The active operational workspace is **Analytics** at `/analytics`. The
 placeholder under Information. Do not mount the dormant template manager,
 selection provider, generation dialogs, or export pipeline there until a
 validated report-template contract is approved.
+
+**Audit 2026-08-05 (1.5.0-beta.8) — the infrastructure still runs.** Mounted
+`routes/reports.ts` on a throwaway branch at `/api/legacy-reports` and exercised
+it against current dev data. Result: **nothing is broken.**
+
+| Checked | Result |
+|---|---|
+| `tsc --noEmit` with the router mounted | 0 errors — no schema or service drift |
+| `GET /cards` | 200, 31 cards registered |
+| `POST /query` | 200 in 28ms, real data (168 items / 58 in stock) |
+| `POST /cards/:id/csv` | 200, 11.4KB, correct headers and date-ranged filename |
+| `POST /export` | 200 in 1.07s — valid 135KB ZIP: 2 CSVs, a 6-page PDF (`%PDF-1.4`, proper `startxref`/`%%EOF`), and a provenance manifest |
+| Template CRUD | create 201 / update 200 / list / delete 204 |
+| PDF HTML | 2 server-authored SVG charts with real geometry, 169 table rows, zero external references |
+
+The PDF path is **not** dormant infrastructure: `services/pdf/chromium.ts` is
+shared with the live Shopping List Builder, so puppeteer and the HTML-to-PDF
+layer are exercised in production every time a builder PDF is generated. Only
+the report-specific layer above it is cold.
+
+**Removed 2026-08-06 (beta.8):** `frontend/src/components/dashboard/logistics-cards.tsx`
+(110 lines, last touched `a60951b`, 2026-07-11). Imported by nothing — not the
+path, not the symbol, not a test. It rendered Projected Stockouts, Quantity
+Coverage, Median Days of Cover, and Known 30-Day Replenishment Cost as
+`SelectableBlock`s on the Dashboard: four of the exact claims RITE rejected,
+one reconnection away from being live again. Recoverable from `a60951b` if the
+selection integration is ever wanted, but the cards it wrapped are not.
+
+The probe was reverted; nothing is mounted. The first watchpoint below is the
+live concern — `/query` still returns `projectedStockoutsWithinHorizon`,
+`medianDaysOfCover`, and `daysOfCoverBands`, and the item CSV still carries
+`daily_burn`, `weekly_burn`, `days_of_cover`, `projected_stockout_at`, and
+`projected_cost_cents` columns. Those are the claims RITE rejected. They are
+unreachable today only because the router is unmounted; mounting it as-is would
+re-publish every one of them.
 
 Watchpoints:
 
@@ -1127,6 +1924,57 @@ flow in git history or older docs.
 ---
 
 ## Recently Resolved
+
+### August 2026
+- **Tracking review mislabeled a configuration callback as unreadable row 501**
+  (Aug 11 2026): the first 500-row staging batch contained approved
+  `Downstairs Shopping Visits` source wording before the effective FEED display
+  alias changed from `Visits`. Historical source wording was incorrectly
+  required to equal editable UI wording, and the parser catch converted the
+  callback failure into a CSV-row error. Approved labels now map through the
+  stable metric key and remain provenance; semantic contract and effective
+  coverage are still enforced. Only actual CSV parser failures receive row
+  messaging, and the complete 1,114-row artifact validates against the local
+  configured metric revisions.
+- **Tracking service-week dates crossed worksheet boundaries** (Aug 11 2026):
+  the migration exporter initially interpreted “Week of the Month” as the nth
+  weekday. November 2023 week 5 was therefore projected to Tuesday, December 5
+  and collided with December's real December 5 observation. Tracking rows are
+  Tuesday–Thursday service blocks: the first block intersects the beginning of
+  the month and later rows advance seven days. The exporter now applies that
+  calendar rule, reports both workbook cells if a true duplicate remains, and
+  has a regression for the November 28 case. The corrected full workbook
+  exports and parses as 1,114 observations across 318 dates with no duplicate
+  identity or contract warning.
+- **Analytics report coverage** (Aug 7 2026): eight cards rendered on the
+  Analytics lenses but were not in the report registry, so a user could see
+  them and not export them — Recurring Availability, Operational Pressure,
+  Grocery Partner Mix, Recorded Donated Value, Fresh Food Alliance Pickup
+  History, Fresh Food Alliance Donations Over Time, and the two legacy
+  donation cards. All eight registered; the registry now holds 23.
+  `src/test/analytics-card-coverage.test.ts` fails if a card renders on a lens
+  without a `SelectableBlock`, or if a registered card loses its home on the
+  page. Nothing enforced this before, which is why the gap went unnoticed.
+- **Printed chart units** (Aug 7 2026): `hBarSvg` hard-coded a `lb` suffix, so
+  "Where Paid Procurement Dollars Went" printed `43,245 lb` for $43,245 of
+  spend and Availability Summary printed `58 lb` for a count of items. The unit
+  is the caller's business now. Found by rendering a PDF, not by a test.
+- **Printed chart labels ran under their bars** (Aug 7 2026): the label column
+  is a fixed width and long product names were drawn without truncation.
+  Labels are now measured against real Helvetica metrics and cut with an
+  ellipsis; the CSV beside the PDF still carries every name in full.
+- **Available Assortment Over Time rendered at half width** (Aug 7 2026): its
+  `md:col-span-2` sat on the inner `Card` while `SelectableBlock` was the grid
+  item, so the span applied to a non-child. The wrapping two-column grid was
+  redundant — both children were full width — and was removed. Same class of
+  defect as the earlier 56px card gap.
+- **Recurring Availability stranded a KPI beside dead space** (Aug 7 2026):
+  `max-w-4xl` capped the divider and chart at roughly half the card.
+- **Tables did not animate in selection mode** (Aug 7 2026): `variant="table"`
+  suppressed the wiggle, which read as "this block is not selectable". Every
+  block wiggles now, with tilt scaled inversely to block width so a wide table
+  and a narrow card displace about the same distance. The `variant` prop is
+  gone.
 
 ### July 2026
 - **#48** (Jul 13 2026): Replaced the catalog-wide availability

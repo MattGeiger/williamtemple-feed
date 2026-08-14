@@ -38,6 +38,7 @@ const loadedSettings: OperatingHoursSettings = {
 describe('Operating Hours settings', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    window.history.replaceState(null, '', '/');
     getOperatingHours.mockResolvedValue(loadedSettings);
     updateOperatingHours.mockImplementation(async (input) => ({
       ...input,
@@ -83,6 +84,18 @@ describe('Operating Hours settings', () => {
       expect.objectContaining({ title: 'Settings', href: '/settings' }),
     ]));
     expect(inventory?.items?.some((item) => item.href === '/settings')).toBe(false);
+    expect(navigationItems.some((item) =>
+      item.items?.some((child) => child.href === '/service-metrics')
+    )).toBe(false);
+  });
+
+  test('keeps Settings focused on organization operating hours', async () => {
+    const { container } = render(<SettingsWorkspace />);
+
+    const operatingHours = await screen.findByText('Operating Hours');
+    expect(screen.getByRole('region', { name: 'Operating Hours' })).toContainElement(operatingHours);
+    expect(screen.queryByText('Service Metrics')).toBeNull();
+    expect(container.querySelector('[data-slot="card"]')).toBeNull();
   });
 
   test('loads and saves one organization-wide schedule', async () => {

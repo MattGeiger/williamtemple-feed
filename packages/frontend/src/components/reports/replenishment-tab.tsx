@@ -184,7 +184,7 @@ export function ReplenishmentTab(props: ReportTabProps<ReplenishmentResult>) {
             </Card></SelectableBlock>
           </div>
 
-          <SelectableBlock cardId={REPLENISHMENT_CARDS.planTable} variant="table"><div className="space-y-2">
+          <SelectableBlock cardId={REPLENISHMENT_CARDS.planTable}><div className="space-y-2">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-lg font-semibold">Replenishment Plan</h3>

@@ -31,8 +31,16 @@ interface ToolbarAction {
   // Accepts both static Lucide icons and animate-ui native icons (the latter
   // animate on button hover/tap via the AnimateIcon wrapper below).
   icon?: React.ComponentType<any>
-  variant: 'default' | 'destructive' | 'outline-solid' | 'secondary' | 'ghost' | 'link'
+  // 'outline', not 'outline-solid'. The Tailwind v4 codemod rewrote this union
+  // member as though it were a utility class name (that rename is real for
+  // classes, not for these values), leaving a variant Button does not accept
+  // while every caller passed 'outline'.
+  variant: 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link'
   action: () => void
+  /** Native title attribute — a one-line hint, matching TableRowAction.title. */
+  title?: string
+  /** Optional trigger ref for dialogs that must restore focus on close. */
+  buttonRef?: React.Ref<HTMLButtonElement>
 }
 
 interface TableFeatureBarProps<TData> {
@@ -114,6 +122,8 @@ export function TableFeatureBar<TData>({
               variant={action.variant}
               size="sm"
               onClick={action.action}
+              title={action.title}
+              ref={action.buttonRef}
             >
               {action.icon && <action.icon className="h-4 w-4 mr-2" />}
               {action.label}
