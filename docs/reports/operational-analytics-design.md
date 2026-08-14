@@ -381,10 +381,12 @@ semantic package parsing or map supplier records into Food Item quantities.
 Strict extraction of an unambiguous leading supplier code is identity parsing,
 not package interpretation.
 
-AI-assisted cross-source mapping, donation-source synthesis, and SIMC/
-Link2Feed enrichment are v2. SIMC contains PII; prefer aggregate or
-de-identified exports, minimize retained fields, establish encryption and
-retention first, and never send PII to an external LLM.
+AI-assisted cross-source mapping, donation-source synthesis, and cross-system
+SIMC/Link2Feed identity matching are v2. The current SIMC importer follows a
+reviewed allowlist, discards names, contact fields, Notes, and full birth dates,
+and retains only the privacy-minimized Service facts and profiles defined in
+the Service Analytics plan. FEED must never send imported client data to an
+external LLM.
 
 ## Delivery sequence
 

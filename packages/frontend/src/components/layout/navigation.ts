@@ -6,7 +6,9 @@
 // not covered by this license; see TRADEMARKS.md.
 
 import { Info, Package, Globe2, Settings } from "@/components/ui/icons";
+import type { ComponentType } from 'react';
 import {
+  AdminNavIcon,
   AIConfigurationNavIcon,
   AnalyticsNavIcon,
   CategoriesNavIcon,
@@ -19,16 +21,27 @@ import {
   DataManagementNavIcon,
   LanguagesNavIcon,
   ShoppingListsNavIcon,
+  ServiceLogNavIcon,
+  ServiceNavIcon,
   TranslationsNavIcon,
 } from './animated-nav-icons';
 
 export interface NavItem {
   title: string;
   href: string;
-  icon: any;
+  icon: ComponentType<{
+    className?: string;
+    'aria-hidden'?: boolean | 'true' | 'false';
+  }>;
   items?: NavItem[];
   isActive?: boolean;
   isFuture?: boolean;  // For planned features
+  /**
+   * Shown only to administrators. Presentation only — the server enforces
+   * authority on every privileged route independently, and an omitted menu
+   * item is not a security boundary.
+   */
+  adminOnly?: boolean;
 }
 
 export const navigationItems: NavItem[] = [
@@ -77,6 +90,18 @@ export const navigationItems: NavItem[] = [
     ]
   },
   {
+    title: "Service",
+    href: "#",
+    icon: ServiceNavIcon,
+    items: [
+      {
+        title: "Service Log",
+        href: "/service-log",
+        icon: ServiceLogNavIcon,
+      },
+    ],
+  },
+  {
     title: "Tools",
     href: "#",
     icon: Settings,
@@ -109,7 +134,7 @@ export const navigationItems: NavItem[] = [
         icon: SettingsNavIcon,
       },
       {
-        title: "Data Management",
+        title: "Data",
         href: "/data-management",
         icon: DataManagementNavIcon,
       },
@@ -117,6 +142,12 @@ export const navigationItems: NavItem[] = [
         title: "Reports",
         href: "/reports",
         icon: ReportsNavIcon,
+      },
+      {
+        title: "Admin",
+        href: "/admin",
+        icon: AdminNavIcon,
+        adminOnly: true,
       },
       {
         title: "Help",

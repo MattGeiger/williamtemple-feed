@@ -16,9 +16,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { Download } from 'lucide-react';
 
-import { ArrowUpDown } from '@/components/ui/icons';
 import { SectionHeader } from '@/components/shared/section-header';
 import { createPageTitleIcon } from '@/components/layout/page-title-icon';
 import { ChartNoAxesCombinedIcon } from '@/components/ui/chart-no-axes-combined';
@@ -54,6 +52,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { ErrorHandlerService } from '@/services/error/ErrorHandlerService';
+import { SelectableBlock } from '@/components/reports/selection';
 import { operationalReportsService } from '@/services/operational-reports';
 import {
   LimitChange,
@@ -70,6 +69,8 @@ import {
   carbonTheme,
   getChartStatusColor,
 } from '@/lib/colors';
+import { SortableHeader } from "@/components/ui/sortable-header"
+import { formatDateTime } from '@/lib/formatting/date';
 
 const PageTitleAnalyticsIcon = createPageTitleIcon(ChartNoAxesCombinedIcon);
 
@@ -295,14 +296,23 @@ const formatDuration = (hours: number) => {
   return `${(hours / 24).toFixed(1)} days`;
 };
 
-function CsvButton({ cardId, onExport }: { cardId: string; onExport: (id: string) => void }) {
-  return (
-    <Button variant="ghost" size="sm" onClick={() => onExport(cardId)}>
-      <Download className="mr-1 h-4 w-4" />
-      Export CSV
-    </Button>
-  );
-}
+/*
+ * Per-card "Export CSV" and a page-level "Export Raw History" used to live
+ * here. That was the primitive export workflow rejected during ideation: a
+ * button on every card cluttered the surface and left people unsure how to
+ * produce a report at all.
+ *
+ * The chosen pattern is ZEV's — one "Generate Report" action puts the page in
+ * selection mode, cards wiggle and take an order number as you pick them, and a
+ * single modal chooses PDF and/or CSV, delivered as one ZIP. That flow already
+ * exists in components/reports/selection.tsx and
+ * components/reports/generate-report-dialog.tsx; it was mothballed with the
+ * rest of the Reports workspace in the #46 rollback, not replaced.
+ *
+ * These buttons outlived the decision and were still rendering here — eight of
+ * them on the Operations lens. Removed so the rejected pattern is not the one
+ * on screen while the intended one is revived.
+ */
 
 interface OperationalAnalyticsWorkspaceProps {
   showHeader?: boolean;
@@ -314,6 +324,15 @@ export function OperationalAnalyticsWorkspace({
   range = DEFAULT_ANALYTICS_RANGE,
 }: OperationalAnalyticsWorkspaceProps = {}) {
   const [assortmentCategory, setAssortmentCategory] = React.useState('all');
+  type TableView = {
+    search: string;
+    sort: { id: string; desc: boolean } | null;
+    visibleColumns: string[];
+    pageSize: number;
+    pageIndex: number;
+  };
+  const [episodeView, setEpisodeView] = React.useState<TableView | null>(null);
+  const [rationingView, setRationingView] = React.useState<TableView | null>(null);
   const [result, setResult] = React.useState<OperationalAnalyticsResult | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
   const request = React.useMemo(() => ({ ...range }), [range]);
@@ -359,27 +378,6 @@ export function OperationalAnalyticsWorkspace({
     }
   }, [assortmentCategory, result]);
 
-  const exportCard = async (cardId: string) => {
-    try {
-      await operationalReportsService.downloadCardCsv(
-        cardId,
-        cardId === 'available-assortment' && assortmentCategory !== 'all'
-          ? { ...request, assortmentCategoryId: Number(assortmentCategory) }
-          : request
-      );
-    } catch (error) {
-      ErrorHandlerService.handleError(error, 'operationalReportsCsv');
-    }
-  };
-
-  const exportRaw = async () => {
-    try {
-      await operationalReportsService.downloadRawCsv(request);
-    } catch (error) {
-      ErrorHandlerService.handleError(error, 'operationalReportsRawCsv');
-    }
-  };
-
   return (
     <TooltipProvider>
     <div className={showHeader ? 'space-y-6 min-w-0 w-full pt-6' : 'space-y-6 min-w-0 w-full'}>
@@ -399,10 +397,6 @@ export function OperationalAnalyticsWorkspace({
             ? `${format(new Date(`${result.range.startDate}T00:00:00`), 'MMM d, yyyy')} – ${format(new Date(`${result.range.endDate}T00:00:00`), 'MMM d, yyyy')}`
             : 'Loading selected date range…'}
         </p>
-        <Button variant="outline" onClick={() => void exportRaw()}>
-          <Download className="mr-2 h-4 w-4" />
-          Export Raw History
-        </Button>
       </div>
 
       {isLoading && !result ? (
@@ -415,7 +409,8 @@ export function OperationalAnalyticsWorkspace({
         </div>
       ) : result ? (
         <>
-          <Card className="min-w-0">
+          <SelectableBlock cardId="operations-availability-summary">
+            <Card className="min-w-0">
             <CardHeader className="flex flex-col items-start justify-between gap-2 space-y-0 sm:flex-row">
               <div>
                 <CardTitle>Availability Summary</CardTitle>
@@ -435,7 +430,6 @@ export function OperationalAnalyticsWorkspace({
                   </Tooltip>
                 </CardDescription>
               </div>
-              <CsvButton cardId="availability-summary" onExport={exportCard} />
             </CardHeader>
             <CardContent>
               <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:items-center">
@@ -479,10 +473,22 @@ export function OperationalAnalyticsWorkspace({
                 </div>
               </div>
             </CardContent>
-          </Card>
+            </Card>
+          </SelectableBlock>
 
-          <div className="grid min-w-0 gap-4 md:grid-cols-2">
-            <Card className="min-w-0 md:col-span-2">
+          {/*
+            No wrapping grid. Both of these cards are full width, and the
+            two-column grid they used to sit in did nothing but break them:
+            SelectableBlock is the grid item, so the `md:col-span-2` on the
+            inner Card applied to a non-child and Assortment rendered at half
+            width with dead space beside it. They now sit in the page's own
+            `space-y-6` flow, like every other full-width card here.
+          */}
+          <SelectableBlock
+            cardId="operations-available-assortment"
+            options={{ categoryId: assortmentCategory }}
+          >
+              <Card className="min-w-0">
               <CardHeader className="flex flex-col items-start justify-between gap-2 space-y-0 sm:flex-row">
                 <div>
                   <CardTitle>Available Assortment Over Time</CardTitle>
@@ -502,7 +508,6 @@ export function OperationalAnalyticsWorkspace({
                       ))}
                     </SelectContent>
                   </Select>
-                  <CsvButton cardId="available-assortment" onExport={exportCard} />
                 </div>
               </CardHeader>
               <CardContent className="space-y-5">
@@ -554,15 +559,16 @@ export function OperationalAnalyticsWorkspace({
                   </ComposedChart>
                 </ChartContainer>
               </CardContent>
-            </Card>
+              </Card>
+          </SelectableBlock>
 
-            <Card className="min-w-0 md:col-span-2">
+          <SelectableBlock cardId="operations-recurring-availability">
+            <Card className="min-w-0">
               <CardHeader className="flex flex-col items-start justify-between gap-2 space-y-0 sm:flex-row">
                 <div>
                   <CardTitle>Recurring Availability</CardTitle>
                   <CardDescription>Repeated item cycles; one-time unavailable items remain outside this lens</CardDescription>
                 </div>
-                <CsvButton cardId="recurring-availability" onExport={exportCard} />
               </CardHeader>
               <CardContent className="space-y-6">
                 {recurringAvailability.length > 0 ? (
@@ -579,21 +585,28 @@ export function OperationalAnalyticsWorkspace({
                       />
                     </div>
 
-                    <div className="min-w-0 max-w-4xl space-y-3 border-t pt-6">
+                    {/*
+                      Full card width. `max-w-4xl` capped this block at roughly
+                      half the card, which stopped the divider under the third
+                      KPI and left the fourth stranded above empty space — the
+                      chart read as a fragment of a wider one. The item-name
+                      axis gets the room a full-width chart can afford.
+                    */}
+                    <div className="min-w-0 space-y-3 border-t pt-6">
                         <div>
                           <h3 className="font-medium">Items Cycling Most Often</h3>
                           <p className="text-sm text-muted-foreground">Up to eight recurring items, ranked by unavailable entries</p>
                         </div>
-                        <ChartContainer config={recurringAvailabilityConfig} className="h-72 min-w-0 w-full">
+                        <ChartContainer config={recurringAvailabilityConfig} className="h-80 min-w-0 w-full">
                           <BarChart
                             accessibilityLayer
                             data={recurringAvailability}
                             layout="vertical"
-                            margin={{ left: 8, right: 16 }}
+                            margin={{ left: 8, right: 24 }}
                           >
                             <CartesianGrid horizontal={false} />
                             <XAxis type="number" allowDecimals={false} tickLine={false} axisLine={false} />
-                            <YAxis dataKey="itemName" type="category" width={112} tickLine={false} axisLine={false} />
+                            <YAxis dataKey="itemName" type="category" width={168} tickLine={false} axisLine={false} />
                             <ChartTooltip content={<ChartTooltipContent />} />
                             <ChartLegend content={<ChartLegendContent />} />
                             <Bar isAnimationActive={!prefersReducedMotion()} dataKey="unavailableEntries" fill="var(--color-unavailableEntries)" radius={3} />
@@ -609,15 +622,15 @@ export function OperationalAnalyticsWorkspace({
                 )}
               </CardContent>
             </Card>
-          </div>
+          </SelectableBlock>
 
+          <SelectableBlock cardId="operations-operational-pressure">
           <Card className="min-w-0">
             <CardHeader className="flex flex-col items-start justify-between gap-2 space-y-0 sm:flex-row">
               <div>
                 <CardTitle>Operational Pressure</CardTitle>
                 <CardDescription>Food Item pressure and separate category-policy counts during scheduled service hours</CardDescription>
               </div>
-              <CsvButton cardId="operational-pressure" onExport={exportCard} />
             </CardHeader>
             <CardContent>
               <ChartContainer config={pressureChart.config} className="h-64 min-w-0 w-full">
@@ -642,14 +655,15 @@ export function OperationalAnalyticsWorkspace({
               </ChartContainer>
             </CardContent>
           </Card>
+          </SelectableBlock>
 
-          <Card className="min-w-0">
+          <SelectableBlock cardId="operations-category-pressure">
+            <Card className="min-w-0">
             <CardHeader className="flex flex-col items-start justify-between gap-2 space-y-0 sm:flex-row">
               <div>
                 <CardTitle>Category Pressure</CardTitle>
                 <CardDescription>Independent service-pressure signals and recurring unavailability by Category</CardDescription>
               </div>
-              <CsvButton cardId="category-pressure" onExport={exportCard} />
             </CardHeader>
             <CardContent>
               {result.categoryPressure.length > 0 ? (
@@ -714,13 +728,28 @@ export function OperationalAnalyticsWorkspace({
                 </div>
               )}
             </CardContent>
-          </Card>
+            </Card>
+          </SelectableBlock>
 
-          <DetailHeader title="Unavailable Episodes" description="Each recorded period when an item was unavailable" cardId="unavailable-episodes" onExport={exportCard} />
-          <EnhancedDataTable columns={episodeColumns} data={result.episodes} isLoading={isLoading} filterColumn="itemName" filterPlaceholder="Filter items..." />
+          <SelectableBlock
+            cardId="operations-unavailable-episodes"
+            options={episodeView ?? undefined}
+          >
+            <div className="space-y-3">
+              <DetailHeader title="Unavailable Episodes" description="Each recorded period when an item was unavailable" />
+              <EnhancedDataTable columns={episodeColumns} data={result.episodes} isLoading={isLoading} filterColumn="itemName" filterPlaceholder="Filter items..." onViewStateChange={setEpisodeView} />
+            </div>
+          </SelectableBlock>
 
-          <DetailHeader title="Rationing History" description="Item and category limit-policy changes" cardId="rationing-history" onExport={exportCard} />
-          <EnhancedDataTable columns={limitColumns} data={result.limitChanges} isLoading={isLoading} filterColumn="entityName" filterPlaceholder="Filter items or categories..." />
+          <SelectableBlock
+            cardId="operations-rationing-history"
+            options={rationingView ?? undefined}
+          >
+            <div className="space-y-3">
+              <DetailHeader title="Rationing History" description="Item and category limit-policy changes" />
+              <EnhancedDataTable columns={limitColumns} data={result.limitChanges} isLoading={isLoading} filterColumn="entityName" filterPlaceholder="Filter items or categories..." onViewStateChange={setRationingView} />
+            </div>
+          </SelectableBlock>
         </>
       ) : null}
     </div>
@@ -747,32 +776,31 @@ function Kpi({ label, value }: { label: string; value: string }) {
   );
 }
 
-function DetailHeader({ title, description, cardId, onExport }: { title: string; description: string; cardId: string; onExport: (id: string) => void }) {
-  return <div className="flex flex-wrap items-start justify-between gap-2"><div><h3 className="text-lg font-semibold">{title}</h3><p className="text-sm text-muted-foreground">{description}</p></div><CsvButton cardId={cardId} onExport={onExport} /></div>;
+function DetailHeader({ title, description }: { title: string; description: string }) {
+  return (
+    <div className="flex flex-wrap items-start justify-between gap-2">
+      <div>
+        <h3 className="text-lg font-semibold">{title}</h3>
+        <p className="text-sm text-muted-foreground">{description}</p>
+      </div>
+    </div>
+  );
 }
 
 // Sortable header, matching the ghost-button + ArrowUpDown pattern used by
 // the management tables (e.g. category-management/data-table/columns.tsx).
 function sortableHeader<TData>(label: string): ColumnDef<TData>['header'] {
-  return ({ column }) => (
-    <Button
-      variant="ghost"
-      onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-    >
-      {label}
-      <ArrowUpDown className="ml-2 h-4 w-4" />
-    </Button>
-  );
+  return ({ column }) => <SortableHeader column={column}>{label}</SortableHeader>;
 }
 
 const episodeColumns: ColumnDef<UnavailableEpisode>[] = [
   { accessorKey: 'itemName', header: sortableHeader('Name') },
   { accessorKey: 'categoryName', header: sortableHeader('Category') },
-  { accessorKey: 'startedAt', header: sortableHeader('Unavailable Since'), cell: ({ row }) => format(new Date(row.original.startedAt), 'MMM d, yyyy h:mm a') },
+  { accessorKey: 'startedAt', header: sortableHeader('Unavailable Since'), cell: ({ row }) => formatDateTime(row.original.startedAt) },
   {
     accessorKey: 'endedAt',
     header: sortableHeader('Available Again'),
-    cell: ({ row }) => row.original.endedAt ? format(new Date(row.original.endedAt), 'MMM d, yyyy h:mm a') : 'Ongoing',
+    cell: ({ row }) => row.original.endedAt ? formatDateTime(row.original.endedAt) : 'Ongoing',
     // Ongoing episodes (null endedAt) sort as the most recent end.
     sortingFn: (a, b) => (a.original.endedAt ?? '￿').localeCompare(b.original.endedAt ?? '￿'),
   },
@@ -786,5 +814,5 @@ const limitColumns: ColumnDef<LimitChange>[] = [
   { accessorKey: 'categoryName', header: sortableHeader('Category'), cell: ({ row }) => row.original.categoryName ?? '—' },
   { accessorKey: 'limit', header: sortableHeader('Limit'), cell: ({ row }) => row.original.isNoLimit ? 'No Limit' : row.original.limit },
   { accessorKey: 'limitType', header: sortableHeader('Applies To'), cell: ({ row }) => row.original.isNoLimit ? '—' : row.original.limitType === 'person' ? 'Per Person' : 'Per Household' },
-  { accessorKey: 'recordedAt', header: sortableHeader('Changed'), cell: ({ row }) => format(new Date(row.original.recordedAt), 'MMM d, yyyy h:mm a') },
+  { accessorKey: 'recordedAt', header: sortableHeader('Changed'), cell: ({ row }) => formatDateTime(row.original.recordedAt) },
 ];

@@ -49,12 +49,12 @@ const animations = {
   ) satisfies Record<string, Variants>,
 } as const;
 
-function IconComponent({ size, ...props }: GripProps) {
+const IconComponent = React.forwardRef<SVGSVGElement, GripProps>(function IconComponent({ size, ...props }, ref) {
   const { controls } = useAnimateIconContext();
   const variants = getVariants(animations);
 
   return (
-    <motion.svg
+    <motion.svg ref={ref}
       xmlns="http://www.w3.org/2000/svg"
       width={size}
       height={size}
@@ -79,7 +79,8 @@ function IconComponent({ size, ...props }: GripProps) {
       ))}
     </motion.svg>
   );
-}
+});
+IconComponent.displayName = 'IconComponent';
 
 function Grip(props: GripProps) {
   return <IconWrapper icon={IconComponent} {...props} />;

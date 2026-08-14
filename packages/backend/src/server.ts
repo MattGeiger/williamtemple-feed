@@ -27,10 +27,15 @@ import systemPromptsRouter from './routes/system-prompts';
 import systemRouter from './routes/system';
 import publicInventoryRouter from './routes/public-inventory';
 import operationalReportsRouter from './routes/operational-reports';
+import analyticsReportsRouter from './routes/analytics-reports';
 import settingsRouter from './routes/settings';
 import procurementRouter from './routes/procurement';
+import dataImportRouter from './routes/data-import';
+import serviceRouter from './routes/service';
 import authTestRouter from './routes/auth-test';
 import authRouter from './routes/auth';
+import adminRouter from './routes/admin';
+import { maintenanceGuard } from './services/restore/maintenance-mode';
 import { errorHandler } from './middleware/error-handler';
 import { jsonErrorHandler } from './middleware/json-error-handler';
 import { authMiddleware, jwtAuthMiddleware } from './middleware/auth';
@@ -83,13 +88,24 @@ export const createServer = () => {
   app.use(jwtAuthMiddleware);
   app.use(authMiddleware);
 
+  // After authentication, so an unauthenticated caller still gets 401 first —
+  // maintenance is not an authentication bypass. Refuses mutations with 503
+  // while a restore swaps the database underneath the process; reads keep
+  // working so staff can look things up while they wait.
+  app.use(maintenanceGuard);
+
   // Routes
   app.use('/api/global-limit', globalLimitRouter);
   app.use('/api/categories', categoriesRouter);
   app.use('/api/food-items', foodItemsRouter);
   app.use('/api/reports', operationalReportsRouter);
+  // Report generation for the Analytics lenses. Separate from /api/reports so
+  // it cannot inherit the dormant registry's rejected claims (ISSUES #46).
+  app.use('/api/analytics-reports', analyticsReportsRouter);
   app.use('/api/settings', settingsRouter);
   app.use('/api/procurement', procurementRouter);
+  app.use('/api/data-import', dataImportRouter);
+  app.use('/api/service', serviceRouter);
   app.use('/api/languages', languagesRouter);
   app.use('/api/translations', translationsRouter);
   app.use('/api/alerts', alertsRouter);
@@ -105,6 +121,8 @@ export const createServer = () => {
   app.use('/api/system', systemRouter);
   app.use('/api/auth/test', authTestRouter);
   app.use('/api/auth', authRouter);
+  // Administrator-only. The router applies `requireAdmin` to every route.
+  app.use('/api/admin', adminRouter);
 
   // Error handling
   app.use(errorHandler);

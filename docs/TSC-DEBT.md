@@ -1,6 +1,57 @@
 # TypeScript Type-Check Debt
 
-**Status:** Option C quick wins applied during Phase 2 release prep
+**Status:** Option C applied (2026-05-19); **Option D ratchet installed
+2026-07-31**. Current baseline: **230** (was 279; deleting the unused
+`CustomDocumentTable` on 2026-08-05 removed 44 in one file, and correcting the
+shared animated navigation/toolbar icon slot types removed another five on
+2026-08-11).
+
+## Update (2026-07-31 — Option D applied, count now enforced)
+
+The count is no longer a number someone has to remember to check. Two scripts
+in `packages/frontend`:
+
+```bash
+npm run typecheck          # report the count, broken down by TS code
+npm run typecheck:ratchet  # exit 1 if the count grew past the baseline
+```
+
+Both invoke `tsc --noEmit --project tsconfig.app.json` internally, which
+removes the trap described in the 2026-07-20 update below: a bare
+`tsc --noEmit` from that package checks zero files and exits 0 regardless.
+Nobody has to remember the right flags any more.
+
+The baseline lives in `packages/frontend/scripts/typecheck-baseline.json`.
+Lowering it is the point — after fixing errors, run
+`npm run typecheck:ratchet -- --update`. The ratchet was verified by
+introducing a deliberate type error and confirming exit 1, then removing it and
+confirming exit 0.
+
+**Why a ratchet rather than a cleanup:** the count has been *growing*
+(240 → 292 → 300) as new tables were added using the same `ColumnDef` pattern.
+Arresting the growth is the change that pays; the backlog itself still needs
+domain investigation, not a mechanical pass.
+
+Eleven errors were also fixed on the way in, all of them genuinely mechanical
+and two of them real breakage that the build could not surface:
+
+- `inventory-chart.tsx` imported `ChartTooltipContent` from
+  `@/components/ui/chart/ChartTooltipContent`, a path that does not exist. It
+  was never used, and unused imports are elided at transpile, so the bad
+  specifier never had to resolve and the build stayed green.
+- `useStatusMessage.ts` imported `StatusMessage` from `@/types/status`, which
+  has never existed. Type-only, so again erased before bundling. Now imported
+  from `@/types/food-item`, where it is defined.
+- `theme-provider.tsx` imported from `next-themes/dist/types`; next-themes 0.4
+  exports its types from the package root.
+- `useFoodData.test.ts` used `vi.MockedClass<…>` eight times. `vi` is a value,
+  not a type namespace — the type is `MockedClass`, exported from `vitest`.
+
+Current distribution at baseline 290: TS2322 ×179 (dominated by the
+`ColumnDef` / icon-variance classes described below), TS2339 ×40, TS2345 ×19,
+TS7006 ×14, TS2741 ×7.
+
+## Update (May 19, 2026 — Option C applied)
 **Original baseline:** 697 errors at commit `da7f060d`
 **Current baseline:** 240 errors (65% reduction)
 **Affects:** `packages/frontend` only

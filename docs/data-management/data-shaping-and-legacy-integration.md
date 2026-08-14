@@ -6,7 +6,7 @@ disclosure, legacy community integration, regression verification, and CHANGELOG
 landed 2026-07-23–25.
 **Owner doc:** design source of truth for two linked capabilities — (1) import-time
 **data-shaping flags/rules**, and (2) the **legacy community-donation** integration.
-Decisions here are recorded formally as D16–D22 in
+Decisions here are recorded formally as D16–D23 in
 [procurement-unification-plan.md](procurement-unification-plan.md); this file is the
 fuller narrative and the "why."
 
@@ -202,11 +202,16 @@ inherits meaningful confidence.
 
 ### A permanent single-agency sidecar
 
-The legacy path is **an "Import Legacy" action in Data Management** (admin), separate
-from the standard OFB drop-zone. It ingests the two curated artifacts, teaches the
-system nothing general, and — under future white-label support — is **hidden, because
-it applies only to WTH.** FEED's analytics foundation remains the OFB Primarius
-exports; this is an annex, not a second foundation (D22).
+The legacy path remains a WTH-only adapter that ingests the two curated
+artifacts, teaches the system nothing general, and — under future white-label
+support — is **hidden, because it applies only to WTH.** FEED's analytics
+foundation remains the OFB Primarius exports; this is an annex, not a second
+foundation (D22).
+
+Its original dedicated **Import Legacy** button is transitional. D23 moves the
+eventual entry point into the global classifier-driven **Add Data** workflow
+without changing the legacy source's identity, scope, or calculations. The
+dedicated button stays operational until the new branch reaches parity.
 
 ---
 
@@ -255,7 +260,7 @@ exports; this is an annex, not a second foundation (D22).
 
 ## Staged plan
 
-**Stage 1 — Documentation (this doc + D16–D22).** Record what we will build and why.
+**Stage 1 — Documentation (this doc + D16–D23).** Record what we will build and why.
 Complete.
 
 **Stage 2 — Implementation**, complete in independently shippable phases:
@@ -267,8 +272,9 @@ Complete.
   Seasons correction ships here — value independent of any legacy work).
 - **2c — Legacy artifacts + import.** Keep the canonical ledger and map in private
   operational storage outside the repository; build the `legacy_community` source
-  and the "Import Legacy" sidecar; wire the estimated-grain inclusion/absence rules
-  and the time-chart seam.
+  and its import adapter; wire the estimated-grain inclusion/absence rules and the
+  time-chart seam. The original dedicated button remains as transitional UI under
+  D23.
 - **2d — Verification.** Tests for flag honoring and disclosure; the overlap
   validation as a regression check; live confirmation against the real corpus.
 
@@ -331,7 +337,7 @@ matches; the ledger was regenerated and re-imported.)
 ## Related documents
 
 - [procurement-unification-plan.md](procurement-unification-plan.md) — decision log
-  (D16–D22 record the binding choices here; D9 revised)
+  (D16–D23 record the binding choices here; D9 revised)
 - [procurement-imports.md](procurement-imports.md) — the import contract this extends
 - [fresh-alliance-coverage-verification.md](fresh-alliance-coverage-verification.md)
   — the overlap/parity evidence the mapping validation builds on

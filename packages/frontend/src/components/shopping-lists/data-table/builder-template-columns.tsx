@@ -6,7 +6,7 @@
 // not covered by this license; see TRADEMARKS.md.
 
 import { ColumnDef } from "@tanstack/react-table"
-import { ArrowUpDown, LayoutTemplate } from "@/components/ui/icons";
+import { LayoutTemplate } from "@/components/ui/icons";
 import { PencilIcon } from "@/components/animate-ui/icons/pencil";
 import { CopyIcon } from "@/components/animate-ui/icons/copy";
 import { SquarePenIcon } from "@/components/animate-ui/icons/square-pen";
@@ -15,14 +15,14 @@ import { DownloadIcon } from "@/components/animate-ui/icons/download";
 import { LanguagesIcon } from "@/components/animate-ui/icons/languages";
 import { Trash2Icon } from "@/components/animate-ui/icons/trash-2";
 import { ClipboardListIcon } from "@/components/animate-ui/icons/clipboard-list";
-import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { TableActionMenu } from "@/components/ui/table-action-menu"
 import { IconDisplay } from "@/components/shared/icon-display"
 import { ResponsiveTruncatedText } from "@/components/ui/responsive-truncated-text"
-import { calculateColumnWidths, extractColumnSizes, getColumnWidthStyle } from "@/lib/table"
 import { SavedBuilderTemplate, SectionTableBuilderComponent } from "@/components/shopping-lists/builder/types"
+import { SortableHeader } from "@/components/ui/sortable-header"
+import { formatDate } from '@/lib/formatting/date'
 
 export interface BuilderTemplateActions {
   onRename: (template: SavedBuilderTemplate) => void
@@ -41,11 +41,7 @@ export interface BuilderTemplateActions {
 
 const formatDate = (value: string) => {
   try {
-    return new Date(value).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    })
+    return formatDate(value)
   } catch {
     return value
   }
@@ -104,14 +100,8 @@ export const builderTemplateColumns = ({
       size: 280,
       enableHiding: false,
       header: ({ column }) => (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Name
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      ),
+      <SortableHeader column={column}>Name</SortableHeader>
+    ),
       cell: ({ row }) => {
         const name = row.getValue("name") as string
 
@@ -179,14 +169,8 @@ export const builderTemplateColumns = ({
       size: 150,
       enableHiding: true,
       header: ({ column }) => (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Last Updated
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      ),
+      <SortableHeader column={column}>Last Updated</SortableHeader>
+    ),
       cell: ({ row }) => formatDate(row.original.updatedAt || row.original.createdAt),
     },
     {
@@ -245,19 +229,6 @@ export const builderTemplateColumns = ({
     },
   ]
 
-  const columnSizes = extractColumnSizes(columnDefinitions)
-  const widths = calculateColumnWidths(columnSizes)
-
-  columnDefinitions.forEach((col, index) => {
-    const columnId = col.id || String(col.accessorKey) || `col-${index}`
-    const width = widths[columnId]
-    if (width) {
-      col.meta = {
-        ...col.meta,
-        style: getColumnWidthStyle(width),
-      }
-    }
-  })
 
   return columnDefinitions
 }

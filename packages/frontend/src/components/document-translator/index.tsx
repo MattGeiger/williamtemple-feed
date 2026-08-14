@@ -110,8 +110,8 @@ function DocumentTranslatorContent() {
         pollCount++;
         let allCompleted = true;
         let anyFailed = false;
-        let failedLanguages: string[] = [];
-        let partialFailures: { language: string; failedCount: number }[] = [];
+        const failedLanguages: string[] = [];
+        const partialFailures: { language: string; failedCount: number }[] = [];
         
         // Check progress for each language
         for (const language of selectedLanguages) {

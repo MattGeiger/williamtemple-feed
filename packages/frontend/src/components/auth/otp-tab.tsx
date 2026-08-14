@@ -14,7 +14,19 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp
 import { useToast } from "@/components/ui/use-toast";
 import config from "@/config/config";
 
-type OTPStatus = "idle" | "requesting" | "sent" | "verifying" | "error";
+// `requestFailed` is distinct from `error` on purpose. A failure to *send* a
+// code must keep the user on the email step — advancing to the code entry
+// screen would claim "Code sent to <address>" next to a message explaining
+// they are not allowed to sign in, which is what a revoked account used to
+// see. `error` covers a failed *verification*, where staying on the code
+// screen is right because the next action is to re-enter the code.
+type OTPStatus =
+  | "idle"
+  | "requesting"
+  | "requestFailed"
+  | "sent"
+  | "verifying"
+  | "error";
 
 export function OTPTab() {
   const apiBase =
@@ -50,7 +62,7 @@ export function OTPTab() {
         description: "Check your email for the 6-digit code (expires in 3 minutes).",
       });
     } catch (error) {
-      setStatus("error");
+      setStatus("requestFailed");
       const message = error instanceof Error ? error.message : "Unable to send verification code";
       setErrorMessage(message);
       toast({
@@ -108,8 +120,10 @@ export function OTPTab() {
     setErrorMessage("");
   };
 
-  // Show email input form when idle or requesting
-  if (status === "idle" || status === "requesting") {
+  // Show the email step until a code has actually been sent. A failed request
+  // stays here and reports why, rather than advancing to a code prompt for a
+  // code that was never sent.
+  if (status === "idle" || status === "requesting" || status === "requestFailed") {
     return (
       <form onSubmit={handleRequestOTP} className="space-y-4">
         <div className="space-y-2">
@@ -118,13 +132,26 @@ export function OTPTab() {
             id="otp-email"
             type="email"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(e) => {
+              setEmail(e.target.value);
+              // Clear a stale refusal as soon as they change the address.
+              if (status === "requestFailed") {
+                setStatus("idle");
+                setErrorMessage("");
+              }
+            }}
             placeholder="you@williamtemple.org"
             className="bg-white dark:bg-slate-950"
             required
             disabled={status === "requesting"}
           />
         </div>
+
+        {status === "requestFailed" && errorMessage && (
+          <Alert variant="destructive">
+            <AlertDescription>{errorMessage}</AlertDescription>
+          </Alert>
+        )}
 
         <Button type="submit" className="w-full" disabled={status === "requesting"}>
           {status === "requesting" ? "Sending..." : "Send 6-digit code"}

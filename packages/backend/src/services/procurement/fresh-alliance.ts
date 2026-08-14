@@ -33,36 +33,16 @@ import {
   parseSourceDate,
 } from './parsing';
 import { chunk } from './bulk';
+import { FRESH_ALLIANCE_HEADERS } from './contracts';
 
 export { FRESH_ALLIANCE_SOURCE } from './parsing';
+export { FRESH_ALLIANCE_HEADERS } from './contracts';
 
 export const FRESH_ALLIANCE_IMPORT_SCHEMA_VERSION = 1;
 export const FRESH_ALLIANCE_EVENT_KIND = 'fresh_alliance_receipt';
 export const FRESH_ALLIANCE_CHANNEL = 'fresh_alliance';
 
 const ERROR_CODE = 'INVALID_FRESH_ALLIANCE_CSV';
-
-export const FRESH_ALLIANCE_HEADERS = [
-  'Date',
-  'Period',
-  'Pickup Time',
-  'Pickup ID',
-  'Pickup Reference',
-  'Pickup Line ID',
-  'Donor Code',
-  'Donor Name',
-  'Product #',
-  'Product Description',
-  'Category',
-  'Fresh Alliance Category',
-  'Qty',
-  'Weight',
-  'Received Qty',
-  'Received Weight',
-  'Temperature',
-  'Submitted Date/Time',
-  'Donor Value Per Pound',
-] as const;
 
 export type FreshAllianceWarningCode =
   | 'PERIOD_MISMATCH'

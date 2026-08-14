@@ -298,7 +298,7 @@ class DocumentApiService extends BaseApiService {
       // 1. First attempt to get the translation metadata to get the correct filename
       const translations = await this.getTranslations(id);
       const translation = translations.find(t => t.language === language);
-      let expectedFilename = translation?.fileName || `translated_document_${language}.docx`;
+      const expectedFilename = translation?.fileName || `translated_document_${language}.docx`;
       console.log(`Expected filename from translation metadata: ${expectedFilename}`);
       
       // 2. Fetch the actual file content with credentials

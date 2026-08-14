@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/sidebar';
 import { navigationItems } from './navigation';
 import { NavigationSection } from './navigation-section';
+import { useAuth } from '@/contexts/AuthContext';
 import { useNavigationKeyboard } from '@/hooks/use-navigation-keyboard';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { markDashboardNavigation } from '@/hooks/use-route-persistence';
@@ -40,21 +41,48 @@ import {
 // Extract Dashboard as a special item (at index 0)
 const dashboardItem = navigationItems[0];
 
-// Get remaining standalone items and grouped items
-const standaloneItems = navigationItems.slice(1).filter(item => !item.items);
-const groupedItems = navigationItems.slice(1).filter(item => item.items);
-
-// Flatten nested items for collapsed view (excluding Dashboard which is handled separately)
-const allMenuItems = [
-  ...standaloneItems,
-  ...groupedItems.flatMap(section => section.items || [])
-].filter(item => !item.isFuture);
-
 export function AppSidebar() {
   const { pathname } = useLocation();
   const { state } = useSidebar();
+  const { isAdministrator } = useAuth();
   const isCollapsed = state === 'collapsed';
   const itemRefs = React.useRef<(HTMLAnchorElement | null)[]>([]);
+
+  // Administrator-only entries are filtered here rather than at module scope,
+  // because the roster can change under a signed-in session: the server
+  // re-reads role on every request, so a demotion takes effect on the next
+  // session check and the menu should follow. Hiding an item is presentation;
+  // `/api/admin` enforces authority on its own.
+  const { standaloneItems, groupedItems, allMenuItems } = React.useMemo(() => {
+    const isVisible = (item: { adminOnly?: boolean }) =>
+      !item.adminOnly || isAdministrator;
+
+    const standalone = navigationItems
+      .slice(1)
+      .filter(item => !item.items)
+      .filter(isVisible);
+
+    const grouped = navigationItems
+      .slice(1)
+      .filter(item => item.items)
+      .filter(isVisible)
+      .map(section => ({
+        ...section,
+        items: section.items?.filter(isVisible),
+      }));
+
+    // Flattened for the collapsed view (Dashboard is handled separately)
+    const all = [
+      ...standalone,
+      ...grouped.flatMap(section => section.items || []),
+    ].filter(item => !item.isFuture);
+
+    return {
+      standaloneItems: standalone,
+      groupedItems: grouped,
+      allMenuItems: all,
+    };
+  }, [isAdministrator]);
 
   const handleNavigate = React.useCallback((index: number) => {
     itemRefs.current[index]?.focus();
@@ -365,32 +393,35 @@ export function AppSidebar() {
               </DialogContent>
             </Dialog>
           </div>
+          {/*
+            No tooltip here, unlike the collapsed-rail items above. This block
+            is `group-data-[collapsible=icon]:hidden`, so it only ever renders
+            with the sidebar expanded — where the word "About" is already on
+            screen next to the icon. A tooltip repeating it just put a second
+            "About" beside the first on hover. The sibling "Version" button
+            follows the same rule.
+          */}
           <div className="group-data-[collapsible=icon]:hidden">
             <Dialog>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <DialogTrigger asChild>
-                    <AnimateIcon asChild animateOnHover animateOnTap>
-                      <button
-                        type="button"
-                        data-feed-no-icon-motion="true"
-                        className="
-                          flex items-center gap-2 rounded-md px-0 py-1
-                          text-left text-xs text-muted-foreground/80
-                          transition-all duration-200
-                          hover:text-foreground
-                          focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
-                        "
-                        aria-label="About FEED"
-                      >
-                        <AboutNavIcon className="h-4 w-4 shrink-0" aria-hidden="true" />
-                        <span>About</span>
-                      </button>
-                    </AnimateIcon>
-                  </DialogTrigger>
-                </TooltipTrigger>
-                <TooltipContent side="right" sideOffset={10}>About</TooltipContent>
-              </Tooltip>
+              <DialogTrigger asChild>
+                <AnimateIcon asChild animateOnHover animateOnTap>
+                  <button
+                    type="button"
+                    data-feed-no-icon-motion="true"
+                    className="
+                      flex items-center gap-2 rounded-md px-0 py-1
+                      text-left text-xs text-muted-foreground/80
+                      transition-all duration-200
+                      hover:text-foreground
+                      focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
+                    "
+                    aria-label="About FEED"
+                  >
+                    <AboutNavIcon className="h-4 w-4 shrink-0" aria-hidden="true" />
+                    <span>About</span>
+                  </button>
+                </AnimateIcon>
+              </DialogTrigger>
               <DialogContent className="border-0! bg-transparent! p-0! shadow-none! outline-hidden! ring-0! focus:outline-hidden! focus-visible:outline-hidden! focus-visible:ring-0! sm:max-w-xl [&>button]:right-10 [&>button]:top-4">
                 <DialogTitle className="sr-only">About FEED</DialogTitle>
                 <DialogDescription className="sr-only">

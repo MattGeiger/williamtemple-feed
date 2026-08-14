@@ -6,7 +6,9 @@
 // not covered by this license; see TRADEMARKS.md.
 
 import { useState, useEffect } from 'react';
-import type { StatusMessage } from '@/types/status';
+// `@/types/status` has never existed. StatusMessage lives in the food-item
+// types, which is where this hook's only consumer (useFoodForm) comes from.
+import type { StatusMessage } from '@/types/food-item';
 
 interface MessageConfig {
   duration: number;

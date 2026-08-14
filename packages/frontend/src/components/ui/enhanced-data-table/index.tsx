@@ -24,8 +24,11 @@ import { TablePagination } from "./components/TablePagination"
 import { TableSelectionOptions } from "@/types/table"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { TranslationType } from "@/types/translation"
-import type { LucideIcon } from "lucide-react";
-import { calculateVisibleColumnWidths } from "@/lib/table"
+import {
+  calculateColumnWidths,
+  calculateVisibleColumnWidths,
+  getColumnWidthStyle,
+} from "@/lib/table"
 
 const mobileResponsiveColumnIds = [
   'lastUpdated',
@@ -42,6 +45,15 @@ interface EnhancedDataTableProps<TData> {
   columns: ColumnDef<TData>[]
   data: TData[]
   isLoading?: boolean
+  /**
+   * What to show when there are no rows.
+   *
+   * Defaults to the generic line. Worth overriding wherever the table is a
+   * known set rather than a search result — "No one is on the roster yet."
+   * tells an administrator the roster is empty; "No results found." suggests
+   * their filter is wrong.
+   */
+  emptyMessage?: string
   filterColumn?: string
   filterPlaceholder?: string
   enableColumnVisibility?: boolean
@@ -60,17 +72,42 @@ interface EnhancedDataTableProps<TData> {
   onUpdate?: (item: TData) => Promise<void>
   toolbarActions?: Array<{
     label: string
-    icon?: LucideIcon
-    variant: 'default' | 'destructive' | 'outline-solid' | 'secondary' | 'ghost' | 'link'
+    // TableFeatureBar intentionally accepts both Lucide and animate-ui icons.
+    icon?: React.ComponentType<any>
+    // 'outline', not 'outline-solid'. The Tailwind v4 codemod rewrote this union
+    // member as though it were a utility class name (that rename is real for
+    // classes, not for these values), leaving a variant Button does not accept
+    // while every caller passed 'outline'.
+    variant: 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link'
     action: () => void
+    title?: string
+    /** Optional trigger ref for dialogs that must restore focus on close. */
+    buttonRef?: React.Ref<HTMLButtonElement>
   }>
   toolbarControls?: React.ReactNode
+  /**
+   * Publishes the table's live view state: filter, sort, visible columns, and
+   * page.
+   *
+   * Reports need this. A table card must reproduce what the user configured, and
+   * that configuration lives in here — not in the page that rendered the table.
+   * Published as state rather than as resolved rows because a saved template
+   * regenerates months later with no client to resolve anything.
+   */
+  onViewStateChange?: (state: {
+    search: string
+    sort: { id: string; desc: boolean } | null
+    visibleColumns: string[]
+    pageSize: number
+    pageIndex: number
+  }) => void
 }
 
 export const EnhancedDataTable = React.forwardRef(function EnhancedDataTable<TData>({
   columns,
   data,
   isLoading = false,
+  emptyMessage = 'No results found.',
   filterColumn,
   filterPlaceholder,
   enableColumnVisibility = true,
@@ -89,6 +126,7 @@ export const EnhancedDataTable = React.forwardRef(function EnhancedDataTable<TDa
   onUpdate,
   toolbarActions,
   toolbarControls,
+  onViewStateChange,
 }: EnhancedDataTableProps<TData>, ref: React.ForwardedRef<{ clearSelection?: () => void }>) {
   const isMobile = useIsMobile()
   const responsiveColumnVisibility = React.useMemo(() => {
@@ -128,6 +166,39 @@ export const EnhancedDataTable = React.forwardRef(function EnhancedDataTable<TDa
     },
   })
 
+
+  // Published after render, from the table itself, so it reflects what is on
+  // screen rather than what a caller believes it configured.
+  const state = table.getState()
+  const searchValue = filterColumn
+    ? ((table.getColumn(filterColumn)?.getFilterValue() as string) ?? '')
+    : ''
+  const sortKey = state.sorting[0]
+  const visibleKey = table
+    .getVisibleLeafColumns()
+    .map(column => column.id)
+    .join(',')
+
+  React.useEffect(() => {
+    onViewStateChange?.({
+      search: searchValue,
+      sort: sortKey ? { id: sortKey.id, desc: Boolean(sortKey.desc) } : null,
+      visibleColumns: visibleKey ? visibleKey.split(',') : [],
+      pageSize: state.pagination.pageSize,
+      pageIndex: state.pagination.pageIndex,
+    })
+    // Primitive deps only: the objects behind them are new on every render, so
+    // depending on those would loop.
+  }, [
+    onViewStateChange,
+    searchValue,
+    sortKey?.id,
+    sortKey?.desc,
+    visibleKey,
+    state.pagination.pageSize,
+    state.pagination.pageIndex,
+  ])
+
   // Update column visibility when screen size changes
   React.useEffect(() => {
     Object.keys(responsiveColumnVisibility).forEach((columnId) => {
@@ -146,20 +217,63 @@ export const EnhancedDataTable = React.forwardRef(function EnhancedDataTable<TDa
     }
   }
 
-  const compactColumnStyles = isMobile
-    ? calculateVisibleColumnWidths(
-        table.getVisibleLeafColumns().map((column) => ({
-          id: column.id,
-          size: column.columnDef.size ?? 100,
-          isFixed: column.id === 'select' || column.id === 'actions',
-        }))
+  /**
+   * Column widths, resolved here rather than by each caller.
+   *
+   * This used to run only on mobile; on desktop the table fell back to
+   * `meta.style`, which every column file had to compute and assign by hand.
+   * Seven did and nine did not, and the nine got `table-layout: fixed`'s even
+   * split — eight columns at exactly 262px, whatever their declared `size`.
+   * `size` looked like the knob and was inert, which is a trap rather than an
+   * API.
+   *
+   * Computing it from the visible leaf columns on every viewport makes `size`
+   * mean what it appears to mean, and makes it impossible for a new table to
+   * forget. `meta.style` stays as an explicit per-column override.
+   */
+  const visibleColumnSizes = table.getVisibleLeafColumns().map((column) => ({
+    id: column.id,
+    size: column.columnDef.size ?? 100,
+    isFixed: column.id === 'select' || column.id === 'actions',
+  }))
+
+  /*
+   * Plain percentages on desktop, `calc()` only when columns are hidden.
+   *
+   * `calculateVisibleColumnWidths` subtracts each flexible column's share of
+   * the fixed pixel total, which is arithmetically tidier — and a fixed-layout
+   * table does not resolve a percentage inside `calc()`, so every column
+   * silently collapsed to an equal split. Consolidating these two call sites
+   * introduced exactly that: Data Management went back to eight equal columns
+   * while its inline styles still read `calc(17.17% - 12.36px)`, which is a
+   * particularly good disguise.
+   *
+   * The plain percentages slightly over-declare (they ignore the fixed columns'
+   * pixels, so the total exceeds 100%) and the browser scales them down
+   * proportionally, which is the behaviour every table shipped with.
+   */
+  const resolvedColumnStyles = isMobile
+    ? calculateVisibleColumnWidths(visibleColumnSizes)
+    : Object.fromEntries(
+        Object.entries(calculateColumnWidths(visibleColumnSizes)).map(
+          ([id, width]) => [id, getColumnWidthStyle(width)]
+        )
       )
-    : null
 
   const columnStyle = (
     column: ReturnType<typeof table.getVisibleLeafColumns>[number]
-  ) =>
-    compactColumnStyles?.[column.id] ?? column.columnDef.meta?.style
+  ) => column.columnDef.meta?.style ?? resolvedColumnStyles[column.id]
+
+  /**
+   * Alignment, applied to the header and the cells from one declaration.
+   *
+   * Reading it per column rather than per cell is the point: right-aligning a
+   * cell while leaving its header left-aligned is exactly the defect this
+   * replaces, and that combination is no longer expressible.
+   */
+  const alignClass = (
+    column: ReturnType<typeof table.getVisibleLeafColumns>[number]
+  ) => (column.columnDef.meta?.align === 'right' ? 'text-right' : undefined)
 
   if (isLoading) {
     return (
@@ -224,7 +338,11 @@ export const EnhancedDataTable = React.forwardRef(function EnhancedDataTable<TDa
               {table.getHeaderGroups().map((headerGroup) => (
                 <TableRow key={headerGroup.id}>
                   {headerGroup.headers.map((header) => (
-                    <TableHead key={header.id} style={columnStyle(header.column)}>
+                    <TableHead
+                      key={header.id}
+                      style={columnStyle(header.column)}
+                      className={alignClass(header.column)}
+                    >
                       {header.isPlaceholder
                         ? null
                         : flexRender(
@@ -247,7 +365,11 @@ export const EnhancedDataTable = React.forwardRef(function EnhancedDataTable<TDa
                     )}
                   >
                     {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id} style={columnStyle(cell.column)}>
+                      <TableCell
+                        key={cell.id}
+                        style={columnStyle(cell.column)}
+                        className={alignClass(cell.column)}
+                      >
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </TableCell>
                     ))}
@@ -259,7 +381,7 @@ export const EnhancedDataTable = React.forwardRef(function EnhancedDataTable<TDa
                     colSpan={columns.length}
                     className="h-24 text-center py-4 sm:py-6"
                   >
-                    No results found.
+                    {emptyMessage}
                   </TableCell>
                 </TableRow>
               )}

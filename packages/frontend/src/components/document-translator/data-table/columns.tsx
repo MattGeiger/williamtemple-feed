@@ -7,19 +7,68 @@
 
 import React from "react"
 import { ColumnDef } from "@tanstack/react-table"
-import { AlertTriangle, ArrowUpDown } from "@/components/ui/icons";
+import { AlertTriangle } from "@/components/ui/icons";
 import { DownloadIcon } from "@/components/animate-ui/icons/download";
 import { LanguagesIcon } from "@/components/animate-ui/icons/languages";
 import { FileDownIcon } from "@/components/animate-ui/icons/file-down";
 import { SquarePenIcon } from "@/components/animate-ui/icons/square-pen";
 import { Trash2Icon } from "@/components/animate-ui/icons/trash-2";
-import { Button } from "@/components/ui/button"
 import { Document } from "../types"
 import { TableRowAction } from "@/types/table"
 import { Checkbox } from "@/components/ui/checkbox"
 import { TableActionMenu } from "@/components/ui/table-action-menu"
 import { ResponsiveTruncatedText } from "@/components/ui/responsive-truncated-text"
-import { calculateColumnWidths, extractColumnSizes, getColumnWidthStyle } from "@/lib/table"
+import { useIsMobile } from "@/hooks/use-mobile"
+import { SortableHeader } from "@/components/ui/sortable-header"
+import { formatDate } from '@/lib/formatting/date'
+
+/**
+ * The name cell, extracted from an inline `cell` renderer.
+ *
+ * It calls hooks, and a column definition's `cell` is a plain function rather
+ * than a component — React has no stable identity to attach hook state to, so
+ * the order is not guaranteed across renders. Extracting it into a real
+ * component makes the hooks legitimate rather than incidentally working.
+ *
+ * The inline version also re-implemented mobile detection with its own resize
+ * listener and a hard-coded 768 breakpoint; `useIsMobile` already owns that at
+ * the same breakpoint.
+ */
+function DocumentNameCell({ document }: { document: Document }) {
+  const isMobile = useIsMobile()
+
+  return (
+    <div className="min-w-0">
+      <div className="font-medium flex items-center gap-2 min-w-0">
+        <ResponsiveTruncatedText
+          text={document.name}
+          title="View full document name"
+          className="flex-1 min-w-0"
+        />
+        {/* Show warning icon if file has integrity issues */}
+        {document.hasIntegrityIssue && (
+          <span className="shrink-0" title={document.wasCleared ?
+            "This file is missing and has been marked unavailable" :
+            "This file has integrity issues and may not be accessible"}>
+            <AlertTriangle className="h-4 w-4 text-amber-500" />
+          </span>
+        )}
+      </div>
+      {/* Show mobile-only info for hidden columns */}
+      {isMobile && (
+        <div className="text-xs text-muted-foreground mt-1">
+          {document.type === 'original' ? 'Original' : `Translation (${document.language})`}
+          {document.fileSize && ` · ${document.fileSize}`}
+          {document.hasIntegrityIssue && (
+            <span className="text-amber-500 ml-1">
+              {document.wasCleared ? '· Unavailable' : '· Warning'}
+            </span>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
 
 interface DocumentActionProps {
   onEdit: (document: Document) => void
@@ -66,72 +115,16 @@ export function getColumns(
       accessorKey: "name",
       size: 350, // Responsive width for name column
       header: ({ column }) => (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Name
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      ),
-      cell: ({ row }) => {
-        const document = row.original
-        // Use a dynamic check to ensure this works on initial render and updates
-        const checkMobile = () => window.innerWidth < 768
-        const [isMobile, setIsMobile] = React.useState(checkMobile())
-        
-        // Update on resize
-        React.useEffect(() => {
-          const handleResize = () => setIsMobile(checkMobile())
-          window.addEventListener('resize', handleResize)
-          return () => window.removeEventListener('resize', handleResize)
-        }, [])
-        
-        return (
-          <div className="min-w-0">
-            <div className="font-medium flex items-center gap-2 min-w-0">
-              <ResponsiveTruncatedText 
-                text={document.name} 
-                title="View full document name"
-                className="flex-1 min-w-0"
-              />
-              {/* Show warning icon if file has integrity issues */}
-              {document.hasIntegrityIssue && (
-                <span className="shrink-0" title={document.wasCleared ? 
-                  "This file is missing and has been marked unavailable" : 
-                  "This file has integrity issues and may not be accessible"}>
-                  <AlertTriangle className="h-4 w-4 text-amber-500" />
-                </span>
-              )}
-            </div>
-            {/* Show mobile-only info for hidden columns */}
-            {isMobile && (
-              <div className="text-xs text-muted-foreground mt-1">
-                {document.type === 'original' ? 'Original' : `Translation (${document.language})`}
-                {document.fileSize && ` · ${document.fileSize}`}
-                {document.hasIntegrityIssue && (
-                  <span className="text-amber-500 ml-1">
-                    {document.wasCleared ? '· Unavailable' : '· Warning'}
-                  </span>
-                )}
-              </div>
-            )}
-          </div>
-        )
-      }
+      <SortableHeader column={column}>Name</SortableHeader>
+    ),
+      cell: ({ row }) => <DocumentNameCell document={row.original} />
     },
     {
       accessorKey: "type",
       size: 180, // Fixed width for type column
       header: ({ column }) => (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Type
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      ),
+      <SortableHeader column={column}>Type</SortableHeader>
+    ),
       cell: ({ row }) => {
         const document = row.original
         return document.type === 'original' ? 'Original' : `Translation (${document.language})`
@@ -141,14 +134,8 @@ export function getColumns(
       accessorKey: "fileSize",
       size: 100, // Fixed width for file size column
       header: ({ column }) => (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Size
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      ),
+      <SortableHeader column={column}>Size</SortableHeader>
+    ),
       cell: ({ row }) => row.original.fileSize || '-'
     },
     {
@@ -156,23 +143,13 @@ export function getColumns(
       accessorFn: (row) => row.updatedAt || row.createdAt,
       size: 150, // Fixed width for date column
       header: ({ column }) => (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Last Updated
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      ),
+      <SortableHeader column={column}>Last Updated</SortableHeader>
+    ),
     cell: ({ row }) => {
       const value = row.original.updatedAt;
       if (!value) return '-';
       try {
-        return new Date(value).toLocaleDateString('en-US', {
-          year: 'numeric',
-          month: '2-digit',
-          day: '2-digit'
-        });
+        return formatDate(value);
       } catch (e) {
         console.error('Date parsing error:', e);
         return value;
@@ -239,21 +216,6 @@ export function getColumns(
     }
   ]
 
-  // Calculate column widths based on size values
-  const columnSizes = extractColumnSizes(columnDefinitions)
-  const widths = calculateColumnWidths(columnSizes)
-
-  // Apply calculated widths to columns
-  columnDefinitions.forEach((col, index) => {
-    const columnId = col.id || ('accessorKey' in col && col.accessorKey ? String(col.accessorKey) : `col-${index}`);
-    const width = widths[columnId]
-    if (width) {
-      col.meta = { 
-        ...col.meta, 
-        style: getColumnWidthStyle(width) 
-      }
-    }
-  })
 
   return columnDefinitions
 }

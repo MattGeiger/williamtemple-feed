@@ -8,14 +8,6 @@ import { SaveIcon } from '@/components/animate-ui/icons/save';
 import { SectionHeader } from '@/components/shared/section-header';
 import { Settings } from '@/components/ui/icons';
 import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   AlertDialog,
@@ -114,49 +106,51 @@ export function SettingsWorkspace() {
 
   return (
     <div className="space-y-6 min-w-0 w-full pt-6">
-      <div className="w-full min-w-0">
-        <SectionHeader
-          icon={Settings}
-          title="Settings"
-          description="Organization-wide settings shared by everyone using FEED."
-        />
-      </div>
+      <SectionHeader
+        icon={Settings}
+        title="Settings"
+        description="Organization-wide settings shared by everyone using FEED."
+      />
 
-      <Card className="max-w-4xl">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+      <section
+        aria-labelledby="operating-hours-heading"
+        className="max-w-4xl space-y-4"
+      >
+        <div className="space-y-1.5">
+          <h3
+            id="operating-hours-heading"
+            className="flex items-center gap-2 text-lg font-semibold"
+          >
             <CalendarClock className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
             Operating Hours
-          </CardTitle>
-          <CardDescription>
+          </h3>
+          <p className="text-sm text-muted-foreground">
             Choose the pantry's recurring service days, hours, and timezone. Analytics uses this schedule to compare recorded availability during client service hours.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <div className="space-y-3" aria-label="Loading operating hours">
-              <Skeleton className="h-9 w-full max-w-md" />
-              {DAYS.map(({ value }) => <Skeleton key={value} className="h-16 w-full" />)}
-            </div>
-          ) : (
-            <OperatingHoursEditor
-              hours={settings.hours}
-              timezone={settings.timezone}
-              onChange={(hours) => setSettings((current) => ({ ...current, hours }))}
-              onTimezoneChange={(timezone) => setSettings((current) => ({ ...current, timezone }))}
-              disabled={disabled}
-            />
-          )}
-        </CardContent>
-        <CardFooter>
-          <AnimateIcon asChild animateOnHover animateOnTap>
-            <Button onClick={handleSave} disabled={disabled || !hasChanges}>
-              <SaveIcon size={16} />
-              {isSaving ? 'Saving…' : 'Save Operating Hours'}
-            </Button>
-          </AnimateIcon>
-        </CardFooter>
-      </Card>
+          </p>
+        </div>
+
+        {isLoading ? (
+          <div className="space-y-3" aria-label="Loading operating hours">
+            <Skeleton className="h-9 w-full max-w-md" />
+            {DAYS.map(({ value }) => <Skeleton key={value} className="h-16 w-full" />)}
+          </div>
+        ) : (
+          <OperatingHoursEditor
+            hours={settings.hours}
+            timezone={settings.timezone}
+            onChange={(hours) => setSettings((current) => ({ ...current, hours }))}
+            onTimezoneChange={(timezone) => setSettings((current) => ({ ...current, timezone }))}
+            disabled={disabled}
+          />
+        )}
+
+        <AnimateIcon asChild animateOnHover animateOnTap>
+          <Button onClick={handleSave} disabled={disabled || !hasChanges}>
+            <SaveIcon size={16} />
+            {isSaving ? 'Saving…' : 'Save Operating Hours'}
+          </Button>
+        </AnimateIcon>
+      </section>
 
       <AlertDialog open={timezoneMismatchOpen} onOpenChange={setTimezoneMismatchOpen}>
         <AlertDialogContent>

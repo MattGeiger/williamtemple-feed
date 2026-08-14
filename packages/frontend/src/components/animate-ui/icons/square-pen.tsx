@@ -33,12 +33,12 @@ const animations = {
   } satisfies Record<string, Variants>,
 } as const;
 
-function IconComponent({ size, ...props }: SquarePenProps) {
+const IconComponent = React.forwardRef<SVGSVGElement, SquarePenProps>(function IconComponent({ size, ...props }, ref) {
   const { controls } = useAnimateIconContext();
   const variants = getVariants(animations);
 
   return (
-    <motion.svg
+    <motion.svg ref={ref}
       xmlns="http://www.w3.org/2000/svg"
       width={size}
       height={size}
@@ -60,7 +60,8 @@ function IconComponent({ size, ...props }: SquarePenProps) {
       />
     </motion.svg>
   );
-}
+});
+IconComponent.displayName = 'IconComponent';
 
 function SquarePen(props: SquarePenProps) {
   return <IconWrapper icon={IconComponent} {...props} />;

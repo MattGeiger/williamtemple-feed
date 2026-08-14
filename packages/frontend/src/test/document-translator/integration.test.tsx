@@ -39,6 +39,7 @@ import { useDocuments } from '@/hooks/document-translator/useDocuments';
 import { useEnabledLanguages } from '@/hooks/language/useEnabledLanguages';
 import { useMessage } from '@/hooks/message/useMessage';
 import { useDialogState } from '@/hooks/dialog/useDialogState';
+import { formatDate } from '@/lib/formatting/date';
 
 const mockUseDocuments = vi.mocked(useDocuments);
 const mockUseEnabledLanguages = vi.mocked(useEnabledLanguages);
@@ -184,11 +185,11 @@ describe('Document Translator Integration Tests', () => {
   describe('Date Consistency Across Components', () => {
     it('should maintain consistent date formatting throughout component tree', async () => {
       const testDate = '2025-08-02T05:30:00.000Z';
-      const expectedFormattedDate = new Date(testDate).toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit'
-      });
+      // Asserted against the shared formatter rather than a second copy of the
+      // format. This test previously re-implemented `2-digit` options, so it
+      // pinned one of the five variants that were drifting instead of the
+      // standard it meant to check.
+      const expectedFormattedDate = formatDate(testDate);
       
       const mockDocuments = [
         {

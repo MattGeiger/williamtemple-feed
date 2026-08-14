@@ -5,6 +5,962 @@ All notable changes to FEED are documented here. This project adheres to
 
 ## [Unreleased]
 
+### Changed
+
+- **Service Metric configuration now uses a compact three-step dialog.** Add
+  and Edit share the AI Configuration Back/Next navigation pattern while
+  keeping each panel on the dialog surface: name, description, and the shared
+  Category icon grid; metric definition, position, and effective dates; then
+  operational-total and daily-entry participation. The previous popover icon
+  picker and whole-dialog scroll region were removed.
+
+- **Service Log sections now adapt to their metric count.** The three
+  operational sections share a two-column page grid: one or two metrics use a
+  half-page section, while three or more expand to the full page. Metric cards
+  render two per row instead of compressing into a three-column layout.
+
+- **FEED's Lucide dependency and shared icon registry are expanded.** Category
+  editing now exposes 137 icons, including new Shapes & Symbols and Outdoors
+  groups plus additional bag, document, calculation, and pointer choices. The
+  Shopping List PDF SVG registry was regenerated from the same installed
+  Lucide version to preserve preview/export parity.
+
+- **Service Log daily entry now has one Save action.** The page no longer asks
+  staff to choose between `Save Draft` and `Finalize Day`, and it no longer
+  exposes a Draft/Finalized badge. Saving commits the shared day immediately;
+  revision and audit history remain intact behind the interaction.
+
+- **The Service Date navigator now shows the full weekday and calendar date.**
+  Historical selections use labels such as `Thursday, July 9th, 2026`; today's
+  selection retains the `Today` cue alongside the same unambiguous date.
+
+- **Service Metric ordering now uses plain ordinal positions.** The Add/Edit
+  dialog presents `1st`, `2nd`, `3rd`, and so on instead of exposing internal
+  numerical sort values. Creating or moving a metric atomically rebalances the
+  shared metric list while preserving append-only definition revisions.
+
+### Fixed
+
+- **Imported WTH Tracking observations now continue as editable Service Log
+  data.** Historical values populate the native daily fields instead of
+  remaining hidden behind a source-specific read filter. FEED maintains one
+  current observation per metric and date across imported and native sources;
+  edits and intentional clears append native revisions while preserving the
+  original workbook provenance. Import rollback or restore cannot displace a
+  later staff correction. The additive
+  `20260813120000_unify_service_metric_observations` migration records cleared
+  revisions and enforces the single-current projection. Sanitized backup table
+  contract version 8 preserves clear revisions while older artifacts restore
+  their observations as recorded values.
+
+- **Service Metric changes now take effect on the open Service Log
+  immediately.** Saving, adding, or seeding metric definitions refreshes both
+  the configuration table and the current day's field definitions without a
+  page reload. The silent refresh preserves any unsaved daily-entry values
+  already typed by staff.
+
+- **Document integrity checks now report state changes instead of repeating the
+  same missing-file error on every document-list read.** A missing DOCX is
+  marked and logged once, routine checks leave the existing warning unchanged,
+  and the warning is cleared if the file later becomes available again. This
+  also avoids repeatedly changing the document's `updatedAt` timestamp for an
+  already-known storage issue.
+
+### Added
+
+- **Service Metrics now support user-selected icons.** Administrators choose
+  from the same searchable library used by Categories. The icon is stored with
+  each effective-dated metric revision and renders in both the configuration
+  table and its daily Service Log card. Existing WTH definitions receive
+  editable semantic defaults through the additive
+  `20260813140000_add_service_metric_icons` migration. Sanitized backup table
+  contract version 9 preserves these choices; older artifacts restore the
+  neutral package icon.
+
+- **Unified Add Data now supports the one-time WTH service Tracking
+  migration.** A WTH-owned exporter converts the changing workbook cross-tab
+  into a versioned long-form CSV rather than making spreadsheet coordinates a
+  permanent FEED API. It retains only directly entered approved metrics,
+  preserves blank and formula-generated future zeroes separately from directly
+  entered zero, excludes Total and Notes, and carries worksheet/cell
+  provenance. The operational adapter validates
+  effective-dated metric definitions, previews new/revised/unchanged
+  observations, reconciles regular methods against active Link2Feed/SIMC formal
+  household totals without adding the sources together, and activates or
+  no-ops atomically. Invalid source cells block export with an exact reference.
+  Service-week dates are anchored to the Tuesday–Thursday block that intersects
+  the start of each month; they are not inferred as the nth occurrence of each
+  weekday. This prevents a fifth-row November value from being misdated into
+  December. After the identified source cell was corrected, the supplied
+  34-sheet workbook exported successfully as 1,114 direct observations across
+  318 service dates from October 17, 2023 through August 6, 2026, and the
+  operational adapter accepted the complete artifact without a duplicate or
+  contract warning. Staff then repeated the documented export command against
+  the corrected workbook and received the same 1,114-observation result. The
+  additive `20260811200000_add_wth_tracking_ingestion`
+  migration was also applied successfully in local testing; it stores durable
+  workbook provenance and transient normalized review rows. Sanitized backup
+  table contract version 7 preserves the new optional provenance fields. The
+  final Add Data review activated all 1,114 historical revisions with no
+  warning or unresolved issue. On 303 complete formal-overlap dates, regular
+  methods were 59 households higher overall with a 4.27 mean absolute daily
+  difference; four incomplete dates were excluded without treating blanks as
+  zero.
+
+- **Unified Add Data now imports SIMC service visits.** A representative
+  sanitized export establishes one formal household
+  encounter per Visit ID, SIMC-scoped household and person identities, linked
+  encounter membership, household composition, birth-year-only person
+  profiles, and field-specific demographic participation. Additional Notes and
+  every non-allowlisted column are discarded. The adapter stages a review,
+  reports member completeness and repeat same-day household visits, reconciles
+  new/revised/unchanged visits and profiles, and activates or no-ops atomically.
+  The reviewed June–August sample
+  reconciles 3,305 SIMC visits against 3,247 regular-method Tracking households
+  and 200 separately recorded Emergency Bags, preserving SIMC as formal
+  authority and Tracking as operational detail. WTH's actual source transition
+  remains Link2Feed through late May and SIMC from the first week of June; the
+  shorter sanitized extracts do not manufacture a production coverage gap.
+  The complete localhost workflow was also activated successfully: 3,305 visit
+  revisions, 1,443 household profiles, and 2,166 person profiles, representing
+  4,760 reported people; 36 non-allowlisted columns were ignored and 21
+  structured quality warnings were retained.
+
+- **FEED now has a native, organization-wide Service Log.** Authenticated staff
+  can record effective-dated count, yes/no, and time fields for a service day,
+  preserve blank separately from explicit zero, save a draft, finalize a day,
+  or mark the pantry closed. Every save appends auditable day and observation
+  revisions while maintaining one shared current projection. Administrators
+  manage the metric vocabulary through the standard table and Add/Edit dialog;
+  an explicit idempotent action installs WTH's historical aliases, seven stable
+  metrics, and its 145-household regular capacity plan without making those
+  organization-specific defaults universal. Current entry uses Downstairs
+  Shopping Visits, Long Lists, Emergency Bags, capacity time, and camping-gear
+  requests; effective-dated history retains Visits, Lists, and Turned Away.
+
+- **Unified Add Data now has an operational Link2Feed visits branch.** The
+  administrator-only modal streams the detected CSV into private staging,
+  projects only the public `link2feed_visits_v1` allowlist, discards Notes and
+  full birth dates, normalizes demographic participation, and previews new,
+  revised, and unchanged facts before activation. Unusually large anonymous
+  people counts require an explicit keep-as-household or event-tally decision;
+  the confirmed November 24, 2025 WTH outdoor market is applied through a
+  WTH-owned source-resolution preset outside the reusable parser. Reviewed
+  revisions materialize under a non-visible pending import, then one short
+  transaction activates them. A full-scale 78,308-row synthetic regression
+  produced 78,308 encounters, 9,509 latest client profiles, and 133,126
+  normalized response rows; an identical second artifact was a no-op.
+
+- **The canonical Service foundation now has its first persistent contract.**
+  New organization-wide tables retain Service import provenance, source-scoped
+  client identities, immutable encounter/profile revisions, canonical profile
+  responses, and append-only source resolutions without coupling them to
+  Procurement. Domain validation preserves identified, anonymous, special-event
+  people aggregates, and formal aggregate record kinds. Demographic source
+  values normalize to `provided` or `not_provided`, while an absent source
+  question remains unavailable. Configurable outlier review raises a warning
+  without capping or reclassifying source values. Effective-dated operational
+  metrics preserve typed count/boolean/time observations, capacity targets,
+  blank-versus-zero, and daily draft/finalized state. Effective-dated capacity
+  plans keep the overall formal-service target distinct from operational-method
+  targets. Structured quality findings and append-only operator decisions make
+  reviewed exceptions auditable. Service is also a complete, independent
+  sanitized backup/restore unit under table contract version 5.
+
+- **Unified Add Data now has its ingestion lifecycle foundation.** Transient
+  database jobs and append-only progress events track staging, inspection,
+  review, activation, completion, failure, and cancellation without entering
+  sanitized backups. CSV bytes stream to server-generated private files under
+  a 64 MB ceiling, are SHA-256 hashed during transfer, and are re-hashed and
+  re-detected before activation. Unknown, failed, cancelled, completed, and
+  expired artifacts have explicit deletion paths. Shared helpers detect
+  unchanged snapshots, record `no_op` separately from `imported`, confine active
+  fact writes to one transaction, and recompute Service revision winners during
+  rollback or restore. The Link2Feed visits adapter is the first production
+  branch; other detected contracts remain on their existing or pending paths.
+
+- **Unified Add Data detection now has a backend source of truth.** A read-only,
+  administrator-only header-inspection route recognizes registered Procurement and
+  Service contracts without receiving CSV data rows, returns only
+  recognized/ignored counts, and never offers a parser override. Procurement
+  header constants were extracted from their parsers so existing importers and
+  the global classifier cannot drift.
+
+- **Data Management now includes a unified Add Data workflow.** One
+  modal inspects a CSV locally, identifies existing OFB and WTH historical
+  procurement contracts plus provisional Link2Feed visit/client and WTH
+  service-tracking contracts, and opens the correct source-specific flow.
+  The Link2Feed, SIMC, and WTH Tracking branches can now validate, reconcile,
+  and activate data; OFB and historical procurement use the same modal while
+  retaining their established import services. Synthetic fixtures verify that original
+  Link2Feed exports may contain extra personal columns while FEED recognizes
+  only the reviewed allowlist.
+
+### Changed
+
+- **Shopping Lists, Service Log, and Admin now have clearer Lucide identities.**
+  Their page headings use `clipboard-pen`, `users-round`, and `shield-user`,
+  respectively, through the same 28px mount-and-hover title animation as
+  Categories and Food Items. Native animate-ui sidebar variants preserve the
+  exact resting geometry while animating the pen stroke, assembling the
+  service household, or drawing the administrative shield on full-link hover
+  and tap. The Information sidebar also shortens **Data Management** to
+  **Data** without changing its route or page title.
+
+- **Reports Management now uses Lucide's `file-chart-pie` icon.** Its 28px
+  page-title variant animates on mount and direct hover, matching Categories
+  and Food Items, while the native animate-ui sidebar variant traces the file
+  and chart before the pie slice fans into place on full-link hover and tap.
+
+- **Service Log now keeps entry, trends, and metric configuration together.**
+  The shared 7d/30d/90d/YTD/All/Custom range control is ready for Service
+  visualization cards. Daily entry defaults to **Today** in the pantry timezone;
+  arrow actions move only across weekdays enabled in Operating Hours, while a
+  single-date version of the established Custom range calendar permits past
+  special-event dates outside the recurring schedule. Administrator-only
+  Service Metrics now sits beneath the daily-entry cards instead of general
+  Settings, without adding another sidebar destination.
+
+- **The Add Data spreadsheet hero now traces into view.** Its Lucide
+  `file-spreadsheet` geometry is preserved verbatim in a native animate-ui icon;
+  the file outline, folded corner, and spreadsheet marks draw on when the modal
+  opens and replay when the drop target is hovered or pressed.
+
+- **Data Management now has one minimal Add Data experience.** The separate
+  OFB and Legacy toolbar actions are removed. One modal identifies a CSV before
+  upload, then routes unified OFB and WTH historical procurement files through
+  their established importers or routes Link2Feed, SIMC, and canonical WTH
+  Tracking files through staged Service review and activation. Staff retain
+  procurement import access; Service imports remain administrator-only. The
+  modal adopts the Document Translator's focused upload flow and AI
+  Configuration's concise hero treatment, removes step counters and technical
+  transformation prose, and reports only information needed for the next
+  decision. Older single-channel OFB exports are recognized but direct users
+  to the supported unified export.
+
+- **The Service Analytics contract now distinguishes formal authority from
+  operational detail.** Link2Feed and future SIMC facts supply authoritative
+  household/individual and demographic measures; WTH Tracking and the future
+  native FEED Service Log supply service-method, capacity, unmet-demand, and
+  ancillary observations without replacing formal totals. The plan now defines
+  demographic participation/denominators, discards unreliable Link2Feed Notes,
+  resolves the November 24, 2025 `264` value as a Thanksgiving special-event
+  people tally, and specifies the Tracking-to-FEED cutover.
+
+- **The Add Data modal supplies the OFB Chrome extension.** Its concise upload
+  state links directly to a FEED-hosted version 2.0.0
+  exporter package. The ZIP includes the unpacked extension in its own folder
+  and a visually verified two-page PDF guide covering Chrome Developer mode,
+  Load unpacked, installation confirmation, Primarius export, FEED import,
+  troubleshooting, and privacy. The previous channel-by-channel paragraph was
+  removed from the modal; those schema details remain in the procurement
+  documentation where they can be maintained without crowding the task.
+
+- **Reports Management now supports the standard bulk-selection workflow.**
+  Staff can select individual templates or the current page, see and clear the
+  selected count, and choose **Delete Selected** from the shared Actions menu.
+  Row-level and bulk deletion use the same established confirmation, including
+  the warning that report templates are shared across the organization. The
+  backend validates and deletes the full Analytics-template selection in one
+  source-scoped transaction, so stale or mixed-source selections cannot partly
+  succeed.
+
+- **New Analytics reports suggest a title from their selected lenses.** A
+  Procurement-only selection starts as `Procurement Report`, an Operations-only
+  selection starts as `Operations Report`, and a mixed selection starts as
+  `Combined Report`. The title remains an ordinary editable field, and once the
+  user changes it FEED does not overwrite their wording.
+
+### Fixed
+
+- **The Imports table now shows every durable Add Data activation.** Its read
+  path previously queried only `ProcurementImport`, so Link2Feed, SIMC, and WTH
+  Tracking were active but invisible beside OFB and Community Donations. Data
+  Management now reads a cross-domain provenance projection over both
+  `ProcurementImport` and `ServiceImport`; it reports generic data dates,
+  meaningful imported-record counts, warnings, status, and import time while
+  preserving domain-specific details and rollback/restore behavior. Transient
+  jobs and pending Service materialization remain excluded from history.
+
+- **WTH Tracking review no longer rejects approved source aliases or reports
+  workflow failures as CSV row errors.** The first 500-row staging callback
+  encountered `Downstairs Shopping Visits` in November 2024 while the
+  effective FEED display alias was still `Visits`, then surfaced the callback
+  failure as an unreadable row 501. Approved exporter labels now remain source
+  provenance after their canonical metric key is established; editable UI
+  display aliases do not determine whether a historical fact is valid. CSV
+  syntax errors are still reported by row, while configuration and persistence
+  errors retain their own ASK-aligned messages.
+
+- **Service metric fields no longer lose their edge shadows inside the Add/Edit
+  dialog.** The fixed-height Shadcn ScrollArea now uses the established
+  padded content wrapper, keeping focus rings and control shadows inset inside
+  the Radix viewport instead of clipping them at the modal body's edges.
+
+- **Analytics report PDF parity and table lifecycle.** Seasonal Inbound Weight
+  now includes every available year for automatic/All selections, retains an
+  explicitly chosen subset, and stops lines at the selected range instead of
+  drawing out-of-range zeroes. Where Paid Procurement Dollars Went preserves
+  the on-screen family stack in its aggregate tail bar. Recurring Availability
+  and Category Pressure now print axes and bar-end values, while Operational
+  Pressure prints collision-aware latest values. Starting or finishing the
+  report workflow no longer remounts Operations tables or leaves them inert, so
+  their sort and page state reach the report and remain usable afterward.
+
+## [1.5.0-beta.9] — 2026-08-07
+
+Supersedes 1.5.0-beta.8, which was never deployed — its work (the Admin History
+table, the rebuilt Analytics reports, saved-template runs) ships here.
+
+### Added
+
+- **Reports, rebuilt as an export of Analytics.** Any of the twenty-three Analytics
+  cards can be selected and exported as one archive: a printable PDF, a CSV per
+  card, and a manifest recording the range and filters used.
+
+  The design decision that makes it safe is a single sentence: a report is an
+  export of what Analytics already shows, not a second analytical engine. Every
+  card renders the same numbers under the same filters, so a report makes no
+  claim the screen does not. The previous attempt had its own 31-card registry
+  computing its own answers, which is how it drifted into the claims RITE
+  rejected (ISSUES #46).
+
+  The workflow is ZEV's, revived rather than rebuilt: one **Generate Report**
+  action puts the page into selection mode, cards take an order number as they
+  are picked, and a single modal chooses PDF and/or CSV. The per-card export
+  buttons rejected during ideation were still rendering on the Operations lens
+  and have been removed.
+
+  Charts are authored server-side rather than captured from the browser. Three
+  approaches were built and measured against the same data first: printing the
+  live page produced 5.8MB and 139 raster images of application chrome;
+  serializing the DOM lost every legend. Server-authored SVG is the only one
+  that needs no browser, which is what lets a saved template regenerate later.
+  The tradeoff is explicit — the PDF shows the same numbers in a chart drawn for
+  paper, not a pixel copy of the screen.
+
+  Filters travel, including each card's own. A search box, a donor filter, a
+  year selection, or a table's sort are frozen when selection begins, because
+  the modal offers no filter controls and a run must mean what the page showed.
+  Tables keep their filter, sort, visible columns, and page size, and print with
+  a repeating header and rows that never split across a page.
+
+  Long ranges condense automatically — a bar needs 1.6mm to read as a bar — and
+  the card says so, with the way to get the detail back. Templates store the
+  card selection and filters but deliberately not the date range, which is
+  chosen each time a report is run.
+
+  Architecture in `docs/reports/analytics-report-architecture.md`; staff-facing
+  guide at Help → Generating Reports.
+
+- **Saved templates run from Reports Management.** A template is listed with its
+  cards, outputs and filters, and **Run report** regenerates it for a period
+  chosen at run time. The dialog asks for the date range and nothing else,
+  because the template supplies the rest — and it asks with the same range
+  control the Analytics page uses, so a template's second run means what its
+  first one did.
+
+  Each run starts from the default period rather than inheriting the previous
+  one. A range carried over silently is exactly the mistake that "a template has
+  no date range" exists to prevent.
+
+  Cards can be retired from the registry after a template names one. That is now
+  surfaced *before* generating — an "N unavailable" badge in the table, a warning
+  in the run dialog, a disabled Run when nothing survives — and only the
+  surviving cards are requested. The server's `X-Unknown-Card-Ids` header still
+  reports them, but telling someone their report is short a card after they have
+  downloaded it is not telling them.
+
+  An unread card registry is distinguished from an empty one: a failed lookup
+  reports nothing missing rather than announcing that every saved card has been
+  deleted.
+
+
+### Changed
+
+- **Admin → History is a standard table.** It was the last hand-rolled one on
+  the Admin page: its own pager, its own header markup, and a locale-dependent
+  `Aug 4, 2026, 5:53 PM` beside every other table's `8/4/2026 5:53 PM`. It now
+  runs through `EnhancedDataTable` with sorting, a filter, column visibility,
+  and pagination.
+
+  Sorting and filtering happen in the browser, so the whole log is loaded up
+  front rather than a page at a time — a partial load would make the filter lie,
+  reporting "no results" for an entry that exists but was never fetched. In an
+  audit log, which people consult precisely to find one past action, that is the
+  worst available failure. The table records administrative actions only, so it
+  grows by a handful of rows a month; a 2,000-entry ceiling exists so an
+  unexpectedly large log degrades visibly instead of hanging the page.
+
+### Fixed
+
+- **The two heaviest audit entries had no wording.** `BACKUP_RESTORED` and
+  `CLEAN_SLATE_APPLIED` were added to the backend in beta.5/6 and never given
+  labels, so "the database was replaced" and "the database was wiped" appeared
+  in Admin → History as raw SCREAMING_SNAKE identifiers. They now read *Backup
+  restored* and *Reset to clean slate* — deliberately distinct, because restore
+  recovers and reset discards. A test now asserts every backend audit action has
+  frontend wording, and that no wording outlives its action.
+
+- **A restore entry no longer shows a wire-format timestamp.** The Affected
+  column rendered the backup artifact's own `2026-08-04T22:20:41.415Z`.
+
+- **Eight Analytics cards could be seen but not exported.** Recurring
+  Availability, Operational Pressure, Grocery Partner Mix, Recorded Donated
+  Value, Fresh Food Alliance Pickup History, Fresh Food Alliance Donations Over
+  Time, and both legacy donation cards were never wrapped for selection, so
+  they sat still while everything around them wiggled and could not be put in a
+  report. All eight are registered; the registry holds 23.
+
+  Their card-level controls travel like every other card's: the partner picker
+  and the Show Legacy Data switch on the donations timeline, the source picker
+  on the legacy timeline. A partner's silent month exports as a zero rather
+  than a gap, because a gap lets the line bridge it and draw a delivery that
+  never happened.
+
+  A test now reads the lens components and fails when a card renders without a
+  `SelectableBlock`, or when a registered card loses its place on the page.
+  Nothing enforced this before, which is why eight cards drifted out of reach.
+
+- **Printed charts labelled dollars and item counts as pounds.** The bar
+  primitive hard-coded a `lb` suffix, so "Where Paid Procurement Dollars Went"
+  printed `43,245 lb` for $43,245 of spend, and Availability Summary printed
+  `58 lb` for a count of items. Each card states its own unit now. Found by
+  rendering a PDF and reading it, not by a test — the CSV had it right all
+  along, which is exactly how it stayed invisible.
+
+- **Long product names printed over their own bars.** The label column is a
+  fixed width and nothing truncated, so "Meat, Chicken Drumsticks (12/3.4 lb
+  trays)" ran straight through the bar beside it. Labels are measured against
+  real Helvetica advance widths — an average character width mis-cuts a name in
+  capitals and a name in narrow lowercase in opposite directions — and cut with
+  an ellipsis. The CSV still carries every name in full, so the abbreviation is
+  only ever in the picture.
+
+- **Available Assortment Over Time rendered at half width** with empty space
+  beside it. Its `md:col-span-2` was on the inner card while the selection
+  wrapper was the actual grid item, so the span applied to something that was
+  not a grid child. The two-column grid was doing nothing — both cards in it
+  were full width — and is gone.
+
+- **Recurring Availability stranded a KPI beside dead space.** A `max-w-4xl`
+  cap ended the divider under the third tile and held the chart to about half
+  the card, so the fourth tile floated above nothing and the chart read as a
+  fragment. It fills the card, and the item-name axis has the room to prove it.
+
+### Changed
+
+- **Tables wiggle in selection mode, like every other block.** They were held
+  deliberately still, on the theory that swaying a whole table was too much; in
+  use that read as "this one is not selectable", which is the opposite of what
+  the motion is for.
+
+  Amplitude is now scaled to block width. A rotation throws the far corner
+  further the wider the element is, so one fixed angle makes a full-width table
+  sway several times as far as a half-width card; the angle scales by
+  `reference / width`, holding the visible sweep roughly constant. Wide cards
+  get the same treatment, not just tables. The `variant="table"` prop existed
+  only to suppress motion and has been removed.
+
+## [1.5.0-beta.7] — 2026-08-05
+
+Deployed to production 2026-08-05, from beta.2. Migrations 23 → 24. This entry
+was cut in two passes — the restore work was written up first and the rest
+accumulated under Unreleased — but all of it shipped in the same image, so it
+is one release.
+
+### Added
+
+- **Reset to a clean slate, from Data Management → Database.** The reset the
+  data-management arc was built toward: an administrator can return the instance
+  to a seeded starting state without SSH, VNC, or a terminal.
+
+  It shares restore's machinery — `buildAndSwap` now holds the dangerous
+  sequence once (consistent copy, foreign-key verification, pre-swap snapshot,
+  maintenance mode, WAL checkpoint, rename, exit) so both features exercise it
+  and it only has to be proven once. It is *not* a restore, and the copy never
+  lets those blur: restore recovers, reset discards. The dialog states what will
+  be deleted with a live record count, and requires typing RESET, because the
+  button sits beside Download Backup and there is no artifact to come back from.
+
+  Two choices: **start with examples** (default) and **also remove everyone's
+  access** (off by default — clearing the roster arms the fresh-instance
+  bootstrap, which must be chosen rather than discovered).
+
+- **A clean slate in three layers.** Structural (global limit, English enabled),
+  reference (all 59 supported languages as *available*, not enabled — a fresh
+  instance with 59 switched on would put 59 columns of untranslated text in
+  front of staff on day one), and illustrative (optional examples).
+
+  The illustrative layer is three categories and nine items: Produce with no
+  limits, Dairy and Meat capped at 3 with each item at 1. One status badge per
+  category — Carrots out of stock, Chicken Limited, Yogurt Clearance — because
+  the badges are independent of the numeric limit, and putting `isLimited` on
+  every item that has a limit would demonstrate nothing.
+
+- **An example Shopping List Builder template**, authored by hand and captured
+  into the seed with eight reusable saved components. The Builder is the hardest
+  feature to discover; a template that already binds a real inventory-backed
+  section table to real categories and limits is documentation that runs.
+
+  **Its inventory ids are symbolic.** The authored template referenced
+  `categoryId: 14` and `foodItemId: 177` — ids that come from SQLite's
+  autoincrement high-water mark, which survives the deletes a reset performs, so
+  they differ on every instance and after every reset. Stored literally they
+  would bind the example table to whatever rows hold those ids later. The seed
+  stores `@@CAT:Name@@` / `@@ITEM:Name@@` and resolves them against the rows it
+  just created, throwing rather than silently rendering an empty table. Verified
+  across three id-spaces (14/15/16 authored, 1/2/3 fresh, 17/18/19 reseeded),
+  and the seeded template renders to a valid PDF.
+
+- **Sign-in emails look like William Temple House.** The verification code,
+  magic link, and invitation messages carried no identity — a black button, grey
+  text, no logo, no organisation name, and a sender line reading "FEED Login".
+  Sign-in mail is the one message staff receive that looks exactly like what
+  security training tells them to distrust, and these gave a cautious recipient
+  nothing to recognise.
+
+  All three now render through one shell (`email-layout.ts`) with the WTH logo,
+  the app's own blue and gold, and the FEED wordmark as live text. The sender is
+  `FEED at William Temple House`.
+
+  The design assumes **images are blocked**, because in Outlook and
+  privacy-filtered clients they are: the wordmark and palette are text and
+  background colours, not image slices, so the mail still reads as WTH with the
+  logo suppressed. Each message also gained a plain-text alternative (HTML-only
+  mail scores worse with spam filters) and its own inbox preheader (without one,
+  clients scrape the first visible text, so every FEED email previewed alike).
+
+  A logo is not a security control — anyone can copy one. The line doing the
+  real work is in the footer: *FEED will never ask you for a password, and will
+  never ask you to reply to this message with a code*, which gives staff a rule
+  they can apply to the next message, including one FEED did not send. See
+  `docs/auth/email-branding.md`.
+
+### Fixed
+
+- **The two-administrator refusal explains itself instead of saying "An
+  unexpected error occurred" (ISSUES.md #60).** The backend message was already
+  specific and actionable; it never reached the toast. The frontend caps error
+  messages at 240 characters as defence against leaked driver dumps, and this
+  one ran to 251 — so the entire explanation was replaced with the generic
+  fallback. The Domain-mode variant was 129 characters and displayed fine, which
+  is why only the two-administrator rule looked broken.
+
+  Errors that arrive with an application error code are now exempt from the
+  length cap: a code means one of our own routes wrote the prose, and a leaked
+  dump never carries one. The shape checks still apply, so the exemption cannot
+  smuggle an artifact through. The message was also cut to three sentences —
+  what happens, the rule, the way out — at 132 characters.
+
+- **A clean slate no longer leaves the instance without AI system prompts.**
+  The prompts lived only in `scripts/seed-all.ts`, which the production image
+  never copies, while `SystemPrompt` is part of the backup contract and so was
+  cleared by a reset with nothing to put back. They are reference data — how
+  FEED talks to a translation provider, not agency content — and now live under
+  `src/services/seed/` and seed in every clean slate, with or without examples.
+  Found by checking what a reset actually left behind rather than what it was
+  supposed to.
+
+- **The development seed and the clean slate share one source.**
+  `scripts/seed-all.ts` had its own copies of the 59 languages, the system
+  prompts, and the global limit; it now calls the same seeding code the reset
+  uses and keeps only its larger development inventory.
+
+- **Alert rows no longer stagger.** `AlertTitle` kept `mb-1` and `leading-none`
+  from upstream shadcn's *stacked* layout, but this alert is a centred flex row:
+  the margin lifted the title above its siblings and the line-height put its
+  text on a different baseline than the description. Icon, title, and
+  description now share one vertical midpoint.
+
+- **Empty analytics states name the period.** "No Usage Data Yet … will appear
+  after translation activity begins" read as *never any* and sent someone
+  looking for data loss; there was none. The ranges are calendar-based, not
+  rolling — "This Month" means since the 1st — so on the 4th of a quiet month a
+  busy previous month shows nothing. The empty state now says which period is
+  empty and that earlier activity is not shown.
+
+  That first pass then advised widening the range from a card that had no range
+  control: Period and Service were rendered only in the populated branch, so the
+  one state that needed them was the one state without them. Both filters are
+  now defined once and rendered by every state that can act on them. The Service
+  list falls back to the configured services when a period recorded no activity,
+  so it is a working filter rather than a dropdown with one dead entry.
+
+### Known
+
+- After a restore or reset, `npm run dev` does not come back on its own:
+  `ts-node-dev --respawn` waits for a file change rather than restarting on
+  exit. Touch a source file or restart the dev server. Production is unaffected
+  — Docker's `restart: unless-stopped` restarts on any exit code.
+
+**In-app restore.** An administrator can put the database back from a backup
+file without SSH, VNC, or a terminal — the point of the whole data-management
+arc. No schema or migration changes.
+
+### Added
+
+- **Restore from a backup, from the Database tab.** Choose a file, see what is
+  in it, pick what to bring back, confirm, and FEED restarts on the restored
+  data. Validation is a separate round trip from execution, so what the file
+  contains is on screen *before* anything is replaced — the difference between a
+  confirmation and a dare.
+
+- **Build and swap, never a live transaction.** The largest procurement import
+  already lands near 18s against the 30s transaction ceiling; a full restore is
+  an order of magnitude larger, and raising the ceiling would mean holding a
+  multi-minute write lock that blocks the pantry for nothing if it fails at
+  minute four.
+
+  Instead FEED takes a consistent copy of the live database with `VACUUM INTO`,
+  rewrites only the selected units inside that copy, verifies it, snapshots the
+  original, and swaps the new file in with a single `rename(2)`. The live
+  database is untouched until that one syscall, and rollback is renaming the
+  snapshot back.
+
+  The design called for `migrate deploy` against an empty file. Copying the live
+  one reaches the same place with fewer moving parts: the schema is necessarily
+  current because it *is* the live schema, everything a partial restore is not
+  replacing is already correct rather than needing a carry-across pass, and
+  `VACUUM INTO` is WAL-safe by construction. It also settles the roster question
+  the design worried about — accounts, access policy, keys, and the audit log
+  are simply still there, because they were never removed.
+
+- **Partial restore, in units closed under foreign keys.** Inventory, languages
+  and translations, shopping lists, procurement, and configuration. Not
+  arbitrary table checkboxes: `FoodItemTranslation` and the inventory events
+  reference food items and categories by autoincrement id, so a selection that
+  is not FK-closed produces rows pointing at rows that were not restored. The
+  modal adds dependencies for you and says why, rather than refusing and making
+  you solve a graph. Procurement is genuinely independent, which makes "add back
+  last month's imports" a safe standalone operation.
+
+- **Maintenance mode**, in memory and process-local. A database flag would live
+  in the file being replaced, and a crashed restore must not be able to strand
+  the instance — a restart clears this one, and `restart: unless-stopped`
+  guarantees the restart. Mutations get 503 naming what is happening and who
+  started it; reads keep working, so staff can still look things up.
+
+- **The app restarts itself by exiting.** No Docker socket, no privileged
+  access, no host agent.
+
+### Changed
+
+- **Upload cap sized from a real artifact: 256MB.** Scaling from the ~29MB
+  SQLite file gives the wrong answer by about 4× — the same data as
+  pretty-printed JSON measures **120MB**, driven by ~121k procurement lines each
+  repeating their key names. The first cap here was 64MB and would have rejected
+  every real backup this instance produces. Only testing at production scale
+  caught it. Memory is the next ceiling, not the number: the artifact is held as
+  a buffer, a string, and a parsed object, so streaming is the fix past this
+  point rather than a bigger limit.
+
+- **API keys can be changed on an existing AI configuration.** Edit previously
+  showed a disabled row of bullets and told the administrator to create a new
+  configuration to rotate a key — which meant re-entering every cost, token, and
+  rate setting, and left the old configuration to be found and deleted.
+
+  The field is editable now and write-only: it opens blank with a `••••••••••••`
+  placeholder, which reads as *deliberately hidden* rather than *empty*. Blank
+  on save leaves the stored key untouched; a typed value replaces it, with a
+  fresh salt.
+
+  This was a prerequisite for restore, not a convenience: a restored
+  configuration arrives keyless by design, and without an editable field the
+  only way to make it work again was to delete it and start over.
+
+- **`AIConfiguration` is now backed up with its two secret columns stripped,**
+  rather than excluded whole. beta.6 dropped the entire table to protect
+  `encryptedApiKey` and `salt`, which also discarded the administrator's model
+  choice, temperature, thinking level, token limits, cost limits, and rate
+  limits. `backup-and-restore.md` only ever asked for column-level exclusion.
+
+  The redaction *deletes* the columns rather than nulling them, so a restore
+  cannot mistake an empty key for a real one. **Table contract version is now
+  2**, and beta.6 artifacts (version 1) still read, through a reader for that
+  version.
+
+- **React 19.2.7**, up from 18.2. The ported animate-ui components were written
+  for React 19, where `ref` is an ordinary prop; three rounds of `forwardRef`
+  fixes existed only to bridge that gap. `cmdk` moved to 1.1.1 with it — at
+  1.0.0 it pinned React 18 and was the one real blocker. No source changes were
+  needed: the codebase had none of the React 19 breaking patterns.
+
+### Fixed
+
+- **Refs are no longer dropped by the ported animate-ui components.**
+  `AnimateIcon`, the animate-ui `Slot`, and all 69 generated icon files handled
+  `ref` as a prop, which React 18 never delivers — 16 "Function components
+  cannot be given refs" warnings on a single page load.
+
+  The warnings were the visible part. Radix tooltip triggers never received the
+  element they anchor against, and `TabsTrigger` registered `null` with the tab
+  indicator instead of the trigger it exists to measure.
+
+- **`Switch` no longer spreads Radix's control props onto the DOM button**,
+  which made React log and discard an `onCheckedChange` attribute every render.
+
+- **The sidebar no longer shows a redundant "About" tooltip.** Hovering About
+  put a second "About" bubble beside the label. That footer block only renders
+  with the sidebar expanded — where the label is already visible.
+
+- **Removed `@types/react-beautiful-dnd`**, a dead type whose runtime package
+  was never installed. Both surfaces that actually drag use native browser APIs:
+  the Shopping List Builder uses pointer events, the Document Translator's
+  upload uses HTML5 drop events.
+
+## [1.5.0-beta.6] — 2026-08-01
+
+Sanitized backup, a database summary, and the Data Management page restructured
+around it. No schema or migration changes.
+
+### Added
+
+- **Download a sanitized backup** from Data Management → Database,
+  administrator-only and recorded in the activity history. It is a *selective
+  logical export*, not a database snapshot — the distinction is the whole point
+  of `docs/data-management/backup-and-restore.md`. A raw SQLite snapshot
+  necessarily carries encryption keys, encrypted provider secrets, and
+  authentication records, so it stays an operator concern and is never a browser
+  download.
+
+  The artifact describes itself: artifact kind, table-contract version, FEED
+  version, the migration the database has applied, per-table row counts, the
+  full exclusion list *with the reason for each*, and a SHA-256 over
+  canonicalised data. Canonicalised because Prisma does not guarantee column
+  order, and a checksum that changed on an unchanged database after an upgrade
+  would be worthless. Read inside a transaction so an import landing mid-export
+  cannot produce an incoherent file.
+
+  **Authority is excluded deliberately.** `User`, `AccessPolicy`, and
+  `AdminAuditLog` are left out, so a stale or edited artifact cannot grant
+  administrator access, widen who may sign in, or rewrite the history of
+  privileged actions. Also excluded: key material, provider secrets, sign-in
+  tokens, rows pointing at files the artifact does not carry, and telemetry.
+
+- **A database summary** on the same tab: grouped record counts, the file size,
+  and when the last backup was taken. Counted over the same table contract the
+  backup exports, so the figures describe exactly what a backup would contain —
+  a summary with its own list would eventually disagree with the artifact.
+
+- **The exclusion contract is enforced by a test, not by prose.** Every model in
+  `schema.prisma` must be classified as included or excluded; the test reads the
+  schema and fails naming any model in neither. Verified by adding a probe model
+  and confirming it fails. The realistic leak was never somebody exporting
+  `EncryptionKey` on purpose — it was a table added later that a blanket export
+  quietly picked up.
+
+### Changed
+
+- **Data Management is now tabbed: Analytics and Database.** Analytics is the
+  default and holds everything the page had before. Database holds the backup
+  actions. Staff see the Analytics content with no tab strip at all — a single
+  tab is chrome without a choice — while administrators get both. The server
+  gates the Database actions independently; the tab strip is presentation.
+- **Data Rules moved above the import toolbar** and its description shrank to
+  one line, with the detail behind a tooltip. The rules govern every total shown
+  above them, so ending the page with them below a paginated table read wrong.
+- **Dates are `mm/dd/yyyy` throughout the page** — coverage strip, delivery
+  ranges, import timestamps, the staleness alert, and the detail dialog.
+- **Restore Backup is present but not yet functional.** It answers with a
+  "coming soon" message rather than sitting disabled, matching AI
+  Configuration's *Reset to Defaults*: a dead control gives the user nothing to
+  act on. Restore replaces live data and its design questions are still open —
+  see `docs/data-management/beta-6-backup-restore-brief.md`.
+
+### Fixed
+
+- **Variant styling the Tailwind v4 codemod silently removed** (ISSUES.md #58).
+  The upgrade rewrote `outline` → `outline-solid` across its template pass;
+  that rename is correct for utility *classes* and was also applied to eight
+  `variant="outline"` prop values and two TypeScript unions. Neither `Button`
+  nor `Badge` has an `outline-solid` variant, so those controls rendered with no
+  variant styling at all — silently, because class-variance-authority falls
+  through to base classes rather than throwing. Affected pagination's active
+  page, the Document Translator's pagination, the Data Management status badge,
+  a Shopping List Builder badge, and three buttons in Find Missing Translations.
+  It survived beta.1's utility-by-utility stylesheet diff because that compared
+  classes; a prop value never reaches the stylesheet.
+- **The backend suite flaked under load** (ISSUES.md #59). The Shopping List
+  Builder's `preview-pdf` tests launch Chromium and render a real PDF, taking
+  ~5.6s against Vitest's 5000ms default — already over the line in a serial run,
+  and pushed over by any extra load. `testTimeout` is now 30s. An earlier
+  diagnosis in this release attributed the flakiness to test files sharing one
+  database; that was wrong and is corrected in #59.
+
+### Notes
+
+- **Restore is not built.** beta.6 ships the safe half. A sanitized export is
+  independently useful, exercises the manifest and exclusion list, and cannot
+  destroy anything — and it fixes the artifact format restore has to validate
+  against.
+
+## [1.5.0-beta.5] — 2026-08-01
+
+Closes the authorization hole beta.4 built the machinery for, and makes magic
+links usable. No schema or migration changes.
+
+### Changed
+
+- **Privileged routes now require administrator authority** (ISSUES.md #50a).
+  Until now any authenticated user could roll back procurement imports, restore
+  them, author data-shaping rules that change what Analytics counts, or rewrite
+  AI provider keys and cost limits. beta.4 deliberately left these open, because
+  gating them before the roster was verified risked removing capability the
+  pantry depends on with no in-app way to restore it.
+
+  Reads stay open — staff keep visibility into imports, coverage, models, usage,
+  and cost. The procurement import itself also stays a staff workflow: it is the
+  everyday Data Management task, and it is additive and reversible, whereas
+  rollback is the destructive half.
+
+  The UI hides what the server will refuse, so a staff member never meets a
+  refusal they could not have predicted. Data-shaping rules stay *visible* to
+  everyone with an Active/Paused badge, because a rule changes the totals a
+  staff member is reading even though changing it is not theirs to do.
+
+### Fixed
+
+- **Magic links are no longer burned by mail scanning before they reach you**
+  (ISSUES.md #57). Microsoft Defender prefetches every link in an inbound
+  message; because the callback verified on GET, that scan spent the single-use
+  token first, which is why magic links never worked here and OTP became the
+  only usable path. Consumption moved to a POST behind a confirmation page: the
+  emailed link now opens a page that consumes nothing, and the token is spent
+  only when the recipient presses the button. Still single-use, still
+  ten-minute, still bound to one address — one extra click, and it survives the
+  scanner. Letting a token survive its first use was considered and rejected as
+  a replay window.
+- **`requireAdmin` now also refuses a revoked account**, not only a non-admin
+  one. `jwtAuthMiddleware` ends those sessions upstream so it never fires in the
+  mounted app, but a guard whose correctness depends on middleware ordering
+  opens silently if that ordering changes. Found by a test asserting the
+  property.
+
+
+## [1.5.0-beta.4] — 2026-07-31
+
+Administrator authority, a user roster, and a sign-in access policy. **Includes
+a schema migration** — the first since 1.5.0. Back up `production.db` before
+deploying; migrations apply automatically on container start.
+
+### Added
+
+- **Staff and Administrator roles.** Authority is read from the database on
+  every authenticated request rather than carried in the JWT. A token lives
+  seven days, so a demotion or revocation carried in the claims would not take
+  effect until it expired — which would make the access policy advisory rather
+  than enforced. The cost is one indexed lookup on a table of a handful of rows,
+  which WAL mode (beta.2) keeps off the critical path of a running import.
+- **The Admin page at `/admin`**, in three tabs. **Staff** is the roster —
+  invite, promote, demote, revoke, restore, remove, and last sign-in.
+  **Sign-in** sets the access mode, the message shown to anyone turned away, and
+  the contact address. **History** is the privileged-action record.
+- **Two sign-in modes.** *Domain* admits any organization address whose access
+  is not revoked, which is FEED's existing behaviour and the shipped default.
+  *Allowlist* admits only people on the roster, so a colleague whose mailbox is
+  compromised cannot reach FEED unless an administrator put them there. The
+  modes are strictly nested: switching can never widen access.
+- **A durable revoked state**, which blocks sign-in under *both* modes.
+  Deleting a departed staff member was never durable on its own — the account is
+  recreated on their next successful verification — so revoking is now the
+  action that actually holds.
+- **`lastLoginAt`**, recorded on every successful sign-in. `emailVerified` marks
+  account creation and cannot answer "who has stopped using FEED?", which is the
+  question a roster prune actually asks.
+- **Invitations.** An administrator can add someone before their first sign-in.
+  The email carries **no token** — it links to the sign-in page, where the
+  recipient requests their own code. Mail scanners that prefetch links cannot
+  consume anything, which is the failure that makes magic links unusable here.
+- **An operator CLI** at `dist/cli/admin.js` (`list`, `grant`, `revoke`,
+  `reset-access-mode`), for bootstrapping an instance with no administrator and
+  for recovering from an Allowlist lockout. It is subject to the same guards as
+  the Admin page and records its actions as `operator:cli`.
+- **A privileged-action audit log** recording actor, target, action, and
+  timestamp, with the actor stored as both id and label so entries stay legible
+  after an account is deleted.
+
+### Changed
+
+- **The light/dark sweep is slower and eases symmetrically** — 1200ms on
+  `cubic-bezier(0.64, 0, 0.36, 1)`, replacing 600ms on
+  `cubic-bezier(0.22, 1, 0.36, 1)`. The old curve was a hard ease-out that
+  spent most of its travel in the first few frames, which reads as a jump
+  within a 60Hz frame budget. The new one is effectively easeInOutCubic and is
+  symmetric about its midpoint, so acceleration in mirrors deceleration out
+  across roughly 72 frames. A feel change, not a correctness one.
+- **Every pre-existing user was promoted to Administrator by the migration.**
+  The approved bootstrap rule — first verified user on a fresh deployment —
+  assumes an empty user table, which production does not have. The alternatives
+  were worse: promoting the oldest row confers authority by accident of history,
+  and arming the bootstrap for the first sign-in after deploy is a race decided
+  by whoever opens FEED first on a Monday. Nobody gained meaningful capability,
+  because no authority check existed anywhere before this release. Users created
+  *after* the migration default to Staff and need an explicit promotion.
+- **The sign-in gate now covers all four entry points.** The domain check was
+  duplicated across three handlers and absent from the magic-link callback
+  entirely, so a link could complete for an address the code path would have
+  refused. One service now owns it, and it is re-checked at verify so a code
+  issued moments before a revocation does not still resolve.
+- Lockout guards scale with the mode: at least one administrator always, and at
+  least two who can actually sign in while Allowlist mode is active. A revoked
+  administrator holds a role they cannot use and counts toward neither.
+
+### Fixed
+
+- **A refused sign-in no longer claims a code was sent.** Requesting a code for
+  a revoked or unauthorised address showed "Code sent to <address>" directly
+  above "FEED access is limited to authorized staff", and offered a six-digit
+  field for a code that had never been sent. No email was actually sent — the
+  backend was right and only the screen was wrong. `OTPTab` had one `error`
+  status covering both a failed *request* and a failed *verification*; the
+  render guard sent everything that was not `idle`/`requesting` to the code
+  step. The two are now distinct, so a refusal stays on the email step, explains
+  itself inline, and clears when the address is edited. Regression test in
+  `src/test/auth/otp-tab-denied.test.tsx` (ISSUES.md #52).
+- **Admin icons follow the project's motion standard.** The roster shipped with
+  raw `lucide-react` icons in the action menu, which cannot read
+  `AnimateIconContext` and so ignored the menu-open and row-hover triggers
+  entirely. Six native animate-ui icons were hand-rolled (`user-round-cog`,
+  `user-round-check`, `user-round-plus`, `shield-check`, `shield-minus`, `ban`)
+  with geometry taken verbatim from lucide-react. "Change to Staff" and "Revoke
+  access" no longer share a glyph: the shield family now means a role change and
+  the person/ban family an access change (ISSUES.md #54).
+- **The light/dark reveal radiates from the Theme Switcher again in Chrome
+  150.** It had been starting from the viewport's top centre there, while
+  Safari and Chromium 148 were correct on the same 2× display. `clip-path` on
+  `::view-transition-new(root)` resolves against that pseudo-element's own box,
+  not the viewport, and the two coincide only while the snapshot is sized in
+  CSS pixels. Diagnostics from the affected browser showed FEED requesting the
+  button's true centre and Chrome drawing it elsewhere: at `innerWidth` 965 and
+  `devicePixelRatio` 2, an origin 92% across a CSS-pixel box lands at 46% of a
+  device-pixel one. The reveal is now expressed in percentages, which track the
+  button proportionally whatever box the browser uses, with the end radius
+  converted through the reference percentage radii resolve against — so the
+  geometry is equivalent to the pixel form rather than an approximation of it
+  (ISSUES.md #55).
+- **A React key-spread warning on every page load is gone.** Lucide's
+  `__iconNode` stores its key inside each primitive's attrs, so spreading them
+  re-introduced a `key` prop after the explicit one — and the spread won,
+  discarding the stable fallback for nodes that have none. Pre-existing for
+  every icon in the fallback registry.
+- **The Admin page uses `user-round-cog` rather than a shield-with-checkmark**,
+  which read as security verification instead of managing people. Animated in
+  the sidebar, static in the section header, per Rule 4 of the motion standards
+  (ISSUES.md #53).
+
+### Notes
+
+- **Existing privileged routes are deliberately unchanged.** Procurement
+  rollback and restore, AI configuration, and data-shaping rules are not yet
+  behind an administrator check. Between the migration and a verified roster the
+  authorization state is unproven, and gating them in the same release could
+  have removed capability the pantry depends on with no in-app way to restore
+  it. Tracked as ISSUES.md #50a for beta.5.
+- A session-revalidation failure returns `503`, not `401`. A `401` would clear
+  the cookie and bounce every signed-in user to a login that fails identically,
+  so a database blip would read as a mass revocation.
+
 ## [1.5.0-beta.3] — 2026-07-31
 
 Import capacity, deploy safety, and an honest waiting state. No schema or

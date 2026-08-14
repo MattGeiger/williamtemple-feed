@@ -5,7 +5,7 @@
 // under AGPL-3.0-or-later; see LICENSE. William Temple House branding is
 // not covered by this license; see TRADEMARKS.md.
 
-import { Github } from "lucide-react";
+import { SquareTerminal } from '@/components/ui/icons';
 import { APP_VERSION } from "@/config/app-version";
 
 interface AuthAttributionProps {
@@ -62,7 +62,7 @@ export function AuthAttribution({
           rel="noopener noreferrer"
           className="inline-flex items-center justify-center gap-1 font-medium text-foreground underline-offset-4 transition-colors hover:underline"
         >
-          <Github className="h-3.5 w-3.5" aria-hidden="true" />
+          <SquareTerminal className="h-3.5 w-3.5" aria-hidden="true" />
           Source Code on GitHub
         </a>
       ) : null}

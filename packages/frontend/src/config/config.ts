@@ -66,6 +66,25 @@ interface ApiConfig {
       base: string;
       operatingHours: string;
     };
+    service: {
+      base: string;
+    };
+    admin: {
+      base: string;
+      users: string;
+      invite: string;
+      userRole: (id: string) => string;
+      userAccess: (id: string) => string;
+      userById: (id: string) => string;
+      accessPolicy: string;
+      audit: string;
+      backup: string;
+      databaseSummary: string;
+      restore: string;
+      restoreUnits: string;
+      restoreValidate: string;
+      restoreReset: string;
+    };
   };
 }
 
@@ -134,6 +153,25 @@ const config: AppConfig = {
       settings: {
         base: '/api/settings',
         operatingHours: '/operating-hours'
+      },
+      service: {
+        base: '/api/service'
+      },
+      admin: {
+        base: '/api/admin',
+        users: '/users',
+        invite: '/users/invite',
+        userRole: (id: string) => `/users/${id}/role`,
+        userAccess: (id: string) => `/users/${id}/access`,
+        userById: (id: string) => `/users/${id}`,
+        accessPolicy: '/access-policy',
+        audit: '/audit',
+        backup: '/backup',
+        databaseSummary: '/database-summary',
+        restore: '/restore',
+        restoreUnits: '/restore/units',
+        restoreValidate: '/restore/validate',
+        restoreReset: '/restore/reset'
       }
     }
   }

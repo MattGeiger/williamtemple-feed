@@ -1,5 +1,175 @@
 # Release Notes
 
+## Version 1.5.0-beta.9 — 2026-08-07
+
+*Beta — deployed to production for evaluation before the final 1.5.0 tag.*
+
+- **You can turn any Analytics card into a report.** Set up the Analytics page
+  the way you want it — pick a date range, choose a channel, filter a table —
+  then click **Generate Report** at the top right. The cards start to wiggle;
+  click the ones you want, in the order you want them, and click **Review**.
+  You get a single ZIP holding a printable PDF, a spreadsheet per card, and a
+  small file recording the dates and filters used.
+- **Every card on both tabs can now go in a report.** Eight of them could not
+  before — Recurring Availability, Operational Pressure, Grocery Partner Mix,
+  Recorded Donated Value, Fresh Food Alliance Pickup History, Fresh Food
+  Alliance Donations Over Time, and the two legacy donation cards. They sat
+  still while the others wiggled, which is how you would have noticed. Tables
+  wiggle now too; they used to stay still and look unselectable.
+- **Reports remember themselves.** Tick **Save as report template** before
+  generating and the card selection, order, filters, and PDF/CSV choices are
+  kept under the report's name. Run it again from **Reports**, choose a new date
+  range, and get the same report for the new period. The date range is
+  deliberately not saved — you pick it each time, which is what makes a monthly
+  report straightforward.
+- **Reports Management now has the same bulk controls as other management
+  tables.** Select report templates with the row checkboxes, use the heading
+  checkbox for the current page, and choose **Delete Selected** from Actions.
+  FEED confirms the full selection and deletes it as one operation.
+- **Import OFB Data now gives staff the required exporter.** The shorter dialog
+  links to Primarius and downloads one package containing the OFB Order CSV
+  Exporter Chrome Extension plus illustrated PDF instructions. The guide shows
+  how to unzip it, turn on Chrome Developer mode, use Load unpacked, confirm the
+  extension is active, export from Order History, and import the resulting CSV
+  into FEED.
+- **Long product names no longer print across their own bars** in the PDF. Names
+  too long for the space are shortened with a "…". The spreadsheet still has
+  every name in full.
+- **A chart of dollars now says dollars.** "Where Paid Procurement Dollars Went"
+  was printing `43,245 lb` where it meant `$43,245`, and the Availability
+  Summary was labelling a count of items as pounds. Only the printed PDF was
+  affected; the figures on screen and in the spreadsheets were always right.
+- **Two cards were laid out badly and are fixed.** *Available Assortment Over
+  Time* was taking up half the width with blank space beside it, and *Recurring
+  Availability* had its chart squeezed into the left half with one figure
+  stranded on the right.
+- **Admin → History reads like every other table**, with sorting, a filter,
+  column choices, and paging.
+- **Fixed several specific PDF chart mismatches found in evaluation.** Seasonal
+  Inbound Weight now includes all available years and stops at the chosen date
+  boundaries; the paid-product “Other” bar keeps its family stack; and the
+  three affected Operations charts print the scales and values that were
+  previously available only by hovering on screen.
+- **Operations tables keep working through report generation.** Unavailable
+  Episodes and Rationing History retain their sort and page in the report, and
+  remain sortable immediately after generating or canceling.
+- **New reports start with a name that matches their contents.** Procurement
+  cards suggest *Procurement Report*, Operations cards suggest *Operations
+  Report*, and a mix suggests *Combined Report*. You can type any report name
+  you prefer before generating it.
+
+## Version 1.5.0-beta.8 — not deployed
+
+*Rolled into beta.9. No separate release.*
+
+## Version 1.5.0-beta.7 — 2026-08-05
+
+*Beta — deployed to production for evaluation before the final 1.5.0 tag.*
+
+- **You can now restore FEED from a backup file**, under **Data Management →
+  Database**. Choose a file and FEED shows you what is in it before anything
+  changes. You can restore everything, or just a part — inventory, languages
+  and translations, or shopping list templates. FEED builds the new data
+  alongside the old and swaps at the end, so a failure part-way leaves your
+  current data untouched. The app puts itself into maintenance mode while it
+  works and restarts itself when it is done.
+- **You can also reset FEED to a clean slate** from the same tab. This wipes
+  your pantry's working data and starts fresh. It asks twice, and it is
+  administrator-only. Take a backup first — this is the one action that cannot
+  be undone.
+- **Sign-in emails look like William Temple House**, with the logo and the
+  house colours, rather than plain unstyled text.
+- **An example Shopping List Builder template** is included, so you have
+  something real to start from rather than a blank page.
+- Fixed: the refusal you get when trying to remove the second-to-last
+  administrator now explains itself instead of saying "An error occurred".
+- Fixed: empty analytics cards now name the period they found nothing in.
+
+## Version 1.5.0-beta.6 — 2026-08-01
+
+*Beta — deployed to production for evaluation before the final 1.5.0 tag.*
+
+- **You can now download a backup of FEED's data.** Look under **Data
+  Management → Database**. It saves a single file containing your categories and
+  food items, every saved translation, your shopping list templates, imported
+  procurement history, and your settings. Keep it somewhere private and safe.
+- **The backup deliberately leaves some things out** — AI provider keys, sign-in
+  codes, the staff list, and uploaded documents. That means the file cannot
+  restore FEED by itself, and it does not replace the server backups whoever
+  maintains FEED takes for you. It is a copy of your pantry's working data, not
+  of the whole system.
+- **A summary of what FEED is holding** sits on the same tab: how many
+  categories, food items, translations, templates, and imported records there
+  are, how large the database is, and when you last took a backup.
+- **Data Management is now split into two tabs.** *Analytics* is everything the
+  page had before and opens by default. *Database* holds the backup actions and
+  appears for administrators only.
+- **Dates on this page now read as 07/31/2026** rather than "Jul 31, 2026".
+- **Data Rules moved up the page**, above the import buttons, since those rules
+  affect the totals shown above them.
+- Fixed several buttons and labels across FEED that had lost their outline
+  styling in the Tailwind upgrade — the active page number in tables, some
+  status badges, and buttons in the Find Missing Translations window.
+
+*Restoring from a backup file is not built yet. The button is there and will
+tell you so; that work comes in a later update.*
+
+## Version 1.5.0-beta.5 — 2026-08-01
+
+*Beta — deployed to production for evaluation before the final 1.5.0 tag.*
+
+- **Sign-in links in email now work.** Previously, the security scanner that
+  checks incoming mail would open the link before you did, which used it up —
+  so the link was already spent by the time you clicked it, and the six-digit
+  code was the only way in. The link now opens a page with a **Sign in**
+  button, and nothing is used up until you press it. One extra click, and it
+  works.
+- **Some actions are now limited to administrators.** Undoing or restoring a
+  data import, adding data rules, and changing AI settings are administrator
+  tasks. Everyone can still see all of it — including which data rules are
+  active, since those change the totals on your reports — but the controls only
+  appear for administrators.
+- **Importing data is unchanged** and remains available to all staff.
+
+## Version 1.5.0-beta.4 — 2026-07-31
+
+*Beta — deployed to production for evaluation before the final 1.5.0 tag.*
+
+- **New Admin page.** Administrators can now see everyone who has access to
+  FEED, invite new staff, change who is an administrator, and remove access for
+  people who have left. You will find it under Information in the sidebar; it is
+  visible only to administrators.
+- **You can now choose how strict sign-in is.** By default, anyone with a
+  William Temple House email address can sign in, exactly as before. You can
+  switch to allowing only the specific people on your list, so that a colleague
+  whose email account is compromised cannot reach FEED unless you have added
+  them. The message people see when they are turned away is yours to write, and
+  so is the contact address shown with it.
+- **Removing someone's access now takes effect immediately** and stays in
+  effect. Previously there was no way to do this at all.
+- **Inviting a new staff member sends them an email** with a link to the sign-in
+  page. They enter their address there and receive a code, the same as everyone
+  else.
+- **The page shows when each person last signed in**, so you can tell who is
+  still using FEED before deciding who to remove.
+- **An activity history** records every change an administrator makes — who did
+  what, to whom, and when.
+
+- **Fixed the light/dark switch animation in Chrome.** The colour change is
+  meant to sweep out from the sun/moon button you just pressed. In recent
+  versions of Chrome it started from the top of the screen instead. Safari was
+  never affected. The sweep is also slower and smoother now.
+
+- **Fixed a confusing sign-in screen.** If someone tried to sign in without
+  access, FEED said a code had been sent and asked them to type it in, while
+  also telling them they were not allowed in. No code was ever sent. The
+  sign-in page now stays put and explains the problem, so there is nothing to
+  type and nothing to wait for.
+
+*Everyone who already had access has been made an administrator by this update,
+so nobody is locked out. Adjust the list on the Admin page after signing in.
+Anyone added from now on starts as staff.*
+
 ## Version 1.5.0-beta.3 — 2026-07-31
 
 *Beta — deployed to production for evaluation before the final 1.5.0 tag.*

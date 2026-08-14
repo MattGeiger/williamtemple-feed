@@ -19,7 +19,7 @@ import {
   productFamily,
   ProcurementAnalyticsWorkspace,
 } from '@/components/analytics';
-import { analyticsRangeFromSearchParams } from '@/components/analytics/range-control';
+import { dateRangeFromSearchParams } from '@/lib/date-range';
 import { DonorAnalytics } from '@/components/analytics/donor-analytics';
 import type { ProcurementAnalytics } from '@/types/procurement';
 
@@ -173,14 +173,14 @@ describe('Analytics dataset separation', () => {
   });
 
   test('accepts complete custom URL ranges and rejects incomplete ones', () => {
-    expect(analyticsRangeFromSearchParams(new URLSearchParams(
+    expect(dateRangeFromSearchParams(new URLSearchParams(
       'range=custom&from=2026-05-01&to=2026-07-15'
     ))).toEqual({
       preset: 'custom',
       startDate: '2026-05-01',
       endDate: '2026-07-15',
     });
-    expect(analyticsRangeFromSearchParams(new URLSearchParams(
+    expect(dateRangeFromSearchParams(new URLSearchParams(
       'range=custom&from=2026-05-01'
     ))).toEqual({ preset: 'last-90-days' });
   });

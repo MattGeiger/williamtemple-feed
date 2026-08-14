@@ -44,6 +44,23 @@ const Switch = React.forwardRef<HTMLButtonElement, SwitchProps>((props, ref) => 
     onChange: props.onCheckedChange,
   });
 
+  // Radix's control props belong on Root, not on the DOM button underneath it.
+  // Spreading all of `props` onto `motion.button` handed React an
+  // `onCheckedChange` attribute it does not recognise, which it logged and
+  // discarded on every render. Root still receives them below, and `asChild`
+  // merges what the button legitimately needs onto this same element.
+  /* eslint-disable @typescript-eslint/no-unused-vars -- destructured only to drop them */
+  const {
+    checked: _checked,
+    defaultChecked: _defaultChecked,
+    onCheckedChange: _onCheckedChange,
+    required: _required,
+    name: _name,
+    value: _value,
+    ...motionProps
+  } = props;
+  /* eslint-enable @typescript-eslint/no-unused-vars */
+
   return (
     <SwitchProvider
       value={{ isChecked, setIsChecked, isPressed, setIsPressed }}
@@ -57,7 +74,7 @@ const Switch = React.forwardRef<HTMLButtonElement, SwitchProps>((props, ref) => 
           onTapStart={() => setIsPressed(true)}
           onTapCancel={() => setIsPressed(false)}
           onTap={() => setIsPressed(false)}
-          {...props}
+          {...motionProps}
         />
       </SwitchPrimitives.Root>
     </SwitchProvider>

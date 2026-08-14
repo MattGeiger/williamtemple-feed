@@ -8,20 +8,18 @@
 import { useCallback, useState, useRef } from "react"
 import { builderTemplateColumns } from "../data-table/builder-template-columns"
 import { DataList } from "@/components/shared/data-list/DataList"
+import { createPageTitleIcon } from "@/components/layout/page-title-icon";
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { TableBulkAction } from "@/types/table"
 import { SavedBuilderTemplate } from "@/components/shopping-lists/builder/types"
 import { GlobalLimitDialog } from "../global-limit-dialog"
 import { Trash2, Download, Copy } from "@/components/ui/icons";
-import { ClipboardListIcon } from "@/components/ui/clipboard-list";
-import { createPageTitleIcon } from "@/components/layout/page-title-icon";
-
-// Page-title icon: animates on mount (page load) + hover. Mirrors the
-// AI Configuration title pattern.
-const PageTitleClipboardListIcon = createPageTitleIcon(ClipboardListIcon);
+import { ClipboardPenIcon } from "@/components/ui/clipboard-pen";
 import { PlusIcon } from "@/components/animate-ui/icons/plus";
 import { SquareArrowOutUpRightIcon } from "@/components/animate-ui/icons/square-arrow-out-up-right";
 import { GlobeLockIcon } from "@/components/animate-ui/icons/globe-lock";
+
+const PageTitleClipboardPenIcon = createPageTitleIcon(ClipboardPenIcon);
 
 interface ShoppingListListProps {
   builderTemplates: SavedBuilderTemplate[]
@@ -157,7 +155,7 @@ export function ShoppingListList({
           filterPlaceholder="Filter saved templates..."
           enableColumnVisibility={true}
           onError={handleError}
-          toolbarIcon={PageTitleClipboardListIcon}
+          toolbarIcon={PageTitleClipboardPenIcon}
           toolbarActions={toolbarActions}
         />
       </TooltipProvider>

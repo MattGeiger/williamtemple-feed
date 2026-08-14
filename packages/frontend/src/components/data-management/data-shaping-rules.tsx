@@ -2,8 +2,14 @@
 // Copyright (C) 2026 Matt Geiger
 
 import * as React from 'react';
-import { Pencil, Plus, Trash2 } from 'lucide-react';
+import { CircleHelp, Pencil, Plus, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -58,6 +64,14 @@ interface DataShapingRulesProps {
   onEdit: (rule: DataShapingRule) => void;
   onToggle: (rule: DataShapingRule, enabled: boolean) => void;
   onDelete: (rule: DataShapingRule) => void;
+  /**
+   * Whether to offer the authoring controls at all. Rules change what
+   * Analytics counts, so creating, editing, and deleting them are
+   * administrator actions (ISSUES.md #50a) that the server refuses for
+   * Staff. Rules stay *visible* to everyone — a staff member reading a
+   * total deserves to see what has been excluded from it.
+   */
+  canManage: boolean;
 }
 
 export function DataShapingRules({
@@ -67,6 +81,7 @@ export function DataShapingRules({
   onEdit,
   onToggle,
   onDelete,
+  canManage,
 }: DataShapingRulesProps) {
   const exclusions = rules.filter(
     (rule) => rule.flag === 'pass_through' || rule.flag === 'other_exclusion'
@@ -76,17 +91,41 @@ export function DataShapingRules({
     <Card className="min-w-0">
       <CardHeader className="flex-row items-start justify-between gap-4 space-y-0">
         <div className="min-w-0">
-          <CardTitle>Data Rules</CardTitle>
-          <CardDescription>
-            How your agency reads its own data. Rules never change or delete what was imported —
-            they record context, and Analytics decides which flags to honor. They apply to data
-            already imported as well as to everything imported later.
-          </CardDescription>
+          <div className="flex items-center gap-1.5">
+            <CardTitle>Data Rules</CardTitle>
+            {/* The detail belongs here rather than in the card: it answers a
+                question staff ask once, and on screen it crowded the rules
+                themselves. */}
+            {/* Self-provided, like ShoppingListList and DocumentList: the
+                component should not depend on an ancestor provider it cannot
+                guarantee. Nested providers are supported. */}
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    className="text-muted-foreground hover:text-foreground"
+                    aria-label="About data rules"
+                  >
+                    <CircleHelp className="h-4 w-4" aria-hidden="true" />
+                  </button>
+              </TooltipTrigger>
+                <TooltipContent className="max-w-xs">
+                  Rules never change or delete imported data. They add context
+                  that Analytics reads, and they apply to past and future
+                  imports alike.
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+          <CardDescription>How your agency reads its own data.</CardDescription>
         </div>
-        <Button size="sm" onClick={onAdd} className="shrink-0">
-          <Plus className="mr-1.5 h-4 w-4" aria-hidden="true" />
-          Add Rule
-        </Button>
+        {canManage && (
+          <Button size="sm" onClick={onAdd} className="shrink-0">
+            <Plus className="mr-1.5 h-4 w-4" aria-hidden="true" />
+            Add Rule
+          </Button>
+        )}
       </CardHeader>
       <CardContent>
         {isLoading ? (
@@ -122,19 +161,27 @@ export function DataShapingRules({
                     <p className="mt-1 text-xs text-muted-foreground">{rule.note}</p>
                   )}
                 </div>
-                <div className="flex items-center gap-1">
-                  <Switch
-                    checked={rule.enabled}
-                    onCheckedChange={(checked) => onToggle(rule, checked)}
-                    aria-label={`${rule.enabled ? 'Pause' : 'Enable'} rule`}
-                  />
-                  <Button variant="ghost" size="icon" onClick={() => onEdit(rule)} aria-label="Edit rule">
-                    <Pencil className="h-4 w-4" aria-hidden="true" />
-                  </Button>
-                  <Button variant="ghost" size="icon" onClick={() => onDelete(rule)} aria-label="Delete rule">
-                    <Trash2 className="h-4 w-4" aria-hidden="true" />
-                  </Button>
-                </div>
+                {canManage ? (
+                  <div className="flex items-center gap-1">
+                    <Switch
+                      checked={rule.enabled}
+                      onCheckedChange={(checked) => onToggle(rule, checked)}
+                      aria-label={`${rule.enabled ? 'Pause' : 'Enable'} rule`}
+                    />
+                    <Button variant="ghost" size="icon" onClick={() => onEdit(rule)} aria-label="Edit rule">
+                      <Pencil className="h-4 w-4" aria-hidden="true" />
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={() => onDelete(rule)} aria-label="Delete rule">
+                      <Trash2 className="h-4 w-4" aria-hidden="true" />
+                    </Button>
+                  </div>
+                ) : (
+                  // Staff still need to know whether a rule is in force, since
+                  // it changes the totals they are reading.
+                  <Badge variant={rule.enabled ? 'secondary' : 'outline'} className="shrink-0">
+                    {rule.enabled ? 'Active' : 'Paused'}
+                  </Badge>
+                )}
               </li>
             ))}
           </ul>
