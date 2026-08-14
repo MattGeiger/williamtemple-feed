@@ -13,7 +13,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { formatDate } from '@/lib/formatting/date';
+import { formatLongOrdinalDate } from '@/lib/formatting/date';
 import type { OperatingHours } from '@/types/settings';
 import { adjacentOperatingDate } from './service-date';
 
@@ -35,7 +35,8 @@ export function ServiceDateNavigator({
   const nextDate = adjacentOperatingDate(value, 1, hours);
   const selectedDate = parseISO(value);
   const todayDate = parseISO(today);
-  const displayValue = value === today ? 'Today' : formatDate(value);
+  const formattedDate = formatLongOrdinalDate(value);
+  const displayValue = value === today ? `Today · ${formattedDate}` : formattedDate;
 
   return (
     <div className="space-y-2">
@@ -59,7 +60,7 @@ export function ServiceDateNavigator({
               type="button"
               variant="outline"
               className="-ml-px min-w-0 flex-1 rounded-none px-3"
-              aria-label={`Choose service date, ${displayValue}, ${formatDate(value)}`}
+              aria-label={`Choose service date, ${displayValue}`}
             >
               <CalendarDays className="mr-2 h-4 w-4 shrink-0" aria-hidden="true" />
               <span className="truncate" aria-live="polite">{displayValue}</span>

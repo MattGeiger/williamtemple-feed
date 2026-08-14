@@ -286,6 +286,15 @@ the permanent application API. After the migration and FEED-native Service Log
 cutover, the exporter and Tracking adapter become historical compatibility
 tools rather than recurring operational dependencies.
 
+Activation does not create a permanent read-only Tracking silo. Each imported
+metric/date observation seeds the same organization-wide fact later maintained
+through the native Service Log. Staff can open a historical date, edit or clear
+the imported value, and save a new FEED revision; the workbook sheet/cell stays
+attached to the superseded import revision for audit. A database-enforced
+current projection prevents imported and native values from being counted at
+the same time, and import rollback/restore cannot replace a later native
+correction.
+
 The exporter is run from `packages/backend`:
 
 ```bash

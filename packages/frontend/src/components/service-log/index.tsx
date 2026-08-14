@@ -29,7 +29,6 @@ import {
   serviceApi,
   type SaveServiceDayInput,
   type ServiceDay,
-  type ServiceEntryState,
   type ServiceMetricDayDefinition,
   type ServicePantryStatus,
 } from '@/services/service';
@@ -203,7 +202,7 @@ export function ServiceLogWorkspace() {
     }
   };
 
-  const save = async (entryState: ServiceEntryState) => {
+  const save = async () => {
     if (!day) return;
     setIsSaving(true);
     const observations: SaveServiceDayInput['observations'] = day.metrics.map((metric) => {
@@ -222,10 +221,14 @@ export function ServiceLogWorkspace() {
       };
     });
     try {
-      const saved = await serviceApi.saveDay(serviceDate, { pantryStatus, entryState, observations });
+      const saved = await serviceApi.saveDay(serviceDate, {
+        pantryStatus,
+        entryState: 'finalized',
+        observations,
+      });
       setDay(saved);
       setValues(Object.fromEntries(saved.metrics.map((metric) => [metric.id, valueFromMetric(metric)])));
-      showSuccess(entryState === 'finalized' ? 'Service day finalized' : 'Service day draft saved');
+      showSuccess('Service day saved');
     } catch (error) {
       ErrorHandlerService.handleError(error, 'ServiceLog.saveDay');
     } finally {
@@ -271,7 +274,7 @@ export function ServiceLogWorkspace() {
 
       <DateRangeControl value={dateRange} onChange={setDateRange} />
 
-      <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] md:items-end">
+      <div className="grid gap-4 md:grid-cols-2 md:items-end">
         <ServiceDateNavigator
           value={serviceDate}
           today={dateInTimezone(operatingHours.timezone)}
@@ -288,9 +291,6 @@ export function ServiceLogWorkspace() {
             </SelectContent>
           </Select>
         </div>
-        <Badge variant={day?.entryState === 'finalized' ? 'default' : 'secondary'} className="w-fit">
-          {day?.entryState === 'finalized' ? 'Finalized' : 'Draft'}
-        </Badge>
       </div>
 
       {isLoading ? (
@@ -381,12 +381,9 @@ export function ServiceLogWorkspace() {
             </Card>
           )}
 
-          <div className="flex flex-wrap justify-end gap-2">
-            <Button variant="outline" disabled={isSaving} onClick={() => save('draft')}>
-              {isSaving ? 'Saving…' : 'Save Draft'}
-            </Button>
-            <Button disabled={isSaving} onClick={() => save('finalized')}>
-              {isSaving ? 'Saving…' : 'Finalize Day'}
+          <div className="flex justify-end">
+            <Button disabled={isSaving} onClick={save}>
+              {isSaving ? 'Saving…' : 'Save'}
             </Button>
           </div>
         </>

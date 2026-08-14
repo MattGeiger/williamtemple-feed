@@ -71,15 +71,18 @@ resolution above, and the clean-slate model — are recorded in
 [beta-6-backup-restore-brief.md](beta-6-backup-restore-brief.md), which also
 named two prerequisites that had to land first: editable API keys, and
 `AIConfiguration` redaction in place of exclusion. **Both are implemented.**
-The artifact now declares table contract version 7: version 2 added sanitized
+The artifact now declares table contract version 8: version 2 added sanitized
 `AIConfiguration`; version 3 added the first formal Service and operational
 metric fact family; version 4 adds effective-dated Service capacity plans,
 structured quality issues, and append-only operator decisions; and version 5
 adds explicit first/returning/unknown status to formal Service encounters; and
 version 6 adds SIMC source-scoped people, person-profile revisions, and
 encounter membership; and version 7 adds optional source metric labels and
-workbook-cell provenance to operational observation revisions. Older artifacts
-do not manufacture person records or workbook provenance.
+workbook-cell provenance to operational observation revisions; and version 8
+adds intentional clear revisions so migrated operational values can continue
+as editable native Service Log data. Older artifacts do not manufacture person
+records or workbook provenance, and pre-v8 observations restore with the safe
+`recorded` default rather than being reinterpreted as clears.
 Version 4 artifacts restore with that new status defaulted to `unknown`; FEED
 never infers it from unrelated fields. Transient `DataImportJob` progress and
 staged source files remain excluded. Normalized Service revisions prepared

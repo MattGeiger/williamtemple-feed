@@ -7,7 +7,7 @@
 
 import { describe, expect, test } from 'vitest';
 
-import { formatDate, formatDateRange, formatDateTime } from './date';
+import { formatDate, formatDateRange, formatDateTime, formatLongOrdinalDate } from './date';
 
 /**
  * The format is a decision, so it is pinned here rather than left to whoever
@@ -45,6 +45,21 @@ describe('formatDate', () => {
     expect(formatDate(undefined)).toBe('—');
     expect(formatDate('')).toBe('—');
     expect(formatDate('not a date')).toBe('—');
+  });
+});
+
+describe('formatLongOrdinalDate', () => {
+  test.each([
+    ['2026-07-01', 'Wednesday, July 1st, 2026'],
+    ['2026-07-02', 'Thursday, July 2nd, 2026'],
+    ['2026-07-03', 'Friday, July 3rd, 2026'],
+    ['2026-07-09', 'Thursday, July 9th, 2026'],
+    ['2026-07-11', 'Saturday, July 11th, 2026'],
+    ['2026-07-12', 'Sunday, July 12th, 2026'],
+    ['2026-07-13', 'Monday, July 13th, 2026'],
+    ['2026-07-21', 'Tuesday, July 21st, 2026'],
+  ])('formats %s with weekday and ordinal day', (input, expected) => {
+    expect(formatLongOrdinalDate(input)).toBe(expected);
   });
 });
 

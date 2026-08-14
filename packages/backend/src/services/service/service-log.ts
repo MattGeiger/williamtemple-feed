@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 Matt Geiger
 
+import { createHash } from 'crypto';
 import { Prisma, PrismaClient } from '@prisma/client';
 import prisma from '../../db';
 import {
@@ -400,6 +401,7 @@ const observationValue = (observation: {
 const sameObservation = (
   current: {
     definitionRevisionId: number;
+    recordState: string;
     entryState: string;
     countValue: number | null;
     booleanValue: boolean | null;
@@ -407,11 +409,27 @@ const sameObservation = (
   },
   desired: ServiceMetricObservationDraft,
   definitionRevisionId: number,
-) => current.definitionRevisionId === definitionRevisionId
+) => current.recordState === 'recorded'
+  && current.definitionRevisionId === definitionRevisionId
   && current.entryState === desired.entryState
   && current.countValue === desired.countValue
   && current.booleanValue === desired.booleanValue
   && current.timeValue === desired.timeValue;
+
+const clearedObservationSnapshotHash = (
+  metricKey: string,
+  definitionRevision: number,
+  serviceDate: string,
+  entryState: ServiceEntryState,
+): string => createHash('sha256').update(JSON.stringify({
+  source: 'feed_service_log',
+  sourceRecordKey: `feed_service_log:${serviceDate}:${metricKey}`,
+  metricKey,
+  definitionRevision,
+  serviceDate,
+  recordState: 'cleared',
+  entryState,
+})).digest('hex');
 
 export function summarizeOperationalTotal(metrics: Array<{
   contributesToOperationalTotal: boolean;
@@ -438,7 +456,6 @@ export async function getServiceDay(serviceDate: string, client: ReadClient = pr
   const [observations, status, capacity] = await Promise.all([
     client.serviceMetricObservationRevision.findMany({
       where: {
-        source: 'feed_service_log',
         serviceDate,
         isCurrent: true,
         metricId: { in: metricIds },
@@ -465,14 +482,18 @@ export async function getServiceDay(serviceDate: string, client: ReadClient = pr
     capacityTarget: revision.capacityTarget,
     displayOrder: revision.displayOrder,
     observation: byMetric.has(definition.id)
+      && byMetric.get(definition.id)!.recordState === 'recorded'
       ? observationValue(byMetric.get(definition.id)!)
       : null,
   }));
+  const observationEntryState = observations.find((observation) => (
+    observation.recordState === 'recorded'
+  ))?.entryState ?? observations[0]?.entryState;
 
   return {
     serviceDate,
     pantryStatus: (status?.pantryStatus ?? 'open') as ServicePantryStatus,
-    entryState: (status?.entryState ?? 'draft') as ServiceEntryState,
+    entryState: (status?.entryState ?? observationEntryState ?? 'draft') as ServiceEntryState,
     dayRevision: status?.revision ?? 0,
     metrics,
     operationalTotal: summarizeOperationalTotal(metrics),
@@ -530,7 +551,7 @@ export async function saveServiceDay(
     }
 
     const allExisting = await tx.serviceMetricObservationRevision.findMany({
-      where: { source: 'feed_service_log', serviceDate },
+      where: { serviceDate, metricId: { in: [...expectedIds] } },
       orderBy: { revision: 'desc' },
     });
     const currentByMetric = new Map(
@@ -549,12 +570,39 @@ export async function saveServiceDay(
         || supplied.timeValue !== null;
       const current = currentByMetric.get(definition.id);
       if (!hasValue) {
-        if (current) {
-          await tx.serviceMetricObservationRevision.update({
-            where: { id: current.id },
-            data: { isCurrent: false },
-          });
-        }
+        if (!current) continue;
+        if (
+          current.recordState === 'cleared'
+          && current.definitionRevisionId === revision.id
+          && current.entryState === input.entryState
+        ) continue;
+        await tx.serviceMetricObservationRevision.update({
+          where: { id: current.id },
+          data: { isCurrent: false },
+        });
+        const nextRevision = (maxRevisionByMetric.get(definition.id) ?? 0) + 1;
+        await tx.serviceMetricObservationRevision.create({
+          data: {
+            metricId: definition.id,
+            definitionRevisionId: revision.id,
+            source: 'feed_service_log',
+            sourceRecordKey: `feed_service_log:${serviceDate}:${definition.metricKey}`,
+            serviceDate,
+            revision: nextRevision,
+            snapshotHash: clearedObservationSnapshotHash(
+              definition.metricKey,
+              revision.revision,
+              serviceDate,
+              input.entryState,
+            ),
+            recordState: 'cleared',
+            entryState: input.entryState,
+            warningCodes: [],
+            isCurrent: true,
+            recordedBy,
+          },
+        });
+        maxRevisionByMetric.set(definition.id, nextRevision);
         continue;
       }
 
@@ -590,6 +638,7 @@ export async function saveServiceDay(
           countValue: draft.countValue,
           booleanValue: draft.booleanValue,
           timeValue: draft.timeValue,
+          recordState: 'recorded',
           entryState: draft.entryState,
           warningCodes: [],
           isCurrent: true,
