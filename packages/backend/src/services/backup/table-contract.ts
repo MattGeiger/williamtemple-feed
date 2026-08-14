@@ -211,6 +211,6 @@ export const BACKUP_QUERY_ARGS: Partial<Record<IncludedTable, object>> = {
  * version and from the migration name: an artifact can be produced by many FEED
  * builds while remaining the same contract.
  */
-export const TABLE_CONTRACT_VERSION = 8;
+export const TABLE_CONTRACT_VERSION = 9;
 
 export const ARTIFACT_KIND = 'feed-sanitized-backup';

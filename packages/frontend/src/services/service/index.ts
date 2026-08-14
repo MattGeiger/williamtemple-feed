@@ -21,6 +21,7 @@ export interface ServiceMetricRevision {
   revision: number;
   displayName: string;
   description: string | null;
+  iconName: string;
   valueType: ServiceMetricValueType;
   unit: ServiceMetricUnit;
   semanticRole: ServiceMetricSemanticRole;
@@ -47,6 +48,7 @@ export interface ServiceMetricConfiguration {
 export interface ServiceMetricConfigurationInput {
   displayName: string;
   description: string | null;
+  iconName: string;
   valueType: ServiceMetricValueType;
   unit: ServiceMetricUnit;
   semanticRole: ServiceMetricSemanticRole;
@@ -65,6 +67,7 @@ export interface ServiceMetricDayDefinition {
   definitionRevision: number;
   displayName: string;
   description: string | null;
+  iconName: string;
   valueType: ServiceMetricValueType;
   unit: ServiceMetricUnit;
   semanticRole: ServiceMetricSemanticRole;

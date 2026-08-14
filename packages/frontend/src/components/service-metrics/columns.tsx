@@ -7,6 +7,7 @@ import { SortableHeader } from '@/components/ui/sortable-header';
 import { TableActionMenu } from '@/components/ui/table-action-menu';
 import { SquarePenIcon } from '@/components/animate-ui/icons/square-pen';
 import { formatDate, formatDateRange } from '@/lib/formatting/date';
+import { getIconComponent } from '@/lib/icon-library';
 import type { ServiceMetricConfiguration, ServiceMetricSemanticRole } from '@/services/service';
 
 const roleLabels: Record<ServiceMetricSemanticRole, string> = {
@@ -32,16 +33,23 @@ export const serviceMetricColumns = (
     accessorFn: (metric) => metric.currentRevision.displayName,
     size: 260,
     header: ({ column }) => <SortableHeader column={column}>Metric</SortableHeader>,
-    cell: ({ row }) => (
-      <div className="min-w-0">
-        <div className="font-medium wrap-break-word">{row.original.currentRevision.displayName}</div>
-        {row.original.currentRevision.description && (
-          <div className="text-xs text-muted-foreground wrap-break-word">
-            {row.original.currentRevision.description}
+    cell: ({ row }) => {
+      const revision = row.original.currentRevision;
+      const Icon = getIconComponent(revision.iconName);
+      return (
+        <div className="flex min-w-0 items-start gap-3">
+          <Icon className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" aria-hidden="true" />
+          <div className="min-w-0">
+            <div className="font-medium wrap-break-word">{revision.displayName}</div>
+            {revision.description && (
+              <div className="text-xs text-muted-foreground wrap-break-word">
+                {revision.description}
+              </div>
+            )}
           </div>
-        )}
-      </div>
-    ),
+        </div>
+      );
+    },
   },
   {
     id: 'role',

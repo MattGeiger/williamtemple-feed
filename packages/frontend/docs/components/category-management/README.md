@@ -18,7 +18,7 @@ CategoryManagement/
 │   └── index.ts              # Export file
 ├── form/                     # Form components
 │   ├── CategoryForm.tsx      # Form for adding/editing categories
-│   ├── IconSelector.tsx      # Icon selection component
+│   ├── IconSelector.tsx      # Compatibility export for the shared picker
 │   └── SimpleIconSelector.tsx # Simplified icon selector
 ├── add-dialog.tsx            # Dialog for adding new categories
 ├── delete-dialog.tsx         # Confirmation dialog for deletion
@@ -284,7 +284,9 @@ const columns: ColumnDef<Category>[] = [
 
 ### IconSelector
 
-Component for selecting and previewing category icons.
+Compatibility export for FEED's shared searchable icon picker. The implementation
+lives in `src/components/shared/icon-selector.tsx` so Categories and Service
+Metrics select from one registry without drifting.
 
 **Props:**
 ```tsx
@@ -306,7 +308,9 @@ const [selectedIcon, setSelectedIcon] = useState("can");
 
 ### SimpleIconSelector
 
-An enhanced icon selection component with a visual grid interface of categorized food pantry icons.
+The Category-facing name for the same shared selector used by Service Metrics.
+It renders an inline searchable grid rather than a popover, so the icon choices
+remain visible while the surrounding form is completed.
 
 **Props:**
 ```tsx
@@ -317,11 +321,44 @@ interface SimpleIconSelectorProps {
 ```
 
 **Features:**
-- Grid layout with 90+ curated food pantry and household icons
-- Categorized icons (Food, Drink, Health, Household, etc.)
+- Grid layout with 137 curated food pantry, operational, and general-purpose icons
+- Categorized icons (Food, Drink, Health, Household, Clothing, Animals & Pets,
+  Shapes & Symbols, Outdoors, and Other)
 - Visual selection with active state indicators
 - Searchable interface for quick icon finding
+- Definite-height Shadcn `ScrollArea` for reliable keyboard, wheel, and touch
+  navigation inside the icon grid
 - Responsive design that works on all device sizes
+
+### Shared icon registry
+
+`src/lib/food-icons.ts` remains the canonical registry for historical Shopping
+List PDF parity, while `src/lib/icon-library.ts` is the neutral import boundary
+for new features. The library now includes:
+
+- **Shapes & Symbols:** ellipse, circle, square, triangle, astroid, small circle,
+  diamond, hexagon, pentagon, cuboid, pyramid, cone, concave lens, star, heart,
+  spade, club, prohibited, accessibility, heart pulse, music, parking, and
+  radiation.
+- **Outdoors:** campsite, tent, kindling, caravan, backpack, rose, stone, flower,
+  bug, bike, flashlight, fuel, and water.
+- **Other additions:** paper bag, luggage, shopping bag, scroll text, receipt,
+  to-do list, calculator, pointer, eclipse, and clipboard minus.
+
+Registry values are stable kebab-case identifiers. Category and Service Metric
+records store only those identifiers. Static record icons do not animate; icons
+on interactive controls continue to follow `docs/motion/ICON_ANIMATIONS.md`.
+
+The Shopping List Builder's Chromium PDF renderer uses generated raw SVG paths
+from `packages/backend/src/lib/icon-svgs.ts`. After changing this registry or
+the pinned Lucide version, run:
+
+```bash
+node packages/backend/src/lib/generate-icon-svgs.cjs
+```
+
+Commit the regenerated file with the registry change so canvas and PDF output
+remain visually equivalent.
 
 ### IconDisplay
 

@@ -31,7 +31,7 @@ import { RESTORE_UNITS, type UnitId } from './restore-units';
  */
 
 /** Contract versions this build can read. Add a reader before adding a number. */
-export const SUPPORTED_CONTRACT_VERSIONS = [1, 2, 3, 4, 5, 6, 7, 8] as const;
+export const SUPPORTED_CONTRACT_VERSIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9] as const;
 
 export interface ArtifactProblem {
   code:
@@ -98,6 +98,10 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
  * v7 → v8: v7 operational observations predate intentional clear revisions.
  * Prisma applies the schema default `recorded` to restored older rows; FEED
  * does not reinterpret any historical value as a clear.
+ *
+ * v8 → v9: v8 Service metric revisions predate user-selected icons. Prisma
+ * applies the neutral `package` default; FEED does not infer semantics while
+ * restoring an older organization-data artifact.
  */
 const adapt = (
   version: number,
@@ -174,7 +178,7 @@ export const readArtifact = (raw: string): ReadResult => {
     };
   }
 
-  if (!SUPPORTED_CONTRACT_VERSIONS.includes(version as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8)) {
+  if (!SUPPORTED_CONTRACT_VERSIONS.includes(version as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9)) {
     return {
       ok: false,
       problem: {

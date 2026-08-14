@@ -81,6 +81,7 @@ describe('Service Log routes', () => {
     const metric = {
       displayName: 'Delivery Requests',
       description: null,
+      iconName: 'shopping-bag',
       valueType: 'count',
       unit: 'requests',
       semanticRole: 'ancillary_service',

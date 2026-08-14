@@ -7,6 +7,24 @@ All notable changes to FEED are documented here. This project adheres to
 
 ### Changed
 
+- **Service Metric configuration now uses a compact three-step dialog.** Add
+  and Edit share the AI Configuration Back/Next navigation pattern while
+  keeping each panel on the dialog surface: name, description, and the shared
+  Category icon grid; metric definition, position, and effective dates; then
+  operational-total and daily-entry participation. The previous popover icon
+  picker and whole-dialog scroll region were removed.
+
+- **Service Log sections now adapt to their metric count.** The three
+  operational sections share a two-column page grid: one or two metrics use a
+  half-page section, while three or more expand to the full page. Metric cards
+  render two per row instead of compressing into a three-column layout.
+
+- **FEED's Lucide dependency and shared icon registry are expanded.** Category
+  editing now exposes 137 icons, including new Shapes & Symbols and Outdoors
+  groups plus additional bag, document, calculation, and pointer choices. The
+  Shopping List PDF SVG registry was regenerated from the same installed
+  Lucide version to preserve preview/export parity.
+
 - **Service Log daily entry now has one Save action.** The page no longer asks
   staff to choose between `Save Draft` and `Finalize Day`, and it no longer
   exposes a Draft/Finalized badge. Saving commits the shared day immediately;
@@ -49,6 +67,15 @@ All notable changes to FEED are documented here. This project adheres to
   already-known storage issue.
 
 ### Added
+
+- **Service Metrics now support user-selected icons.** Administrators choose
+  from the same searchable library used by Categories. The icon is stored with
+  each effective-dated metric revision and renders in both the configuration
+  table and its daily Service Log card. Existing WTH definitions receive
+  editable semantic defaults through the additive
+  `20260813140000_add_service_metric_icons` migration. Sanitized backup table
+  contract version 9 preserves these choices; older artifacts restore the
+  neutral package icon.
 
 - **Unified Add Data now supports the one-time WTH service Tracking
   migration.** A WTH-owned exporter converts the changing workbook cross-tab

@@ -34,6 +34,7 @@ export class ServiceLogError extends Error {
 export interface ServiceMetricConfigurationInput {
   displayName: string;
   description: string | null;
+  iconName: string;
   valueType: ServiceMetricValueType;
   unit: ServiceMetricUnit;
   semanticRole: ServiceMetricSemanticRole;
@@ -109,6 +110,7 @@ const requestDefinitionDraft = (
 ): ServiceMetricDefinitionDraft => definitionDraft(metricKey, {
   displayName: input.displayName,
   description: input.description,
+  iconName: input.iconName,
   valueType: input.valueType,
   unit: input.unit,
   semanticRole: input.semanticRole,
@@ -128,6 +130,7 @@ const revisionData = (
   revision,
   displayName: definition.displayName,
   description: definition.description,
+  iconName: definition.iconName,
   valueType: definition.valueType,
   unit: definition.unit,
   semanticRole: definition.semanticRole,
@@ -191,6 +194,7 @@ const revisionDefinitionDraft = (
   revision: {
     displayName: string;
     description: string | null;
+    iconName: string;
     valueType: string;
     unit: string;
     semanticRole: string;
@@ -204,6 +208,7 @@ const revisionDefinitionDraft = (
 ): ServiceMetricDefinitionDraft => definitionDraft(metricKey, {
   displayName: revision.displayName,
   description: revision.description,
+  iconName: revision.iconName,
   valueType: revision.valueType as ServiceMetricValueType,
   unit: revision.unit as ServiceMetricUnit,
   semanticRole: revision.semanticRole as ServiceMetricSemanticRole,
@@ -475,6 +480,7 @@ export async function getServiceDay(serviceDate: string, client: ReadClient = pr
     definitionRevision: revision.revision,
     displayName: revision.displayName,
     description: revision.description,
+    iconName: revision.iconName,
     valueType: revision.valueType,
     unit: revision.unit,
     semanticRole: revision.semanticRole,
@@ -689,46 +695,46 @@ const WTH_METRICS: Array<{
   {
     metricKey: 'shopping_visits',
     revisions: [
-      { displayName: 'Visits', description: 'Households shopping in the food pantry.', valueType: 'count', unit: 'households', semanticRole: 'served_household_method', contributesToOperationalTotal: true, capacityTarget: 75, effectiveStartDate: '2023-10-17', effectiveEndDate: '2025-10-31', displayOrder: 10, isActive: true },
-      { displayName: 'Downstairs Shopping Visits', description: 'Households shopping for themselves or others in the downstairs food pantry.', valueType: 'count', unit: 'households', semanticRole: 'served_household_method', contributesToOperationalTotal: true, capacityTarget: 75, effectiveStartDate: '2025-11-01', effectiveEndDate: null, displayOrder: 10, isActive: true },
+      { displayName: 'Visits', description: 'Households shopping in the food pantry.', iconName: 'shopping-basket', valueType: 'count', unit: 'households', semanticRole: 'served_household_method', contributesToOperationalTotal: true, capacityTarget: 75, effectiveStartDate: '2023-10-17', effectiveEndDate: '2025-10-31', displayOrder: 10, isActive: true },
+      { displayName: 'Downstairs Shopping Visits', description: 'Households shopping for themselves or others in the downstairs food pantry.', iconName: 'shopping-basket', valueType: 'count', unit: 'households', semanticRole: 'served_household_method', contributesToOperationalTotal: true, capacityTarget: 75, effectiveStartDate: '2025-11-01', effectiveEndDate: null, displayOrder: 10, isActive: true },
     ],
   },
   {
     metricKey: 'long_lists',
     revisions: [
-      { displayName: 'Lists', description: 'Long shopping lists equivalent in quantity and variety to pantry shopping.', valueType: 'count', unit: 'households', semanticRole: 'served_household_method', contributesToOperationalTotal: true, capacityTarget: 25, effectiveStartDate: '2023-10-17', effectiveEndDate: '2025-10-31', displayOrder: 20, isActive: true },
-      { displayName: 'Long Lists', description: 'Long shopping lists equivalent in quantity and variety to pantry shopping.', valueType: 'count', unit: 'households', semanticRole: 'served_household_method', contributesToOperationalTotal: true, capacityTarget: 25, effectiveStartDate: '2025-11-01', effectiveEndDate: null, displayOrder: 20, isActive: true },
+      { displayName: 'Lists', description: 'Long shopping lists equivalent in quantity and variety to pantry shopping.', iconName: 'scroll-text', valueType: 'count', unit: 'households', semanticRole: 'served_household_method', contributesToOperationalTotal: true, capacityTarget: 25, effectiveStartDate: '2023-10-17', effectiveEndDate: '2025-10-31', displayOrder: 20, isActive: true },
+      { displayName: 'Long Lists', description: 'Long shopping lists equivalent in quantity and variety to pantry shopping.', iconName: 'scroll-text', valueType: 'count', unit: 'households', semanticRole: 'served_household_method', contributesToOperationalTotal: true, capacityTarget: 25, effectiveStartDate: '2025-11-01', effectiveEndDate: null, displayOrder: 20, isActive: true },
     ],
   },
   {
     metricKey: 'premade_bags',
     revisions: [
-      { displayName: 'Premade Bags', description: 'Ready-to-eat bags paired with a short list for three additional items.', valueType: 'count', unit: 'households', semanticRole: 'served_household_method', contributesToOperationalTotal: true, capacityTarget: 45, effectiveStartDate: '2023-10-17', effectiveEndDate: null, displayOrder: 30, isActive: true },
+      { displayName: 'Premade Bags', description: 'Ready-to-eat bags paired with a short list for three additional items.', iconName: 'paper-bag', valueType: 'count', unit: 'households', semanticRole: 'served_household_method', contributesToOperationalTotal: true, capacityTarget: 45, effectiveStartDate: '2023-10-17', effectiveEndDate: null, displayOrder: 30, isActive: true },
     ],
   },
   {
     metricKey: 'emergency_bags',
     revisions: [
-      { displayName: 'Emergency Bags', description: 'Staple-food bags provided after capacity is reached or during the final 30 minutes of service.', valueType: 'count', unit: 'households', semanticRole: 'served_household_method', contributesToOperationalTotal: true, capacityTarget: null, effectiveStartDate: '2025-11-01', effectiveEndDate: null, displayOrder: 40, isActive: true },
+      { displayName: 'Emergency Bags', description: 'Staple-food bags provided after capacity is reached or during the final 30 minutes of service.', iconName: 'heart-pulse', valueType: 'count', unit: 'households', semanticRole: 'served_household_method', contributesToOperationalTotal: true, capacityTarget: null, effectiveStartDate: '2025-11-01', effectiveEndDate: null, displayOrder: 40, isActive: true },
     ],
   },
   {
     metricKey: 'turned_away',
     revisions: [
-      { displayName: 'Turned Away', description: 'Households unable to receive service after capacity was reached.', valueType: 'count', unit: 'households', semanticRole: 'unmet_demand', contributesToOperationalTotal: false, capacityTarget: null, effectiveStartDate: '2024-05-01', effectiveEndDate: '2025-10-31', displayOrder: 50, isActive: true },
-      { displayName: 'Turned Away', description: 'Retired when the emergency-bag program began.', valueType: 'count', unit: 'households', semanticRole: 'unmet_demand', contributesToOperationalTotal: false, capacityTarget: null, effectiveStartDate: '2025-11-01', effectiveEndDate: null, displayOrder: 50, isActive: false },
+      { displayName: 'Turned Away', description: 'Households unable to receive service after capacity was reached.', iconName: 'ban', valueType: 'count', unit: 'households', semanticRole: 'unmet_demand', contributesToOperationalTotal: false, capacityTarget: null, effectiveStartDate: '2024-05-01', effectiveEndDate: '2025-10-31', displayOrder: 50, isActive: true },
+      { displayName: 'Turned Away', description: 'Retired when the emergency-bag program began.', iconName: 'ban', valueType: 'count', unit: 'households', semanticRole: 'unmet_demand', contributesToOperationalTotal: false, capacityTarget: null, effectiveStartDate: '2025-11-01', effectiveEndDate: null, displayOrder: 50, isActive: false },
     ],
   },
   {
     metricKey: 'capacity_reached_time',
     revisions: [
-      { displayName: 'Time Capacity Was Reached', description: 'Time pantry capacity was reached for the service day.', valueType: 'time_of_day', unit: 'marker', semanticRole: 'capacity_marker', contributesToOperationalTotal: false, capacityTarget: null, effectiveStartDate: '2025-07-01', effectiveEndDate: null, displayOrder: 60, isActive: true },
+      { displayName: 'Time Capacity Was Reached', description: 'Time pantry capacity was reached for the service day.', iconName: 'circle-parking', valueType: 'time_of_day', unit: 'marker', semanticRole: 'capacity_marker', contributesToOperationalTotal: false, capacityTarget: null, effectiveStartDate: '2025-07-01', effectiveEndDate: null, displayOrder: 60, isActive: true },
     ],
   },
   {
     metricKey: 'camping_gear_requests',
     revisions: [
-      { displayName: 'Camping Gear Requests', description: 'Requests for camping gear or related support.', valueType: 'count', unit: 'requests', semanticRole: 'ancillary_service', contributesToOperationalTotal: false, capacityTarget: null, effectiveStartDate: '2024-08-01', effectiveEndDate: null, displayOrder: 70, isActive: true },
+      { displayName: 'Camping Gear Requests', description: 'Requests for camping gear or related support.', iconName: 'tent-tree', valueType: 'count', unit: 'requests', semanticRole: 'ancillary_service', contributesToOperationalTotal: false, capacityTarget: null, effectiveStartDate: '2024-08-01', effectiveEndDate: null, displayOrder: 70, isActive: true },
     ],
   },
 ];

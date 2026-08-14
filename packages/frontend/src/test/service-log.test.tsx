@@ -14,6 +14,7 @@ import {
   dateInTimezone,
 } from '@/components/service-log/service-date';
 import { ServiceMetricsSettings } from '@/components/service-metrics';
+import { MetricDialog } from '@/components/service-metrics/metric-dialog';
 import { formatOrdinalPosition } from '@/components/service-metrics/position';
 import { DEFAULT_OPERATING_HOURS, DEFAULT_OPERATING_HOURS_SETTINGS } from '@/types/settings';
 
@@ -65,6 +66,7 @@ const serviceDay = {
       definitionRevision: 2,
       displayName: 'Downstairs Shopping Visits',
       description: 'Households shopping in the pantry.',
+      iconName: 'shopping-basket',
       valueType: 'count' as const,
       unit: 'households' as const,
       semanticRole: 'served_household_method' as const,
@@ -80,6 +82,7 @@ const serviceDay = {
       definitionRevision: 1,
       displayName: 'Time Capacity Was Reached',
       description: null,
+      iconName: 'circle-parking',
       valueType: 'time_of_day' as const,
       unit: 'marker' as const,
       semanticRole: 'capacity_marker' as const,
@@ -127,6 +130,34 @@ const serviceDayAfterMetricRefresh = {
   metrics: [longListsMetric, serviceDay.metrics[0], serviceDay.metrics[1]],
 };
 
+const configuredMetric = {
+  id: 1,
+  metricKey: 'shopping_visits',
+  createdAt: '2026-08-01T00:00:00.000Z',
+  revisionCount: 2,
+  hasObservations: true,
+  displayPosition: 1,
+  currentRevision: {
+    id: 2,
+    metricId: 1,
+    revision: 2,
+    displayName: 'Downstairs Shopping Visits',
+    description: 'Households shopping in the pantry.',
+    iconName: 'shopping-basket',
+    valueType: 'count' as const,
+    unit: 'households' as const,
+    semanticRole: 'served_household_method' as const,
+    contributesToOperationalTotal: true,
+    capacityTarget: 75,
+    effectiveStartDate: '2025-11-01',
+    effectiveEndDate: null,
+    displayOrder: 10,
+    isActive: true,
+    createdBy: null,
+    createdAt: '2026-08-01T00:00:00.000Z',
+  },
+};
+
 describe('native Service workflow', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -160,6 +191,40 @@ describe('native Service workflow', () => {
     expect(
       dailyCard.compareDocumentPosition(metrics) & Node.DOCUMENT_POSITION_FOLLOWING
     ).toBeTruthy();
+  });
+
+  test('renders the configured icon and keeps one- or two-metric sections at half width', async () => {
+    render(<MemoryRouter><ServiceLogWorkspace /></MemoryRouter>);
+
+    expect(await screen.findByTestId('service-metric-icon-1')).toHaveClass('lucide-shopping-basket');
+    expect(screen.getByTestId('service-metric-section-service')).not.toHaveClass('lg:col-span-2');
+    expect(screen.getByTestId('service-metric-section-capacity')).not.toHaveClass('lg:col-span-2');
+  });
+
+  test('expands a section with three metrics and keeps its metric cards two per row', async () => {
+    serviceMocks.getDay.mockResolvedValue({
+      ...serviceDay,
+      metrics: [
+        serviceDay.metrics[0],
+        longListsMetric,
+        {
+          ...longListsMetric,
+          id: 4,
+          metricKey: 'premade_bags',
+          displayName: 'Premade Bags',
+          iconName: 'paper-bag',
+          displayOrder: 30,
+        },
+        serviceDay.metrics[1],
+      ],
+    });
+
+    render(<MemoryRouter><ServiceLogWorkspace /></MemoryRouter>);
+
+    const section = await screen.findByTestId('service-metric-section-service');
+    expect(section).toHaveClass('lg:col-span-2');
+    expect(section.querySelector('.sm\\:grid-cols-2')).toBeInTheDocument();
+    expect(section.querySelector('.xl\\:grid-cols-3')).not.toBeInTheDocument();
   });
 
   test('preserves an explicit zero when staff save the service day', async () => {
@@ -239,20 +304,47 @@ describe('native Service workflow', () => {
     expect(showSuccess).toHaveBeenCalledWith('Configured 7 WTH Service metrics');
   });
 
-  test('insets the metric form inside the ScrollArea viewport so field shadows are not clipped', async () => {
+  test('uses three compact steps and the same inline icon grid as Categories', async () => {
     render(<MemoryRouter><ServiceMetricsSettings /></MemoryRouter>);
     fireEvent.click(await screen.findByRole('button', { name: 'Add Metric' }));
 
     const dialog = await screen.findByRole('dialog');
-    const viewport = dialog.querySelector('[data-radix-scroll-area-viewport]');
-    expect(viewport?.parentElement).not.toHaveClass('px-2');
-    expect(viewport?.querySelector('.p-4')).toBeInTheDocument();
+    expect(within(dialog).getByLabelText('Display name')).toBeInTheDocument();
+    expect(within(dialog).getByLabelText('Description')).toBeInTheDocument();
+    expect(within(dialog).getByLabelText('Search icons')).toBeInTheDocument();
+    expect(within(dialog).queryByText('Classification')).not.toBeInTheDocument();
+
+    fireEvent.change(within(dialog).getByLabelText('Search icons'), {
+      target: { value: 'Paper Bag' },
+    });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Select Paper Bag icon' }));
+    expect(within(dialog).getByText('Paper Bag')).toBeInTheDocument();
+
+    fireEvent.change(within(dialog).getByLabelText('Display name'), {
+      target: { value: 'Delivery Requests' },
+    });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Next' }));
+
+    expect(within(dialog).getByText('Classification')).toBeInTheDocument();
+    expect(within(dialog).getByLabelText('Position')).toHaveTextContent('1st');
+    expect(dialog.querySelector('[data-radix-scroll-area-viewport]')).not.toBeInTheDocument();
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Next' }));
+    expect(within(dialog).getByLabelText('Include in operational household total')).toBeInTheDocument();
+    expect(within(dialog).getByLabelText('Available for daily entry')).toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Add Metric' }));
+
+    await waitFor(() => expect(serviceMocks.createMetric).toHaveBeenCalledWith(
+      expect.objectContaining({ displayName: 'Delivery Requests', iconName: 'paper-bag' }),
+    ));
   });
 
   test('presents Service metric order as a plain ordinal position', async () => {
     render(<MemoryRouter><ServiceMetricsSettings /></MemoryRouter>);
     fireEvent.click(await screen.findByRole('button', { name: 'Add Metric' }));
 
+    fireEvent.change(screen.getByLabelText('Display name'), { target: { value: 'Delivery Requests' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
     expect(screen.getByLabelText('Position')).toHaveTextContent('1st');
     expect(screen.queryByLabelText('Display order')).not.toBeInTheDocument();
     expect(formatOrdinalPosition(2)).toBe('2nd');
@@ -276,6 +368,8 @@ describe('native Service workflow', () => {
     fireEvent.change(within(dialog).getByLabelText('Display name'), {
       target: { value: 'Delivery Requests' },
     });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Next' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Next' }));
     fireEvent.click(within(dialog).getByRole('button', { name: 'Add Metric' }));
 
     await waitFor(() => expect(serviceMocks.getDay).toHaveBeenCalledTimes(2));
@@ -287,6 +381,33 @@ describe('native Service workflow', () => {
     expect(
       longLists.compareDocumentPosition(shoppingVisits) & Node.DOCUMENT_POSITION_FOLLOWING
     ).toBeTruthy();
+  });
+
+  test('uses the same three-step navigation when editing a metric revision', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    render(
+      <MetricDialog
+        open
+        metric={configuredMetric}
+        metricCount={1}
+        isSaving={false}
+        onOpenChange={vi.fn()}
+        onSave={onSave}
+      />,
+    );
+
+    expect(screen.getByLabelText('Display name')).toHaveValue('Downstairs Shopping Visits');
+    expect(screen.getByText('Basket')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    expect(screen.getByText('Classification')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save Revision' }));
+
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
+      displayName: 'Downstairs Shopping Visits',
+      iconName: 'shopping-basket',
+      capacityTarget: 75,
+    }));
   });
 });
 

@@ -13,7 +13,6 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Select,
   SelectContent,
@@ -23,6 +22,7 @@ import {
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
+import { IconSelector } from '@/components/shared/icon-selector';
 import type {
   ServiceMetricConfiguration,
   ServiceMetricConfigurationInput,
@@ -31,6 +31,14 @@ import type {
   ServiceMetricValueType,
 } from '@/services/service';
 import { formatOrdinalPosition } from './position';
+
+type MetricDialogStep = 0 | 1 | 2;
+
+const stepDescriptions: Record<MetricDialogStep, string> = {
+  0: 'Name the field and choose how it appears in the Service Log.',
+  1: 'Define what the field records and when it applies.',
+  2: 'Choose how the field participates in daily entry.',
+};
 
 interface MetricDialogProps {
   open: boolean;
@@ -50,6 +58,7 @@ const localToday = () => {
 const blankMetric = (displayPosition: number): ServiceMetricConfigurationInput => ({
   displayName: '',
   description: null,
+  iconName: 'package',
   valueType: 'count',
   unit: 'households',
   semanticRole: 'served_household_method',
@@ -66,6 +75,7 @@ const inputFromMetric = (metric: ServiceMetricConfiguration): ServiceMetricConfi
   return {
     displayName: revision.displayName,
     description: revision.description,
+    iconName: revision.iconName,
     valueType: revision.valueType,
     unit: revision.unit,
     semanticRole: revision.semanticRole,
@@ -110,10 +120,12 @@ export function MetricDialog({
 }: MetricDialogProps) {
   const defaultDisplayPosition = metricCount + 1;
   const [form, setForm] = React.useState<ServiceMetricConfigurationInput>(() => blankMetric(defaultDisplayPosition));
+  const [step, setStep] = React.useState<MetricDialogStep>(0);
 
   React.useEffect(() => {
     if (!open) return;
     setForm(metric ? inputFromMetric(metric) : blankMetric(defaultDisplayPosition));
+    setStep(0);
   }, [defaultDisplayPosition, metric, open]);
 
   const set = <K extends keyof ServiceMetricConfigurationInput>(
@@ -172,45 +184,62 @@ export function MetricDialog({
     { length: metric ? metricCount : metricCount + 1 },
     (_, index) => index + 1,
   );
+  const canContinue = step === 0
+    ? Boolean(form.displayName.trim())
+    : step === 1
+      ? Boolean(
+        form.effectiveStartDate
+        && (!form.effectiveEndDate || form.effectiveEndDate >= form.effectiveStartDate)
+      )
+      : true;
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (!nextOpen) setStep(0);
+    onOpenChange(nextOpen);
+  };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[640px]">
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
           <DialogTitle>{metric ? 'Edit Service Metric' : 'Add Service Metric'}</DialogTitle>
-          <DialogDescription>
-            {metric
-              ? 'Save a new effective-dated revision without rewriting prior entries.'
-              : 'Configure one field staff can record in the daily Service Log.'}
-          </DialogDescription>
+          <DialogDescription>{stepDescriptions[step]}</DialogDescription>
         </DialogHeader>
 
-        <ScrollArea className="h-[calc(85vh-13rem)]">
-          {/* Padding belongs inside the Radix viewport. Padding its root only
-              moves the viewport; full-width controls remain flush with its
-              clipping edge. The inner inset preserves rings and shadows. */}
-          <div className="space-y-5 p-4">
-            <div className="space-y-2">
-              <Label htmlFor="service-metric-name">Display name</Label>
-              <Input
-                id="service-metric-name"
-                value={form.displayName}
-                maxLength={80}
-                onChange={(event) => set('displayName', event.target.value)}
-              />
-            </div>
+        <div className="min-h-[360px] py-2">
+          {step === 0 ? (
+            <div className="space-y-4" data-testid="service-metric-step-appearance">
+              <div className="space-y-2">
+                <Label htmlFor="service-metric-name">Display name</Label>
+                <Input
+                  id="service-metric-name"
+                  value={form.displayName}
+                  maxLength={80}
+                  onChange={(event) => set('displayName', event.target.value)}
+                />
+              </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="service-metric-description">Description</Label>
-              <Textarea
-                id="service-metric-description"
-                value={form.description ?? ''}
-                maxLength={500}
-                onChange={(event) => set('description', event.target.value || null)}
-              />
-            </div>
+              <div className="space-y-2">
+                <Label htmlFor="service-metric-description">Description</Label>
+                <Textarea
+                  id="service-metric-description"
+                  value={form.description ?? ''}
+                  maxLength={500}
+                  onChange={(event) => set('description', event.target.value || null)}
+                  className="min-h-20"
+                />
+              </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Icon</Label>
+                <IconSelector value={form.iconName} onChange={(value) => set('iconName', value)} />
+              </div>
+            </div>
+          ) : null}
+
+          {step === 1 ? (
+            <div className="space-y-4" data-testid="service-metric-step-definition">
+              <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label>Classification</Label>
                 <Select
@@ -278,9 +307,9 @@ export function MetricDialog({
                   </SelectContent>
                 </Select>
               </div>
-            </div>
+              </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="service-metric-start">Effective start</Label>
                 <Input
@@ -299,51 +328,55 @@ export function MetricDialog({
                   onChange={(event) => set('effectiveEndDate', event.target.value || null)}
                 />
               </div>
-            </div>
-
-            {canContribute && (
-              <div className="space-y-4 rounded-md border p-4">
-                <div className="flex items-center justify-between gap-4">
-                  <Label htmlFor="service-metric-total">Include in operational household total</Label>
-                  <Switch
-                    id="service-metric-total"
-                    checked={form.contributesToOperationalTotal}
-                    onCheckedChange={(checked) => set('contributesToOperationalTotal', checked)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="service-metric-capacity">Optional daily capacity target</Label>
-                  <Input
-                    id="service-metric-capacity"
-                    type="number"
-                    min={0}
-                    step={1}
-                    value={form.capacityTarget ?? ''}
-                    onChange={(event) => set('capacityTarget', event.target.value === '' ? null : Math.max(0, Number(event.target.value) || 0))}
-                  />
-                </div>
               </div>
-            )}
-
-            <div className="flex items-center justify-between gap-4 rounded-md border p-4">
-              <Label htmlFor="service-metric-active">Available for daily entry</Label>
-              <Switch
-                id="service-metric-active"
-                checked={form.isActive}
-                onCheckedChange={(checked) => set('isActive', checked)}
-              />
             </div>
-          </div>
-        </ScrollArea>
+          ) : null}
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSaving}>Cancel</Button>
-          <Button
-            onClick={() => onSave(form)}
-            disabled={isSaving || !form.displayName.trim() || !form.effectiveStartDate}
-          >
-            {isSaving ? 'Saving…' : metric ? 'Save Revision' : 'Add Metric'}
-          </Button>
+          {step === 2 ? (
+            <div className="space-y-4" data-testid="service-metric-step-availability">
+              <div className="flex items-center justify-between gap-4 rounded-md border p-4">
+                <Label htmlFor="service-metric-total">Include in operational household total</Label>
+                <Switch
+                  id="service-metric-total"
+                  checked={form.contributesToOperationalTotal}
+                  disabled={!canContribute}
+                  onCheckedChange={(checked) => set('contributesToOperationalTotal', checked)}
+                />
+              </div>
+
+              <div className="flex items-center justify-between gap-4 rounded-md border p-4">
+                <Label htmlFor="service-metric-active">Available for daily entry</Label>
+                <Switch
+                  id="service-metric-active"
+                  checked={form.isActive}
+                  onCheckedChange={(checked) => set('isActive', checked)}
+                />
+              </div>
+            </div>
+          ) : null}
+        </div>
+
+        <DialogFooter className="sm:justify-between">
+          {step === 0 ? (
+            <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={isSaving}>Cancel</Button>
+          ) : (
+            <Button variant="outline" onClick={() => setStep((step - 1) as MetricDialogStep)} disabled={isSaving}>Back</Button>
+          )}
+          {step < 2 ? (
+            <Button
+              onClick={() => setStep((step + 1) as MetricDialogStep)}
+              disabled={isSaving || !canContinue}
+            >
+              Next
+            </Button>
+          ) : (
+            <Button
+              onClick={() => onSave(form)}
+              disabled={isSaving}
+            >
+              {isSaving ? 'Saving…' : metric ? 'Save Revision' : 'Add Metric'}
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
