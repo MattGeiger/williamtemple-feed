@@ -32,6 +32,9 @@ food-pantry.code-workspace
 
 # Data
 *.db
+*.db-shm
+*.db-wal
+*.db-journal
 data/
 
 # Defense in depth for legacy repository-local paths. Operational source data
