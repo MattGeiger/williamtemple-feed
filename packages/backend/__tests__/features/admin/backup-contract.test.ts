@@ -88,10 +88,10 @@ describe('sanitized backup table contract', () => {
     }
   });
 
-  it('has bumped the contract version for SIMC person and membership records', () => {
+  it('has bumped the contract version for operational observation clear revisions', () => {
     // Readers key on this, so a shape change that does not bump it is a silent
     // incompatibility.
-    expect(TABLE_CONTRACT_VERSION).toBe(7);
+    expect(TABLE_CONTRACT_VERSION).toBe(8);
   });
 
   it('keeps prepared Service imports outside the portable organization snapshot', () => {

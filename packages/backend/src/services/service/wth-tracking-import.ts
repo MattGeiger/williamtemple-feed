@@ -19,6 +19,7 @@ import {
   type WthTrackingStagingDraft,
 } from './adapters/wth-tracking';
 import { serviceMetricObservationSnapshotHash } from './metrics';
+import { refreshCurrentMetricObservations } from './import-lifecycle';
 
 interface ObservationReconciliation {
   new: number;
@@ -146,12 +147,15 @@ async function reconcileObservations(
     where: {
       source: WTH_TRACKING_SOURCE,
       sourceRecordKey: { in: staged.map((row) => row.sourceRecordKey) },
-      isCurrent: true,
       import: { status: 'active' },
     },
-    select: { sourceRecordKey: true, snapshotHash: true },
+    select: { sourceRecordKey: true, snapshotHash: true, revision: true },
+    orderBy: [{ revision: 'desc' }, { id: 'desc' }],
   });
-  const byKey = new Map(current.map((row) => [row.sourceRecordKey, row.snapshotHash]));
+  const byKey = new Map<string, string>();
+  for (const row of current) {
+    if (!byKey.has(row.sourceRecordKey)) byKey.set(row.sourceRecordKey, row.snapshotHash);
+  }
   const summary = { new: 0, revised: 0, unchanged: 0 };
   for (const row of staged) {
     const held = byKey.get(row.sourceRecordKey);
@@ -294,7 +298,9 @@ async function materializePendingImport(
     const currentHash = new Map<string, string>();
     for (const row of prior) {
       latestRevision.set(row.sourceRecordKey, Math.max(latestRevision.get(row.sourceRecordKey) ?? 0, row.revision));
-      if (row.isCurrent && row.import?.status === 'active') currentHash.set(row.sourceRecordKey, row.snapshotHash);
+      if (row.import?.status === 'active' && !currentHash.has(row.sourceRecordKey)) {
+        currentHash.set(row.sourceRecordKey, row.snapshotHash);
+      }
     }
     const changed = staged.filter((row) => currentHash.get(row.sourceRecordKey) !== row.snapshotHash);
     for (let index = 0; index < changed.length; index += 400) {
@@ -432,20 +438,14 @@ export async function activateWthTrackingImport(
     );
     const pendingRows = await tx.serviceMetricObservationRevision.findMany({
       where: { importId },
-      select: { sourceRecordKey: true },
-    });
-    await tx.serviceMetricObservationRevision.updateMany({
-      where: {
-        source: WTH_TRACKING_SOURCE,
-        sourceRecordKey: { in: pendingRows.map((row) => row.sourceRecordKey) },
-        isCurrent: true,
-        importId: { not: importId },
-      },
-      data: { isCurrent: false },
+      select: { source: true, sourceRecordKey: true },
     });
     const metricObservationRevisionCount = pendingRows.length;
-    await tx.serviceMetricObservationRevision.updateMany({ where: { importId }, data: { isCurrent: true } });
     await tx.serviceImport.update({ where: { id: importId }, data: { status: 'active' } });
+    await refreshCurrentMetricObservations(tx, pendingRows.map((row) => ({
+      source: row.source,
+      key: row.sourceRecordKey,
+    })));
     await tx.dataImportJob.update({ where: { id: jobId }, data: { pendingServiceImportId: null } });
     await tx.wthTrackingStagingRow.deleteMany({ where: { jobId } });
     return { outcome: 'imported' as const, value: {

@@ -691,8 +691,10 @@ model ServiceMetricDefinitionRevision {
   @@index([isActive, displayOrder])
 }
 
-// One immutable typed value for one metric/day/source observation. No row means
-// not recorded; an explicit numeric zero is a real row with countValue = 0.
+// One immutable revision in the organization-wide metric/day observation
+// history. Exactly one revision may be current for a metric/day across every
+// source. A cleared revision intentionally projects as not recorded; an
+// explicit numeric zero remains a recorded value with countValue = 0.
 model ServiceMetricObservationRevision {
   id                   Int                             @id @default(autoincrement())
   metricId             Int
@@ -709,6 +711,7 @@ model ServiceMetricObservationRevision {
   sourceMetricLabel    String?
   sourceSheet          String?
   sourceCell           String?
+  recordState          String                          @default("recorded")
   entryState           String                          @default("finalized")
   warningCodes         Json                            @default("[]")
   isCurrent            Boolean                         @default(true)

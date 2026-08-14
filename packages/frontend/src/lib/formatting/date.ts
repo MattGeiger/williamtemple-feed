@@ -83,10 +83,38 @@ const timeFormatter = new Intl.DateTimeFormat('en-US', {
   minute: '2-digit',
 });
 
+const longDatePartsFormatter = new Intl.DateTimeFormat('en-US', {
+  year: 'numeric',
+  month: 'long',
+  day: 'numeric',
+  weekday: 'long',
+});
+
+const ordinalSuffix = (day: number): string => {
+  const mod100 = day % 100;
+  if (mod100 >= 11 && mod100 <= 13) return 'th';
+  if (day % 10 === 1) return 'st';
+  if (day % 10 === 2) return 'nd';
+  if (day % 10 === 3) return 'rd';
+  return 'th';
+};
+
 /** `7/11/2026`. The default for any date shown as data. */
 export const formatDate = (value: DateInput): string => {
   const date = toDate(value);
   return date ? dateFormatter.format(date) : EMPTY;
+};
+
+/** `Thursday, July 9th, 2026`. Used by prominent calendar-day controls. */
+export const formatLongOrdinalDate = (value: DateInput): string => {
+  const date = toDate(value);
+  if (!date) return EMPTY;
+  const parts = longDatePartsFormatter.formatToParts(date);
+  const part = (type: Intl.DateTimeFormatPartTypes) => (
+    parts.find((candidate) => candidate.type === type)?.value ?? ''
+  );
+  const day = date.getDate();
+  return `${part('weekday')}, ${part('month')} ${day}${ordinalSuffix(day)}, ${part('year')}`;
 };
 
 /**

@@ -5,7 +5,7 @@ adapter, the native-entry and Tracking-adapter slices of Phase 3, and the Phase
 5 SIMC service adapter are complete. The administrator-only unified Add Data
 workflow streams, reviews, reconciles, and atomically activates Link2Feed and
 SIMC visits plus the canonical WTH Tracking export. FEED also provides shared,
-effective-dated Service metric administration and daily draft/finalized entry.
+effective-dated Service metric administration and daily committed entry.
 The Tracking migration schema has been applied locally, the known source-cell
 error has been corrected, and the complete 34-sheet workbook now produces a
 contract-valid 1,114-observation migration artifact. Reviewing and activating
@@ -117,7 +117,7 @@ Used for Tracking and FEED-native entry:
 - unit and semantic role;
 - blank versus explicit zero;
 - import provenance or manual-entry attribution;
-- draft/finalized state and revision history.
+- committed-state and revision history retained internally for provenance.
 
 An operational service-method sum may be reconciled with a formal household
 total. It never supersedes that total and is never added to it.
@@ -411,6 +411,15 @@ window. They do not retroactively increase the regular-service capacity plan.
 ### Tracking import rules
 
 - Import directly entered metric cells, not workbook Total formulas.
+- Treat each imported observation as the initial revision of the same living
+  `(service date, metric)` fact used by the native Service Log. `wth_tracking`
+  remains provenance, not a separate read-only data tier.
+- Permit staff to revise or clear migrated observations in the normal Service
+  Log. A native revision supersedes the imported seed without double-counting;
+  the original workbook value and cell provenance remain in history.
+- Enforce at most one current observation revision for each metric/date across
+  all operational sources. Import rollback, restore, or reactivation must never
+  displace a later FEED-native correction.
 - Recompute operational totals from versioned metric roles.
 - Preserve blank as not recorded and explicit zero as zero.
 - Compare Tracking with formal household totals only when every regular-method
@@ -483,13 +492,20 @@ must provide:
 
 - service date and open/closed status;
 - a default **Today** selection resolved in the pantry timezone;
+- a prominent weekday-first label (`Thursday, July 9th, 2026`) so historical
+  entry never requires staff to infer the day of week from a numeric date;
 - previous/next navigation over weekdays enabled in the current Operating Hours
   schedule, plus the established Shadcn calendar picker for historical or
   special-event dates outside that recurring schedule;
 - the shared 7d/30d/90d/YTD/All/Custom date-range control for the visualization
   cards introduced in Phase 4, kept independent from the one-day entry date;
 - blank versus explicit zero;
-- draft and finalized states;
+- one **Save** action that commits the day without asking staff to manage a
+  draft/finalized lifecycle;
+- historical Tracking values prepopulated in the same editable controls as
+  FEED-native values;
+- an append-only correction chain in which an edited value or intentional clear
+  supersedes—but does not erase—the migrated workbook revision;
 - computed operational total from eligible metric roles;
 - capacity progress against the effective plan;
 - revision/audit attribution;
@@ -651,7 +667,7 @@ comparison only; operational observations were not added to formal totals.
   including the distinction between an absent source question and a client
   non-answer.
 - [x] Add operational metric definition revisions, typed observation revisions,
-  effective capacity targets, daily draft/finalized state, and audit attribution.
+  effective capacity targets, daily workflow state, and audit attribution.
 - [x] Add effective-dated capacity-plan revisions that keep overall formal
   household capacity separate from operational-method targets.
 - [x] Add structured quality findings, a restricted safe-detail vocabulary,
@@ -684,8 +700,8 @@ comparison only; operational observations were not added to formal totals.
 ### Phase 3 — Native Service Log and Tracking migration
 
 - [x] Implement metric configuration with Inventory-derived UX patterns.
-- [x] Implement routine daily entry with blank/zero, open/closed, and
-  draft/finalized revision semantics.
+- [x] Implement routine daily entry with blank/zero, open/closed, one committed
+  Save action, and append-only revision semantics.
 - [x] Add an explicit idempotent WTH-default setup action and effective-dated
   metric aliases/capacity plan.
 - [x] Build the WTH long-form exporter and migration adapter.

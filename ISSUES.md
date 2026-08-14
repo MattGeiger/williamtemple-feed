@@ -38,6 +38,23 @@ Everything else in this file. The application is shippable today.
 
 ## Open Issues
 
+### #66 — Imported Tracking observations were invisible in the Service Log
+**Priority**: High · **Status**: Fixed in source 2026-08-13; awaiting staff acceptance testing
+**Bucket**: Service Log / operational continuity
+
+The Tracking adapter activated 1,114 valid operational observations, but the
+daily Service Log queried only rows whose source was `feed_service_log`. This
+incorrectly treated migrated history as a parallel read-only source and left
+historical entry fields blank.
+
+**Resolution:** operational observation identity is now the organization-wide
+metric/date pair rather than metric/date/source. Tracking activation seeds that
+living fact; a normal Service Log save appends the next native revision and
+preserves the imported workbook provenance. An intentional clear is stored as
+an auditable current clear revision so restoring an import cannot resurrect the
+old value. The database enforces at most one current revision for each
+metric/date, and lifecycle projection always prefers a later native decision.
+
 ### #65 — Imports table omitted Service import history
 **Priority**: High · **Status**: Fixed in source 2026-08-11; awaiting staff acceptance testing
 **Bucket**: Data Management / unified imports

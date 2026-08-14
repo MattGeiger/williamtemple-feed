@@ -7,12 +7,33 @@ All notable changes to FEED are documented here. This project adheres to
 
 ### Changed
 
+- **Service Log daily entry now has one Save action.** The page no longer asks
+  staff to choose between `Save Draft` and `Finalize Day`, and it no longer
+  exposes a Draft/Finalized badge. Saving commits the shared day immediately;
+  revision and audit history remain intact behind the interaction.
+
+- **The Service Date navigator now shows the full weekday and calendar date.**
+  Historical selections use labels such as `Thursday, July 9th, 2026`; today's
+  selection retains the `Today` cue alongside the same unambiguous date.
+
 - **Service Metric ordering now uses plain ordinal positions.** The Add/Edit
   dialog presents `1st`, `2nd`, `3rd`, and so on instead of exposing internal
   numerical sort values. Creating or moving a metric atomically rebalances the
   shared metric list while preserving append-only definition revisions.
 
 ### Fixed
+
+- **Imported WTH Tracking observations now continue as editable Service Log
+  data.** Historical values populate the native daily fields instead of
+  remaining hidden behind a source-specific read filter. FEED maintains one
+  current observation per metric and date across imported and native sources;
+  edits and intentional clears append native revisions while preserving the
+  original workbook provenance. Import rollback or restore cannot displace a
+  later staff correction. The additive
+  `20260813120000_unify_service_metric_observations` migration records cleared
+  revisions and enforces the single-current projection. Sanitized backup table
+  contract version 8 preserves clear revisions while older artifacts restore
+  their observations as recorded values.
 
 - **Service Metric changes now take effect on the open Service Log
   immediately.** Saving, adding, or seeding metric definitions refreshes both

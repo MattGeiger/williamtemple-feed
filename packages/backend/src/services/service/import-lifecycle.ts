@@ -6,6 +6,13 @@ import prisma from '../../db';
 
 type TransactionClient = Prisma.TransactionClient;
 type RevisionIdentity = { id: number; source: string; key: string; revision: number };
+type MetricRevisionIdentity = {
+  id: number;
+  metricId: number;
+  serviceDate: string;
+  source: string;
+  revision: number;
+};
 
 const chunk = <T>(values: readonly T[], size = 400): T[][] => {
   const result: T[][] = [];
@@ -25,6 +32,29 @@ export function selectCurrentServiceRevisionIds(
     const key = identityKey(candidate.source, candidate.key);
     const held = winners.get(key);
     if (!held || candidate.revision > held.revision) winners.set(key, candidate);
+  }
+  return [...winners.values()].map((candidate) => candidate.id);
+}
+
+export function selectCurrentMetricObservationRevisionIds(
+  candidates: readonly MetricRevisionIdentity[],
+): number[] {
+  const winners = new Map<string, MetricRevisionIdentity>();
+  const sourcePriority = (source: string) => source === 'feed_service_log' ? 1 : 0;
+  for (const candidate of candidates) {
+    const key = JSON.stringify([candidate.metricId, candidate.serviceDate]);
+    const held = winners.get(key);
+    if (
+      !held
+      || sourcePriority(candidate.source) > sourcePriority(held.source)
+      || (
+        sourcePriority(candidate.source) === sourcePriority(held.source)
+        && (
+          candidate.revision > held.revision
+          || (candidate.revision === held.revision && candidate.id > held.id)
+        )
+      )
+    ) winners.set(key, candidate);
   }
   return [...winners.values()].map((candidate) => candidate.id);
 }
@@ -123,30 +153,46 @@ async function refreshCurrentPersonProfiles(
   }
 }
 
-async function refreshCurrentMetricObservations(
+export async function refreshCurrentMetricObservations(
   tx: TransactionClient,
   affected: readonly { source: string; key: string }[],
 ): Promise<void> {
   const groups = groupBySource(affected);
-  const candidates: RevisionIdentity[] = [];
+  const identityMap = new Map<string, { metricId: number; serviceDate: string }>();
   for (const [source, keys] of groups) {
     for (const keyBatch of chunk([...keys])) {
-      await tx.serviceMetricObservationRevision.updateMany({
-        where: { source, sourceRecordKey: { in: keyBatch } },
-        data: { isCurrent: false },
-      });
       const rows = await tx.serviceMetricObservationRevision.findMany({
-        where: {
-          source,
-          sourceRecordKey: { in: keyBatch },
-          OR: [{ importId: null }, { import: { status: 'active' } }],
-        },
-        select: { id: true, source: true, sourceRecordKey: true, revision: true },
+        where: { source, sourceRecordKey: { in: keyBatch } },
+        select: { metricId: true, serviceDate: true },
       });
-      candidates.push(...rows.map((row) => ({ ...row, key: row.sourceRecordKey })));
+      for (const row of rows) {
+        identityMap.set(
+          JSON.stringify([row.metricId, row.serviceDate]),
+          { metricId: row.metricId, serviceDate: row.serviceDate },
+        );
+      }
     }
   }
-  for (const idBatch of chunk(selectCurrentServiceRevisionIds(candidates))) {
+
+  const candidates: MetricRevisionIdentity[] = [];
+  for (const identityBatch of chunk([...identityMap.values()], 200)) {
+    const identityWhere = identityBatch.map(({ metricId, serviceDate }) => ({ metricId, serviceDate }));
+    await tx.serviceMetricObservationRevision.updateMany({
+      where: { OR: identityWhere },
+      data: { isCurrent: false },
+    });
+    const rows = await tx.serviceMetricObservationRevision.findMany({
+      where: {
+        AND: [
+          { OR: identityWhere },
+          { OR: [{ importId: null }, { import: { status: 'active' } }] },
+        ],
+      },
+      select: { id: true, metricId: true, serviceDate: true, source: true, revision: true },
+    });
+    candidates.push(...rows);
+  }
+  for (const idBatch of chunk(selectCurrentMetricObservationRevisionIds(candidates))) {
     await tx.serviceMetricObservationRevision.updateMany({ where: { id: { in: idBatch } }, data: { isCurrent: true } });
   }
 }

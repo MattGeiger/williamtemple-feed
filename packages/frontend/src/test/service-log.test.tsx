@@ -146,7 +146,7 @@ describe('native Service workflow', () => {
 
     expect(screen.getByText('Date Range')).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: '90d' })).toHaveAttribute('data-state', 'active');
-    expect(await screen.findByText('Today')).toBeInTheDocument();
+    expect(await screen.findByText(/^Today · /)).toBeInTheDocument();
     expect(serviceMocks.getDay).toHaveBeenCalledWith(
       dateInTimezone(DEFAULT_OPERATING_HOURS_SETTINGS.timezone),
     );
@@ -162,25 +162,73 @@ describe('native Service workflow', () => {
     ).toBeTruthy();
   });
 
-  test('preserves an explicit zero when staff save a draft', async () => {
+  test('preserves an explicit zero when staff save the service day', async () => {
     render(<MemoryRouter><ServiceLogWorkspace /></MemoryRouter>);
 
     const shopping = await screen.findByLabelText('Downstairs Shopping Visits');
     fireEvent.change(shopping, { target: { value: '0' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Save Draft' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
     await waitFor(() => expect(serviceMocks.saveDay).toHaveBeenCalled());
     expect(serviceMocks.saveDay).toHaveBeenCalledWith(
       expect.any(String),
       expect.objectContaining({
         pantryStatus: 'open',
-        entryState: 'draft',
+        entryState: 'finalized',
         observations: expect.arrayContaining([
           expect.objectContaining({ metricId: 1, countValue: 0 }),
           expect.objectContaining({ metricId: 2, timeValue: null }),
         ]),
       }),
     );
+  });
+
+  test('loads an imported Tracking value as editable Service Log data', async () => {
+    const importedDay = {
+      ...serviceDay,
+      serviceDate: '2025-03-26',
+      entryState: 'finalized' as const,
+      metrics: [{
+        ...serviceDay.metrics[0],
+        observation: { countValue: 75, booleanValue: null, timeValue: null },
+      }, serviceDay.metrics[1]],
+    };
+    serviceMocks.getDay.mockResolvedValue(importedDay);
+    serviceMocks.saveDay.mockResolvedValue({
+      ...importedDay,
+      metrics: [{
+        ...importedDay.metrics[0],
+        observation: { countValue: 76, booleanValue: null, timeValue: null },
+      }, importedDay.metrics[1]],
+    });
+
+    render(<MemoryRouter><ServiceLogWorkspace /></MemoryRouter>);
+
+    const shopping = await screen.findByLabelText('Downstairs Shopping Visits');
+    expect(shopping).toHaveValue(75);
+    expect(shopping).toBeEnabled();
+    fireEvent.change(shopping, { target: { value: '76' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(serviceMocks.saveDay).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        entryState: 'finalized',
+        observations: expect.arrayContaining([
+          expect.objectContaining({ metricId: 1, countValue: 76 }),
+        ]),
+      }),
+    ));
+  });
+
+  test('uses one Save action without exposing draft workflow state', async () => {
+    render(<MemoryRouter><ServiceLogWorkspace /></MemoryRouter>);
+
+    expect(await screen.findByRole('button', { name: 'Save' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Save Draft' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Finalize Day' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Draft')).not.toBeInTheDocument();
+    expect(screen.queryByText('Finalized')).not.toBeInTheDocument();
   });
 
   test('offers WTH defaults only as an explicit administrator setup action', async () => {
@@ -277,5 +325,18 @@ describe('Service Date navigation', () => {
       name: 'Monday, August 10th, 2026',
     }));
     expect(onChange).toHaveBeenCalledWith('2026-08-10');
+  });
+
+  test('shows the selected service date with its weekday and ordinal day', () => {
+    render(
+      <ServiceDateNavigator
+        value="2026-07-09"
+        today="2026-08-13"
+        hours={DEFAULT_OPERATING_HOURS}
+        onChange={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText('Thursday, July 9th, 2026')).toBeInTheDocument();
   });
 });

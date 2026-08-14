@@ -2,7 +2,10 @@
 // Copyright (C) 2026 Matt Geiger
 
 import { describe, expect, test } from 'vitest';
-import { selectCurrentServiceRevisionIds } from '../../../src/services/service';
+import {
+  selectCurrentMetricObservationRevisionIds,
+  selectCurrentServiceRevisionIds,
+} from '../../../src/services/service';
 
 describe('Service import rollback and restore projection', () => {
   test('selects the newest active candidate in each source-scoped identity', () => {
@@ -20,5 +23,20 @@ describe('Service import rollback and restore projection', () => {
       { id: 11, source: 'simc', key: '123', revision: 1 },
     ]);
     expect(winners).toEqual([10, 11]);
+  });
+
+  test('projects one operational observation per metric and date', () => {
+    expect(selectCurrentMetricObservationRevisionIds([
+      { id: 20, metricId: 7, serviceDate: '2026-08-04', source: 'wth_tracking', revision: 1 },
+      { id: 21, metricId: 7, serviceDate: '2026-08-04', source: 'wth_tracking', revision: 2 },
+      { id: 22, metricId: 8, serviceDate: '2026-08-04', source: 'wth_tracking', revision: 1 },
+    ])).toEqual([21, 22]);
+  });
+
+  test('keeps a later native correction authoritative over an imported seed or restore', () => {
+    expect(selectCurrentMetricObservationRevisionIds([
+      { id: 30, metricId: 7, serviceDate: '2026-08-04', source: 'wth_tracking', revision: 8 },
+      { id: 31, metricId: 7, serviceDate: '2026-08-04', source: 'feed_service_log', revision: 2 },
+    ])).toEqual([31]);
   });
 });
