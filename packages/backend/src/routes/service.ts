@@ -28,6 +28,7 @@ const nullableDescription = z.string().max(500).nullable();
 const metricConfigurationSchema = z.object({
   displayName: z.string().min(1).max(80),
   description: nullableDescription,
+  iconName: z.string().min(1).max(64).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
   valueType: z.enum(SERVICE_METRIC_VALUE_TYPES),
   unit: z.enum(SERVICE_METRIC_UNITS),
   semanticRole: z.enum(SERVICE_METRIC_SEMANTIC_ROLES),

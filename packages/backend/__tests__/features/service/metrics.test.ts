@@ -17,6 +17,7 @@ const shoppingVisits: ServiceMetricDefinitionDraft = {
   metricKey: 'shopping_visits',
   displayName: 'Downstairs Shopping Visits',
   description: 'Households that shop in the pantry.',
+  iconName: 'shopping-basket',
   valueType: 'count',
   unit: 'households',
   semanticRole: 'served_household_method',
@@ -67,6 +68,13 @@ describe('Service operational metric contract', () => {
   });
   test('accepts a served-household method and its effective capacity target', () => {
     expect(validateServiceMetricDefinition(shoppingVisits)).toEqual(shoppingVisits);
+  });
+
+  test('requires a normalized FEED icon-library name', () => {
+    expect(() => validateServiceMetricDefinition({
+      ...shoppingVisits,
+      iconName: 'Shopping Basket',
+    })).toThrow(/selected from the FEED icon library/i);
   });
 
   test('keeps Emergency Bags served but outside the regular capacity target', () => {

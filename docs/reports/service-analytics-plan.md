@@ -447,6 +447,7 @@ Administrators configure:
 - stable metric identity;
 - user-facing alias;
 - description;
+- icon selected from FEED's shared Category/Service icon library;
 - value type (`count`, `boolean`, `time_of_day`);
 - unit (`households`, `people`, `requests`, `items`, or marker);
 - semantic role;
@@ -472,11 +473,22 @@ The implemented UX separates routine entry from infrequent configuration:
 - **Service Metrics** is an administrator-only section at the bottom of
   **Service → Service Log**, beneath the routine-entry cards. It follows the
   Inventory management pattern with the standard data table and Add/Edit dialog
-  without introducing a second page or sidebar destination.
+  without introducing a second page or sidebar destination. Metric creation and
+  revision use a compact three-step flow: name/description/icon; definition,
+  position, and effective dates; then operational-total and daily-entry
+  participation. Navigation follows the AI Configuration Back/Next pattern,
+  while the first step uses the same searchable, categorized icon grid as the
+  Category form. Each step fits the dialog surface without a whole-dialog
+  scroll region.
 - Successful metric configuration changes refresh the current Service Log
   definitions immediately and merge them with in-progress daily values; staff
   do not reload the page or lose unsaved entry when an administrator changes
   the shared order.
+- Each metric's icon is revisioned with its effective-dated definition and is
+  shown beside that metric in both administration and daily-entry cards.
+- The additive `20260813140000_add_service_metric_icons` migration was applied
+  successfully in local testing before the multi-step configuration flow was
+  validated against the migrated WTH metric definitions.
 
 William Temple House defaults are installed through an explicit, idempotent
 administrator action. They are not a database migration or a universal seed:
@@ -510,6 +522,12 @@ must provide:
 - capacity progress against the effective plan;
 - revision/audit attribution;
 - no per-user private log.
+
+The daily-entry sections use a responsive two-column section grid. A section
+with one or two configured metrics occupies one half of the page at desktop
+width; a section with three or more metrics spans the full page. Metric cards
+inside every section render two per row, with a third metric beginning the next
+row rather than shrinking all three into a dense three-column layout.
 
 This slice is implemented. Every save appends day and observation revisions;
 the current projection remains organization-wide. A blank field remains not
@@ -700,6 +718,8 @@ comparison only; operational observations were not added to formal totals.
 ### Phase 3 — Native Service Log and Tracking migration
 
 - [x] Implement metric configuration with Inventory-derived UX patterns.
+- [x] Add shared icon selection and responsive 1–2 versus 3+ metric section
+  layouts to Service configuration and daily entry.
 - [x] Implement routine daily entry with blank/zero, open/closed, one committed
   Save action, and append-only revision semantics.
 - [x] Add an explicit idempotent WTH-default setup action and effective-dated

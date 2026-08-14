@@ -34,6 +34,8 @@ import {
 } from '@/services/service';
 import { DEFAULT_DATE_RANGE, type DateRangeSelection } from '@/types/date-range';
 import { DEFAULT_OPERATING_HOURS_SETTINGS } from '@/types/settings';
+import { getIconComponent } from '@/lib/icon-library';
+import { cn } from '@/lib/utils';
 import { ServiceDateNavigator } from './service-date-navigator';
 import { dateInTimezone } from './service-date';
 
@@ -67,16 +69,24 @@ interface MetricFieldProps {
 }
 
 function MetricField({ metric, value, disabled, onChange }: MetricFieldProps) {
+  const Icon = getIconComponent(metric.iconName);
   return (
     <div className="space-y-2 rounded-md border p-4">
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <Label htmlFor={`service-metric-${metric.id}`} className="wrap-break-word">
-            {metric.displayName}
-          </Label>
-          {metric.description && (
-            <p className="mt-1 text-xs text-muted-foreground wrap-break-word">{metric.description}</p>
-          )}
+        <div className="flex min-w-0 items-start gap-2.5">
+          <Icon
+            className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground"
+            aria-hidden="true"
+            data-testid={`service-metric-icon-${metric.id}`}
+          />
+          <div className="min-w-0">
+            <Label htmlFor={`service-metric-${metric.id}`} className="wrap-break-word">
+              {metric.displayName}
+            </Label>
+            {metric.description && (
+              <p className="mt-1 text-xs text-muted-foreground wrap-break-word">{metric.description}</p>
+            )}
+          </div>
         </div>
         <Badge variant="secondary" className="shrink-0">{unitLabel(metric)}</Badge>
       </div>
@@ -120,6 +130,50 @@ function MetricField({ metric, value, disabled, onChange }: MetricFieldProps) {
         />
       )}
     </div>
+  );
+}
+
+interface MetricSectionProps {
+  sectionKey: 'service' | 'capacity' | 'other';
+  title: string;
+  description?: string;
+  metrics: ServiceMetricDayDefinition[];
+  values: Record<number, EntryValue>;
+  disabled: boolean;
+  onChange: (metricId: number, value: EntryValue) => void;
+}
+
+function MetricSection({
+  sectionKey,
+  title,
+  description,
+  metrics,
+  values,
+  disabled,
+  onChange,
+}: MetricSectionProps) {
+  if (metrics.length === 0) return null;
+  return (
+    <Card
+      className={cn(metrics.length >= 3 && 'lg:col-span-2')}
+      data-testid={`service-metric-section-${sectionKey}`}
+    >
+      <CardHeader>
+        <CardTitle>{title}</CardTitle>
+        {description ? <CardDescription>{description}</CardDescription> : null}
+      </CardHeader>
+      <CardContent className={cn('grid gap-4', metrics.length >= 2 && 'sm:grid-cols-2')}>
+        {metrics.map((metric) => (
+          <MetricField
+            key={metric.id}
+            metric={metric}
+            value={values[metric.id]}
+            disabled={disabled}
+            onChange={(value) => onChange(metric.id, value)}
+          />
+        ))}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -340,46 +394,34 @@ export function ServiceLogWorkspace() {
             </Card>
           </div>
 
-          {groups.service.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Service Provided</CardTitle>
-                <CardDescription>Household counts by service method</CardDescription>
-              </CardHeader>
-              <CardContent className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                {groups.service.map((metric) => (
-                  <MetricField key={metric.id} metric={metric} value={values[metric.id]} disabled={pantryStatus === 'closed'} onChange={(value) => updateValue(metric.id, value)} />
-                ))}
-              </CardContent>
-            </Card>
-          )}
-
-          {groups.capacity.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Capacity and Demand</CardTitle>
-                <CardDescription>Operational pressure that does not count as households served</CardDescription>
-              </CardHeader>
-              <CardContent className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                {groups.capacity.map((metric) => (
-                  <MetricField key={metric.id} metric={metric} value={values[metric.id]} disabled={pantryStatus === 'closed'} onChange={(value) => updateValue(metric.id, value)} />
-                ))}
-              </CardContent>
-            </Card>
-          )}
-
-          {groups.other.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Other Services and Requests</CardTitle>
-              </CardHeader>
-              <CardContent className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                {groups.other.map((metric) => (
-                  <MetricField key={metric.id} metric={metric} value={values[metric.id]} disabled={pantryStatus === 'closed'} onChange={(value) => updateValue(metric.id, value)} />
-                ))}
-              </CardContent>
-            </Card>
-          )}
+          <div className="grid gap-4 lg:grid-cols-2">
+            <MetricSection
+              sectionKey="service"
+              title="Service Provided"
+              description="Household counts by service method"
+              metrics={groups.service}
+              values={values}
+              disabled={pantryStatus === 'closed'}
+              onChange={updateValue}
+            />
+            <MetricSection
+              sectionKey="capacity"
+              title="Capacity and Demand"
+              description="Operational pressure that does not count as households served"
+              metrics={groups.capacity}
+              values={values}
+              disabled={pantryStatus === 'closed'}
+              onChange={updateValue}
+            />
+            <MetricSection
+              sectionKey="other"
+              title="Other Services and Requests"
+              metrics={groups.other}
+              values={values}
+              disabled={pantryStatus === 'closed'}
+              onChange={updateValue}
+            />
+          </div>
 
           <div className="flex justify-end">
             <Button disabled={isSaving} onClick={save}>

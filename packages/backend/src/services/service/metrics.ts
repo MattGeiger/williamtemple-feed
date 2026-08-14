@@ -26,6 +26,7 @@ export interface ServiceMetricDefinitionDraft {
   metricKey: string;
   displayName: string;
   description: string | null;
+  iconName: string;
   valueType: ServiceMetricValueType;
   unit: ServiceMetricUnit;
   semanticRole: ServiceMetricSemanticRole;
@@ -71,6 +72,7 @@ export function validateServiceMetricDefinition(
   const metricKey = definition.metricKey.trim();
   const displayName = definition.displayName.trim().replace(/\s+/g, ' ');
   const description = definition.description?.trim().replace(/\s+/g, ' ') || null;
+  const iconName = definition.iconName?.trim() ?? '';
 
   if (!/^[a-z][a-z0-9_]{0,63}$/.test(metricKey)) {
     throw new ServiceFoundationError(
@@ -88,6 +90,12 @@ export function validateServiceMetricDefinition(
     throw new ServiceFoundationError(
       'Metric description must be 500 characters or fewer.',
       'INVALID_SERVICE_METRIC_DESCRIPTION',
+    );
+  }
+  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(iconName) || iconName.length > 64) {
+    throw new ServiceFoundationError(
+      'Metric icon must be selected from the FEED icon library.',
+      'INVALID_SERVICE_METRIC_ICON',
     );
   }
   if (!SERVICE_METRIC_VALUE_TYPES.includes(definition.valueType)) {
@@ -185,7 +193,7 @@ export function validateServiceMetricDefinition(
     );
   }
 
-  return { ...definition, metricKey, displayName, description };
+  return { ...definition, metricKey, displayName, description, iconName };
 }
 
 export function validateServiceMetricObservation(

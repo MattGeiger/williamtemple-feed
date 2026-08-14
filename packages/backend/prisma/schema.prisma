@@ -672,6 +672,7 @@ model ServiceMetricDefinitionRevision {
   revision                      Int
   displayName                   String
   description                   String?
+  iconName                      String                             @default("package")
   valueType                     String
   unit                          String
   semanticRole                  String
