@@ -11,6 +11,7 @@ import multer from 'multer';
 import { auditActorFrom } from '../../middleware/auth/require-admin';
 import { AdminAuditService } from '../../services/auth/admin-audit-service';
 import { AUDIT_ACTIONS, AUDIT_TARGET_TYPES } from '../../services/auth/authorization';
+import { RESTORE_CLEARED_TABLES } from '../../services/backup/table-contract';
 import { readArtifact } from '../../services/restore/artifact-reader';
 import { RestoreService } from '../../services/restore/restore-service';
 import { CleanSlateService } from '../../services/seed/clean-slate-service';
@@ -65,6 +66,14 @@ router.get('/units', (_req, res) => {
       label: unit.label,
       description: unit.description,
       requires: unit.requires,
+      // What restoring this unit also clears. Derived from the same contract
+      // the restore itself reads, so the warning cannot drift from the
+      // behaviour — and stated up front rather than discovered afterwards.
+      clears: [...new Set(
+        Object.values(RESTORE_CLEARED_TABLES)
+          .filter(rule => rule.references.some(parent => unit.tables.includes(parent)))
+          .map(rule => rule.label),
+      )],
     })),
   });
 });
