@@ -557,7 +557,36 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
                     <CartesianGrid vertical={false} strokeDasharray="3 3" />
                     <XAxis dataKey="month" tickLine={false} axisLine={false} />
                     <YAxis tickLine={false} axisLine={false} width={48} />
-                    <ChartTooltip content={<ChartTooltipContent />} />
+                    {/* Sorted highest-first, so the tooltip's order matches how
+                        the lines actually stack at the hovered month. The default
+                        content lists series in render order — ascending year —
+                        which reads as the inverse of what is on screen. Same
+                        treatment as Seasonal Inbound Weight. */}
+                    <ChartTooltip
+                      content={({ active, payload, label }) => {
+                        if (!active || !payload?.length) return null;
+                        const rows = [...payload]
+                          .filter((item) => item.value != null)
+                          .sort((left, right) => Number(right.value) - Number(left.value));
+                        if (rows.length === 0) return null;
+                        return (
+                          <div className="grid min-w-40 gap-1.5 rounded-lg border border-border/50 bg-background px-2.5 py-2 text-xs shadow-xl">
+                            <div className="font-medium">{String(label)}</div>
+                            {rows.map((item) => (
+                              <div key={String(item.dataKey)} className="flex items-center justify-between gap-3">
+                                <span className="flex items-center gap-1.5 text-muted-foreground">
+                                  <span className="h-2 w-2 shrink-0 rounded-[2px]" style={{ backgroundColor: item.color }} />
+                                  {String(item.name ?? item.dataKey)}
+                                </span>
+                                <span className="font-mono font-medium tabular-nums">
+                                  {count(Number(item.value))}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      }}
+                    />
                     <ChartLegend content={<ChartLegendContent />} />
                     {[...activeYears].sort().map((year) => {
                       const isCurrentYear = year === String(new Date().getFullYear());
