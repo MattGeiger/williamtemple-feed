@@ -13,10 +13,9 @@ All notable changes to FEED are documented here. This project adheres to
   stop being this. One press now switches between light and dark. Pressing it
   back to whatever your computer already uses returns FEED to following your
   computer, so a theme you picked months ago stops overriding it. The full
-  choice, including *Follow this device*, moved to **Settings → Appearance**,
-  which is labelled *this device only* — appearance is saved in your browser
-  rather than shared with everyone, so staff can each read FEED the way that
-  suits them.
+  choice, including *Follow this device*, moved to **Settings → Appearance**.
+  Appearance is saved in your browser rather than shared, so staff can each read
+  FEED the way that suits them.
 
 ## [1.5.0-beta.17] — 2026-08-15
 
