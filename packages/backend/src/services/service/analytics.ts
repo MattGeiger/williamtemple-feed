@@ -49,6 +49,8 @@ export interface ServiceMethodDefinition {
   metricKey: string;
   displayName: string;
   unit: string;
+  /** Administrator-configured icon, so the interface never keeps its own list. */
+  iconName: string;
   /** First date this metric was recorded with a non-zero value, if ever. */
   firstRecordedDate?: string | null;
 }
@@ -82,16 +84,18 @@ export interface ServiceAnalytics {
     /** Service Log method totals, in the order staff administer them. */
     methods: Array<ServiceMethodDefinition & { households: number }>;
     /** Ancillary services and requests, aggregated by semantic role. */
-    otherServices: { total: number; unit: string; metrics: ServiceMethodDefinition[] };
+    /** Ancillary metrics reported individually, each with its own unit. */
+    otherServices: Array<ServiceMethodDefinition & { total: number }>;
   };
   /** One row per service DAY. `month` retains its name as the axis key. */
   overTime: Array<{
     month: string;
-    link2feedHouseholds: number;
-    link2feedIndividuals: number;
-    simcHouseholds: number;
-    simcIndividuals: number;
-    serviceLogHouseholds: number;
+    /** Null where the record does not cover the day — the line breaks there. */
+    link2feedHouseholds: number | null;
+    link2feedIndividuals: number | null;
+    simcHouseholds: number | null;
+    simcIndividuals: number | null;
+    serviceLogHouseholds: number | null;
   }>;
   /** Households by calendar month, one key per year — for the seasonal plot. */
   seasonal: {
@@ -175,6 +179,7 @@ export async function getServiceAnalytics(
   // which group each metric belongs to.
   const definitions = await client.$queryRaw<Array<{
     metricKey: string; displayName: string; unit: string;
+    iconName: string;
     semanticRole: string;
     // SQLite stores this as 0/1 but Prisma hydrates the column's declared
     // Boolean type, so it arrives as a boolean — comparing it to 1 silently
@@ -183,7 +188,7 @@ export async function getServiceAnalytics(
     displayOrder: number;
   }>>`
     SELECT d."metricKey", r."displayName", r."unit", r."semanticRole",
-           r."contributesToOperationalTotal", r."displayOrder"
+           r."iconName", r."contributesToOperationalTotal", r."displayOrder"
     FROM "ServiceMetricDefinition" d
     JOIN "ServiceMetricDefinitionRevision" r
       ON r."id" = (SELECT "id" FROM "ServiceMetricDefinitionRevision"
@@ -239,6 +244,12 @@ export async function getServiceAnalytics(
       ...methodKeys,
     );
 
+  const sourceSpans = await client.$queryRaw<Array<{
+    source: string; firstDate: string; lastDate: string;
+  }>>`
+    SELECT "source", MIN("serviceDate") AS "firstDate", MAX("serviceDate") AS "lastDate"
+    FROM "ServiceEncounterRevision" WHERE "isCurrent" = 1 GROUP BY "source"`;
+
   const coverageRows = await client.$queryRaw<Array<{
     source: string; firstDate: string; lastDate: string; encounters: bigint;
   }>>`
@@ -269,7 +280,7 @@ export async function getServiceAnalytics(
     month: string; source: string; households: bigint; individuals: number | null;
   }>>`
     SELECT "serviceDate" AS "month", "source",
-           COUNT(DISTINCT "clientId") AS "households",
+           COUNT(*) AS "households",
            SUM(COALESCE("reportedPeopleCount", 0)) AS "individuals"
     FROM "ServiceEncounterRevision"
     WHERE "isCurrent" = 1 AND "serviceDate" BETWEEN ${startDate} AND ${endDate}
@@ -358,6 +369,7 @@ export async function getServiceAnalytics(
     metricKey: row.metricKey,
     displayName: row.displayName,
     unit: row.unit,
+    iconName: row.iconName,
     households: totalFor(row.metricKey),
   }));
   const serviceLogHouseholds = methods.reduce((total, row) => total + row.households, 0);
@@ -372,12 +384,23 @@ export async function getServiceAnalytics(
   const householdsSource: 'service_log' | 'intake' | 'none' =
     serviceLogHouseholds > 0 ? 'service_log' : intakeHouseholds > 0 ? 'intake' : 'none';
 
+  const spanOf = (source: string) => sourceSpans.find((row) => row.source === source);
+  const l2fSpan = spanOf('link2feed');
+  const simcSpan = spanOf('simc');
+  const within = (span: { firstDate: string; lastDate: string } | undefined, date: string) =>
+    Boolean(span && date >= span.firstDate && date <= span.lastDate);
+
   const monthly = new Map<string, ServiceAnalytics['overTime'][number]>();
+  // Null inside a record's span means "recorded nothing that day"; null outside
+  // it means "this record did not cover that day". Both render as a break, and
+  // neither claims a zero that was never counted.
   const emptyMonth = (month: string) => ({
     month,
-    link2feedHouseholds: 0, link2feedIndividuals: 0,
-    simcHouseholds: 0, simcIndividuals: 0,
-    serviceLogHouseholds: 0,
+    link2feedHouseholds: within(l2fSpan, month) ? 0 : null,
+    link2feedIndividuals: within(l2fSpan, month) ? 0 : null,
+    simcHouseholds: within(simcSpan, month) ? 0 : null,
+    simcIndividuals: within(simcSpan, month) ? 0 : null,
+    serviceLogHouseholds: null as number | null,
   });
   for (const row of overTimeRows) {
     const entry = monthly.get(row.month) ?? emptyMonth(row.month);
@@ -413,10 +436,15 @@ export async function getServiceAnalytics(
     entry[row.metricKey] = Number(row.total ?? 0);
     seriesBuckets.set(row.bucket, entry);
   }
-  // Absent metrics are explicit zeros: staff record every method each service
-  // day, so a missing row means none were given, not that nobody counted.
-  for (const entry of seriesBuckets.values()) {
-    for (const key of methodKeys) if (entry[key] === undefined) entry[key] = 0;
+  // Within a method's life a missing row is a real zero — staff record every
+  // method each service day. Before it existed there is nothing to report, so
+  // the value stays absent and the line begins where the program did.
+  for (const [bucket, entry] of seriesBuckets.entries()) {
+    for (const key of methodKeys) {
+      if (entry[key] !== undefined) continue;
+      const start = methodStarts.find((row) => row.metricKey === key)?.firstDate;
+      if (start && bucket >= start) entry[key] = 0;
+    }
   }
 
   let absoluteDifference = 0;
@@ -456,13 +484,16 @@ export async function getServiceAnalytics(
       households: householdsSource === 'service_log' ? serviceLogHouseholds : intakeHouseholds,
       householdsSource,
       methods,
-      otherServices: {
-        total: ancillaryDefinitions.reduce((sum, row) => sum + totalFor(row.metricKey), 0),
-        unit: ancillaryDefinitions[0]?.unit ?? 'requests',
-        metrics: ancillaryDefinitions.map((row) => ({
-          metricKey: row.metricKey, displayName: row.displayName, unit: row.unit,
-        })),
-      },
+      // Reported one metric at a time rather than as an "Other" bucket: staff
+      // recognize "Camping Gear Requests", not a category label, and the units
+      // differ between them.
+      otherServices: ancillaryDefinitions.map((row) => ({
+          metricKey: row.metricKey,
+          displayName: row.displayName,
+          unit: row.unit,
+        iconName: row.iconName,
+        total: totalFor(row.metricKey),
+      })),
     },
     overTime: [...monthly.values()].sort((a, b) => a.month.localeCompare(b.month)),
     seasonal: { years: seasonalYears, months: seasonalMonths },
@@ -472,6 +503,7 @@ export async function getServiceAnalytics(
         metricKey: row.metricKey,
         displayName: row.displayName,
         unit: row.unit,
+        iconName: row.iconName,
         firstRecordedDate: methodStarts.find((m) => m.metricKey === row.metricKey)?.firstDate ?? null,
       })),
       buckets: [...seriesBuckets.values()]

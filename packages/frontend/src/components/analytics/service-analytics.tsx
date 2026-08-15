@@ -42,6 +42,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ChevronDown } from '@/components/ui/icons';
+import { BadgeQuestionMark, ShoppingBasket, UsersRound } from 'lucide-react';
+import { getIconComponent } from '@/lib/icon-library';
 import { SelectableBlock } from '@/components/reports/selection';
 import { prefersReducedMotion } from '@/lib/reduced-motion';
 import { ErrorHandlerService } from '@/services/error/ErrorHandlerService';
@@ -136,12 +138,54 @@ function Footnote({ children }: { children: React.ReactNode }) {
   return <p className="mt-3 text-xs text-muted-foreground">{children}</p>;
 }
 
-function Tile({ label, value, hint }: { label: string; value: string; hint?: string }) {
+/** Matches the Dashboard stat cards: figure left, icon top-right. */
+function Tile({
+  label, value, hint, icon: Icon,
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+  icon?: React.ComponentType<{ className?: string }>;
+}) {
   return (
-    <div className="rounded-md border p-3">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="mt-1 text-2xl font-semibold tabular-nums">{value}</p>
-      {hint && <p className="mt-0.5 text-[0.7rem] text-muted-foreground">{hint}</p>}
+    <div className="rounded-lg border p-4">
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-sm font-medium">{label}</p>
+        {Icon && <Icon className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />}
+      </div>
+      <p className="mt-2 text-3xl font-semibold tabular-nums">{value}</p>
+      {hint && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}
+    </div>
+  );
+}
+
+/**
+ * One Service Log method. The icon comes from the metric's own configuration,
+ * so administration is the single place icons are chosen.
+ */
+function MethodRow({
+  iconName, displayName, value, unit, color,
+}: {
+  iconName: string; displayName: string; value: number; unit?: string; color?: string;
+}) {
+  const Icon = getIconComponent(iconName);
+  return (
+    <div className="flex items-center gap-3 border-b py-2 last:border-b-0">
+      <span
+        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md"
+        style={color ? { backgroundColor: `color-mix(in srgb, ${color} 18%, transparent)` } : undefined}
+      >
+        <Icon
+          className="h-4 w-4"
+          {...(color ? { style: { color } } : {})}
+          aria-hidden="true"
+        />
+      </span>
+      <span className="min-w-0 flex-1 truncate text-sm">{displayName}</span>
+      <span className="shrink-0 text-sm font-semibold tabular-nums">
+        {count(value)}
+        {unit && <span className="ml-1 font-normal text-muted-foreground">{unit}</span>}
+      </span>
     </div>
   );
 }
@@ -155,16 +199,24 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
   // The changeover is marked at the first day SIMC recorded, taken from the
   // data rather than a hardcoded month, so the marker follows the record.
   const spansCutover = React.useMemo(() => {
-    const hasL2f = overTime.some((row) => row.link2feedHouseholds > 0 || row.link2feedIndividuals > 0);
-    const hasSimc = overTime.some((row) => row.simcHouseholds > 0 || row.simcIndividuals > 0);
+    const hasL2f = overTime.some((row) => (row.link2feedHouseholds ?? 0) > 0 || (row.link2feedIndividuals ?? 0) > 0);
+    const hasSimc = overTime.some((row) => (row.simcHouseholds ?? 0) > 0 || (row.simcIndividuals ?? 0) > 0);
     return hasL2f && hasSimc;
   }, [overTime]);
   const cutoverDate = React.useMemo(
     () => (spansCutover
-      ? overTime.find((row) => row.simcHouseholds > 0 || row.simcIndividuals > 0)?.month ?? null
+      ? overTime.find((row) => (row.simcHouseholds ?? 0) > 0 || (row.simcIndividuals ?? 0) > 0)?.month ?? null
       : null),
     [overTime, spansCutover],
   );
+
+  // Derived from which records actually meet at the boundary, so the marker
+  // describes this organization's history rather than a hardcoded event.
+  const cutoverLabel = React.useMemo(() => {
+    const ordered = [...coverage.sources].sort((a, b) => a.firstDate.localeCompare(b.firstDate));
+    const names = ordered.map((entry) => (entry.source === 'link2feed' ? 'Link2Feed' : 'SIMC'));
+    return names.length === 2 ? `${names[0]} \u2192 ${names[1]}` : 'Record changed';
+  }, [coverage.sources]);
 
   const sizeData = React.useMemo(() => {
     const grouped: Array<{ label: string; visits: number }> = [];
@@ -212,28 +264,29 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
     [summary.methods],
   );
 
+  const methodPalette = [
+    carbonChartColors.blue.primary.light,
+    carbonChartColors.cyan.primary.light,
+    carbonChartColors.teal.primary.light,
+    carbonChartColors.orange.primary.light,
+    carbonChartColors.purple.primary.light,
+  ];
+  const methodColorFor = React.useCallback((metricKey: string) => {
+    const index = summary.methods.findIndex((method) => method.metricKey === metricKey);
+    return index < 0 ? undefined : methodPalette[index % methodPalette.length];
+  }, [summary.methods]);
+
   const methodConfig = React.useMemo(() => Object.fromEntries(
     (methodSeries.methods.length > 0 ? methodSeries.methods : summary.methods)
       .map((method, index) => [method.metricKey, {
       label: method.displayName,
-      color: [
-        carbonChartColors.blue.primary.light,
-        carbonChartColors.cyan.primary.light,
-        carbonChartColors.teal.primary.light,
-        carbonChartColors.orange.primary.light,
-        carbonChartColors.purple.primary.light,
-      ][index % 5],
+      color: methodPalette[index % methodPalette.length],
     }]),
   ) satisfies ChartConfig, [methodSeries.methods, summary.methods]);
 
   const spansYears = coverage.startDate.slice(0, 4) !== coverage.endDate.slice(0, 4);
   const labelBucket = dayLabelFor(spansYears);
 
-  // Methods whose first recorded day falls inside the range began during it, so
-  // their absence beforehand is a fact about the program rather than a gap in
-  // the data. Derived, never asserted.
-  const startedLaterMethods = methodSeries.methods.filter((method) =>
-    method.firstRecordedDate && method.firstRecordedDate > coverage.startDate);
   const householdsFromLog = summary.householdsSource === 'service_log';
   const serviceLogStartsLater = householdsFromLog
     && coverage.serviceLogFirstDate
@@ -258,8 +311,8 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
                     Inventory Distribution treatment, rather than five tiles that
                     wrapped unevenly and left the differently-united ancillary
                     figure stranded on a row of its own. */}
-                <div className="grid gap-4 md:grid-cols-[minmax(0,220px)_1fr] md:items-center">
-                  <ChartContainer config={methodConfig} className="aspect-square w-full max-w-[220px]">
+                <div className="grid gap-6 md:grid-cols-[minmax(0,240px)_1fr] md:items-center">
+                  <ChartContainer config={methodConfig} className="aspect-square w-full max-w-[240px]">
                     <PieChart>
                       <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
                       <Pie
@@ -275,10 +328,10 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
                           if (!viewBox || !('cx' in viewBox) || !('cy' in viewBox)) return null;
                           return (
                             <text x={viewBox.cx} y={viewBox.cy} textAnchor="middle" dominantBaseline="middle">
-                              <tspan x={viewBox.cx} y={viewBox.cy} className="fill-foreground text-2xl font-bold">
+                              <tspan x={viewBox.cx} y={viewBox.cy} className="fill-foreground text-3xl font-bold">
                                 {count(summary.households)}
                               </tspan>
-                              <tspan x={viewBox.cx} y={(viewBox.cy || 0) + 20} className="fill-muted-foreground text-xs">
+                              <tspan x={viewBox.cx} y={(viewBox.cy || 0) + 22} className="fill-muted-foreground text-xs">
                                 Households served
                               </tspan>
                             </text>
@@ -296,36 +349,30 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
                     </PieChart>
                   </ChartContainer>
 
-                  <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-2">
+                  {/* A single ranked column beside the donut, in the order the
+                      administrator set. Two columns left the card sparse on the
+                      right and stranded the differently-united ancillary row on
+                      a line of its own. */}
+                  <div className="min-w-0">
                     {summary.methods.map((method) => (
-                      <div key={method.metricKey} className="flex items-baseline justify-between gap-3 border-b pb-1.5">
-                        <dt className="flex min-w-0 items-center gap-2 text-sm text-muted-foreground">
-                          <span
-                            className="h-2.5 w-2.5 shrink-0 rounded-[2px]"
-                            style={{ backgroundColor: seriesColor(method.metricKey) }}
-                            aria-hidden="true"
-                          />
-                          <span className="truncate">{method.displayName}</span>
-                        </dt>
-                        <dd className="shrink-0 text-sm font-semibold tabular-nums">
-                          {count(method.households)}
-                        </dd>
-                      </div>
+                      <MethodRow
+                        key={method.metricKey}
+                        iconName={method.iconName}
+                        displayName={method.displayName}
+                        value={method.households}
+                        color={methodColorFor(method.metricKey)}
+                      />
                     ))}
-                    {summary.otherServices.metrics.length > 0 && (
-                      <div className="flex items-baseline justify-between gap-3 border-b pb-1.5">
-                        <dt className="min-w-0 text-sm text-muted-foreground">
-                          {/* Kept out of the donut: a different unit cannot be a
-                              slice of a households total. */}
-                          <span className="truncate">Other services and requests</span>
-                        </dt>
-                        <dd className="shrink-0 text-sm font-semibold tabular-nums">
-                          {count(summary.otherServices.total)}{' '}
-                          <span className="font-normal text-muted-foreground">{summary.otherServices.unit}</span>
-                        </dd>
-                      </div>
-                    )}
-                  </dl>
+                    {summary.otherServices.map((service) => (
+                      <MethodRow
+                        key={service.metricKey}
+                        iconName={service.iconName}
+                        displayName={service.displayName}
+                        value={service.total}
+                        unit={service.unit}
+                      />
+                    ))}
+                  </div>
                 </div>
               </div>
             )}
@@ -336,11 +383,12 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
                   Intake records
                 </p>
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                  <Tile label="Visits" value={count(summary.visits)} />
-                  <Tile label="People served *" value={count(summary.peopleServed)} />
+                  <Tile label="Visits" value={count(summary.visits)} icon={ShoppingBasket} />
+                  <Tile label="People served *" value={count(summary.peopleServed)} icon={UsersRound} />
                   <Tile
                     label="Visits without a household record"
                     value={count(summary.identityUnavailableVisits)}
+                    icon={BadgeQuestionMark}
                   />
                   {!coverage.hasServiceLog && (
                     <Tile label="Households served" value={count(summary.households)} />
@@ -405,7 +453,7 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
                     x={cutoverDate}
                     stroke="hsl(var(--muted-foreground))"
                     strokeDasharray="4 4"
-                    label={{ value: 'Changed systems', position: 'insideTopRight', fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                    label={{ value: cutoverLabel, position: 'insideTopRight', fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
                   />}
                   {(['link2feedHouseholds', 'link2feedIndividuals', 'simcHouseholds', 'simcIndividuals', 'serviceLogHouseholds'] as const).map((key) => (
                     <Line
@@ -496,15 +544,20 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
               <Footnote>
                 Distinct households each month, so one household visiting twice in a
                 month is counted once.
-                {reachAndFrequency.length > 1 && (() => {
-                  // Anchored to the busiest year rather than the first, because
-                  // the first year on record covers only the months after
-                  // service began and understates its own frequency.
-                  const peak = reachAndFrequency.reduce((best, row) =>
+                {(() => {
+                  // Only complete calendar years are compared. The first year on
+                  // record starts when service began, and the current year is
+                  // still running, so quoting either against a full year
+                  // compares different lengths of time.
+                  const currentYear = String(new Date().getFullYear());
+                  const complete = reachAndFrequency.filter((row, index) =>
+                    row.year !== currentYear && index > 0);
+                  if (complete.length < 2) return null;
+                  const peak = complete.reduce((best, row) =>
                     row.visitsPerHousehold > best.visitsPerHousehold ? row : best);
-                  const last = reachAndFrequency[reachAndFrequency.length - 1];
+                  const last = complete[complete.length - 1];
                   if (peak.year === last.year) return null;
-                  return ` Visits per household moved from ${peak.visitsPerHousehold} in ${peak.year} to ${last.visitsPerHousehold} in ${last.year}.`;
+                  return ` Across complete years, visits per household moved from ${peak.visitsPerHousehold} in ${peak.year} to ${last.visitsPerHousehold} in ${last.year}.`;
                 })()}
               </Footnote>
             </CardContent>
@@ -547,13 +600,8 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
                 </LineChart>
               </ChartContainer>
               <Footnote>
-                Households per service day.
-                {startedLaterMethods.length > 0 && (
-                  <> {startedLaterMethods
-                    .map((method) => `${method.displayName} was first recorded ${monthOfDate(method.firstRecordedDate as string)}`)
-                    .join('; ')}, so {startedLaterMethods.length === 1 ? 'its line is' : 'those lines are'} absent
-                    before then rather than zero.</>
-                )}
+                Households per service day. Each line begins when that service was
+                first recorded.
               </Footnote>
             </CardContent>
           </Card>

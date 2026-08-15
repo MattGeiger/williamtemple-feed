@@ -175,6 +175,8 @@ export interface ServiceMethodDefinition {
   metricKey: string;
   displayName: string;
   unit: string;
+  /** Administrator-configured icon, so the interface keeps no list of its own. */
+  iconName: string;
   /** First date this metric was recorded with a non-zero value, if ever. */
   firstRecordedDate?: string | null;
 }
@@ -199,15 +201,16 @@ export interface ServiceAnalytics {
     households: number;
     householdsSource: 'service_log' | 'intake' | 'none';
     methods: Array<ServiceMethodDefinition & { households: number }>;
-    otherServices: { total: number; unit: string; metrics: ServiceMethodDefinition[] };
+    otherServices: Array<ServiceMethodDefinition & { total: number }>;
   };
   overTime: Array<{
     month: string;
-    link2feedHouseholds: number;
-    link2feedIndividuals: number;
-    simcHouseholds: number;
-    simcIndividuals: number;
-    serviceLogHouseholds: number;
+    /** Null where the record does not cover the day — the line breaks there. */
+    link2feedHouseholds: number | null;
+    link2feedIndividuals: number | null;
+    simcHouseholds: number | null;
+    simcIndividuals: number | null;
+    serviceLogHouseholds: number | null;
   }>;
   seasonal: {
     years: string[];
