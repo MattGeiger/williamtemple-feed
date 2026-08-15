@@ -38,6 +38,51 @@ Everything else in this file. The application is shippable today.
 
 ## Open Issues
 
+### #71 — Link2Feed imports needing review were stranded mid-preparation
+**Priority**: High · **Status**: Fixed in source 2026-08-15; awaiting deployment
+**Bucket**: Data Management / Link2Feed ingestion
+
+Introduced by #67 and found in production on beta.14. Detaching preparation
+moved a staged job's initial status from `awaiting_review` to `preparing`, but
+`prepareLink2FeedVisitImport`'s unresolved-issues branch still only called
+`recordDataImportJobProgress`. Before the change that was correct — the job was
+already sitting in `awaiting_review` — so nothing flagged the missing
+transition.
+
+The result was that **every Link2Feed import raising a review question was
+stranded in `preparing` forever**, with three symptoms from one cause: the
+progress panel counted up without end (observed at 51 minutes on an import that
+had finished in about two), saving any review decision was rejected with "This
+Link2Feed import is no longer awaiting review" (the resolver requires
+`awaiting_review`), and the resume offer reported "FEED is still working" and
+could not recover it. SIMC and WTH Tracking were unaffected: both always end at
+`ready` and have no user-decision branch.
+
+**Resolution:** the branch now transitions to `awaiting_review`. Two additional
+guards, because a unit-test suite passed throughout while the real flow was
+broken:
+
+- `startDataImportBackgroundTask` checks, after a task returns *successfully*,
+  that the job is no longer in a background status; if it is, the job is failed
+  with `DATA_IMPORT_DID_NOT_SETTLE` and the defect is logged. A stranded job can
+  no longer present as an import that runs forever.
+- `failOrphanedDataImportJobs` now also releases staging rows, review issues,
+  any pending import, and the staged source file, matching the normal failure
+  paths. An interrupted import could otherwise leave ~79,000 staging rows and
+  the uploaded source on disk until the 24-hour expiry sweep.
+
+Verified end-to-end against WTH's real 25,124,653-byte export on a scratch
+database: staged job reaches `preparing`, prepare completes in 13.4s locally,
+and the job settles at `awaiting_review` with 79,308 staged rows and 13
+decisions pending — the exact production shape. The scratch database was deleted
+afterward.
+
+**Follow-up worth taking:** no test exercised "prepare a real file and assert
+where the job lands", which is why both this and #70 reached production. The
+synthetic generator in
+`docs/data-management/link2feed-import-benchmark-plan.md` Phase 1 would make
+that check runnable in CI without a PII file.
+
 ### #70 — Link2Feed adapter could not parse a native Link2Feed export
 **Priority**: High · **Status**: Fixed in source 2026-08-14; awaiting deployment
 **Bucket**: Data Management / Link2Feed ingestion

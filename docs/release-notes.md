@@ -1,5 +1,29 @@
 # Release Notes
 
+## Version 1.5.0-beta.15 — 2026-08-15
+
+*Beta — corrects a defect in beta.13 and beta.14 that blocked Link2Feed review.*
+
+- **Link2Feed imports that raise review questions now reach the review step.**
+  In the previous two builds such an import stopped just short of handing back
+  to you: the progress counter kept climbing after the work had finished, saving
+  a decision was refused as "no longer awaiting review", and reopening the
+  import did not help. The reading and validation were complete and correct the
+  whole time — only the handoff was missing. Upload the file again and the
+  review opens normally.
+- **An import that cannot complete now says so** rather than appearing to run
+  indefinitely.
+- **An interrupted import clears its temporary data right away**, instead of
+  leaving it for the daily cleanup.
+
+## Version 1.5.0-beta.14 — 2026-08-14
+
+*Beta — interface fix.*
+
+- **The "an import is already in progress" panel now reads as a panel.** Its
+  heading, explanation, and button were laid out side by side instead of
+  stacked.
+
 ## Version 1.5.0-beta.13 — 2026-08-14
 
 *Beta — large imports now finish, and you can watch them.*

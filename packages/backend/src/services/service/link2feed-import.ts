@@ -894,7 +894,13 @@ export async function prepareLink2FeedVisitImport(
         : 'Link2Feed review is complete and ready for activation.',
     };
     if (unresolvedIssueCount > 0) {
-      await recordDataImportJobProgress(jobId, transition, client);
+      // The job must LEAVE `preparing` here. Before preparation was detached it
+      // was already sitting in `awaiting_review`, so recording progress was
+      // enough; now the status is what tells the client the server has stopped
+      // working and started waiting. Without this transition the job stays in a
+      // background status forever: the progress panel counts up with no end,
+      // and every review decision is rejected as "no longer awaiting review".
+      await transitionDataImportJob(jobId, { ...transition, status: 'awaiting_review' }, client);
     } else {
       await recordDataImportJobProgress(jobId, transition, client);
       await materializeLink2FeedPendingImport(jobId, job.createdBy, client);

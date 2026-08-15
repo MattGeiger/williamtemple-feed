@@ -8,6 +8,8 @@ import {
   transitionDataImportJob,
   type DataImportJobStatus,
 } from './jobs';
+import { cleanupPendingServiceImport } from './pending-service';
+import { dataImportStagingService, DataImportStagingService } from './staging';
 
 // Why import work runs detached from its HTTP request
 // -----------------------------------------------------
@@ -61,6 +63,29 @@ export function startDataImportBackgroundTask(
   const run = (async () => {
     try {
       await task();
+      // A task that returns without moving the job out of a background status
+      // has left it stranded: nothing else will ever advance it, so the client
+      // polls a counter that never stops and every subsequent action is
+      // rejected. That is a defect in the task, but it must not present to the
+      // user as an import that runs forever — fail it visibly instead.
+      //
+      // This is not hypothetical. Detaching preparation moved the initial
+      // status from `awaiting_review` to `preparing`, and the Link2Feed branch
+      // that ends with unresolved review issues was still only recording
+      // progress rather than transitioning, so it stranded every import that
+      // raised a question. See ISSUES.md #71.
+      const settled = await client.dataImportJob.findUnique({ where: { id: jobId } });
+      if (settled && DATA_IMPORT_BACKGROUND_STATUSES.includes(settled.status as DataImportJobStatus)) {
+        onError(new Error(
+          `Import job ${jobId} finished its background task still in status "${settled.status}".`,
+        ));
+        await transitionDataImportJob(jobId, {
+          status: 'failed',
+          errorCode: 'DATA_IMPORT_DID_NOT_SETTLE',
+          errorMessage: 'FEED finished preparing this import but could not record the result. No data was imported. Upload the file again.',
+          safeMessage: 'FEED finished preparing this import but could not record the result. No data was imported. Upload the file again.',
+        }, client);
+      }
     } catch (error) {
       onError(error);
       // The task's own handler has almost certainly already recorded a precise
@@ -106,16 +131,40 @@ export async function whenDataImportBackgroundTasksSettle(): Promise<void> {
  */
 export async function failOrphanedDataImportJobs(
   client: PrismaClient = prisma,
+  staging: DataImportStagingService = dataImportStagingService,
 ): Promise<{ failed: number }> {
   const orphaned = await client.dataImportJob.findMany({
     where: { status: { in: [...DATA_IMPORT_BACKGROUND_STATUSES] } },
-    select: { id: true },
+    select: { id: true, source: true, stagedFileKey: true, pendingServiceImportId: true },
   });
   let failed = 0;
   for (const job of orphaned) {
     try {
+      // Release the job's transient data as the normal failure paths do. An
+      // interrupted import can leave tens of thousands of staging rows behind,
+      // and the job is dead — nothing can resume it — so waiting for the
+      // 24-hour expiry sweep to notice would keep that source-derived data on
+      // disk far longer than it should be.
+      if (job.pendingServiceImportId && job.source) {
+        await cleanupPendingServiceImport(job.pendingServiceImportId, job.source, client)
+          .catch(() => undefined);
+      }
+      await client.$transaction(async (tx) => {
+        await tx.dataImportReviewIssue.deleteMany({ where: { jobId: job.id } });
+        await tx.simcEncounterPersonStagingRow.deleteMany({ where: { jobId: job.id } });
+        await tx.simcPersonStagingRow.deleteMany({ where: { jobId: job.id } });
+        await tx.simcVisitStagingRow.deleteMany({ where: { jobId: job.id } });
+        await tx.wthTrackingStagingRow.deleteMany({ where: { jobId: job.id } });
+        await tx.link2FeedVisitStagingRow.deleteMany({ where: { jobId: job.id } });
+        await tx.dataImportJob.update({
+          where: { id: job.id },
+          data: { pendingServiceImportId: null },
+        });
+      }).catch(() => undefined);
+      await staging.delete(job.stagedFileKey).catch(() => undefined);
       await transitionDataImportJob(job.id, {
         status: 'failed',
+        stagedFileKey: null,
         errorCode: 'DATA_IMPORT_INTERRUPTED',
         errorMessage: 'FEED restarted while this import was being prepared. No data was imported. Upload the file again.',
         safeMessage: 'FEED restarted while this import was being prepared. No data was imported. Upload the file again.',
