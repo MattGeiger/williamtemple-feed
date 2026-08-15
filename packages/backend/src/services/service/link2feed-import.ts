@@ -22,6 +22,7 @@ import {
   validateServiceQualityIssue,
 } from './quality';
 import {
+  detectLink2FeedTrailingFillerColumns,
   LINK2FEED_SOURCE,
   LINK2FEED_VISIT_ADAPTER_VERSION,
   LINK2FEED_VISIT_CONTRACT_ID,
@@ -749,9 +750,15 @@ export async function prepareLink2FeedVisitImport(
   });
 
   try {
+    // Measured from a short-lived stream over the first two records before the
+    // full parse, so strict column counting can stay on for every row.
+    const trailingFillerColumns = await detectLink2FeedTrailingFillerColumns(
+      staging.createReadStream(job.stagedFileKey),
+    );
     const parsed = await parseLink2FeedVisitCsv(staging.createReadStream(job.stagedFileKey), {
       maxPeoplePerHouseholdWithoutReview: 20,
       batchSize: 500,
+      trailingFillerColumns,
       onRows: async (rows) => {
         await client.link2FeedVisitStagingRow.createMany({
           data: rows.map((row) => ({

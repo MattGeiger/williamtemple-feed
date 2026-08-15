@@ -38,6 +38,60 @@ Everything else in this file. The application is shippable today.
 
 ## Open Issues
 
+### #70 — Link2Feed adapter could not parse a native Link2Feed export
+**Priority**: High · **Status**: Fixed in source 2026-08-14; awaiting deployment
+**Bucket**: Data Management / Link2Feed ingestion
+
+The Link2Feed visit adapter had never successfully parsed a real Link2Feed
+export. Every fixture and test was built from synthetic, pre-serialized data,
+and the native export differs from it in two independent ways — each of which
+was fatal, and the second of which only became visible once the first was
+fixed.
+
+**Dates.** `canonicalSerial` required a spreadsheet day-number (`45200`,
+`45200.5`). The native export writes ISO — `YYYY-MM-DD` for Visit Date, Client
+First Visit-Date, and Client Date of Birth, and `YYYY-MM-DD HH:MM:SS` for
+Recorded At. `Number('2025-01-10')` is `NaN`, so every row failed at the first
+date field. The serial expectation appears to have come from a manual
+"serialize the dates" preprocessing step (cf. the `_serialized_expanded`
+artifact in WTH's export vault) that was never recorded as a requirement.
+
+**Row width.** The exporter terminates every *data* row with a delimiter its
+*header* row lacks, producing one nameless, always-empty field per record —
+30 header columns against 31 data fields. With `relax_column_count: false`,
+csv-parse failed on the first data row. Confirmed structural, not corruption:
+present on 100% of 20,000 sampled rows, and the surplus field was empty in all
+of them.
+
+Neither defect relates to column selection. FEED's design intent — recognize
+known columns, ignore everything else, never ingest PII — was already
+implemented correctly via `PROJECTED_HEADERS`, and extra *named* columns were
+always handled.
+
+**Resolution:** `canonicalSerial` now accepts ISO dates and ISO datetimes
+alongside serials, resolving both encodings to the same canonical serial so a
+record key is identical whichever form an export used. Invalid calendar dates
+and out-of-range clock times are rejected by round-trip comparison.
+
+Slash-formatted dates (`M/D/YY`, `M/D/YYYY`) are **deliberately refused** with
+a distinct `AMBIGUOUS_LINK2FEED_DATE_FORMAT` code rather than parsed. A
+spreadsheet round-trip rewrites ISO dates into that style, losing the century
+and leaving field order unstated; on a multi-year archive, importing 2025 as
+1925 silently is worse than refusing the file. This was observed for real —
+an Excel round-trip attempted as a workaround converted the entire file to
+`M/D/YY`.
+
+The trailing filler is measured once from the first two records
+(`detectLink2FeedTrailingFillerColumns`) and declared as part of the expected
+record shape, so strict column counting stays on. `relax_column_count_more`
+was considered and rejected: it discards *any* surplus field silently, so an
+unquoted comma mid-row would shift later values and file client data under the
+wrong headers with no error. A populated surplus, or more than four unnamed
+columns, is refused.
+
+Verified against WTH's real 25,124,653-byte export: 79,308 rows parse in 3.27 s
+on the developer Mac with 0 blocking issues.
+
 ### #69 — Staged import files are never swept; PII can persist indefinitely
 **Priority**: High · **Status**: Fixed in source 2026-08-14; awaiting deployment
 **Bucket**: Data Management / data protection

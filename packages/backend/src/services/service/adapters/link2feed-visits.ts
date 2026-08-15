@@ -108,6 +108,9 @@ export interface Link2FeedVisitParseSummary {
 export interface Link2FeedVisitParserOptions {
   maxPeoplePerHouseholdWithoutReview: number;
   batchSize?: number;
+  /** Nameless empty fields the exporter appends to each data row. See
+   * `detectLink2FeedTrailingFillerColumns`. */
+  trailingFillerColumns?: number;
   onRows: (rows: Link2FeedVisitStagingDraft[]) => Promise<void>;
   onIssues: (issues: Link2FeedVisitReviewIssueDraft[]) => Promise<void>;
   onProgress?: (processedRows: number) => Promise<void>;
@@ -126,14 +129,79 @@ export class Link2FeedVisitImportError extends Error {
 
 const quoteHeader = (header: string): string => `"${header.replace(/"/g, '""')}"`;
 
+// Link2Feed's native visit export writes ISO dates (`YYYY-MM-DD`) and ISO
+// datetimes (`YYYY-MM-DD HH:MM:SS`). The serial form below is the spreadsheet
+// day-number encoding produced by pre-serialized exports; both are accepted and
+// both resolve to the SAME canonical serial, so a record key is identical
+// whichever encoding a given export used.
+const SPREADSHEET_EPOCH_UTC_MS = Date.UTC(1899, 11, 30);
+const MS_PER_DAY = 86_400_000;
+const ISO_DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
+const ISO_DATETIME_PATTERN = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?$/;
+// Slash dates carry no reliable field order and, at two digits, no century.
+// They are refused rather than guessed — see `canonicalSerial`.
+const AMBIGUOUS_DATE_PATTERN = /^\d{1,2}\/\d{1,2}\/\d{2,4}/;
+
 const canonicalSerial = (
   raw: string | undefined,
   field: string,
   rowNumber: number,
 ): { serial: string; localDate: string } => {
   const text = String(raw ?? '').trim();
-  const serial = Number(text);
-  if (!text || !Number.isFinite(serial) || serial < 1) {
+  if (!text) {
+    throw new Link2FeedVisitImportError(
+      `Row ${rowNumber} has an invalid ${field}. Export the Link2Feed visits again and retry.`,
+      'INVALID_LINK2FEED_DATE',
+      rowNumber,
+    );
+  }
+
+  // A spreadsheet round-trip rewrites Link2Feed's ISO dates as `M/D/YY`, which
+  // loses the century outright and does not state whether month or day comes
+  // first. Importing 2024 as 1924 is worse than refusing the file, so this is a
+  // named failure that tells the user what happened rather than a silent guess.
+  if (AMBIGUOUS_DATE_PATTERN.test(text)) {
+    throw new Link2FeedVisitImportError(
+      `Row ${rowNumber} has a ${field} in a spreadsheet-reformatted date style, which does not state its century or field order. Upload the original Link2Feed export instead of a file re-saved through a spreadsheet.`,
+      'AMBIGUOUS_LINK2FEED_DATE_FORMAT',
+      rowNumber,
+    );
+  }
+
+  let serial: number;
+  const datetimeMatch = ISO_DATETIME_PATTERN.exec(text);
+  const dateMatch = ISO_DATE_PATTERN.exec(text);
+  if (datetimeMatch || dateMatch) {
+    const [, year, month, day, hour, minute, second] = (datetimeMatch ?? dateMatch)!;
+    const utcMs = Date.UTC(Number(year), Number(month) - 1, Number(day));
+    const calendar = new Date(utcMs);
+    // Date.UTC rolls impossible values over (2026-02-30 becomes March 2), so a
+    // round-trip comparison is what actually rejects them.
+    if (
+      calendar.getUTCFullYear() !== Number(year)
+      || calendar.getUTCMonth() !== Number(month) - 1
+      || calendar.getUTCDate() !== Number(day)
+    ) {
+      throw new Link2FeedVisitImportError(
+        `Row ${rowNumber} has an invalid ${field}. Export the Link2Feed visits again and retry.`,
+        'INVALID_LINK2FEED_DATE',
+        rowNumber,
+      );
+    }
+    const seconds = (Number(hour ?? 0) * 3_600) + (Number(minute ?? 0) * 60) + Number(second ?? 0);
+    if (seconds >= 86_400) {
+      throw new Link2FeedVisitImportError(
+        `Row ${rowNumber} has an invalid ${field}. Export the Link2Feed visits again and retry.`,
+        'INVALID_LINK2FEED_DATE',
+        rowNumber,
+      );
+    }
+    serial = ((utcMs - SPREADSHEET_EPOCH_UTC_MS) / MS_PER_DAY) + (seconds / 86_400);
+  } else {
+    serial = Number(text);
+  }
+
+  if (!Number.isFinite(serial) || serial < 1) {
     throw new Link2FeedVisitImportError(
       `Row ${rowNumber} has an invalid ${field}. Export the Link2Feed visits again and retry.`,
       'INVALID_LINK2FEED_DATE',
@@ -141,7 +209,7 @@ const canonicalSerial = (
     );
   }
   const day = Math.floor(serial);
-  const date = new Date(Date.UTC(1899, 11, 30) + day * 86_400_000);
+  const date = new Date(SPREADSHEET_EPOCH_UTC_MS + day * MS_PER_DAY);
   if (date.getUTCFullYear() < 1900 || date.getUTCFullYear() > 2200) {
     throw new Link2FeedVisitImportError(
       `Row ${rowNumber} has an out-of-range ${field}. Export the Link2Feed visits again and retry.`,
@@ -300,6 +368,65 @@ const visitStatus = (
   return { status: 'unknown', issueCode: 'LINK2FEED_FIRST_VISIT_AFTER_SERVICE_DATE' };
 };
 
+// Link2Feed's native export terminates every DATA row with a delimiter its
+// HEADER row does not have, producing one nameless, always-empty field at the
+// end of each record. It is a defect in the exporter, not in the data: the
+// named columns stay correctly aligned because the surplus sits past the last
+// one.
+//
+// It is deliberately NOT handled with csv-parse's `relax_column_count_more`.
+// That option discards ANY surplus field silently, which would also swallow a
+// real defect — an unquoted comma mid-row shifts every later value left and
+// pushes genuine data into the surplus, so client values would land under the
+// wrong headers with no error at all. Instead the filler is measured once and
+// declared as part of the expected record shape, leaving strict column counting
+// on: a row that is not exactly `headers + filler` fields wide still fails.
+const MAX_TRAILING_FILLER_COLUMNS = 4;
+
+export async function detectLink2FeedTrailingFillerColumns(
+  input: Readable,
+): Promise<number> {
+  const parser = input.pipe(parse({
+    bom: true,
+    skip_empty_lines: true,
+    relax_column_count: true,
+    to: 2,
+  }));
+  let headerWidth: number | null = null;
+  try {
+    for await (const record of parser) {
+      const fields = record as string[];
+      if (headerWidth === null) {
+        headerWidth = fields.length;
+        continue;
+      }
+      const filler = fields.length - headerWidth;
+      if (filler <= 0) return 0;
+      if (filler > MAX_TRAILING_FILLER_COLUMNS) {
+        throw new Link2FeedVisitImportError(
+          `This Link2Feed export has ${filler} more values per row than it has column names, which is too many to treat as export padding. Export the visits again and retry.`,
+          'LINK2FEED_ROW_WIDTH_MISMATCH',
+          2,
+        );
+      }
+      // Padding is only padding when it carries nothing. A populated surplus
+      // means the row is misaligned, not merely terminated with a delimiter.
+      const surplus = fields.slice(headerWidth);
+      if (surplus.some((value) => String(value ?? '').trim() !== '')) {
+        throw new Link2FeedVisitImportError(
+          'This Link2Feed export has more values than column names on its first row, and those extra values are not empty. Export the visits again and retry.',
+          'LINK2FEED_ROW_WIDTH_MISMATCH',
+          2,
+        );
+      }
+      return filler;
+    }
+  } finally {
+    input.destroy();
+  }
+  return 0;
+}
+
 export async function parseLink2FeedVisitCsv(
   input: Readable,
   options: Link2FeedVisitParserOptions,
@@ -307,6 +434,17 @@ export async function parseLink2FeedVisitCsv(
   const batchSize = options.batchSize ?? 500;
   if (!Number.isSafeInteger(batchSize) || batchSize < 1 || batchSize > 2_000) {
     throw new Link2FeedVisitImportError('Link2Feed parser batch size is invalid.', 'INVALID_LINK2FEED_BATCH_SIZE');
+  }
+  const trailingFillerColumns = options.trailingFillerColumns ?? 0;
+  if (
+    !Number.isSafeInteger(trailingFillerColumns)
+    || trailingFillerColumns < 0
+    || trailingFillerColumns > MAX_TRAILING_FILLER_COLUMNS
+  ) {
+    throw new Link2FeedVisitImportError(
+      'Link2Feed trailing filler column count is invalid.',
+      'INVALID_LINK2FEED_FILLER_COLUMNS',
+    );
   }
 
   let availableHeaders = new Set<string>();
@@ -326,9 +464,12 @@ export async function parseLink2FeedVisitCsv(
         );
       }
       availableHeaders = new Set(headers.filter((header) => PROJECTED_HEADERS.has(header)));
-      // csv-parse omits columns mapped to false, so ignored columns and Notes
-      // are never materialized as row values.
-      return headers.map((header) => PROJECTED_HEADERS.has(header) ? header : false);
+      // csv-parse omits columns mapped to false, so ignored columns, Notes, and
+      // the exporter's trailing filler are never materialized as row values.
+      return [
+        ...headers.map((header) => PROJECTED_HEADERS.has(header) ? header : false),
+        ...Array.from({ length: trailingFillerColumns }, () => false as const),
+      ];
     },
   }));
 
