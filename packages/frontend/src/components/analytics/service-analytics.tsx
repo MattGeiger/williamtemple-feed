@@ -170,21 +170,25 @@ function MethodRow({
 }) {
   const Icon = getIconComponent(iconName);
   return (
-    <div className="flex items-center gap-3 border-b py-2 last:border-b-0">
+    <div className="flex items-center gap-4 border-b py-3.5 last:border-b-0">
+      {/* The swatch is the icon's own tinted disc, so the key reads as a legend
+          for the chart beside it without needing a separate colour chip. */}
       <span
-        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md"
-        style={color ? { backgroundColor: `color-mix(in srgb, ${color} 18%, transparent)` } : undefined}
+        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
+        style={color
+          ? { backgroundColor: `color-mix(in srgb, ${color} 20%, transparent)` }
+          : { backgroundColor: 'hsl(var(--muted))' }}
       >
         <Icon
-          className="h-4 w-4"
+          className="h-5 w-5"
           {...(color ? { style: { color } } : {})}
           aria-hidden="true"
         />
       </span>
-      <span className="min-w-0 flex-1 truncate text-sm">{displayName}</span>
-      <span className="shrink-0 text-sm font-semibold tabular-nums">
+      <span className="min-w-0 flex-1 truncate text-base">{displayName}</span>
+      <span className="shrink-0 text-lg font-semibold tabular-nums">
         {count(value)}
-        {unit && <span className="ml-1 font-normal text-muted-foreground">{unit}</span>}
+        {unit && <span className="ml-1.5 text-sm font-normal text-muted-foreground">{unit}</span>}
       </span>
     </div>
   );
@@ -332,105 +336,120 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
             <CardTitle>Service Summary</CardTitle>
             <CardDescription>Pantry service recorded across both records.</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-5">
-            {coverage.hasServiceLog && (
-              <div>
-                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  Service Log
-                </p>
-                {/* One donut of the service methods, borrowing the Dashboard's
-                    Inventory Distribution treatment, rather than five tiles that
-                    wrapped unevenly and left the differently-united ancillary
-                    figure stranded on a row of its own. */}
-                <div className="grid gap-6 md:grid-cols-[minmax(0,240px)_1fr] md:items-center">
-                  <ChartContainer config={methodConfig} className="aspect-square w-full max-w-[240px]">
-                    <PieChart>
-                      <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
-                      <Pie
-                        isAnimationActive={!prefersReducedMotion()}
-                        data={methodSlices}
-                        dataKey="households"
-                        nameKey="displayName"
-                        innerRadius="70%"
-                        outerRadius="100%"
-                        paddingAngle={5}
-                      >
-                        <Label content={({ viewBox }) => {
-                          if (!viewBox || !('cx' in viewBox) || !('cy' in viewBox)) return null;
-                          return (
-                            <text x={viewBox.cx} y={viewBox.cy} textAnchor="middle" dominantBaseline="middle">
-                              <tspan x={viewBox.cx} y={viewBox.cy} className="fill-foreground text-3xl font-bold">
-                                {count(summary.households)}
-                              </tspan>
-                              <tspan x={viewBox.cx} y={(viewBox.cy || 0) + 22} className="fill-muted-foreground text-xs">
-                                Households served
-                              </tspan>
-                            </text>
-                          );
-                        }} />
-                        {methodSlices.map((slice) => (
-                          <Cell
-                            key={slice.metricKey}
-                            fill={seriesColor(slice.metricKey)}
-                            className="stroke-background"
-                            strokeWidth={2}
-                          />
-                        ))}
-                      </Pie>
-                    </PieChart>
-                  </ChartContainer>
+          <CardContent>
+            {/* The Service Log is the wider column because it carries the chart
+                and the method key; intake is three figures and reads fine in a
+                stacked rail beside it. */}
+            <div className="grid gap-8 xl:grid-cols-[minmax(0,1.9fr)_minmax(0,1fr)]">
+              {coverage.hasServiceLog && (
+                <section aria-labelledby="service-log-heading" className="min-w-0">
+                  <p
+                    id="service-log-heading"
+                    className="mb-4 text-xs font-medium uppercase tracking-wider text-muted-foreground"
+                  >
+                    Service Log
+                  </p>
+                  <div className="grid gap-6 sm:grid-cols-[minmax(0,300px)_1fr] sm:items-center">
+                    <ChartContainer config={methodConfig} className="aspect-square w-full max-w-[300px]">
+                      <PieChart>
+                        <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
+                        <Pie
+                          isAnimationActive={!prefersReducedMotion()}
+                          data={methodSlices}
+                          dataKey="households"
+                          nameKey="displayName"
+                          innerRadius="68%"
+                          outerRadius="100%"
+                          paddingAngle={4}
+                        >
+                          <Label content={({ viewBox }) => {
+                            if (!viewBox || !('cx' in viewBox) || !('cy' in viewBox)) return null;
+                            return (
+                              <text x={viewBox.cx} y={viewBox.cy} textAnchor="middle" dominantBaseline="middle">
+                                <tspan x={viewBox.cx} y={viewBox.cy} className="fill-foreground text-4xl font-bold">
+                                  {count(summary.households)}
+                                </tspan>
+                                <tspan x={viewBox.cx} y={(viewBox.cy || 0) + 26} className="fill-muted-foreground text-sm">
+                                  Households served
+                                </tspan>
+                              </text>
+                            );
+                          }} />
+                          {methodSlices.map((slice) => (
+                            <Cell
+                              key={slice.metricKey}
+                              fill={seriesColor(slice.metricKey)}
+                              className="stroke-background"
+                              strokeWidth={2}
+                            />
+                          ))}
+                        </Pie>
+                      </PieChart>
+                    </ChartContainer>
 
-                  {/* A single ranked column beside the donut, in the order the
-                      administrator set. Two columns left the card sparse on the
-                      right and stranded the differently-united ancillary row on
-                      a line of its own. */}
-                  <div className="min-w-0">
-                    {summary.methods.map((method) => (
-                      <MethodRow
-                        key={method.metricKey}
-                        iconName={method.iconName}
-                        displayName={method.displayName}
-                        value={method.households}
-                        color={methodColorFor(method.metricKey)}
-                      />
-                    ))}
-                    {summary.otherServices.map((service) => (
-                      <MethodRow
-                        key={service.metricKey}
-                        iconName={service.iconName}
-                        displayName={service.displayName}
-                        value={service.total}
-                        unit={service.unit}
-                      />
-                    ))}
+                    {/* The key, in the order the administrator set. */}
+                    <div className="min-w-0">
+                      {summary.methods.map((method) => (
+                        <MethodRow
+                          key={method.metricKey}
+                          iconName={method.iconName}
+                          displayName={method.displayName}
+                          value={method.households}
+                          color={methodColorFor(method.metricKey)}
+                        />
+                      ))}
+                      {summary.otherServices.map((service) => (
+                        <MethodRow
+                          key={service.metricKey}
+                          iconName={service.iconName}
+                          displayName={service.displayName}
+                          value={service.total}
+                          unit={service.unit}
+                        />
+                      ))}
+                    </div>
                   </div>
-                </div>
-              </div>
-            )}
+                </section>
+              )}
 
-            {coverage.hasIntake && (
-              <div>
-                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  Intake records
-                </p>
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                  <Tile label="Visits" value={count(summary.visits)} icon={ShoppingBasket} />
-                  <Tile label="People served *" value={count(summary.peopleServed)} icon={UsersRound} />
-                  <Tile
-                    label="Visits without a household record"
-                    value={count(summary.identityUnavailableVisits)}
-                    icon={BadgeQuestionMark}
-                  />
-                  {!coverage.hasServiceLog && (
-                    <Tile label="Households served" value={count(summary.households)} />
-                  )}
-                </div>
-                <SourcePills sources={coverage.sources.map((source) =>
-                  source.source === 'link2feed' ? 'Link2Feed' : 'SIMC')} />
-              </div>
-            )}
+              {coverage.hasIntake && (
+                <section aria-labelledby="intake-heading" className="min-w-0">
+                  <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+                    <p
+                      id="intake-heading"
+                      className="text-xs font-medium uppercase tracking-wider text-muted-foreground"
+                    >
+                      Intake records
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {coverage.sources.map((source) => (
+                        <Badge
+                          key={source.source}
+                          variant="outline"
+                          className="font-normal"
+                        >
+                          {source.source === 'link2feed' ? 'Link2Feed' : 'SIMC'}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    <Tile label="Visits" value={count(summary.visits)} icon={ShoppingBasket} />
+                    <Tile label="People served *" value={count(summary.peopleServed)} icon={UsersRound} />
+                    <Tile
+                      label="Visits without a household record"
+                      value={count(summary.identityUnavailableVisits)}
+                      icon={BadgeQuestionMark}
+                    />
+                    {!coverage.hasServiceLog && (
+                      <Tile label="Households served" value={count(summary.households)} />
+                    )}
+                  </div>
+                </section>
+              )}
+            </div>
 
-            <div className="space-y-1 border-t pt-3">
+            <div className="mt-6 space-y-1 border-t pt-4">
               <Footnote>People served counts every visit by household size.</Footnote>
               <Footnote>
                 * Not all clients disclose their household size, so this is likely an
