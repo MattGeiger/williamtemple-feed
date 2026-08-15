@@ -87,6 +87,52 @@ export type IncludedTable = (typeof INCLUDED_TABLES)[number];
  * not decoration: it is what a future maintainer needs in order to judge
  * whether a request to "just add that table" is safe.
  */
+/**
+ * Excluded tables that hold foreign keys INTO included tables, and must be
+ * cleared when their parents are replaced.
+ *
+ * Restore copies the live database, then deletes and reloads the selected
+ * units — so an excluded table survives the copy still pointing at rows the
+ * restore is about to delete. `PRAGMA foreign_keys = ON` is set on the scratch
+ * database, so the delete fails with P2003 and the whole restore aborts.
+ *
+ * This was not theoretical: eight `UsageRecord` rows were enough to break a
+ * full restore, and the generic error handler rendered the constraint failure
+ * as "Cannot delete this item because it is referenced by other items" — a
+ * message about deleting one item, shown for a failed disaster-recovery
+ * restore. Any instance with AI usage telemetry would have hit it, including
+ * production, at exactly the moment recovery mattered. See ISSUES.md #73.
+ *
+ * Clearing rather than preserving is the right call for both entries below,
+ * and only because of what they are. `UsageRecord` is aggregated telemetry the
+ * contract already describes as "rebuilt from operation rather than restored".
+ * `ShoppingListInstance` is generated output bound to a `ShoppingListPDF` file
+ * the artifact does not carry, so its rows are already dangling after a
+ * restore. Neither is organization data a user authored.
+ *
+ * A table must NOT be added here to make a restore pass if its rows are
+ * something a user would miss. That case needs a different answer — carrying
+ * the table in the artifact, or nulling the reference — not silent deletion.
+ */
+export const RESTORE_CLEARED_TABLES: Record<string, {
+  /** Included tables this one references. Cleared only if one is being replaced. */
+  readonly references: readonly string[];
+  readonly reason: string;
+}> = {
+  UsageRecord: {
+    references: ['AIConfiguration', 'Translation'],
+    reason:
+      'Aggregated AI telemetry, already excluded as "rebuilt from operation rather than restored". '
+      + 'Its rows describe work done against configurations and translations that the restore replaces.',
+  },
+  ShoppingListInstance: {
+    references: ['ShoppingListTemplate'],
+    reason:
+      'Generated output tied to a ShoppingListPDF file the artifact does not carry, so these rows '
+      + 'are already unusable after a restore. Regenerated from a template on demand.',
+  },
+};
+
 export const EXCLUDED_TABLES: Record<string, string> = {
   // --- Secrets. Non-negotiable; this is why the artifact exists at all. ---
   EncryptionKey:

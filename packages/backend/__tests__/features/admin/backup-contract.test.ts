@@ -14,6 +14,7 @@ import {
   EXCLUDED_TABLES,
   INCLUDED_TABLES,
   REDACTED_COLUMNS,
+  RESTORE_CLEARED_TABLES,
   TABLE_CONTRACT_VERSION,
 } from '../../../src/services/backup/table-contract';
 import { checksumOf } from '../../../src/services/backup/sanitized-backup';
@@ -65,6 +66,69 @@ describe('sanitized backup table contract', () => {
     );
 
     expect(stale, `Contract names tables that no longer exist: ${stale.join(', ')}`).toEqual([]);
+  });
+
+  /**
+   * Every foreign key declared in the schema, as (child model, parent model).
+   *
+   * Prisma writes the reference on the relation field, so the parent is that
+   * field's type: `translation Translation? @relation(fields: [...], ...)`.
+   */
+  const foreignKeys = (): Array<{ child: string; parent: string }> => {
+    const edges: Array<{ child: string; parent: string }> = [];
+    for (const block of schema.matchAll(/^model\s+(\w+)\s*\{([\s\S]*?)^\}/gm)) {
+      const child = block[1];
+      for (const line of block[2].split('\n')) {
+        if (!line.includes('@relation(') || !line.includes('fields:')) continue;
+        const field = line.trim().split(/\s+/);
+        const parent = field[1]?.replace(/[?[\]]/g, '');
+        if (parent) edges.push({ child, parent });
+      }
+    }
+    return edges;
+  };
+
+  /**
+   * ISSUES.md #73. Restore copies the live database and then deletes the
+   * selected units, so an EXCLUDED table holding a foreign key into an INCLUDED
+   * one survives the copy still pointing at rows about to be deleted. Foreign
+   * keys are enforced on the scratch database, so that aborts the entire
+   * restore — eight `UsageRecord` rows were enough, and the failure surfaced as
+   * a generic "cannot delete this item" message during disaster recovery.
+   *
+   * A prose warning cannot enforce itself. Any new model that references
+   * organization data must be classified here deliberately.
+   */
+  it('declares every excluded table that references an included one', () => {
+    const included = new Set<string>(INCLUDED_TABLES);
+    const undeclared = foreignKeys()
+      .filter(edge => edge.child in EXCLUDED_TABLES && included.has(edge.parent))
+      .filter(edge => !(edge.child in RESTORE_CLEARED_TABLES))
+      .map(edge => `${edge.child} -> ${edge.parent}`);
+
+    expect(
+      [...new Set(undeclared)],
+      'These excluded tables reference tables that restore replaces, and would abort a '
+        + 'restore with a foreign key error. Add each to RESTORE_CLEARED_TABLES — but only '
+        + 'if clearing its rows is genuinely safe; otherwise carry the table in the artifact '
+        + 'or null the reference instead.'
+    ).toEqual([]);
+  });
+
+  it('names the real parents of every table cleared on restore', () => {
+    // A stale `references` list silently stops the clear from firing, which
+    // brings the original failure straight back.
+    const edges = foreignKeys();
+    for (const [child, rule] of Object.entries(RESTORE_CLEARED_TABLES)) {
+      expect(EXCLUDED_TABLES, `${child} is cleared on restore but is not excluded`)
+        .toHaveProperty(child);
+      const actual = new Set(
+        edges.filter(edge => edge.child === child).map(edge => edge.parent)
+      );
+      for (const parent of rule.references) {
+        expect(actual, `${child} does not actually reference ${parent}`).toContain(parent);
+      }
+    }
   });
 
   it('never includes a table in both lists', () => {

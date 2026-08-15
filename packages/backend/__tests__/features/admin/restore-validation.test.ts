@@ -12,12 +12,14 @@ import { checksumOf } from '../../../src/services/backup/sanitized-backup';
 import {
   ARTIFACT_KIND,
   INCLUDED_TABLES,
+  RESTORE_CLEARED_TABLES,
   TABLE_CONTRACT_VERSION,
 } from '../../../src/services/backup/table-contract';
 import {
   RESTORE_UNITS,
   closeSelection,
   tablesFor,
+  type UnitId,
 } from '../../../src/services/restore/restore-units';
 
 /**
@@ -222,6 +224,35 @@ describe('restore units are closed under foreign keys', () => {
         expect(INCLUDED_TABLES, `${unit.id} names ${table}`).toContain(table);
       }
     }
+  });
+
+  /**
+   * ISSUES.md #73. `UsageRecord` references `AIConfiguration` and `Translation`;
+   * `ShoppingListInstance` references `ShoppingListTemplate`. All three are
+   * excluded from the artifact, so they survive the scratch copy still pointing
+   * at rows the restore deletes — and abort it with a foreign key error.
+   */
+  it('clears referencing telemetry only when its parents are being replaced', () => {
+    const clearedFor = (units: UnitId[]): string[] => {
+      const replaced = new Set(tablesFor(units));
+      return Object.entries(RESTORE_CLEARED_TABLES)
+        .filter(([, rule]) => rule.references.some(parent => replaced.has(parent)))
+        .map(([table]) => table);
+    };
+
+    // Configuration replaces AIConfiguration; languages replaces Translation.
+    expect(clearedFor(closeSelection(['configuration']).units)).toContain('UsageRecord');
+    expect(clearedFor(closeSelection(['languages']).units)).toContain('UsageRecord');
+    expect(clearedFor(closeSelection(['shoppingLists']).units)).toContain('ShoppingListInstance');
+
+    // The workaround that unblocked the real restore: Service and Procurement
+    // touch none of these parents, so nothing is cleared for them.
+    expect(clearedFor(closeSelection(['service']).units)).toEqual([]);
+    expect(clearedFor(closeSelection(['procurement']).units)).toEqual([]);
+
+    // A full restore clears both.
+    const everything = clearedFor(RESTORE_UNITS.map(u => u.id));
+    expect(everything).toEqual(expect.arrayContaining(['UsageRecord', 'ShoppingListInstance']));
   });
 
   it('covers every exported table across all units', () => {
