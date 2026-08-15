@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Matt Geiger
 
 import * as React from 'react';
-import { CalendarClock } from 'lucide-react';
+import { CalendarClock, Palette } from 'lucide-react';
 import { AnimateIcon } from '@/components/animate-ui/icons/icon';
 import { SaveIcon } from '@/components/animate-ui/icons/save';
 import { SectionHeader } from '@/components/shared/section-header';
@@ -26,6 +26,7 @@ import {
   DEFAULT_OPERATING_HOURS_SETTINGS,
   type OperatingHoursSettings,
 } from '@/types/settings';
+import { AppearanceSetting } from './appearance-setting';
 import { DAYS, OperatingHoursEditor } from './operating-hours-editor';
 
 const TIME_PATTERN = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
@@ -150,6 +151,30 @@ export function SettingsWorkspace() {
             {isSaving ? 'Saving…' : 'Save Operating Hours'}
           </Button>
         </AnimateIcon>
+      </section>
+
+      <section
+        aria-labelledby="appearance-heading"
+        className="max-w-4xl space-y-4"
+      >
+        <div className="space-y-1.5">
+          <h3
+            id="appearance-heading"
+            className="flex items-center gap-2 text-lg font-semibold"
+          >
+            <Palette className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
+            Appearance
+          </h3>
+          <p className="text-sm text-muted-foreground">
+            Choose how FEED looks on <strong>this device only</strong>. Unlike the
+            settings above, this is not shared — it is saved in this browser, so
+            everyone can read FEED the way that suits them. The theme button in the
+            header switches between light and dark; choose Follow this device to let
+            your computer decide.
+          </p>
+        </div>
+
+        <AppearanceSetting />
       </section>
 
       <AlertDialog open={timezoneMismatchOpen} onOpenChange={setTimezoneMismatchOpen}>
