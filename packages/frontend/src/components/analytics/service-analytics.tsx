@@ -23,7 +23,8 @@
 
 import * as React from 'react';
 import {
-  CartesianGrid, Line, LineChart, ReferenceLine, XAxis, YAxis, Bar, BarChart,
+  Bar, BarChart, CartesianGrid, Cell, Label, Line, LineChart, Pie, PieChart,
+  ReferenceLine, XAxis, YAxis,
 } from 'recharts';
 import { format, parseISO } from 'date-fns';
 import {
@@ -42,6 +43,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { ChevronDown } from '@/components/ui/icons';
 import { SelectableBlock } from '@/components/reports/selection';
+import { prefersReducedMotion } from '@/lib/reduced-motion';
 import { ErrorHandlerService } from '@/services/error/ErrorHandlerService';
 import { carbonChartColors } from '@/lib/colors';
 import { buildSeasonalYearChartConfig } from './index';
@@ -105,20 +107,13 @@ export function ServiceAnalyticsLens({ range }: { range: AnalyticsDateRange }) {
 }
 
 const count = (value: number) => value.toLocaleString();
+const round1 = (value: number) => Math.round(value * 10) / 10;
 const monthLabel = (month: string) => format(parseISO(`${month}-01`), 'MMM yyyy');
-const dayLabel = (day: string) => format(parseISO(day), 'MMM d');
+const monthOfDate = (date: string) => format(parseISO(date), 'MMM yyyy');
 
-const bucketLabel = (granularity: ServiceBucketGranularity) =>
-  granularity === 'month' ? monthLabel : dayLabel;
-
-const bucketNoun: Record<ServiceBucketGranularity, string> = {
-  day: 'day',
-  week: 'week beginning',
-  month: 'month',
-};
-
-/** The month Link2Feed handed over to SIMC. */
-const CUTOVER_MONTH = '2026-06';
+/** Day labels carry the year only when the range crosses one. */
+const dayLabelFor = (spansYears: boolean) => (day: string) =>
+  format(parseISO(day), spansYears ? 'MMM d, yyyy' : 'MMM d');
 
 const MONTH_LABELS = [
   'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
@@ -151,39 +146,25 @@ function Tile({ label, value, hint }: { label: string; value: string; hint?: str
   );
 }
 
-/**
- * Drops the bucket currently in progress from a series.
- *
- * A partial period plotted beside complete ones reads as a collapse: the newest
- * month once held two service days, so the line fell from 1,474 to 239 and
- * looked like service had stopped.
- */
-function withoutPeriodInProgress<T extends Record<string, unknown>>(
-  rows: T[],
-  key: keyof T,
-  granularity: ServiceBucketGranularity,
-): { rows: T[]; excluded: string | null } {
-  const last = rows[rows.length - 1];
-  if (!last) return { rows, excluded: null };
-  const value = String(last[key]);
-  const now = new Date();
-  const currentMonth = now.toISOString().slice(0, 7);
-  // Only whole months are withheld. A day or week bucket is the thing staff are
-  // actively looking at on a short range, and hiding today would be worse than
-  // showing it.
-  if (granularity !== 'month' || value !== currentMonth) return { rows, excluded: null };
-  return { rows: rows.slice(0, -1), excluded: value };
-}
-
 export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAnalytics }) {
   const { coverage, summary, overTime, seasonal, methodSeries, recordAgreement, householdSize, reachAndFrequency } = analytics;
 
-  const { rows: timeline, excluded: timelinePartial } = React.useMemo(
-    () => withoutPeriodInProgress(overTime, 'month', 'month'), [overTime]);
+  const timeline = overTime;
+  const methodBuckets = methodSeries.buckets;
 
-  const { rows: methodBuckets, excluded: methodPartial } = React.useMemo(
-    () => withoutPeriodInProgress(methodSeries.buckets, 'bucket', methodSeries.granularity),
-    [methodSeries]);
+  // The changeover is marked at the first day SIMC recorded, taken from the
+  // data rather than a hardcoded month, so the marker follows the record.
+  const spansCutover = React.useMemo(() => {
+    const hasL2f = overTime.some((row) => row.link2feedHouseholds > 0 || row.link2feedIndividuals > 0);
+    const hasSimc = overTime.some((row) => row.simcHouseholds > 0 || row.simcIndividuals > 0);
+    return hasL2f && hasSimc;
+  }, [overTime]);
+  const cutoverDate = React.useMemo(
+    () => (spansCutover
+      ? overTime.find((row) => row.simcHouseholds > 0 || row.simcIndividuals > 0)?.month ?? null
+      : null),
+    [overTime, spansCutover],
+  );
 
   const sizeData = React.useMemo(() => {
     const grouped: Array<{ label: string; visits: number }> = [];
@@ -226,8 +207,14 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
     [activeYears],
   );
 
+  const methodSlices = React.useMemo(
+    () => summary.methods.filter((method) => method.households > 0),
+    [summary.methods],
+  );
+
   const methodConfig = React.useMemo(() => Object.fromEntries(
-    methodSeries.methods.map((method, index) => [method.metricKey, {
+    (methodSeries.methods.length > 0 ? methodSeries.methods : summary.methods)
+      .map((method, index) => [method.metricKey, {
       label: method.displayName,
       color: [
         carbonChartColors.blue.primary.light,
@@ -237,9 +224,16 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
         carbonChartColors.purple.primary.light,
       ][index % 5],
     }]),
-  ) satisfies ChartConfig, [methodSeries.methods]);
+  ) satisfies ChartConfig, [methodSeries.methods, summary.methods]);
 
-  const labelBucket = bucketLabel(methodSeries.granularity);
+  const spansYears = coverage.startDate.slice(0, 4) !== coverage.endDate.slice(0, 4);
+  const labelBucket = dayLabelFor(spansYears);
+
+  // Methods whose first recorded day falls inside the range began during it, so
+  // their absence beforehand is a fact about the program rather than a gap in
+  // the data. Derived, never asserted.
+  const startedLaterMethods = methodSeries.methods.filter((method) =>
+    method.firstRecordedDate && method.firstRecordedDate > coverage.startDate);
   const householdsFromLog = summary.householdsSource === 'service_log';
   const serviceLogStartsLater = householdsFromLog
     && coverage.serviceLogFirstDate
@@ -260,26 +254,79 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
                 <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   Service Log
                 </p>
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-                  <Tile label="Households served" value={count(summary.households)} />
-                  {summary.methods.map((method) => (
-                    <Tile
-                      key={method.metricKey}
-                      label={method.displayName}
-                      value={count(method.households)}
-                      hint={method.unit}
-                    />
-                  ))}
+                {/* One donut of the service methods, borrowing the Dashboard's
+                    Inventory Distribution treatment, rather than five tiles that
+                    wrapped unevenly and left the differently-united ancillary
+                    figure stranded on a row of its own. */}
+                <div className="grid gap-4 md:grid-cols-[minmax(0,220px)_1fr] md:items-center">
+                  <ChartContainer config={methodConfig} className="aspect-square w-full max-w-[220px]">
+                    <PieChart>
+                      <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
+                      <Pie
+                        isAnimationActive={!prefersReducedMotion()}
+                        data={methodSlices}
+                        dataKey="households"
+                        nameKey="displayName"
+                        innerRadius="70%"
+                        outerRadius="100%"
+                        paddingAngle={5}
+                      >
+                        <Label content={({ viewBox }) => {
+                          if (!viewBox || !('cx' in viewBox) || !('cy' in viewBox)) return null;
+                          return (
+                            <text x={viewBox.cx} y={viewBox.cy} textAnchor="middle" dominantBaseline="middle">
+                              <tspan x={viewBox.cx} y={viewBox.cy} className="fill-foreground text-2xl font-bold">
+                                {count(summary.households)}
+                              </tspan>
+                              <tspan x={viewBox.cx} y={(viewBox.cy || 0) + 20} className="fill-muted-foreground text-xs">
+                                Households served
+                              </tspan>
+                            </text>
+                          );
+                        }} />
+                        {methodSlices.map((slice) => (
+                          <Cell
+                            key={slice.metricKey}
+                            fill={seriesColor(slice.metricKey)}
+                            className="stroke-background"
+                            strokeWidth={2}
+                          />
+                        ))}
+                      </Pie>
+                    </PieChart>
+                  </ChartContainer>
+
+                  <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-2">
+                    {summary.methods.map((method) => (
+                      <div key={method.metricKey} className="flex items-baseline justify-between gap-3 border-b pb-1.5">
+                        <dt className="flex min-w-0 items-center gap-2 text-sm text-muted-foreground">
+                          <span
+                            className="h-2.5 w-2.5 shrink-0 rounded-[2px]"
+                            style={{ backgroundColor: seriesColor(method.metricKey) }}
+                            aria-hidden="true"
+                          />
+                          <span className="truncate">{method.displayName}</span>
+                        </dt>
+                        <dd className="shrink-0 text-sm font-semibold tabular-nums">
+                          {count(method.households)}
+                        </dd>
+                      </div>
+                    ))}
+                    {summary.otherServices.metrics.length > 0 && (
+                      <div className="flex items-baseline justify-between gap-3 border-b pb-1.5">
+                        <dt className="min-w-0 text-sm text-muted-foreground">
+                          {/* Kept out of the donut: a different unit cannot be a
+                              slice of a households total. */}
+                          <span className="truncate">Other services and requests</span>
+                        </dt>
+                        <dd className="shrink-0 text-sm font-semibold tabular-nums">
+                          {count(summary.otherServices.total)}{' '}
+                          <span className="font-normal text-muted-foreground">{summary.otherServices.unit}</span>
+                        </dd>
+                      </div>
+                    )}
+                  </dl>
                 </div>
-                {summary.otherServices.metrics.length > 0 && (
-                  <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-                    <Tile
-                      label="Other services and requests"
-                      value={count(summary.otherServices.total)}
-                      hint={summary.otherServices.unit}
-                    />
-                  </div>
-                )}
               </div>
             )}
 
@@ -290,7 +337,7 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
                 </p>
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                   <Tile label="Visits" value={count(summary.visits)} />
-                  <Tile label="People served" value={count(summary.peopleServed)} />
+                  <Tile label="People served *" value={count(summary.peopleServed)} />
                   <Tile
                     label="Visits without a household record"
                     value={count(summary.identityUnavailableVisits)}
@@ -304,35 +351,23 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
               </div>
             )}
 
-            <div className="space-y-1.5 border-t pt-3">
+            <div className="space-y-1 border-t pt-3">
+              <Footnote>People served counts every visit by household size.</Footnote>
               <Footnote>
-                People served counts every visit, so a household of three visiting twice
-                is counted six times. It is likely an undercount: not every client
-                discloses household size.
+                * Not all clients disclose their household size, so this is likely an
+                undercount of the true total.
               </Footnote>
-              {householdsFromLog && (
-                <Footnote>
-                  Households served comes from the Service Log, which staff enter at the
-                  end of each pantry day. It is preferred over the intake count because
-                  the changeover from Link2Feed to SIMC gave returning clients a second
-                  profile, so counting intake records would report the same person twice.
-                  {serviceLogStartsLater && coverage.serviceLogFirstDate && (
-                    <> The Service Log begins {monthLabel(coverage.serviceLogFirstDate.slice(0, 7))}, later than the range shown.</>
-                  )}
-                </Footnote>
-              )}
               {recordAgreement.sharedDays > 0 && (
                 <Footnote>
-                  Across {count(recordAgreement.sharedDays)} days covered by both records
-                  they differ by an average of {recordAgreement.meanAbsoluteDailyDifference}{' '}
-                  households a day ({recordAgreement.agreementPercent}% overall).
+                  ** Across {count(recordAgreement.sharedDays)} days covered by both
+                  records they differ by an average of{' '}
+                  {Math.abs(round1(100 - recordAgreement.agreementPercent))}%.
                 </Footnote>
               )}
-              {summary.bulkEntryVisits > 0 && (
+              {serviceLogStartsLater && coverage.serviceLogFirstDate && (
                 <Footnote>
-                  Includes {count(summary.bulkEntryPeople)} people from{' '}
-                  {count(summary.bulkEntryVisits)} bulk staff counts, which are excluded
-                  from every household figure.
+                  ** The Service Log begins {monthOfDate(coverage.serviceLogFirstDate)}; earlier
+                  dates in this range are covered by intake records only.
                 </Footnote>
               )}
             </div>
@@ -346,7 +381,7 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
           <Card className="min-w-0">
             <CardHeader>
               <CardTitle>Service Over Time</CardTitle>
-              <CardDescription>Monthly service by record.</CardDescription>
+              <CardDescription>Service by day, by record.</CardDescription>
               <SourcePills sources={['Link2Feed', 'SIMC', 'Service Log']} />
             </CardHeader>
             <CardContent>
@@ -362,16 +397,16 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
               >
                 <LineChart data={timeline} margin={{ left: 4, right: 8, top: 8 }}>
                   <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                  <XAxis dataKey="month" tickFormatter={monthLabel} tickLine={false} axisLine={false} minTickGap={36} />
+                  <XAxis dataKey="month" tickFormatter={(value) => labelBucket(String(value))} tickLine={false} axisLine={false} minTickGap={48} />
                   <YAxis tickLine={false} axisLine={false} width={48} />
-                  <ChartTooltip content={<ChartTooltipContent labelFormatter={(value) => monthLabel(String(value))} />} />
+                  <ChartTooltip content={<ChartTooltipContent labelFormatter={(value) => labelBucket(String(value))} />} />
                   <ChartLegend content={<ChartLegendContent />} />
-                  <ReferenceLine
-                    x={CUTOVER_MONTH}
+                  {cutoverDate && <ReferenceLine
+                    x={cutoverDate}
                     stroke="hsl(var(--muted-foreground))"
                     strokeDasharray="4 4"
                     label={{ value: 'Changed systems', position: 'insideTopRight', fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
-                  />
+                  />}
                   {(['link2feedHouseholds', 'link2feedIndividuals', 'simcHouseholds', 'simcIndividuals', 'serviceLogHouseholds'] as const).map((key) => (
                     <Line
                       key={key}
@@ -386,8 +421,8 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
                 </LineChart>
               </ChartContainer>
               <Footnote>
-                The gap between the two intake lines is the changeover, not a drop in
-                service.{timelinePartial && ` ${monthLabel(timelinePartial)} is still in progress and is not plotted.`}
+                Each point is one service day.
+                {spansCutover && ' The gap between the two intake lines is the changeover, not a drop in service.'}
               </Footnote>
             </CardContent>
           </Card>
@@ -469,7 +504,7 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
                     row.visitsPerHousehold > best.visitsPerHousehold ? row : best);
                   const last = reachAndFrequency[reachAndFrequency.length - 1];
                   if (peak.year === last.year) return null;
-                  return ` Visits per household moved from ${peak.visitsPerHousehold} in ${peak.year} to ${last.visitsPerHousehold} in ${last.year}; households are limited to two visits a month.`;
+                  return ` Visits per household moved from ${peak.visitsPerHousehold} in ${peak.year} to ${last.visitsPerHousehold} in ${last.year}.`;
                 })()}
               </Footnote>
             </CardContent>
@@ -512,11 +547,13 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
                 </LineChart>
               </ChartContainer>
               <Footnote>
-                Households per {bucketNoun[methodSeries.granularity]}. Pantry shopping and
-                long lists count toward the two-visits-a-month limit; premade bags and
-                emergency bags do not. Emergency bags began in November 2025 as a new
-                programme, so the line is absent before then rather than zero.
-                {methodPartial && ` ${monthLabel(methodPartial)} is still in progress and is not plotted.`}
+                Households per service day.
+                {startedLaterMethods.length > 0 && (
+                  <> {startedLaterMethods
+                    .map((method) => `${method.displayName} was first recorded ${monthOfDate(method.firstRecordedDate as string)}`)
+                    .join('; ')}, so {startedLaterMethods.length === 1 ? 'its line is' : 'those lines are'} absent
+                    before then rather than zero.</>
+                )}
               </Footnote>
             </CardContent>
           </Card>

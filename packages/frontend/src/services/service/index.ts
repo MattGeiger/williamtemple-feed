@@ -175,6 +175,8 @@ export interface ServiceMethodDefinition {
   metricKey: string;
   displayName: string;
   unit: string;
+  /** First date this metric was recorded with a non-zero value, if ever. */
+  firstRecordedDate?: string | null;
 }
 
 export interface ServiceAnalytics {

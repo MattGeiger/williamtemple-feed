@@ -49,6 +49,8 @@ export interface ServiceMethodDefinition {
   metricKey: string;
   displayName: string;
   unit: string;
+  /** First date this metric was recorded with a non-zero value, if ever. */
+  firstRecordedDate?: string | null;
 }
 
 export interface ServiceAnalytics {
@@ -82,6 +84,7 @@ export interface ServiceAnalytics {
     /** Ancillary services and requests, aggregated by semantic role. */
     otherServices: { total: number; unit: string; metrics: ServiceMethodDefinition[] };
   };
+  /** One row per service DAY. `month` retains its name as the axis key. */
   overTime: Array<{
     month: string;
     link2feedHouseholds: number;
@@ -126,19 +129,14 @@ const round = (value: number, places = 2): number => {
 };
 
 /**
- * Bucket size follows the length of the window, not the preset name, so a
- * custom range gets the same treatment as the preset closest to it. Daily
- * points over a year would be unreadable; monthly points over a week would be
- * a single dot.
+ * Every service series is daily, at every range.
+ *
+ * A service day is the unit staff actually work in and record against, so
+ * rolling days up into weeks or months invented a period nobody counts in. The
+ * pantry runs three days a week, so even the full history is roughly 900
+ * points rather than 2,100.
  */
-const granularityFor = (startDate: string, endDate: string): ServiceBucketGranularity => {
-  const days = Math.round(
-    (Date.parse(`${endDate}T00:00:00Z`) - Date.parse(`${startDate}T00:00:00Z`)) / 86_400_000,
-  ) + 1;
-  if (days <= 14) return 'day';
-  if (days <= 45) return 'week';
-  return 'month';
-};
+const granularityFor = (): ServiceBucketGranularity => 'day';
 
 /** SQL producing the bucket key for a `serviceDate` column. */
 const bucketExpression = (granularity: ServiceBucketGranularity, column: string): string => {
@@ -170,7 +168,7 @@ export async function getServiceAnalytics(
     earliest._min.serviceDate ?? undefined,
   );
   const { startDate, endDate } = resolved;
-  const granularity = granularityFor(startDate, endDate);
+  const granularity = granularityFor();
   const kinds = HOUSEHOLD_KINDS;
 
   // Current definition revision per metric, carrying the flags that decide
@@ -223,9 +221,22 @@ export async function getServiceAnalytics(
       `SELECT MIN(o."serviceDate") AS "firstDate", MAX(o."serviceDate") AS "lastDate"
        FROM "ServiceMetricObservationRevision" o
        JOIN "ServiceMetricDefinition" d ON d."id" = o."metricId"
-       WHERE o."isCurrent" = 1 AND o."serviceDate" BETWEEN ? AND ?
-         AND d."metricKey" IN (${inList(methodKeys)})`,
-      startDate, endDate, ...methodKeys,
+       WHERE o."isCurrent" = 1 AND d."metricKey" IN (${inList(methodKeys)})`,
+      ...methodKeys,
+    );
+
+  // When each method was first recorded, so a card can say "this began in
+  // November 2025" from the data instead of a hardcoded sentence that goes
+  // stale the moment a program changes.
+  const methodStarts = methodKeys.length === 0 ? [] :
+    await client.$queryRawUnsafe<Array<{ metricKey: string; firstDate: string }>>(
+      `SELECT d."metricKey", MIN(o."serviceDate") AS "firstDate"
+       FROM "ServiceMetricObservationRevision" o
+       JOIN "ServiceMetricDefinition" d ON d."id" = o."metricId"
+       WHERE o."isCurrent" = 1 AND o."countValue" > 0
+         AND d."metricKey" IN (${inList(methodKeys)})
+       GROUP BY d."metricKey"`,
+      ...methodKeys,
     );
 
   const coverageRows = await client.$queryRaw<Array<{
@@ -244,8 +255,10 @@ export async function getServiceAnalytics(
     SELECT
       SUM(CASE WHEN "recordKind" IN ('identified_household_encounter','identity_unavailable_encounter') THEN 1 ELSE 0 END) AS "visits",
       COUNT(DISTINCT "clientId") AS "intakeHouseholds",
-      SUM(CASE WHEN "recordKind" IN ('identified_household_encounter','identity_unavailable_encounter')
-               THEN COALESCE("reportedPeopleCount", 0) ELSE 0 END) AS "peopleServed",
+      -- Every recorded person, bulk-event tallies included. Those tallies are
+      -- excluded from household counts because a crowd entered as one row is
+      -- not a household, but the people in it were served.
+      SUM(COALESCE("reportedPeopleCount", 0)) AS "peopleServed",
       SUM(CASE WHEN "recordKind" = 'identity_unavailable_encounter' THEN 1 ELSE 0 END) AS "identityUnavailable",
       SUM(CASE WHEN "recordKind" = 'special_event_people_aggregate' THEN 1 ELSE 0 END) AS "bulkVisits",
       SUM(CASE WHEN "recordKind" = 'special_event_people_aggregate' THEN COALESCE("reportedPeopleCount",0) ELSE 0 END) AS "bulkPeople"
@@ -255,22 +268,22 @@ export async function getServiceAnalytics(
   const overTimeRows = await client.$queryRaw<Array<{
     month: string; source: string; households: bigint; individuals: number | null;
   }>>`
-    SELECT substr("serviceDate", 1, 7) AS "month", "source",
+    SELECT "serviceDate" AS "month", "source",
            COUNT(DISTINCT "clientId") AS "households",
            SUM(COALESCE("reportedPeopleCount", 0)) AS "individuals"
     FROM "ServiceEncounterRevision"
     WHERE "isCurrent" = 1 AND "serviceDate" BETWEEN ${startDate} AND ${endDate}
       AND "recordKind" IN (${kinds[0]}, ${kinds[1]})
-    GROUP BY "month", "source" ORDER BY "month", "source"`;
+    GROUP BY "serviceDate", "source" ORDER BY "serviceDate", "source"`;
 
   const serviceLogMonthly = methodKeys.length === 0 ? [] :
     await client.$queryRawUnsafe<Array<{ month: string; households: number | null }>>(
-      `SELECT substr(o."serviceDate", 1, 7) AS "month", SUM(COALESCE(o."countValue",0)) AS "households"
+      `SELECT o."serviceDate" AS "month", SUM(COALESCE(o."countValue",0)) AS "households"
        FROM "ServiceMetricObservationRevision" o
        JOIN "ServiceMetricDefinition" d ON d."id" = o."metricId"
        WHERE o."isCurrent" = 1 AND o."serviceDate" BETWEEN ? AND ?
          AND d."metricKey" IN (${inList(methodKeys)})
-       GROUP BY "month" ORDER BY "month"`,
+       GROUP BY o."serviceDate" ORDER BY o."serviceDate"`,
       startDate, endDate, ...methodKeys,
     );
 
@@ -456,7 +469,10 @@ export async function getServiceAnalytics(
     methodSeries: {
       granularity,
       methods: methodDefinitions.map((row) => ({
-        metricKey: row.metricKey, displayName: row.displayName, unit: row.unit,
+        metricKey: row.metricKey,
+        displayName: row.displayName,
+        unit: row.unit,
+        firstRecordedDate: methodStarts.find((m) => m.metricKey === row.metricKey)?.firstDate ?? null,
       })),
       buckets: [...seriesBuckets.values()]
         .sort((a, b) => String(a.bucket).localeCompare(String(b.bucket))),
