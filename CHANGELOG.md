@@ -5,6 +5,16 @@ All notable changes to FEED are documented here. This project adheres to
 
 ## [Unreleased]
 
+## [1.5.0-beta.14] — 2026-08-14
+
+### Fixed
+
+- **The resume-an-import panel now reads as a panel.** Its heading, explanation,
+  and button were laid out side by side rather than stacked, because FEED's
+  `Alert` is intentionally a single centred row — icon, title, and text on one
+  line — and this panel is not that shape. It is now built the same way as the
+  import progress panel it sits alongside.
+
 ## [1.5.0-beta.13] — 2026-08-14
 
 Makes large imports completable, and visible while they run. Measured on the

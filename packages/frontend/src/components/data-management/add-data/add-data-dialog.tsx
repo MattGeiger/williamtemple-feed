@@ -454,38 +454,45 @@ export function AddDataDialog({
                 this the work, and any questions it raised, are unreachable until
                 the job expires — and the user's instinct is to upload again,
                 which duplicates minutes of work. */}
-            {resumable && (
-              <Alert>
-                <Loader2
-                  className={`h-4 w-4 ${resumable.status === 'preparing' || resumable.status === 'activating' ? 'animate-spin' : ''}`}
-                  aria-hidden="true"
-                />
-                <AlertTitle>An import is already in progress</AlertTitle>
-                <AlertDescription className="space-y-2">
-                  <p>
-                    {resumable.status === 'awaiting_review'
-                      ? `FEED finished reading ${resumable.processedRows.toLocaleString()} records and needs ${resumable.unresolvedIssueCount.toLocaleString()} decision${resumable.unresolvedIssueCount === 1 ? '' : 's'} from you.`
-                      : resumable.status === 'ready'
-                        ? 'A reviewed import is prepared and ready to activate.'
-                        : `FEED is still working — ${resumable.processedRows.toLocaleString()} records so far.`}
-                  </p>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      setJob(resumable);
-                      setResumable(null);
-                      setStartedAt(Date.now());
-                      setElapsedSeconds(0);
-                      setStep('complete');
-                    }}
-                  >
-                    Reopen that import
-                  </Button>
-                </AlertDescription>
-              </Alert>
-            )}
+            {/* Not an `Alert`: this project's Alert is deliberately a single
+                centred row (icon, title, text on one line), so a heading plus a
+                sentence plus an action lays out sideways in it. This mirrors the
+                progress panel below instead, which is the same kind of object —
+                a status panel with a state and an action. */}
+            {resumable && (() => {
+              const stillRunning = resumable.status === 'preparing' || resumable.status === 'activating';
+              return (
+                <div className="flex items-start gap-3 rounded-md border bg-muted/40 p-3">
+                  {stillRunning
+                    ? <Loader2 className="mt-0.5 h-4 w-4 shrink-0 animate-spin" aria-hidden="true" />
+                    : <FileText className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />}
+                  <div className="min-w-0 flex-1 space-y-2">
+                    <p className="text-sm font-medium leading-none">An import is already in progress</p>
+                    <p className="text-sm text-muted-foreground">
+                      {resumable.status === 'awaiting_review'
+                        ? `FEED finished reading ${resumable.processedRows.toLocaleString()} records and needs ${resumable.unresolvedIssueCount.toLocaleString()} decision${resumable.unresolvedIssueCount === 1 ? '' : 's'} from you.`
+                        : resumable.status === 'ready'
+                          ? 'A reviewed import is prepared and ready to activate.'
+                          : `FEED is still working — ${resumable.processedRows.toLocaleString()} records so far.`}
+                    </p>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setJob(resumable);
+                        setResumable(null);
+                        setStartedAt(Date.now());
+                        setElapsedSeconds(0);
+                        setStep('complete');
+                      }}
+                    >
+                      Reopen that import
+                    </Button>
+                  </div>
+                </div>
+              );
+            })()}
 
             <AnimateIcon asChild animateOnView animateOnViewOnce animateOnHover animateOnTap>
               <div
