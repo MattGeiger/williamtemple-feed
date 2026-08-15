@@ -11,6 +11,7 @@ import { dirname, join, resolve } from 'path';
 
 import prisma from '../../db';
 import { MaintenanceMode } from './maintenance-mode';
+import { RESTORE_CLEARED_TABLES } from '../backup/table-contract';
 import { tablesFor, type UnitId } from './restore-units';
 
 /**
@@ -139,6 +140,19 @@ export class RestoreService {
         // foreign key. Getting that wrong binds a translation to the wrong food
         // item — invisible on screen, and it survives physical reconciliation
         // because staff verify stock, not foreign keys.
+        // Clear excluded tables that point INTO what is about to be replaced,
+        // before deleting their parents. The scratch database is a copy of the
+        // live one, so these rows survive the copy still referencing rows this
+        // restore deletes — and with foreign keys enforced, that aborts the
+        // whole restore. See RESTORE_CLEARED_TABLES for why each one is safe to
+        // clear rather than preserve.
+        const replaced = new Set(tables);
+        for (const [table, rule] of Object.entries(RESTORE_CLEARED_TABLES)) {
+          if (rule.references.some(parent => replaced.has(parent))) {
+            await delegateFor(scratch, table).deleteMany({});
+          }
+        }
+
         for (const table of deletionOrder(tables)) {
           await delegateFor(scratch, table).deleteMany({});
         }

@@ -38,6 +38,81 @@ Everything else in this file. The application is shippable today.
 
 ## Open Issues
 
+### #73 — Restore aborted on any instance with AI usage telemetry
+**Priority**: High · **Status**: Fixed in source 2026-08-15; awaiting deployment
+**Bucket**: Data Management / backup and restore
+
+Found 2026-08-15 restoring a production artifact onto a development database.
+The confirmation step reported **"Cannot delete this item because it is
+referenced by other items."** and the restore did not run.
+
+Restore copies the live database to a scratch file and then deletes and reloads
+only the selected units — that is what makes "anything you did not select stays
+as it is" true. But an **excluded** table holding a foreign key into an
+**included** table survives that copy still pointing at rows the restore is
+about to delete. `restore-service.ts` sets `PRAGMA foreign_keys = ON` on the
+scratch database, so the delete fails with Prisma `P2003` and the whole restore
+aborts.
+
+Three such references exist in the schema:
+
+| Excluded table | References |
+|---|---|
+| `UsageRecord` | `AIConfiguration`, `Translation` |
+| `ShoppingListInstance` | `ShoppingListTemplate` |
+
+**Eight `UsageRecord` rows were enough to break a full restore.** Any instance
+with AI translation telemetry hits this — production certainly qualifies — and
+it fails at exactly the moment recovery matters. The message made it worse: a
+generic `P2003` mapping in the global error handler phrased a failed
+disaster-recovery restore as a sentence about deleting one item.
+
+**Resolution:** `RESTORE_CLEARED_TABLES` in the backup table contract declares
+the excluded tables that reference included ones, with the parents each
+references and why clearing it is safe. Restore clears them before deleting
+their parents, and only when a referenced parent is actually being replaced —
+so a Service-only or Procurement-only restore still clears nothing.
+
+Clearing is correct for both entries **because of what they are**, not because
+it makes the error go away. `UsageRecord` is aggregated telemetry the contract
+already describes as "rebuilt from operation rather than restored".
+`ShoppingListInstance` is generated output bound to a `ShoppingListPDF` file the
+artifact does not carry, so its rows are already unusable after any restore.
+The contract records that a table must not be added to this list merely to make
+a restore pass — rows a user would miss need a different answer.
+
+Two guards, since a prose warning cannot enforce itself:
+
+- a schema-reading test fails when any excluded table references an included one
+  without being declared. Verified to fail against the real schema with the
+  declaration removed — it reports all three edges above.
+- a second test asserts each declared `references` list matches the schema, so a
+  stale entry cannot silently stop the clear from firing.
+
+**Workaround while undeployed:** deselect Configuration and Languages &
+Translations. Service, Procurement, Inventory, and Shopping Lists restore
+normally, because none of them replace `AIConfiguration` or `Translation`.
+
+### #74 — Backup documentation contradicts the table contract on `User`
+**Priority**: Medium · **Status**: Open, found 2026-08-15
+**Bucket**: Documentation / security boundary
+
+`docs/data-management/backup-and-restore.md` describes `User` under **"Included,
+with authority neutralised"**, explaining that the roster is carried but every
+restored role lands as `STAFF` so that an absent roster cannot arm the
+fresh-instance bootstrap.
+
+`services/backup/table-contract.ts` **excludes** `User` outright, reasoning that
+restoring the roster restores authority and that in Domain mode the roster
+self-heals because a successful sign-in recreates the row as Staff.
+
+Both are defensible; they cannot both be current. The code is authoritative in
+practice, so the risk is a reader trusting the document's account of a security
+boundary. Resolving it means deciding which design is intended and correcting
+the other — and if exclusion is intended, the document should also record what
+happens to the fresh-instance bootstrap on a restore into an empty instance,
+which is the case the include-and-neutralise design existed to handle.
+
 ### #72 — Import progress panel misreported which stage was running
 **Priority**: Medium · **Status**: Fixed in source 2026-08-15; awaiting deployment
 **Bucket**: Data Management / import UX

@@ -1,5 +1,19 @@
 # Release Notes
 
+## Version 1.5.0-beta.17 — 2026-08-15
+
+*Beta — repairs the backup restore path.*
+
+- **Restoring a backup now works on any instance.** Restore could stop with
+  "Cannot delete this item because it is referenced by other items" and refuse
+  to run — a failure that only appeared once an instance had used AI
+  translation, and so would most likely have been discovered during an actual
+  recovery. Records of past AI usage are now cleared along with the settings
+  they refer to; they are rebuilt through normal use and were never part of a
+  backup file.
+- **Restoring only some sections is unchanged.** Choosing Service or Procurement
+  alone behaves exactly as before.
+
 ## Version 1.5.0-beta.16 — 2026-08-15
 
 *Beta — the import window now says what it is doing.*

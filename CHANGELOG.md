@@ -5,6 +5,22 @@ All notable changes to FEED are documented here. This project adheres to
 
 ## [Unreleased]
 
+## [1.5.0-beta.17] — 2026-08-15
+
+### Fixed
+
+- **Restoring a backup no longer fails on instances that have used AI
+  translation.** Restore reported "Cannot delete this item because it is
+  referenced by other items" and stopped, because usage-telemetry records still
+  referenced the AI configuration and translations being replaced. Eight such
+  records were enough. The telemetry — which backups deliberately do not carry,
+  because it is rebuilt from normal operation — is now cleared alongside the
+  data it refers to, and only when that data is actually part of the restore. A
+  Service-only or Procurement-only restore is unaffected either way.
+
+  This mattered beyond the inconvenience: restore is the recovery path, and the
+  failure would have appeared for the first time during an actual recovery.
+
 ## [1.5.0-beta.16] — 2026-08-15
 
 Makes the import window say what is actually happening. Following the first
