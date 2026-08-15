@@ -267,7 +267,7 @@ async function materializePendingImport(
   client: PrismaClient,
 ): Promise<number | null> {
   const job = await client.dataImportJob.findUnique({ where: { id: jobId } });
-  if (!job || job.status !== 'awaiting_review' || !job.fileHash || !job.reviewSummary) {
+  if (!job || job.status !== 'preparing' || !job.fileHash || !job.reviewSummary) {
     throw new WthTrackingWorkflowError('This WTH Tracking review is unavailable.', 'WTH_TRACKING_REVIEW_MISSING');
   }
   const review = job.reviewSummary as unknown as WthTrackingReviewSummary;
@@ -341,7 +341,7 @@ export async function prepareWthTrackingImport(
   staging: DataImportStagingService = dataImportStagingService,
 ): Promise<WthTrackingReviewSummary> {
   const job = await client.dataImportJob.findUnique({ where: { id: jobId } });
-  if (!job || job.status !== 'awaiting_review' || job.contractId !== WTH_TRACKING_CONTRACT_ID
+  if (!job || job.status !== 'preparing' || job.contractId !== WTH_TRACKING_CONTRACT_ID
     || !job.stagedFileKey || !job.fileHash) throw new WthTrackingWorkflowError(
     'This import job is not a staged WTH Tracking export.',
     'WTH_TRACKING_JOB_NOT_READY',

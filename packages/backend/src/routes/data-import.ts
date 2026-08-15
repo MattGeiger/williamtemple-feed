@@ -10,9 +10,11 @@ import {
   cancelDataImportJob,
   DataImportJobError,
   DataImportStagingError,
+  findResumableDataImportJob,
   inspectCsvHeader,
   listImportHistory,
   stageRecognizedDataImport,
+  startDataImportBackgroundTask,
 } from '../services/data-import';
 import {
   activateLink2FeedVisitImport,
@@ -214,6 +216,7 @@ const safeJobReview = async (jobId: string) => prisma.dataImportJob.findUnique({
     unresolvedIssueCount: true,
     reviewSummary: true,
     activationOutcome: true,
+    activationSummary: true,
     errorCode: true,
     errorMessage: true,
     expiresAt: true,
@@ -288,8 +291,30 @@ router.post('/jobs', rateLimiter, async (req, res, next) => {
         'DATA_IMPORT_ADAPTER_NOT_AVAILABLE',
       );
     }
-    await prepare(staged.job.id);
-    return res.status(201).json({ job: await safeJobReview(staged.job.id) });
+    // 202, not 201: the artifact is staged and identified, but validation has
+    // only started. Holding this response until preparation finished is what
+    // made a real Link2Feed export impossible to import — 167.8s of work behind
+    // a ~100s Cloudflare edge timeout. The client polls GET /jobs/:jobId.
+    startDataImportBackgroundTask(staged.job.id, () => prepare(staged.job.id), {
+      fallbackErrorCode: 'DATA_IMPORT_PREPARATION_FAILED',
+      fallbackMessage: 'FEED could not validate this data file. No data was imported.',
+    });
+    return res.status(202).json({ job: await safeJobReview(staged.job.id) });
+  } catch (error) {
+    if (sendImportError(res, error)) return;
+    return next(error);
+  }
+});
+
+// An import outlives the browser tab that started it — a 524, a refresh, or a
+// closed laptop leaves the Pi still working with no way for the user to get
+// back to the result. This is that way back. Declared before `/jobs/:jobId` so
+// `active` is not captured as a job id.
+router.get('/jobs/active', rateLimiter, async (_req, res, next) => {
+  try {
+    const active = await findResumableDataImportJob();
+    if (!active) return res.json({ job: null });
+    return res.json({ job: await safeJobReview(active.id) });
   } catch (error) {
     if (sendImportError(res, error)) return;
     return next(error);
@@ -337,22 +362,28 @@ router.post('/jobs/:jobId/activate', rateLimiter, async (req, res, next) => {
     if (!job) {
       throw new DataImportJobError('Import job was not found.', 'DATA_IMPORT_JOB_NOT_FOUND');
     }
-    const result = job.contractId === SIMC_SERVICE_VISIT_CONTRACT_ID
-      ? await activateSimcServiceVisitImport(jobId)
+    const activator = job.contractId === SIMC_SERVICE_VISIT_CONTRACT_ID
+      ? () => activateSimcServiceVisitImport(jobId)
       : job.contractId === WTH_TRACKING_CONTRACT_ID
-        ? await activateWthTrackingImport(jobId)
-      : job.contractId === LINK2FEED_VISIT_CONTRACT_ID
-        ? await activateLink2FeedVisitImport(jobId, req.auth?.userId ?? null)
-        : (() => {
-          throw new DataImportJobError(
-            'This detected data source does not have an activation workflow yet. No data was imported.',
-            'DATA_IMPORT_ADAPTER_NOT_AVAILABLE',
-          );
-        })();
-    return res.status(result.outcome === 'imported' ? 201 : 200).json({
-      result,
-      job: await safeJobReview(jobId),
+        ? () => activateWthTrackingImport(jobId)
+        : job.contractId === LINK2FEED_VISIT_CONTRACT_ID
+          ? () => activateLink2FeedVisitImport(jobId, req.auth?.userId ?? null)
+          : null;
+    if (!activator) {
+      throw new DataImportJobError(
+        'This detected data source does not have an activation workflow yet. No data was imported.',
+        'DATA_IMPORT_ADAPTER_NOT_AVAILABLE',
+      );
+    }
+    // Activation is the other request that can outlast the edge timeout, so it
+    // detaches the same way. The job reaches `completed` with an
+    // `activationOutcome` the client reads by polling; the atomicity guarantee
+    // is unchanged, because the transaction itself is untouched.
+    startDataImportBackgroundTask(jobId, activator, {
+      fallbackErrorCode: 'DATA_IMPORT_ACTIVATION_FAILED',
+      fallbackMessage: 'FEED could not activate this reviewed import. No partial data was applied.',
     });
+    return res.status(202).json({ job: await safeJobReview(jobId) });
   } catch (error) {
     if (sendImportError(res, error)) return;
     return next(error);

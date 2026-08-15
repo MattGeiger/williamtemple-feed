@@ -771,6 +771,7 @@ model DataImportJob {
   reviewSummary          Json?
   pendingServiceImportId Int?
   activationOutcome      String?
+  activationSummary      Json?
   errorCode              String?
   errorMessage           String?
   createdBy              String?

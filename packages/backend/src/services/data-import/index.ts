@@ -5,6 +5,7 @@ export * from './source-contracts';
 export * from './staging';
 export * from './jobs';
 export * from './workflow';
+export * from './background';
 export * from './staging-sweeper';
 export * from './pending-service';
 export * from './history';
