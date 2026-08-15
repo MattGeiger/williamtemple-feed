@@ -169,37 +169,67 @@ class ServiceApi extends BaseApiService {
 }
 
 /** Mirrors `getServiceAnalytics` in the backend service. */
+export type ServiceBucketGranularity = 'day' | 'week' | 'month';
+
+export interface ServiceMethodDefinition {
+  metricKey: string;
+  displayName: string;
+  unit: string;
+}
+
 export interface ServiceAnalytics {
   coverage: {
     startDate: string;
     endDate: string;
+    granularity: ServiceBucketGranularity;
     sources: Array<{ source: string; firstDate: string; lastDate: string; encounters: number }>;
+    hasIntake: boolean;
+    hasServiceLog: boolean;
+    serviceLogFirstDate: string | null;
+    serviceLogLastDate: string | null;
   };
   summary: {
     visits: number;
-    households: number;
-    peopleReported: number;
+    peopleServed: number;
     identityUnavailableVisits: number;
     bulkEntryVisits: number;
     bulkEntryPeople: number;
+    households: number;
+    householdsSource: 'service_log' | 'intake' | 'none';
+    methods: Array<ServiceMethodDefinition & { households: number }>;
+    otherServices: { total: number; unit: string; metrics: ServiceMethodDefinition[] };
   };
   overTime: Array<{
-    month: string; source: string; visits: number; households: number; peopleReported: number;
+    month: string;
+    link2feedHouseholds: number;
+    link2feedIndividuals: number;
+    simcHouseholds: number;
+    simcIndividuals: number;
+    serviceLogHouseholds: number;
   }>;
-  reachAndFrequency: Array<{
-    year: string; households: number; visits: number; visitsPerHousehold: number; newHouseholds: number;
-  }>;
-  methodMix: Array<{
-    month: string; shoppingVisits: number; longLists: number; premadeBags: number; emergencyBags: number;
-  }>;
+  seasonal: {
+    years: string[];
+    months: Array<Record<string, string | number>>;
+  };
+  methodSeries: {
+    granularity: ServiceBucketGranularity;
+    methods: ServiceMethodDefinition[];
+    buckets: Array<Record<string, string | number>>;
+  };
   recordAgreement: {
-    months: Array<{ month: string; days: number; formal: number; operational: number }>;
     sharedDays: number;
-    formalTotal: number;
-    operationalTotal: number;
+    intakeTotal: number;
+    serviceLogTotal: number;
     meanAbsoluteDailyDifference: number;
+    agreementPercent: number;
   };
   householdSize: Array<{ people: number; visits: number }>;
+  reachAndFrequency: Array<{
+    year: string;
+    households: number;
+    visits: number;
+    visitsPerHousehold: number;
+  }>;
 }
 
 export const serviceApi = new ServiceApi();

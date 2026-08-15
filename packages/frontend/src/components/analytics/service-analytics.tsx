@@ -3,24 +3,27 @@
 //
 // Service Analytics — the third lens, beside Operations and Procurement.
 //
-// Two evidence layers overlap here and answer different questions. Formal
-// intake (Link2Feed through 2026-05-28, then SIMC) is authoritative for how
-// many households were served; WTH's own operational record is authoritative
-// for HOW that service was delivered. They are never added together. The one
-// card that shows both — Two Records, One Day — presents them as independent
-// measurements of the same days, which is a comparison, not a sum, and it says
-// so on the card.
+// Two records describe the same pantry days and are complementary, not
+// authority and commentary. Formal intake (Link2Feed, then SIMC) is the
+// client-grained record; the Service Log is WTH's own end-of-day count, entered
+// by staff, and it covers days and households intake missed. They are never
+// summed with each other, and where both can answer a question the Service Log
+// is preferred — a hand-counted total does not depend on every client
+// completing intake.
 //
-// Every card here states its own interpretive boundary in its description, for
-// the same reason the Community Donations cards do: a reader who is not told
-// what a number excludes will assume it excludes nothing.
+// Card copy follows one rule: the description says what the card shows, source
+// pills say where it came from, and anything the reader must know to avoid
+// misreading it goes in the footer. The footer is the place for caveats
+// precisely because it is read last, after the shape of the data is already
+// understood.
 //
-// Card selection and proposal rationale: docs/reports/service-analytics-card-proposal.md
+// Reused from the Procurement lens rather than reinvented:
+// `buildSeasonalYearChartConfig` (year-over-year colour assignment) and the
+// year-picker dropdown pattern from Seasonal Inbound Weight.
 
 import * as React from 'react';
 import {
-  Area, AreaChart, Bar, BarChart, CartesianGrid, ComposedChart, Line, LineChart, ReferenceLine,
-  XAxis, YAxis,
+  CartesianGrid, Line, LineChart, ReferenceLine, XAxis, YAxis, Bar, BarChart,
 } from 'recharts';
 import { format, parseISO } from 'date-fns';
 import {
@@ -30,19 +33,25 @@ import {
   ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartTooltipContent,
   type ChartConfig,
 } from '@/components/ui/chart';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem,
+  DropdownMenuSeparator, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ChevronDown } from '@/components/ui/icons';
 import { SelectableBlock } from '@/components/reports/selection';
 import { ErrorHandlerService } from '@/services/error/ErrorHandlerService';
 import { carbonChartColors } from '@/lib/colors';
-import { serviceApi, type ServiceAnalytics } from '@/services/service';
+import { buildSeasonalYearChartConfig } from './index';
+import {
+  serviceApi,
+  type ServiceAnalytics,
+  type ServiceBucketGranularity,
+} from '@/services/service';
 import type { AnalyticsDateRange } from '@/types/analytics';
 
-/**
- * Fetches the lens for the workspace's shared date range.
- *
- * The preset travels to the server rather than being resolved here, so
- * "Last 90 days" means the same thing in Service as it does in Procurement.
- */
 export function ServiceAnalyticsLens({ range }: { range: AnalyticsDateRange }) {
   const [analytics, setAnalytics] = React.useState<ServiceAnalytics | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
@@ -65,21 +74,27 @@ export function ServiceAnalyticsLens({ range }: { range: AnalyticsDateRange }) {
   if (isLoading && !analytics) {
     return (
       <div className="space-y-4">
-        <Skeleton className="h-32 w-full" />
-        <Skeleton className="h-72 w-full" />
+        <Skeleton className="h-40 w-full" />
         <Skeleton className="h-72 w-full" />
       </div>
     );
   }
 
-  if (!analytics || analytics.summary.visits === 0) {
+  // Either record makes the range non-empty. Checking only intake is what told
+  // staff "no service records" for the last seven days while their own Service
+  // Log held entries through yesterday.
+  const hasAnything = analytics
+    && (analytics.coverage.hasIntake || analytics.coverage.hasServiceLog);
+
+  if (!analytics || !hasAnything) {
     return (
       <Card className="min-w-0">
         <CardHeader>
           <CardTitle>No service records in this range</CardTitle>
           <CardDescription>
-            Service records begin with the first imported intake export. Widen the date
-            range, or import Link2Feed or SIMC visit data from Information &rarr; Data.
+            Nothing was recorded in the Service Log and no intake data covers these
+            dates. Widen the date range, record a service day in Service &rarr; Service
+            Log, or import visit data from Information &rarr; Data.
           </CardDescription>
         </CardHeader>
       </Card>
@@ -91,198 +106,264 @@ export function ServiceAnalyticsLens({ range }: { range: AnalyticsDateRange }) {
 
 const count = (value: number) => value.toLocaleString();
 const monthLabel = (month: string) => format(parseISO(`${month}-01`), 'MMM yyyy');
+const dayLabel = (day: string) => format(parseISO(day), 'MMM d');
 
-/**
- * Drops the month currently in progress from a monthly series.
- *
- * A partial month plotted beside complete ones reads as a collapse: at the time
- * of writing the newest month held two service days, so the line fell from
- * 1,474 to 239 and looked like service had stopped. The month is withheld
- * rather than drawn, and every card that does this says so.
- */
-function withoutMonthInProgress<T extends { month: string }>(
-  rows: T[],
-): { rows: T[]; excludedMonth: string | null } {
-  const currentMonth = new Date().toISOString().slice(0, 7);
-  const last = rows[rows.length - 1];
-  if (!last || last.month !== currentMonth) return { rows, excludedMonth: null };
-  return { rows: rows.slice(0, -1), excludedMonth: last.month };
+const bucketLabel = (granularity: ServiceBucketGranularity) =>
+  granularity === 'month' ? monthLabel : dayLabel;
+
+const bucketNoun: Record<ServiceBucketGranularity, string> = {
+  day: 'day',
+  week: 'week beginning',
+  month: 'month',
+};
+
+/** The month Link2Feed handed over to SIMC. */
+const CUTOVER_MONTH = '2026-06';
+
+const MONTH_LABELS = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+];
+
+const seriesColor = (configKey: string) => `var(--color-${configKey})`;
+
+/** Source provenance, stated as a pill rather than a sentence. */
+function SourcePills({ sources }: { sources: string[] }) {
+  return (
+    <div className="flex flex-wrap gap-1.5 pt-1">
+      {sources.map((source) => (
+        <Badge key={source} variant="outline" className="font-normal">{source}</Badge>
+      ))}
+    </div>
+  );
+}
+
+function Footnote({ children }: { children: React.ReactNode }) {
+  return <p className="mt-3 text-xs text-muted-foreground">{children}</p>;
+}
+
+function Tile({ label, value, hint }: { label: string; value: string; hint?: string }) {
+  return (
+    <div className="rounded-md border p-3">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="mt-1 text-2xl font-semibold tabular-nums">{value}</p>
+      {hint && <p className="mt-0.5 text-[0.7rem] text-muted-foreground">{hint}</p>}
+    </div>
+  );
 }
 
 /**
- * The month Link2Feed handed over to SIMC. Drawn as a labelled seam rather than
- * blended away: the two systems meet at 1,591 and 1,592 visits, and hiding the
- * boundary would also hide that agreement.
+ * Drops the bucket currently in progress from a series.
+ *
+ * A partial period plotted beside complete ones reads as a collapse: the newest
+ * month once held two service days, so the line fell from 1,474 to 239 and
+ * looked like service had stopped.
  */
-const CUTOVER_MONTH = '2026-06';
-
-/**
- * `ChartContainer` emits one CSS variable per *config key* — `--color-formal`,
- * not `--color-blue` — so a series binds to the key it was configured under.
- */
-const seriesColor = (configKey: string) => `var(--color-${configKey})`;
+function withoutPeriodInProgress<T extends Record<string, unknown>>(
+  rows: T[],
+  key: keyof T,
+  granularity: ServiceBucketGranularity,
+): { rows: T[]; excluded: string | null } {
+  const last = rows[rows.length - 1];
+  if (!last) return { rows, excluded: null };
+  const value = String(last[key]);
+  const now = new Date();
+  const currentMonth = now.toISOString().slice(0, 7);
+  // Only whole months are withheld. A day or week bucket is the thing staff are
+  // actively looking at on a short range, and hiding today would be worse than
+  // showing it.
+  if (granularity !== 'month' || value !== currentMonth) return { rows, excluded: null };
+  return { rows: rows.slice(0, -1), excluded: value };
+}
 
 export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAnalytics }) {
-  const { summary, coverage, overTime, reachAndFrequency, methodMix, recordAgreement, householdSize } = analytics;
+  const { coverage, summary, overTime, seasonal, methodSeries, recordAgreement, householdSize, reachAndFrequency } = analytics;
 
-  // One row per month with both sources kept in their own series, so the seam
-  // is visible and nothing is summed across it.
-  const { rows: timeline, excludedMonth: timelinePartial } = React.useMemo(() => {
-    const byMonth = new Map<string, { month: string; link2feed: number | null; simc: number | null; households: number }>();
-    for (const row of overTime) {
-      const entry = byMonth.get(row.month) ?? { month: row.month, link2feed: null, simc: null, households: 0 };
-      if (row.source === 'link2feed') entry.link2feed = row.visits;
-      if (row.source === 'simc') entry.simc = row.visits;
-      entry.households += row.households;
-      byMonth.set(row.month, entry);
+  const { rows: timeline, excluded: timelinePartial } = React.useMemo(
+    () => withoutPeriodInProgress(overTime, 'month', 'month'), [overTime]);
+
+  const { rows: methodBuckets, excluded: methodPartial } = React.useMemo(
+    () => withoutPeriodInProgress(methodSeries.buckets, 'bucket', methodSeries.granularity),
+    [methodSeries]);
+
+  const sizeData = React.useMemo(() => {
+    const grouped: Array<{ label: string; visits: number }> = [];
+    for (const row of householdSize) {
+      const label = row.people >= 8 ? '8+' : String(row.people);
+      const existing = grouped.find((entry) => entry.label === label);
+      if (existing) existing.visits += row.visits;
+      else grouped.push({ label, visits: row.visits });
     }
-    const ordered = [...byMonth.values()].sort((a, b) => a.month.localeCompare(b.month));
-    return withoutMonthInProgress(ordered);
-  }, [overTime]);
-
-  const sizeData = React.useMemo(() => householdSize.map((row) => ({
-    label: row.people >= 8 ? '8+' : String(row.people),
-    people: row.people,
-    visits: row.visits,
-  })).reduce<Array<{ label: string; visits: number }>>((acc, row) => {
-    const existing = acc.find((entry) => entry.label === row.label);
-    if (existing) existing.visits += row.visits;
-    else acc.push({ label: row.label, visits: row.visits });
-    return acc;
-  }, []), [householdSize]);
+    return grouped;
+  }, [householdSize]);
 
   const sizeTotal = sizeData.reduce((total, row) => total + row.visits, 0);
   const singlePersonShare = sizeTotal > 0
     ? Math.round((sizeData.find((row) => row.label === '1')?.visits ?? 0) / sizeTotal * 100)
     : 0;
 
-  const agreementPercent = recordAgreement.formalTotal > 0
-    ? (recordAgreement.operationalTotal / recordAgreement.formalTotal) * 100
-    : 0;
+  // The seasonal plot needs the same in-progress guard as the timeline: the
+  // current month holds only the service days that have happened so far, and
+  // plotting it beside eleven complete months makes the current year appear to
+  // collapse. Only the current year's newest point is dropped — every prior
+  // year's month is complete.
+  const seasonalMonths = React.useMemo(() => {
+    const now = new Date();
+    const currentYear = String(now.getFullYear());
+    const currentMonthLabel = MONTH_LABELS[now.getMonth()];
+    return seasonal.months.map((row) => {
+      if (row.month !== currentMonthLabel || row[currentYear] === undefined) return row;
+      const { [currentYear]: _dropped, ...rest } = row;
+      return rest;
+    });
+  }, [seasonal.months]);
 
-  const { rows: methodRows, excludedMonth: methodPartial } = React.useMemo(
-    () => withoutMonthInProgress(methodMix), [methodMix]);
-  const { rows: agreementRows, excludedMonth: agreementPartial } = React.useMemo(
-    () => withoutMonthInProgress(recordAgreement.months), [recordAgreement.months]);
+  // Seasonal year picker, mirroring Seasonal Inbound Weight.
+  const [selectedYears, setSelectedYears] = React.useState<string[] | null>(null);
+  const years = seasonal.years;
+  const activeYears = selectedYears ?? years;
+  const seasonalConfig = React.useMemo(
+    () => buildSeasonalYearChartConfig(activeYears, new Date().getFullYear()),
+    [activeYears],
+  );
 
-  const hasFormal = timeline.length > 0;
-  const hasOperational = methodRows.length > 0;
+  const methodConfig = React.useMemo(() => Object.fromEntries(
+    methodSeries.methods.map((method, index) => [method.metricKey, {
+      label: method.displayName,
+      color: [
+        carbonChartColors.blue.primary.light,
+        carbonChartColors.cyan.primary.light,
+        carbonChartColors.teal.primary.light,
+        carbonChartColors.orange.primary.light,
+        carbonChartColors.purple.primary.light,
+      ][index % 5],
+    }]),
+  ) satisfies ChartConfig, [methodSeries.methods]);
+
+  const labelBucket = bucketLabel(methodSeries.granularity);
+  const householdsFromLog = summary.householdsSource === 'service_log';
+  const serviceLogStartsLater = householdsFromLog
+    && coverage.serviceLogFirstDate
+    && coverage.serviceLogFirstDate > coverage.startDate;
 
   return (
     <div className="space-y-4">
-      {/* ---- Summary ------------------------------------------------------ */}
+      {/* ---- Service Summary ---------------------------------------------- */}
       <SelectableBlock cardId="service-summary">
         <Card className="min-w-0">
           <CardHeader>
             <CardTitle>Service Summary</CardTitle>
-            <CardDescription>
-              Formal intake records for {coverage.sources.map((source) => (
-                source.source === 'link2feed' ? 'Link2Feed' : 'SIMC'
-              )).join(' and ')}. Households and visits are counted per source and never
-              added across them.
-            </CardDescription>
+            <CardDescription>Pantry service recorded across both records.</CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <SummaryTile label="Visits" value={count(summary.visits)} />
-              <SummaryTile label="Households" value={count(summary.households)} />
-              <SummaryTile label="People reported" value={count(summary.peopleReported)} />
-              <SummaryTile
-                label="Visits without a household record"
-                value={count(summary.identityUnavailableVisits)}
-              />
-            </div>
-            {/* The user asked for a people-served figure with the incompleteness
-                stated rather than the figure withheld. Both halves matter: the
-                number is real, and it is a floor. */}
-            <p className="mt-4 text-xs text-muted-foreground">
-              People reported is a <strong>minimum</strong>. These records are known to
-              under-report: intake has been high-friction, some service days were
-              recorded on paper and reconciled later, and {count(summary.identityUnavailableVisits)}{' '}
-              visits carry no household record at all. The true number of people served
-              is almost certainly higher.
-            </p>
-            {summary.bulkEntryVisits > 0 && (
-              <p className="mt-2 text-xs text-muted-foreground">
-                Includes {count(summary.bulkEntryPeople)} people from{' '}
-                {count(summary.bulkEntryVisits)} bulk staff counts, which are people
-                tallies rather than households. Their people are counted here; they are
-                excluded from every household figure on this page.
-              </p>
+          <CardContent className="space-y-5">
+            {coverage.hasServiceLog && (
+              <div>
+                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Service Log
+                </p>
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+                  <Tile label="Households served" value={count(summary.households)} />
+                  {summary.methods.map((method) => (
+                    <Tile
+                      key={method.metricKey}
+                      label={method.displayName}
+                      value={count(method.households)}
+                      hint={method.unit}
+                    />
+                  ))}
+                </div>
+                {summary.otherServices.metrics.length > 0 && (
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+                    <Tile
+                      label="Other services and requests"
+                      value={count(summary.otherServices.total)}
+                      hint={summary.otherServices.unit}
+                    />
+                  </div>
+                )}
+              </div>
             )}
+
+            {coverage.hasIntake && (
+              <div>
+                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Intake records
+                </p>
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                  <Tile label="Visits" value={count(summary.visits)} />
+                  <Tile label="People served" value={count(summary.peopleServed)} />
+                  <Tile
+                    label="Visits without a household record"
+                    value={count(summary.identityUnavailableVisits)}
+                  />
+                  {!coverage.hasServiceLog && (
+                    <Tile label="Households served" value={count(summary.households)} />
+                  )}
+                </div>
+                <SourcePills sources={coverage.sources.map((source) =>
+                  source.source === 'link2feed' ? 'Link2Feed' : 'SIMC')} />
+              </div>
+            )}
+
+            <div className="space-y-1.5 border-t pt-3">
+              <Footnote>
+                People served counts every visit, so a household of three visiting twice
+                is counted six times. It is likely an undercount: not every client
+                discloses household size.
+              </Footnote>
+              {householdsFromLog && (
+                <Footnote>
+                  Households served comes from the Service Log, which staff enter at the
+                  end of each pantry day. It is preferred over the intake count because
+                  the changeover from Link2Feed to SIMC gave returning clients a second
+                  profile, so counting intake records would report the same person twice.
+                  {serviceLogStartsLater && coverage.serviceLogFirstDate && (
+                    <> The Service Log begins {monthLabel(coverage.serviceLogFirstDate.slice(0, 7))}, later than the range shown.</>
+                  )}
+                </Footnote>
+              )}
+              {recordAgreement.sharedDays > 0 && (
+                <Footnote>
+                  Across {count(recordAgreement.sharedDays)} days covered by both records
+                  they differ by an average of {recordAgreement.meanAbsoluteDailyDifference}{' '}
+                  households a day ({recordAgreement.agreementPercent}% overall).
+                </Footnote>
+              )}
+              {summary.bulkEntryVisits > 0 && (
+                <Footnote>
+                  Includes {count(summary.bulkEntryPeople)} people from{' '}
+                  {count(summary.bulkEntryVisits)} bulk staff counts, which are excluded
+                  from every household figure.
+                </Footnote>
+              )}
+            </div>
           </CardContent>
         </Card>
       </SelectableBlock>
 
-      {/* ---- Two Records, One Day ----------------------------------------- */}
-      {recordAgreement.sharedDays > 0 && (
-        <SelectableBlock cardId="service-record-agreement">
-          <Card className="min-w-0">
-            <CardHeader>
-              <CardTitle>Two Records, One Day</CardTitle>
-              <CardDescription>
-                Two independent records of the same service days: the formal intake
-                system, and William Temple House's own operational record. Shown side by
-                side to compare them — they are never added together.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ChartContainer
-                config={{
-                  formal: { label: 'Formal intake', color: carbonChartColors.blue.primary.light },
-                  operational: { label: 'Operational record', color: carbonChartColors.teal.primary.light },
-                } satisfies ChartConfig}
-                className="h-[260px] w-full"
-              >
-                <LineChart data={agreementRows} margin={{ left: 4, right: 8, top: 8 }}>
-                  <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                  <XAxis dataKey="month" tickFormatter={monthLabel} tickLine={false} axisLine={false} minTickGap={28} />
-                  <YAxis tickLine={false} axisLine={false} width={44} />
-                  <ChartTooltip content={<ChartTooltipContent labelFormatter={(value) => monthLabel(String(value))} />} />
-                  <ChartLegend content={<ChartLegendContent />} />
-                  <Line type="monotone" dataKey="formal" stroke={seriesColor('formal')} strokeWidth={2} dot={false} />
-                  <Line type="monotone" dataKey="operational" stroke={seriesColor('operational')} strokeWidth={2} dot={false} />
-                </LineChart>
-              </ChartContainer>
-              <p className="mt-3 text-xs text-muted-foreground">
-                Across {count(recordAgreement.sharedDays)} shared service days the two
-                records differ by an average of{' '}
-                <strong>{recordAgreement.meanAbsoluteDailyDifference} visits per day</strong>
-                {' '}— {count(recordAgreement.operationalTotal)} against{' '}
-                {count(recordAgreement.formalTotal)} overall, or {agreementPercent.toFixed(1)}%.
-                Only days present in both records are compared; a day the operational
-                record does not cover is not a day the two disagree.
-                {agreementPartial && ` ${monthLabel(agreementPartial)} is still in progress and is not plotted.`}
-              </p>
-            </CardContent>
-          </Card>
-        </SelectableBlock>
-      )}
-
       {/* ---- Service Over Time -------------------------------------------- */}
-      {hasFormal && (
+      {timeline.length > 1 && (
         <SelectableBlock cardId="service-over-time">
           <Card className="min-w-0">
             <CardHeader>
               <CardTitle>Service Over Time</CardTitle>
-              <CardDescription>
-                Monthly visits by formal intake source. Link2Feed and SIMC are separate
-                series meeting at the system changeover, drawn as one timeline with a
-                marked boundary rather than blended into a single figure.
-              </CardDescription>
+              <CardDescription>Monthly service by record.</CardDescription>
+              <SourcePills sources={['Link2Feed', 'SIMC', 'Service Log']} />
             </CardHeader>
             <CardContent>
               <ChartContainer
                 config={{
-                  link2feed: { label: 'Link2Feed', color: carbonChartColors.blue.primary.light },
-                  simc: { label: 'SIMC', color: carbonChartColors.purple.primary.light },
+                  link2feedHouseholds: { label: 'Link2Feed households', color: carbonChartColors.blue.primary.light },
+                  link2feedIndividuals: { label: 'Link2Feed individuals', color: carbonChartColors.cyan.primary.light },
+                  simcHouseholds: { label: 'SIMC households', color: carbonChartColors.purple.primary.light },
+                  simcIndividuals: { label: 'SIMC individuals', color: carbonChartColors.magenta.primary.light },
+                  serviceLogHouseholds: { label: 'Service Log households', color: carbonChartColors.teal.primary.light },
                 } satisfies ChartConfig}
-                className="h-[280px] w-full"
+                className="h-[300px] w-full"
               >
                 <LineChart data={timeline} margin={{ left: 4, right: 8, top: 8 }}>
                   <CartesianGrid vertical={false} strokeDasharray="3 3" />
                   <XAxis dataKey="month" tickFormatter={monthLabel} tickLine={false} axisLine={false} minTickGap={36} />
-                  <YAxis tickLine={false} axisLine={false} width={44} />
+                  <YAxis tickLine={false} axisLine={false} width={48} />
                   <ChartTooltip content={<ChartTooltipContent labelFormatter={(value) => monthLabel(String(value))} />} />
                   <ChartLegend content={<ChartLegendContent />} />
                   <ReferenceLine
@@ -291,108 +372,152 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
                     strokeDasharray="4 4"
                     label={{ value: 'Changed systems', position: 'insideTopRight', fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
                   />
-                  <Line type="monotone" dataKey="link2feed" stroke={seriesColor('link2feed')} strokeWidth={2} dot={false} connectNulls={false} />
-                  <Line type="monotone" dataKey="simc" stroke={seriesColor('simc')} strokeWidth={2} dot={false} connectNulls={false} />
+                  {(['link2feedHouseholds', 'link2feedIndividuals', 'simcHouseholds', 'simcIndividuals', 'serviceLogHouseholds'] as const).map((key) => (
+                    <Line
+                      key={key}
+                      type="monotone"
+                      dataKey={key}
+                      stroke={seriesColor(key)}
+                      strokeWidth={2}
+                      dot={false}
+                      connectNulls={false}
+                    />
+                  ))}
                 </LineChart>
               </ChartContainer>
-              <p className="mt-3 text-xs text-muted-foreground">
-                The gap between the two lines is the changeover, not a drop in service.
-                {timelinePartial && ` ${monthLabel(timelinePartial)} is still in progress and is not plotted.`}
-              </p>
+              <Footnote>
+                The gap between the two intake lines is the changeover, not a drop in
+                service.{timelinePartial && ` ${monthLabel(timelinePartial)} is still in progress and is not plotted.`}
+              </Footnote>
             </CardContent>
           </Card>
         </SelectableBlock>
       )}
 
-      {/* ---- Reach and Frequency ------------------------------------------ */}
-      {reachAndFrequency.length > 1 && (
-        <SelectableBlock cardId="service-reach-and-frequency">
+      {/* ---- Households by Season ----------------------------------------- */}
+      {years.length > 1 && (
+        <SelectableBlock cardId="service-seasonal-households">
           <Card className="min-w-0">
-            <CardHeader>
-              <CardTitle>Reach and Frequency</CardTitle>
-              <CardDescription>
-                Households served each year, against how often each household visited.
-                Two measurements of the same service, which have moved in opposite
-                directions.
-              </CardDescription>
+            <CardHeader className="flex-row items-start justify-between gap-3 space-y-0">
+              <div className="space-y-1.5">
+                <CardTitle>Households by Season</CardTitle>
+                <CardDescription>Calendar years compared month by month.</CardDescription>
+                <SourcePills sources={['Link2Feed', 'SIMC']} />
+              </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="shrink-0">
+                    Years <ChevronDown className="ml-1 h-4 w-4" aria-hidden="true" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="max-h-(--radix-dropdown-menu-content-available-height) overflow-y-auto">
+                  <DropdownMenuItem onSelect={() => setSelectedYears(years)}>Select all years</DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => setSelectedYears([])}>Clear all years</DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  {years.map((year) => (
+                    <DropdownMenuCheckboxItem
+                      key={year}
+                      checked={activeYears.includes(year)}
+                      onSelect={(event) => event.preventDefault()}
+                      onCheckedChange={(checked) => setSelectedYears(
+                        checked
+                          ? [...activeYears, year].sort()
+                          : activeYears.filter((entry) => entry !== year),
+                      )}
+                    >
+                      {year}
+                    </DropdownMenuCheckboxItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </CardHeader>
             <CardContent>
-              <ChartContainer
-                config={{
-                  households: { label: 'Households served', color: carbonChartColors.blue.primary.light },
-                  visitsPerHousehold: { label: 'Visits per household', color: carbonChartColors.magenta.primary.light },
-                } satisfies ChartConfig}
-                className="h-[280px] w-full"
-              >
-                <ComposedChart data={reachAndFrequency} margin={{ left: 4, right: 8, top: 8 }}>
-                  <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                  <XAxis dataKey="year" tickLine={false} axisLine={false} />
-                  <YAxis yAxisId="left" tickLine={false} axisLine={false} width={48} />
-                  <YAxis yAxisId="right" orientation="right" tickLine={false} axisLine={false} width={36} />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <ChartLegend content={<ChartLegendContent />} />
-                  <Bar yAxisId="left" dataKey="households" fill={seriesColor('households')} radius={[3, 3, 0, 0]} />
-                  <Line yAxisId="right" type="monotone" dataKey="visitsPerHousehold" stroke={seriesColor('visitsPerHousehold')} strokeWidth={2} dot={{ r: 3 }} />
-                </ComposedChart>
-              </ChartContainer>
-              {/* Staff-supplied context, not inferred from the data. The policy is
-                  a real cause the chart cannot show; naming it is more honest than
-                  leaving the reader to guess, and safer than letting the chart
-                  imply the pantry became less useful. */}
-              <p className="mt-3 text-xs text-muted-foreground">
-                William Temple House limits households to two visits a month. Pantry
-                shopping and long lists count toward that limit; premade bags and
-                emergency bags do not. The chart shows both measurements and does not
-                attribute the change to any single cause.
-              </p>
+              {activeYears.length === 0 ? (
+                <div className="flex h-72 items-center justify-center text-sm text-muted-foreground">
+                  Choose at least one year.
+                </div>
+              ) : (
+                <ChartContainer config={seasonalConfig} className="h-[300px] w-full">
+                  <LineChart data={seasonalMonths} margin={{ left: 4, right: 8, top: 8 }}>
+                    <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                    <XAxis dataKey="month" tickLine={false} axisLine={false} />
+                    <YAxis tickLine={false} axisLine={false} width={48} />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <ChartLegend content={<ChartLegendContent />} />
+                    {activeYears.map((year) => (
+                      <Line
+                        key={year}
+                        type="monotone"
+                        dataKey={year}
+                        stroke={seriesColor(year)}
+                        strokeWidth={2}
+                        dot={false}
+                        connectNulls={false}
+                      />
+                    ))}
+                  </LineChart>
+                </ChartContainer>
+              )}
+              <Footnote>
+                Distinct households each month, so one household visiting twice in a
+                month is counted once.
+                {reachAndFrequency.length > 1 && (() => {
+                  // Anchored to the busiest year rather than the first, because
+                  // the first year on record covers only the months after
+                  // service began and understates its own frequency.
+                  const peak = reachAndFrequency.reduce((best, row) =>
+                    row.visitsPerHousehold > best.visitsPerHousehold ? row : best);
+                  const last = reachAndFrequency[reachAndFrequency.length - 1];
+                  if (peak.year === last.year) return null;
+                  return ` Visits per household moved from ${peak.visitsPerHousehold} in ${peak.year} to ${last.visitsPerHousehold} in ${last.year}; households are limited to two visits a month.`;
+                })()}
+              </Footnote>
             </CardContent>
           </Card>
         </SelectableBlock>
       )}
 
       {/* ---- How Service Was Delivered ------------------------------------ */}
-      {hasOperational && (
+      {methodBuckets.length > 0 && (
         <SelectableBlock cardId="service-method-mix">
           <Card className="min-w-0">
             <CardHeader>
               <CardTitle>How Service Was Delivered</CardTitle>
               <CardDescription>
-                William Temple House's own operational record of service methods. This
-                card shows only that record — no formal intake counts appear here, so
-                nothing on it should be added to the totals above.
+                William Temple House&apos;s own operational record of service methods.
               </CardDescription>
+              <SourcePills sources={['Service Log', 'Households']} />
             </CardHeader>
             <CardContent>
-              <ChartContainer
-                config={{
-                  shoppingVisits: { label: 'Pantry shopping', color: carbonChartColors.blue.primary.light },
-                  longLists: { label: 'Long lists', color: carbonChartColors.cyan.primary.light },
-                  premadeBags: { label: 'Premade bags', color: carbonChartColors.teal.primary.light },
-                  emergencyBags: { label: 'Emergency bags', color: carbonChartColors.orange.primary.light },
-                } satisfies ChartConfig}
-                className="h-[280px] w-full"
-              >
-                <AreaChart data={methodRows} margin={{ left: 4, right: 8, top: 8 }}>
+              {/* Lines, not a stacked area: stacking made the topmost series
+                  read as the peak value against the axis, so emergency bags
+                  looked like the largest method when they are the smallest. */}
+              <ChartContainer config={methodConfig} className="h-[300px] w-full">
+                <LineChart data={methodBuckets} margin={{ left: 4, right: 8, top: 8 }}>
                   <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                  <XAxis dataKey="month" tickFormatter={monthLabel} tickLine={false} axisLine={false} minTickGap={36} />
-                  <YAxis tickLine={false} axisLine={false} width={44} />
-                  <ChartTooltip content={<ChartTooltipContent labelFormatter={(value) => monthLabel(String(value))} />} />
+                  <XAxis dataKey="bucket" tickFormatter={(value) => labelBucket(String(value))} tickLine={false} axisLine={false} minTickGap={28} />
+                  <YAxis tickLine={false} axisLine={false} width={48} />
+                  <ChartTooltip content={<ChartTooltipContent labelFormatter={(value) => labelBucket(String(value))} />} />
                   <ChartLegend content={<ChartLegendContent />} />
-                  <Area type="monotone" stackId="method" dataKey="shoppingVisits" stroke={seriesColor('shoppingVisits')} fill={seriesColor('shoppingVisits')} fillOpacity={0.75} />
-                  <Area type="monotone" stackId="method" dataKey="longLists" stroke={seriesColor('longLists')} fill={seriesColor('longLists')} fillOpacity={0.75} />
-                  <Area type="monotone" stackId="method" dataKey="premadeBags" stroke={seriesColor('premadeBags')} fill={seriesColor('premadeBags')} fillOpacity={0.75} />
-                  <Area type="monotone" stackId="method" dataKey="emergencyBags" stroke={seriesColor('emergencyBags')} fill={seriesColor('emergencyBags')} fillOpacity={0.75} />
-                </AreaChart>
+                  {methodSeries.methods.map((method) => (
+                    <Line
+                      key={method.metricKey}
+                      type="monotone"
+                      dataKey={method.metricKey}
+                      stroke={seriesColor(method.metricKey)}
+                      strokeWidth={2}
+                      dot={false}
+                    />
+                  ))}
+                </LineChart>
               </ChartContainer>
-              <p className="mt-3 text-xs text-muted-foreground">
-                Pantry shopping and long lists count toward the two-visits-a-month
-                household limit; premade bags and emergency bags do not. Emergency bags
-                began in November 2025 as a new programme responding to federal SNAP
-                reductions and Oregon's declared food emergency — the series is absent
-                before that date because the programme did not exist, not because it
-                was unrecorded.
+              <Footnote>
+                Households per {bucketNoun[methodSeries.granularity]}. Pantry shopping and
+                long lists count toward the two-visits-a-month limit; premade bags and
+                emergency bags do not. Emergency bags began in November 2025 as a new
+                programme, so the line is absent before then rather than zero.
                 {methodPartial && ` ${monthLabel(methodPartial)} is still in progress and is not plotted.`}
-              </p>
+              </Footnote>
             </CardContent>
           </Card>
         </SelectableBlock>
@@ -405,10 +530,9 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
             <CardHeader>
               <CardTitle>Household Size</CardTitle>
               <CardDescription>
-                People per household as reported at intake, counted per visit. Excludes
-                bulk staff counts, which record a crowd as one entry and would distort
-                any household average.
+                People per household as reported at intake, counted per visit.
               </CardDescription>
+              <SourcePills sources={['Link2Feed', 'SIMC']} />
             </CardHeader>
             <CardContent>
               <ChartContainer
@@ -423,22 +547,14 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
                   <Bar dataKey="visits" fill={seriesColor('visits')} radius={[3, 3, 0, 0]} />
                 </BarChart>
               </ChartContainer>
-              <p className="mt-3 text-xs text-muted-foreground">
-                {singlePersonShare}% of visits are by a household of one.
-              </p>
+              <Footnote>
+                {singlePersonShare}% of visits are by a household of one. Excludes
+                outliers marked as special events, flagged during data import.
+              </Footnote>
             </CardContent>
           </Card>
         </SelectableBlock>
       )}
-    </div>
-  );
-}
-
-function SummaryTile({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-md border p-3">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="mt-1 text-2xl font-semibold tabular-nums">{value}</p>
     </div>
   );
 }
