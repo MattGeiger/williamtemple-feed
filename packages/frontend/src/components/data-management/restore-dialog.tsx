@@ -103,6 +103,13 @@ export function RestoreDialog({ open, onOpenChange, onRestored }: RestoreDialogP
     return out;
   }, [selected, units]);
 
+  // Named by the server from the same contract the restore itself reads, so
+  // the warning cannot drift from what actually happens.
+  const clearedLabels = React.useMemo(
+    () => [...new Set(units.filter(unit => closure.has(unit.id)).flatMap(unit => unit.clears))],
+    [closure, units],
+  );
+
   const autoAdded = [...closure].filter(id => !selected.includes(id));
 
   const handleFile = async (chosen: File) => {
@@ -277,6 +284,16 @@ export function RestoreDialog({ open, onOpenChange, onRestored }: RestoreDialogP
               <p className="text-muted-foreground">
                 Items deleted since then will come back. They are easy to clear in bulk, but
                 worth looking for.
+              </p>
+            )}
+            {/* These rows reference records the restore replaces, whose ids are
+                reassigned from the artifact — keeping them would attribute
+                history to the wrong record. Saying so beats losing them
+                quietly. */}
+            {clearedLabels.length > 0 && (
+              <p className="text-muted-foreground">
+                This also clears {clearedLabels.join(' and ')}, which refer to the records
+                being replaced and cannot be carried across.
               </p>
             )}
             <p className="text-muted-foreground">

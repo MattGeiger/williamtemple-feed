@@ -118,15 +118,24 @@ export const RESTORE_CLEARED_TABLES: Record<string, {
   /** Included tables this one references. Cleared only if one is being replaced. */
   readonly references: readonly string[];
   readonly reason: string;
+  /**
+   * What these rows are, in the words the restore confirmation shows. The
+   * `reason` above explains the decision to a maintainer; this explains the
+   * consequence to the administrator about to accept it, who would otherwise
+   * lose the rows without being told.
+   */
+  readonly label: string;
 }> = {
   UsageRecord: {
     references: ['AIConfiguration', 'Translation'],
+    label: 'AI usage history',
     reason:
       'Aggregated AI telemetry, already excluded as "rebuilt from operation rather than restored". '
       + 'Its rows describe work done against configurations and translations that the restore replaces.',
   },
   ShoppingListInstance: {
     references: ['ShoppingListTemplate'],
+    label: 'records of previously generated shopping lists',
     reason:
       'Generated output tied to a ShoppingListPDF file the artifact does not carry, so these rows '
       + 'are already unusable after a restore. Regenerated from a template on demand.',

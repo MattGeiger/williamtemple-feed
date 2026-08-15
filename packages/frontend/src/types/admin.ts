@@ -200,6 +200,13 @@ export interface RestoreUnitInfo {
   label: string;
   description: string;
   requires: RestoreUnitId[];
+  /**
+   * Records that restoring this unit also clears, in plain language. They point
+   * into tables the restore replaces and cannot survive it, so the confirmation
+   * names them rather than discarding them silently. Derived server-side from
+   * the same contract the restore reads.
+   */
+  clears: string[];
 }
 
 /** What validation found in an uploaded file, before anything is replaced. */
