@@ -133,14 +133,26 @@ const round = (value: number, places = 2): number => {
 };
 
 /**
- * Every service series is daily, at every range.
- *
- * A service day is the unit staff actually work in and record against, so
- * rolling days up into weeks or months invented a period nobody counts in. The
- * pantry runs three days a week, so even the full history is roughly 900
- * points rather than 2,100.
+ * A service day is the unit staff work and record in, so short ranges stay
+ * daily. Over a year or more the daily shape stops being readable: WTH runs a
+ * hundred-household Thursday against a Friday backpack session serving five,
+ * and that real swing renders as noise once hundreds of points are on screen.
+ * Anything past a quarter is therefore monthly.
  */
-const granularityFor = (): ServiceBucketGranularity => 'day';
+const MONTHLY_THRESHOLD_DAYS = 90;
+
+const granularityFor = (
+  preset: AnalyticsRangePreset,
+  startDate: string,
+  endDate: string,
+): ServiceBucketGranularity => {
+  if (preset === 'ytd' || preset === 'all') return 'month';
+  if (preset !== 'custom') return 'day';
+  const days = Math.round(
+    (Date.parse(`${endDate}T00:00:00Z`) - Date.parse(`${startDate}T00:00:00Z`)) / 86_400_000,
+  ) + 1;
+  return days > MONTHLY_THRESHOLD_DAYS ? 'month' : 'day';
+};
 
 /** SQL producing the bucket key for a `serviceDate` column. */
 const bucketExpression = (granularity: ServiceBucketGranularity, column: string): string => {
@@ -172,7 +184,7 @@ export async function getServiceAnalytics(
     earliest._min.serviceDate ?? undefined,
   );
   const { startDate, endDate } = resolved;
-  const granularity = granularityFor();
+  const granularity = granularityFor(filters.preset, startDate, endDate);
   const kinds = HOUSEHOLD_KINDS;
 
   // Current definition revision per metric, carrying the flags that decide
@@ -276,25 +288,28 @@ export async function getServiceAnalytics(
     FROM "ServiceEncounterRevision"
     WHERE "isCurrent" = 1 AND "serviceDate" BETWEEN ${startDate} AND ${endDate}`;
 
-  const overTimeRows = await client.$queryRaw<Array<{
+  const overTimeRows = await client.$queryRawUnsafe<Array<{
     month: string; source: string; households: bigint; individuals: number | null;
-  }>>`
-    SELECT "serviceDate" AS "month", "source",
-           COUNT(*) AS "households",
-           SUM(COALESCE("reportedPeopleCount", 0)) AS "individuals"
-    FROM "ServiceEncounterRevision"
-    WHERE "isCurrent" = 1 AND "serviceDate" BETWEEN ${startDate} AND ${endDate}
-      AND "recordKind" IN (${kinds[0]}, ${kinds[1]})
-    GROUP BY "serviceDate", "source" ORDER BY "serviceDate", "source"`;
+  }>>(
+    `SELECT ${bucketExpression(granularity, '"serviceDate"')} AS "month", "source",
+            COUNT(*) AS "households",
+            SUM(COALESCE("reportedPeopleCount", 0)) AS "individuals"
+     FROM "ServiceEncounterRevision"
+     WHERE "isCurrent" = 1 AND "serviceDate" BETWEEN ? AND ?
+       AND "recordKind" IN (?, ?)
+     GROUP BY "month", "source" ORDER BY "month", "source"`,
+    startDate, endDate, kinds[0], kinds[1],
+  );
 
   const serviceLogMonthly = methodKeys.length === 0 ? [] :
     await client.$queryRawUnsafe<Array<{ month: string; households: number | null }>>(
-      `SELECT o."serviceDate" AS "month", SUM(COALESCE(o."countValue",0)) AS "households"
+      `SELECT ${bucketExpression(granularity, 'o."serviceDate"')} AS "month",
+              SUM(COALESCE(o."countValue",0)) AS "households"
        FROM "ServiceMetricObservationRevision" o
        JOIN "ServiceMetricDefinition" d ON d."id" = o."metricId"
        WHERE o."isCurrent" = 1 AND o."serviceDate" BETWEEN ? AND ?
          AND d."metricKey" IN (${inList(methodKeys)})
-       GROUP BY o."serviceDate" ORDER BY o."serviceDate"`,
+       GROUP BY "month" ORDER BY "month"`,
       startDate, endDate, ...methodKeys,
     );
 
@@ -360,7 +375,7 @@ export async function getServiceAnalytics(
            COUNT(*) AS "visits"
     FROM "ServiceEncounterRevision"
     WHERE "isCurrent" = 1 AND "serviceDate" BETWEEN ${startDate} AND ${endDate}
-      AND "recordKind" IN (${kinds[0]}, ${kinds[1]})
+      AND "recordKind" = 'identified_household_encounter'
     GROUP BY "year" ORDER BY "year"`;
 
   // ---- assemble ----------------------------------------------------------
@@ -387,8 +402,13 @@ export async function getServiceAnalytics(
   const spanOf = (source: string) => sourceSpans.find((row) => row.source === source);
   const l2fSpan = spanOf('link2feed');
   const simcSpan = spanOf('simc');
-  const within = (span: { firstDate: string; lastDate: string } | undefined, date: string) =>
-    Boolean(span && date >= span.firstDate && date <= span.lastDate);
+  // A bucket key is a date at day granularity and a "YYYY-MM" prefix at month
+  // granularity, so span bounds are truncated to the same width before
+  // comparison. Comparing "2020-10" against "2020-10-19" as strings would place
+  // the bucket before its own span and blank out the record's first month.
+  const toBucket = (date: string) => (granularity === 'month' ? date.slice(0, 7) : date);
+  const within = (span: { firstDate: string; lastDate: string } | undefined, bucket: string) =>
+    Boolean(span && bucket >= toBucket(span.firstDate) && bucket <= toBucket(span.lastDate));
 
   const monthly = new Map<string, ServiceAnalytics['overTime'][number]>();
   // Null inside a record's span means "recorded nothing that day"; null outside
@@ -443,7 +463,7 @@ export async function getServiceAnalytics(
     for (const key of methodKeys) {
       if (entry[key] !== undefined) continue;
       const start = methodStarts.find((row) => row.metricKey === key)?.firstDate;
-      if (start && bucket >= start) entry[key] = 0;
+      if (start && bucket >= toBucket(start)) entry[key] = 0;
     }
   }
 
