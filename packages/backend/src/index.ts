@@ -17,11 +17,21 @@ import { storageService } from './services/storage';
 import createServer from './server';
 import './services/translation-trigger';
 import { startDataImportStagingSweeper } from './services/data-import/staging-sweeper';
+import { failOrphanedDataImportJobs } from './services/data-import/background';
 
 const initializeServices = async () => {
   try {
     await storageService.initialize();
     console.log('Storage service initialized');
+
+    // Import work runs detached from its HTTP request, so a process that stops
+    // mid-run leaves its job in a background status that nothing will ever
+    // advance. Fail those before serving, or a polling client waits forever on
+    // progress that is not coming. See ISSUES.md #67.
+    const orphaned = await failOrphanedDataImportJobs();
+    if (orphaned.failed > 0) {
+      console.log(`Failed ${orphaned.failed} data import job(s) interrupted by a restart`);
+    }
 
     // Expired staged import bytes are PII and must not outlive their documented
     // 24-hour window. The sweep runs once now — collecting anything a previous

@@ -12,6 +12,7 @@ import {
   DataImportStagingService,
 } from '../data-import/staging';
 import { cleanupPendingServiceImport } from '../data-import/pending-service';
+import { startDataImportBackgroundTask } from '../data-import/background';
 import { activateReviewedDataImport } from '../data-import/workflow';
 import {
   serviceEncounterSnapshotHash,
@@ -252,6 +253,8 @@ export async function resolveLink2FeedVisitReviewIssue(
   const reason = normalizeDecisionText(input.reason, 'Decision reason', 500);
   await client.$transaction(async (tx) => {
     const job = await tx.dataImportJob.findUnique({ where: { id: jobId } });
+    // A decision is only meaningful while the job is genuinely waiting on the
+    // user — not while background preparation is still running.
     if (!job || job.status !== 'awaiting_review') {
       throw new Link2FeedVisitWorkflowError(
         'This Link2Feed import is no longer awaiting review.',
@@ -360,47 +363,91 @@ export async function resolveLink2FeedVisitReviewIssue(
       ? 'Link2Feed review is complete and ready for activation.'
       : `Review ${unresolvedIssueCount.toLocaleString('en-US')} service-data issue${unresolvedIssueCount === 1 ? '' : 's'} before activation.`,
   };
+  await recordDataImportJobProgress(jobId, progress, client);
   if (unresolvedIssueCount === 0) {
-    try {
-      await recordDataImportJobProgress(jobId, progress, client);
-      await materializeLink2FeedPendingImport(jobId, actor, client);
-      await transitionDataImportJob(jobId, { status: 'ready', ...progress }, client);
-    } catch (error) {
-      const failedJob = await client.dataImportJob.findUnique({ where: { id: jobId } }).catch(() => null);
-      if (failedJob?.pendingServiceImportId) {
-        await cleanupPendingLink2FeedServiceImport(
-          failedJob.pendingServiceImportId,
-          client,
-        ).catch(() => undefined);
-      }
-      await client.$transaction(async (tx) => {
-        await tx.dataImportReviewIssue.deleteMany({ where: { jobId } });
-        await tx.link2FeedVisitStagingRow.deleteMany({ where: { jobId } });
-        await tx.dataImportJob.update({
-          where: { id: jobId },
-          data: { pendingServiceImportId: null },
-        });
-      }).catch(() => undefined);
-      await dataImportStagingService.delete(failedJob?.stagedFileKey ?? null).catch(() => undefined);
-      const safe = error instanceof Link2FeedVisitWorkflowError
-        ? error
-        : new Link2FeedVisitWorkflowError(
-          'FEED could not prepare the reviewed Link2Feed revisions. No partial data was applied.',
-          'LINK2FEED_VISIT_PREPARATION_FAILED',
-        );
-      await transitionDataImportJob(jobId, {
-        status: 'failed',
-        stagedFileKey: null,
-        errorCode: safe.code,
-        errorMessage: safe.message,
-        safeMessage: safe.message,
-      }, client).catch(() => undefined);
-      throw safe;
-    }
-  } else {
-    await recordDataImportJobProgress(jobId, progress, client);
+    // Materializing 79,308 staged rows into pending revisions is six large
+    // INSERT…SELECT statements — long enough on the Pi to outlive the request,
+    // exactly like the initial parse. The decision itself is already committed
+    // above, so the caller gets an immediate answer and polls for the rest.
+    await transitionDataImportJob(jobId, {
+      ...progress,
+      status: 'preparing',
+      safeMessage: 'Preparing the reviewed Link2Feed data for activation.',
+    }, client);
+    startDataImportBackgroundTask(
+      jobId,
+      () => finalizeReviewedLink2FeedVisitImport(jobId, actor, client),
+      {
+        fallbackErrorCode: 'LINK2FEED_VISIT_PREPARATION_FAILED',
+        fallbackMessage: 'FEED could not prepare the reviewed Link2Feed revisions. No partial data was applied.',
+      },
+      client,
+    );
   }
   return updated;
+}
+
+/**
+ * Materializes reviewed staging rows into a pending import and marks the job
+ * ready. Runs as a background task once the last review issue is resolved.
+ *
+ * The failure path is unchanged from when this ran inline: a partially
+ * materialized pending import is cleaned up, staging is cleared, the staged
+ * source bytes are deleted, and the job records a specific, user-safe code.
+ * Nothing is visible to Analytics either way — only activation makes data
+ * visible — so an interrupted finalize costs the user a re-upload, never
+ * partial or misleading data.
+ */
+export async function finalizeReviewedLink2FeedVisitImport(
+  jobId: string,
+  actor: string | null,
+  client: PrismaClient = prisma,
+): Promise<void> {
+  try {
+    const job = await client.dataImportJob.findUnique({ where: { id: jobId } });
+    const review = readReviewSummary(job?.reviewSummary ?? null);
+    const progress = {
+      processedRows: job?.processedRows ?? review.rowCount,
+      totalRows: job?.totalRows ?? review.rowCount,
+      warningCount: job?.warningCount ?? review.warningCount,
+      unresolvedIssueCount: 0,
+      reviewSummary: review as unknown as Prisma.InputJsonValue,
+      safeMessage: 'Link2Feed review is complete and ready for activation.',
+    };
+    await materializeLink2FeedPendingImport(jobId, actor, client);
+    await transitionDataImportJob(jobId, { status: 'ready', ...progress }, client);
+  } catch (error) {
+    const failedJob = await client.dataImportJob.findUnique({ where: { id: jobId } }).catch(() => null);
+    if (failedJob?.pendingServiceImportId) {
+      await cleanupPendingLink2FeedServiceImport(
+        failedJob.pendingServiceImportId,
+        client,
+      ).catch(() => undefined);
+    }
+    await client.$transaction(async (tx) => {
+      await tx.dataImportReviewIssue.deleteMany({ where: { jobId } });
+      await tx.link2FeedVisitStagingRow.deleteMany({ where: { jobId } });
+      await tx.dataImportJob.update({
+        where: { id: jobId },
+        data: { pendingServiceImportId: null },
+      });
+    }).catch(() => undefined);
+    await dataImportStagingService.delete(failedJob?.stagedFileKey ?? null).catch(() => undefined);
+    const safe = error instanceof Link2FeedVisitWorkflowError
+      ? error
+      : new Link2FeedVisitWorkflowError(
+        'FEED could not prepare the reviewed Link2Feed revisions. No partial data was applied.',
+        'LINK2FEED_VISIT_PREPARATION_FAILED',
+      );
+    await transitionDataImportJob(jobId, {
+      status: 'failed',
+      stagedFileKey: null,
+      errorCode: safe.code,
+      errorMessage: safe.message,
+      safeMessage: safe.message,
+    }, client).catch(() => undefined);
+    throw safe;
+  }
 }
 
 export async function cleanupPendingLink2FeedServiceImport(
@@ -416,7 +463,7 @@ async function materializeLink2FeedPendingImport(
   client: PrismaClient,
 ): Promise<number | null> {
   const job = await client.dataImportJob.findUnique({ where: { id: jobId } });
-  if (!job || job.status !== 'awaiting_review' || job.unresolvedIssueCount !== 0 || !job.fileHash) {
+  if (!job || job.status !== 'preparing' || job.unresolvedIssueCount !== 0 || !job.fileHash) {
     throw new Link2FeedVisitWorkflowError(
       'Resolve every required Link2Feed review issue before preparing activation.',
       'LINK2FEED_REVIEW_INCOMPLETE',
@@ -733,7 +780,7 @@ export async function prepareLink2FeedVisitImport(
   const job = await client.dataImportJob.findUnique({ where: { id: jobId } });
   if (
     !job
-    || job.status !== 'awaiting_review'
+    || job.status !== 'preparing'
     || job.contractId !== LINK2FEED_VISIT_CONTRACT_ID
     || !job.stagedFileKey
     || !job.fileHash

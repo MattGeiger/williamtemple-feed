@@ -173,7 +173,7 @@ the dev machine); the change is one directive value plus comments, and the
 deploy's own container start will surface a config error immediately.
 
 ### #67 — Imports run inside one synchronous request: no progress, ~100s ceiling
-**Priority**: High · **Status**: Open, found 2026-08-14 investigating the beta.10 stall
+**Priority**: High · **Status**: Fixed in source 2026-08-14; awaiting deployment
 **Bucket**: Data Management / import UX and architecture
 
 `POST /api/data-import/jobs` (`routes/data-import.ts:291`) awaits the entire
@@ -204,10 +204,59 @@ server-side abort, and a Cancel that only dropped the HTTP request would let
 the import commit anyway while telling the user the opposite. Cancel is
 currently disabled during import, which is the honest behaviour.
 
-**Planned fix:** sequenced through
-`docs/data-management/link2feed-import-benchmark-plan.md` §1.2/§1.5 — the
-ceiling documented in Phase 2, the architecture decision gated on Phase 5
-measurements, the progress UI in Phase 7.
+**Measured on the production Pi, 2026-08-14** (beta.12, 25,124,653 bytes,
+79,308 rows): total **167.8 s**, against a ~100 s ceiling. Cloudflare returned
+524 while the origin kept working and completed normally. Phase breakdown from
+the job event log:
+
+| Phase | Time |
+|---|---|
+| Upload, stage to SD, hash, detect | 0.2 s |
+| Parse + stage 79,308 rows | ~147 s |
+| Profile dedup, presets, reconcile | ~20 s |
+
+Ingest rate degrades ~2.6× as the staging table fills — 1,040 rows/s over the
+first 5,000, 397 rows/s by 65,000. Parsing is constant-rate CPU work and cannot
+do that; the likely mechanism is index maintenance, since `sourceRecordKey` is a
+SHA-256 hash so `@@unique([jobId, sourceRecordKey])` takes keys in random order
+and every insert lands on an arbitrary B-tree page. Tracked as a separate
+optimization question — it is not what made the import impossible.
+
+**Resolution:** preparation and activation now run detached from their requests
+(`services/data-import/background.ts`). `POST /jobs` stages the file — 0.2 s
+measured — and returns **202**; `POST /jobs/:jobId/activate` likewise. The
+client polls `GET /jobs/:jobId`.
+
+Optimization alone could not have fixed this: even a 2× speedup lands at ~84 s
+against a 100 s ceiling, which is not a margin worth shipping.
+
+A new `preparing` status carries the change. `awaiting_review` previously meant
+two different things — "the server is still parsing" and "the server is waiting
+for you" — which a progress indicator cannot tell apart. Resolving the last
+review issue also returns the job to `preparing` while materialization runs,
+because that step is six large `INSERT … SELECT` statements and can outlive its
+request too.
+
+The progress data always existed and was simply unreachable: the backend has
+recorded `processedRows` every 5,000 rows all along, and `GET /jobs/:jobId`
+already returned it — but the client was blocked on the very request producing
+it. The dialog now shows counted progress, a determinate bar once `totalRows` is
+known and elapsed time before then, and never a fabricated percentage.
+
+Two failure modes that detaching introduces are handled explicitly.
+`failOrphanedDataImportJobs` runs at startup and fails any job left in a
+background status by a stopped process — nothing else would ever advance it, and
+a polling client would wait forever. And closing the dialog during background
+work no longer cancels the job: cancelling mid-run would delete staging rows out
+from under the running task, so the button reads **Close**, the work continues,
+and `GET /jobs/active` offers the way back.
+
+That resume path is what recovers the real stranded import: job `cmstqsmt` held
+79,308 staged rows and 13 pending decisions with no way to reach them.
+
+Cancellation during background work is still not offered. There is no
+server-side abort, and a control that only dropped the poll would let the import
+commit while telling the user the opposite.
 
 ### #66 — Imported Tracking observations were invisible in the Service Log
 **Priority**: High · **Status**: Fixed in source 2026-08-13; awaiting staff acceptance testing

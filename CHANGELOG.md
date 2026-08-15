@@ -5,7 +5,42 @@ All notable changes to FEED are documented here. This project adheres to
 
 ## [Unreleased]
 
-## [1.5.0-beta.12] — 2026-08-14
+## [1.5.0-beta.13] — 2026-08-14
+
+Makes large imports completable, and visible while they run. Measured on the
+production Pi, a 79,308-row Link2Feed export takes 167.8 seconds to prepare —
+past the ~100-second limit the hosting layer allows any single request, so that
+import could not finish however fast the pipeline became.
+
+### Changed
+
+- **Imports now continue on the server instead of inside the browser's
+  request.** Uploading returns as soon as the file is stored and identified;
+  validation and activation carry on independently. The practical effect is that
+  a large historical import completes at all — previously the connection was cut
+  at roughly a hundred seconds and the result was unreachable even though the
+  server had finished the work.
+
+- **The import window now reports real progress.** It shows records validated
+  against the total, a progress bar once the total is known, and elapsed time
+  before then. It never shows an invented percentage. FEED had been recording
+  this progress all along with no way to display it, because the browser was
+  waiting on the same request that produced it.
+
+- **An import in progress can be reopened.** Closing the window, refreshing, or
+  losing the connection no longer abandons the work. FEED offers to return to an
+  import that is still running or still waiting on review decisions. Closing the
+  window during an import leaves it running — the button now reads `Close` — and
+  existing data remains unchanged until activation.
+
+- **An import interrupted by a server restart now fails clearly** instead of
+  appearing to run forever, and says a restart interrupted it.
+
+### Fixed
+
+- **Activation details survive the wait.** Now that activation completes after
+  the response, its record counts are stored with the import job so the window
+  can report exactly what became active.
 
 Makes real Link2Feed visit exports importable. Verified against WTH's
 production export: 79,308 visits spanning 2020-10-19 to 2026-05-28 parse with

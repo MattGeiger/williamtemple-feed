@@ -8,6 +8,12 @@ import { DATA_IMPORT_STAGING_TTL_MS } from './staging';
 export const DATA_IMPORT_JOB_STATUSES = [
   'staging',
   'inspecting',
+  // Background work is running and no one is waiting on an HTTP response for
+  // it. `preparing` exists because `awaiting_review` previously meant two
+  // different things — "the server is still parsing" and "the server is
+  // waiting for you" — which a progress indicator cannot tell apart. Both the
+  // initial parse and the post-review materialization report through it.
+  'preparing',
   'awaiting_review',
   'ready',
   'activating',
@@ -21,10 +27,18 @@ export type DataImportJobStatus = typeof DATA_IMPORT_JOB_STATUSES[number];
 export type DataImportActivationOutcome = typeof DATA_IMPORT_ACTIVATION_OUTCOMES[number];
 
 const TERMINAL_STATUSES = new Set<DataImportJobStatus>(['completed', 'failed', 'cancelled']);
+// Statuses where a background task owns the job. Nothing outside that task will
+// advance them, so a process that dies mid-run leaves them stranded — see
+// `failOrphanedDataImportJobs`.
+export const DATA_IMPORT_BACKGROUND_STATUSES: readonly DataImportJobStatus[] = ['preparing', 'activating'];
 const TRANSITIONS: Record<DataImportJobStatus, readonly DataImportJobStatus[]> = {
   staging: ['inspecting', 'failed', 'cancelled'],
-  inspecting: ['awaiting_review', 'ready', 'failed', 'cancelled'],
-  awaiting_review: ['ready', 'failed', 'cancelled'],
+  inspecting: ['preparing', 'awaiting_review', 'ready', 'failed', 'cancelled'],
+  // Preparation ends in questions for the user, readiness, or failure.
+  preparing: ['awaiting_review', 'ready', 'failed', 'cancelled'],
+  // Resolving the last review issue sends the job back into `preparing` while
+  // materialization runs.
+  awaiting_review: ['preparing', 'ready', 'failed', 'cancelled'],
   ready: ['activating', 'failed', 'cancelled'],
   activating: ['completed', 'failed'],
   completed: [],
@@ -137,7 +151,7 @@ export function validateDataImportJobTransition(
     }
     assertWholeNumber('Data file size', draft.fileSizeBytes);
   }
-  if (['awaiting_review', 'ready', 'activating', 'completed'].includes(draft.status)) {
+  if (['preparing', 'awaiting_review', 'ready', 'activating', 'completed'].includes(draft.status)) {
     if (!draft.contractId && currentStatus === 'inspecting') {
       throw new DataImportJobError(
         'A detected source contract is required before review.',
@@ -359,6 +373,9 @@ export async function activateDataImportJobAtomically<T>(
         data: {
           status: 'completed',
           activationOutcome: result.outcome,
+          // Activation no longer answers the request that started it, so the
+          // per-adapter counts are persisted for a polling client to read.
+          activationSummary: (result.value ?? null) as Prisma.InputJsonValue,
           completedAt: new Date(),
         },
       });

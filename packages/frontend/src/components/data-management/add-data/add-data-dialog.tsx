@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/dialog';
 import { AlertCircle, CheckCircle2, FileText, Loader2, ShieldCheck } from '@/components/ui/icons';
 import { Input } from '@/components/ui/input';
+import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from '@/components/ui/textarea';
 import { formatDate, formatDateRange } from '@/lib/formatting/date';
@@ -59,6 +60,14 @@ const formatBytes = (bytes: number) => {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+};
+
+// A large import legitimately runs for minutes, so raw seconds stop reading as
+// progress past a point. Measured on the production Pi: 79,308 rows took 168s.
+const formatElapsed = (seconds: number): string => {
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.floor(seconds / 60);
+  return `${minutes}m ${String(seconds % 60).padStart(2, '0')}s`;
 };
 
 const warningCount = (result: UnifiedImportResult) =>
@@ -115,7 +124,13 @@ export function AddDataDialog({
   const [decisionAction, setDecisionAction] = React.useState<Link2FeedReviewAction>('keep_source_interpretation');
   const [decisionReason, setDecisionReason] = React.useState('');
   const [eventLabel, setEventLabel] = React.useState('');
+  const [resumable, setResumable] = React.useState<DataImportJobReview | null>(null);
+  const [startedAt, setStartedAt] = React.useState<number | null>(null);
+  const [elapsedSeconds, setElapsedSeconds] = React.useState(0);
   const inputRef = React.useRef<HTMLInputElement>(null);
+
+  // The server owns the work; these two statuses mean it is still running it.
+  const isBackgroundRunning = job?.status === 'preparing' || job?.status === 'activating';
 
   const reset = React.useCallback(() => {
     setStep('select');
@@ -131,8 +146,57 @@ export function AddDataDialog({
     setDecisionAction('keep_source_interpretation');
     setDecisionReason('');
     setEventLabel('');
+    setResumable(null);
+    setStartedAt(null);
+    setElapsedSeconds(0);
     if (inputRef.current) inputRef.current.value = '';
   }, []);
+
+  // Poll while the server is working. The import outlives this dialog either
+  // way — closing the browser does not stop it — so this only decides whether
+  // the user can watch, not whether the work completes.
+  React.useEffect(() => {
+    if (!open || !job || !isBackgroundRunning) return;
+    let cancelled = false;
+    const timer = window.setInterval(() => {
+      void (async () => {
+        try {
+          const next = await dataImportService.getJob(job.id);
+          if (!cancelled) setJob(next);
+        } catch {
+          // A dropped poll is not a failed import. Stay quiet and try again on
+          // the next tick rather than reporting an error the server never sent.
+        }
+      })();
+    }, 2000);
+    return () => { cancelled = true; window.clearInterval(timer); };
+  }, [open, job, isBackgroundRunning]);
+
+  // Elapsed time is the honest signal while row counts are still zero — it is
+  // what separates "working" from "hung" before there is anything to count.
+  React.useEffect(() => {
+    if (!isBackgroundRunning || startedAt === null) return;
+    const timer = window.setInterval(() => {
+      setElapsedSeconds(Math.floor((Date.now() - startedAt) / 1000));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [isBackgroundRunning, startedAt]);
+
+  // An import that lost its browser tab is still running on the server. Offer
+  // the way back to it rather than letting the user start a second one.
+  React.useEffect(() => {
+    if (!open || job || !isAdministrator) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const active = await dataImportService.getActiveJob();
+        if (!cancelled) setResumable(active);
+      } catch {
+        // Resume is an offer, not a requirement; a failed lookup stays silent.
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [open, job, isAdministrator]);
 
   React.useEffect(() => {
     if (!open) reset();
@@ -180,7 +244,15 @@ export function AddDataDialog({
   };
 
   const close = async () => {
-    if (job && !['completed', 'failed', 'cancelled'].includes(job.status)) {
+    // Cancelling a job that a background task is mid-way through would delete
+    // the staging rows out from under it — and there is no server-side abort to
+    // stop the task itself. So closing during `preparing`/`activating` leaves
+    // the import running and simply stops watching it; the resume offer is how
+    // the user gets back. A job that is genuinely waiting on the user is still
+    // cancelled, which is what discards its staged source data.
+    const abandonable = job
+      && !['completed', 'failed', 'cancelled', 'preparing', 'activating'].includes(job.status);
+    if (abandonable && job) {
       setIsWorking(true);
       await dataImportService.cancel(job.id).catch(() => undefined);
       setIsWorking(false);
@@ -188,13 +260,13 @@ export function AddDataDialog({
     onOpenChange(false);
   };
 
-  const refreshAfterImport = async () => {
+  const refreshAfterImport = React.useCallback(async () => {
     try {
       await onImported?.();
     } catch (caught) {
       ErrorHandlerService.handleError(caught, 'procurementImportHistory');
     }
-  };
+  }, [onImported]);
 
   const beginImport = async () => {
     if (!file || !detection) return;
@@ -261,6 +333,10 @@ export function AddDataDialog({
         return;
       }
 
+      // Returns once the file is staged and identified, not once it is
+      // validated — the polling effect above takes it from here.
+      setStartedAt(Date.now());
+      setElapsedSeconds(0);
       setJob(await dataImportService.upload(file));
       setStep('complete');
     } catch (caught) {
@@ -312,16 +388,30 @@ export function AddDataDialog({
     try {
       setError(null);
       setIsWorking(true);
-      const activated = await dataImportService.activate(job.id);
-      setJob(activated.job);
-      setResult(activated.result);
-      await refreshAfterImport();
+      setStartedAt(Date.now());
+      setElapsedSeconds(0);
+      // Accepted, not finished. The job reaches `completed` in the background
+      // and the polling effect picks up the outcome and its counts.
+      setJob(await dataImportService.activate(job.id));
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'FEED could not activate this data. No partial data was applied.');
     } finally {
       setIsWorking(false);
     }
   };
+
+  // Activation finishing is a background event, so the inventory refresh and
+  // the success state are driven by the polled job rather than by a response.
+  React.useEffect(() => {
+    if (job?.status !== 'completed' || !job.activationOutcome || result) return;
+    setResult({ outcome: job.activationOutcome, value: job.activationSummary ?? {
+      importId: null,
+      encounterRevisionCount: 0,
+      profileRevisionCount: 0,
+      qualityIssueCount: 0,
+    } });
+    void refreshAfterImport();
+  }, [job, result, refreshAfterImport]);
   const serviceAccessBlocked = Boolean(
     detection?.contract.domain === 'service' && !isAdministrator
   );
@@ -360,6 +450,43 @@ export function AddDataDialog({
 
         {step === 'select' && (
           <div className="space-y-4">
+            {/* An import keeps running after its browser tab goes away. Without
+                this the work, and any questions it raised, are unreachable until
+                the job expires — and the user's instinct is to upload again,
+                which duplicates minutes of work. */}
+            {resumable && (
+              <Alert>
+                <Loader2
+                  className={`h-4 w-4 ${resumable.status === 'preparing' || resumable.status === 'activating' ? 'animate-spin' : ''}`}
+                  aria-hidden="true"
+                />
+                <AlertTitle>An import is already in progress</AlertTitle>
+                <AlertDescription className="space-y-2">
+                  <p>
+                    {resumable.status === 'awaiting_review'
+                      ? `FEED finished reading ${resumable.processedRows.toLocaleString()} records and needs ${resumable.unresolvedIssueCount.toLocaleString()} decision${resumable.unresolvedIssueCount === 1 ? '' : 's'} from you.`
+                      : resumable.status === 'ready'
+                        ? 'A reviewed import is prepared and ready to activate.'
+                        : `FEED is still working — ${resumable.processedRows.toLocaleString()} records so far.`}
+                  </p>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setJob(resumable);
+                      setResumable(null);
+                      setStartedAt(Date.now());
+                      setElapsedSeconds(0);
+                      setStep('complete');
+                    }}
+                  >
+                    Reopen that import
+                  </Button>
+                </AlertDescription>
+              </Alert>
+            )}
+
             <AnimateIcon asChild animateOnView animateOnViewOnce animateOnHover animateOnTap>
               <div
                 className={`rounded-lg border-2 border-dashed px-6 py-8 text-center transition-colors ${
@@ -557,6 +684,47 @@ export function AddDataDialog({
             )}
           </div>
         )}
+
+        {/* Deliberately outside the review-summary block below: while the job is
+            preparing there is no summary yet, and gating progress on one is what
+            leaves the user staring at an empty dialog for minutes. */}
+        {step === 'complete' && job && (isBackgroundRunning || isWorking) && (
+          <div className="space-y-2 rounded-md border bg-muted/40 p-3" aria-live="polite">
+            <div className="flex items-center gap-2 text-sm">
+                <Loader2 className="h-4 w-4 shrink-0 animate-spin" aria-hidden="true" />
+                <span className="font-medium">
+                  {job.status === 'activating'
+                    ? 'Activating reviewed data…'
+                    : job.processedRows > 0
+                      ? `Validated ${job.processedRows.toLocaleString()}${job.totalRows ? ` of ${job.totalRows.toLocaleString()}` : ''} record${job.processedRows === 1 ? '' : 's'}…`
+                      : 'Reading the data file…'}
+                </span>
+                <span className="ml-auto shrink-0 tabular-nums text-xs text-muted-foreground">
+                  {formatElapsed(elapsedSeconds)}
+                </span>
+              </div>
+
+              {/* A determinate bar only once totalRows is known. Before that a
+                  percentage would be invented, and elapsed time is the honest
+                  signal — the same reasoning as the OFB import panel. */}
+              {job.totalRows && job.totalRows > 0 ? (
+                <Progress
+                  value={Math.min(100, Math.round((job.processedRows / job.totalRows) * 100))}
+                  className="h-1.5"
+                />
+              ) : (
+                <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+                  <div className="h-full w-1/3 animate-pulse rounded-full bg-primary/60" />
+                </div>
+              )}
+
+              <p className="text-xs text-muted-foreground">
+                This continues on the server. You can close this window and come
+                back — FEED will offer to reopen the import. Existing data is
+                unchanged until you activate.
+              </p>
+            </div>
+          )}
 
         {step === 'complete' && job?.reviewSummary && (
           <div className="space-y-4">
@@ -786,13 +954,6 @@ export function AddDataDialog({
               </div>
             </ScrollArea>
 
-            {isWorking && (
-              <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground" aria-live="polite">
-                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                <span>{job.status === 'ready' ? 'Activating reviewed data…' : 'Preparing the review…'}</span>
-              </div>
-            )}
-
             {error && (
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" aria-hidden="true" />
@@ -830,9 +991,13 @@ export function AddDataDialog({
           )}
           {step === 'complete' && (
             <>
+              {/* While the server is working there is no honest cancel: there is
+                  no server-side abort, so a button here could only drop the poll
+                  while the import carried on. "Close" says what it does — the
+                  work continues and the resume offer brings the user back. */}
               {job && !result && (
                 <Button type="button" variant="outline" onClick={() => void close()} disabled={isWorking}>
-                  Cancel Import
+                  {isBackgroundRunning ? 'Close' : 'Cancel Import'}
                 </Button>
               )}
               {job?.status === 'ready' && !result && (

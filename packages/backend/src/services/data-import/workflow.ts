@@ -40,15 +40,18 @@ export async function stageRecognizedDataImport(
       fileSizeBytes: artifact.fileSizeBytes,
       safeMessage: 'Inspecting the staged data source.',
     }, client);
+    // The staged bytes are on disk and the source is identified, so the request
+    // that carried the upload has nothing left to wait for. The job moves to
+    // `preparing` and the caller detaches the long work.
     const reviewJob = await transitionDataImportJob(job.id, {
-      status: 'awaiting_review',
+      status: 'preparing',
       contractId: artifact.inspection.contract.id,
       domain: artifact.inspection.contract.domain,
       source: artifact.inspection.contract.source,
       datasetKind: artifact.inspection.contract.datasetKind,
       recognizedFieldCount: artifact.inspection.recognizedFieldCount,
       ignoredFieldCount: artifact.inspection.ignoredFieldCount,
-      safeMessage: 'Source detected. Review the import details before continuing.',
+      safeMessage: 'Source detected. Validating the data.',
     }, client);
     return { job: reviewJob, inspection: artifact.inspection };
   } catch (error) {

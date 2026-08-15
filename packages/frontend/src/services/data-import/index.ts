@@ -169,7 +169,11 @@ export interface DataImportJobReview {
   domain: string | null;
   source: string | null;
   datasetKind: string | null;
-  status: 'awaiting_review' | 'ready' | 'activating' | 'completed' | 'failed' | 'cancelled' | string;
+  // `preparing` means the server is still working and nobody is waiting on a
+  // response; `awaiting_review` means it is waiting on the user. Keeping them
+  // apart is what lets the dialog show progress instead of an unqualified
+  // spinner.
+  status: 'preparing' | 'awaiting_review' | 'ready' | 'activating' | 'completed' | 'failed' | 'cancelled' | string;
   fileSizeBytes: number;
   recognizedFieldCount: number;
   ignoredFieldCount: number;
@@ -179,6 +183,7 @@ export interface DataImportJobReview {
   unresolvedIssueCount: number;
   reviewSummary: Link2FeedReviewSummary | SimcReviewSummary | WthTrackingReviewSummary | null;
   activationOutcome: 'imported' | 'no_op' | null;
+  activationSummary: DataImportActivationResult['value'] | null;
   errorCode: string | null;
   errorMessage: string | null;
   reviewIssues: DataImportReviewIssue[];
@@ -227,6 +232,30 @@ class DataImportApiService extends BaseApiService {
     return response.job;
   }
 
+  /**
+   * Current server-side state of one import job.
+   *
+   * Preparation and activation run detached from their requests, so this is how
+   * a caller learns that 45,000 of 79,308 rows are validated, or that a job
+   * finished after the browser stopped waiting for it.
+   */
+  async getJob(jobId: string): Promise<DataImportJobReview> {
+    const response = await this.get<{ job: DataImportJobReview }>(`/jobs/${jobId}`);
+    return response.job;
+  }
+
+  /**
+   * An import still in flight or awaiting review, if one exists.
+   *
+   * An import survives its browser tab. Without this there is no way back to a
+   * job whose response was lost, and the work — plus any questions it raised —
+   * is stranded until it expires.
+   */
+  async getActiveJob(): Promise<DataImportJobReview | null> {
+    const response = await this.get<{ job: DataImportJobReview | null }>('/jobs/active');
+    return response.job;
+  }
+
   async decide(
     jobId: string,
     issueId: number,
@@ -239,11 +268,14 @@ class DataImportApiService extends BaseApiService {
     return response.job;
   }
 
-  async activate(jobId: string): Promise<{
-    result: DataImportActivationResult;
-    job: DataImportJobReview;
-  }> {
-    return this.post(`/jobs/${jobId}/activate`);
+  /**
+   * Starts activation. Returns as soon as the job is accepted, NOT when the
+   * data is live — activation can outlast the edge timeout on a large import.
+   * Poll `getJob` until the status is `completed` and read `activationSummary`.
+   */
+  async activate(jobId: string): Promise<DataImportJobReview> {
+    const response = await this.post<{ job: DataImportJobReview }>(`/jobs/${jobId}/activate`);
+    return response.job;
   }
 
   async cancel(jobId: string): Promise<void> {

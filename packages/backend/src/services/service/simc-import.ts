@@ -111,7 +111,7 @@ async function materializeSimcPendingImport(
   client: PrismaClient,
 ): Promise<number | null> {
   const job = await client.dataImportJob.findUnique({ where: { id: jobId } });
-  if (!job || job.status !== 'awaiting_review' || !job.fileHash) {
+  if (!job || job.status !== 'preparing' || !job.fileHash) {
     throw new SimcServiceVisitWorkflowError('This SIMC review is not ready.', 'SIMC_REVIEW_INCOMPLETE');
   }
   if (job.pendingServiceImportId) return job.pendingServiceImportId;
@@ -281,7 +281,7 @@ export async function prepareSimcServiceVisitImport(
   staging: DataImportStagingService = dataImportStagingService,
 ): Promise<SimcServiceVisitReviewSummary> {
   const job = await client.dataImportJob.findUnique({ where: { id: jobId } });
-  if (!job || job.status !== 'awaiting_review' || job.contractId !== SIMC_SERVICE_VISIT_CONTRACT_ID
+  if (!job || job.status !== 'preparing' || job.contractId !== SIMC_SERVICE_VISIT_CONTRACT_ID
     || !job.stagedFileKey || !job.fileHash) {
     throw new SimcServiceVisitWorkflowError(
       'This import job is not a staged SIMC service export.',

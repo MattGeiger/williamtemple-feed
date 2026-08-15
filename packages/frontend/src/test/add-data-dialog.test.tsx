@@ -59,6 +59,48 @@ const jsonResponse = (body: unknown, status = 200) => new Response(JSON.stringif
   headers: { 'Content-Type': 'application/json' },
 });
 
+/**
+ * Routes fetch by URL and method rather than by call order.
+ *
+ * Preparation and activation now run detached from their requests, so the
+ * dialog also asks whether an import is already in progress when it opens and
+ * polls while one is running. Ordered `mockResolvedValueOnce` chains cannot
+ * express that — an extra poll would shift every later response by one.
+ *
+ * `activate` returns only the accepted job; the completed job (with its
+ * activation counts) arrives on the next poll, exactly as the server behaves.
+ */
+const mockImportApi = (options: {
+  uploadJob: Record<string, unknown>;
+  activatedJob?: Record<string, unknown>;
+  activeJob?: Record<string, unknown> | null;
+}) => {
+  const calls: Array<{ url: string; method: string }> = [];
+  let current = options.uploadJob;
+  const spy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+    const url = typeof input === 'string' ? input : (input as Request).url ?? String(input);
+    const method = (init?.method ?? 'GET').toUpperCase();
+    calls.push({ url, method });
+
+    if (url.includes('/jobs/active')) {
+      return jsonResponse({ job: options.activeJob ?? null });
+    }
+    if (url.endsWith('/jobs') && method === 'POST') {
+      return jsonResponse({ job: current }, 202);
+    }
+    if (url.includes('/activate') && method === 'POST') {
+      current = options.activatedJob ?? current;
+      return jsonResponse({ job: current }, 202);
+    }
+    if (method === 'GET') return jsonResponse({ job: current });
+    return jsonResponse({});
+  });
+  return { spy, calls };
+};
+
+const importPosts = (calls: Array<{ url: string; method: string }>) =>
+  calls.filter((call) => call.method === 'POST' && call.url.endsWith('/jobs'));
+
 const simcFixture = [
   [...SIMC_SERVICE_VISIT_ALLOWED_HEADERS, 'Neighbor First Name'].join(','),
   [...SIMC_SERVICE_VISIT_ALLOWED_HEADERS.map(() => ''), 'Private'].join(','),
@@ -81,7 +123,11 @@ const legacyFixture = [
 
 describe('Add Data workflow', () => {
   test('routes a unified OFB export through the established procurement importer', async () => {
-    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(jsonResponse({
+    // The dialog asks whether an import is already running as soon as it
+    // opens; the procurement path itself is unchanged.
+    const fetchSpy = vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(jsonResponse({ job: null }))
+      .mockResolvedValueOnce(jsonResponse({
       result: {
         outcome: 'imported',
         rowCount: 1,
@@ -125,7 +171,9 @@ describe('Add Data workflow', () => {
   });
 
   test('routes the WTH historical ledger through its existing sidecar importer', async () => {
-    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(jsonResponse({
+    const fetchSpy = vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(jsonResponse({ job: null }))
+      .mockResolvedValueOnce(jsonResponse({
       result: {
         outcome: 'imported',
         importId: 22,
@@ -176,20 +224,20 @@ describe('Add Data workflow', () => {
   });
 
   test('detects locally, reviews the Link2Feed plan, and activates through the unified endpoint', async () => {
-    const fetchSpy = vi.spyOn(globalThis, 'fetch')
-      .mockResolvedValueOnce(jsonResponse({ job: reviewJob }, 201))
-      .mockResolvedValueOnce(jsonResponse({
-        result: {
-          outcome: 'imported',
-          value: {
-            importId: 12,
-            encounterRevisionCount: 1,
-            profileRevisionCount: 1,
-            qualityIssueCount: 0,
-          },
+    const { spy: fetchSpy, calls } = mockImportApi({
+      uploadJob: reviewJob,
+      activatedJob: {
+        ...reviewJob,
+        status: 'completed',
+        activationOutcome: 'imported',
+        activationSummary: {
+          importId: 12,
+          encounterRevisionCount: 1,
+          profileRevisionCount: 1,
+          qualityIssueCount: 0,
         },
-        job: { ...reviewJob, status: 'completed', activationOutcome: 'imported' },
-      }, 201));
+      },
+    });
     render(<AddDataDialog open onOpenChange={() => {}} />);
 
     const input = screen.getByLabelText('Choose data file');
@@ -205,7 +253,9 @@ describe('Add Data workflow', () => {
     expect(await screen.findByText('4 unrecognized columns will be ignored.')).toBeVisible();
     expect(screen.queryByText(/What FEED will do/)).toBeNull();
 
-    expect(fetchSpy).not.toHaveBeenCalled();
+    // Source detection is local: opening the dialog only asks whether an import
+    // is already in progress, and never uploads to detect.
+    expect(importPosts(calls)).toHaveLength(0);
     fireEvent.click(screen.getByRole('button', { name: 'Validate and Review' }));
     expect(await screen.findByText('Ready to activate')).toBeVisible();
     expect(fetchSpy).toHaveBeenCalledWith(
@@ -216,7 +266,79 @@ describe('Add Data workflow', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Activate Data' }));
     expect(await screen.findByText('Link2Feed data activated')).toBeVisible();
     expect(screen.getByText(/1 encounter revision and 1 client profile/)).toBeVisible();
-    await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(2));
+    expect(importPosts(calls)).toHaveLength(1);
+    fetchSpy.mockRestore();
+  });
+
+  // ISSUES.md #67. A 25 MB Link2Feed export takes 167.8s to prepare on the
+  // production Pi against a ~100s Cloudflare edge timeout, so preparation runs
+  // detached from its request and the dialog polls. Before this, the server knew
+  // "45,000 of 79,308" the whole time and had no way to say so.
+  test('shows real progress while the server prepares, then the finished review', async () => {
+    const preparing = {
+      ...reviewJob,
+      status: 'preparing',
+      totalRows: null,
+      processedRows: 0,
+      unresolvedIssueCount: 0,
+      reviewSummary: null,
+    };
+    let current: Record<string, unknown> = preparing;
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+      const url = typeof input === 'string' ? input : String(input);
+      const method = (init?.method ?? 'GET').toUpperCase();
+      if (url.includes('/jobs/active')) return jsonResponse({ job: null });
+      if (url.endsWith('/jobs') && method === 'POST') return jsonResponse({ job: current }, 202);
+      return jsonResponse({ job: current });
+    });
+
+    render(<AddDataDialog open onOpenChange={() => {}} />);
+    fireEvent.change(screen.getByLabelText('Choose data file'), {
+      target: { files: [new File([link2FeedFixture], 'link2feed-visits.csv', { type: 'text/csv' })] },
+    });
+    expect(await screen.findByText('Link2Feed visit export')).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Validate and Review' }));
+
+    // Before any row count exists, elapsed time is the honest signal.
+    expect(await screen.findByText(/Reading the data file/)).toBeVisible();
+    expect(screen.getByText(/continues on the server/)).toBeVisible();
+
+    // Counted progress, reported by the server rather than invented here.
+    current = { ...preparing, processedRows: 45000, totalRows: 79308 };
+    expect(await screen.findByText(/Validated 45,000 of 79,308 records/, undefined, { timeout: 4000 }))
+      .toBeVisible();
+
+    current = reviewJob;
+    expect(await screen.findByText('Ready to activate', undefined, { timeout: 4000 })).toBeVisible();
+    fetchSpy.mockRestore();
+  });
+
+  test('offers a way back into an import whose browser tab went away', async () => {
+    // The 524 case: the Pi kept working, the browser did not. Without this the
+    // staged work and its questions are unreachable until the job expires.
+    const stranded = {
+      ...reviewJob,
+      status: 'awaiting_review',
+      processedRows: 79308,
+      totalRows: 79308,
+      unresolvedIssueCount: 13,
+    };
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = typeof input === 'string' ? input : String(input);
+      if (url.includes('/jobs/active')) return jsonResponse({ job: stranded });
+      return jsonResponse({ job: stranded });
+    });
+
+    render(<AddDataDialog open onOpenChange={() => {}} />);
+
+    expect(await screen.findByText('An import is already in progress')).toBeVisible();
+    expect(screen.getByText(/finished reading 79,308 records and needs 13 decisions/)).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Reopen that import' }));
+
+    // The stranded job's review is now on screen, and the offer is spent.
+    expect(await screen.findByText('Service dates')).toBeVisible();
+    expect(screen.queryByText('An import is already in progress')).toBeNull();
     fetchSpy.mockRestore();
   });
 
@@ -258,22 +380,22 @@ describe('Add Data workflow', () => {
         },
       },
     };
-    const fetchSpy = vi.spyOn(globalThis, 'fetch')
-      .mockResolvedValueOnce(jsonResponse({ job: simcJob }, 201))
-      .mockResolvedValueOnce(jsonResponse({
-        result: {
-          outcome: 'imported',
-          value: {
-            importId: 13,
-            encounterRevisionCount: 1,
-            profileRevisionCount: 1,
-            personProfileRevisionCount: 1,
-            encounterPersonCount: 1,
-            qualityIssueCount: 1,
-          },
+    const { spy: fetchSpy } = mockImportApi({
+      uploadJob: simcJob,
+      activatedJob: {
+        ...simcJob,
+        status: 'completed',
+        activationOutcome: 'imported',
+        activationSummary: {
+          importId: 13,
+          encounterRevisionCount: 1,
+          profileRevisionCount: 1,
+          personProfileRevisionCount: 1,
+          encounterPersonCount: 1,
+          qualityIssueCount: 1,
         },
-        job: { ...simcJob, status: 'completed', activationOutcome: 'imported' },
-      }, 201));
+      },
+    });
 
     render(<AddDataDialog open onOpenChange={() => {}} />);
     fireEvent.change(screen.getByLabelText('Choose data file'), {
@@ -289,7 +411,6 @@ describe('Add Data workflow', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Activate Data' }));
     expect(await screen.findByText('SIMC data activated')).toBeVisible();
     expect(screen.getByText(/1 visit revision, 1 household profile, and 1 person profile/)).toBeVisible();
-    await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(2));
     fetchSpy.mockRestore();
   });
 
@@ -333,15 +454,21 @@ describe('Add Data workflow', () => {
         },
       },
     };
-    const fetchSpy = vi.spyOn(globalThis, 'fetch')
-      .mockResolvedValueOnce(jsonResponse({ job: trackingJob }, 201))
-      .mockResolvedValueOnce(jsonResponse({
-        result: {
-          outcome: 'imported',
-          value: { importId: 14, metricObservationRevisionCount: 1, qualityIssueCount: 0 },
+    const { spy: fetchSpy } = mockImportApi({
+      uploadJob: trackingJob,
+      activatedJob: {
+        ...trackingJob,
+        status: 'completed',
+        activationOutcome: 'imported',
+        activationSummary: {
+          importId: 14,
+          encounterRevisionCount: 0,
+          profileRevisionCount: 0,
+          metricObservationRevisionCount: 1,
+          qualityIssueCount: 0,
         },
-        job: { ...trackingJob, status: 'completed', activationOutcome: 'imported' },
-      }, 201));
+      },
+    });
 
     render(<AddDataDialog open onOpenChange={() => {}} />);
     fireEvent.change(screen.getByLabelText('Choose data file'), {
@@ -358,7 +485,6 @@ describe('Add Data workflow', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Activate Data' }));
     expect(await screen.findByText('WTH Tracking data activated')).toBeVisible();
     expect(screen.getByText(/1 historical metric observation revision/)).toBeVisible();
-    await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(2));
     fetchSpy.mockRestore();
   });
 });

@@ -1,5 +1,24 @@
 # Release Notes
 
+## Version 1.5.0-beta.13 — 2026-08-14
+
+*Beta — large imports now finish, and you can watch them.*
+
+- **Large imports complete.** A multi-year Link2Feed export takes a few minutes
+  to validate on the FEED server. Previously the connection was cut before it
+  finished, so the import looked like it had failed even when the server had
+  done the work. It now runs to completion.
+- **You can see what is happening.** The import window shows how many records
+  have been validated, out of how many, with a progress bar and elapsed time.
+  Nothing on that panel is estimated.
+- **You can walk away.** Closing the window no longer stops the import. When you
+  come back, FEED offers to reopen it — including an import that is finished
+  reading and waiting on your review decisions. Your data is unchanged until you
+  choose Activate.
+- **Note:** an import cannot be stopped once started. There is no way to halt
+  the work partway, so FEED does not offer a button that pretends otherwise. An
+  import that is not activated changes nothing.
+
 ## Version 1.5.0-beta.12 — 2026-08-14
 
 *Beta — makes real Link2Feed visit exports importable.*
