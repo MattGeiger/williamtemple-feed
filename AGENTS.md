@@ -37,6 +37,8 @@ Read these before broad changes:
 - `ISSUES.md` for current known issues, priorities, and resolved decisions.
 - `docs/frontend-services/message-system.md` for centralized frontend messaging.
 - `docs/toast/unified-error-handling.md` for ASK-aligned error handling.
+- `docs/frontend-services/theme-control.md` before changing the theme control
+  or any themed surface.
 - `packages/frontend/docs/components/ui/README.md` for Shadcn/Radix UI usage.
 - `packages/frontend/docs/styling/README.md` for centralized styling and theme conventions.
 - `docs/layout/page-layout-standard.md` before adding or restructuring any route.
@@ -152,6 +154,17 @@ This change goes against the current [pattern name] pattern. Here is why, here a
 - **Native `overflow` is an acceptable, documented exception in three cases** (add an inline comment citing the reason; do not silently scatter native overflow elsewhere): (1) it is *built into* a Shadcn primitive (Table, Command, Sidebar, DropdownMenu poppers); (2) a **grow-to-fit** content preview where the content is small/variable and a fixed-height `ScrollArea` would render a mostly-empty box (use `max-h-*` + `overflow-auto`); (3) a **nested** scroll box already inside a `ScrollArea`, where a second `ScrollArea` would trap scrolling. The audit + rationale for each current exception is in ISSUES.md #32.
 - Do not add visible instructional copy to compensate for unclear interactions. Improve the interaction.
 - Dark mode must not corrupt print previews. Anything representing printed output should render independently from app theme colors.
+- **The theme control is a two-state toggle, not a three-state picker.** The
+  header button switches to the opposite of what is on screen, and clears the
+  stored override when that opposite is what the device would have given —
+  so "follow this device" is arrived at rather than offered. The deliberate
+  three-way choice lives in Settings → Appearance, which labels itself *this
+  device only* because appearance is browser-local and not organization shared
+  state. **The three-state CSS model is unaffected and must stay**: every
+  themed surface still has to render correctly with no stamp on the root
+  element (where only `prefers-color-scheme` applies), with `.light`, and with
+  `.dark`. Rationale and the accessibility contract:
+  `docs/frontend-services/theme-control.md`.
 
 ## Error and Message Standards
 

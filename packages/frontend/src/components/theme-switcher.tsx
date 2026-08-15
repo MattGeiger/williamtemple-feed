@@ -13,187 +13,92 @@ import { useTheme } from "next-themes"
 import { AnimateIcon } from "@/components/animate-ui/icons/icon"
 import { MoonIcon } from "@/components/animate-ui/icons/moon"
 import { SunIcon } from "@/components/animate-ui/icons/sun"
-import { SunMoonIcon } from "@/components/animate-ui/icons/sun-moon"
 import { Button } from "@/components/ui/button"
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { runThemeTransition } from "@/lib/theme-transition"
 import { cn } from "@/lib/utils"
 
-type ThemeSelection = "light" | "dark" | "system"
-
-const THEME_SWITCHER_TRIGGER_ID = "theme-switcher-trigger"
-
-const appearanceOptions: Array<{
-  value: ThemeSelection
-  label: string
-  icon: React.ComponentType<{
-    className?: string
-    size?: number
-    animateOnHover?: boolean | string
-    animateOnTap?: boolean | string
-    animateOnView?: boolean | string
-    style?: React.CSSProperties
-  }>
-}> = [
-  { value: "light", label: "Light", icon: SunIcon },
-  { value: "dark", label: "Dark", icon: MoonIcon },
-  { value: "system", label: "System", icon: SunMoonIcon },
-]
-
-function isThemeSelection(value: string | undefined): value is ThemeSelection {
-  return value === "light" || value === "dark" || value === "system"
-}
-
-function ThemeIcon({
-  theme,
-  resolvedTheme,
-  className,
-}: {
-  theme: ThemeSelection
-  resolvedTheme?: string
-  className?: string
-}) {
-  if (theme === "system") {
-    return (
-      <AnimateIcon animateOnHover animateOnTap>
-        <SunMoonIcon size={16} className={className} />
-      </AnimateIcon>
-    )
-  }
-
-  if (resolvedTheme === "dark" || theme === "dark") {
-    return (
-      <AnimateIcon animateOnHover="balancing" animateOnTap>
-        <MoonIcon size={16} className={className} />
-      </AnimateIcon>
-    )
-  }
-
-  return (
-    <AnimateIcon animateOnHover animateOnTap>
-      <SunIcon size={16} className={className} />
-    </AnimateIcon>
-  )
-}
-
-function AnimatedOptionIcon({
-  icon: Icon,
-  replayKey,
-  index,
-}: {
-  icon: (typeof appearanceOptions)[number]["icon"]
-  replayKey: number
-  index: number
-}) {
-  // No inline animateOn* — IconWrapper would treat them as overrides and
-  // create its own context, ignoring the parent <AnimateIcon asChild>.
-  // With overrides stripped, the icon inherits from the wrapping
-  // AnimateIcon and plays its unique animation on parent-row mount/hover/tap.
-  return (
-    <Icon
-      key={replayKey}
-      size={16}
-      className="mr-2 h-4 w-4"
-      style={{ "--feed-icon-motion-delay": `${index * 50}ms` } as React.CSSProperties}
-    />
-  )
-}
-
+/**
+ * A two-state toggle, not a three-state picker.
+ *
+ * FEED still has three underlying states — light, dark, and "follow the
+ * device" — and the stylesheet must keep handling all three, because the
+ * unstamped system state is a real thing the app renders. But the *control*
+ * used to expose all three as a dropdown of radio items, which put a popover
+ * and a three-way decision in front of the only thing anyone actually wants
+ * here: make it stop being this. That is the data model leaking into the UI.
+ *
+ * The toggle still reaches all three states. It switches to the opposite of
+ * whatever is currently on screen, and when that opposite is what the device
+ * would have given anyway, the stored override is removed instead of being
+ * written — so following the device is the natural result of toggling back,
+ * not a third thing to pick. An override is only ever cleared by a deliberate
+ * toggle; it is never dropped just because it happens to match the device for
+ * a while.
+ *
+ * That also makes the common failure self-healing: someone who chose Dark in
+ * winter and finds FEED still dark on a bright morning simply toggles, and the
+ * app resumes following their device.
+ *
+ * Explicit "Follow device" remains selectable in Settings → Appearance, for
+ * anyone who wants to set it deliberately rather than arrive at it. Reasoning:
+ * docs/frontend-services/theme-control.md.
+ */
 export function ThemeSwitcher() {
   const triggerRef = React.useRef<HTMLButtonElement>(null)
-  const { theme, resolvedTheme, setTheme } = useTheme()
-  const selectedTheme = isThemeSelection(theme) ? theme : "system"
-  const [iconReplayCounts, setIconReplayCounts] = React.useState<
-    Record<ThemeSelection, number>
-  >({
-    light: 0,
-    dark: 0,
-    system: 0,
-  })
+  const { resolvedTheme, systemTheme, setTheme } = useTheme()
 
-  const replayIcon = (value: ThemeSelection) => {
-    setIconReplayCounts((current) => ({
-      ...current,
-      [value]: current[value] + 1,
-    }))
-  }
+  // next-themes resolves against the device only after mount, so the first
+  // render has no honest answer. Render the button disabled rather than
+  // guessing a theme and flipping it a frame later.
+  const [mounted, setMounted] = React.useState(false)
+  React.useEffect(() => setMounted(true), [])
 
-  const handleThemeChange = (nextTheme: string) => {
-    if (!isThemeSelection(nextTheme) || selectedTheme === nextTheme) {
-      return
-    }
+  const visible = resolvedTheme === "dark" ? "dark" : "light"
+  const target = visible === "dark" ? "light" : "dark"
+  const label = target === "dark" ? "Switch to dark theme" : "Switch to light theme"
 
+  const toggle = () => {
     void runThemeTransition({
       trigger: triggerRef.current,
-      update: () => setTheme(nextTheme),
+      // Clearing the override when the target matches the device is what keeps
+      // "follow the device" reachable without a third button.
+      update: () => setTheme(target === systemTheme ? "system" : target),
     })
   }
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
+    <TooltipProvider delayDuration={400}>
+    <Tooltip>
+      <TooltipTrigger asChild>
         <Button
           ref={triggerRef}
-          id={THEME_SWITCHER_TRIGGER_ID}
           variant="outline"
           size="icon"
+          onClick={toggle}
+          disabled={!mounted}
+          aria-label={label}
           className={cn(
             "relative h-10 w-10 rounded-full border-border/70 bg-background/72 shadow-sm backdrop-blur-md transition-colors",
             "hover:bg-background/90 supports-backdrop-filter:bg-background/58"
           )}
         >
-          <ThemeIcon
-            theme={selectedTheme}
-            resolvedTheme={resolvedTheme}
-            className="h-4 w-4"
-          />
-          <span className="sr-only">Theme options</span>
+          {/* The icon shows what the click will produce, matching the label, so
+              the button reads the same way whether you see it or hear it. */}
+          <AnimateIcon animateOnHover animateOnTap>
+            {target === "dark"
+              ? <MoonIcon size={16} className="h-4 w-4" />
+              : <SunIcon size={16} className="h-4 w-4" />}
+          </AnimateIcon>
         </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent
-        align="end"
-        className="w-52 rounded-2xl border-border/70 bg-background/40 p-2 shadow-xl backdrop-blur-[14px] backdrop-saturate-150 supports-backdrop-filter:bg-background/40"
-      >
-        <DropdownMenuLabel className="px-2 pb-1 pt-2 text-[0.65rem] uppercase tracking-[0.18em] text-muted-foreground">
-          Appearance
-        </DropdownMenuLabel>
-        <DropdownMenuRadioGroup
-          value={selectedTheme}
-          onValueChange={handleThemeChange}
-        >
-          {appearanceOptions.map((option, index) => (
-            <AnimateIcon
-              key={option.value}
-              asChild
-              animate
-              animateOnHover
-              animateOnTap
-            >
-              <DropdownMenuRadioItem
-                value={option.value}
-                className="gap-2 rounded-lg py-2 pr-2"
-                data-feed-no-icon-motion="true"
-                onPointerEnter={() => replayIcon(option.value)}
-                onFocus={() => replayIcon(option.value)}
-              >
-                <AnimatedOptionIcon
-                  icon={option.icon}
-                  replayKey={iconReplayCounts[option.value]}
-                  index={index}
-                />
-                {option.label}
-              </DropdownMenuRadioItem>
-            </AnimateIcon>
-          ))}
-        </DropdownMenuRadioGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
+      </TooltipTrigger>
+      <TooltipContent>{label}</TooltipContent>
+    </Tooltip>
+    </TooltipProvider>
   )
 }
