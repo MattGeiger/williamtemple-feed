@@ -80,6 +80,7 @@ import {
   type CarbonFamily,
   type CarbonGrade,
 } from '@/lib/colors';
+import { ServiceAnalyticsLens } from './service-analytics';
 import { ErrorHandlerService } from '@/services/error/ErrorHandlerService';
 import { procurementService } from '@/services/procurement';
 import type {
@@ -804,8 +805,9 @@ function ReportToolbar({ filters }: { filters: ReportFilterContext }) {
 export function AnalyticsWorkspace() {
   const [searchParams, setSearchParams] = useSearchParams();
   const searchKey = searchParams.toString();
-  const activeTab = searchParams.get('tab') === 'procurement'
-    ? 'procurement'
+  const tabParam = searchParams.get('tab');
+  const activeTab = tabParam === 'procurement' || tabParam === 'service'
+    ? tabParam
     : 'operations';
   const range = React.useMemo(
     () => dateRangeFromSearchParams(searchParams),
@@ -831,8 +833,10 @@ export function AnalyticsWorkspace() {
       ? `${range.startDate} – ${range.endDate}`
       : RANGE_SUMMARY_LABELS[range.preset] ?? range.preset;
 
+  // Operations is the default lens, so it stays absent from the URL; any other
+  // lens is named, which also makes a Service view shareable as a link.
   const setActiveTab = (tab: string) => updateSearchParams((next) => {
-    if (tab === 'procurement') next.set('tab', tab);
+    if (tab === 'procurement' || tab === 'service') next.set('tab', tab);
     else next.delete('tab');
   });
 
@@ -852,7 +856,7 @@ export function AnalyticsWorkspace() {
     <div className="space-y-6 min-w-0 w-full pt-6">
       <SectionHeader
         title="Analytics"
-        description="Operational patterns and external supply data, kept in distinct analytical lenses."
+        description="Inventory, supply, and pantry service, kept in distinct analytical lenses."
         icon={PageTitleAnalyticsIcon}
       />
 
@@ -863,9 +867,10 @@ export function AnalyticsWorkspace() {
             treatment in the app (GuideToc) rather than an opaque bar. */}
         <div className="sticky top-16 z-30 -mx-4 space-y-4 border-b border-border/70 bg-background/40 px-4 py-4 backdrop-blur-[14px] backdrop-saturate-150 supports-backdrop-filter:bg-background/40 sm:-mx-6 sm:px-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <TabsList className="grid h-auto w-full grid-cols-2 sm:w-[360px]">
+            <TabsList className="grid h-auto w-full grid-cols-3 sm:w-[480px]">
               <TabsTrigger value="operations">Operations</TabsTrigger>
               <TabsTrigger value="procurement">Procurement</TabsTrigger>
+              <TabsTrigger value="service">Service</TabsTrigger>
             </TabsList>
             {/* Both lenses now have registered cards, so the action is
                 unconditional. Selection persists across the tabs, so a report
@@ -890,6 +895,9 @@ export function AnalyticsWorkspace() {
           </TabsContent>
           <TabsContent value="procurement" className="pt-4">
             <ProcurementAnalyticsWorkspace range={range} />
+          </TabsContent>
+          <TabsContent value="service" className="pt-4">
+            <ServiceAnalyticsLens range={range} />
           </TabsContent>
         </TabsContents>
       </Tabs>

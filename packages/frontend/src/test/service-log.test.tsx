@@ -172,11 +172,14 @@ describe('native Service workflow', () => {
     getOperatingHours.mockResolvedValue(DEFAULT_OPERATING_HOURS_SETTINGS);
   });
 
-  test('shows the shared visualization range and defaults the entry date to Today', async () => {
+  // The date-range control was removed: Service Log records one day at a time,
+  // and the range only ever changed state nothing read. A control that appears
+  // to filter but does not is worse than no control.
+  test('defaults the entry date to Today and offers no date-range filter', async () => {
     render(<MemoryRouter><ServiceLogWorkspace /></MemoryRouter>);
 
-    expect(screen.getByText('Date Range')).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: '90d' })).toHaveAttribute('data-state', 'active');
+    expect(screen.queryByText('Date Range')).toBeNull();
+    expect(screen.queryByRole('tab', { name: '90d' })).toBeNull();
     expect(await screen.findByText(/^Today · /)).toBeInTheDocument();
     expect(serviceMocks.getDay).toHaveBeenCalledWith(
       dateInTimezone(DEFAULT_OPERATING_HOURS_SETTINGS.timezone),

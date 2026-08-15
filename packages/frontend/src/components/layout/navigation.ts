@@ -64,11 +64,6 @@ export const navigationItems: NavItem[] = [
         title: "Food Items",
         href: "/food-items",
         icon: FoodItemsNavIcon,
-      },
-      {
-        title: "Analytics",
-        href: "/analytics",
-        icon: AnalyticsNavIcon,
       }
     ]
   },
@@ -101,8 +96,12 @@ export const navigationItems: NavItem[] = [
       },
     ],
   },
+  // AI Configuration powers the tools rather than being one — translation and
+  // document work depend on it — so the section is named for both. That also
+  // gives Settings and Admin a home beside it, which is what frees Information
+  // to be about reading the organization's data rather than configuring it.
   {
-    title: "Tools",
+    title: "Tools & Settings",
     href: "#",
     icon: Settings,
     items: [
@@ -120,23 +119,33 @@ export const navigationItems: NavItem[] = [
         title: "AI Configuration",
         href: "/ai-configuration",
         icon: AIConfigurationNavIcon
-      }
-    ]
-  },
-  {
-    title: "Information",
-    href: "#",
-    icon: Info,
-    items: [
+      },
       {
         title: "Settings",
         href: "/settings",
         icon: SettingsNavIcon,
       },
       {
-        title: "Data",
-        href: "/data-management",
-        icon: DataManagementNavIcon,
+        title: "Admin",
+        href: "/admin",
+        icon: AdminNavIcon,
+        adminOnly: true,
+      }
+    ]
+  },
+  // Analytics sat under Inventory while every lens described inventory over
+  // time. Service encounters are not inventory, so the section that named the
+  // subject no longer describes the page. Analytics, Reports and Data now read
+  // as one progression: look at the data, report on it, manage its sources.
+  {
+    title: "Information",
+    href: "#",
+    icon: Info,
+    items: [
+      {
+        title: "Analytics",
+        href: "/analytics",
+        icon: AnalyticsNavIcon,
       },
       {
         title: "Reports",
@@ -144,10 +153,9 @@ export const navigationItems: NavItem[] = [
         icon: ReportsNavIcon,
       },
       {
-        title: "Admin",
-        href: "/admin",
-        icon: AdminNavIcon,
-        adminOnly: true,
+        title: "Data",
+        href: "/data-management",
+        icon: DataManagementNavIcon,
       },
       {
         title: "Help",

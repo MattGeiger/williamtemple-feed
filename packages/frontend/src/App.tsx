@@ -94,7 +94,7 @@ function AnalyticsPage() {
     <RootLayout
       breadcrumbs={[
         { title: "Dashboard (Home)", href: "/" },
-        { title: "Inventory" },
+        { title: "Information" },
         { title: "Analytics" },
       ]}
     >
@@ -293,7 +293,7 @@ function ShoppingListsPage() {
     <RootLayout
       breadcrumbs={[
         { title: "Dashboard (Home)", href: "/" },
-        { title: "Tools"},
+        { title: "Tools & Settings"},
         { title: "Shopping Lists" }
       ]}
     >
@@ -309,7 +309,7 @@ function ShoppingListBuilderPage() {
     <RootLayout
       breadcrumbs={[
         { title: "Dashboard (Home)", href: "/" },
-        { title: "Tools"},
+        { title: "Tools & Settings"},
         { title: "Shopping Lists", href: "/shopping-lists" },
         { title: "Builder" }
       ]}
@@ -338,7 +338,7 @@ function DocumentTranslatorPage() {
     <RootLayout
       breadcrumbs={[
         { title: "Dashboard (Home)", href: "/" },
-        { title: "Tools"},
+        { title: "Tools & Settings"},
         { title: "Document Translator" }
       ]}
     >
@@ -352,7 +352,7 @@ function AIConfigurationPage() {
     <RootLayout
       breadcrumbs={[
         { title: "Dashboard (Home)", href: "/" },
-        { title: "Tools"},
+        { title: "Tools & Settings"},
         { title: "AI Configuration" }
       ]}
     >
@@ -380,7 +380,7 @@ function AdminPage() {
     <RootLayout
       breadcrumbs={[
         { title: "Dashboard (Home)", href: "/" },
-        { title: "Information" },
+        { title: "Tools & Settings" },
         { title: "Admin" },
       ]}
     >
@@ -394,7 +394,7 @@ function SettingsPage() {
     <RootLayout
       breadcrumbs={[
         { title: "Dashboard (Home)", href: "/" },
-        { title: "Information" },
+        { title: "Tools & Settings" },
         { title: "Settings" },
       ]}
     >

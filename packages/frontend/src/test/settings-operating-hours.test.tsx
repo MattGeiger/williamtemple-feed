@@ -77,10 +77,13 @@ describe('Operating Hours settings', () => {
     expect(mondayCloseTime?.value).toBe('14:00');
   });
 
-  test('places Settings under Information in the shared sidebar', () => {
-    const information = navigationItems.find((item) => item.title === 'Information');
+  // Settings sits with the configuration it belongs to — beside AI
+  // Configuration, which powers the tools — rather than under Information,
+  // which is now about reading the organization's data.
+  test('places Settings under Tools & Settings in the shared sidebar', () => {
+    const tools = navigationItems.find((item) => item.title === 'Tools & Settings');
     const inventory = navigationItems.find((item) => item.title === 'Inventory');
-    expect(information?.items).toEqual(expect.arrayContaining([
+    expect(tools?.items).toEqual(expect.arrayContaining([
       expect.objectContaining({ title: 'Settings', href: '/settings' }),
     ]));
     expect(inventory?.items?.some((item) => item.href === '/settings')).toBe(false);

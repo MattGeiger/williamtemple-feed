@@ -4,9 +4,11 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { requireAdmin } from '../middleware/auth/require-admin';
+import { ANALYTICS_RANGE_PRESETS, isValidLocalDate } from '../services/inventory-analytics/timezone';
 import { rateLimiter } from '../middleware/rate-limiter';
 import {
   createServiceMetricConfiguration,
+  getServiceAnalytics,
   getServiceDay,
   listServiceMetricConfigurations,
   saveServiceDay,
@@ -55,6 +57,22 @@ const saveDaySchema = z.object({
   observations: z.array(dayObservationSchema).max(250),
 }).strict();
 
+// Same shape the procurement analytics endpoint accepts, so a preset means one
+// thing across every lens and "last 90 days" is never computed a second way.
+const serviceAnalyticsQuerySchema = z.object({
+  preset: z.enum(ANALYTICS_RANGE_PRESETS).default('last-90-days'),
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
+}).strict().superRefine((value, context) => {
+  if (value.preset !== 'custom') return;
+  if (!value.startDate || !isValidLocalDate(value.startDate)) {
+    context.addIssue({ code: 'custom', path: ['startDate'], message: 'Choose a valid start date.' });
+  }
+  if (!value.endDate || !isValidLocalDate(value.endDate)) {
+    context.addIssue({ code: 'custom', path: ['endDate'], message: 'Choose a valid end date.' });
+  }
+});
+
 const sendServiceError = (res: Parameters<Parameters<typeof router.get>[1]>[1], error: unknown) => {
   if (error instanceof z.ZodError) {
     return res.status(400).json({
@@ -77,6 +95,28 @@ const sendServiceError = (res: Parameters<Parameters<typeof router.get>[1]>[1], 
   }
   return null;
 };
+
+// Aggregate service analytics. Readable by any authenticated staff member, as
+// procurement analytics is: it reports counts and distributions, never a
+// client-level record.
+router.get('/analytics', rateLimiter, async (req, res, next) => {
+  try {
+    const filters = serviceAnalyticsQuerySchema.parse(req.query);
+    return res.json({ analytics: await getServiceAnalytics(filters) });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({
+        error: {
+          code: 'INVALID_SERVICE_ANALYTICS_RANGE',
+          message: 'Choose a valid date range and try again.',
+          details: error.issues,
+        },
+      });
+    }
+    if (sendServiceError(res, error)) return;
+    return next(error);
+  }
+});
 
 router.get('/metrics', rateLimiter, requireAdmin, async (_req, res, next) => {
   try {

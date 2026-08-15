@@ -6,6 +6,7 @@ export * from './profiles';
 export * from './metrics';
 export * from './capacity';
 export * from './quality';
+export * from './analytics';
 export * from './import-lifecycle';
 export * from './adapters/link2feed-visits';
 export * from './adapters/simc-service-visits';
