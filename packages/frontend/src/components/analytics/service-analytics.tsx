@@ -193,8 +193,31 @@ function MethodRow({
 export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAnalytics }) {
   const { coverage, summary, overTime, seasonal, methodSeries, recordAgreement, householdSize, reachAndFrequency } = analytics;
 
-  const timeline = overTime;
-  const methodBuckets = methodSeries.buckets;
+  // Monthly buckets bring back the partial-period hazard: the newest month
+  // holds only the service days that have happened, so plotting it beside
+  // complete months reads as a collapse. Daily buckets need no such guard — a
+  // service day is either recorded or absent, never half-counted.
+  const currentMonth = new Date().toISOString().slice(0, 7);
+  const dropPartial = <T extends { month?: string; bucket?: string }>(rows: T[], key: 'month' | 'bucket') => {
+    if (coverage.granularity !== 'month') return { rows, excluded: null as string | null };
+    const last = rows[rows.length - 1];
+    if (!last || String(last[key]) !== currentMonth) return { rows, excluded: null as string | null };
+    return { rows: rows.slice(0, -1), excluded: currentMonth };
+  };
+
+  const { rows: timeline, excluded: timelinePartial } = dropPartial(overTime, 'month');
+  const { rows: methodBucketsRaw, excluded: methodPartial } = dropPartial(
+    methodSeries.buckets as Array<{ bucket?: string }>, 'bucket',
+  ) as { rows: Array<Record<string, string | number>>; excluded: string | null };
+
+  const TOTAL_KEY = '__total';
+  const methodBuckets = React.useMemo(() => methodBucketsRaw.map((bucket) => {
+    const total = methodSeries.methods.reduce((sum, method) => {
+      const value = bucket[method.metricKey];
+      return typeof value === 'number' ? sum + value : sum;
+    }, 0);
+    return { ...bucket, [TOTAL_KEY]: total };
+  }), [methodBucketsRaw, methodSeries.methods]);
 
   // The changeover is marked at the first day SIMC recorded, taken from the
   // data rather than a hardcoded month, so the marker follows the record.
@@ -284,8 +307,16 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
     }]),
   ) satisfies ChartConfig, [methodSeries.methods, summary.methods]);
 
+  const methodChartConfig = React.useMemo(() => ({
+    ...methodConfig,
+    [TOTAL_KEY]: { label: 'All households served', color: 'hsl(var(--muted-foreground))' },
+  }) satisfies ChartConfig, [methodConfig]);
+
   const spansYears = coverage.startDate.slice(0, 4) !== coverage.endDate.slice(0, 4);
-  const labelBucket = dayLabelFor(spansYears);
+  const labelBucket = coverage.granularity === 'month'
+    ? monthLabel
+    : dayLabelFor(spansYears);
+  const pointNoun = coverage.granularity === 'month' ? 'one month' : 'one service day';
 
   const householdsFromLog = summary.householdsSource === 'service_log';
   const serviceLogStartsLater = householdsFromLog
@@ -445,7 +476,7 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
               >
                 <LineChart data={timeline} margin={{ left: 4, right: 8, top: 8 }}>
                   <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                  <XAxis dataKey="month" tickFormatter={(value) => labelBucket(String(value))} tickLine={false} axisLine={false} minTickGap={48} />
+                  <XAxis dataKey="month" tickFormatter={(value) => labelBucket(String(value))} tickLine={false} axisLine={false} minTickGap={44} />
                   <YAxis tickLine={false} axisLine={false} width={48} />
                   <ChartTooltip content={<ChartTooltipContent labelFormatter={(value) => labelBucket(String(value))} />} />
                   <ChartLegend content={<ChartLegendContent />} />
@@ -469,8 +500,9 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
                 </LineChart>
               </ChartContainer>
               <Footnote>
-                Each point is one service day.
+                Each point is {pointNoun}.
                 {spansCutover && ' The gap between the two intake lines is the changeover, not a drop in service.'}
+                {timelinePartial && ` ${monthLabel(timelinePartial)} is still in progress and is not plotted.`}
               </Footnote>
             </CardContent>
           </Card>
@@ -527,17 +559,26 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
                     <YAxis tickLine={false} axisLine={false} width={48} />
                     <ChartTooltip content={<ChartTooltipContent />} />
                     <ChartLegend content={<ChartLegendContent />} />
-                    {activeYears.map((year) => (
-                      <Line
-                        key={year}
-                        type="monotone"
-                        dataKey={year}
-                        stroke={seriesColor(year)}
-                        strokeWidth={2}
-                        dot={false}
-                        connectNulls={false}
-                      />
-                    ))}
+                    {[...activeYears].sort().map((year) => {
+                      const isCurrentYear = year === String(new Date().getFullYear());
+                      return (
+                        <Line
+                          key={year}
+                          type="monotone"
+                          dataKey={year}
+                          stroke={seriesColor(year)}
+                          strokeWidth={isCurrentYear ? 3 : 2}
+                          strokeLinecap="round"
+                          dot={activeYears.length === 1}
+                          connectNulls={false}
+                          // Same emphasis Seasonal Inbound Weight gives the year
+                          // in progress, so the two charts read alike.
+                          style={isCurrentYear ? {
+                            filter: `drop-shadow(0 0 2px var(--color-${year})) drop-shadow(0 0 5px var(--color-${year}))`,
+                          } : undefined}
+                        />
+                      );
+                    })}
                   </LineChart>
                 </ChartContainer>
               )}
@@ -557,7 +598,7 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
                     row.visitsPerHousehold > best.visitsPerHousehold ? row : best);
                   const last = complete[complete.length - 1];
                   if (peak.year === last.year) return null;
-                  return ` Across complete years, visits per household moved from ${peak.visitsPerHousehold} in ${peak.year} to ${last.visitsPerHousehold} in ${last.year}.`;
+                  return ` In ${peak.year} the average household visited ${peak.visitsPerHousehold} times over the year; in ${last.year} it was ${last.visitsPerHousehold}. Partial years are not compared.`;
                 })()}
               </Footnote>
             </CardContent>
@@ -580,13 +621,27 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
               {/* Lines, not a stacked area: stacking made the topmost series
                   read as the peak value against the axis, so emergency bags
                   looked like the largest method when they are the smallest. */}
-              <ChartContainer config={methodConfig} className="h-[300px] w-full">
+              <ChartContainer config={methodChartConfig} className="h-[300px] w-full">
                 <LineChart data={methodBuckets} margin={{ left: 4, right: 8, top: 8 }}>
                   <CartesianGrid vertical={false} strokeDasharray="3 3" />
                   <XAxis dataKey="bucket" tickFormatter={(value) => labelBucket(String(value))} tickLine={false} axisLine={false} minTickGap={28} />
                   <YAxis tickLine={false} axisLine={false} width={48} />
                   <ChartTooltip content={<ChartTooltipContent labelFormatter={(value) => labelBucket(String(value))} />} />
                   <ChartLegend content={<ChartLegendContent />} />
+                  {/* Dashed and neutral so it reads as the sum of the others
+                      rather than a fifth service method. */}
+                  {/* Animation off deliberately: Recharts draws a line by
+                      animating stroke-dasharray, which overwrites the dash that
+                      makes this read as a total rather than a fifth method. */}
+                  <Line
+                    isAnimationActive={false}
+                    type="monotone"
+                    dataKey={TOTAL_KEY}
+                    stroke={seriesColor(TOTAL_KEY)}
+                    strokeWidth={2}
+                    strokeDasharray="5 4"
+                    dot={false}
+                  />
                   {methodSeries.methods.map((method) => (
                     <Line
                       key={method.metricKey}
@@ -600,8 +655,9 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
                 </LineChart>
               </ChartContainer>
               <Footnote>
-                Households per service day. Each line begins when that service was
-                first recorded.
+                Households per {coverage.granularity === 'month' ? 'month' : 'service day'}. Each
+                line begins when that service was first recorded.
+                {methodPartial && ` ${monthLabel(methodPartial)} is still in progress and is not plotted.`}
               </Footnote>
             </CardContent>
           </Card>
