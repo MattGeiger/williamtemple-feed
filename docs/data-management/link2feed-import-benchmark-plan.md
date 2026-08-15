@@ -388,8 +388,8 @@ they must happen on a machine already permitted to hold the real file.
 
 | Phase | Work | Gate |
 |---|---|---|
-| **0** | ~~Verify index coverage in `schema.prisma` (§2.1)~~ — **done, covered; stage 7 demoted as a suspect.** Remaining: characterize the real 24 MB export *in place* — row count, bytes/row, distinct clients, visits-per-client distribution, date span, column count. Aggregates only, per §3. | Aggregate stats recorded |
-| **1** | Build `scripts/generate-synthetic-link2feed-export.ts` (seeded, fabricated) and the fsync/CPU microbench. Corpora at ~1 MB, ~6 MB, ~17 MB (matching the design-record export size), **~24 MB (the failing size)**, and ~40 MB (headroom, under the 64 MB cap). | Every corpus parses with zero structural errors; fidelity within tolerance of Phase 0 stats |
+| **0** | ~~Verify index coverage (§2.1)~~ **done — covered; stage 7 demoted.** ~~Characterize the real export~~ **done 2026-08-14 — see §7.1.** | Complete |
+| **1** | Build `scripts/generate-synthetic-link2feed-export.ts` (seeded, fabricated) and the fsync/CPU microbench. Corpora at ~1 MB, ~6 MB, ~17 MB, **~25 MB (production size)**, and ~40 MB (headroom, under the 64 MB cap). **The generator must emit the NATIVE export shape — ISO dates, `YYYY-MM-DD HH:MM:SS` for Recorded At, and the exporter's trailing delimiter** (ISSUES.md #70). The existing fixtures encode dates as spreadsheet serials, which no real export uses; generating that shape would benchmark a format that never occurs and would have hidden #70 indefinitely. | Every corpus parses with zero structural errors; fidelity within tolerance of §7.1 |
 | **2** | **Fix the three defects.** §1.1: nginx `client_max_body_size` → at least 64m, matching `MAX_STAGED_DATA_IMPORT_BYTES`, with each constant's comment naming the other so they cannot drift again. §1.3: call `deleteExpiredDataImportStaging` at backend start and on an interval, with a test that fails if the wiring is removed. §1.2: document the Cloudflare ~100s ceiling in `raspberry-pi-cloudflare-tunnel.md`. | Deployed; 24 MB upload reaches the backend; an expired staged file is observed being deleted |
 | **3** | Build `scripts/benchmark-link2feed-import.ts` (§4). Run all corpora on the Mac. Establish the stage profile and find the superlinear stages. | Mac baseline JSON committed |
 | **4** | Run the same script on the Pi against a scratch DB, relayed as one command. **Both cold-database and re-import scenarios** (§2.1). | Pi JSON returned; per-stage Mac:Pi ratios computed |
@@ -401,6 +401,41 @@ they must happen on a machine already permitted to hold the real file.
 3; Phase 6 depends on 2 and 5.
 
 ---
+
+### 7.1 Phase 0 measurements — the real export (2026-08-14, developer Mac)
+
+WTH's production export, characterized in place on a permitted machine.
+Aggregates only; no client value left the host.
+
+| | |
+|---|---|
+| Size | 25,124,653 bytes |
+| Rows | 79,308 |
+| Columns | 30 named + 1 unnamed trailing filler |
+| Date range | 2020-10-19 .. 2026-05-28 |
+| Encoding | UTF-8 with BOM, LF endings |
+| Dates | ISO `YYYY-MM-DD`; Recorded At `YYYY-MM-DD HH:MM:SS` |
+| Identified / identity-unavailable | 74,789 / 4,519 |
+| Review issues | 312, of which 0 blocking |
+
+**Parse-only timing, Mac:** 3.27 s — 24,246 rows/s, **0.137 s/MB**, peak RSS
+438 MB. Filler detection added 7 ms.
+
+Three things this changes.
+
+**Parse is not the wall it was at OFB century scale.** The procurement work
+found parsing to be 47% of total time on a 76 MB synthetic file. Here a
+production-sized file parses in about three seconds on the Mac. The remaining
+question is the database stages, which this run does not touch — its `onRows`
+and `onIssues` sinks only count.
+
+**This is not yet the Step 3 number.** Parse is one of eight stages (§2). Do
+not quote 3.27 s as the import time.
+
+**The filename says 2017; the data starts 2020-10-19.** Worth confirming on the
+Link2Feed side before treating this as complete history. It also means row
+counts here should not be extrapolated to "nine years of history" — they cover
+about five and a half.
 
 ## 8. What the result should be able to say
 

@@ -5,6 +5,31 @@ All notable changes to FEED are documented here. This project adheres to
 
 ## [Unreleased]
 
+## [1.5.0-beta.12] — 2026-08-14
+
+Makes real Link2Feed visit exports importable. Verified against WTH's
+production export: 79,308 visits spanning 2020-10-19 to 2026-05-28 parse with
+no blocking issues.
+
+### Fixed
+
+- **FEED now reads Link2Feed visit exports as Link2Feed writes them.** Every
+  test fixture had been built from pre-serialized sample data, so two
+  differences in the real export had gone unnoticed — its dates are written in
+  ISO form rather than as spreadsheet day numbers, and each data row ends with
+  one more separator than the header row declares. Either alone stopped an
+  import at its first row. FEED now accepts both date encodings, treats the
+  exporter's extra empty field as expected, and still rejects rows that are
+  genuinely misshapen. Which columns FEED reads is unchanged: recognized
+  columns are imported, everything else — including Notes and name fields — is
+  ignored and never stored.
+
+- **A visits file re-saved through a spreadsheet is now refused, with the
+  reason.** Spreadsheets rewrite Link2Feed's dates into a two-digit-year style
+  that states neither the century nor whether the month or day comes first, so
+  a 2025 visit can silently import as 1925. FEED declines such a file and asks
+  for the original export instead of guessing.
+
 ## [1.5.0-beta.11] — 2026-08-14
 
 Corrects two defects found while investigating the beta.10 import stall on a

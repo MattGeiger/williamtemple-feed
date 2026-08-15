@@ -1,5 +1,19 @@
 # Release Notes
 
+## Version 1.5.0-beta.12 — 2026-08-14
+
+*Beta — makes real Link2Feed visit exports importable.*
+
+- **Link2Feed visit exports now import directly, with no preparation.** Take the
+  file Link2Feed gives you and upload it as-is. Earlier builds only accepted a
+  hand-converted form of the file, so a genuine export stopped at its first row.
+- **Do not open the file in Excel first.** Saving a Link2Feed export through a
+  spreadsheet rewrites its dates into a two-digit-year form — a 2025 visit
+  becomes indistinguishable from 1925. FEED now refuses such a file and asks for
+  the original export rather than importing dates it would have to guess at.
+- **What FEED reads is unchanged.** Recognized columns are imported; every other
+  column, including Notes and client names, is ignored and never stored.
+
 ## Version 1.5.0-beta.11 — 2026-08-14
 
 *Beta — a small corrective build on top of beta.10.*
