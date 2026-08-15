@@ -9,33 +9,35 @@ import { resolveRange, type AnalyticsRangePreset } from '../inventory-analytics/
 /**
  * Service Analytics — the third lens, beside Operations and Procurement.
  *
- * Two evidence layers overlap in time here and answer different questions:
+ * Two records describe the same pantry days and are treated as complementary,
+ * not as authority and commentary:
  *
- * - **Formal intake** (Link2Feed through 2026-05-28, SIMC from 2026-06-02) is
- *   authoritative for how many households were served.
- * - **Operational tracking** (WTH's own record, from 2023-10-17) is
- *   authoritative for *how* that service was delivered.
+ * - **Formal intake** (Link2Feed through 2026-05-28, SIMC after) is the
+ *   client-grained record: household sizes, demographics, repeat visits.
+ * - **The Service Log** is WTH's own end-of-day record, entered by staff. It is
+ *   the more complete count of what happened, because it covers days and
+ *   households that intake missed.
  *
- * They are never added together. Every accessor below returns one layer or the
- * other, except `recordAgreement`, which deliberately reports them side by side
- * as two independent measurements of the same days — a comparison, not a sum.
+ * Neither is subordinate. They are never summed with each other, and where both
+ * can answer a question the Service Log is preferred, because a hand-counted
+ * total does not depend on every client completing intake.
  *
- * Design decisions recorded in docs/reports/service-analytics-card-proposal.md.
+ * Metric grouping is driven by each metric's own `semanticRole` and
+ * `contributesToOperationalTotal` flags rather than by hardcoded keys, so a
+ * metric added later in Service Metrics administration lands in the right group
+ * without a code change — and `unmet_demand` can never be counted as a service
+ * delivered.
  */
-
-/** Methods that count against WTH's two-visits-per-month household limit. */
-export const LIMIT_COUNTING_METHODS = ['shopping_visits', 'long_lists'] as const;
-/** Methods deliberately outside that limit. */
-export const UNLIMITED_METHODS = ['premade_bags', 'emergency_bags'] as const;
-export const SERVICE_METHOD_KEYS = [...LIMIT_COUNTING_METHODS, ...UNLIMITED_METHODS];
 
 /**
- * Bulk staff counts entered as a single household because Link2Feed offered no
- * bulk-entry control. They are people tallies with no household identity, so
- * they are excluded from every household-grained measure — most importantly any
- * average household size, which a single 264-person row would wreck.
+ * Bulk staff counts entered as one household because Link2Feed offered no
+ * bulk-entry control. People tallies with no household identity, so they are
+ * excluded from every household-grained measure — a single 264-person row would
+ * wreck any household average.
  */
 const HOUSEHOLD_KINDS = ['identified_household_encounter', 'identity_unavailable_encounter'];
+
+export type ServiceBucketGranularity = 'day' | 'week' | 'month';
 
 export interface ServiceAnalyticsFilters {
   preset: AnalyticsRangePreset;
@@ -43,63 +45,116 @@ export interface ServiceAnalyticsFilters {
   endDate?: string;
 }
 
+export interface ServiceMethodDefinition {
+  metricKey: string;
+  displayName: string;
+  unit: string;
+}
+
 export interface ServiceAnalytics {
   coverage: {
     startDate: string;
     endDate: string;
+    granularity: ServiceBucketGranularity;
     sources: Array<{ source: string; firstDate: string; lastDate: string; encounters: number }>;
+    hasIntake: boolean;
+    hasServiceLog: boolean;
+    /**
+     * The Service Log's own span inside the range. It begins later than intake
+     * — WTH started keeping it in October 2023 — so a figure drawn from it can
+     * cover less than the range asked for, and the card has to say so rather
+     * than presenting a short count as a whole-range total.
+     */
+    serviceLogFirstDate: string | null;
+    serviceLogLastDate: string | null;
   };
   summary: {
     visits: number;
-    households: number;
-    peopleReported: number;
+    peopleServed: number;
     identityUnavailableVisits: number;
     bulkEntryVisits: number;
     bulkEntryPeople: number;
+    /** Households served, and which record produced the figure. */
+    households: number;
+    householdsSource: 'service_log' | 'intake' | 'none';
+    /** Service Log method totals, in the order staff administer them. */
+    methods: Array<ServiceMethodDefinition & { households: number }>;
+    /** Ancillary services and requests, aggregated by semantic role. */
+    otherServices: { total: number; unit: string; metrics: ServiceMethodDefinition[] };
   };
   overTime: Array<{
     month: string;
-    source: string;
-    visits: number;
-    households: number;
-    peopleReported: number;
+    link2feedHouseholds: number;
+    link2feedIndividuals: number;
+    simcHouseholds: number;
+    simcIndividuals: number;
+    serviceLogHouseholds: number;
   }>;
+  /** Households by calendar month, one key per year — for the seasonal plot. */
+  seasonal: {
+    years: string[];
+    months: Array<Record<string, string | number>>;
+  };
+  methodSeries: {
+    granularity: ServiceBucketGranularity;
+    methods: ServiceMethodDefinition[];
+    buckets: Array<Record<string, string | number>>;
+  };
+  recordAgreement: {
+    sharedDays: number;
+    intakeTotal: number;
+    serviceLogTotal: number;
+    meanAbsoluteDailyDifference: number;
+    agreementPercent: number;
+  };
+  householdSize: Array<{ people: number; visits: number }>;
   reachAndFrequency: Array<{
     year: string;
     households: number;
     visits: number;
     visitsPerHousehold: number;
-    newHouseholds: number;
   }>;
-  methodMix: Array<{
-    month: string;
-    shoppingVisits: number;
-    longLists: number;
-    premadeBags: number;
-    emergencyBags: number;
-  }>;
-  recordAgreement: {
-    months: Array<{ month: string; days: number; formal: number; operational: number }>;
-    sharedDays: number;
-    formalTotal: number;
-    operationalTotal: number;
-    meanAbsoluteDailyDifference: number;
-  };
-  householdSize: Array<{ people: number; visits: number }>;
 }
+
+const MONTH_LABELS = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+];
 
 const round = (value: number, places = 2): number => {
   const factor = 10 ** places;
   return Math.round(value * factor) / factor;
 };
 
+/**
+ * Bucket size follows the length of the window, not the preset name, so a
+ * custom range gets the same treatment as the preset closest to it. Daily
+ * points over a year would be unreadable; monthly points over a week would be
+ * a single dot.
+ */
+const granularityFor = (startDate: string, endDate: string): ServiceBucketGranularity => {
+  const days = Math.round(
+    (Date.parse(`${endDate}T00:00:00Z`) - Date.parse(`${startDate}T00:00:00Z`)) / 86_400_000,
+  ) + 1;
+  if (days <= 14) return 'day';
+  if (days <= 45) return 'week';
+  return 'month';
+};
+
+/** SQL producing the bucket key for a `serviceDate` column. */
+const bucketExpression = (granularity: ServiceBucketGranularity, column: string): string => {
+  if (granularity === 'day') return column;
+  // Monday-start weeks, so a bucket never splits a Tuesday-to-Thursday service
+  // week across two points.
+  if (granularity === 'week') {
+    return `date(${column}, '-' || ((strftime('%w', ${column}) + 6) % 7) || ' days')`;
+  }
+  return `substr(${column}, 1, 7)`;
+};
+
 export async function getServiceAnalytics(
   filters: ServiceAnalyticsFilters,
   client: PrismaClient = prisma,
 ): Promise<ServiceAnalytics> {
-  // The preset is resolved here, against the organization's timezone and the
-  // earliest service date on record, exactly as procurement analytics resolves
-  // its own — so "All" and "Last 90 days" mean one thing across every lens.
   const settings = await getOperatingHoursSettings(client as never);
   const earliest = await client.serviceEncounterRevision.aggregate({
     where: { isCurrent: true },
@@ -115,10 +170,64 @@ export async function getServiceAnalytics(
     earliest._min.serviceDate ?? undefined,
   );
   const { startDate, endDate } = resolved;
+  const granularity = granularityFor(startDate, endDate);
   const kinds = HOUSEHOLD_KINDS;
 
-  // Coverage is reported per source rather than as one span, because the two
-  // formal sources meet at a cutover and a single blended range would hide it.
+  // Current definition revision per metric, carrying the flags that decide
+  // which group each metric belongs to.
+  const definitions = await client.$queryRaw<Array<{
+    metricKey: string; displayName: string; unit: string;
+    semanticRole: string;
+    // SQLite stores this as 0/1 but Prisma hydrates the column's declared
+    // Boolean type, so it arrives as a boolean — comparing it to 1 silently
+    // matched nothing and emptied every Service Log group.
+    contributesToOperationalTotal: boolean;
+    displayOrder: number;
+  }>>`
+    SELECT d."metricKey", r."displayName", r."unit", r."semanticRole",
+           r."contributesToOperationalTotal", r."displayOrder"
+    FROM "ServiceMetricDefinition" d
+    JOIN "ServiceMetricDefinitionRevision" r
+      ON r."id" = (SELECT "id" FROM "ServiceMetricDefinitionRevision"
+                   WHERE "metricId" = d."id" ORDER BY "revision" DESC LIMIT 1)
+    ORDER BY r."displayOrder"`;
+
+  const methodDefinitions = definitions.filter((row) =>
+    row.semanticRole === 'served_household_method' && Boolean(row.contributesToOperationalTotal));
+  const ancillaryDefinitions = definitions.filter((row) => row.semanticRole === 'ancillary_service');
+  const methodKeys = methodDefinitions.map((row) => row.metricKey);
+  const ancillaryKeys = ancillaryDefinitions.map((row) => row.metricKey);
+
+  // Prisma's tagged template cannot expand an array into an IN list, so the key
+  // lists are turned into placeholders. The values still travel as bound
+  // parameters — only the placeholder count is assembled from a length.
+  const inList = (keys: string[]) => keys.map(() => '?').join(', ');
+
+  const metricTotals = methodKeys.length + ancillaryKeys.length === 0
+    ? []
+    : await client.$queryRawUnsafe<Array<{ metricKey: string; total: number | null }>>(
+      `SELECT d."metricKey", SUM(COALESCE(o."countValue", 0)) AS "total"
+       FROM "ServiceMetricObservationRevision" o
+       JOIN "ServiceMetricDefinition" d ON d."id" = o."metricId"
+       WHERE o."isCurrent" = 1 AND o."serviceDate" BETWEEN ? AND ?
+         AND d."metricKey" IN (${inList([...methodKeys, ...ancillaryKeys])})
+       GROUP BY d."metricKey"`,
+      startDate, endDate, ...methodKeys, ...ancillaryKeys,
+    );
+
+  const totalFor = (key: string) =>
+    Number(metricTotals.find((row) => row.metricKey === key)?.total ?? 0);
+
+  const serviceLogSpan = methodKeys.length === 0 ? [] :
+    await client.$queryRawUnsafe<Array<{ firstDate: string | null; lastDate: string | null }>>(
+      `SELECT MIN(o."serviceDate") AS "firstDate", MAX(o."serviceDate") AS "lastDate"
+       FROM "ServiceMetricObservationRevision" o
+       JOIN "ServiceMetricDefinition" d ON d."id" = o."metricId"
+       WHERE o."isCurrent" = 1 AND o."serviceDate" BETWEEN ? AND ?
+         AND d."metricKey" IN (${inList(methodKeys)})`,
+      startDate, endDate, ...methodKeys,
+    );
+
   const coverageRows = await client.$queryRaw<Array<{
     source: string; firstDate: string; lastDate: string; encounters: bigint;
   }>>`
@@ -129,13 +238,14 @@ export async function getServiceAnalytics(
     GROUP BY "source" ORDER BY MIN("serviceDate")`;
 
   const summaryRows = await client.$queryRaw<Array<{
-    visits: bigint; households: bigint; peopleReported: number | null;
+    visits: bigint; intakeHouseholds: bigint; peopleServed: number | null;
     identityUnavailable: bigint; bulkVisits: bigint; bulkPeople: number | null;
   }>>`
     SELECT
       SUM(CASE WHEN "recordKind" IN ('identified_household_encounter','identity_unavailable_encounter') THEN 1 ELSE 0 END) AS "visits",
-      COUNT(DISTINCT "clientId") AS "households",
-      SUM(COALESCE("reportedPeopleCount", 0)) AS "peopleReported",
+      COUNT(DISTINCT "clientId") AS "intakeHouseholds",
+      SUM(CASE WHEN "recordKind" IN ('identified_household_encounter','identity_unavailable_encounter')
+               THEN COALESCE("reportedPeopleCount", 0) ELSE 0 END) AS "peopleServed",
       SUM(CASE WHEN "recordKind" = 'identity_unavailable_encounter' THEN 1 ELSE 0 END) AS "identityUnavailable",
       SUM(CASE WHEN "recordKind" = 'special_event_people_aggregate' THEN 1 ELSE 0 END) AS "bulkVisits",
       SUM(CASE WHEN "recordKind" = 'special_event_people_aggregate' THEN COALESCE("reportedPeopleCount",0) ELSE 0 END) AS "bulkPeople"
@@ -143,70 +253,72 @@ export async function getServiceAnalytics(
     WHERE "isCurrent" = 1 AND "serviceDate" BETWEEN ${startDate} AND ${endDate}`;
 
   const overTimeRows = await client.$queryRaw<Array<{
-    month: string; source: string; visits: bigint; households: bigint; peopleReported: number | null;
+    month: string; source: string; households: bigint; individuals: number | null;
   }>>`
     SELECT substr("serviceDate", 1, 7) AS "month", "source",
-           COUNT(*) AS "visits",
            COUNT(DISTINCT "clientId") AS "households",
-           SUM(COALESCE("reportedPeopleCount", 0)) AS "peopleReported"
+           SUM(COALESCE("reportedPeopleCount", 0)) AS "individuals"
     FROM "ServiceEncounterRevision"
     WHERE "isCurrent" = 1 AND "serviceDate" BETWEEN ${startDate} AND ${endDate}
       AND "recordKind" IN (${kinds[0]}, ${kinds[1]})
     GROUP BY "month", "source" ORDER BY "month", "source"`;
 
-  // A household is "new" the first time it is seen ANYWHERE in the record, not
-  // the first time inside the selected range — otherwise narrowing the range
-  // would relabel long-standing households as new.
-  const reachRows = await client.$queryRaw<Array<{
-    year: string; households: bigint; visits: bigint; newHouseholds: bigint;
-  }>>`
-    WITH firstSeen AS (
-      SELECT "clientId", MIN("serviceDate") AS "firstDate"
-      FROM "ServiceEncounterRevision"
-      WHERE "isCurrent" = 1 AND "clientId" IS NOT NULL
-      GROUP BY "clientId")
-    SELECT substr(e."serviceDate", 1, 4) AS "year",
-           COUNT(DISTINCT e."clientId") AS "households",
-           COUNT(*) AS "visits",
-           COUNT(DISTINCT CASE WHEN substr(f."firstDate",1,4) = substr(e."serviceDate",1,4)
-                               THEN e."clientId" END) AS "newHouseholds"
-    FROM "ServiceEncounterRevision" e
-    LEFT JOIN firstSeen f ON f."clientId" = e."clientId"
-    WHERE e."isCurrent" = 1 AND e."serviceDate" BETWEEN ${startDate} AND ${endDate}
-      AND e."recordKind" IN (${kinds[0]}, ${kinds[1]})
-    GROUP BY "year" ORDER BY "year"`;
+  const serviceLogMonthly = methodKeys.length === 0 ? [] :
+    await client.$queryRawUnsafe<Array<{ month: string; households: number | null }>>(
+      `SELECT substr(o."serviceDate", 1, 7) AS "month", SUM(COALESCE(o."countValue",0)) AS "households"
+       FROM "ServiceMetricObservationRevision" o
+       JOIN "ServiceMetricDefinition" d ON d."id" = o."metricId"
+       WHERE o."isCurrent" = 1 AND o."serviceDate" BETWEEN ? AND ?
+         AND d."metricKey" IN (${inList(methodKeys)})
+       GROUP BY "month" ORDER BY "month"`,
+      startDate, endDate, ...methodKeys,
+    );
 
-  const methodRows = await client.$queryRaw<Array<{
-    month: string; metricKey: string; total: number | null;
+  // Seasonal comparison uses per-month distinct households, which is sound even
+  // though a whole-range distinct count is not: a client holds one profile per
+  // system, and only one system is live in any given month.
+  const seasonalRows = await client.$queryRaw<Array<{
+    year: string; monthIndex: string; households: bigint;
   }>>`
-    SELECT substr(o."serviceDate", 1, 7) AS "month", d."metricKey", SUM(COALESCE(o."countValue",0)) AS "total"
-    FROM "ServiceMetricObservationRevision" o
-    JOIN "ServiceMetricDefinition" d ON d."id" = o."metricId"
-    WHERE o."isCurrent" = 1 AND o."serviceDate" BETWEEN ${startDate} AND ${endDate}
-      AND d."metricKey" IN ('shopping_visits','long_lists','premade_bags','emergency_bags')
-    GROUP BY "month", d."metricKey" ORDER BY "month"`;
+    SELECT substr("serviceDate", 1, 4) AS "year",
+           substr("serviceDate", 6, 2) AS "monthIndex",
+           COUNT(DISTINCT "clientId") AS "households"
+    FROM "ServiceEncounterRevision"
+    WHERE "isCurrent" = 1 AND "serviceDate" BETWEEN ${startDate} AND ${endDate}
+      AND "recordKind" IN (${kinds[0]}, ${kinds[1]})
+    GROUP BY "year", "monthIndex" ORDER BY "year", "monthIndex"`;
 
-  // Only days where BOTH records exist. A day the spreadsheet never covered is
-  // not a day the two disagree on.
-  const agreementRows = await client.$queryRaw<Array<{
-    serviceDate: string; formal: bigint; operational: number | null;
-  }>>`
-    WITH formal AS (
-      SELECT "serviceDate", COUNT(*) AS "formal"
-      FROM "ServiceEncounterRevision"
-      WHERE "isCurrent" = 1 AND "recordKind" IN (${kinds[0]}, ${kinds[1]})
-      GROUP BY "serviceDate"),
-    operational AS (
-      SELECT o."serviceDate", SUM(COALESCE(o."countValue",0)) AS "operational"
-      FROM "ServiceMetricObservationRevision" o
-      JOIN "ServiceMetricDefinition" d ON d."id" = o."metricId"
-      WHERE o."isCurrent" = 1
-        AND d."metricKey" IN ('shopping_visits','long_lists','premade_bags','emergency_bags')
-      GROUP BY o."serviceDate")
-    SELECT f."serviceDate", f."formal", o."operational"
-    FROM formal f JOIN operational o ON o."serviceDate" = f."serviceDate"
-    WHERE f."serviceDate" BETWEEN ${startDate} AND ${endDate}
-    ORDER BY f."serviceDate"`;
+  const bucketSql = bucketExpression(granularity, 'o."serviceDate"');
+  const methodSeriesRows = methodKeys.length === 0 ? [] :
+    await client.$queryRawUnsafe<Array<{ bucket: string; metricKey: string; total: number | null }>>(
+      `SELECT ${bucketSql} AS "bucket", d."metricKey", SUM(COALESCE(o."countValue",0)) AS "total"
+       FROM "ServiceMetricObservationRevision" o
+       JOIN "ServiceMetricDefinition" d ON d."id" = o."metricId"
+       WHERE o."isCurrent" = 1 AND o."serviceDate" BETWEEN ? AND ?
+         AND d."metricKey" IN (${inList(methodKeys)})
+       GROUP BY "bucket", d."metricKey" ORDER BY "bucket"`,
+      startDate, endDate, ...methodKeys,
+    );
+
+  const agreementRows = methodKeys.length === 0 ? [] :
+    await client.$queryRawUnsafe<Array<{ serviceDate: string; intake: number; serviceLog: number | null }>>(
+      `WITH intake AS (
+         SELECT "serviceDate", COUNT(*) AS "intake"
+         FROM "ServiceEncounterRevision"
+         WHERE "isCurrent" = 1
+           AND "recordKind" IN ('identified_household_encounter','identity_unavailable_encounter')
+         GROUP BY "serviceDate"),
+       logged AS (
+         SELECT o."serviceDate", SUM(COALESCE(o."countValue",0)) AS "serviceLog"
+         FROM "ServiceMetricObservationRevision" o
+         JOIN "ServiceMetricDefinition" d ON d."id" = o."metricId"
+         WHERE o."isCurrent" = 1 AND d."metricKey" IN (${inList(methodKeys)})
+         GROUP BY o."serviceDate")
+       SELECT i."serviceDate", i."intake", l."serviceLog"
+       FROM intake i JOIN logged l ON l."serviceDate" = i."serviceDate"
+       WHERE i."serviceDate" BETWEEN ? AND ?`,
+      ...methodKeys, startDate, endDate,
+    );
 
   const sizeRows = await client.$queryRaw<Array<{ people: number; visits: bigint }>>`
     SELECT "reportedPeopleCount" AS "people", COUNT(*) AS "visits"
@@ -216,84 +328,158 @@ export async function getServiceAnalytics(
       AND "reportedPeopleCount" IS NOT NULL
     GROUP BY "reportedPeopleCount" ORDER BY "reportedPeopleCount"`;
 
+  const reachRows = await client.$queryRaw<Array<{
+    year: string; households: bigint; visits: bigint;
+  }>>`
+    SELECT substr("serviceDate", 1, 4) AS "year",
+           COUNT(DISTINCT "clientId") AS "households",
+           COUNT(*) AS "visits"
+    FROM "ServiceEncounterRevision"
+    WHERE "isCurrent" = 1 AND "serviceDate" BETWEEN ${startDate} AND ${endDate}
+      AND "recordKind" IN (${kinds[0]}, ${kinds[1]})
+    GROUP BY "year" ORDER BY "year"`;
+
+  // ---- assemble ----------------------------------------------------------
   const summary = summaryRows[0];
-  const methodByMonth = new Map<string, ServiceAnalytics['methodMix'][number]>();
-  for (const row of methodRows) {
-    const entry = methodByMonth.get(row.month)
-      ?? { month: row.month, shoppingVisits: 0, longLists: 0, premadeBags: 0, emergencyBags: 0 };
-    const value = Number(row.total ?? 0);
-    if (row.metricKey === 'shopping_visits') entry.shoppingVisits = value;
-    if (row.metricKey === 'long_lists') entry.longLists = value;
-    if (row.metricKey === 'premade_bags') entry.premadeBags = value;
-    if (row.metricKey === 'emergency_bags') entry.emergencyBags = value;
-    methodByMonth.set(row.month, entry);
+  const methods = methodDefinitions.map((row) => ({
+    metricKey: row.metricKey,
+    displayName: row.displayName,
+    unit: row.unit,
+    households: totalFor(row.metricKey),
+  }));
+  const serviceLogHouseholds = methods.reduce((total, row) => total + row.households, 0);
+  const intakeHouseholds = Number(summary?.intakeHouseholds ?? 0);
+  const visits = Number(summary?.visits ?? 0);
+
+  // The Service Log is preferred for households served. A whole-range distinct
+  // count over intake profiles overstates the client base, because the
+  // Link2Feed-to-SIMC changeover gave returning clients a second profile — the
+  // same person, counted twice. The hand-entered daily count has no such
+  // duplication. Intake is the fallback only where the Service Log is silent.
+  const householdsSource: 'service_log' | 'intake' | 'none' =
+    serviceLogHouseholds > 0 ? 'service_log' : intakeHouseholds > 0 ? 'intake' : 'none';
+
+  const monthly = new Map<string, ServiceAnalytics['overTime'][number]>();
+  const emptyMonth = (month: string) => ({
+    month,
+    link2feedHouseholds: 0, link2feedIndividuals: 0,
+    simcHouseholds: 0, simcIndividuals: 0,
+    serviceLogHouseholds: 0,
+  });
+  for (const row of overTimeRows) {
+    const entry = monthly.get(row.month) ?? emptyMonth(row.month);
+    if (row.source === 'link2feed') {
+      entry.link2feedHouseholds = Number(row.households);
+      entry.link2feedIndividuals = Number(row.individuals ?? 0);
+    } else if (row.source === 'simc') {
+      entry.simcHouseholds = Number(row.households);
+      entry.simcIndividuals = Number(row.individuals ?? 0);
+    }
+    monthly.set(row.month, entry);
+  }
+  for (const row of serviceLogMonthly) {
+    const entry = monthly.get(row.month) ?? emptyMonth(row.month);
+    entry.serviceLogHouseholds = Number(row.households ?? 0);
+    monthly.set(row.month, entry);
   }
 
-  const agreementByMonth = new Map<string, { month: string; days: number; formal: number; operational: number }>();
+  const seasonalYears = [...new Set(seasonalRows.map((row) => row.year))].sort();
+  const seasonalMonths = MONTH_LABELS.map((label, index) => {
+    const key = String(index + 1).padStart(2, '0');
+    const row: Record<string, string | number> = { month: label };
+    for (const year of seasonalYears) {
+      const match = seasonalRows.find((entry) => entry.year === year && entry.monthIndex === key);
+      if (match) row[year] = Number(match.households);
+    }
+    return row;
+  });
+
+  const seriesBuckets = new Map<string, Record<string, string | number>>();
+  for (const row of methodSeriesRows) {
+    const entry = seriesBuckets.get(row.bucket) ?? { bucket: row.bucket };
+    entry[row.metricKey] = Number(row.total ?? 0);
+    seriesBuckets.set(row.bucket, entry);
+  }
+  // Absent metrics are explicit zeros: staff record every method each service
+  // day, so a missing row means none were given, not that nobody counted.
+  for (const entry of seriesBuckets.values()) {
+    for (const key of methodKeys) if (entry[key] === undefined) entry[key] = 0;
+  }
+
   let absoluteDifference = 0;
-  let formalTotal = 0;
-  let operationalTotal = 0;
+  let intakeTotal = 0;
+  let serviceLogTotal = 0;
   for (const row of agreementRows) {
-    const month = row.serviceDate.slice(0, 7);
-    const formal = Number(row.formal);
-    const operational = Number(row.operational ?? 0);
-    const entry = agreementByMonth.get(month) ?? { month, days: 0, formal: 0, operational: 0 };
-    entry.days += 1;
-    entry.formal += formal;
-    entry.operational += operational;
-    agreementByMonth.set(month, entry);
-    absoluteDifference += Math.abs(operational - formal);
-    formalTotal += formal;
-    operationalTotal += operational;
+    const intake = Number(row.intake);
+    const logged = Number(row.serviceLog ?? 0);
+    absoluteDifference += Math.abs(logged - intake);
+    intakeTotal += intake;
+    serviceLogTotal += logged;
   }
 
   return {
     coverage: {
       startDate,
       endDate,
+      granularity,
       sources: coverageRows.map((row) => ({
         source: row.source,
         firstDate: row.firstDate,
         lastDate: row.lastDate,
         encounters: Number(row.encounters),
       })),
+      hasIntake: visits > 0,
+      hasServiceLog: serviceLogHouseholds > 0
+        || ancillaryDefinitions.some((row) => totalFor(row.metricKey) > 0),
+      serviceLogFirstDate: serviceLogSpan[0]?.firstDate ?? null,
+      serviceLogLastDate: serviceLogSpan[0]?.lastDate ?? null,
     },
     summary: {
-      visits: Number(summary?.visits ?? 0),
-      households: Number(summary?.households ?? 0),
-      peopleReported: Number(summary?.peopleReported ?? 0),
+      visits,
+      peopleServed: Number(summary?.peopleServed ?? 0),
       identityUnavailableVisits: Number(summary?.identityUnavailable ?? 0),
       bulkEntryVisits: Number(summary?.bulkVisits ?? 0),
       bulkEntryPeople: Number(summary?.bulkPeople ?? 0),
+      households: householdsSource === 'service_log' ? serviceLogHouseholds : intakeHouseholds,
+      householdsSource,
+      methods,
+      otherServices: {
+        total: ancillaryDefinitions.reduce((sum, row) => sum + totalFor(row.metricKey), 0),
+        unit: ancillaryDefinitions[0]?.unit ?? 'requests',
+        metrics: ancillaryDefinitions.map((row) => ({
+          metricKey: row.metricKey, displayName: row.displayName, unit: row.unit,
+        })),
+      },
     },
-    overTime: overTimeRows.map((row) => ({
-      month: row.month,
-      source: row.source,
-      visits: Number(row.visits),
-      households: Number(row.households),
-      peopleReported: Number(row.peopleReported ?? 0),
-    })),
-    reachAndFrequency: reachRows.map((row) => {
-      const households = Number(row.households);
-      const visits = Number(row.visits);
-      return {
-        year: row.year,
-        households,
-        visits,
-        visitsPerHousehold: households > 0 ? round(visits / households) : 0,
-        newHouseholds: Number(row.newHouseholds),
-      };
-    }),
-    methodMix: [...methodByMonth.values()].sort((a, b) => a.month.localeCompare(b.month)),
+    overTime: [...monthly.values()].sort((a, b) => a.month.localeCompare(b.month)),
+    seasonal: { years: seasonalYears, months: seasonalMonths },
+    methodSeries: {
+      granularity,
+      methods: methodDefinitions.map((row) => ({
+        metricKey: row.metricKey, displayName: row.displayName, unit: row.unit,
+      })),
+      buckets: [...seriesBuckets.values()]
+        .sort((a, b) => String(a.bucket).localeCompare(String(b.bucket))),
+    },
     recordAgreement: {
-      months: [...agreementByMonth.values()].sort((a, b) => a.month.localeCompare(b.month)),
       sharedDays: agreementRows.length,
-      formalTotal,
-      operationalTotal,
+      intakeTotal,
+      serviceLogTotal,
       meanAbsoluteDailyDifference: agreementRows.length > 0
         ? round(absoluteDifference / agreementRows.length, 1)
         : 0,
+      agreementPercent: intakeTotal > 0 ? round((serviceLogTotal / intakeTotal) * 100, 1) : 0,
     },
     householdSize: sizeRows.map((row) => ({ people: Number(row.people), visits: Number(row.visits) })),
+    reachAndFrequency: reachRows.map((row) => {
+      const households = Number(row.households);
+      const rowVisits = Number(row.visits);
+      return {
+        year: row.year,
+        households,
+        visits: rowVisits,
+        visitsPerHousehold: households > 0 ? round(rowVisits / households) : 0,
+      };
+    }),
   };
 }
