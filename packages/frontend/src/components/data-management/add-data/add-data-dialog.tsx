@@ -18,7 +18,6 @@ import {
 } from '@/components/ui/dialog';
 import { AlertCircle, CheckCircle2, FileText, Loader2, ShieldCheck } from '@/components/ui/icons';
 import { Input } from '@/components/ui/input';
-import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from '@/components/ui/textarea';
 import { formatDate, formatDateRange } from '@/lib/formatting/date';
@@ -35,6 +34,7 @@ import { messageService } from '@/services/message';
 import { procurementService } from '@/services/procurement';
 import type { LegacyImportResult, ProcurementWarning, UnifiedImportResult } from '@/types/procurement';
 import { format, parseISO } from 'date-fns';
+import { ImportProgressPanel } from './import-progress-panel';
 import { detectCsvSource, type DetectedSource } from './source-contracts';
 
 type PrototypeStep = 'select' | 'review' | 'complete';
@@ -60,14 +60,6 @@ const formatBytes = (bytes: number) => {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-};
-
-// A large import legitimately runs for minutes, so raw seconds stop reading as
-// progress past a point. Measured on the production Pi: 79,308 rows took 168s.
-const formatElapsed = (seconds: number): string => {
-  if (seconds < 60) return `${seconds}s`;
-  const minutes = Math.floor(seconds / 60);
-  return `${minutes}m ${String(seconds % 60).padStart(2, '0')}s`;
 };
 
 const warningCount = (result: UnifiedImportResult) =>
@@ -125,12 +117,21 @@ export function AddDataDialog({
   const [decisionReason, setDecisionReason] = React.useState('');
   const [eventLabel, setEventLabel] = React.useState('');
   const [resumable, setResumable] = React.useState<DataImportJobReview | null>(null);
-  const [startedAt, setStartedAt] = React.useState<number | null>(null);
-  const [elapsedSeconds, setElapsedSeconds] = React.useState(0);
+  // Set the moment activation is requested. POST /activate answers 202 with the
+  // job as it stands at that instant, and the ready→activating transition
+  // happens inside the background task — so the response almost always still
+  // reads `ready`. Keying the poll on status alone therefore never started it,
+  // and a finished activation was never picked up: the server reported
+  // `completed` while the dialog still offered "Activate Data".
+  const [activationRequested, setActivationRequested] = React.useState(false);
   const inputRef = React.useRef<HTMLInputElement>(null);
 
   // The server owns the work; these two statuses mean it is still running it.
   const isBackgroundRunning = job?.status === 'preparing' || job?.status === 'activating';
+  const isTerminal = job?.status === 'completed' || job?.status === 'failed' || job?.status === 'cancelled';
+  const shouldPoll = Boolean(job) && (isBackgroundRunning || (activationRequested && !isTerminal));
+  const showProgress = Boolean(job) && (isBackgroundRunning || isWorking
+    || (activationRequested && !isTerminal));
 
   const reset = React.useCallback(() => {
     setStep('select');
@@ -147,8 +148,7 @@ export function AddDataDialog({
     setDecisionReason('');
     setEventLabel('');
     setResumable(null);
-    setStartedAt(null);
-    setElapsedSeconds(0);
+    setActivationRequested(false);
     if (inputRef.current) inputRef.current.value = '';
   }, []);
 
@@ -156,7 +156,7 @@ export function AddDataDialog({
   // way — closing the browser does not stop it — so this only decides whether
   // the user can watch, not whether the work completes.
   React.useEffect(() => {
-    if (!open || !job || !isBackgroundRunning) return;
+    if (!open || !job || !shouldPoll) return;
     let cancelled = false;
     const timer = window.setInterval(() => {
       void (async () => {
@@ -170,17 +170,7 @@ export function AddDataDialog({
       })();
     }, 2000);
     return () => { cancelled = true; window.clearInterval(timer); };
-  }, [open, job, isBackgroundRunning]);
-
-  // Elapsed time is the honest signal while row counts are still zero — it is
-  // what separates "working" from "hung" before there is anything to count.
-  React.useEffect(() => {
-    if (!isBackgroundRunning || startedAt === null) return;
-    const timer = window.setInterval(() => {
-      setElapsedSeconds(Math.floor((Date.now() - startedAt) / 1000));
-    }, 1000);
-    return () => window.clearInterval(timer);
-  }, [isBackgroundRunning, startedAt]);
+  }, [open, job, shouldPoll]);
 
   // An import that lost its browser tab is still running on the server. Offer
   // the way back to it rather than letting the user start a second one.
@@ -335,8 +325,6 @@ export function AddDataDialog({
 
       // Returns once the file is staged and identified, not once it is
       // validated — the polling effect above takes it from here.
-      setStartedAt(Date.now());
-      setElapsedSeconds(0);
       setJob(await dataImportService.upload(file));
       setStep('complete');
     } catch (caught) {
@@ -373,9 +361,15 @@ export function AddDataDialog({
         ...(decisionAction === 'apply_source_resolution' ? { eventLabel } : {}),
       });
       setJob(updated);
-      setDecisionAction('keep_source_interpretation');
-      setDecisionReason('');
-      setEventLabel('');
+      // The action, label, and reason carry forward as editable defaults. A
+      // historical archive raises the same kind of question repeatedly — WTH's
+      // first import had 13 special-event aggregates — and retyping identical
+      // text 13 times is friction, not diligence. Each issue still requires its
+      // own explicit Save, and the fields stay visible and editable, so this
+      // removes typing without ever applying one row's answer to another. Bulk
+      // "apply to all" is deliberately NOT offered: a resolution is evidence
+      // about one observation, and two rows that merely look alike are not the
+      // same fact.
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'FEED could not save this review decision. Try again.');
     } finally {
@@ -388,8 +382,7 @@ export function AddDataDialog({
     try {
       setError(null);
       setIsWorking(true);
-      setStartedAt(Date.now());
-      setElapsedSeconds(0);
+      setActivationRequested(true);
       // Accepted, not finished. The job reaches `completed` in the background
       // and the polling effect picks up the outcome and its counts.
       setJob(await dataImportService.activate(job.id));
@@ -482,8 +475,6 @@ export function AddDataDialog({
                       onClick={() => {
                         setJob(resumable);
                         setResumable(null);
-                        setStartedAt(Date.now());
-                        setElapsedSeconds(0);
                         setStep('complete');
                       }}
                     >
@@ -692,46 +683,12 @@ export function AddDataDialog({
           </div>
         )}
 
-        {/* Deliberately outside the review-summary block below: while the job is
-            preparing there is no summary yet, and gating progress on one is what
-            leaves the user staring at an empty dialog for minutes. */}
-        {step === 'complete' && job && (isBackgroundRunning || isWorking) && (
-          <div className="space-y-2 rounded-md border bg-muted/40 p-3" aria-live="polite">
-            <div className="flex items-center gap-2 text-sm">
-                <Loader2 className="h-4 w-4 shrink-0 animate-spin" aria-hidden="true" />
-                <span className="font-medium">
-                  {job.status === 'activating'
-                    ? 'Activating reviewed data…'
-                    : job.processedRows > 0
-                      ? `Validated ${job.processedRows.toLocaleString()}${job.totalRows ? ` of ${job.totalRows.toLocaleString()}` : ''} record${job.processedRows === 1 ? '' : 's'}…`
-                      : 'Reading the data file…'}
-                </span>
-                <span className="ml-auto shrink-0 tabular-nums text-xs text-muted-foreground">
-                  {formatElapsed(elapsedSeconds)}
-                </span>
-              </div>
-
-              {/* A determinate bar only once totalRows is known. Before that a
-                  percentage would be invented, and elapsed time is the honest
-                  signal — the same reasoning as the OFB import panel. */}
-              {job.totalRows && job.totalRows > 0 ? (
-                <Progress
-                  value={Math.min(100, Math.round((job.processedRows / job.totalRows) * 100))}
-                  className="h-1.5"
-                />
-              ) : (
-                <div className="h-1.5 overflow-hidden rounded-full bg-muted">
-                  <div className="h-full w-1/3 animate-pulse rounded-full bg-primary/60" />
-                </div>
-              )}
-
-              <p className="text-xs text-muted-foreground">
-                This continues on the server. You can close this window and come
-                back — FEED will offer to reopen the import. Existing data is
-                unchanged until you activate.
-              </p>
-            </div>
-          )}
+        {/* Deliberately outside the review-summary block below: while the job
+            is preparing there is no summary yet, and gating progress on one is
+            what leaves the user staring at an empty dialog for minutes. */}
+        {step === 'complete' && job && showProgress && !result && (
+          <ImportProgressPanel job={job} pending={activationRequested && !isTerminal} />
+        )}
 
         {step === 'complete' && job?.reviewSummary && (
           <div className="space-y-4">

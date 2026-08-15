@@ -5,6 +5,41 @@ All notable changes to FEED are documented here. This project adheres to
 
 ## [Unreleased]
 
+## [1.5.0-beta.16] — 2026-08-15
+
+Makes the import window say what is actually happening. Following the first
+real end-to-end import, where the panel reported finished work as still
+running.
+
+### Fixed
+
+- **The import window now names the step it is on.** It showed "Validated
+  79,308 of 79,308 records" with a full progress bar while it was in fact
+  preparing the reviewed data for activation — a stage that can take minutes of
+  its own. Each step now says what it is doing, and a four-step marker shows how
+  much of the process remains.
+
+- **Elapsed time is now measured per step.** It counted from the moment of
+  upload, so the figure shown while preparing silently included however long
+  staff spent entering review decisions.
+
+- **A full progress bar no longer appears while work continues.** Reading every
+  record is not the end of validation — the records are then checked against
+  existing data — so the bar gives way to an indeterminate one at the point
+  counting stops.
+
+- **The window now notices when activation finishes.** Activation could complete
+  on the server while the window still offered `Activate Data`, because the
+  response confirming the request was sent before the status had changed.
+
+### Changed
+
+- **Review decisions carry the previous answer forward as an editable default.**
+  A historical archive raises the same kind of question repeatedly — WTH's first
+  import had 13 special-event aggregates — and each one previously needed its
+  label and reason typed from scratch. Every decision still requires its own
+  explicit Save, and no answer is ever applied to another record automatically.
+
 ## [1.5.0-beta.15] — 2026-08-15
 
 ### Fixed

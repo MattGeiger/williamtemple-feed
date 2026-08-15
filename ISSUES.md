@@ -38,6 +38,52 @@ Everything else in this file. The application is shippable today.
 
 ## Open Issues
 
+### #72 — Import progress panel misreported which stage was running
+**Priority**: Medium · **Status**: Fixed in source 2026-08-15; awaiting deployment
+**Bucket**: Data Management / import UX
+
+Found during the first successful end-to-end Link2Feed import on beta.15. The
+import worked; the panel describing it did not.
+
+Post-review materialization reported **"Validated 79,308 of 79,308 records…"**
+with a full progress bar, because that work and the initial parse are both
+status `preparing` with identical row counts and only `activating` was
+distinguished. The elapsed timer counted from upload rather than from the
+current stage, so the figure shown during materialization silently included the
+minutes spent entering 13 review decisions — it read 51 minutes on an import
+that had finished reading in about two. The reported question was "should I
+click Close?", which is the same finished-versus-hung ambiguity this whole
+feature exists to remove, reintroduced one layer up.
+
+A separate defect surfaced while verifying the fix live: `POST /activate`
+answers 202 with the job as it stands at that instant, and the ready→activating
+transition happens inside the background task, so the response almost always
+still read `ready`. The client keyed its poll on status alone, so the poll never
+started and a **completed activation was never noticed** — the server reported
+`completed` with its counts while the dialog still offered `Activate Data`.
+
+**Resolution:** the panel is extracted to `import-progress-panel.tsx` with a
+pure `importPhase(job, pending)` deriving the stage from the job — parse and
+post-review materialization are told apart by whether a review summary exists
+with nothing left to decide. A four-stage indicator (Validate · Review · Prepare
+· Activate) shows how much of the process remains, which was the orientation the
+reported confusion was actually asking for. Elapsed time resets per stage. The
+determinate bar gives way to an indeterminate one the moment counting stops,
+since reading every row is not the end of validation — reconciliation follows,
+~20s of a ~168s import. The client now polls while activation is pending, not
+only while the status says so.
+
+Review decisions carry the previous action, label, and reason forward as
+editable defaults. Each decision still requires its own explicit Save. Bulk
+"apply to all similar" was considered and **rejected**: a resolution is evidence
+about one observation, and two rows that merely look alike are not the same
+fact — the same principle the WTH resolution presets already enforce.
+
+Verified in the running app against fabricated Link2Feed data in the native
+export shape, plus an isolated harness covering all five panel states in both
+light and dark themes. The harness caught the full-bar-during-reconciliation
+case, which unit tests and a live run would both have missed.
+
 ### #71 — Link2Feed imports needing review were stranded mid-preparation
 **Priority**: High · **Status**: Fixed in source 2026-08-15; awaiting deployment
 **Bucket**: Data Management / Link2Feed ingestion

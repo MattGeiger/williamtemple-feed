@@ -1,5 +1,23 @@
 # Release Notes
 
+## Version 1.5.0-beta.16 — 2026-08-15
+
+*Beta — the import window now says what it is doing.*
+
+- **Each step of an import is named.** Previously the window could say
+  "Validated 79,308 of 79,308 records" with a full progress bar while it was
+  actually preparing that data for activation — which takes minutes of its own.
+  A four-step marker now shows where you are and what is left.
+- **The timer measures the current step**, not the time since you uploaded.
+- **A full bar means finished.** While records are still being checked against
+  existing data, the bar shows continuing work rather than sitting at 100%.
+- **Finishing activation is noticed.** The window could keep offering `Activate
+  Data` after activation had already completed.
+- **Review decisions remember your last answer.** The choice, label, and reason
+  carry over to the next question as a starting point you can edit. Each one
+  still needs its own Save — nothing is applied to a record you have not
+  confirmed.
+
 ## Version 1.5.0-beta.15 — 2026-08-15
 
 *Beta — corrects a defect in beta.13 and beta.14 that blocked Link2Feed review.*
