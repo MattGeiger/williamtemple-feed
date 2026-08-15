@@ -2,7 +2,6 @@
 // Copyright (C) 2026 Matt Geiger
 
 import * as React from 'react';
-import { DateRangeControl } from '@/components/shared/date-range-control';
 import { ServiceMetricsSettings } from '@/components/service-metrics';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -32,7 +31,6 @@ import {
   type ServiceMetricDayDefinition,
   type ServicePantryStatus,
 } from '@/services/service';
-import { DEFAULT_DATE_RANGE, type DateRangeSelection } from '@/types/date-range';
 import { DEFAULT_OPERATING_HOURS_SETTINGS } from '@/types/settings';
 import { getIconComponent } from '@/lib/icon-library';
 import { cn } from '@/lib/utils';
@@ -189,7 +187,6 @@ export function ServiceLogWorkspace() {
   const defaultToday = dateInTimezone(DEFAULT_OPERATING_HOURS_SETTINGS.timezone);
   const [serviceDate, setServiceDate] = React.useState(defaultToday);
   const [operatingHours, setOperatingHours] = React.useState(DEFAULT_OPERATING_HOURS_SETTINGS);
-  const [dateRange, setDateRange] = React.useState<DateRangeSelection>(DEFAULT_DATE_RANGE);
   const [day, setDay] = React.useState<ServiceDay | null>(null);
   const [values, setValues] = React.useState<Record<number, EntryValue>>({});
   const [pantryStatus, setPantryStatus] = React.useState<ServicePantryStatus>('open');
@@ -327,8 +324,6 @@ export function ServiceLogWorkspace() {
         description="Record the shared operational details for one pantry service day."
         icon={PageTitleUsersRoundIcon}
       />
-
-      <DateRangeControl value={dateRange} onChange={setDateRange} />
 
       <div className="grid gap-4 md:grid-cols-2 md:items-end">
         <ServiceDateNavigator

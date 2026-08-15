@@ -157,6 +157,49 @@ class ServiceApi extends BaseApiService {
   async saveDay(serviceDate: string, input: SaveServiceDayInput): Promise<ServiceDay> {
     return (await this.put<{ day: ServiceDay }>(`/days/${serviceDate}`, input)).day;
   }
+
+  async getAnalytics(filters: {
+    preset: string; startDate?: string; endDate?: string;
+  }): Promise<ServiceAnalytics> {
+    const query = new URLSearchParams(
+      Object.entries(filters).filter(([, value]) => value !== undefined) as [string, string][],
+    ).toString();
+    return (await this.get<{ analytics: ServiceAnalytics }>(`/analytics?${query}`)).analytics;
+  }
+}
+
+/** Mirrors `getServiceAnalytics` in the backend service. */
+export interface ServiceAnalytics {
+  coverage: {
+    startDate: string;
+    endDate: string;
+    sources: Array<{ source: string; firstDate: string; lastDate: string; encounters: number }>;
+  };
+  summary: {
+    visits: number;
+    households: number;
+    peopleReported: number;
+    identityUnavailableVisits: number;
+    bulkEntryVisits: number;
+    bulkEntryPeople: number;
+  };
+  overTime: Array<{
+    month: string; source: string; visits: number; households: number; peopleReported: number;
+  }>;
+  reachAndFrequency: Array<{
+    year: string; households: number; visits: number; visitsPerHousehold: number; newHouseholds: number;
+  }>;
+  methodMix: Array<{
+    month: string; shoppingVisits: number; longLists: number; premadeBags: number; emergencyBags: number;
+  }>;
+  recordAgreement: {
+    months: Array<{ month: string; days: number; formal: number; operational: number }>;
+    sharedDays: number;
+    formalTotal: number;
+    operationalTotal: number;
+    meanAbsoluteDailyDifference: number;
+  };
+  householdSize: Array<{ people: number; visits: number }>;
 }
 
 export const serviceApi = new ServiceApi();

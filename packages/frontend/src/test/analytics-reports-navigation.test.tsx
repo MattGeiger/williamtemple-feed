@@ -21,25 +21,41 @@ vi.mock('@/services/analytics-reports', () => ({
 }));
 
 describe('Analytics and Reports information architecture', () => {
-  test('places Analytics under Inventory and Reports under Information', () => {
+  // Analytics sat under Inventory while every lens described inventory over
+  // time. Service encounters are not inventory, so the section that named the
+  // subject stopped describing the page. Analytics, Reports and Data now read
+  // as one progression: look at the data, report on it, manage its sources.
+  test('groups Analytics, Reports and Data together under Information', () => {
     const inventory = navigationItems.find((item) => item.title === 'Inventory');
     const information = navigationItems.find((item) => item.title === 'Information');
 
-    expect(inventory?.items).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ title: 'Analytics', href: '/analytics' }),
-      ])
-    );
-    expect(inventory?.items).not.toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ title: 'Reports', href: '/reports' }),
-      ])
-    );
+    expect(inventory?.items?.map((item) => item.title)).toEqual(['Categories', 'Food Items']);
+
+    expect(information?.items?.map((item) => item.title)).toEqual([
+      'Analytics', 'Reports', 'Data', 'Help',
+    ]);
     expect(information?.items).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ title: 'Data', href: '/data-management' }),
+        expect.objectContaining({ title: 'Analytics', href: '/analytics' }),
         expect.objectContaining({ title: 'Reports', href: '/reports' }),
+        expect.objectContaining({ title: 'Data', href: '/data-management' }),
       ])
+    );
+  });
+
+  // AI Configuration powers the tools rather than being one, so the section is
+  // named for both — which also gives Settings and Admin a home beside it and
+  // leaves Information to be about reading data rather than configuring it.
+  test('groups configuration under Tools & Settings', () => {
+    const tools = navigationItems.find((item) => item.title === 'Tools & Settings');
+    const information = navigationItems.find((item) => item.title === 'Information');
+
+    expect(tools?.items?.map((item) => item.title)).toEqual([
+      'Shopping Lists', 'Document Translator', 'AI Configuration', 'Settings', 'Admin',
+    ]);
+    expect(navigationItems.find((item) => item.title === 'Tools')).toBeUndefined();
+    expect(information?.items).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ title: 'Settings' })])
     );
   });
 
