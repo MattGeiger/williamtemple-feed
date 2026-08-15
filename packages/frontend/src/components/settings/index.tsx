@@ -110,7 +110,7 @@ export function SettingsWorkspace() {
       <SectionHeader
         icon={Settings}
         title="Settings"
-        description="Organization-wide settings shared by everyone using FEED."
+        description="Change settings in FEED."
       />
 
       <section
@@ -166,11 +166,7 @@ export function SettingsWorkspace() {
             Appearance
           </h3>
           <p className="text-sm text-muted-foreground">
-            Choose how FEED looks on <strong>this device only</strong>. Unlike the
-            settings above, this is not shared — it is saved in this browser, so
-            everyone can read FEED the way that suits them. The theme button in the
-            header switches between light and dark; choose Follow this device to let
-            your computer decide.
+            Choose default settings for how FEED looks on this device.
           </p>
         </div>
 

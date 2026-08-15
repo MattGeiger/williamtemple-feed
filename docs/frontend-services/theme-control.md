@@ -63,14 +63,13 @@ FEED has one. The toggle *reaches* "follow this device" but never *offers* it,
 so someone who wants to set it deliberately — or to confirm that is what they
 are on — has nowhere to look. Settings → Appearance is that place.
 
-**One deviation worth knowing about.** The Settings page describes itself as
-"Organization-wide settings shared by everyone using FEED," and appearance is
-not: it is stored in the browser via `next-themes`, never sent to the server.
-Rather than silently inheriting that promise, the Appearance section states
-**"this device only"** in its own description. Two staff members signed in to
-the same shared environment can read FEED in different themes, and that is
-correct — it is a display preference, not organization data, so it does not
-engage the shared-environment principle in `AGENTS.md`.
+Appearance is stored in the browser via `next-themes` and never sent to the
+server, so two staff members signed in to the same shared environment can read
+FEED in different themes. That is correct — a display preference is not
+organization data, so it does not engage the shared-environment principle in
+`AGENTS.md`. The section copy says "on this device" and leaves it there; the
+Settings page description was simplified to match rather than drawing a
+distinction the reader did not ask for.
 
 The Settings control also marks the **stored** selection, not the resolved one:
 with `system` stored on a dark device it highlights *Follow this device*, not
