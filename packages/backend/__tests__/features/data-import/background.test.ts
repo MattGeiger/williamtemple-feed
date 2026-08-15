@@ -105,6 +105,66 @@ describe('detached import work', () => {
   });
 });
 
+describe('a task that settles nothing', () => {
+  // ISSUES.md #71. Detaching preparation moved the initial status from
+  // `awaiting_review` to `preparing`, but the Link2Feed branch that ends with
+  // unresolved review issues still only recorded progress. Every import that
+  // raised a question was stranded: the progress counter ran forever (observed
+  // at 51 minutes on a finished import) and every review decision was rejected
+  // as "no longer awaiting review". The branch is fixed; this is the net that
+  // keeps the whole class of defect from ever looking like that again.
+  test('a job left in a background status by a successful task is failed, not stranded', async () => {
+    const client = {
+      dataImportJob: {
+        findUnique: vi.fn().mockResolvedValue({
+          id: 'job-4',
+          status: 'preparing',
+          processedRows: 79_308,
+          totalRows: 79_308,
+          warningCount: 312,
+          unresolvedIssueCount: 13,
+        }),
+        update: vi.fn().mockResolvedValue({}),
+      },
+      dataImportJobEvent: {
+        findFirst: vi.fn().mockResolvedValue({ sequence: 19 }),
+        create: vi.fn().mockResolvedValue({}),
+      },
+      $transaction: vi.fn(async (fn: (tx: unknown) => Promise<unknown>) => fn(client)),
+    };
+    const onError = vi.fn();
+
+    // Resolves cleanly, but never moves the job out of `preparing`.
+    startDataImportBackgroundTask('job-4', async () => undefined, { ...fallback, onError }, client as never);
+    await whenDataImportBackgroundTasksSettle();
+
+    expect(onError).toHaveBeenCalledOnce();
+    expect(client.dataImportJob.update).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({
+        status: 'failed',
+        errorCode: 'DATA_IMPORT_DID_NOT_SETTLE',
+      }),
+    }));
+  });
+
+  test('a task that settles the job properly is left alone', async () => {
+    const client = {
+      dataImportJob: {
+        findUnique: vi.fn().mockResolvedValue({ id: 'job-5', status: 'awaiting_review' }),
+        update: vi.fn().mockResolvedValue({}),
+      },
+      $transaction: vi.fn(),
+    };
+    const onError = vi.fn();
+
+    startDataImportBackgroundTask('job-5', async () => undefined, { ...fallback, onError }, client as never);
+    await whenDataImportBackgroundTasksSettle();
+
+    expect(onError).not.toHaveBeenCalled();
+    expect(client.dataImportJob.update).not.toHaveBeenCalled();
+  });
+});
+
 describe('preparing status', () => {
   test('a staged job moves into preparing rather than straight to review', () => {
     expect(validateDataImportJobTransition(state('inspecting'), {

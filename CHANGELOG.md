@@ -5,6 +5,26 @@ All notable changes to FEED are documented here. This project adheres to
 
 ## [Unreleased]
 
+## [1.5.0-beta.15] — 2026-08-15
+
+### Fixed
+
+- **A Link2Feed import that needs review decisions now reaches the review
+  step.** Since the previous release such an import stopped short: the progress
+  counter kept climbing after the work had finished, saving a decision was
+  refused as "no longer awaiting review", and reopening the import could not
+  recover it. The import itself was complete and correct throughout — only the
+  step that hands it back to you was missing. SIMC and WTH Tracking imports were
+  not affected.
+
+- **An import that cannot finish now fails visibly instead of appearing to run
+  forever.** FEED checks that a completed import has recorded a result, and says
+  so plainly when one has not.
+
+- **An interrupted import now releases its temporary data immediately** —
+  staged records and the uploaded file — rather than waiting for the daily
+  cleanup.
+
 ## [1.5.0-beta.14] — 2026-08-14
 
 ### Fixed
