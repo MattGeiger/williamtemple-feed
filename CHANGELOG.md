@@ -5,6 +5,31 @@ All notable changes to FEED are documented here. This project adheres to
 
 ## [Unreleased]
 
+## [1.5.0-beta.11] — 2026-08-14
+
+Corrects two defects found while investigating the beta.10 import stall on a
+24 MB Link2Feed visits export. Neither is a throughput fix; the performance
+question itself is still open and is scoped in
+`docs/data-management/link2feed-import-benchmark-plan.md`.
+
+### Fixed
+
+- **Expired import files are now deleted on schedule.** Uploaded data exports
+  are held in restricted temporary staging and documented to expire after 24
+  hours. The expiry sweep was implemented but never scheduled, so a staged file
+  that escaped the normal success, failure, and cancel paths — a browser closed
+  mid-import, a container restart — could remain on the server indefinitely.
+  FEED now runs the sweep at startup and hourly, and the startup wiring is
+  covered by a test. Because Link2Feed and SIMC exports carry client-level
+  information, this is a data-retention correction rather than a cleanup
+  convenience.
+
+- **Large data imports are no longer rejected before FEED can respond.** The web
+  server capped request bodies at 16 MB while Add Data accepted 64 MB, so any
+  export between those sizes was refused in transit with no message FEED could
+  turn into an explanation — the import dialog simply appeared to stall. The two
+  limits now match, and each records that it must change with the other.
+
 ## [1.5.0-beta.10] — 2026-08-14
 
 Adds FEED's canonical Service data foundation, unified external-data entry,

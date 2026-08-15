@@ -16,11 +16,18 @@ import { storageService } from './services/storage';
 
 import createServer from './server';
 import './services/translation-trigger';
+import { startDataImportStagingSweeper } from './services/data-import/staging-sweeper';
 
 const initializeServices = async () => {
   try {
     await storageService.initialize();
     console.log('Storage service initialized');
+
+    // Expired staged import bytes are PII and must not outlive their documented
+    // 24-hour window. The sweep runs once now — collecting anything a previous
+    // process left behind — and hourly thereafter. See ISSUES.md #69.
+    startDataImportStagingSweeper();
+    console.log('Data import staging sweeper started');
   } catch (err) {
     console.error('Failed to initialize services:', err);
     process.exit(1);

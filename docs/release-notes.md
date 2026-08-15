@@ -1,5 +1,22 @@
 # Release Notes
 
+## Version 1.5.0-beta.11 — 2026-08-14
+
+*Beta — a small corrective build on top of beta.10.*
+
+- **Large data files no longer stall at upload.** A file between 16 MB and
+  64 MB was refused in transit before FEED could examine it, so Add Data showed
+  a spinner that never resolved instead of an explanation. Files up to the
+  stated 64 MB limit now reach the review step. If a file is genuinely too
+  large, you now get a message saying so.
+- **Temporary import files are cleaned up on schedule.** Uploads are held
+  briefly in restricted storage and are meant to be discarded within 24 hours.
+  That cleanup was not running for files left behind by an interrupted import
+  — a closed browser tab or a server restart. It now runs automatically.
+- **Known, unchanged in this build:** a large import still gives no progress
+  detail while it works, so a slow import and a stuck one look alike. That is
+  being addressed separately.
+
 ## Version 1.5.0-beta.10 — 2026-08-14
 
 *Beta — current evaluation build before the final 1.5.0 tag.*

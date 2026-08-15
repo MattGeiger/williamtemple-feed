@@ -1,6 +1,6 @@
 # FEED — Known Issues & Future Work
 
-**Last Updated**: August 11, 2026
+**Last Updated**: August 14, 2026
 **Status**: v1.0.0 release prep in progress (see `docs/V1-RELEASE-PLAN.md`)
 **Production**: https://feed.williamtemple.app
 
@@ -37,6 +37,123 @@ Everything else in this file. The application is shippable today.
 ---
 
 ## Open Issues
+
+### #69 — Staged import files are never swept; PII can persist indefinitely
+**Priority**: High · **Status**: Fixed in source 2026-08-14; awaiting deployment
+**Bucket**: Data Management / data protection
+
+A Link2Feed visits export is the most sensitive data FEED handles — client IDs,
+birth years, demographic responses. Uploads stream to a private staging file
+under `STORAGE_PATH/data-import-staging` with careful handling (`0700`
+directory, `0600` files, no original filename retained), and
+`docs/data-management/unified-add-data.md` states staging "expires after 24
+hours."
+
+The expiry is half-built. `createDataImportJob` stamps every job with
+`expiresAt` (`services/data-import/jobs.ts:176`), and
+`deleteExpiredDataImportStaging()` (`services/data-import/workflow.ts:161`)
+correctly finds expired jobs, deletes their staged bytes, and cleans up any
+pending import. **Nothing calls it** — a repository-wide search returns exactly
+one occurrence, its own definition. No boot hook, no interval, no test.
+
+Success, failure, and cancel all delete the staged file, so the exposure is
+whatever escapes those paths: a browser closed mid-import, a container restart,
+an unhandled error outside the existing `catch` blocks. In those cases a
+complete export remains on the Pi's SD card indefinitely, in a directory
+documented as self-clearing within a day. Larger files widen the window — a
+24 MB import is both a bigger retained artifact and a longer wait during which
+a user may give up and close the tab.
+
+Two aspects make this worth its own entry rather than a footnote in the
+benchmark plan: the documentation asserts a guarantee the code does not
+deliver, which is the kind of gap that survives review precisely because the
+doc reads as evidence; and the fix is small — call the existing function at
+backend start and on an interval, with a test that fails if the wiring is
+removed.
+
+**Resolution:** `services/data-import/staging-sweeper.ts` starts the existing
+sweep at server boot and hourly thereafter. The immediate first pass is the
+point of the boot hook — a restarted container collects whatever the previous
+process left staged instead of waiting a full interval. Overlapping passes are
+skipped rather than queued, a failing pass is contained and never disables the
+schedule, and the timer is `unref`'d so cleanup never holds the process open
+during shutdown.
+
+The regression that caused this was a missing caller, not broken logic, so no
+behavioral test of the sweep would have caught it. `staging-sweeper.test.ts`
+therefore asserts the startup wiring directly alongside the behavioral cases;
+that guard was verified to fail against the pre-fix entrypoint.
+
+### #68 — nginx rejects imports at 16 MB, against a 64 MB application ceiling
+**Priority**: High · **Status**: Fixed in source 2026-08-14; awaiting deployment
+**Bucket**: Data Management / deployment configuration
+
+`docker/nginx.conf` sets `client_max_body_size 16m` on `location /api/`, with a
+comment scoped to the older OFB path ("allow an OFB export through … the route
+enforces the real 5MB cap"). Unified Add Data was later built with a 64 MB
+staging ceiling (`MAX_STAGED_DATA_IMPORT_BYTES`,
+`services/data-import/staging.ts:17`), sized explicitly against WTH's real
+Link2Feed export of 16,940,175 bytes.
+
+The two constants were never reconciled, and they sit in different layers with
+nothing connecting them. nginx's limit is 16 MiB = 16,777,216 bytes, so **the
+very export that justified the 64 MB ceiling already exceeded the transport cap
+by ~163 KB at the moment that ceiling was chosen.** The 64 MB figure has never
+been reachable in production; nothing between 16 MiB and 64 MB has ever been
+importable, whatever the application layer believed.
+
+A rejected upload is a 413 issued while the browser is still sending, so the
+dialog shows no server message and no resolvable error — it presents as a
+stall. This is a leading candidate for the 1.5.0-beta.10 failure on a 24 MB
+file (see also #67).
+
+**Resolution:** `client_max_body_size` raised to `64m` to match
+`MAX_STAGED_DATA_IMPORT_BYTES`, so the application-layer cap — which returns an
+actionable message — is the one that binds. Each constant's comment now names
+the other and states that they must change together, since the failure mode is
+silent: nginx sits in front and a lower value there simply wins.
+
+There is no third number to reconcile; the Add Data dialog has no client-side
+size guard. Not syntax-checked with `nginx -t` (no Docker daemon available on
+the dev machine); the change is one directive value plus comments, and the
+deploy's own container start will surface a config error immediately.
+
+### #67 — Imports run inside one synchronous request: no progress, ~100s ceiling
+**Priority**: High · **Status**: Open, found 2026-08-14 investigating the beta.10 stall
+**Bucket**: Data Management / import UX and architecture
+
+`POST /api/data-import/jobs` (`routes/data-import.ts:291`) awaits the entire
+`prepare()` before responding. For Link2Feed that one request performs staging,
+full CSV parse and validation, all staging-row writes, the profile dedup pass,
+reconciliation, and pending materialization. Two consequences:
+
+**A hard time ceiling no optimization can pass.** nginx allows 300s
+(`proxy_read_timeout`, raised deliberately after an earlier 60s truncation),
+but production is served through Cloudflare Tunnel and the Cloudflare edge
+returns 524 at ~100 seconds regardless of origin configuration. 100s is the
+real production budget and is documented nowhere in the repo.
+
+**Progress data exists but is unreachable.** The backend already emits it —
+`prepareLink2FeedVisitImport` calls `recordDataImportJobProgress` every 5,000
+rows (`services/service/adapters/link2feed-visits.ts:529`), and
+`GET /api/data-import/jobs/:jobId` already returns `processedRows`, `totalRows`,
+and the event log. Nothing consumes it: the frontend `DataImportApiService` has
+no `getJob` method, and the dialog renders one static spinner reading
+"Preparing the review…" (`add-data-dialog.tsx:790`). The client is blocked on
+the very request that is producing the progress, so a genuine stall and a slow
+import are indistinguishable to staff.
+
+Both follow from the same design choice, and one change addresses both: return
+`202` after staging and move `prepare` to a background task the client polls.
+Note that real cancellation does not come free with polling — there is no
+server-side abort, and a Cancel that only dropped the HTTP request would let
+the import commit anyway while telling the user the opposite. Cancel is
+currently disabled during import, which is the honest behaviour.
+
+**Planned fix:** sequenced through
+`docs/data-management/link2feed-import-benchmark-plan.md` §1.2/§1.5 — the
+ceiling documented in Phase 2, the architecture decision gated on Phase 5
+measurements, the progress UI in Phase 7.
 
 ### #66 — Imported Tracking observations were invisible in the Service Log
 **Priority**: High · **Status**: Fixed in source 2026-08-13; awaiting staff acceptance testing

@@ -14,6 +14,14 @@ import { inspectCsvHeader, type DataSourceInspection } from './source-contracts'
 // source with headroom for ongoing agencies while keeping disk and parser work
 // explicitly bounded. Unlike the 10 MB procurement path, bytes stream to a
 // private staging file instead of accumulating in process memory.
+//
+// MUST be matched by `client_max_body_size` on `location /api/` in
+// docker/nginx.conf. nginx sits in front of this check, so a lower value there
+// silently wins — and it rejects mid-upload with a 413 the dialog cannot
+// render, which presents to the user as a stall rather than an error. The two
+// drifted once (nginx 16m against this 64 MB) and made every import above
+// 16 MiB impossible in production, including the 16,940,175-byte export this
+// ceiling was sized for. Change both together or neither. See ISSUES.md #68.
 export const MAX_STAGED_DATA_IMPORT_BYTES = 64 * 1024 * 1024;
 export const MAX_STAGED_CSV_HEADER_BYTES = 256 * 1024;
 export const DATA_IMPORT_STAGING_TTL_MS = 24 * 60 * 60 * 1000;
