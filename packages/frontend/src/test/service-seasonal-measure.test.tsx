@@ -73,17 +73,28 @@ const analytics = {
   reachAndFrequency: [],
 } as unknown as ServiceAnalytics;
 
-/** Scoped to the group, so a stray button elsewhere cannot satisfy the query. */
-const measureButton = (name: 'Households' | 'Visits') =>
-  within(screen.getByRole('group', { name: 'Measure' })).getByRole('button', { name });
+/**
+ * Scoped to the measure tablist, because the page has several — the lens
+ * switcher and the date presets are tablists too, and an unscoped query for a
+ * tab named "Visits" would be answered by whichever rendered first.
+ */
+const measureTab = (name: 'Households' | 'Visits') =>
+  within(screen.getByRole('tablist', { name: 'Measure' })).getByRole('tab', { name });
+
+/**
+ * Radix Tabs activate on pointer-down, not click, so `fireEvent.click` leaves
+ * the tab unchanged and the assertions fail against the unswitched card. Same
+ * approach the report-run test uses on the date presets.
+ */
+const choose = (name: 'Households' | 'Visits') => fireEvent.mouseDown(measureTab(name));
 
 describe('Households by Season measure toggle', () => {
   test('starts on households and says what that counts', () => {
     render(<ServiceAnalyticsWorkspace analytics={analytics} />);
 
     expect(screen.getByText('Households by Season')).toBeInTheDocument();
-    expect(measureButton('Households')).toHaveAttribute('aria-pressed', 'true');
-    expect(measureButton('Visits')).toHaveAttribute('aria-pressed', 'false');
+    expect(measureTab('Households')).toHaveAttribute('aria-selected', 'true');
+    expect(measureTab('Visits')).toHaveAttribute('aria-selected', 'false');
     expect(
       screen.getByText(/one household visiting twice in a\s+month is counted once/)
     ).toBeInTheDocument();
@@ -92,10 +103,10 @@ describe('Households by Season measure toggle', () => {
   test('switching to visits renames the card and changes what the footnote claims', () => {
     render(<ServiceAnalyticsWorkspace analytics={analytics} />);
 
-    fireEvent.click(measureButton('Visits'));
+    choose('Visits');
 
     expect(screen.getByText('Visits by Season')).toBeInTheDocument();
-    expect(measureButton('Visits')).toHaveAttribute('aria-pressed', 'true');
+    expect(measureTab('Visits')).toHaveAttribute('aria-selected', 'true');
 
     // The claim has to flip with the data. Leaving "counted once" under a
     // visits chart would be the card lying about its own numbers.
@@ -111,13 +122,17 @@ describe('Households by Season measure toggle', () => {
     // the two and found them inconsistent; the card now explains why.
     expect(screen.getByText(/without a household record\s+are not counted here/)).toBeInTheDocument();
 
-    fireEvent.click(measureButton('Visits'));
+    choose('Visits');
     expect(screen.getByText(/without a household record are included here/)).toBeInTheDocument();
   });
 
-  test('the toggle is reachable as a labelled group', () => {
+  test('uses the project\u2019s animated tab control, not a bespoke one', () => {
     render(<ServiceAnalyticsWorkspace analytics={analytics} />);
-    const group = screen.getByRole('group', { name: 'Measure' });
-    expect(within(group).getAllByRole('button')).toHaveLength(2);
+
+    // Same primitive as the Date Range switcher: a labelled tablist of two
+    // tabs. A hand-rolled button group would satisfy the behaviour tests above
+    // while looking and moving unlike every other switcher in the app.
+    const tablist = screen.getByRole('tablist', { name: 'Measure' });
+    expect(within(tablist).getAllByRole('tab')).toHaveLength(2);
   });
 });

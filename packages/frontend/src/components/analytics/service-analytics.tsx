@@ -41,6 +41,7 @@ import {
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ChevronDown } from '@/components/ui/icons';
 import { BadgeQuestionMark, ShoppingBasket, UsersRound } from 'lucide-react';
 import { getIconComponent } from '@/lib/icon-library';
@@ -581,27 +582,22 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
                 <SourcePills sources={['Link2Feed', 'SIMC']} />
               </div>
               <div className="flex shrink-0 items-center gap-2">
-                {/* Two labelled buttons rather than a dropdown: there are only
-                    two answers, and which one is showing has to be readable at
-                    a glance — the y-axis alone does not say whether 900 is
-                    households or visits. */}
-                <div role="group" aria-label="Measure" className="flex rounded-md border p-0.5">
-                  {([
-                    ['households', 'Households'],
-                    ['visits', 'Visits'],
-                  ] as const).map(([value, label]) => (
-                    <Button
-                      key={value}
-                      variant={seasonalMeasure === value ? 'secondary' : 'ghost'}
-                      size="sm"
-                      aria-pressed={seasonalMeasure === value}
-                      className="h-7 px-2.5 text-xs"
-                      onClick={() => setSeasonalMeasure(value)}
-                    >
-                      {label}
-                    </Button>
-                  ))}
-                </div>
+                {/* The same animated segmented control the Date Range switcher
+                    uses, rather than a second hand-rolled one: the highlight
+                    slides between the two, so the change of measure is seen
+                    rather than only read off a re-rendered title. Tabs with no
+                    TabsContent is how that control is used there too. */}
+                <Tabs
+                  value={seasonalMeasure}
+                  onValueChange={(value) =>
+                    setSeasonalMeasure(value as 'households' | 'visits')}
+                  className="w-auto"
+                >
+                  <TabsList aria-label="Measure" className="h-8">
+                    <TabsTrigger value="households">Households</TabsTrigger>
+                    <TabsTrigger value="visits">Visits</TabsTrigger>
+                  </TabsList>
+                </Tabs>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="sm" className="shrink-0">
