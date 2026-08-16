@@ -13,15 +13,15 @@ behind the scenes.
 1. Go to **Analytics** and set things up the way you want them — pick your date
    range, choose a channel, filter a table, sort a column. Whatever you can see
    is what you will get.
-2. Click **Generate Report**, at the top right beside the Operations and
-   Procurement tabs.
+2. Click **Generate Report**, at the top right beside the Operations,
+   Procurement, and Service tabs.
 3. The cards start to wiggle. Click the ones you want. Each gets a number
    showing where it will appear in the report.
 4. Click **Review**.
-5. FEED suggests **Procurement Report**, **Operations Report**, or **Combined
-   Report** from the cards you chose. Keep that name or type your own, drag the
-   cards into the order you want, choose what to include, and click
-   **Generate**.
+5. FEED suggests **Procurement Report**, **Operations Report**, **Service
+   Report**, or **Combined Report** from the cards you chose. Keep that name or
+   type your own, drag the cards into the order you want, choose what to
+   include, and click **Generate**.
 
 Your report downloads as a ZIP file. Open it and you will find:
 
@@ -29,26 +29,27 @@ Your report downloads as a ZIP file. Open it and you will find:
 - one **CSV** per card, numbered in the same order, that opens in Excel;
 - a small `manifest.json` recording the date range and filters used.
 
-You can pick up to **eight cards** in one report. Every card on both tabs can be
-picked — charts, the summary tiles, and the tables. If something on the page
-does not wiggle, that is a fault worth reporting, not a card that was left out
-on purpose.
+You can pick up to **eight cards** in one report. Every card on all three tabs
+can be picked — charts, the summary tiles, and the tables. If something on the
+page does not wiggle, that is a fault worth reporting, not a card that was left
+out on purpose.
 
 ### Set up each card before selecting it
 
 The date range and page filters are locked when you click **Generate Report**.
 A card's own controls — such as a seasonal year choice, donor selection, search,
 or table sort and page — are locked when you click that card. This lets you move
-between Operations and Procurement and still capture each card exactly as it is
-shown when you choose it.
+between Operations, Procurement, and Service and still capture each card exactly
+as it is shown when you choose it.
 
 If you realise you wanted a different date range, click **Cancel**, change it,
 and start again.
 
-## Mixing Operations and Procurement
+## Mixing the tabs
 
-Your selection carries across both tabs. Pick a card on Operations, switch to
-Procurement, pick two more, and all three end up in one report.
+Your selection carries across all three tabs. Pick a card on Operations, switch
+to Procurement, pick two more, add one from Service, and they all end up in one
+report.
 
 ## Choosing what goes in the file
 
@@ -159,6 +160,13 @@ something that was never purchased.
 **Some numbers cannot be broken down.** Service fees and grants sit on a whole
 order, not on individual products, so filtering by acquisition class shows *Not
 attributable* rather than a guess.
+
+**Service cards say what their figures rest on.** WTH's two records begin years
+apart — formal intake goes back to 2020, the Service Log to October 2023 — so a
+Service card carries a note saying which record produced its number and what it
+leaves out. A line on a Service chart begins where its record begins rather than
+running along zero for the years before it existed, and the current month is
+left off monthly charts until it finishes.
 
 ## If something goes wrong
 

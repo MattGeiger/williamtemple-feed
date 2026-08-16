@@ -1,5 +1,58 @@
 # Release Notes
 
+## Version 1.5.0-beta.19 — 2026-08-16
+
+*Beta — Service Analytics arrives in reports, with three new cards.*
+
+- **Service cards can now be put in a report.** The Service tab's cards could be
+  seen but not exported: selecting one produced a file that quietly left it out,
+  and a report made only of Service cards failed outright. All eight now export,
+  and a report drawn only from Service is named **Service Report** rather than
+  **Combined Report**.
+- **Turned Away** reports the households the pantry could not serve, the days it
+  happened, and the times capacity ran out. A service day with no turned-away
+  entry counts as nobody turned away. The count is shown against the number of
+  days the Service Log was kept, so the figure carries the denominator it has to
+  be read against.
+- **Languages Spoken at Home** lists household languages exactly as they were
+  recorded. Answers are never merged into one another — "Mandarin", "Mandarin
+  Chinese", and "Chinese" stay separate, because how a household names its own
+  language is part of what it told us. The chart shows the most common; the
+  exported spreadsheet carries every answer.
+- **Who Answered Which Question** shows, for each intake question, how many of
+  the households served were asked it and how many answered. The two intake
+  systems ask different questions, so a short bar usually means the question is
+  newer rather than that households declined it. Read any demographic figure
+  against this card first.
+- **Chart tooltips list the largest value first.** Hovering a point on a chart
+  with several lines listed them in a fixed order rather than by size, so on
+  *Other Donations Over Time* a 1,543 lb source appeared above a 6,480 lb one.
+  Nine charts across Operations, Procurement, and Service now read top to
+  bottom. Stacked charts keep their stacking order, which is what the bar under
+  the cursor shows.
+- **Restoring a backup says what else it clears.** The confirmation step now
+  names the records that refer to what is being replaced and cannot be carried
+  across, instead of removing them without mention.
+- **Service charts state what they rest on.** Each card carries a note saying
+  which record produced its figure and what it leaves out, a line begins where
+  its record begins rather than running along zero, and the current month is
+  left off monthly charts until it finishes.
+
+## Version 1.5.0-beta.18 — not deployed
+
+*Beta — introduces the Service tab on Analytics. Superseded by beta.19.*
+
+- **Analytics gained a third tab, Service**, describing people served rather
+  than stock or supply. It draws on two records that begin years apart — formal
+  intake from 2020, and the Service Log staff have kept since October 2023 —
+  and never adds them together.
+- **The sidebar was reorganized.** Settings and Admin moved to **Tools &
+  Settings**; Analytics, Reports, Data, and Help are together under
+  **Information**.
+- **The light and dark control is now a toggle.** It was a three-way picker
+  including *System*; pressing it now simply switches to the other mode, and
+  FEED still follows your device until you press it.
+
 ## Version 1.5.0-beta.17 — 2026-08-15
 
 *Beta — repairs the backup restore path.*

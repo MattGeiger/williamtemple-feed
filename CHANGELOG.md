@@ -5,6 +5,34 @@ All notable changes to FEED are documented here. This project adheres to
 
 ## [Unreleased]
 
+## [1.5.0-beta.19] — 2026-08-16
+
+### Added
+
+- **Service is now a lens in Analytics**, describing people served rather than
+  stock or supply. It draws on two records that begin years apart — formal
+  intake from 2020, and the Service Log staff have kept since October 2023 —
+  and never adds them together. Where both can answer a question the Service Log
+  is preferred, because a hand-counted total does not depend on every client
+  completing intake. Eight cards: Service Summary, Service Over Time, Households
+  by Season, How Service Was Delivered, Household Size, Turned Away, Languages
+  Spoken at Home, and Who Answered Which Question.
+- **Turned Away** reports service *not* delivered — the only record of it there
+  is. Staff confirmed that a service day with no turned-away entry means nobody
+  was turned away, so absence inside the Service Log's span is a real zero and
+  the card plots a series rather than scattered marks. The count is reported
+  against the days the Log was kept, because the figure alone invites the reader
+  to supply their own denominator.
+- **Languages Spoken at Home** lists answers exactly as recorded and never
+  merges them. "Mandarin", "Mandarin Chinese", and "Chinese" stay three answers,
+  because how a household names its own language is part of what it told us. The
+  chart plots the most common; the CSV carries every answer.
+- **Who Answered Which Question** states, for each intake question, how many of
+  the households served were asked it and how many answered — the denominator
+  behind every other demographic figure. The two intake systems ask different
+  questions, so a short bar usually means the question is newer rather than that
+  households refused it.
+
 ### Changed
 
 - **The theme button is now a single toggle instead of a menu.** Choosing how
@@ -16,6 +44,39 @@ All notable changes to FEED are documented here. This project adheres to
   choice, including *Follow this device*, moved to **Settings → Appearance**.
   Appearance is saved in your browser rather than shared, so staff can each read
   FEED the way that suits them.
+- **The sidebar was reorganized.** Settings and Admin moved to **Tools &
+  Settings**; Analytics, Reports, Data, and Help are together under
+  **Information**.
+- **Restoring a backup now names what else it clears.** Some records point at
+  the records being replaced and cannot be carried across, because the
+  identifiers they refer to are reassigned from the backup file. The confirmation
+  step lists them by name instead of removing them quietly.
+
+### Fixed
+
+- **Service cards could be seen but not exported.** Selecting one produced an
+  archive that silently omitted it, and a report made only of Service cards
+  failed outright — the printed header read a range field that only the other
+  two lenses carry, so the PDF path threw before rendering. Provenance is now
+  normalized across all three lenses, and `dataAsOf` for Service is the last
+  date a record actually reaches rather than the end of the range asked for. A
+  Service-only selection is also named **Service Report** rather than
+  **Combined Report**.
+- **Chart tooltips listed series in a fixed order rather than by value.**
+  Recharts hands the payload over in series-declaration order, so on *Other
+  Donations Over Time* a 1,543 lb source appeared above a 6,480 lb one — the
+  list read as the inverse of the picture. Nine charts across all three lenses
+  now read largest first. Stacked charts keep their stacking order, which is
+  what the bar under the cursor actually shows, and paired before/after series
+  stay fixed so the two cannot swap places between rows.
+- **A count of households printed as a weight.** The stacked horizontal bar
+  helper hard-coded "lb", so Who Answered Which Question read "1,443 lb". The
+  helper takes a formatter now — the third card to hit this, and the reason the
+  default is no longer silent.
+
+## [1.5.0-beta.18] — not deployed
+
+Superseded by beta.19, which carries all of its changes.
 
 ## [1.5.0-beta.17] — 2026-08-15
 

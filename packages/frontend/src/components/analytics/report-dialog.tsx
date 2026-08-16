@@ -60,12 +60,23 @@ const TITLE_MAX = 120;
  * derivation here lets the dialog react to removals/reordering without adding a
  * second frontend registry that could drift from the backend card contract.
  */
-export function defaultAnalyticsReportTitle(cardIds: string[]): string {
-  const hasProcurement = cardIds.some(id => id.startsWith('procurement-'));
-  const hasOperations = cardIds.some(id => id.startsWith('operations-'));
+const LENS_REPORT_NAMES: Record<string, string> = {
+  'procurement-': 'Procurement Report',
+  'operations-': 'Operations Report',
+  'service-': 'Service Report',
+};
 
-  if (hasProcurement && !hasOperations) return 'Procurement Report';
-  if (hasOperations && !hasProcurement) return 'Operations Report';
+export function defaultAnalyticsReportTitle(cardIds: string[]): string {
+  // Counted rather than compared pairwise: with two lenses a pair of booleans
+  // was enough, but a third made "not the other one" wrong — a Service-only
+  // selection came out as Combined, which is the one thing it is not.
+  const lenses = new Set(
+    cardIds
+      .map(id => Object.keys(LENS_REPORT_NAMES).find(prefix => id.startsWith(prefix)))
+      .filter((prefix): prefix is string => prefix !== undefined)
+  );
+
+  if (lenses.size === 1) return LENS_REPORT_NAMES[[...lenses][0]];
   return 'Combined Report';
 }
 

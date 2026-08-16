@@ -156,6 +156,13 @@ the file and shows the available restore units before anything changes. You can
 restore the complete artifact or a compatible subset such as Inventory,
 translations, Shopping Lists, Procurement, Service, or configuration.
 
+The confirmation step names what will be replaced and, where it applies, what
+else will be cleared. Some records point at the records being replaced — a
+translation's usage history, for example — and cannot be carried across, because
+the identifiers they refer to are reassigned from the backup file. FEED lists
+those by name rather than removing them quietly. They rebuild through normal use
+and were never part of a backup file.
+
 After confirmation, FEED builds and validates the replacement alongside the
 current database, enters maintenance mode only for the final swap, and restarts.
 A failed preparation leaves the current data untouched. Restored AI settings do
