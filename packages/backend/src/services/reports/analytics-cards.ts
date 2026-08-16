@@ -1978,12 +1978,11 @@ export const SERVICE_SEASONAL_HOUSEHOLDS: AnalyticsCard = {
       series,
       categoryColumn: 'month',
       note: measure === 'visits'
-        ? 'Visits per calendar month, one line per year. A household visiting twice ' +
-          'is counted twice, and visits with no household record are included. ' +
-          'A partial year stops where its data does.'
-        : 'Distinct households per calendar month, one line per year. A household ' +
-          'visiting twice in a month is counted once, and visits with no household ' +
-          'record cannot be counted here. A partial year stops where its data does.',
+        ? 'Every visit each month, one line per year, so repeated visits by the same ' +
+          'household are counted each time. A partial year stops where its data does.'
+        : 'Distinct households each month, one line per year, so repeated visits by ' +
+          'the same household are only counted once. A partial year stops where its ' +
+          'data does.',
     };
   },
   print: data =>
@@ -2085,8 +2084,7 @@ export const SERVICE_UNMET_DEMAND: AnalyticsCard = {
         { label: 'Times capacity was reached', value: COUNT(unmet.capacityReachedDays ?? 0) },
       ],
       note:
-        'A service day with no turned-away entry counts as nobody turned away, ' +
-        'which staff confirmed is what the blank means. Begins where the Service Log does.' +
+        'Blank entries are treated as a zero count.' +
         (excluded ? ` ${monthLabel(excluded)} is still in progress and is not plotted.` : ''),
     };
   },

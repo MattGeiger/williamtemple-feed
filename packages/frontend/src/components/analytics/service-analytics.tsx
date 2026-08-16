@@ -694,16 +694,13 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
               <Footnote>
                 {seasonalMeasure === 'visits' ? (
                   <>
-                    Every visit each month, so one household visiting twice is counted
-                    twice. Visits recorded without a household record are included here;
-                    they cannot appear in the Households measure, which has no identity
-                    to count them by.
+                    Every visit each month, so repeated visits by the same household are
+                    counted each time.
                   </>
                 ) : (
                   <>
-                    Distinct households each month, so one household visiting twice in a
-                    month is counted once. Visits recorded without a household record
-                    are not counted here.
+                    Distinct households each month, so repeated visits by the same
+                    household are only counted once.
                   </>
                 )}
                 {(() => {
@@ -867,11 +864,7 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
                 </BarChart>
               </ChartContainer>
               <Footnote>
-                A service day with no turned-away entry is counted as nobody turned
-                away, which staff confirmed is what the blank means. The bars begin
-                where the Service Log does, not where the pantry does.
-                {unmetDemand.firstRecordedDate &&
-                  ` The first recorded turn-away is ${monthOfDate(unmetDemand.firstRecordedDate)}.`}
+                Blank entries are treated as a zero count.
               </Footnote>
             </CardContent>
           </Card>
