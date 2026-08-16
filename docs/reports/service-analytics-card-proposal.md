@@ -279,10 +279,16 @@ release, with screen, PDF and CSV sharing one accessor.
 >   recorded". `service-unmet-demand` therefore plots a real series rather than
 >   scattered marks, and reports the days it happened against the days the
 >   Service Log was kept — 29 of 321 — so the figure carries its denominator.
-> - **Languages are never normalized.** "Mandarin", "Mandarin Chinese" and
->   "Chinese" stay three answers, because how a household names its own
->   language is part of what it told us. `service-languages` plots the fifteen
->   most common and exports all fifty; that is a display limit, not a merge.
+> - **Languages are normalized only where two labels are the same word.**
+>   Revised August 16 2026, after the first build refused to merge anything.
+>   "Mandarin Chinese" folds into "Mandarin" and "Cantonese Chinese" into
+>   "Cantonese", because those are the two intake systems labelling one answer
+>   differently — a redundant qualifier, not a different name. Answers that are
+>   different names stay separate: "Farsi" and "Persian" are a household's own
+>   choice of name, "Chinese" could be either variety, and "American Sign
+>   Language" names which sign language. `service-languages` plots the fifteen
+>   most common of the 48 merged labels and exports all 50 unmerged, so the
+>   display limit and the merge are both reversible from the data file.
 > - **The 2023 identity gap is paper recording under pressure**, not households
 >   declining to answer. `service-response-coverage` states, for every
 >   question, how many of the households served were asked it and how many

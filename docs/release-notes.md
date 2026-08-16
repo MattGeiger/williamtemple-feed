@@ -14,11 +14,13 @@
   entry counts as nobody turned away. The count is shown against the number of
   days the Service Log was kept, so the figure carries the denominator it has to
   be read against.
-- **Languages Spoken at Home** lists household languages exactly as they were
-  recorded. Answers are never merged into one another — "Mandarin", "Mandarin
-  Chinese", and "Chinese" stay separate, because how a household names its own
-  language is part of what it told us. The chart shows the most common; the
-  exported spreadsheet carries every answer.
+- **Languages Spoken at Home** shows which languages households speak. Labels
+  that are the same word written two ways are merged — "Mandarin Chinese"
+  counts as "Mandarin" — because the two intake systems wrote one answer
+  differently. Answers that are genuinely different names are left alone:
+  "Farsi" and "Persian" stay separate, and "Chinese" is not resolved into a
+  variety nobody recorded. The chart shows the most common; the exported
+  spreadsheet carries every answer exactly as recorded.
 - **Who Answered Which Question** shows, for each intake question, how many of
   the households served were asked it and how many answered. The two intake
   systems ask different questions, so a short bar usually means the question is

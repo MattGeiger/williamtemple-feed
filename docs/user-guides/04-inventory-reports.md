@@ -173,11 +173,12 @@ what its figure rests on. Read the note under a card before quoting its number.
   confirmed the blank means. The figure is reported against the number of days
   the Service Log was kept, because the count alone invites the wrong
   denominator.
-- **Languages Spoken at Home** shows answers exactly as households recorded
-  them and never merges them. "Mandarin", "Mandarin Chinese", and "Chinese"
-  stay separate answers, because how a household names its own language is part
-  of what it told us. The chart plots the most common; the exported CSV carries
-  every answer.
+- **Languages Spoken at Home** shows which languages households speak. Where
+  the two intake systems wrote the same answer differently, the labels are
+  merged — "Mandarin Chinese" counts as "Mandarin". Answers that are different
+  names are left alone: "Farsi" and "Persian" stay separate, and "Chinese" is
+  not assumed to mean one variety or the other. The chart plots the most
+  common; the exported CSV carries every answer exactly as recorded.
 - **Who Answered Which Question** is the denominator behind every other
   demographic figure: for each question, how many of the households served were
   asked it and how many answered. The two intake systems ask different

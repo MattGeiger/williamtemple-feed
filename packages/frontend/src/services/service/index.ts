@@ -249,9 +249,15 @@ export interface ServiceAnalytics {
     capacityReachedDays: number;
     firstRecordedDate: string | null;
   };
-  /** Languages exactly as recorded — never normalized into each other. */
+  /**
+   * Languages merged only where two labels are the same word — "Mandarin
+   * Chinese" into "Mandarin". Different names stay different, and `rawValues`
+   * keeps every answer exactly as recorded for the export.
+   */
   languages: {
     values: Array<{ language: string; households: number }>;
+    rawValues: Array<{ language: string; households: number }>;
+    mergedLabels: number;
     householdsAsked: number;
     householdsAnswered: number;
   };

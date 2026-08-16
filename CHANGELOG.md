@@ -23,10 +23,15 @@ All notable changes to FEED are documented here. This project adheres to
   the card plots a series rather than scattered marks. The count is reported
   against the days the Log was kept, because the figure alone invites the reader
   to supply their own denominator.
-- **Languages Spoken at Home** lists answers exactly as recorded and never
-  merges them. "Mandarin", "Mandarin Chinese", and "Chinese" stay three answers,
-  because how a household names its own language is part of what it told us. The
-  chart plots the most common; the CSV carries every answer.
+- **Languages Spoken at Home** merges only labels that are the same word
+  written two ways: "Mandarin Chinese" into "Mandarin", "Cantonese Chinese"
+  into "Cantonese". That is the two intake systems labelling one answer
+  differently, and collapsing it takes 50 recorded labels to 48. Answers that
+  are different names are never merged — "Farsi" and "Persian" are a
+  household's own choice of name, "Chinese" could be either variety and
+  resolving it would invent data, and "American Sign Language" names which sign
+  language. The chart plots the most common; the CSV carries every answer,
+  unmerged.
 - **Who Answered Which Question** states, for each intake question, how many of
   the households served were asked it and how many answered — the denominator
   behind every other demographic figure. The two intake systems ask different

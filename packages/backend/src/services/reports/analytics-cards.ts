@@ -2102,8 +2102,14 @@ export const SERVICE_LANGUAGES: AnalyticsCard = {
   data: (analytics: any) => {
     const languages = analytics?.languages ?? {};
     const all = languages.values ?? [];
+    // Falls back to the merged list when an older payload has no raw values.
+    const recorded = languages.rawValues ?? all;
     const plotted = all.slice(0, LANGUAGES_PLOTTED);
     const overflow = Math.max(0, all.length - plotted.length);
+    const asked = languages.householdsAsked ?? 0;
+    const percent = asked > 0
+      ? Math.round(((languages.householdsAnswered ?? 0) / asked) * 100)
+      : 0;
 
     const toGrain = (values: any[]) => ({
       categories: values.map((row: any) => row.language),
@@ -2115,16 +2121,14 @@ export const SERVICE_LANGUAGES: AnalyticsCard = {
       title: 'Languages Spoken at Home',
       ...toGrain(plotted),
       note:
-        'Answers exactly as recorded and never merged — “Mandarin”, “Mandarin Chinese” ' +
-        'and “Chinese” stay separate, because how a household names its own language is ' +
-        `part of what it told us. ${COUNT(languages.householdsAnswered ?? 0)} of ` +
-        `${COUNT(languages.householdsAsked ?? 0)} households answered this question` +
+        `About ${percent}% of households answered this question` +
         (overflow > 0
-          ? `, across ${COUNT(all.length)} distinct answers; the ${COUNT(overflow)} rarest are in the CSV`
+          ? `, across ${COUNT(all.length)} answers; the ${COUNT(overflow)} rarest are in the CSV`
           : '') +
-        '.',
-      // A display limit is not a merge: the export carries every answer.
-      raw: overflow > 0 ? toGrain(all) : undefined,
+        '. “Mandarin Chinese” counts as “Mandarin”; the CSV keeps every answer as recorded.',
+      // The chart merges redundant labels and shows the most common; the CSV is
+      // the data file and carries every answer, unmerged.
+      raw: toGrain(recorded),
     };
   },
   print: data => hBarSvg(

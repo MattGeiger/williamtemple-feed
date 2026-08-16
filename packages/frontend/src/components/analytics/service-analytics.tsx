@@ -221,6 +221,9 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
   const LANGUAGES_PLOTTED = 15;
   const languageRows = languages.values.slice(0, LANGUAGES_PLOTTED);
   const languageOverflow = Math.max(0, languages.values.length - languageRows.length);
+  const languageAnsweredPercent = languages.householdsAsked > 0
+    ? Math.round((languages.householdsAnswered / languages.householdsAsked) * 100)
+    : 0;
 
   // Monthly buckets bring back the partial-period hazard: the newest month
   // holds only the service days that have happened, so plotting it beside
@@ -889,13 +892,10 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
                 </BarChart>
               </ChartContainer>
               <Footnote>
-                Answers are shown exactly as recorded and are never merged — “Mandarin”,
-                “Mandarin Chinese” and “Chinese” stay separate, because how a household
-                names its own language is part of what it told us.{' '}
-                {count(languages.householdsAnswered)} of {count(languages.householdsAsked)}{' '}
-                households answered this question
-                {languageOverflow > 0 && `, across ${count(languages.values.length)} distinct answers; the ${count(languageOverflow)} rarest are in the exported data`}
-                .
+                About {languageAnsweredPercent}% of households answered this question
+                {languageOverflow > 0 && `, across ${count(languages.values.length)} answers; the ${count(languageOverflow)} rarest are in the exported data`}
+                . “Mandarin Chinese” counts as “Mandarin”; the export keeps every answer
+                as recorded.
               </Footnote>
             </CardContent>
           </Card>
