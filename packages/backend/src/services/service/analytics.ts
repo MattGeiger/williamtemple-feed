@@ -164,11 +164,16 @@ export interface ServiceAnalytics {
     householdsAnswered: number;
   };
   /**
-   * For each question, how many households answered it.
+   * For each question actually asked, how many households answered it.
    *
    * The card that keeps every other demographic figure honest: a share is
    * meaningless without the denominator it was drawn from. Questions differ
    * between the two intake systems, so each one reports which asked it.
+   *
+   * Excludes dimensions the systems derive rather than ask, and treats a
+   * decline as not answered — `NON_ANSWER_LABELS` in `profiles.ts` strips
+   * "prefer not to answer" and its variants at import, so a response status of
+   * `provided` means a household said something substantive.
    */
   responseCoverage: Array<{
     dimension: string;
@@ -720,10 +725,22 @@ ${Object.entries(LANGUAGE_LABEL_ALIASES)
       }))
     : [];
 
+  /**
+   * Dimensions the intake systems fill in themselves rather than asking.
+   *
+   * Both sit at essentially 100% answered — `no_fixed_address` on every SIMC
+   * profile, `county_fips` on all but five — because they are required fields
+   * derived at entry, not questions a household chose to answer. Leaving them
+   * on a response-rate card puts two guaranteed full bars at the top and
+   * flatters every real question below them.
+   */
+  const DERIVED_DIMENSIONS = new Set(['no_fixed_address', 'county_fips']);
+
   const coverageTotals = new Map<string, {
     provided: number; notProvided: number; sources: Set<string>;
   }>();
   for (const row of coverageByDimension) {
+    if (DERIVED_DIMENSIONS.has(row.dimension)) continue;
     const entry = coverageTotals.get(row.dimension)
       ?? { provided: 0, notProvided: 0, sources: new Set<string>() };
     if (row.responseStatus === 'provided') entry.provided += Number(row.households);

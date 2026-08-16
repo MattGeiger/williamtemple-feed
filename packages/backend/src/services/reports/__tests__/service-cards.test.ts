@@ -377,11 +377,20 @@ describe('Languages Spoken at Home', () => {
   });
 });
 
-describe('Who Answered Which Question', () => {
+describe('Demographics Questions Response Rate', () => {
   it('names each question as it was asked, not as it is stored', () => {
     const data = SERVICE_RESPONSE_COVERAGE.data(SERVICE_ANALYTICS);
     expect(data.categories).toEqual(['Postal code', 'Employment']);
     expect(cardCsv(data)).not.toContain('postal_code');
+  });
+
+  it('says a decline is not an answer', () => {
+    // "Prefer not to answer" and its variants are stripped at import
+    // (NON_ANSWER_LABELS in profiles.ts), so a `provided` status means the
+    // household said something substantive. The card states that rather than
+    // leaving a reader to assume a decline inflated the rate.
+    expect(SERVICE_RESPONSE_COVERAGE.data(SERVICE_ANALYTICS).note)
+      .toContain('Declining to answer counts as not answered');
   });
 
   it('counts households, and says so in the units it prints', () => {

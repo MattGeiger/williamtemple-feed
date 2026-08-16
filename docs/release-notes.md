@@ -21,7 +21,7 @@
   "Farsi" and "Persian" stay separate, and "Chinese" is not resolved into a
   variety nobody recorded. The chart shows the most common; the exported
   spreadsheet carries every answer exactly as recorded.
-- **Who Answered Which Question** shows, for each intake question, how many of
+- **Demographics Questions Response Rate** shows, for each intake question, how many of
   the households served were asked it and how many answered. The two intake
   systems ask different questions, so a short bar usually means the question is
   newer rather than that households declined it. Read any demographic figure

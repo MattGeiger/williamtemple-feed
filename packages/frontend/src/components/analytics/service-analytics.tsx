@@ -907,7 +907,7 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
         <SelectableBlock cardId="service-response-coverage">
           <Card className="min-w-0">
             <CardHeader>
-              <CardTitle>Who Answered Which Question</CardTitle>
+              <CardTitle>Demographics Questions Response Rate</CardTitle>
               <CardDescription>
                 The denominator behind every other demographic figure.
               </CardDescription>
@@ -942,7 +942,8 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
                 Each bar is the households served in this range whose profile was asked
                 that question. The two intake systems ask different questions, so a
                 short bar usually means the question is newer — not that households
-                refused it. Read any demographic share against this card first.
+                refused it. Declining to answer counts as not answered. Read any
+                demographic share against this card first.
               </Footnote>
             </CardContent>
           </Card>
