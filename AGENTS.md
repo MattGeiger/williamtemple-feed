@@ -44,6 +44,10 @@ Read these before broad changes:
 - `docs/layout/page-layout-standard.md` before adding or restructuring any route.
 - `docs/layout/table-standard.md` before adding or changing any data table.
 - `docs/motion/ICON_ANIMATIONS.md` before adding or changing any icon.
+- `docs/reports/service-analytics-plan.md` before changing anything that counts
+  households, visits, or people — see "How each kind is counted".
+- `docs/reports/analytics-report-architecture.md` before adding or changing an
+  Analytics card, because screen, PDF, and CSV share one accessor.
 - `docs/layout/assistant-orientation.md` for historical orientation context. Treat `AGENTS.md` as the current source of truth if details differ.
 
 Read these before shopping list work:
@@ -481,6 +485,62 @@ development database, requires its explicit confirmation flag, and must never
 be run in production. Its OFB-derived weekly presence signals are descriptive;
 do not reinterpret them as quantities, consumption, or causal mappings.
 
+## Service Analytics Direction
+
+`docs/reports/service-analytics-plan.md` is the source of truth for the Service
+lens; `docs/reports/service-analytics-card-proposal.md` records which cards were
+built, which were held back, and the staff answers that unblocked them. Shipped
+in 1.5.0-beta.19 with eight cards.
+
+Service describes people served. It draws on two records that describe the same
+pantry days and **begin years apart** — formal intake (Link2Feed from 2020, SIMC
+after the June 2026 cutover) and the Service Log, WTH's own end-of-day count,
+kept since October 2023.
+
+- **Never sum the two records.** Where both can answer a question the Service
+  Log wins, because a hand-counted total does not depend on every client
+  completing intake. A card must say which record produced its figure.
+- **An anonymous visit is a household.** `identity_unavailable_encounter` rows
+  carry a null `clientId` because the source recorded no client id — the
+  identity is missing, not the household. Each counts as one household,
+  **undeduplicated**. Never reach for `COUNT(DISTINCT "clientId")` alone for a
+  household figure: it skips nulls and silently drops 4,506 visits, understating
+  2023 by 12.7%. See the counting table in the plan doc.
+- **Test the record kind, not the null.** `special_event_people_aggregate` rows
+  also have a null `clientId` and must never become households — one of them is
+  a 264-person Thanksgiving clicker count.
+- **Visits per household stays identified-only**, and is the sole exception. An
+  anonymous row says nothing about returning; folding those in drags the average
+  toward 1 and reports a recording artefact as behaviour.
+- **Absence is not zero.** A series carries `defined: false` where its record
+  does not reach, so a line begins where its record begins rather than running
+  along the axis for years it did not exist. In CSV that is an empty cell. The
+  inverse is also settled: a Service Log day with a blank turned-away entry **is**
+  a zero, confirmed by staff.
+- **Drop the unfinished month** from monthly charts and name it. A partial month
+  beside complete ones reads as a collapse that did not happen.
+- **Never normalize what a household reported about itself.** "Mandarin",
+  "Mandarin Chinese", and "Chinese" stay three answers. Truncating a chart to
+  the most common values is a display limit and is fine, provided the export
+  carries every value and the card says which it is doing.
+- **Report a share against the question's own denominator.** The two intake
+  systems ask different demographic questions, so a low answer rate usually
+  means the question is newer, not that households refused. `service-response-
+  coverage` exists to make that visible; check it before quoting any
+  demographic figure.
+- **Do not hardcode operational facts** — program start dates, visit policies,
+  system-changeover months. Derive them from the data so the card follows the
+  record.
+- Age and geography cards remain **blocked** on the cutover question in the card
+  proposal's §2.8. One distribution cannot honestly be drawn across two systems
+  that asked different questions.
+
+Analytics cards are a contract: screen, PDF, and CSV share one accessor, so a
+guard applied on screen must be applied in the card too (`analytics-cards.ts`).
+A card's own controls are frozen when the user selects it and travel as
+`options` — a control the card does not read is a control the export silently
+ignores. `docs/reports/analytics-report-architecture.md` has the rest.
+
 ## Documentation Standards
 
 Documentation is part of the deliverable.
@@ -535,4 +595,9 @@ Passdown messages should be concrete enough that a fresh agent can continue with
 - **`cd packages/frontend && npx tsc --noEmit` checks nothing and reports success anyway.** The frontend root `tsconfig.json` is a solution-style file (`"files": []` plus `references` to `tsconfig.app.json`/`tsconfig.node.json`); a bare `tsc --noEmit` run against it has zero root files to check and exits 0 regardless of real errors elsewhere in the project. An entire session's worth of "typecheck passed" claims were false on this basis — real type errors (a missing import, an incomplete test fixture, a narrowed-type-widened-to-`string` indexing bug) shipped uncaught across several commits before a stray unrelated command (`tsc --project tsconfig.app.json`) exposed the gap. **Always run `npx tsc --noEmit --project tsconfig.app.json`** (or `npx tsc -b`) for a real frontend check. The backend's `tsconfig.json` is an ordinary single-project config with a real `include`, so a bare `npx tsc --noEmit` from `packages/backend` has always been genuine — this trap is frontend-only. If a `tsc --noEmit` claim of "0 errors" seems too clean given the scope of a change, or is going to gate a commit/report to the user, verify the invocation actually names `tsconfig.app.json` before trusting it.
 - **When "0 new errors" needs to be trusted, verify against a real historical baseline, not memory.** `git worktree add /tmp/baseline-check <commit>` gives an isolated, disposable checkout to typecheck the pre-change state without touching the working tree or risking a destructive operation on it — `npm install` there, run the real `tsc --project tsconfig.app.json` invocation above, then `git worktree remove --force` when done. Comparing raw error-line counts between two runs is misleading when messages wrap across multiple lines (a 4x count swing can be entirely message-formatting noise); compare deduplicated `(file, code, message)` signatures with line/column numbers stripped instead.
 - **TypeScript can hide one missing-property error behind another on the same object literal.** If a nested property already has an incompatible type (e.g. `status: {...}` missing one required field), TS reports only that nested `TS2741` and silently skips the top-level `TS2739` that would otherwise list every other missing top-level property on the same literal. Fixing the first-reported error can reveal a second, larger error that was completely invisible a moment before. Don't treat a single fix as complete without re-running the check — the absence of a follow-up error is not evidence the object is now valid, keep re-checking until a clean run confirms it.
+- **Radix Tabs activate on pointer-down, not click.** `fireEvent.click` on a `TabsTrigger` leaves the tab unchanged, and the assertions afterwards run against the *unswitched* view — so a test can look like it exercises a toggle while proving nothing. Use `fireEvent.mouseDown`, as `analytics-report-run.test.tsx` does on the date presets. The same applies to driving the app through a browser tool: a synthetic `.click()` or a plain automated click never switches these tabs, which reads as "the preview pane is broken" when it is not. Dispatching `pointerdown` + `mousedown` works.
+- **Multi-series chart tooltips must be sorted explicitly.** Recharts hands the payload over in series-declaration order, which on overlapping lines is the order they appear in the source, not the order they stack on screen — a 1,543 lb source printed above a 6,480 lb one. Pass `sortByValue` to `ChartTooltipContent`. Do **not** pass it to stacked charts: their payload order *is* the stack order, and re-ordering breaks the correspondence with the bar under the cursor. Paired before/after series (Previous vs Latest Unit Cost) also stay fixed. Recharts' own `itemSorter` prop does not help — only `DefaultTooltipContent` reads it, and this project replaces that component.
+- **Print helpers take a value formatter; the default is pounds.** `hBarSvg` and `stackedHBarSvg` default to `POUNDS`, so a card counting households or items prints "1,443 lb" unless it passes `COUNT`. This has now shipped three times (paid procurement dollars, availability counts, response coverage). Check the unit whenever adding a card that is not measuring weight.
+- **Run test suites per package, not from the repo root.** `npx vitest run` at the root picks up a config that fails 46 tests across 86 files on `Cannot find package '@/routes/auth'` — pre-existing and unrelated to any change under test. The real gates are `cd packages/backend && npx vitest run` and `cd packages/frontend && npx vitest run`.
+- **`rg -r` is `--replace`, not "recursive".** ripgrep is recursive by default; `-r` silently rewrites matches in the output, so `rg -rn "beta\.18" .` prints a mangled version of the file contents. Twice in one session this produced output that looked like real findings (`"version": "1.5.0-n"`). Just use `rg -n`.
 - **`ColumnDef<X>[]` not assignable to `ColumnDef<unknown>[]`, and Lucide icon `ComponentType` mismatches, are pre-existing accepted debt** — see `docs/TSC-DEBT.md`. They recur on every new table built with `EnhancedDataTable` because of the shared component's generic typing, not because of anything the calling code does wrong. Don't attempt to fix them opportunistically inside an unrelated feature change; that's a systemic `EnhancedDataTable`/`TableRowAction` generics fix requiring its own scoped, discussed pass. Confirm a given error is actually this category (same file, same TS code, same message shape as the doc describes) before assuming it's pre-existing rather than something new.
