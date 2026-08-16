@@ -353,7 +353,13 @@ export function stackedHBarSvg(
   categories: string[],
   series: Series[],
   width = 900,
-  rowH = 26
+  rowH = 26,
+  /**
+   * The row total's units. Defaults to pounds, which is what the procurement
+   * card that first needed this chart measures — but the shape is not about
+   * weight, and a card counting households must not print "1,443 lb".
+   */
+  formatValue: BarValueFormat = POUNDS
 ): string {
   const labelW = 230, pad = 12, valueW = 96;
   const chartW = width - labelW - pad - valueW;
@@ -375,7 +381,7 @@ export function stackedHBarSvg(
     }).join('');
     return `<text x="0" y="${y + rowH / 2 + 4}" font-size="11" fill="${INK}">${esc(truncateToWidth(label, labelMaxW, 11))}</text>` +
       segments +
-      `<text x="${(x + 8).toFixed(1)}" y="${y + rowH / 2 + 4}" font-size="10" fill="${MUTED}">${fmt(totals[i])} lb</text>`;
+      `<text x="${(x + 8).toFixed(1)}" y="${y + rowH / 2 + 4}" font-size="10" fill="${MUTED}">${formatValue(totals[i])}</text>`;
   }).join('');
 
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" font-family="Helvetica, Arial, sans-serif">${rows}</svg>`;

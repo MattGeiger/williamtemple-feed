@@ -35,6 +35,45 @@ export const SERVICE_PROFILE_DIMENSIONS = [
 export type ServiceProfileResponseStatus = typeof SERVICE_PROFILE_RESPONSE_STATUSES[number];
 export type ServiceProfileDimension = typeof SERVICE_PROFILE_DIMENSIONS[number];
 
+/**
+ * What each question is called when a person reads it.
+ *
+ * Kept beside the canonical list so a dimension cannot appear on screen or in
+ * a report under a raw column name. The wording is the question as asked, not
+ * the field as stored: staff recognize "Languages spoken at home", not
+ * `household_languages`.
+ */
+export const SERVICE_PROFILE_DIMENSION_LABELS: Record<ServiceProfileDimension, string> = {
+  gender_identity: 'Gender identity',
+  gender_identity_parent_type: 'Gender identity (grouped)',
+  ethnicity: 'Ethnicity',
+  disability: 'Disability',
+  self_identifies_as: 'Self-identifies as',
+  city: 'City',
+  county: 'County',
+  state: 'State',
+  postal_code: 'Postal code',
+  housing_type: 'Housing type',
+  household_languages: 'Languages spoken at home',
+  primary_income_source: 'Primary income source',
+  dietary_considerations: 'Dietary considerations',
+  social_assistance: 'Social assistance',
+  race_or_ethnicity: 'Race or ethnicity',
+  county_fips: 'County (FIPS)',
+  no_fixed_address: 'No fixed address',
+  housing_stability: 'Housing stability',
+  snap_participation: 'SNAP participation',
+  government_programs: 'Government programs',
+  employment: 'Employment',
+  food_insecurity: 'Food insecurity',
+  military_status: 'Military status',
+  translation_needed: 'Translation needed',
+};
+
+/** Falls back to the raw key rather than hiding a dimension nobody labelled. */
+export const serviceProfileDimensionLabel = (dimension: string): string =>
+  SERVICE_PROFILE_DIMENSION_LABELS[dimension as ServiceProfileDimension] ?? dimension;
+
 export interface ServiceProfileResponse {
   dimension: ServiceProfileDimension;
   responseStatus: ServiceProfileResponseStatus;

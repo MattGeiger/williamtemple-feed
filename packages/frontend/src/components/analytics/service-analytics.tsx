@@ -195,7 +195,31 @@ function MethodRow({
 }
 
 export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAnalytics }) {
-  const { coverage, summary, overTime, seasonal, methodSeries, recordAgreement, householdSize, reachAndFrequency } = analytics;
+  const {
+    coverage, summary, overTime, seasonal, methodSeries, recordAgreement, householdSize,
+    reachAndFrequency, unmetDemand, languages, responseCoverage,
+  } = analytics;
+
+  /**
+   * The turned-away series carries nulls outside the Service Log's span. A bar
+   * chart cannot express "no record" the way a line can break, so those buckets
+   * are dropped rather than drawn as zero-height bars that would read as
+   * confirmed zeros.
+   */
+  const unmetBuckets = React.useMemo(
+    () => unmetDemand.buckets.filter((bucket) => bucket.turnedAway !== null),
+    [unmetDemand.buckets],
+  );
+
+  /**
+   * Fifty answers down to counts of one is not a chart. The most common are
+   * plotted and the rest stated in the footnote — a display limit, not a
+   * merge: nothing is folded into anything else, and the export carries all of
+   * them.
+   */
+  const LANGUAGES_PLOTTED = 15;
+  const languageRows = languages.values.slice(0, LANGUAGES_PLOTTED);
+  const languageOverflow = Math.max(0, languages.values.length - languageRows.length);
 
   // Monthly buckets bring back the partial-period hazard: the newest month
   // holds only the service days that have happened, so plotting it beside
@@ -739,6 +763,158 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
               <Footnote>
                 {singlePersonShare}% of visits are by a household of one. Excludes
                 outliers marked as special events, flagged during data import.
+              </Footnote>
+            </CardContent>
+          </Card>
+        </SelectableBlock>
+      )}
+
+      {/* ---- Capacity and Unmet Demand ------------------------------------ */}
+      {unmetBuckets.length > 0 && (
+        <SelectableBlock cardId="service-unmet-demand">
+          <Card className="min-w-0">
+            <CardHeader>
+              <CardTitle>Turned Away</CardTitle>
+              <CardDescription>
+                Households the pantry could not serve, and the days capacity ran out.
+              </CardDescription>
+              <SourcePills sources={['Service Log']} />
+            </CardHeader>
+            <CardContent>
+              <div className="mb-4 grid gap-3 sm:grid-cols-3">
+                <Tile label="Households turned away" value={count(unmetDemand.householdsTurnedAway)} icon={UsersRound} />
+                <Tile
+                  label="Days it happened"
+                  value={count(unmetDemand.daysWithTurnAway)}
+                  hint={`of ${count(unmetDemand.daysRecorded)} recorded service days`}
+                  icon={BadgeQuestionMark}
+                />
+                <Tile label="Times capacity was reached" value={count(unmetDemand.capacityReachedDays)} icon={ShoppingBasket} />
+              </div>
+              <ChartContainer
+                config={{ turnedAway: { label: 'Households turned away', color: carbonChartColors.orange.primary.light } } satisfies ChartConfig}
+                className="h-[220px] w-full"
+              >
+                <BarChart data={unmetBuckets} margin={{ left: 4, right: 8, top: 8 }}>
+                  <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                  <XAxis
+                    dataKey="bucket"
+                    tickLine={false}
+                    axisLine={false}
+                    tickFormatter={unmetDemand.granularity === 'month' ? monthLabel : dayLabelFor(true)}
+                    minTickGap={24}
+                  />
+                  <YAxis tickLine={false} axisLine={false} width={44} allowDecimals={false} />
+                  <ChartTooltip
+                    content={
+                      <ChartTooltipContent
+                        labelFormatter={(value) =>
+                          unmetDemand.granularity === 'month' ? monthLabel(String(value)) : String(value)
+                        }
+                      />
+                    }
+                  />
+                  <Bar dataKey="turnedAway" fill={seriesColor('turnedAway')} radius={[3, 3, 0, 0]} />
+                </BarChart>
+              </ChartContainer>
+              <Footnote>
+                A service day with no turned-away entry is counted as nobody turned
+                away, which staff confirmed is what the blank means. The bars begin
+                where the Service Log does, not where the pantry does.
+                {unmetDemand.firstRecordedDate &&
+                  ` The first recorded turn-away is ${monthOfDate(unmetDemand.firstRecordedDate)}.`}
+              </Footnote>
+            </CardContent>
+          </Card>
+        </SelectableBlock>
+      )}
+
+      {/* ---- Languages ---------------------------------------------------- */}
+      {languageRows.length > 0 && (
+        <SelectableBlock cardId="service-languages">
+          <Card className="min-w-0">
+            <CardHeader>
+              <CardTitle>Languages Spoken at Home</CardTitle>
+              <CardDescription>
+                As households recorded them, in their own words.
+              </CardDescription>
+              <SourcePills sources={['Link2Feed', 'SIMC']} />
+            </CardHeader>
+            <CardContent>
+              <ChartContainer
+                config={{ households: { label: 'Households', color: carbonChartColors.teal.primary.light } } satisfies ChartConfig}
+                className="h-[420px] w-full"
+              >
+                <BarChart data={languageRows} layout="vertical" margin={{ left: 8, right: 24, top: 4 }}>
+                  <CartesianGrid horizontal={false} strokeDasharray="3 3" />
+                  <XAxis type="number" tickLine={false} axisLine={false} />
+                  <YAxis
+                    type="category"
+                    dataKey="language"
+                    tickLine={false}
+                    axisLine={false}
+                    width={132}
+                    interval={0}
+                  />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <Bar dataKey="households" fill={seriesColor('households')} radius={[0, 3, 3, 0]} />
+                </BarChart>
+              </ChartContainer>
+              <Footnote>
+                Answers are shown exactly as recorded and are never merged — “Mandarin”,
+                “Mandarin Chinese” and “Chinese” stay separate, because how a household
+                names its own language is part of what it told us.{' '}
+                {count(languages.householdsAnswered)} of {count(languages.householdsAsked)}{' '}
+                households answered this question
+                {languageOverflow > 0 && `, across ${count(languages.values.length)} distinct answers; the ${count(languageOverflow)} rarest are in the exported data`}
+                .
+              </Footnote>
+            </CardContent>
+          </Card>
+        </SelectableBlock>
+      )}
+
+      {/* ---- Response Coverage -------------------------------------------- */}
+      {responseCoverage.length > 0 && (
+        <SelectableBlock cardId="service-response-coverage">
+          <Card className="min-w-0">
+            <CardHeader>
+              <CardTitle>Who Answered Which Question</CardTitle>
+              <CardDescription>
+                The denominator behind every other demographic figure.
+              </CardDescription>
+              <SourcePills sources={['Link2Feed', 'SIMC']} />
+            </CardHeader>
+            <CardContent>
+              <ChartContainer
+                config={{
+                  provided: { label: 'Answered', color: carbonChartColors.blue.primary.light },
+                  notProvided: { label: 'Not answered', color: carbonChartColors.warmGray.primary.light },
+                } satisfies ChartConfig}
+                className="h-[520px] w-full"
+              >
+                <BarChart data={responseCoverage} layout="vertical" margin={{ left: 8, right: 24, top: 4 }}>
+                  <CartesianGrid horizontal={false} strokeDasharray="3 3" />
+                  <XAxis type="number" tickLine={false} axisLine={false} />
+                  <YAxis
+                    type="category"
+                    dataKey="displayName"
+                    tickLine={false}
+                    axisLine={false}
+                    width={168}
+                    interval={0}
+                  />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <ChartLegend content={<ChartLegendContent />} />
+                  <Bar dataKey="provided" stackId="a" fill={seriesColor('provided')} radius={[0, 0, 0, 0]} />
+                  <Bar dataKey="notProvided" stackId="a" fill={seriesColor('notProvided')} radius={[0, 3, 3, 0]} />
+                </BarChart>
+              </ChartContainer>
+              <Footnote>
+                Each bar is the households served in this range whose profile was asked
+                that question. The two intake systems ask different questions, so a
+                short bar usually means the question is newer — not that households
+                refused it. Read any demographic share against this card first.
               </Footnote>
             </CardContent>
           </Card>

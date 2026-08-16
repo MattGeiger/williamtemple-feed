@@ -11,10 +11,13 @@ import { describe, expect, it } from 'vitest';
 import { buildAnalyticsReport } from '../analytics-report';
 import {
   SERVICE_HOUSEHOLD_SIZE,
+  SERVICE_LANGUAGES,
   SERVICE_METHOD_MIX,
+  SERVICE_RESPONSE_COVERAGE,
   SERVICE_OVER_TIME,
   SERVICE_SEASONAL_HOUSEHOLDS,
   SERVICE_SUMMARY,
+  SERVICE_UNMET_DEMAND,
   cardCsv,
   getAnalyticsCard,
 } from '../analytics-cards';
@@ -22,10 +25,10 @@ import {
 /**
  * The Service lens, as reports.
  *
- * Five cards shipped on screen with no registry entry, so selecting one
- * produced an archive that silently omitted it — and a Service-only selection
- * crashed outright, because the printed header read a `range` field only the
- * other two lenses carry.
+ * The lens shipped on screen with no registry entries at all, so selecting a
+ * Service card produced an archive that silently omitted it — and a
+ * Service-only selection crashed outright, because the printed header read a
+ * `range` field only the other two lenses carry.
  *
  * These assert the decisions rather than the plumbing: that absence and zero
  * stay distinct across two archives beginning years apart, that an unfinished
@@ -91,6 +94,35 @@ const SERVICE_ANALYTICS = {
     sharedDays: 20, intakeTotal: 100, serviceLogTotal: 99,
     meanAbsoluteDailyDifference: 0.5, agreementPercent: 99,
   },
+  unmetDemand: {
+    granularity: 'month' as const,
+    buckets: [
+      // Before the Service Log there is no record; inside it, a blank is a zero.
+      { bucket: '2023-08', turnedAway: null },
+      { bucket: '2023-10', turnedAway: 0 },
+      { bucket: '2023-11', turnedAway: 4 },
+    ],
+    householdsTurnedAway: 4,
+    daysWithTurnAway: 1,
+    daysRecorded: 20,
+    capacityReachedDays: 2,
+    firstRecordedDate: '2023-11-08',
+  },
+  languages: {
+    // Recorded as three answers by three households, and kept that way.
+    values: [
+      { language: 'English', households: 40 },
+      { language: 'Mandarin Chinese', households: 6 },
+      { language: 'Mandarin', households: 3 },
+      { language: 'Chinese', households: 1 },
+    ],
+    householdsAsked: 80,
+    householdsAnswered: 50,
+  },
+  responseCoverage: [
+    { dimension: 'postal_code', displayName: 'Postal code', provided: 70, notProvided: 10, sources: ['link2feed', 'simc'] },
+    { dimension: 'employment', displayName: 'Employment', provided: 1, notProvided: 60, sources: ['simc'] },
+  ],
   householdSize: [
     { people: 1, visits: 50 },
     { people: 2, visits: 30 },
@@ -99,13 +131,16 @@ const SERVICE_ANALYTICS = {
 };
 
 describe('the Service cards', () => {
-  it('registers all five under the service lens', () => {
+  it('registers all eight under the service lens', () => {
     const ids = [
       'service-summary',
       'service-over-time',
       'service-seasonal-households',
       'service-method-mix',
       'service-household-size',
+      'service-unmet-demand',
+      'service-languages',
+      'service-response-coverage',
     ];
     for (const id of ids) {
       const card = getAnalyticsCard(id);
@@ -214,6 +249,9 @@ describe('the Service cards', () => {
       SERVICE_SEASONAL_HOUSEHOLDS,
       SERVICE_METHOD_MIX,
       SERVICE_HOUSEHOLD_SIZE,
+      SERVICE_UNMET_DEMAND,
+      SERVICE_LANGUAGES,
+      SERVICE_RESPONSE_COVERAGE,
     ]) {
       const data = card.data({});
       const svg = card.print(data);
@@ -226,6 +264,74 @@ describe('the Service cards', () => {
     const data = SERVICE_HOUSEHOLD_SIZE.data(SERVICE_ANALYTICS);
     expect(data.categories).toEqual(['1 person', '2 people']);
     expect(data.note).toContain('bulk entries and special events');
+  });
+});
+
+describe('Turned Away', () => {
+  it('drops buckets the Service Log does not cover, and keeps the zeros inside it', () => {
+    const data = SERVICE_UNMET_DEMAND.data(SERVICE_ANALYTICS);
+
+    // A bar chart cannot draw "no record" — a zero-height bar reads as a
+    // confirmed zero, which is the opposite of what a null means here.
+    expect(data.categories).toEqual(['2023-10', '2023-11']);
+    expect(data.series[0].values).toEqual([0, 4]);
+    expect(data.note).toContain('counts as nobody turned away');
+  });
+
+  it('reports the days it happened against the days the Log was kept', () => {
+    const tiles = SERVICE_UNMET_DEMAND.data(SERVICE_ANALYTICS).tiles!;
+    // Not "1 day" alone: without its denominator the figure means nothing.
+    expect(tiles.find(t => t.label === 'Days it happened')!.value).toBe('1 of 20');
+    expect(tiles.find(t => t.label === 'Times capacity was reached')!.value).toBe('2');
+  });
+});
+
+describe('Languages Spoken at Home', () => {
+  it('never merges one recorded answer into another', () => {
+    const data = SERVICE_LANGUAGES.data(SERVICE_ANALYTICS);
+
+    // How a household names its own language is part of what it told us.
+    expect(data.categories).toEqual(['English', 'Mandarin Chinese', 'Mandarin', 'Chinese']);
+    expect(data.series[0].values).toEqual([40, 6, 3, 1]);
+    expect(data.note).toContain('never merged');
+  });
+
+  it('states the denominator the shares must be read against', () => {
+    expect(SERVICE_LANGUAGES.data(SERVICE_ANALYTICS).note).toContain(
+      '50 of 80 households answered this question'
+    );
+  });
+
+  it('limits what it plots without dropping anything from the export', () => {
+    const many = {
+      ...SERVICE_ANALYTICS,
+      languages: {
+        ...SERVICE_ANALYTICS.languages,
+        values: Array.from({ length: 22 }, (_, i) => ({ language: `Language ${i}`, households: 22 - i })),
+      },
+    };
+    const data = SERVICE_LANGUAGES.data(many);
+
+    expect(data.categories).toHaveLength(15);
+    expect(data.note).toContain('the 7 rarest are in the CSV');
+    // A display limit is not a merge: every answer survives in the raw grain.
+    expect(cardCsv(data, 'raw').trimEnd().split('\r\n')).toHaveLength(23);
+  });
+});
+
+describe('Who Answered Which Question', () => {
+  it('names each question as it was asked, not as it is stored', () => {
+    const data = SERVICE_RESPONSE_COVERAGE.data(SERVICE_ANALYTICS);
+    expect(data.categories).toEqual(['Postal code', 'Employment']);
+    expect(cardCsv(data)).not.toContain('postal_code');
+  });
+
+  it('counts households, and says so in the units it prints', () => {
+    const data = SERVICE_RESPONSE_COVERAGE.data(SERVICE_ANALYTICS);
+    expect(data.series.map(s => s.name)).toEqual(['Answered', 'Not answered']);
+    // The stacked helper defaults to pounds; a household count printed as
+    // "80 lb" is the bug this card would otherwise have shipped with.
+    expect(SERVICE_RESPONSE_COVERAGE.print(data)).not.toContain(' lb');
   });
 });
 

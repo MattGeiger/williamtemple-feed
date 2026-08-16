@@ -272,6 +272,26 @@ release, with screen, PDF and CSV sharing one accessor.
 
 ## 5. Questions only you and the staff can answer
 
+> **Answered, August 2026.** Staff settled the three questions that were
+> holding cards back, and all three cards are now built:
+>
+> - **A blank turned-away entry means nobody was turned away**, not "not
+>   recorded". `service-unmet-demand` therefore plots a real series rather than
+>   scattered marks, and reports the days it happened against the days the
+>   Service Log was kept — 29 of 321 — so the figure carries its denominator.
+> - **Languages are never normalized.** "Mandarin", "Mandarin Chinese" and
+>   "Chinese" stay three answers, because how a household names its own
+>   language is part of what it told us. `service-languages` plots the fifteen
+>   most common and exports all fifty; that is a display limit, not a merge.
+> - **The 2023 identity gap is paper recording under pressure**, not households
+>   declining to answer. `service-response-coverage` states, for every
+>   question, how many of the households served were asked it and how many
+>   answered — which is what stops a demographic share being read against the
+>   wrong denominator.
+>
+> Still held back: age and geography, which need the §2.8 cutover constraint
+> settled before a single distribution can be drawn across both systems.
+
 These are not blockers on starting — they are blockers on specific cards, and
 each changes what a card is allowed to say.
 

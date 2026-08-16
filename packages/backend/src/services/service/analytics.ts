@@ -5,6 +5,7 @@ import { PrismaClient } from '@prisma/client';
 import prisma from '../../db';
 import { getOperatingHoursSettings } from '../operating-hours';
 import { resolveRange, type AnalyticsRangePreset } from '../inventory-analytics/timezone';
+import { serviceProfileDimensionLabel } from './profiles';
 
 /**
  * Service Analytics — the third lens, beside Operations and Procurement.
@@ -114,6 +115,50 @@ export interface ServiceAnalytics {
     meanAbsoluteDailyDifference: number;
     agreementPercent: number;
   };
+  /**
+   * Service not delivered — the only record of it there is.
+   *
+   * Staff confirmed that a service day with no turned-away entry means nobody
+   * was turned away, so absence inside the Service Log's own span is a true
+   * zero. Outside that span it is silence, and the series does not begin.
+   */
+  unmetDemand: {
+    granularity: ServiceBucketGranularity;
+    /** Null before the Service Log covers the bucket, so the line begins there. */
+    buckets: Array<{ bucket: string; turnedAway: number | null }>;
+    householdsTurnedAway: number;
+    /** Days it happened, against days the Log was kept — the honest denominator. */
+    daysWithTurnAway: number;
+    daysRecorded: number;
+    capacityReachedDays: number;
+    firstRecordedDate: string | null;
+  };
+  /**
+   * Household languages exactly as recorded, never normalized.
+   *
+   * "Mandarin", "Mandarin Chinese" and "Chinese" stay three answers, because
+   * how someone names their own language is part of what they told us. Folding
+   * them together would be the analyst overwriting the household.
+   */
+  languages: {
+    values: Array<{ language: string; households: number }>;
+    householdsAsked: number;
+    householdsAnswered: number;
+  };
+  /**
+   * For each question, how many households answered it.
+   *
+   * The card that keeps every other demographic figure honest: a share is
+   * meaningless without the denominator it was drawn from. Questions differ
+   * between the two intake systems, so each one reports which asked it.
+   */
+  responseCoverage: Array<{
+    dimension: string;
+    displayName: string;
+    provided: number;
+    notProvided: number;
+    sources: string[];
+  }>;
   householdSize: Array<{ people: number; visits: number }>;
   reachAndFrequency: Array<{
     year: string;
@@ -339,6 +384,99 @@ export async function getServiceAnalytics(
       startDate, endDate, ...methodKeys,
     );
 
+  // Service not delivered. Turned-away counts and capacity markers are the
+  // only trace of it, and they are sparse by nature — 38 recorded days across
+  // two years — so they are reported against the days the Log was kept rather
+  // than against the calendar.
+  const unmetKeys = definitions
+    .filter((row) => row.semanticRole === 'unmet_demand')
+    .map((row) => row.metricKey);
+  const capacityKeys = definitions
+    .filter((row) => row.semanticRole === 'capacity_marker')
+    .map((row) => row.metricKey);
+
+  const unmetBucketRows = unmetKeys.length === 0 ? [] :
+    await client.$queryRawUnsafe<Array<{ bucket: string; total: number | null }>>(
+      `SELECT ${bucketSql} AS "bucket", SUM(COALESCE(o."countValue",0)) AS "total"
+       FROM "ServiceMetricObservationRevision" o
+       JOIN "ServiceMetricDefinition" d ON d."id" = o."metricId"
+       WHERE o."isCurrent" = 1 AND o."serviceDate" BETWEEN ? AND ?
+         AND d."metricKey" IN (${inList(unmetKeys)})
+       GROUP BY "bucket" ORDER BY "bucket"`,
+      startDate, endDate, ...unmetKeys,
+    );
+
+  const unmetTotals = unmetKeys.length === 0 ? [] :
+    await client.$queryRawUnsafe<Array<{
+      households: number | null; daysWithTurnAway: bigint; firstDate: string | null;
+    }>>(
+      `SELECT SUM(COALESCE(o."countValue",0)) AS "households",
+              COUNT(DISTINCT CASE WHEN COALESCE(o."countValue",0) > 0
+                                  THEN o."serviceDate" END) AS "daysWithTurnAway",
+              MIN(CASE WHEN COALESCE(o."countValue",0) > 0 THEN o."serviceDate" END) AS "firstDate"
+       FROM "ServiceMetricObservationRevision" o
+       JOIN "ServiceMetricDefinition" d ON d."id" = o."metricId"
+       WHERE o."isCurrent" = 1 AND o."serviceDate" BETWEEN ? AND ?
+         AND d."metricKey" IN (${inList(unmetKeys)})`,
+      startDate, endDate, ...unmetKeys,
+    );
+
+  const capacityDays = capacityKeys.length === 0 ? [] :
+    await client.$queryRawUnsafe<Array<{ days: bigint }>>(
+      `SELECT COUNT(DISTINCT o."serviceDate") AS "days"
+       FROM "ServiceMetricObservationRevision" o
+       JOIN "ServiceMetricDefinition" d ON d."id" = o."metricId"
+       WHERE o."isCurrent" = 1 AND o."serviceDate" BETWEEN ? AND ?
+         AND d."metricKey" IN (${inList(capacityKeys)})
+         AND (o."timeValue" IS NOT NULL OR COALESCE(o."countValue",0) > 0)`,
+      startDate, endDate, ...capacityKeys,
+    );
+
+  // Days the Service Log was kept at all — the denominator a turned-away
+  // figure has to be read against.
+  const loggedDays = await client.$queryRaw<Array<{ days: bigint }>>`
+    SELECT COUNT(DISTINCT "serviceDate") AS "days"
+    FROM "ServiceMetricObservationRevision"
+    WHERE "isCurrent" = 1 AND "serviceDate" BETWEEN ${startDate} AND ${endDate}`;
+
+  /**
+   * Demographics are read for the households actually served in the range,
+   * not for whichever profiles happen to have been written in it. Each client
+   * carries exactly one current profile, so this is a join rather than a
+   * pick-the-latest.
+   */
+  const languageRows = await client.$queryRaw<Array<{ language: string; households: bigint }>>`
+    WITH served AS (
+      SELECT DISTINCT "clientId" FROM "ServiceEncounterRevision"
+      WHERE "isCurrent" = 1 AND "serviceDate" BETWEEN ${startDate} AND ${endDate}
+        AND "clientId" IS NOT NULL
+    )
+    SELECT j."value" AS "language", COUNT(DISTINCT p."clientId") AS "households"
+    FROM "ServiceClientProfileRevision" p
+    JOIN served s ON s."clientId" = p."clientId"
+    JOIN "ServiceClientProfileResponse" r ON r."profileRevisionId" = p."id"
+    JOIN json_each(r."values") j
+    WHERE p."isCurrent" = 1 AND r."dimension" = 'household_languages'
+      AND r."responseStatus" = 'provided'
+    GROUP BY j."value" ORDER BY "households" DESC, "language"`;
+
+  const coverageByDimension = await client.$queryRaw<Array<{
+    dimension: string; responseStatus: string; households: bigint; sources: string;
+  }>>`
+    WITH served AS (
+      SELECT DISTINCT "clientId" FROM "ServiceEncounterRevision"
+      WHERE "isCurrent" = 1 AND "serviceDate" BETWEEN ${startDate} AND ${endDate}
+        AND "clientId" IS NOT NULL
+    )
+    SELECT r."dimension", r."responseStatus",
+           COUNT(DISTINCT p."clientId") AS "households",
+           GROUP_CONCAT(DISTINCT p."source") AS "sources"
+    FROM "ServiceClientProfileRevision" p
+    JOIN served s ON s."clientId" = p."clientId"
+    JOIN "ServiceClientProfileResponse" r ON r."profileRevisionId" = p."id"
+    WHERE p."isCurrent" = 1
+    GROUP BY r."dimension", r."responseStatus"`;
+
   const agreementRows = methodKeys.length === 0 ? [] :
     await client.$queryRawUnsafe<Array<{ serviceDate: string; intake: number; serviceLog: number | null }>>(
       `WITH intake AS (
@@ -478,6 +616,46 @@ export async function getServiceAnalytics(
     serviceLogTotal += logged;
   }
 
+  // Absence inside the Service Log's span is a zero staff confirmed; outside
+  // it there is no record to read, so the bucket stays null and the line
+  // begins where the Log does.
+  const logSpanFirst = serviceLogSpan[0]?.firstDate ?? null;
+  const logSpanLast = serviceLogSpan[0]?.lastDate ?? null;
+  const unmetByBucket = new Map(
+    unmetBucketRows.map((row) => [row.bucket, Number(row.total ?? 0)]),
+  );
+  const unmetBuckets = logSpanFirst && logSpanLast
+    ? [...new Set(methodSeriesRows.map((row) => row.bucket))]
+      .sort()
+      .map((bucket) => ({
+        bucket,
+        turnedAway:
+          bucket >= toBucket(logSpanFirst) && bucket <= toBucket(logSpanLast)
+            ? unmetByBucket.get(bucket) ?? 0
+            : null,
+      }))
+    : [];
+
+  const coverageTotals = new Map<string, {
+    provided: number; notProvided: number; sources: Set<string>;
+  }>();
+  for (const row of coverageByDimension) {
+    const entry = coverageTotals.get(row.dimension)
+      ?? { provided: 0, notProvided: 0, sources: new Set<string>() };
+    if (row.responseStatus === 'provided') entry.provided += Number(row.households);
+    else entry.notProvided += Number(row.households);
+    for (const source of String(row.sources ?? '').split(',')) {
+      if (source) entry.sources.add(source);
+    }
+    coverageTotals.set(row.dimension, entry);
+  }
+
+  const languageValues = languageRows.map((row) => ({
+    language: row.language,
+    households: Number(row.households),
+  }));
+  const languagesAsked = coverageTotals.get('household_languages');
+
   return {
     coverage: {
       startDate,
@@ -538,6 +716,36 @@ export async function getServiceAnalytics(
         : 0,
       agreementPercent: intakeTotal > 0 ? round((serviceLogTotal / intakeTotal) * 100, 1) : 0,
     },
+    unmetDemand: {
+      granularity,
+      buckets: unmetBuckets,
+      householdsTurnedAway: Number(unmetTotals[0]?.households ?? 0),
+      daysWithTurnAway: Number(unmetTotals[0]?.daysWithTurnAway ?? 0),
+      daysRecorded: Number(loggedDays[0]?.days ?? 0),
+      capacityReachedDays: Number(capacityDays[0]?.days ?? 0),
+      firstRecordedDate: unmetTotals[0]?.firstDate ?? null,
+    },
+    languages: {
+      values: languageValues,
+      householdsAsked: (languagesAsked?.provided ?? 0) + (languagesAsked?.notProvided ?? 0),
+      householdsAnswered: languagesAsked?.provided ?? 0,
+    },
+    responseCoverage: [...coverageTotals.entries()]
+      .map(([dimension, entry]) => ({
+        dimension,
+        displayName: serviceProfileDimensionLabel(dimension),
+        provided: entry.provided,
+        notProvided: entry.notProvided,
+        sources: [...entry.sources].sort(),
+      }))
+      // Best-answered first: the card is read to find the questions that
+      // cannot carry a percentage, and those belong at the bottom where the
+      // eye lands last on a ranked list.
+      .sort((a, b) => {
+        const aShare = a.provided / Math.max(1, a.provided + a.notProvided);
+        const bShare = b.provided / Math.max(1, b.provided + b.notProvided);
+        return bShare - aShare || a.dimension.localeCompare(b.dimension);
+      }),
     householdSize: sizeRows.map((row) => ({ people: Number(row.people), visits: Number(row.visits) })),
     reachAndFrequency: reachRows.map((row) => {
       const households = Number(row.households);
