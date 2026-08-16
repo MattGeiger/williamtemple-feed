@@ -117,7 +117,7 @@ export interface AnalyticsCard {
   id: string;
   /** Fallback name for menus; `data().title` is what gets printed. */
   defaultTitle: string;
-  lens: 'operations' | 'procurement';
+  lens: 'operations' | 'procurement' | 'service';
   /**
    * `chart` prints an SVG; `kpi` prints HTML tiles; `table` prints an HTML
    * table with a repeating header and rows that do not split across pages.
@@ -1760,6 +1760,286 @@ export const LEGACY_DONATIONS_OVER_TIME: AnalyticsCard = {
 
 
 /** Registry. A card is exportable exactly when it appears here. */
+/* ---------------------------------------------------------------- service */
+
+/**
+ * Service cards read two records that begin years apart: intake (Link2Feed,
+ * then SIMC) and the Service Log, which WTH started keeping in October 2023.
+ * Every card here inherits one rule from the screen — an absent value is
+ * outside coverage, not a zero — so a line begins where its program did
+ * instead of running along the axis for the years before it existed.
+ *
+ * The bucket grain is chosen by the service, not condensed here: it already
+ * returns days or months based on the requested span, and re-condensing would
+ * put the report on a different axis than the page.
+ */
+
+/** `false` where the record does not cover the slot, so lines terminate. */
+const definedFrom = (values: Array<number | null | undefined>): boolean[] =>
+  values.map(value => value !== null && value !== undefined);
+
+const numbersFrom = (values: Array<number | null | undefined>): number[] =>
+  values.map(value => value ?? 0);
+
+/** A series is worth drawing only where the record actually reaches. */
+const covered = (series: Series): boolean => series.defined!.some(Boolean);
+
+/**
+ * Drops a trailing month that has not finished yet.
+ *
+ * The newest month holds only the service days that have happened, so plotting
+ * it beside complete months reads as a collapse. The screen drops it and says
+ * so; a report that kept it would show a cliff the page does not, and the
+ * whole point of one accessor is that the two cannot disagree. Daily buckets
+ * need no guard — a service day is either recorded or absent, never half
+ * counted.
+ */
+const dropPartialMonth = <T extends Record<string, unknown>>(
+  rows: T[],
+  key: string,
+  granularity: string
+): { rows: T[]; excluded: string | null } => {
+  if (granularity !== 'month') return { rows, excluded: null };
+  const currentMonth = new Date().toISOString().slice(0, 7);
+  const last = rows[rows.length - 1];
+  if (!last || String(last[key]) !== currentMonth) return { rows, excluded: null };
+  return { rows: rows.slice(0, -1), excluded: currentMonth };
+};
+
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
+
+/** `2026-08` → `August 2026`, matching the screen's caption. */
+const monthLabel = (bucket: string): string => {
+  const [year, month] = bucket.split('-');
+  return `${MONTH_NAMES[Number(month) - 1] ?? bucket} ${year}`;
+};
+
+export const SERVICE_SUMMARY: AnalyticsCard = {
+  id: 'service-summary',
+  kind: 'kpi',
+  defaultTitle: 'Service Summary',
+  lens: 'service',
+  data: (analytics: any) => {
+    const summary = analytics?.summary ?? {};
+    const coverage = analytics?.coverage ?? {};
+
+    const headline = [
+      { label: 'Visits', value: summary.visits ?? 0 },
+      { label: 'People Served', value: summary.peopleServed ?? 0 },
+      { label: 'Households Served', value: summary.households ?? 0 },
+    ].map(row => ({ ...row, text: COUNT(row.value) }));
+    // Methods carry households; ancillary metrics each carry their own unit,
+    // so their text is formatted per row rather than as a bare count.
+    const methods = (summary.methods ?? []).map((method: any) => ({
+      label: method.displayName,
+      value: method.households ?? 0,
+      text: COUNT(method.households ?? 0),
+    }));
+    const others = (summary.otherServices ?? []).map((service: any) => ({
+      label: service.displayName,
+      value: service.total ?? 0,
+      text: `${COUNT(service.total ?? 0)} ${service.unit}`.trim(),
+    }));
+
+    const rows = [...headline, ...methods, ...others];
+
+    // The footnotes the screen prints, for the same reason: a households figure
+    // drawn from the Service Log can cover less than the range asked for.
+    const notes: string[] = [];
+    if (summary.householdsSource === 'service_log' && coverage.serviceLogFirstDate) {
+      notes.push(
+        `Households come from the Service Log, which covers ${coverage.serviceLogFirstDate} onward.`
+      );
+    } else if (summary.householdsSource === 'intake') {
+      notes.push('Households come from intake records, which can hold duplicate profiles.');
+    }
+    if ((summary.identityUnavailableVisits ?? 0) > 0) {
+      notes.push(
+        `${COUNT(summary.identityUnavailableVisits)} visits have no household record and are counted in visits and people, not households.`
+      );
+    }
+    if ((summary.bulkEntryVisits ?? 0) > 0) {
+      notes.push(
+        `Includes ${COUNT(summary.bulkEntryPeople ?? 0)} people from bulk entries, which are not households.`
+      );
+    }
+
+    return {
+      title: 'Service Summary',
+      categories: rows.map(row => row.label),
+      series: [
+        { name: 'value', values: rows.map(row => row.value), text: rows.map(row => row.text) },
+      ],
+      categoryColumn: 'metric',
+      note: notes.length > 0 ? notes.join(' ') : null,
+      // Headline totals and the ancillary metrics are tiles; the methods are
+      // bars. Ancillary metrics each carry their own unit — 21 camping gear
+      // requests is not a smaller quantity than 21,006 households — so putting
+      // them on the households axis would draw them as invisible slivers of a
+      // scale they do not share. They stay in `categories` as well, so the CSV
+      // still carries every figure on the card.
+      tiles: [...headline, ...others].map(row => ({ label: row.label, value: row.text })),
+    };
+  },
+  // Tiles for the figures, bars for the method breakdown beneath them — the
+  // same split the screen makes between its key and its donut.
+  print: data => {
+    const values = data.series[0]?.values ?? [];
+    const tiled = new Set((data.tiles ?? []).map(tile => tile.label));
+    const bars = data.categories
+      .map((label, i) => ({ label, value: values[i] ?? 0 }))
+      .filter(row => !tiled.has(row.label));
+    return kpiGrid(data.tiles ?? []) + (bars.length > 0 ? hBarSvg(bars, 900, 30, COUNT) : '');
+  },
+};
+
+export const SERVICE_OVER_TIME: AnalyticsCard = {
+  id: 'service-over-time',
+  kind: 'chart',
+  defaultTitle: 'Service Over Time',
+  lens: 'service',
+  data: (analytics: any) => {
+    const granularity = analytics?.coverage?.granularity ?? 'day';
+    const { rows, excluded } = dropPartialMonth(
+      analytics?.overTime ?? [],
+      'month',
+      granularity
+    );
+    const categories = rows.map((row: any) => row.month);
+
+    const defs: [string, string][] = [
+      ['Link2Feed Households', 'link2feedHouseholds'],
+      ['Link2Feed Individuals', 'link2feedIndividuals'],
+      ['SIMC Households', 'simcHouseholds'],
+      ['SIMC Individuals', 'simcIndividuals'],
+      ['Service Log Households', 'serviceLogHouseholds'],
+    ];
+
+    // A record with no reach into this range would draw an empty legend entry.
+    const series = defs
+      .map(([name, key]) => {
+        const raw = rows.map((row: any) => row[key]);
+        return { name, values: numbersFrom(raw), defined: definedFrom(raw) };
+      })
+      .filter(covered);
+
+    return {
+      title: 'Service Over Time',
+      categories,
+      series,
+      categoryColumn: granularity === 'month' ? 'month' : 'date',
+      grain: granularity === 'month' ? 'month' : undefined,
+      note:
+        (granularity === 'month'
+          ? 'Monthly totals. A line begins where its record does.'
+          : 'Daily totals. A line begins where its record does.') +
+        (excluded ? ` ${monthLabel(excluded)} is still in progress and is not plotted.` : ''),
+    };
+  },
+  print: data =>
+    lineChartSvg(data.categories, data.series, 900, 280, false, { formatValue: COUNT }) +
+    legendSvg(data.series.map(s => s.name)),
+};
+
+export const SERVICE_SEASONAL_HOUSEHOLDS: AnalyticsCard = {
+  id: 'service-seasonal-households',
+  kind: 'chart',
+  defaultTitle: 'Households by Season',
+  lens: 'service',
+  data: (analytics: any) => {
+    const years: string[] = analytics?.seasonal?.years ?? [];
+    const months = analytics?.seasonal?.months ?? [];
+    const categories = months.map((row: any) => String(row.month));
+
+    // Twelve slots, every year on the same axis. A year that ran only part of
+    // the calendar is defined for the months it ran and absent for the rest —
+    // the distinction a partial year depends on.
+    const series = years.map(year => {
+      const raw = months.map((row: any) => row[year] as number | undefined);
+      return { name: year, values: numbersFrom(raw), defined: definedFrom(raw) };
+    });
+
+    return {
+      title: 'Households by Season',
+      categories,
+      series,
+      categoryColumn: 'month',
+      note: 'Households per calendar month, one line per year. A partial year stops where its data does.',
+    };
+  },
+  print: data =>
+    lineChartSvg(data.categories, data.series, 900, 280, false, { formatValue: COUNT }) +
+    legendSvg(data.series.map(s => s.name)),
+};
+
+export const SERVICE_METHOD_MIX: AnalyticsCard = {
+  id: 'service-method-mix',
+  kind: 'chart',
+  defaultTitle: 'How Service Was Delivered',
+  lens: 'service',
+  data: (analytics: any) => {
+    const methods = analytics?.methodSeries?.methods ?? [];
+    const granularity = analytics?.methodSeries?.granularity ?? 'day';
+    const { rows: buckets, excluded } = dropPartialMonth(
+      analytics?.methodSeries?.buckets ?? [],
+      'bucket',
+      granularity
+    );
+    const categories = buckets.map((row: any) => String(row.bucket));
+
+    // Within a method's life a missing bucket is a real zero — staff record
+    // every method each service day. Before it existed there is nothing to
+    // report, which is what the absent key means.
+    const series = methods
+      .map((method: any) => {
+        const raw = buckets.map((row: any) => row[method.metricKey] as number | undefined);
+        return { name: method.displayName, values: numbersFrom(raw), defined: definedFrom(raw) };
+      })
+      .filter(covered);
+
+    return {
+      title: 'How Service Was Delivered',
+      categories,
+      series,
+      categoryColumn: granularity === 'month' ? 'month' : 'date',
+      grain: granularity === 'month' ? 'month' : undefined,
+      note:
+        'Households by delivery method. A method begins where the program did.' +
+        (excluded ? ` ${monthLabel(excluded)} is still in progress and is not plotted.` : ''),
+    };
+  },
+  print: data =>
+    lineChartSvg(data.categories, data.series, 900, 280, false, { formatValue: COUNT }) +
+    legendSvg(data.series.map(s => s.name)),
+};
+
+export const SERVICE_HOUSEHOLD_SIZE: AnalyticsCard = {
+  id: 'service-household-size',
+  kind: 'chart',
+  defaultTitle: 'Household Size',
+  lens: 'service',
+  data: (analytics: any) => {
+    const rows = analytics?.householdSize ?? [];
+    return {
+      title: 'Household Size',
+      categories: rows.map((row: any) => (row.people === 1 ? '1 person' : `${row.people} people`)),
+      series: [{ name: 'Visits', values: rows.map((row: any) => row.visits ?? 0) }],
+      categoryColumn: 'household size',
+      note: 'Visits by the number of people in the household. Large sizes are bulk entries and special events, not families.',
+    };
+  },
+  print: data =>
+    hBarSvg(
+      data.categories.map((label, i) => ({ label, value: data.series[0]?.values[i] ?? 0 })),
+      900,
+      26,
+      COUNT
+    ),
+};
+
 export const ANALYTICS_CARDS: AnalyticsCard[] = [
   INBOUND_SUPPLY_SUMMARY,
   PAID_PROCUREMENT_SUMMARY,
@@ -1784,6 +2064,11 @@ export const ANALYTICS_CARDS: AnalyticsCard[] = [
   FRESH_ALLIANCE_DONATIONS_OVER_TIME,
   LEGACY_DONATION_HISTORY,
   LEGACY_DONATIONS_OVER_TIME,
+  SERVICE_SUMMARY,
+  SERVICE_OVER_TIME,
+  SERVICE_SEASONAL_HOUSEHOLDS,
+  SERVICE_METHOD_MIX,
+  SERVICE_HOUSEHOLD_SIZE,
 ];
 
 export const getAnalyticsCard = (id: string): AnalyticsCard | undefined =>

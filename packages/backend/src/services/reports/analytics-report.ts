@@ -47,11 +47,60 @@ const slug = (value: string): string =>
 const escapeHtml = (value: string): string =>
   value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
+/**
+ * Header and manifest provenance, normalized across the lenses.
+ *
+ * Each lens describes its span differently: Procurement and Operations carry
+ * `range` and `dataAsOf`, while Service reports `coverage` — where the records
+ * actually reach, which is the same question asked in the vocabulary of two
+ * archives that begin years apart. Normalizing here is what lets a
+ * Service-only report print a real header instead of reading a field its
+ * payload was never going to have.
+ */
+interface ReportProvenance {
+  range: {
+    startDate: string;
+    endDate: string;
+    preset?: string | null;
+    timeZone?: string | null;
+  } | null;
+  dataAsOf: string | null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  filters: any;
+}
+
+const provenanceOf = (payloads: LensPayloads): ReportProvenance => {
+  const lens = payloads.procurement ?? payloads.operations;
+  if (lens) {
+    return {
+      range: lens.range ?? null,
+      dataAsOf: lens.dataAsOf ?? null,
+      filters: lens.filters ?? null,
+    };
+  }
+
+  const coverage = payloads.service?.coverage;
+  if (coverage) {
+    // The latest date any record reaches, not the end of the range asked for —
+    // a report run through today should not claim data through today.
+    const lastRecorded = (coverage.sources ?? [])
+      .map((source: { lastDate: string }) => source.lastDate)
+      .sort()
+      .pop();
+    return {
+      range: { startDate: coverage.startDate, endDate: coverage.endDate },
+      dataAsOf: lastRecorded ?? null,
+      filters: null,
+    };
+  }
+
+  return { range: null, dataAsOf: null, filters: null };
+};
+
 /** The printed document. Cards keep the order they were selected in. */
 const documentHtml = (
   title: string,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  analytics: any,
+  provenance: ReportProvenance,
   cards: { data: CardData; svg: string }[]
 ): string => `<!doctype html><html><head><meta charset="utf-8"><style>
   @page { size: letter landscape; margin: 0.5in; }
@@ -70,14 +119,18 @@ const documentHtml = (
   <header>
     <h1>${escapeHtml(title)}</h1>
     <div class="meta">
-      Range ${analytics.range.startDate} – ${analytics.range.endDate}${
-        analytics.range.preset ? ` (${analytics.range.preset})` : ''
-      } · ${analytics.range.timeZone}<br>${
-        analytics.filters
-          ? `Filters: channel ${analytics.filters.channel ?? 'all'} · acquisition class ${analytics.filters.acquisitionClass ?? 'all'}<br>`
+      ${
+        provenance.range
+          ? `Range ${provenance.range.startDate} – ${provenance.range.endDate}${
+              provenance.range.preset ? ` (${provenance.range.preset})` : ''
+            }${provenance.range.timeZone ? ` · ${provenance.range.timeZone}` : ''}<br>`
+          : ''
+      }${
+        provenance.filters
+          ? `Filters: channel ${provenance.filters.channel ?? 'all'} · acquisition class ${provenance.filters.acquisitionClass ?? 'all'}<br>`
           : ''
       }
-      Data as of ${analytics.dataAsOf}
+      ${provenance.dataAsOf ? `Data as of ${provenance.dataAsOf}` : ''}
     </div>
   </header>
   ${cards
@@ -96,12 +149,18 @@ const documentHtml = (
  * range semantics — Operations resolves its range against the pantry's
  * operating-hours timezone and applied schedule revisions. A card reads the
  * payload for its own lens, so the two never have to agree on a shape.
+ *
+ * Service is a third such lens: it spans intake records and the Service Log,
+ * whose coverage begins years apart, and it chooses its own bucket grain from
+ * the requested span.
  */
 export interface LensPayloads {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   procurement?: any;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   operations?: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  service?: any;
 }
 
 export async function buildAnalyticsReport(
@@ -132,7 +191,7 @@ export async function buildAnalyticsReport(
   }
 
   // Provenance is reported from whichever lens the report drew on.
-  const meta = payloads.procurement ?? payloads.operations ?? { dataAsOf: null, range: null };
+  const meta = provenanceOf(payloads);
 
   const zip = new JSZip();
 
@@ -144,7 +203,7 @@ export async function buildAnalyticsReport(
   }
 
   if (request.includePdf) {
-    const html = documentHtml(request.title, payloads.procurement ?? payloads.operations, resolved);
+    const html = documentHtml(request.title, meta, resolved);
     const pdf = await renderHtmlToPdf(html, {
       width: '11in',
       height: '8.5in',

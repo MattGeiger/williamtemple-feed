@@ -35,7 +35,7 @@ export interface AnalyticsReportRequest {
 export interface AnalyticsReportCard {
   id: string;
   title: string;
-  lens: 'operations' | 'procurement';
+  lens: 'operations' | 'procurement' | 'service';
   kind: 'chart' | 'kpi' | 'table';
 }
 

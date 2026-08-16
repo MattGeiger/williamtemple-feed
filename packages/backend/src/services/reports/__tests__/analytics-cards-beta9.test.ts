@@ -264,10 +264,10 @@ describe('legacy donation cards', () => {
 });
 
 describe('the registry after beta.9', () => {
-  it('registers all twenty-three cards with unique ids', () => {
+  it('registers all twenty-eight cards with unique ids', () => {
     const ids = ANALYTICS_CARDS.map(card => card.id);
-    expect(ids).toHaveLength(23);
-    expect(new Set(ids).size).toBe(23);
+    expect(ids).toHaveLength(28);
+    expect(new Set(ids).size).toBe(28);
   });
 
   it('gives every card a data() and a print() that survive an empty payload', () => {
