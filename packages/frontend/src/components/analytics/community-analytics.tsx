@@ -357,7 +357,13 @@ export function CommunityDonationAnalytics({
                         name: colorConfig[String(item.dataKey)]?.label ?? String(item.dataKey),
                         color: item.color,
                         value: Number(item.value),
-                      }));
+                      }))
+                      // Largest first, so the list reads in the order the lines
+                      // stack at the hovered month. Recharts hands the payload
+                      // over in series-declaration order, which put a 1,543 lb
+                      // source above a 6,480 lb one. The folded breakdown below
+                      // was already sorted this way; the outer list was not.
+                      .sort((left, right) => right.value - left.value);
                     if (rows.length === 0) return null;
                     return (
                       <div className="grid min-w-52 gap-1.5 rounded-lg border border-border/50 bg-background px-2.5 py-2 text-xs shadow-xl">

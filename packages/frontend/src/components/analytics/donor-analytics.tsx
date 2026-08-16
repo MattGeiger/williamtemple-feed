@@ -336,7 +336,7 @@ export function DonorAnalytics({
                   tickFormatter={(month: string) => format(parseISO(`${month}-01`), 'MMM yy')}
                 />
                 <YAxis tickLine={false} axisLine={false} width={64} />
-                <ChartTooltip content={<ChartTooltipContent />} />
+                <ChartTooltip content={<ChartTooltipContent sortByValue />} />
                 <ChartLegend content={<ChartLegendContent />} />
                 {visibleDonors.map((donor) => (
                   <Line isAnimationActive={!prefersReducedMotion()}

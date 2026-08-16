@@ -521,7 +521,7 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
                   <CartesianGrid vertical={false} strokeDasharray="3 3" />
                   <XAxis dataKey="month" tickFormatter={(value) => labelBucket(String(value))} tickLine={false} axisLine={false} minTickGap={44} />
                   <YAxis tickLine={false} axisLine={false} width={48} />
-                  <ChartTooltip content={<ChartTooltipContent labelFormatter={(value) => labelBucket(String(value))} />} />
+                  <ChartTooltip content={<ChartTooltipContent sortByValue labelFormatter={(value) => labelBucket(String(value))} />} />
                   <ChartLegend content={<ChartLegendContent />} />
                   {cutoverDate && <ReferenceLine
                     x={cutoverDate}
@@ -698,7 +698,7 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
                   <CartesianGrid vertical={false} strokeDasharray="3 3" />
                   <XAxis dataKey="bucket" tickFormatter={(value) => labelBucket(String(value))} tickLine={false} axisLine={false} minTickGap={28} />
                   <YAxis tickLine={false} axisLine={false} width={48} />
-                  <ChartTooltip content={<ChartTooltipContent labelFormatter={(value) => labelBucket(String(value))} />} />
+                  <ChartTooltip content={<ChartTooltipContent sortByValue labelFormatter={(value) => labelBucket(String(value))} />} />
                   <ChartLegend content={<ChartLegendContent />} />
                   {/* Dashed and neutral so it reads as the sum of the others
                       rather than a fifth service method. */}

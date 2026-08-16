@@ -116,6 +116,24 @@ const ChartTooltipContent = React.forwardRef<
       indicator?: "line" | "dot" | "dashed"
       nameKey?: string
       labelKey?: string
+      /**
+       * List the series by value, largest first, instead of in render order.
+       *
+       * Recharts hands the payload over in the order the series were declared,
+       * which for a chart of overlapping lines is the order they happen to
+       * appear in the source — not the order they appear on screen. Hovering a
+       * point then reads as the inverse of what the reader is looking at: the
+       * topmost line named last.
+       *
+       * Opt-in, because it is not always wrong. A stacked chart's payload order
+       * *is* its stack order, and re-ordering it would break the correspondence
+       * between the tooltip and the bar. Turn this on where the series overlap
+       * or sit side by side and the reader is comparing magnitudes.
+       *
+       * `itemSorter` on Recharts' own Tooltip does not reach here — only
+       * `DefaultTooltipContent` reads it, and this content component replaces it.
+       */
+      sortByValue?: boolean
     }
 >(
   (
@@ -133,6 +151,7 @@ const ChartTooltipContent = React.forwardRef<
       color,
       nameKey,
       labelKey,
+      sortByValue = false,
     },
     ref
   ) => {
@@ -180,6 +199,12 @@ const ChartTooltipContent = React.forwardRef<
 
     const nestLabel = payload.length === 1 && indicator !== "dot"
 
+    // A copy: `payload` is Recharts' own array, and sorting in place would
+    // reorder the series for every consumer of it, the legend included.
+    const items = sortByValue
+      ? [...payload].sort((left, right) => Number(right.value ?? 0) - Number(left.value ?? 0))
+      : payload
+
     return (
       <div
         ref={ref}
@@ -190,7 +215,7 @@ const ChartTooltipContent = React.forwardRef<
       >
         {!nestLabel ? tooltipLabel : null}
         <div className="grid gap-1.5">
-          {payload.map((item, index) => {
+          {items.map((item, index) => {
             const key = `${nameKey || item.name || item.dataKey || "value"}`
             const itemConfig = getPayloadConfigFromPayload(config, item, key)
             const indicatorColor = color || item.payload.fill || item.color
