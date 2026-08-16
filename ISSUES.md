@@ -2312,6 +2312,21 @@ flow in git history or older docs.
 ## Recently Resolved
 
 ### August 2026
+- **Service lens was not exportable, and a Service-only report crashed**
+  (Aug 15 2026): the five Service cards shipped on screen with no entry in the
+  report registry, so selecting one produced an archive that silently omitted
+  it. Registering them exposed a second fault: the printed header read
+  `analytics.range` and `dataAsOf` off `payloads.procurement ?? operations`,
+  which is `undefined` for a Service-only selection, so the PDF path threw
+  before rendering. Provenance is now normalized across all three lenses —
+  Service reports its `coverage`, and `dataAsOf` is the last date a record
+  actually reaches rather than the end of the range asked for. The cards also
+  inherit the screen's guards: absence stays distinct from zero so a line
+  begins where its record does, and the unfinished month is dropped and named
+  exactly as the page drops and names it. The registry now holds 28. The
+  coverage guard that should have caught this did not, because
+  `service-analytics.tsx` was never added to its `LENS_FILES`; it is now, so a
+  future lens file omitted from the list fails the converse check.
 - **Tracking review mislabeled a configuration callback as unreadable row 501**
   (Aug 11 2026): the first 500-row staging batch contained approved
   location-qualified shopping-visit source wording before the effective FEED

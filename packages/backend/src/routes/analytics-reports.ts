@@ -14,6 +14,7 @@ import prisma from '../db';
 
 import { rateLimiter } from '../middleware/rate-limiter';
 import { getProcurementAnalytics } from '../services/procurement';
+import { getServiceAnalytics } from '../services/service/analytics';
 import {
   computeOperationalAnalytics,
   getOperationalAnalyticsStartDate,
@@ -321,10 +322,18 @@ router.post('/export', rateLimiter, async (req, res, next) => {
       procurement?: any;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       operations?: any;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      service?: any;
     } = {};
 
     if (lenses.has('procurement')) {
       payloads.procurement = await getProcurementAnalytics(filters);
+    }
+
+    // Service resolves its own range and bucket grain from the preset, the
+    // same call the screen makes, so a report and the page agree.
+    if (lenses.has('service')) {
+      payloads.service = await getServiceAnalytics(filters);
     }
 
     if (lenses.has('operations')) {
