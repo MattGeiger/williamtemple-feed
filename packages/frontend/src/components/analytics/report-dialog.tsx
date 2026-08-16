@@ -64,6 +64,7 @@ const LENS_REPORT_NAMES: Record<string, string> = {
   'procurement-': 'Procurement Report',
   'operations-': 'Operations Report',
   'service-': 'Service Report',
+  'clients-': 'Clients Report',
 };
 
 export function defaultAnalyticsReportTitle(cardIds: string[]): string {

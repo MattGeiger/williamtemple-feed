@@ -206,8 +206,7 @@ function MethodRow({
 
 export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAnalytics }) {
   const {
-    coverage, summary, overTime, seasonal, methodSeries, recordAgreement, householdSize,
-    unmetDemand, languages, responseCoverage,
+    coverage, summary, overTime, seasonal, methodSeries, recordAgreement, unmetDemand,
   } = analytics;
 
   /**
@@ -220,19 +219,6 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
     () => unmetDemand.buckets.filter((bucket) => bucket.turnedAway !== null),
     [unmetDemand.buckets],
   );
-
-  /**
-   * Fifty answers down to counts of one is not a chart. The most common are
-   * plotted and the rest stated in the footnote — a display limit, not a
-   * merge: nothing is folded into anything else, and the export carries all of
-   * them.
-   */
-  const LANGUAGES_PLOTTED = 15;
-  const languageRows = languages.values.slice(0, LANGUAGES_PLOTTED);
-  const languageOverflow = Math.max(0, languages.values.length - languageRows.length);
-  const languageAnsweredPercent = languages.householdsAsked > 0
-    ? Math.round((languages.householdsAnswered / languages.householdsAsked) * 100)
-    : 0;
 
   // Monthly buckets bring back the partial-period hazard: the newest month
   // holds only the service days that have happened, so plotting it beside
@@ -281,22 +267,6 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
     const names = ordered.map((entry) => (entry.source === 'link2feed' ? 'Link2Feed' : 'SIMC'));
     return names.length === 2 ? `${names[0]} \u2192 ${names[1]}` : 'Record changed';
   }, [coverage.sources]);
-
-  const sizeData = React.useMemo(() => {
-    const grouped: Array<{ label: string; visits: number }> = [];
-    for (const row of householdSize) {
-      const label = row.people >= 8 ? '8+' : String(row.people);
-      const existing = grouped.find((entry) => entry.label === label);
-      if (existing) existing.visits += row.visits;
-      else grouped.push({ label, visits: row.visits });
-    }
-    return grouped;
-  }, [householdSize]);
-
-  const sizeTotal = sizeData.reduce((total, row) => total + row.visits, 0);
-  const singlePersonShare = sizeTotal > 0
-    ? Math.round((sizeData.find((row) => row.label === '1')?.visits ?? 0) / sizeTotal * 100)
-    : 0;
 
   // The seasonal plot needs the same in-progress guard as the timeline: the
   // current month holds only the service days that have happened so far, and
@@ -809,39 +779,6 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
         </SelectableBlock>
       )}
 
-      {/* ---- Household Size ----------------------------------------------- */}
-      {sizeData.length > 0 && (
-        <SelectableBlock cardId="service-household-size">
-          <Card className="min-w-0">
-            <CardHeader>
-              <CardTitle>Household Size</CardTitle>
-              <CardDescription>
-                People per household as reported at intake, counted per visit.
-              </CardDescription>
-              <SourcePills sources={intakePills} />
-            </CardHeader>
-            <CardContent>
-              <ChartContainer
-                config={{ visits: { label: 'Visits', color: carbonChartColors.blue.primary.light } } satisfies ChartConfig}
-                className="h-[240px] w-full"
-              >
-                <BarChart data={sizeData} margin={{ left: 4, right: 8, top: 8 }}>
-                  <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                  <XAxis dataKey="label" tickLine={false} axisLine={false} />
-                  <YAxis tickLine={false} axisLine={false} width={52} />
-                  <ChartTooltip content={<ChartTooltipContent labelFormatter={(value) => `${value} ${value === '1' ? 'person' : 'people'}`} />} />
-                  <Bar dataKey="visits" fill={seriesColor('visits')} radius={[3, 3, 0, 0]} />
-                </BarChart>
-              </ChartContainer>
-              <Footnote>
-                {singlePersonShare}% of visits are by a household of one. Excludes
-                outliers marked as special events, flagged during data import.
-              </Footnote>
-            </CardContent>
-          </Card>
-        </SelectableBlock>
-      )}
-
       {/* ---- Capacity and Unmet Demand ------------------------------------ */}
       {unmetBuckets.length > 0 && (
         <SelectableBlock cardId="service-unmet-demand">
@@ -898,94 +835,6 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
         </SelectableBlock>
       )}
 
-      {/* ---- Languages ---------------------------------------------------- */}
-      {languageRows.length > 0 && (
-        <SelectableBlock cardId="service-languages">
-          <Card className="min-w-0">
-            <CardHeader>
-              <CardTitle>Languages Spoken at Home</CardTitle>
-              <CardDescription>
-                As households recorded them, in their own words.
-              </CardDescription>
-              <SourcePills sources={intakePills} />
-            </CardHeader>
-            <CardContent>
-              <ChartContainer
-                config={{ households: { label: 'Households', color: carbonChartColors.teal.primary.light } } satisfies ChartConfig}
-                className="h-[420px] w-full"
-              >
-                <BarChart data={languageRows} layout="vertical" margin={{ left: 8, right: 24, top: 4 }}>
-                  <CartesianGrid horizontal={false} strokeDasharray="3 3" />
-                  <XAxis type="number" tickLine={false} axisLine={false} />
-                  <YAxis
-                    type="category"
-                    dataKey="language"
-                    tickLine={false}
-                    axisLine={false}
-                    width={132}
-                    interval={0}
-                  />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Bar dataKey="households" fill={seriesColor('households')} radius={[0, 3, 3, 0]} />
-                </BarChart>
-              </ChartContainer>
-              <Footnote>
-                About {languageAnsweredPercent}% of households answered this question
-                {languageOverflow > 0 && `, across ${count(languages.values.length)} answers; the ${count(languageOverflow)} rarest are in the exported data`}
-                . “Mandarin Chinese” counts as “Mandarin”; the export keeps every answer
-                as recorded.
-              </Footnote>
-            </CardContent>
-          </Card>
-        </SelectableBlock>
-      )}
-
-      {/* ---- Response Coverage -------------------------------------------- */}
-      {responseCoverage.length > 0 && (
-        <SelectableBlock cardId="service-response-coverage">
-          <Card className="min-w-0">
-            <CardHeader>
-              <CardTitle>Demographics Questions Response Rate</CardTitle>
-              <CardDescription>
-                The denominator behind every other demographic figure.
-              </CardDescription>
-              <SourcePills sources={intakePills} />
-            </CardHeader>
-            <CardContent>
-              <ChartContainer
-                config={{
-                  provided: { label: 'Answered', color: carbonChartColors.blue.primary.light },
-                  notProvided: { label: 'Not answered', color: carbonChartColors.warmGray.primary.light },
-                } satisfies ChartConfig}
-                className="h-[520px] w-full"
-              >
-                <BarChart data={responseCoverage} layout="vertical" margin={{ left: 8, right: 24, top: 4 }}>
-                  <CartesianGrid horizontal={false} strokeDasharray="3 3" />
-                  <XAxis type="number" tickLine={false} axisLine={false} />
-                  <YAxis
-                    type="category"
-                    dataKey="displayName"
-                    tickLine={false}
-                    axisLine={false}
-                    width={168}
-                    interval={0}
-                  />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <ChartLegend content={<ChartLegendContent />} />
-                  <Bar dataKey="provided" stackId="a" fill={seriesColor('provided')} radius={[0, 0, 0, 0]} />
-                  <Bar dataKey="notProvided" stackId="a" fill={seriesColor('notProvided')} radius={[0, 3, 3, 0]} />
-                </BarChart>
-              </ChartContainer>
-              <Footnote>
-                Questions asked during intake. Includes intake data from both Link2Feed
-                and SIMC. Not all households have been asked the same questions.
-                Declining to answer counts as not answered. Read any demographic share
-                against this card first.
-              </Footnote>
-            </CardContent>
-          </Card>
-        </SelectableBlock>
-      )}
     </div>
   );
 }

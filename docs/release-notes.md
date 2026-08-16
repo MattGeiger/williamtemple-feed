@@ -40,6 +40,22 @@
   rows are counted but not deduplicated, and the cards say so. Visits per
   household is unchanged: it still uses identified records only, since an
   anonymous row carries no information about returning.
+- **Analytics has a fourth tab, Clients.** Household Size, Languages Spoken at
+  Home, and Demographics Questions Response Rate moved there from Service. The
+  two tabs answer different questions — who the people are, against what
+  happened on a service day — and had only been sharing a tab because they
+  arrive in the same import. The date range still applies on Clients.
+- **Lines end where their data ends.** A source that stopped partway through
+  the range used to drop to zero and run flat to the right edge, which reads as
+  "we received nothing" rather than "there was nothing to receive". Inbound
+  Weight Over Time and Fresh Food Alliance Donations Over Time now stop at the
+  last real value.
+- **Seasonal Inbound Weight leaves out the month in progress**, the way the
+  Service charts already do, and says so. A half-finished August plotted beside
+  six complete Augusts looked like a collapse in supply.
+- **Service charts name only the records the range contains.** Thirty days
+  after the June changeover the legend still offered Link2Feed households and
+  Link2Feed individuals with no lines under them.
 - **Chart tooltips list the largest value first.** Hovering a point on a chart
   with several lines listed them in a fixed order rather than by size, so on
   *Other Donations Over Time* a 1,543 lb source appeared above a 6,480 lb one.

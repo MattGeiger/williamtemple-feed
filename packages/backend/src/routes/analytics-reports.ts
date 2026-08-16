@@ -324,6 +324,8 @@ router.post('/export', rateLimiter, async (req, res, next) => {
       operations?: any;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       service?: any;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      clients?: any;
     } = {};
 
     if (lenses.has('procurement')) {
@@ -331,9 +333,13 @@ router.post('/export', rateLimiter, async (req, res, next) => {
     }
 
     // Service resolves its own range and bucket grain from the preset, the
-    // same call the screen makes, so a report and the page agree.
-    if (lenses.has('service')) {
-      payloads.service = await getServiceAnalytics(filters);
+    // same call the screen makes, so a report and the page agree. Clients reads
+    // the same analytics for now, so a report spanning both lenses runs the
+    // query once rather than twice.
+    if (lenses.has('service') || lenses.has('clients')) {
+      const serviceAnalytics = await getServiceAnalytics(filters);
+      if (lenses.has('service')) payloads.service = serviceAnalytics;
+      if (lenses.has('clients')) payloads.clients = serviceAnalytics;
     }
 
     if (lenses.has('operations')) {

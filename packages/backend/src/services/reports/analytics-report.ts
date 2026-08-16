@@ -79,7 +79,7 @@ const provenanceOf = (payloads: LensPayloads): ReportProvenance => {
     };
   }
 
-  const coverage = payloads.service?.coverage;
+  const coverage = (payloads.service ?? payloads.clients)?.coverage;
   if (coverage) {
     // The latest date any record reaches, not the end of the range asked for —
     // a report run through today should not claim data through today.
@@ -161,6 +161,15 @@ export interface LensPayloads {
   operations?: any;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   service?: any;
+  /**
+   * Who the people served are, rather than what happened on a service day.
+   *
+   * Reads the same Service analytics today — the client datasets are not
+   * imported yet — but is loaded under its own key so the swap, when it comes,
+   * does not touch card ids or saved templates.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  clients?: any;
 }
 
 export async function buildAnalyticsReport(

@@ -50,6 +50,13 @@ All notable changes to FEED are documented here. This project adheres to
   scope — an anonymous row says nothing about returning, and folding those rows
   in would drag the average toward 1 and report a recording artefact as
   behaviour.
+- **Analytics gained a fourth lens, Clients**, carrying Household Size,
+  Languages Spoken at Home and Demographics Questions Response Rate. Service
+  answers what happened on a service day; Clients answers who the people are.
+  They shared a tab because they share an import, which is a fact about
+  plumbing rather than about the questions. Clients reads the same payload for
+  now, under its own key, so importing the Link2Feed and SIMC client exports
+  later changes the payload and not the card ids.
 - **Households by Season measures the same rows two ways.** A toggle switches
   between distinct households and total visits. Households counts a household
   once a month however often it came; visits counts every encounter, including

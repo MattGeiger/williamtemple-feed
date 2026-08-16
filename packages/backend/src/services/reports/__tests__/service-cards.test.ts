@@ -144,21 +144,31 @@ const SERVICE_ANALYTICS = {
 };
 
 describe('the Service cards', () => {
-  it('registers all eight under the service lens', () => {
+  it('registers the service cards under the service lens', () => {
     const ids = [
       'service-summary',
       'service-over-time',
       'service-seasonal-households',
       'service-method-mix',
-      'service-household-size',
       'service-unmet-demand',
-      'service-languages',
-      'service-response-coverage',
     ];
     for (const id of ids) {
       const card = getAnalyticsCard(id);
       expect(card, `${id} is on screen but not in the registry`).toBeDefined();
       expect(card!.lens).toBe('service');
+    }
+  });
+
+  it('registers the client cards under their own lens', () => {
+    // Split from Service so the two questions stop sharing a heading. The ids
+    // moved with them, which is safe only because no template has been saved
+    // against the old ones — the lens has not shipped.
+    for (const id of [
+      'clients-household-size',
+      'clients-languages',
+      'clients-response-coverage',
+    ]) {
+      expect(getAnalyticsCard(id)!.lens).toBe('clients');
     }
   });
 
