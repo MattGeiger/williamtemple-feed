@@ -533,7 +533,12 @@ kept since October 2023.
   systems ask different demographic questions, so a low answer rate usually
   means the question is newer, not that households refused. `service-response-
   coverage` exists to make that visible; check it before quoting any
-  demographic figure.
+  demographic figure. A decline is not an answer — `NON_ANSWER_LABELS` in
+  `profiles.ts` strips "prefer not to answer" and its variants at import, so a
+  `provided` status always means something substantive was said. Dimensions the
+  systems derive rather than ask (`no_fixed_address`, `county_fips`) are kept
+  off the card: they sit at 100% by construction and flatter every real
+  question beneath them.
 - **Do not hardcode operational facts** — program start dates, visit policies,
   system-changeover months. Derive them from the data so the card follows the
   record.

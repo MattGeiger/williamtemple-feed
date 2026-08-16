@@ -99,10 +99,10 @@ describe('the charts that opted in', () => {
   });
 
   it('leaves the stacked charts in stack order', () => {
-    // Who Answered Which Question stacks answered onto not-answered; sorting
+    // Demographics Questions Response Rate stacks answered onto not-answered; sorting
     // would list them in an order that flips per row against a fixed bar.
     const service = read('components', 'analytics', 'service-analytics.tsx');
-    const stacked = service.slice(service.indexOf('Who Answered Which Question'));
+    const stacked = service.slice(service.indexOf('Demographics Questions Response Rate'));
     expect(stacked).toContain('<ChartTooltipContent />');
     expect(stacked).not.toContain('sortByValue');
   });

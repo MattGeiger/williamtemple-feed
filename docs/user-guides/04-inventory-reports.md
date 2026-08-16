@@ -179,12 +179,14 @@ what its figure rests on. Read the note under a card before quoting its number.
   names are left alone: "Farsi" and "Persian" stay separate, and "Chinese" is
   not assumed to mean one variety or the other. The chart plots the most
   common; the exported CSV carries every answer exactly as recorded.
-- **Who Answered Which Question** is the denominator behind every other
+- **Demographics Questions Response Rate** is the denominator behind every other
   demographic figure: for each question, how many of the households served were
   asked it and how many answered. The two intake systems ask different
   questions, so a short bar usually means the question is newer rather than
-  that households refused it. Read any demographic share against this card
-  first.
+  that households refused it. Choosing "prefer not to answer" counts as not
+  answered, because declining is not an answer to the question asked. Fields
+  the systems fill in themselves are left off. Read any demographic share
+  against this card first.
 
 Over a range longer than about three months the charts switch from daily to
 monthly totals, and the current month is left off until it finishes — a partial

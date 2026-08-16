@@ -16,7 +16,7 @@ All notable changes to FEED are documented here. This project adheres to
   is preferred, because a hand-counted total does not depend on every client
   completing intake. Eight cards: Service Summary, Service Over Time, Households
   by Season, How Service Was Delivered, Household Size, Turned Away, Languages
-  Spoken at Home, and Who Answered Which Question.
+  Spoken at Home, and Demographics Questions Response Rate.
 - **Turned Away** reports service *not* delivered — the only record of it there
   is. Staff confirmed that a service day with no turned-away entry means nobody
   was turned away, so absence inside the Service Log's span is a real zero and
@@ -32,7 +32,7 @@ All notable changes to FEED are documented here. This project adheres to
   resolving it would invent data, and "American Sign Language" names which sign
   language. The chart plots the most common; the CSV carries every answer,
   unmerged.
-- **Who Answered Which Question** states, for each intake question, how many of
+- **Demographics Questions Response Rate** states, for each intake question, how many of
   the households served were asked it and how many answered — the denominator
   behind every other demographic figure. The two intake systems ask different
   questions, so a short bar usually means the question is newer rather than that
@@ -97,7 +97,7 @@ All notable changes to FEED are documented here. This project adheres to
   what the bar under the cursor actually shows, and paired before/after series
   stay fixed so the two cannot swap places between rows.
 - **A count of households printed as a weight.** The stacked horizontal bar
-  helper hard-coded "lb", so Who Answered Which Question read "1,443 lb". The
+  helper hard-coded "lb", so Demographics Questions Response Rate read "1,443 lb". The
   helper takes a formatter now — the third card to hit this, and the reason the
   default is no longer silent.
 
