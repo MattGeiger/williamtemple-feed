@@ -28,9 +28,16 @@
   chart between distinct households — one household counted once however often
   it came that month — and every visit. The card renames itself and restates
   what it is counting, because nothing in the numbers themselves says which
-  question was asked. Visits recorded without a household record appear only in
-  the visits measure; households has no identity to count them by, and the
-  footnote says so.
+  question was asked.
+- **Anonymous visits now count as households.** Some visits were recorded
+  without a client record, and the household counts had been leaving them out
+  entirely — which understated 2023 by nearly 13%, the year most affected. Each
+  now counts as one household, because a visit is a household whether or not
+  its identity was written down. The one thing that cannot be done is
+  recognising two anonymous visits as the same household returning, so those
+  rows are counted but not deduplicated, and the cards say so. Visits per
+  household is unchanged: it still uses identified records only, since an
+  anonymous row carries no information about returning.
 - **Chart tooltips list the largest value first.** Hovering a point on a chart
   with several lines listed them in a fixed order rather than by size, so on
   *Other Donations Over Time* a 1,543 lb source appeared above a 6,480 lb one.

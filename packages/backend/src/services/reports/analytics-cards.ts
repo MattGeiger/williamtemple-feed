@@ -1858,7 +1858,7 @@ export const SERVICE_SUMMARY: AnalyticsCard = {
     }
     if ((summary.identityUnavailableVisits ?? 0) > 0) {
       notes.push(
-        `${COUNT(summary.identityUnavailableVisits)} visits have no household record and are counted in visits and people, not households.`
+        `${COUNT(summary.identityUnavailableVisits)} visits were recorded anonymously; each counts as a household but they cannot be deduplicated.`
       );
     }
     if ((summary.bulkEntryVisits ?? 0) > 0) {
@@ -1981,8 +1981,8 @@ export const SERVICE_SEASONAL_HOUSEHOLDS: AnalyticsCard = {
         ? 'Every visit each month, one line per year, so repeated visits by the same ' +
           'household are counted each time. A partial year stops where its data does.'
         : 'Distinct households each month, one line per year, so repeated visits by ' +
-          'the same household are only counted once. A partial year stops where its ' +
-          'data does.',
+          'the same household are only counted once. Anonymous visits are counted ' +
+          'but not deduplicated. A partial year stops where its data does.',
     };
   },
   print: data =>

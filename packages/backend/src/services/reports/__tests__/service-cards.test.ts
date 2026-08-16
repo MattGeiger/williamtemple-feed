@@ -260,7 +260,10 @@ describe('the Service cards', () => {
   it('says where the households figure came from and what it leaves out', () => {
     const note = SERVICE_SUMMARY.data(SERVICE_ANALYTICS).note!;
     expect(note).toContain('2023-10-17'.slice(0, 4)); // the Service Log's own start
-    expect(note).toContain('7 visits have no household record');
+    // Anonymous visits are households that cannot be deduplicated, not
+    // non-households — the earlier wording said the opposite.
+    expect(note).toContain('7 visits were recorded anonymously');
+    expect(note).toContain('cannot be deduplicated');
     expect(note).toContain('30 people from bulk entries');
   });
 
