@@ -2040,6 +2040,116 @@ export const SERVICE_HOUSEHOLD_SIZE: AnalyticsCard = {
     ),
 };
 
+export const SERVICE_UNMET_DEMAND: AnalyticsCard = {
+  id: 'service-unmet-demand',
+  kind: 'chart',
+  defaultTitle: 'Turned Away',
+  lens: 'service',
+  data: (analytics: any) => {
+    const unmet = analytics?.unmetDemand ?? {};
+    const granularity = unmet.granularity ?? 'day';
+    // Nulls are buckets the Service Log does not cover. A bar cannot say "no
+    // record" — a zero-height bar reads as a confirmed zero — so they are
+    // dropped rather than drawn.
+    const recorded = (unmet.buckets ?? []).filter((row: any) => row.turnedAway !== null);
+    const { rows, excluded } = dropPartialMonth(recorded, 'bucket', granularity);
+
+    return {
+      title: 'Turned Away',
+      categories: rows.map((row: any) => String(row.bucket)),
+      series: [{ name: 'Households turned away', values: rows.map((row: any) => row.turnedAway ?? 0) }],
+      categoryColumn: granularity === 'month' ? 'month' : 'date',
+      grain: granularity === 'month' ? 'month' : undefined,
+      tiles: [
+        { label: 'Households turned away', value: COUNT(unmet.householdsTurnedAway ?? 0) },
+        {
+          label: 'Days it happened',
+          value: `${COUNT(unmet.daysWithTurnAway ?? 0)} of ${COUNT(unmet.daysRecorded ?? 0)}`,
+        },
+        { label: 'Times capacity was reached', value: COUNT(unmet.capacityReachedDays ?? 0) },
+      ],
+      note:
+        'A service day with no turned-away entry counts as nobody turned away, ' +
+        'which staff confirmed is what the blank means. Begins where the Service Log does.' +
+        (excluded ? ` ${monthLabel(excluded)} is still in progress and is not plotted.` : ''),
+    };
+  },
+  print: data => kpiGrid(data.tiles ?? []) + stackedBarSvg(data.categories, data.series),
+};
+
+/** How many answers the chart shows before the tail stops being legible. */
+const LANGUAGES_PLOTTED = 15;
+
+export const SERVICE_LANGUAGES: AnalyticsCard = {
+  id: 'service-languages',
+  kind: 'chart',
+  defaultTitle: 'Languages Spoken at Home',
+  lens: 'service',
+  data: (analytics: any) => {
+    const languages = analytics?.languages ?? {};
+    const all = languages.values ?? [];
+    const plotted = all.slice(0, LANGUAGES_PLOTTED);
+    const overflow = Math.max(0, all.length - plotted.length);
+
+    const toGrain = (values: any[]) => ({
+      categories: values.map((row: any) => row.language),
+      series: [{ name: 'Households', values: values.map((row: any) => row.households ?? 0) }],
+      categoryColumn: 'language',
+    });
+
+    return {
+      title: 'Languages Spoken at Home',
+      ...toGrain(plotted),
+      note:
+        'Answers exactly as recorded and never merged — “Mandarin”, “Mandarin Chinese” ' +
+        'and “Chinese” stay separate, because how a household names its own language is ' +
+        `part of what it told us. ${COUNT(languages.householdsAnswered ?? 0)} of ` +
+        `${COUNT(languages.householdsAsked ?? 0)} households answered this question` +
+        (overflow > 0
+          ? `, across ${COUNT(all.length)} distinct answers; the ${COUNT(overflow)} rarest are in the CSV`
+          : '') +
+        '.',
+      // A display limit is not a merge: the export carries every answer.
+      raw: overflow > 0 ? toGrain(all) : undefined,
+    };
+  },
+  print: data => hBarSvg(
+    data.categories.map((label, i) => ({ label, value: data.series[0]?.values[i] ?? 0 })),
+    900,
+    26,
+    COUNT
+  ),
+};
+
+export const SERVICE_RESPONSE_COVERAGE: AnalyticsCard = {
+  id: 'service-response-coverage',
+  kind: 'chart',
+  defaultTitle: 'Who Answered Which Question',
+  lens: 'service',
+  data: (analytics: any) => {
+    const rows = analytics?.responseCoverage ?? [];
+    return {
+      title: 'Who Answered Which Question',
+      categories: rows.map((row: any) => row.displayName ?? row.dimension),
+      series: [
+        { name: 'Answered', values: rows.map((row: any) => row.provided ?? 0) },
+        { name: 'Not answered', values: rows.map((row: any) => row.notProvided ?? 0) },
+      ],
+      categoryColumn: 'question',
+      note:
+        'Each bar is the households served in this range whose profile was asked that ' +
+        'question. The two intake systems ask different questions, so a short bar usually ' +
+        'means the question is newer — not that households refused it. Read any ' +
+        'demographic share against this card first.',
+    };
+  },
+  print: data =>
+    // Households, not pounds — the helper's default unit belongs to the
+    // procurement card it was first written for.
+    stackedHBarSvg(data.categories, data.series, 900, 26, COUNT) +
+    legendSvg(data.series.map(s => s.name)),
+};
+
 export const ANALYTICS_CARDS: AnalyticsCard[] = [
   INBOUND_SUPPLY_SUMMARY,
   PAID_PROCUREMENT_SUMMARY,
@@ -2069,6 +2179,9 @@ export const ANALYTICS_CARDS: AnalyticsCard[] = [
   SERVICE_SEASONAL_HOUSEHOLDS,
   SERVICE_METHOD_MIX,
   SERVICE_HOUSEHOLD_SIZE,
+  SERVICE_UNMET_DEMAND,
+  SERVICE_LANGUAGES,
+  SERVICE_RESPONSE_COVERAGE,
 ];
 
 export const getAnalyticsCard = (id: string): AnalyticsCard | undefined =>

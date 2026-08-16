@@ -228,6 +228,34 @@ export interface ServiceAnalytics {
     meanAbsoluteDailyDifference: number;
     agreementPercent: number;
   };
+  /**
+   * Service not delivered. A day inside the Service Log's span with no
+   * turned-away entry is a confirmed zero; outside that span it is silence,
+   * and the bucket is null so the line begins where the record does.
+   */
+  unmetDemand: {
+    granularity: ServiceBucketGranularity;
+    buckets: Array<{ bucket: string; turnedAway: number | null }>;
+    householdsTurnedAway: number;
+    daysWithTurnAway: number;
+    daysRecorded: number;
+    capacityReachedDays: number;
+    firstRecordedDate: string | null;
+  };
+  /** Languages exactly as recorded — never normalized into each other. */
+  languages: {
+    values: Array<{ language: string; households: number }>;
+    householdsAsked: number;
+    householdsAnswered: number;
+  };
+  /** How many households answered each question, and which system asked it. */
+  responseCoverage: Array<{
+    dimension: string;
+    displayName: string;
+    provided: number;
+    notProvided: number;
+    sources: string[];
+  }>;
   householdSize: Array<{ people: number; visits: number }>;
   reachAndFrequency: Array<{
     year: string;
