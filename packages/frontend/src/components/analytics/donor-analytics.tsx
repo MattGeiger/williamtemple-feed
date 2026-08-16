@@ -14,6 +14,7 @@
 // report what arrived.
 
 import { prefersReducedMotion } from '@/lib/reduced-motion'
+import { trimSeriesToData } from '@/lib/chart-series'
 import * as React from 'react';
 import { Bar, BarChart, CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts';
 import { ChevronDown } from 'lucide-react';
@@ -118,7 +119,7 @@ export function DonorAnalytics({
     const rows = showLegacy ? [...legacyRows, ...safeMonthly] : safeMonthly;
     const months = [...new Set(rows.map((entry) => entry.month))].sort();
     const visibleCodes = new Set(visibleDonors.map((donor) => donor.donorCode));
-    return months.map((month) => {
+    const dense = months.map((month) => {
       const row: Record<string, string | number> = { month };
       for (const entry of rows) {
         if (entry.month !== month || !visibleCodes.has(entry.donorCode)) continue;
@@ -126,12 +127,15 @@ export function DonorAnalytics({
       }
       // Recharts needs an explicit 0 for a month a partner did not deliver in,
       // otherwise the line bridges the gap and implies a delivery that did not
-      // happen.
+      // happen. `trimSeriesToData` then nulls the leading and trailing zeros,
+      // so a partner who stopped in May 2023 ends there instead of running
+      // along the axis for every month since.
       for (const donor of visibleDonors) {
         if (row[donor.donorCode] === undefined) row[donor.donorCode] = 0;
       }
       return row;
     });
+    return trimSeriesToData(dense, visibleDonors.map((donor) => donor.donorCode));
   }, [safeMonthly, legacyRows, showLegacy, visibleDonors]);
 
   const trendConfig = React.useMemo(
