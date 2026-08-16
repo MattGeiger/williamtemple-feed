@@ -124,6 +124,15 @@ const MONTH_LABELS = [
 
 const seriesColor = (configKey: string) => `var(--color-${configKey})`;
 
+/** Every line Service Over Time can draw, in the order they stack. */
+const TIMELINE_SERIES = [
+  ['link2feedHouseholds', 'Link2Feed households', carbonChartColors.blue.primary.light],
+  ['link2feedIndividuals', 'Link2Feed individuals', carbonChartColors.cyan.primary.light],
+  ['simcHouseholds', 'SIMC households', carbonChartColors.purple.primary.light],
+  ['simcIndividuals', 'SIMC individuals', carbonChartColors.magenta.primary.light],
+  ['serviceLogHouseholds', 'Service Log households', carbonChartColors.teal.primary.light],
+] as const;
+
 /** Source provenance, stated as a pill rather than a sentence. */
 function SourcePills({ sources }: { sources: string[] }) {
   return (
@@ -302,6 +311,44 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
    */
   const [seasonalMeasure, setSeasonalMeasure] =
     React.useState<'households' | 'visits'>('households');
+
+  /**
+   * Which records this range actually contains.
+   *
+   * `coverage.sources` is scoped to the range, so a 30-day window after the
+   * June 2026 changeover reports SIMC and not Link2Feed. Naming a source that
+   * contributed nothing — in a legend, a pill, or a caption — invites the
+   * reader to look for a line that was never going to be there.
+   */
+  const presentSources = React.useMemo(
+    () => new Set(coverage.sources.map((entry) => entry.source)),
+    [coverage.sources],
+  );
+  const intakePills = React.useMemo(() => [
+    ...(presentSources.has('link2feed') ? ['Link2Feed'] : []),
+    ...(presentSources.has('simc') ? ['SIMC'] : []),
+  ], [presentSources]);
+
+  /**
+   * One entry per record that reaches this range.
+   *
+   * The payload nulls a series outside its own coverage, so "has any non-null
+   * value" is the same question as "did this record contribute". Building the
+   * chart config from that rather than from a fixed list is what stops a
+   * 30-day range after the changeover from offering two Link2Feed legend
+   * entries with no lines under them.
+   */
+  const timelineKeys = React.useMemo(
+    () => TIMELINE_SERIES
+      .map(([key]) => key)
+      .filter((key) => timeline.some((row) => row[key] !== null && row[key] !== undefined)),
+    [timeline],
+  );
+  const timelineConfig = React.useMemo(() => Object.fromEntries(
+    TIMELINE_SERIES
+      .filter(([key]) => timelineKeys.includes(key))
+      .map(([key, label, color]) => [key, { label, color }]),
+  ) satisfies ChartConfig, [timelineKeys]);
 
   const seasonalMonths = React.useMemo(() => {
     const now = new Date();
@@ -517,19 +564,10 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
             <CardHeader>
               <CardTitle>Service Over Time</CardTitle>
               <CardDescription>Service by day, by record.</CardDescription>
-              <SourcePills sources={['Link2Feed', 'SIMC', 'Service Log']} />
+              <SourcePills sources={[...intakePills, ...(coverage.hasServiceLog ? ['Service Log'] : [])]} />
             </CardHeader>
             <CardContent>
-              <ChartContainer
-                config={{
-                  link2feedHouseholds: { label: 'Link2Feed households', color: carbonChartColors.blue.primary.light },
-                  link2feedIndividuals: { label: 'Link2Feed individuals', color: carbonChartColors.cyan.primary.light },
-                  simcHouseholds: { label: 'SIMC households', color: carbonChartColors.purple.primary.light },
-                  simcIndividuals: { label: 'SIMC individuals', color: carbonChartColors.magenta.primary.light },
-                  serviceLogHouseholds: { label: 'Service Log households', color: carbonChartColors.teal.primary.light },
-                } satisfies ChartConfig}
-                className="h-[300px] w-full"
-              >
+              <ChartContainer config={timelineConfig} className="h-[300px] w-full">
                 <LineChart data={timeline} margin={{ left: 4, right: 8, top: 8 }}>
                   <CartesianGrid vertical={false} strokeDasharray="3 3" />
                   <XAxis dataKey="month" tickFormatter={(value) => labelBucket(String(value))} tickLine={false} axisLine={false} minTickGap={44} />
@@ -542,7 +580,7 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
                     strokeDasharray="4 4"
                     label={{ value: cutoverLabel, position: 'insideTopRight', fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
                   />}
-                  {(['link2feedHouseholds', 'link2feedIndividuals', 'simcHouseholds', 'simcIndividuals', 'serviceLogHouseholds'] as const).map((key) => (
+                  {timelineKeys.map((key) => (
                     <Line
                       key={key}
                       type="monotone"
@@ -582,7 +620,7 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
                   {seasonalMeasure === 'visits' ? 'Visits by Season' : 'Households by Season'}
                 </CardTitle>
                 <CardDescription>Calendar years compared month by month.</CardDescription>
-                <SourcePills sources={['Link2Feed', 'SIMC']} />
+                <SourcePills sources={intakePills} />
               </div>
               <div className="flex shrink-0 items-center gap-2">
                 {/* The same animated segmented control the Date Range switcher
@@ -780,7 +818,7 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
               <CardDescription>
                 People per household as reported at intake, counted per visit.
               </CardDescription>
-              <SourcePills sources={['Link2Feed', 'SIMC']} />
+              <SourcePills sources={intakePills} />
             </CardHeader>
             <CardContent>
               <ChartContainer
@@ -869,7 +907,7 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
               <CardDescription>
                 As households recorded them, in their own words.
               </CardDescription>
-              <SourcePills sources={['Link2Feed', 'SIMC']} />
+              <SourcePills sources={intakePills} />
             </CardHeader>
             <CardContent>
               <ChartContainer
@@ -911,7 +949,7 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
               <CardDescription>
                 The denominator behind every other demographic figure.
               </CardDescription>
-              <SourcePills sources={['Link2Feed', 'SIMC']} />
+              <SourcePills sources={intakePills} />
             </CardHeader>
             <CardContent>
               <ChartContainer
@@ -939,11 +977,10 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
                 </BarChart>
               </ChartContainer>
               <Footnote>
-                Each bar is the households served in this range whose profile was asked
-                that question. The two intake systems ask different questions, so a
-                short bar usually means the question is newer — not that households
-                refused it. Declining to answer counts as not answered. Read any
-                demographic share against this card first.
+                Questions asked during intake. Includes intake data from both Link2Feed
+                and SIMC. Not all households have been asked the same questions.
+                Declining to answer counts as not answered. Read any demographic share
+                against this card first.
               </Footnote>
             </CardContent>
           </Card>

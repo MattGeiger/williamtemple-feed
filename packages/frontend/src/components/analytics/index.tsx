@@ -2,6 +2,7 @@
 // Copyright (C) 2026 Matt Geiger
 
 import { prefersReducedMotion } from '@/lib/reduced-motion'
+import { trimSeriesToData } from '@/lib/chart-series'
 import * as React from 'react';
 import type { ColumnDef } from '@tanstack/react-table';
 import { format, parseISO } from 'date-fns';
@@ -1293,13 +1294,26 @@ export function ProcurementAnalyticsWorkspace({
    * (recharts 2.15.1). The console error "Accessing element.ref was removed in
    * React 19" comes from the same incompatibility.
    */
-  const monthlyWeightSeriesKeys = selectedChannel === 'ofb_warehouse'
+  const monthlyWeightAllKeys = selectedChannel === 'ofb_warehouse'
     ? ['donatedWeight', 'purchDonWeight', 'governmentWeight', 'purchasedWeight']
     : [
         ...(allChannels ? ['ofbWarehouseWeight'] : []),
         'freshAllianceWeight',
         ...(allChannels && hasCommunityDonations ? ['communityDonationWeight'] : []),
       ];
+
+  // A channel that ended mid-range stops at its last delivery rather than
+  // running along zero for every month afterwards.
+  //
+  // A plain const, not a useMemo: this sits after the loading and empty-state
+  // early returns above, so a hook here is called on some renders and not
+  // others — React reports it as a change in hook order and the whole
+  // workspace fails to render.
+  const monthlyWeightPlotted = trimSeriesToData(monthlyWeight, monthlyWeightAllKeys);
+  // Series are not dropped when empty: the acquisition classes are a fixed
+  // taxonomy, and FEED imports both OFB channels, so "nothing this range" is a
+  // real observation rather than an absent series. The line simply stops.
+  const monthlyWeightSeriesKeys = monthlyWeightAllKeys;
 
   const toggleSeasonalYear = (year: string, checked: boolean) => {
     setSeasonalYearMode('selected');
@@ -1444,7 +1458,7 @@ export function ProcurementAnalyticsWorkspace({
             config={selectedChannel === 'ofb_warehouse' ? monthlyWeightConfig : channelMonthlyWeightConfig}
             className="h-80 min-w-0 w-full"
           >
-            <LineChart accessibilityLayer data={monthlyWeight} margin={{ left: 8, right: 16 }}>
+            <LineChart accessibilityLayer data={monthlyWeightPlotted} margin={{ left: 8, right: 16 }}>
               <CartesianGrid vertical={false} />
               <XAxis dataKey="month" tickLine={false} axisLine={false} tickFormatter={(month: string) => format(parseISO(`${month}-01`), 'MMM yy')} />
               <YAxis width={52} tickLine={false} axisLine={false} />

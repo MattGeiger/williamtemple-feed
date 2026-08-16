@@ -185,8 +185,10 @@ what its figure rests on. Read the note under a card before quoting its number.
   questions, so a short bar usually means the question is newer rather than
   that households refused it. Choosing "prefer not to answer" counts as not
   answered, because declining is not an answer to the question asked. Fields
-  the systems fill in themselves are left off. Read any demographic share
-  against this card first.
+  the systems fill in or derive themselves are left off — postal code, state,
+  county, and the two required SIMC flags — because a value there does not mean
+  a household answered anything. Read any demographic share against this card
+  first.
 
 Over a range longer than about three months the charts switch from daily to
 monthly totals, and the current month is left off until it finishes — a partial

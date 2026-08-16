@@ -728,13 +728,24 @@ ${Object.entries(LANGUAGE_LABEL_ALIASES)
   /**
    * Dimensions the intake systems fill in themselves rather than asking.
    *
-   * Both sit at essentially 100% answered — `no_fixed_address` on every SIMC
-   * profile, `county_fips` on all but five — because they are required fields
-   * derived at entry, not questions a household chose to answer. Leaving them
-   * on a response-rate card puts two guaranteed full bars at the top and
-   * flatters every real question below them.
+   * None of these is a question a household chose to answer, so none belongs
+   * on a response-rate card — each would sit near 100% by construction and
+   * flatter every real question beneath it.
+   *
+   * - `no_fixed_address`, `county_fips` — required fields written at entry.
+   * - `postal_code` — required in SIMC, and WTH enters the agency's own
+   *   postal code when a household has no fixed address, so a value here does
+   *   not mean the household reported where it lives.
+   * - `state`, `county` — derived from the postal code, which makes them
+   *   restatements of a field that is itself sometimes a proxy.
    */
-  const DERIVED_DIMENSIONS = new Set(['no_fixed_address', 'county_fips']);
+  const DERIVED_DIMENSIONS = new Set([
+    'no_fixed_address',
+    'county_fips',
+    'postal_code',
+    'state',
+    'county',
+  ]);
 
   const coverageTotals = new Map<string, {
     provided: number; notProvided: number; sources: Set<string>;

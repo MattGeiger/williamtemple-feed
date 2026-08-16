@@ -248,7 +248,11 @@ export const INBOUND_WEIGHT_OVER_TIME: AnalyticsCard = {
     }
 
     const categories = monthly.map((r: any) => r.month);
-    const series = defs.map(([name, key]) => ({
+    // Trimmed before condensing, so the grain step carries the coverage through
+    // and a channel that ended mid-range stops at its last delivery. Series are
+    // never dropped: the acquisition classes are a fixed taxonomy, and a report
+    // whose rows change between ranges cannot be compared with another.
+    const series = defs.map(([name, key]) => trimToData({
       name,
       values: monthly.map((r: any) => toPounds(r[key] ?? 0)),
     }));
@@ -1590,18 +1594,21 @@ export const FRESH_ALLIANCE_DONATIONS_OVER_TIME: AnalyticsCard = {
     const codes = new Set(donors.map((d: any) => d.donorCode));
     const months = [...new Set(rows.map((r: any) => r.month))].sort() as string[];
 
-    const series: Series[] = donors.map((donor: any) => ({
-      name: donor.donorName,
-      // Zero-filled rather than sparse: a gap would let the line bridge a month
-      // the partner did not deliver in, drawing a delivery that never happened.
-      values: months.map(month =>
-        toPounds(
-          rows
-            .filter((r: any) => r.month === month && r.donorCode === donor.donorCode)
-            .reduce((sum: number, r: any) => sum + (r.weightHundredths ?? 0), 0)
-        )
-      ),
-    }));
+    const series: Series[] = donors
+      .map((donor: any) => trimToData({
+        name: donor.donorName,
+        // Zero-filled rather than sparse: a gap would let the line bridge a
+        // month the partner did not deliver in, drawing a delivery that never
+        // happened. `trimToData` then ends the line at the last real delivery,
+        // so a partner who stopped does not trail along zero to the right edge.
+        values: months.map(month =>
+          toPounds(
+            rows
+              .filter((r: any) => r.month === month && r.donorCode === donor.donorCode)
+              .reduce((sum: number, r: any) => sum + (r.weightHundredths ?? 0), 0)
+          )
+        ),
+      }));
 
     const condensed = condenseTimeSeries(months, series);
     const notes = [
@@ -1760,6 +1767,29 @@ export const LEGACY_DONATIONS_OVER_TIME: AnalyticsCard = {
 
 
 /** Registry. A card is exportable exactly when it appears here. */
+/**
+ * Ends a series where its data ends, instead of running it along the axis.
+ *
+ * The mirror of `trimSeriesToData` on the screen, and required by the same
+ * contract: a partner who stopped delivering, or a channel that started
+ * mid-range, must terminate at its last real value rather than drawing a flat
+ * zero across months it did not exist. Zeros *between* real values stay — those
+ * are genuine gaps in an active series, and the reason the values are
+ * zero-filled to begin with.
+ */
+const trimToData = (series: Series): Series => {
+  const first = series.values.findIndex(value => value > 0);
+  if (first === -1) {
+    return { ...series, defined: series.values.map(() => false) };
+  }
+  let last = series.values.length - 1;
+  while (last > first && !(series.values[last] > 0)) last -= 1;
+  return {
+    ...series,
+    defined: series.values.map((_, index) => index >= first && index <= last),
+  };
+};
+
 /* ---------------------------------------------------------------- service */
 
 /**
@@ -2155,9 +2185,8 @@ export const SERVICE_RESPONSE_COVERAGE: AnalyticsCard = {
       ],
       categoryColumn: 'question',
       note:
-        'Each bar is the households served in this range whose profile was asked that ' +
-        'question. The two intake systems ask different questions, so a short bar usually ' +
-        'means the question is newer — not that households refused it. Declining to ' +
+        'Questions asked during intake. Includes intake data from both Link2Feed and ' +
+        'SIMC. Not all households have been asked the same questions. Declining to ' +
         'answer counts as not answered. Read any demographic share against this card first.',
     };
   },
