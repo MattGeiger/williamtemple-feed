@@ -212,9 +212,16 @@ export interface ServiceAnalytics {
     simcIndividuals: number | null;
     serviceLogHouseholds: number | null;
   }>;
+  /**
+   * Twelve calendar months, one key per year, in two measures of the same rows.
+   * Households counts a household once however often it came; visits counts
+   * every encounter, including those with no household record to be distinct
+   * by.
+   */
   seasonal: {
     years: string[];
-    months: Array<Record<string, string | number>>;
+    households: Array<Record<string, string | number>>;
+    visits: Array<Record<string, string | number>>;
   };
   methodSeries: {
     granularity: ServiceBucketGranularity;
