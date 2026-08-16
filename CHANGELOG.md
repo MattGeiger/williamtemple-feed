@@ -33,6 +33,16 @@ All notable changes to FEED are documented here. This project adheres to
   questions, so a short bar usually means the question is newer rather than that
   households refused it.
 
+- **Households by Season measures the same rows two ways.** A toggle switches
+  between distinct households and total visits. Households counts a household
+  once a month however often it came; visits counts every encounter, including
+  those recorded without a household record — which cannot appear under
+  households, because there is no identity to count them by. The card renames
+  itself and restates its footnote with the measure, since 900 households and
+  900 visits look identical on an axis. The choice is frozen into a report the
+  same way the year selection is, so an exported card is the card that was on
+  screen.
+
 ### Changed
 
 - **The theme button is now a single toggle instead of a menu.** Choosing how

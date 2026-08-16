@@ -290,16 +290,25 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
   // plotting it beside eleven complete months makes the current year appear to
   // collapse. Only the current year's newest point is dropped — every prior
   // year's month is complete.
+  /**
+   * Households counts a household once a month however often it came; visits
+   * counts every encounter. Staff ask both questions of this chart — "how many
+   * families did we reach in March" and "how busy was March" — and the shapes
+   * differ, so the measure is a choice rather than an assumption.
+   */
+  const [seasonalMeasure, setSeasonalMeasure] =
+    React.useState<'households' | 'visits'>('households');
+
   const seasonalMonths = React.useMemo(() => {
     const now = new Date();
     const currentYear = String(now.getFullYear());
     const currentMonthLabel = MONTH_LABELS[now.getMonth()];
-    return seasonal.months.map((row) => {
+    return seasonal[seasonalMeasure].map((row) => {
       if (row.month !== currentMonthLabel || row[currentYear] === undefined) return row;
       const { [currentYear]: _dropped, ...rest } = row;
       return rest;
     });
-  }, [seasonal.months]);
+  }, [seasonal, seasonalMeasure]);
 
   // Seasonal year picker, mirroring Seasonal Inbound Weight.
   const [selectedYears, setSelectedYears] = React.useState<string[] | null>(null);
@@ -554,14 +563,45 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
 
       {/* ---- Households by Season ----------------------------------------- */}
       {years.length > 1 && (
-        <SelectableBlock cardId="service-seasonal-households">
+        <SelectableBlock
+          cardId="service-seasonal-households"
+          options={{
+            measure: seasonalMeasure,
+            yearMode: selectedYears === null ? 'all-available' : 'selected',
+            ...(selectedYears === null ? {} : { years: activeYears }),
+          }}
+        >
           <Card className="min-w-0">
             <CardHeader className="flex-row items-start justify-between gap-3 space-y-0">
               <div className="space-y-1.5">
-                <CardTitle>Households by Season</CardTitle>
+                <CardTitle>
+                  {seasonalMeasure === 'visits' ? 'Visits by Season' : 'Households by Season'}
+                </CardTitle>
                 <CardDescription>Calendar years compared month by month.</CardDescription>
                 <SourcePills sources={['Link2Feed', 'SIMC']} />
               </div>
+              <div className="flex shrink-0 items-center gap-2">
+                {/* Two labelled buttons rather than a dropdown: there are only
+                    two answers, and which one is showing has to be readable at
+                    a glance — the y-axis alone does not say whether 900 is
+                    households or visits. */}
+                <div role="group" aria-label="Measure" className="flex rounded-md border p-0.5">
+                  {([
+                    ['households', 'Households'],
+                    ['visits', 'Visits'],
+                  ] as const).map(([value, label]) => (
+                    <Button
+                      key={value}
+                      variant={seasonalMeasure === value ? 'secondary' : 'ghost'}
+                      size="sm"
+                      aria-pressed={seasonalMeasure === value}
+                      className="h-7 px-2.5 text-xs"
+                      onClick={() => setSeasonalMeasure(value)}
+                    >
+                      {label}
+                    </Button>
+                  ))}
+                </div>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="sm" className="shrink-0">
@@ -588,6 +628,7 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
                   ))}
                 </DropdownMenuContent>
               </DropdownMenu>
+              </div>
             </CardHeader>
             <CardContent>
               {activeYears.length === 0 ? (
@@ -655,8 +696,20 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
                 </ChartContainer>
               )}
               <Footnote>
-                Distinct households each month, so one household visiting twice in a
-                month is counted once.
+                {seasonalMeasure === 'visits' ? (
+                  <>
+                    Every visit each month, so one household visiting twice is counted
+                    twice. Visits recorded without a household record are included here;
+                    they cannot appear in the Households measure, which has no identity
+                    to count them by.
+                  </>
+                ) : (
+                  <>
+                    Distinct households each month, so one household visiting twice in a
+                    month is counted once. Visits recorded without a household record
+                    are not counted here.
+                  </>
+                )}
                 {(() => {
                   // Only complete calendar years are compared. The first year on
                   // record starts when service began, and the current year is

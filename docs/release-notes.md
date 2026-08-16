@@ -24,6 +24,13 @@
   systems ask different questions, so a short bar usually means the question is
   newer rather than that households declined it. Read any demographic figure
   against this card first.
+- **Households by Season can now be read as visits.** A toggle switches the
+  chart between distinct households — one household counted once however often
+  it came that month — and every visit. The card renames itself and restates
+  what it is counting, because nothing in the numbers themselves says which
+  question was asked. Visits recorded without a household record appear only in
+  the visits measure; households has no identity to count them by, and the
+  footnote says so.
 - **Chart tooltips list the largest value first.** Hovering a point on a chart
   with several lines listed them in a fixed order rather than by size, so on
   *Other Donations Over Time* a 1,543 lb source appeared above a 6,480 lb one.

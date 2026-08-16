@@ -74,9 +74,14 @@ const SERVICE_ANALYTICS = {
   seasonal: {
     years: ['2023', '2024'],
     // 2024 ran only part of the calendar; the rest of its slots are absent.
-    months: [
+    households: [
       { month: 'Jan', '2023': 5, '2024': 9 },
       { month: 'Feb', '2023': 6 },
+    ],
+    // Same months, counted without the DISTINCT — always at least households.
+    visits: [
+      { month: 'Jan', '2023': 8, '2024': 14 },
+      { month: 'Feb', '2023': 9 },
     ],
   },
   methodSeries: {
@@ -177,6 +182,41 @@ describe('the Service cards', () => {
     const data = SERVICE_SEASONAL_HOUSEHOLDS.data(SERVICE_ANALYTICS);
     expect(data.series.find(s => s.name === '2024')!.defined).toEqual([true, false]);
     expect(data.series.find(s => s.name === '2023')!.defined).toEqual([true, true]);
+  });
+
+  it('exports the measure the card was showing, and says which it is', () => {
+    // Both are counts of the same rows, so nothing in the numbers themselves
+    // tells the reader which question was asked. The title and note have to.
+    const households = SERVICE_SEASONAL_HOUSEHOLDS.data(SERVICE_ANALYTICS, { measure: 'households' });
+    expect(households.title).toBe('Households by Season');
+    expect(households.series.find(s => s.name === '2023')!.values).toEqual([5, 6]);
+    expect(households.note).toContain('counted once');
+
+    const visits = SERVICE_SEASONAL_HOUSEHOLDS.data(SERVICE_ANALYTICS, { measure: 'visits' });
+    expect(visits.title).toBe('Visits by Season');
+    expect(visits.series.find(s => s.name === '2023')!.values).toEqual([8, 9]);
+    expect(visits.note).toContain('counted twice');
+    // The asymmetry that makes the two measures different, stated on the card.
+    expect(visits.note).toContain('no household record are included');
+  });
+
+  it('defaults to households when no measure was frozen', () => {
+    // Templates saved before the toggle existed carry no measure.
+    expect(SERVICE_SEASONAL_HOUSEHOLDS.data(SERVICE_ANALYTICS).title).toBe('Households by Season');
+    expect(SERVICE_SEASONAL_HOUSEHOLDS.data(SERVICE_ANALYTICS, {}).title).toBe('Households by Season');
+  });
+
+  it('exports only the years that were selected on screen', () => {
+    const data = SERVICE_SEASONAL_HOUSEHOLDS.data(SERVICE_ANALYTICS, {
+      yearMode: 'selected', years: ['2023'],
+    });
+    expect(data.series.map(s => s.name)).toEqual(['2023']);
+
+    // A year that has since left the range cannot be resurrected by a template.
+    const stale = SERVICE_SEASONAL_HOUSEHOLDS.data(SERVICE_ANALYTICS, {
+      yearMode: 'selected', years: ['2023', '2019'],
+    });
+    expect(stale.series.map(s => s.name)).toEqual(['2023']);
   });
 
   it('treats a silent month inside a method’s life as a real zero', () => {

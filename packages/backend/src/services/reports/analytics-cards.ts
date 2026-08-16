@@ -1949,25 +1949,41 @@ export const SERVICE_SEASONAL_HOUSEHOLDS: AnalyticsCard = {
   kind: 'chart',
   defaultTitle: 'Households by Season',
   lens: 'service',
-  data: (analytics: any) => {
-    const years: string[] = analytics?.seasonal?.years ?? [];
-    const months = analytics?.seasonal?.months ?? [];
+  data: (analytics: any, options?: any) => {
+    // Both controls are read from the frozen options, so the exported card is
+    // the card that was on screen when it was picked — not every year at
+    // whichever measure happens to be the default.
+    const measure: 'households' | 'visits' = options?.measure === 'visits' ? 'visits' : 'households';
+    const available: string[] = analytics?.seasonal?.years ?? [];
+    const years: string[] = options?.yearMode === 'selected'
+      ? (Array.isArray(options?.years) ? options.years : [])
+      : available;
+
+    const months = analytics?.seasonal?.[measure] ?? [];
     const categories = months.map((row: any) => String(row.month));
 
     // Twelve slots, every year on the same axis. A year that ran only part of
     // the calendar is defined for the months it ran and absent for the rest —
     // the distinction a partial year depends on.
-    const series = years.map(year => {
-      const raw = months.map((row: any) => row[year] as number | undefined);
-      return { name: year, values: numbersFrom(raw), defined: definedFrom(raw) };
-    });
+    const series = years
+      .filter(year => available.includes(year))
+      .map(year => {
+        const raw = months.map((row: any) => row[year] as number | undefined);
+        return { name: year, values: numbersFrom(raw), defined: definedFrom(raw) };
+      });
 
     return {
-      title: 'Households by Season',
+      title: measure === 'visits' ? 'Visits by Season' : 'Households by Season',
       categories,
       series,
       categoryColumn: 'month',
-      note: 'Households per calendar month, one line per year. A partial year stops where its data does.',
+      note: measure === 'visits'
+        ? 'Visits per calendar month, one line per year. A household visiting twice ' +
+          'is counted twice, and visits with no household record are included. ' +
+          'A partial year stops where its data does.'
+        : 'Distinct households per calendar month, one line per year. A household ' +
+          'visiting twice in a month is counted once, and visits with no household ' +
+          'record cannot be counted here. A partial year stops where its data does.',
     };
   },
   print: data =>

@@ -154,7 +154,13 @@ what its figure rests on. Read the note under a card before quoting its number.
   changeover rather than a single blended line. A line begins where its record
   begins; it does not run along zero for the years before that record existed.
 - **Households by Season** puts each year on the same twelve-month axis. A year
-  that ran only part of the calendar stops where its data stops.
+  that ran only part of the calendar stops where its data stops. Use the
+  **Households / Visits** toggle to switch what is counted: households counts a
+  household once a month however often it came, visits counts every encounter.
+  The two answer different questions — "how many families did we reach in
+  March" against "how busy was March" — so the card renames itself and restates
+  its footnote when you switch. Visits with no household record can only appear
+  under Visits.
 - **How Service Was Delivered** shows households by method. A method begins
   where that program began — Emergency Bags starts in November 2025, not at the
   left edge of the chart.

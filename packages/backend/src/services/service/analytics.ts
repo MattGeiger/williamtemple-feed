@@ -98,10 +98,19 @@ export interface ServiceAnalytics {
     simcIndividuals: number | null;
     serviceLogHouseholds: number | null;
   }>;
-  /** Households by calendar month, one key per year — for the seasonal plot. */
+  /**
+   * The seasonal plot: twelve calendar months, one key per year.
+   *
+   * Two measures of the same rows, because they answer different questions and
+   * a reader comparing years needs to say which they mean. Households counts a
+   * household once however often it came; visits counts every encounter. A
+   * visit recorded without a household record can only appear in the second —
+   * it has no identity to be distinct by.
+   */
   seasonal: {
     years: string[];
-    months: Array<Record<string, string | number>>;
+    households: Array<Record<string, string | number>>;
+    visits: Array<Record<string, string | number>>;
   };
   methodSeries: {
     granularity: ServiceBucketGranularity;
@@ -361,12 +370,16 @@ export async function getServiceAnalytics(
   // Seasonal comparison uses per-month distinct households, which is sound even
   // though a whole-range distinct count is not: a client holds one profile per
   // system, and only one system is live in any given month.
+  // Visits come from the same rows, counted without the DISTINCT. The two are
+  // not interchangeable: a visit with no household record has a null
+  // `clientId`, so it counts as a visit and cannot count as a household.
   const seasonalRows = await client.$queryRaw<Array<{
-    year: string; monthIndex: string; households: bigint;
+    year: string; monthIndex: string; households: bigint; visits: bigint;
   }>>`
     SELECT substr("serviceDate", 1, 4) AS "year",
            substr("serviceDate", 6, 2) AS "monthIndex",
-           COUNT(DISTINCT "clientId") AS "households"
+           COUNT(DISTINCT "clientId") AS "households",
+           COUNT(*) AS "visits"
     FROM "ServiceEncounterRevision"
     WHERE "isCurrent" = 1 AND "serviceDate" BETWEEN ${startDate} AND ${endDate}
       AND "recordKind" IN (${kinds[0]}, ${kinds[1]})
@@ -578,15 +591,20 @@ export async function getServiceAnalytics(
   }
 
   const seasonalYears = [...new Set(seasonalRows.map((row) => row.year))].sort();
-  const seasonalMonths = MONTH_LABELS.map((label, index) => {
-    const key = String(index + 1).padStart(2, '0');
-    const row: Record<string, string | number> = { month: label };
-    for (const year of seasonalYears) {
-      const match = seasonalRows.find((entry) => entry.year === year && entry.monthIndex === key);
-      if (match) row[year] = Number(match.households);
-    }
-    return row;
-  });
+  // A month a year did not run stays absent rather than zero, so a partial year
+  // stops where its data stops instead of diving to the axis.
+  const seasonalBy = (pick: (row: { households: bigint; visits: bigint }) => bigint) =>
+    MONTH_LABELS.map((label, index) => {
+      const key = String(index + 1).padStart(2, '0');
+      const row: Record<string, string | number> = { month: label };
+      for (const year of seasonalYears) {
+        const match = seasonalRows.find((entry) => entry.year === year && entry.monthIndex === key);
+        if (match) row[year] = Number(pick(match));
+      }
+      return row;
+    });
+  const seasonalHouseholds = seasonalBy((row) => row.households);
+  const seasonalVisits = seasonalBy((row) => row.visits);
 
   const seriesBuckets = new Map<string, Record<string, string | number>>();
   for (const row of methodSeriesRows) {
@@ -694,7 +712,11 @@ export async function getServiceAnalytics(
       })),
     },
     overTime: [...monthly.values()].sort((a, b) => a.month.localeCompare(b.month)),
-    seasonal: { years: seasonalYears, months: seasonalMonths },
+    seasonal: {
+      years: seasonalYears,
+      households: seasonalHouseholds,
+      visits: seasonalVisits,
+    },
     methodSeries: {
       granularity,
       methods: methodDefinitions.map((row) => ({
