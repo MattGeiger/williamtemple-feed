@@ -8,6 +8,8 @@ import { TableActionMenu } from '@/components/ui/table-action-menu';
 import { SquarePenIcon } from '@/components/animate-ui/icons/square-pen';
 import { formatDate, formatDateRange } from '@/lib/formatting/date';
 import { getIconComponent } from '@/lib/icon-library';
+import { getTruncationClasses } from '@/lib/table';
+import { cn } from '@/lib/utils';
 import type { ServiceMetricConfiguration, ServiceMetricSemanticRole } from '@/services/service';
 
 const roleLabels: Record<ServiceMetricSemanticRole, string> = {
@@ -39,10 +41,22 @@ export const serviceMetricColumns = (
       return (
         <div className="flex min-w-0 items-start gap-3">
           <Icon className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" aria-hidden="true" />
-          <div className="min-w-0">
-            <div className="font-medium wrap-break-word">{revision.displayName}</div>
+          {/* Truncated with the shared table classes rather than wrapped.
+              The cell already clips at the column edge — `table-fixed-layout`
+              sets overflow:hidden on every td — but `text-overflow` only
+              applies to a block's own inline content, so text nested in these
+              divs was cut mid-word with nothing to show it continued. The
+              ellipsis says so, and `title` gives the rest on hover without
+              putting an expand button on every row. */}
+          <div className="min-w-0 flex-1">
+            <div className={cn(getTruncationClasses(), 'font-medium')} title={revision.displayName}>
+              {revision.displayName}
+            </div>
             {revision.description && (
-              <div className="text-xs text-muted-foreground wrap-break-word">
+              <div
+                className={cn(getTruncationClasses(), 'text-xs text-muted-foreground')}
+                title={revision.description}
+              >
                 {revision.description}
               </div>
             )}
