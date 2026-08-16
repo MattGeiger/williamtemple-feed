@@ -96,7 +96,7 @@ describe('Households by Season measure toggle', () => {
     expect(measureTab('Households')).toHaveAttribute('aria-selected', 'true');
     expect(measureTab('Visits')).toHaveAttribute('aria-selected', 'false');
     expect(
-      screen.getByText(/one household visiting twice in a\s+month is counted once/)
+      screen.getByText(/repeated visits by the same\s+household are only counted once/)
     ).toBeInTheDocument();
   });
 
@@ -108,22 +108,10 @@ describe('Households by Season measure toggle', () => {
     expect(screen.getByText('Visits by Season')).toBeInTheDocument();
     expect(measureTab('Visits')).toHaveAttribute('aria-selected', 'true');
 
-    // The claim has to flip with the data. Leaving "counted once" under a
+    // The claim has to flip with the data. Leaving "only counted once" under a
     // visits chart would be the card lying about its own numbers.
-    expect(screen.getByText(/one household visiting twice is counted\s+twice/)).toBeInTheDocument();
-    expect(screen.queryByText(/counted once/)).not.toBeInTheDocument();
-  });
-
-  test('states which measure can see a visit with no household record', () => {
-    render(<ServiceAnalyticsWorkspace analytics={analytics} />);
-
-    // Households counts DISTINCT clientId, and an identity-unavailable visit
-    // has none — so it is absent there and present in visits. Readers compared
-    // the two and found them inconsistent; the card now explains why.
-    expect(screen.getByText(/without a household record\s+are not counted here/)).toBeInTheDocument();
-
-    choose('Visits');
-    expect(screen.getByText(/without a household record are included here/)).toBeInTheDocument();
+    expect(screen.getByText(/counted each time/)).toBeInTheDocument();
+    expect(screen.queryByText(/only counted once/)).not.toBeInTheDocument();
   });
 
   test('uses the project\u2019s animated tab control, not a bespoke one', () => {

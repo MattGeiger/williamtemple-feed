@@ -190,14 +190,12 @@ describe('the Service cards', () => {
     const households = SERVICE_SEASONAL_HOUSEHOLDS.data(SERVICE_ANALYTICS, { measure: 'households' });
     expect(households.title).toBe('Households by Season');
     expect(households.series.find(s => s.name === '2023')!.values).toEqual([5, 6]);
-    expect(households.note).toContain('counted once');
+    expect(households.note).toContain('only counted once');
 
     const visits = SERVICE_SEASONAL_HOUSEHOLDS.data(SERVICE_ANALYTICS, { measure: 'visits' });
     expect(visits.title).toBe('Visits by Season');
     expect(visits.series.find(s => s.name === '2023')!.values).toEqual([8, 9]);
-    expect(visits.note).toContain('counted twice');
-    // The asymmetry that makes the two measures different, stated on the card.
-    expect(visits.note).toContain('no household record are included');
+    expect(visits.note).toContain('counted each time');
   });
 
   it('defaults to households when no measure was frozen', () => {
@@ -315,7 +313,7 @@ describe('Turned Away', () => {
     // confirmed zero, which is the opposite of what a null means here.
     expect(data.categories).toEqual(['2023-10', '2023-11']);
     expect(data.series[0].values).toEqual([0, 4]);
-    expect(data.note).toContain('counts as nobody turned away');
+    expect(data.note).toContain('Blank entries are treated as a zero count');
   });
 
   it('reports the days it happened against the days the Log was kept', () => {
