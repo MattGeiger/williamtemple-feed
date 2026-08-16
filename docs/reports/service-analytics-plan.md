@@ -10,13 +10,17 @@ The Tracking migration schema has been applied locally, the known source-cell
 error has been corrected, and the complete 34-sheet workbook now produces a
 contract-valid 1,114-observation migration artifact. Reviewing and activating
 that artifact is now complete: all 1,114 historical revisions are active.
-Completing the parallel cutover, the Link2Feed client-export adapter, the
-Chrome-extension artifact contract, and Service Analytics cards remain
-pending.
+Service Analytics is now built and shipped in 1.5.0-beta.19: the lens carries
+eight cards, all of them exportable through the Analytics report contract.
+Completing the parallel cutover, the Link2Feed client-export adapter, and the
+Chrome-extension artifact contract remain pending, as do the age and geography
+cards — those are still blocked on the cutover question in the card proposal's
+§2.8, because the two intake systems ask different demographic questions and one
+distribution cannot honestly be drawn across the seam.
 
 ## Purpose
 
-Service is the planned third lens in FEED Analytics, positioned to the right of
+Service is the third lens in FEED Analytics, positioned to the right of
 **Operations** and **Procurement**:
 
 1. **Operations** describes recorded inventory availability, change, and

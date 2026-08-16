@@ -2,9 +2,12 @@
 
 ## Status
 
-Built 2026-08-06/07 for 1.5.0-beta.9. Twenty-three cards, both lenses, generating a
+Built 2026-08-06/07 for 1.5.0-beta.9. Twenty-three cards, two lenses, generating a
 ZIP of PDF + per-card CSV + manifest. Templates save from Analytics and re-run
 from Reports Management against a date range chosen at run time.
+
+Extended 2026-08-16 for 1.5.0-beta.19: thirty-one cards across three lenses,
+Service being the third.
 
 ## What a report is
 
@@ -55,7 +58,7 @@ completely plausible. That is the failure mode this contract is built against.
 | Field | Meaning |
 | --- | --- |
 | `id` | Stable. Selection, templates, and options are all keyed by it. |
-| `lens` | `operations` or `procurement` — decides which payload it is handed. |
+| `lens` | `operations`, `procurement`, or `service` — decides which payload it is handed. |
 | `kind` | `chart`, `kpi`, or `table`. Declared, not inferred. |
 | `data(payload, options?)` | The single accessor. |
 | `print(data)` | Markup for the page. |
@@ -213,12 +216,43 @@ interactive immediately after Cancel or a completed report.
 
 ## Cross-lens loading
 
-Operations and Procurement come from different services with different range
-semantics — Operations resolves its range against the pantry's operating-hours
-timezone and applied schedule revisions, which Procurement knows nothing about.
-The route inspects the selection, loads only the lenses it needs, and hands each
-card the payload for its own lens. A card whose lens was not loaded is reported
-like a stale id rather than producing a plausible-looking empty chart.
+The three lenses come from different services with different range semantics —
+Operations resolves its range against the pantry's operating-hours timezone and
+applied schedule revisions, which Procurement knows nothing about; Service spans
+two intake records and the Service Log, and picks its own bucket grain from the
+requested span. The route inspects the selection, loads only the lenses it
+needs, and hands each card the payload for its own lens. A card whose lens was
+not loaded is reported like a stale id rather than producing a plausible-looking
+empty chart.
+
+### Provenance across lenses
+
+The printed header and the manifest need a range and a `dataAsOf`. Procurement
+and Operations both carry `range` and `dataAsOf` directly; Service reports
+`coverage` instead, so provenance is normalized in one place
+(`provenanceOf` in `analytics-report.ts`) rather than read off whichever payload
+happened to be present. Before that, the header read
+`payloads.procurement ?? payloads.operations`, which is `undefined` for a
+Service-only selection — the PDF path threw before rendering anything.
+
+For Service, `dataAsOf` is the latest date any source record actually reaches,
+not the end of the range asked for: a report run today must not claim data
+through today.
+
+### Screen and report cannot disagree
+
+One accessor feeding screen, PDF, and CSV is worth nothing if the two apply
+different rules, so the Service cards inherit the screen's guards rather than
+re-deriving them:
+
+- **Absence is not zero.** A series carries `defined: false` where its record
+  does not reach, so a line begins where its record begins instead of running
+  along the axis for the years before it existed. In CSV that is an empty cell,
+  not a `0`.
+- **The unfinished month is dropped and named**, in the same words the page
+  uses. A partial month plotted beside complete ones reads as a collapse.
+- **Bucket grain is chosen by the service**, not condensed again in the card;
+  re-condensing would put the report on a different axis than the page.
 
 ## What the archive contains
 

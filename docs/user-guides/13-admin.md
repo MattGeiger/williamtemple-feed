@@ -20,7 +20,7 @@ would leave nobody in charge, FEED explains why it cannot.
 
 ## Inviting someone new
 
-1. Open **Information → Admin**.
+1. Open **Tools & Settings → Admin**.
 2. On the **Staff** tab, select **Invite**.
 3. Enter their work email address and send the invitation.
 

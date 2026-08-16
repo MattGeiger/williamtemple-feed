@@ -1,11 +1,11 @@
 # Settings
 
-Settings holds organization-wide choices that apply to everyone using FEED.
-It contains the pantry's recurring service schedule.
+Settings holds the pantry's recurring service schedule, which applies to
+everyone using FEED, and your own Appearance choice, which does not.
 
 ## Open Operating Hours
 
-Open **Information → Settings** in the sidebar. The Operating Hours section shows
+Open **Tools & Settings → Settings** in the sidebar. The Operating Hours section shows
 all seven days and the pantry timezone.
 
 ## Update The Weekly Schedule
@@ -26,6 +26,16 @@ previous opening and closing times return.
 If your device is in a different timezone, FEED asks you to confirm before
 saving. Choose the pantry's timezone, not the location of a staff member who
 may be working remotely.
+
+## Choose How FEED Looks
+
+The **Appearance** section offers *Light*, *Dark*, and *Follow this device*.
+Unlike Operating Hours, this one is yours alone: it is saved in your browser
+rather than shared, so each staff member can read FEED the way that suits them.
+
+The button in the top bar is the shortcut — one press switches between light and
+dark. Setting it back to whatever your computer already uses returns FEED to
+following your computer.
 
 ## How Analytics Uses The Schedule
 

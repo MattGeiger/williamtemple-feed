@@ -67,6 +67,15 @@ describe('default Analytics report title', () => {
     ])).toBe('Operations Report');
   });
 
+  it('names a Service-only selection Service Report', () => {
+    // A third lens broke the old pairwise test: "procurement and not
+    // operations" made a Service-only selection Combined, which is the one
+    // thing it is not.
+    expect(defaultAnalyticsReportTitle([
+      'service-summary', 'service-over-time',
+    ])).toBe('Service Report');
+  });
+
   it('names a mixed selection Combined Report regardless of order', () => {
     expect(defaultAnalyticsReportTitle([
       'operations-category-pressure',

@@ -1,6 +1,6 @@
 # Inventory Analytics
 
-Analytics keeps two kinds of evidence separate:
+Analytics keeps three kinds of evidence separate:
 
 - **Operations** turns the inventory updates staff already make into
   availability and service-pressure history. It does not require a separate
@@ -8,6 +8,9 @@ Analytics keeps two kinds of evidence separate:
 - **Procurement** summarizes external Oregon Food Bank supply records imported
   through Data Management. It describes inbound supply, not remaining stock or
   client demand.
+- **Service** describes people served, drawn from formal intake records and
+  from the Service Log staff keep themselves. It describes who came through the
+  door, not what was on the shelves.
 
 ## What Analytics Can Safely Show
 
@@ -24,8 +27,8 @@ not guess whether low supply, high demand, or another cause produced it.
 
 ## Choose A Date Range
 
-Open **Analytics** under **Inventory** in the sidebar. Choose **Operations** or
-**Procurement** at the top of the page.
+Open **Analytics** under **Information** in the sidebar. Choose **Operations**,
+**Procurement**, or **Service** at the top of the page.
 
 Operations starts with the last 90 days. Use **Date Range** to switch to 30
 days, 6 months, 12 months, or the year to date.
@@ -68,7 +71,7 @@ untracked and are not displayed as zero availability.
 Rapid edits made within five minutes are treated as one correction session in
 the charts and summaries. FEED keeps every original event in the raw history.
 
-Analytics uses the organization schedule in **Information → Settings**. Closed
+Analytics uses the organization schedule in **Tools & Settings → Settings**. Closed
 days and hours when the pantry is not serving clients do not affect the
 assortment timeline. Status transitions still count when staff record them,
 including morning updates before service. Current “Available Now” and
@@ -124,10 +127,66 @@ Select **Manage Procurement Data** to import a fresh export or review import
 history. FEED shows a refresh warning when the latest receiving date is more
 than 30 calendar days old.
 
+## Read Service Analytics
+
+The Service tab draws on two records that describe the same pantry days and
+begin years apart. Neither is treated as the authority:
+
+- **Formal intake** — Link2Feed, and SIMC after the changeover — is the
+  client-grained record, going back to 2020. It carries household sizes and
+  demographics.
+- **The Service Log** is WTH's own end-of-day count, kept since October 2023.
+  It is the more complete count of what happened, because it covers days and
+  households that intake missed.
+
+They are never added together. Where both can answer a question the Service Log
+is preferred, because a hand-counted total does not depend on every client
+completing intake.
+
+Because the two records start at different times, every Service card states
+what its figure rests on. Read the note under a card before quoting its number.
+
+- **Service Summary** gives visits, people served, and households served, then
+  breaks households down by how service was delivered. Ancillary counts such as
+  camping-gear requests are reported in their own units rather than as
+  households.
+- **Service Over Time** plots each record separately so you can see the
+  changeover rather than a single blended line. A line begins where its record
+  begins; it does not run along zero for the years before that record existed.
+- **Households by Season** puts each year on the same twelve-month axis. A year
+  that ran only part of the calendar stops where its data stops.
+- **How Service Was Delivered** shows households by method. A method begins
+  where that program began — Emergency Bags starts in November 2025, not at the
+  left edge of the chart.
+- **Household Size** counts visits by the number of people in the household.
+  Very large sizes are bulk entries and special events, not families.
+- **Turned Away** is the only record of service *not* delivered. A service day
+  with no turned-away entry counts as nobody turned away, which is what staff
+  confirmed the blank means. The figure is reported against the number of days
+  the Service Log was kept, because the count alone invites the wrong
+  denominator.
+- **Languages Spoken at Home** shows answers exactly as households recorded
+  them and never merges them. "Mandarin", "Mandarin Chinese", and "Chinese"
+  stay separate answers, because how a household names its own language is part
+  of what it told us. The chart plots the most common; the exported CSV carries
+  every answer.
+- **Who Answered Which Question** is the denominator behind every other
+  demographic figure: for each question, how many of the households served were
+  asked it and how many answered. The two intake systems ask different
+  questions, so a short bar usually means the question is newer rather than
+  that households refused it. Read any demographic share against this card
+  first.
+
+Over a range longer than about three months the charts switch from daily to
+monthly totals, and the current month is left off until it finishes — a partial
+month plotted beside complete ones reads as a collapse that did not happen.
+
+To record a service day, read [Service Log](15-service-log.md).
+
 ## Generate Analytics Reports
 
 Select **Generate Report** to choose up to eight visible cards across the
-Operations and Procurement tabs. FEED downloads one ZIP containing a printable
+Operations, Procurement, and Service tabs. FEED downloads one ZIP containing a printable
 PDF, a CSV for each selected card, and a manifest recording the active date
 range and filters. Reports can also be saved as shared templates and run again
 for another date range.
@@ -152,4 +211,5 @@ reliably.
 - To update the information used by analytics, read [Inventory](03-inventory.md).
 - To update the pantry schedule used by analytics, read [Operating Hours](11-settings.md).
 - To import or reverse external data, read [Data Management](12-data-management.md).
+- To record the service days behind Service Analytics, read [Service Log](15-service-log.md).
 - To turn current inventory into client-facing lists, read [Shopping Lists](07-shopping-lists.md).

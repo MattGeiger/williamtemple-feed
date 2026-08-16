@@ -43,9 +43,15 @@ Use the left sidebar to move through FEED.
 - Inventory: manage Categories and Food Items.
 - Language & Translation: manage languages and translation records.
 - Service: record daily pantry service and configure Service Metrics.
-- Tools: use Shopping Lists, Document Translator, and AI Configuration.
-- Information: manage Settings and Data, run saved Reports, administer access,
-  and open Help.
+- Tools & Settings: use Shopping Lists, Document Translator, and AI
+  Configuration, change Settings, and administer access.
+- Information: read Analytics, run saved Reports, manage Data, and open Help.
+
+The button in the top bar switches between light and dark in one press. Setting
+it back to whatever your computer already uses returns FEED to following your
+computer. The full choice, including *Follow this device*, is in **Tools &
+Settings → Settings → Appearance**. Appearance is saved in your browser rather
+than shared, so staff can each read FEED the way that suits them.
 
 ## Before You Make Changes
 
