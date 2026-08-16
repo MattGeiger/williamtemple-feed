@@ -31,6 +31,7 @@ const LENS_FILES = [
   ['components', 'analytics', 'donor-analytics.tsx'],
   ['components', 'analytics', 'community-analytics.tsx'],
   ['components', 'analytics', 'service-analytics.tsx'],
+  ['components', 'analytics', 'client-analytics.tsx'],
 ];
 
 /**
@@ -46,6 +47,11 @@ const NOT_EXPORTABLE: { title: string; reason: string }[] = [
     title: 'Grocery Partners',
     reason:
       'Empty state shown instead of the partner cards when no Agency Pickups observations match.',
+  },
+  {
+    title: 'No client records in this range',
+    reason:
+      'Empty state shown instead of the Clients cards when no intake records fall in the range.',
   },
   {
     title: 'No service records in this range',

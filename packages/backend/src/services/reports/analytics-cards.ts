@@ -117,7 +117,7 @@ export interface AnalyticsCard {
   id: string;
   /** Fallback name for menus; `data().title` is what gets printed. */
   defaultTitle: string;
-  lens: 'operations' | 'procurement' | 'service';
+  lens: 'operations' | 'procurement' | 'service' | 'clients';
   /**
    * `chart` prints an SVG; `kpi` prints HTML tiles; `table` prints an HTML
    * table with a repeating header and rows that do not split across pages.
@@ -645,6 +645,12 @@ export const SEASONAL_INBOUND_WEIGHT: AnalyticsCard = {
         ? (analytics?.seasonalWeight ?? []).map((p: any) => ({ ...p, channel: 'all' }))
         : (analytics?.seasonalChannelWeight ?? []).filter((p: any) => p.channel === channel);
 
+    const now = new Date();
+    const inProgress = { year: String(now.getFullYear()), monthNumber: now.getMonth() + 1 };
+    const droppedInProgress = years.includes(inProgress.year)
+      && points.some((p: any) =>
+        String(p.year) === inProgress.year && p.month === inProgress.monthNumber);
+
     const startMonth = String(analytics?.range?.startDate ?? '').slice(0, 7);
     const endMonth = String(analytics?.range?.endDate ?? '').slice(0, 7);
     const hasResolvedCoverage = /^\d{4}-\d{2}$/.test(startMonth) && /^\d{4}-\d{2}$/.test(endMonth);
@@ -656,6 +662,10 @@ export const SEASONAL_INBOUND_WEIGHT: AnalyticsCard = {
         values[point.month - 1] += toPounds(point.weightHundredths);
       }
       const defined = MONTH_LABELS.map((_, index) => {
+        // The month in progress is dropped for the same reason the screen
+        // drops it: half a month beside eleven whole ones reads as a collapse
+        // in supply rather than a month that has not finished.
+        if (year === inProgress.year && index + 1 === inProgress.monthNumber) return false;
         if (!hasResolvedCoverage) return true;
         const month = `${year}-${String(index + 1).padStart(2, '0')}`;
         return month >= startMonth && month <= endMonth;
@@ -668,12 +678,18 @@ export const SEASONAL_INBOUND_WEIGHT: AnalyticsCard = {
       categories: MONTH_LABELS,
       series,
       categoryColumn: 'month',
-      note:
-        years.length === 0
-          ? 'No calendar years were selected for comparison, so this card is empty.'
-          : channel === 'all'
-            ? null
-            : `${CHANNEL_LABELS[channel] ?? channel} only.`,
+      note: (() => {
+        if (years.length === 0) {
+          return 'No calendar years were selected for comparison, so this card is empty.';
+        }
+        const parts = [
+          channel === 'all' ? null : `${CHANNEL_LABELS[channel] ?? channel} only.`,
+          droppedInProgress
+            ? `${MONTH_LABELS[inProgress.monthNumber - 1]} ${inProgress.year} is still in progress and is not plotted.`
+            : null,
+        ].filter(Boolean);
+        return parts.length > 0 ? parts.join(' ') : null;
+      })(),
     };
   },
   // Lines, not stacked bars: stacking years would sum unrelated periods into a
@@ -1791,6 +1807,15 @@ const trimToData = (series: Series): Series => {
 };
 
 /* ---------------------------------------------------------------- service */
+/*
+ * Two lenses share this section and one payload.
+ *
+ * `service` answers what happened on a service day; `clients` answers who the
+ * people are. They read the same Service analytics today because the client
+ * datasets have not been imported yet — when they are, `clients` gets its own
+ * payload and these cards keep their ids. Splitting the lens now is what makes
+ * that swap invisible to saved templates.
+ */
 
 /**
  * Service cards read two records that begin years apart: intake (Link2Feed,
@@ -2062,10 +2087,10 @@ export const SERVICE_METHOD_MIX: AnalyticsCard = {
 };
 
 export const SERVICE_HOUSEHOLD_SIZE: AnalyticsCard = {
-  id: 'service-household-size',
+  id: 'clients-household-size',
   kind: 'chart',
   defaultTitle: 'Household Size',
-  lens: 'service',
+  lens: 'clients',
   data: (analytics: any) => {
     const rows = analytics?.householdSize ?? [];
     return {
@@ -2125,10 +2150,10 @@ export const SERVICE_UNMET_DEMAND: AnalyticsCard = {
 const LANGUAGES_PLOTTED = 15;
 
 export const SERVICE_LANGUAGES: AnalyticsCard = {
-  id: 'service-languages',
+  id: 'clients-languages',
   kind: 'chart',
   defaultTitle: 'Languages Spoken at Home',
-  lens: 'service',
+  lens: 'clients',
   data: (analytics: any) => {
     const languages = analytics?.languages ?? {};
     const all = languages.values ?? [];
@@ -2170,10 +2195,10 @@ export const SERVICE_LANGUAGES: AnalyticsCard = {
 };
 
 export const SERVICE_RESPONSE_COVERAGE: AnalyticsCard = {
-  id: 'service-response-coverage',
+  id: 'clients-response-coverage',
   kind: 'chart',
   defaultTitle: 'Demographics Questions Response Rate',
-  lens: 'service',
+  lens: 'clients',
   data: (analytics: any) => {
     const rows = analytics?.responseCoverage ?? [];
     return {

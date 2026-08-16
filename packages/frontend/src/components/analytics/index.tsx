@@ -81,7 +81,8 @@ import {
   type CarbonFamily,
   type CarbonGrade,
 } from '@/lib/colors';
-import { ServiceAnalyticsLens } from './service-analytics';
+import { ServiceAnalyticsLens } from './service-analytics'
+import { ClientAnalyticsLens } from './client-analytics';
 import { ErrorHandlerService } from '@/services/error/ErrorHandlerService';
 import { procurementService } from '@/services/procurement';
 import type {
@@ -807,9 +808,10 @@ export function AnalyticsWorkspace() {
   const [searchParams, setSearchParams] = useSearchParams();
   const searchKey = searchParams.toString();
   const tabParam = searchParams.get('tab');
-  const activeTab = tabParam === 'procurement' || tabParam === 'service'
-    ? tabParam
-    : 'operations';
+  const activeTab =
+    tabParam === 'procurement' || tabParam === 'service' || tabParam === 'clients'
+      ? tabParam
+      : 'operations';
   const range = React.useMemo(
     () => dateRangeFromSearchParams(searchParams),
     // The serialized query is the stable source of truth for the range.
@@ -837,7 +839,7 @@ export function AnalyticsWorkspace() {
   // Operations is the default lens, so it stays absent from the URL; any other
   // lens is named, which also makes a Service view shareable as a link.
   const setActiveTab = (tab: string) => updateSearchParams((next) => {
-    if (tab === 'procurement' || tab === 'service') next.set('tab', tab);
+    if (tab === 'procurement' || tab === 'service' || tab === 'clients') next.set('tab', tab);
     else next.delete('tab');
   });
 
@@ -868,10 +870,11 @@ export function AnalyticsWorkspace() {
             treatment in the app (GuideToc) rather than an opaque bar. */}
         <div className="sticky top-16 z-30 -mx-4 space-y-4 border-b border-border/70 bg-background/40 px-4 py-4 backdrop-blur-[14px] backdrop-saturate-150 supports-backdrop-filter:bg-background/40 sm:-mx-6 sm:px-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <TabsList className="grid h-auto w-full grid-cols-3 sm:w-[480px]">
+            <TabsList className="grid h-auto w-full grid-cols-4 sm:w-[600px]">
               <TabsTrigger value="operations">Operations</TabsTrigger>
               <TabsTrigger value="procurement">Procurement</TabsTrigger>
               <TabsTrigger value="service">Service</TabsTrigger>
+              <TabsTrigger value="clients">Clients</TabsTrigger>
             </TabsList>
             {/* Both lenses now have registered cards, so the action is
                 unconditional. Selection persists across the tabs, so a report
@@ -899,6 +902,9 @@ export function AnalyticsWorkspace() {
           </TabsContent>
           <TabsContent value="service" className="pt-4">
             <ServiceAnalyticsLens range={range} />
+          </TabsContent>
+          <TabsContent value="clients" className="pt-4">
+            <ClientAnalyticsLens range={range} />
           </TabsContent>
         </TabsContents>
       </Tabs>
@@ -992,9 +998,13 @@ export function ProcurementAnalyticsWorkspace({
   const canCompareSeasons = Boolean(
     analytics && analytics.range.startDate.slice(0, 4) !== analytics.range.endDate.slice(0, 4)
   );
-  const seasonalYears = canCompareSeasons
-    ? selectedSeasonalYears
-    : analytics?.availableYears.slice(0, 1) ?? [];
+  // Memoized because three separate memos depend on it. As a bare conditional
+  // it is a new array every render, which makes each of their dependency lists
+  // change every render and defeats the memoization entirely.
+  const seasonalYears = React.useMemo(
+    () => (canCompareSeasons ? selectedSeasonalYears : analytics?.availableYears.slice(0, 1) ?? []),
+    [canCompareSeasons, selectedSeasonalYears, analytics],
+  );
   const currentCalendarYear = new Date().getFullYear();
   const seasonalConfig = React.useMemo(
     () => buildSeasonalYearChartConfig(
@@ -1003,23 +1013,52 @@ export function ProcurementAnalyticsWorkspace({
     ),
     [analytics?.availableYears, currentCalendarYear]
   );
+  /**
+   * The month in progress, which this chart must not plot.
+   *
+   * A seasonal comparison puts every year on one twelve-month axis, so a
+   * half-finished August sits beside six complete Augusts and reads as a
+   * collapse in supply rather than a month that has not happened yet. Only the
+   * current year's newest point is affected — every prior year's month is
+   * complete. Same guard as Service Over Time, which says so in the same words.
+   */
+  const inProgressMonth = React.useMemo(() => {
+    const now = new Date();
+    return { year: String(now.getFullYear()), monthNumber: now.getMonth() + 1 };
+  }, []);
+
   const seasonalData = React.useMemo(() => {
     const rows = monthLabels.map((month, index) => ({ month, monthNumber: index + 1 } as Record<string, string | number>));
+    const inProgress = (year: string, monthNumber: number) =>
+      year === inProgressMonth.year && monthNumber === inProgressMonth.monthNumber;
     if (effectiveSeasonalChannel === 'all') {
       for (const point of analytics?.seasonalWeight ?? []) {
-        if (seasonalYears.includes(point.year)) {
+        if (seasonalYears.includes(point.year) && !inProgress(point.year, point.month)) {
           rows[point.month - 1][point.year] = toPounds(point.weightHundredths);
         }
       }
     } else {
       for (const point of analytics?.seasonalChannelWeight ?? []) {
         if (point.channel !== effectiveSeasonalChannel || !seasonalYears.includes(point.year)) continue;
+        if (inProgress(point.year, point.month)) continue;
         const cell = rows[point.month - 1];
         cell[point.year] = (Number(cell[point.year]) || 0) + toPounds(point.weightHundredths);
       }
     }
     return rows;
-  }, [analytics, seasonalYears, effectiveSeasonalChannel]);
+  }, [analytics, seasonalYears, effectiveSeasonalChannel, inProgressMonth]);
+
+  /** Set only when the in-progress month was actually dropped from the chart. */
+  const seasonalInProgressLabel = React.useMemo(() => {
+    if (!seasonalYears.includes(inProgressMonth.year)) return null;
+    const points = effectiveSeasonalChannel === 'all'
+      ? (analytics?.seasonalWeight ?? [])
+      : (analytics?.seasonalChannelWeight ?? []).filter((p) => p.channel === effectiveSeasonalChannel);
+    const dropped = points.some((p) =>
+      p.year === inProgressMonth.year && p.month === inProgressMonth.monthNumber);
+    if (!dropped) return null;
+    return `${monthLabels[inProgressMonth.monthNumber - 1]} ${inProgressMonth.year}`;
+  }, [analytics, seasonalYears, effectiveSeasonalChannel, inProgressMonth]);
 
   const monthlyWeight = React.useMemo(
     () => (analytics?.monthlyWeight ?? []).map((row) => ({
@@ -1944,6 +1983,11 @@ export function ProcurementAnalyticsWorkspace({
                 })}
               </LineChart>
             </ChartContainer>
+          )}
+          {seasonalInProgressLabel && (
+            <p className="mt-3 text-xs text-muted-foreground">
+              {seasonalInProgressLabel} is still in progress and is not plotted.
+            </p>
           )}
         </CardContent>
         </Card>

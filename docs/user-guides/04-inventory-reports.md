@@ -1,6 +1,6 @@
 # Inventory Analytics
 
-Analytics keeps three kinds of evidence separate:
+Analytics keeps four kinds of evidence separate:
 
 - **Operations** turns the inventory updates staff already make into
   availability and service-pressure history. It does not require a separate
@@ -8,9 +8,13 @@ Analytics keeps three kinds of evidence separate:
 - **Procurement** summarizes external Oregon Food Bank supply records imported
   through Data Management. It describes inbound supply, not remaining stock or
   client demand.
-- **Service** describes people served, drawn from formal intake records and
-  from the Service Log staff keep themselves. It describes who came through the
-  door, not what was on the shelves.
+- **Service** describes what happened on a service day, drawn from formal
+  intake records and from the Service Log staff keep themselves. It describes
+  who came through the door, not what was on the shelves.
+- **Clients** describes the people served — household size, languages, and
+  which intake questions they were asked. The date range still applies: these
+  cards join client details to visits, so "how many non-English-speaking
+  households did we serve in March" is a question this tab answers.
 
 ## What Analytics Can Safely Show
 
@@ -28,7 +32,7 @@ not guess whether low supply, high demand, or another cause produced it.
 ## Choose A Date Range
 
 Open **Analytics** under **Information** in the sidebar. Choose **Operations**,
-**Procurement**, or **Service** at the top of the page.
+**Procurement**, **Service**, or **Clients** at the top of the page.
 
 Operations starts with the last 90 days. Use **Date Range** to switch to 30
 days, 6 months, 12 months, or the year to date.
@@ -108,7 +112,9 @@ Warehouse Orders and agency-reported Fresh Food Alliance grocery-partner receipt
 - **Fresh Food Alliance Category Mix** shows broad OFB reporting categories. These
   are not individual products and do not identify the grocery partner.
 - **Seasonal Inbound Weight** overlays every calendar year in the selected date
-  range by default. Use the year selector to show all years, clear the chart, or
+  range by default. The month in progress is left off until it finishes — half
+  a month beside eleven whole ones reads as a collapse in supply rather than a
+  month that has not happened yet. Use the year selector to show all years, clear the chart, or
   isolate individual years for a focused comparison. Year colors remain stable
   while filtering; the current calendar year starts the color sequence and uses
   a stronger line and glow for quick comparison with prior years.
@@ -166,6 +172,20 @@ what its figure rests on. Read the note under a card before quoting its number.
 - **How Service Was Delivered** shows households by method. A method begins
   where that program began — Emergency Bags starts in November 2025, not at the
   left edge of the chart.
+
+Over a range longer than about three months the charts switch from daily to
+monthly totals, and the current month is left off until it finishes — a partial
+month plotted beside complete ones reads as a collapse that did not happen.
+
+To record a service day, read [Service Log](15-service-log.md).
+
+## Read Client Analytics
+
+The Clients tab describes the people served rather than the service days. It
+draws on the same intake records, joined to visits through the client id, so
+the date range still applies — these are the households served in the range,
+not everyone on file.
+
 - **Household Size** counts visits by the number of people in the household.
   Very large sizes are bulk entries and special events, not families.
 - **Turned Away** is the only record of service *not* delivered. A service day
@@ -190,16 +210,11 @@ what its figure rests on. Read the note under a card before quoting its number.
   a household answered anything. Read any demographic share against this card
   first.
 
-Over a range longer than about three months the charts switch from daily to
-monthly totals, and the current month is left off until it finishes — a partial
-month plotted beside complete ones reads as a collapse that did not happen.
-
-To record a service day, read [Service Log](15-service-log.md).
 
 ## Generate Analytics Reports
 
 Select **Generate Report** to choose up to eight visible cards across the
-Operations, Procurement, and Service tabs. FEED downloads one ZIP containing a printable
+Operations, Procurement, Service, and Clients tabs. FEED downloads one ZIP containing a printable
 PDF, a CSV for each selected card, and a manifest recording the active date
 range and filters. Reports can also be saved as shared templates and run again
 for another date range.

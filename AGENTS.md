@@ -485,15 +485,24 @@ development database, requires its explicit confirmation flag, and must never
 be run in production. Its OFB-derived weekly presence signals are descriptive;
 do not reinterpret them as quantities, consumption, or causal mappings.
 
-## Service Analytics Direction
+## Service and Client Analytics Direction
 
 `docs/reports/service-analytics-plan.md` is the source of truth for the Service
 lens; `docs/reports/service-analytics-card-proposal.md` records which cards were
 built, which were held back, and the staff answers that unblocked them. Shipped
 in 1.5.0-beta.19 with eight cards.
 
-Service describes people served. It draws on two records that describe the same
-pantry days and **begin years apart** — formal intake (Link2Feed from 2020, SIMC
+**Service** describes what happened on a service day; **Clients** describes who
+the people are. They are separate lenses because they answer separate
+questions — a household-size distribution and a count of turned-away households
+are not the same kind of fact. Clients reads the same Service payload today,
+under its own `clients` key, because the Link2Feed and SIMC client exports are
+not imported yet; when they are, the payload changes and the card ids do not.
+Both are range-scoped: client cards join demographics to encounters through the
+client id, so a date range still means something on the Clients tab.
+
+Service draws on two records that describe the same pantry days and **begin
+years apart** — formal intake (Link2Feed from 2020, SIMC
 after the June 2026 cutover) and the Service Log, WTH's own end-of-day count,
 kept since October 2023.
 
@@ -542,6 +551,18 @@ kept since October 2023.
 - **Do not hardcode operational facts** — program start dates, visit policies,
   system-changeover months. Derive them from the data so the card follows the
   record.
+- **Drop the period in progress** from any seasonal or monthly comparison, and
+  say so. A half-finished month beside eleven complete ones reads as a collapse
+  rather than a month that has not happened. Applies to Service Over Time, How
+  Service Was Delivered, Households by Season, and Seasonal Inbound Weight on
+  Procurement.
+- **A line ends where its data ends.** Procurement payloads are a dense grid of
+  zeros so Recharts cannot bridge a gap and invent a delivery; `trimSeriesToData`
+  then nulls the leading and trailing zeros so a partner who stopped delivering
+  terminates there. Zeros *between* real values stay — those happened. Do not
+  drop an empty series from a fixed taxonomy (the acquisition classes, the two
+  OFB channels): a report whose rows change between ranges cannot be compared
+  with another.
 - Age and geography cards remain **blocked** on the cutover question in the card
   proposal's §2.8. One distribution cannot honestly be drawn across two systems
   that asked different questions.
