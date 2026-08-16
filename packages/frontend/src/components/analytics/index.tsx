@@ -1448,7 +1448,7 @@ export function ProcurementAnalyticsWorkspace({
               <CartesianGrid vertical={false} />
               <XAxis dataKey="month" tickLine={false} axisLine={false} tickFormatter={(month: string) => format(parseISO(`${month}-01`), 'MMM yy')} />
               <YAxis width={52} tickLine={false} axisLine={false} />
-              <ChartTooltip content={<ChartTooltipContent />} />
+              <ChartTooltip content={<ChartTooltipContent sortByValue />} />
               <ChartLegend content={<ChartLegendContent />} />
               {monthlyWeightSeriesKeys.map((seriesKey) => (
                 <Line

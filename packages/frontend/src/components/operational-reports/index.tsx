@@ -530,7 +530,7 @@ export function OperationalAnalyticsWorkspace({
                     <CartesianGrid vertical={false} />
                     <XAxis dataKey="date" tickLine={false} axisLine={false} tickFormatter={(value: string) => format(new Date(`${value}T00:00:00`), 'MMM d')} />
                     <YAxis width={34} tickLine={false} axisLine={false} />
-                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <ChartTooltip content={<ChartTooltipContent sortByValue />} />
                     <ChartLegend content={<ChartLegendContent />} />
                     {assortmentCategory === 'all' ? (
                       <Area isAnimationActive={!prefersReducedMotion()}
@@ -638,7 +638,7 @@ export function OperationalAnalyticsWorkspace({
                     <CartesianGrid vertical={false} />
                     <XAxis dataKey="date" tickLine={false} axisLine={false} tickFormatter={(value: string) => format(new Date(`${value}T00:00:00`), 'MMM d')} />
                     <YAxis width={34} tickLine={false} axisLine={false} />
-                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <ChartTooltip content={<ChartTooltipContent sortByValue />} />
                     <ChartLegend content={<ChartLegendContent />} />
                     <Line isAnimationActive={!prefersReducedMotion()} dataKey="limitedSupply" stroke="var(--color-limitedSupply)" dot={false} />
                     <Line isAnimationActive={!prefersReducedMotion()} dataKey="clearance" stroke="var(--color-clearance)" dot={false} />
@@ -689,7 +689,7 @@ export function OperationalAnalyticsWorkspace({
                           tickFormatter={(value: number) => `${value}%`}
                         />
                         <YAxis dataKey="categoryName" type="category" width={112} tickLine={false} axisLine={false} />
-                        <ChartTooltip content={<ChartTooltipContent />} />
+                        <ChartTooltip content={<ChartTooltipContent sortByValue />} />
                         <ChartLegend content={<ChartLegendContent />} />
                         <Bar isAnimationActive={!prefersReducedMotion()} dataKey="limitedSupplyServicePercent" fill="var(--color-limitedSupplyServicePercent)" radius={2} />
                         <Bar isAnimationActive={!prefersReducedMotion()} dataKey="clearanceServicePercent" fill="var(--color-clearanceServicePercent)" radius={2} />
