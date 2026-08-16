@@ -71,6 +71,28 @@ Table components apply widths via inline styles:
 }
 ```
 
+## Applying It To A Nested Cell
+
+`text-overflow: ellipsis` only applies to a block's own inline content. A cell
+that renders its text inside nested elements — an icon beside a name with a
+description under it — is still clipped by the `td`'s `overflow: hidden`, but
+gets no ellipsis, so the text stops mid-word with nothing to say it continued.
+
+Apply `getTruncationClasses()` to the element that actually holds the text, and
+give it a `title` so the full value is reachable on hover:
+
+```tsx
+<div className="min-w-0 flex-1">
+  <div className={cn(getTruncationClasses(), 'font-medium')} title={name}>{name}</div>
+  <div className={cn(getTruncationClasses(), 'text-xs')} title={description}>{description}</div>
+</div>
+```
+
+`ResponsiveTruncatedText` does the same and adds an expand button and dialog.
+Prefer it for a cell whose full text a user needs to read often; prefer the
+classes above for a secondary line, where a button on every row costs more than
+it returns. `service-metrics/columns.tsx` is the worked example.
+
 ## Modified Components
 
 - `/packages/frontend/src/components/ui/responsive-truncated-text.tsx`
@@ -81,6 +103,7 @@ Table components apply widths via inline styles:
 - `/packages/frontend/src/components/ui/enhanced-data-table/index.tsx`
 - `/packages/frontend/src/components/category-management/data-table/data-table.tsx`
 - `/packages/frontend/src/index.css`
+- `/packages/frontend/src/components/service-metrics/columns.tsx`
 
 ## Result
 
