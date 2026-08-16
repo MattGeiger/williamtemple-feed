@@ -114,13 +114,21 @@ const SERVICE_ANALYTICS = {
     firstRecordedDate: '2023-11-08',
   },
   languages: {
-    // Recorded as three answers by three households, and kept that way.
+    // Chart-facing: "Mandarin Chinese" has been folded into "Mandarin", while
+    // "Chinese" — a different name, not a longer one — stays on its own.
     values: [
+      { language: 'English', households: 40 },
+      { language: 'Mandarin', households: 9 },
+      { language: 'Chinese', households: 1 },
+    ],
+    // Exactly what households recorded, for the export.
+    rawValues: [
       { language: 'English', households: 40 },
       { language: 'Mandarin Chinese', households: 6 },
       { language: 'Mandarin', households: 3 },
       { language: 'Chinese', households: 1 },
     ],
+    mergedLabels: 1,
     householdsAsked: 80,
     householdsAnswered: 50,
   },
@@ -328,28 +336,37 @@ describe('Turned Away', () => {
 });
 
 describe('Languages Spoken at Home', () => {
-  it('never merges one recorded answer into another', () => {
+  it('plots the merged labels and exports every answer as recorded', () => {
     const data = SERVICE_LANGUAGES.data(SERVICE_ANALYTICS);
 
-    // How a household names its own language is part of what it told us.
-    expect(data.categories).toEqual(['English', 'Mandarin Chinese', 'Mandarin', 'Chinese']);
-    expect(data.series[0].values).toEqual([40, 6, 3, 1]);
-    expect(data.note).toContain('never merged');
+    // The chart collapses a redundant qualifier; the CSV does not, so nothing
+    // a household actually said is only available as someone else's summary.
+    expect(data.categories).toEqual(['English', 'Mandarin', 'Chinese']);
+    expect(data.series[0].values).toEqual([40, 9, 1]);
+    expect(cardCsv(data, 'raw')).toContain('Mandarin Chinese,6');
+    expect(cardCsv(data, 'raw')).toContain('Mandarin,3');
+    expect(data.note).toContain('the CSV keeps every answer as recorded');
   });
 
-  it('states the denominator the shares must be read against', () => {
-    expect(SERVICE_LANGUAGES.data(SERVICE_ANALYTICS).note).toContain(
-      '50 of 80 households answered this question'
-    );
+  it('says the merge happened rather than leaving it to be discovered', () => {
+    expect(SERVICE_LANGUAGES.data(SERVICE_ANALYTICS).note)
+      .toContain('“Mandarin Chinese” counts as “Mandarin”');
+  });
+
+  it('states the share as a percentage of those asked', () => {
+    // 50 of 80. The card leads with the rate because the raw pair invited the
+    // reader to do the division themselves.
+    expect(SERVICE_LANGUAGES.data(SERVICE_ANALYTICS).note)
+      .toContain('About 63% of households answered this question');
   });
 
   it('limits what it plots without dropping anything from the export', () => {
+    const answers = Array.from({ length: 22 }, (_, i) => ({
+      language: `Language ${i}`, households: 22 - i,
+    }));
     const many = {
       ...SERVICE_ANALYTICS,
-      languages: {
-        ...SERVICE_ANALYTICS.languages,
-        values: Array.from({ length: 22 }, (_, i) => ({ language: `Language ${i}`, households: 22 - i })),
-      },
+      languages: { ...SERVICE_ANALYTICS.languages, values: answers, rawValues: answers },
     };
     const data = SERVICE_LANGUAGES.data(many);
 

@@ -519,10 +519,16 @@ kept since October 2023.
   a zero, confirmed by staff.
 - **Drop the unfinished month** from monthly charts and name it. A partial month
   beside complete ones reads as a collapse that did not happen.
-- **Never normalize what a household reported about itself.** "Mandarin",
-  "Mandarin Chinese", and "Chinese" stay three answers. Truncating a chart to
-  the most common values is a display limit and is fine, provided the export
-  carries every value and the card says which it is doing.
+- **Merge language labels only where two labels are the same word.** "Mandarin
+  Chinese" folds into "Mandarin" because that is the two intake systems writing
+  one answer two ways — a redundant qualifier, not a different name. Answers
+  that are *different names* are never merged, however close a linguist would
+  call them: "Farsi" and "Persian" are a household's own choice of name,
+  "Chinese" could be either variety and resolving it invents data, and
+  "American Sign Language" specifies which sign language. Extending the alias
+  map means arguing two spellings are the same word. The export always carries
+  every answer unmerged, and truncating a chart to the most common values is a
+  display limit rather than a merge — provided the card says which it is doing.
 - **Report a share against the question's own denominator.** The two intake
   systems ask different demographic questions, so a low answer rate usually
   means the question is newer, not that households refused. `service-response-

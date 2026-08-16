@@ -145,14 +145,21 @@ export interface ServiceAnalytics {
     firstRecordedDate: string | null;
   };
   /**
-   * Household languages exactly as recorded, never normalized.
+   * Household languages, merged only where two labels are the same word.
    *
-   * "Mandarin", "Mandarin Chinese" and "Chinese" stay three answers, because
-   * how someone names their own language is part of what they told us. Folding
-   * them together would be the analyst overwriting the household.
+   * Only redundant label variants are merged — "Mandarin Chinese" into
+   * "Mandarin" — because that is the two intake systems writing one answer two
+   * ways. Different names stay different: "Chinese" is not a longer spelling
+   * of "Mandarin", and "Farsi" is not a misspelling of "Persian". The export
+   * carries every answer exactly as recorded.
    */
   languages: {
+    /** Chart-facing, with redundant label variants merged. */
     values: Array<{ language: string; households: number }>;
+    /** Every answer as recorded. The export carries these, so nothing is lost. */
+    rawValues: Array<{ language: string; households: number }>;
+    /** How many recorded labels the merge folds away, for the card's note. */
+    mergedLabels: number;
     householdsAsked: number;
     householdsAnswered: number;
   };
@@ -468,20 +475,64 @@ export async function getServiceAnalytics(
    * carries exactly one current profile, so this is a join rather than a
    * pick-the-latest.
    */
-  const languageRows = await client.$queryRaw<Array<{ language: string; households: bigint }>>`
+  /**
+   * The only language answers that are merged, and the line that decides it.
+   *
+   * These pairs differ by a **redundant qualifier** — the same name with
+   * "Chinese" appended, which is how the two intake systems happened to label
+   * the same answer. Collapsing them corrects a labelling artefact.
+   *
+   * Answers that are *different names* are never merged, even when a linguist
+   * would call them one language:
+   *
+   * - "Farsi" and "Persian" are the same language under two names, and which
+   *   one a household used is something it told us.
+   * - "Chinese" is not a longer way of writing "Mandarin" — it could be either
+   *   variety, and resolving it would be inventing data.
+   * - "Sign Language" and "American Sign Language" differ by a qualifier that
+   *   is not redundant; it names which sign language.
+   *
+   * Extending this map means arguing that two spellings are the same word, not
+   * that two languages are close enough.
+   */
+  const LANGUAGE_LABEL_ALIASES: Record<string, string> = {
+    'Mandarin Chinese': 'Mandarin',
+    'Cantonese Chinese': 'Cantonese',
+  };
+
+  // Merged in SQL rather than by summing afterwards: a household that recorded
+  // both "Mandarin" and "Mandarin Chinese" must count once under Mandarin, and
+  // adding the two totals would count it twice.
+  const languageCase = `CASE j."value"
+${Object.entries(LANGUAGE_LABEL_ALIASES)
+    .map(([from, to]) => `      WHEN '${from}' THEN '${to}'`)
+    .join('\n')}
+      ELSE j."value" END`;
+
+  const languageSql = (label: string) => `
     WITH served AS (
       SELECT DISTINCT "clientId" FROM "ServiceEncounterRevision"
-      WHERE "isCurrent" = 1 AND "serviceDate" BETWEEN ${startDate} AND ${endDate}
+      WHERE "isCurrent" = 1 AND "serviceDate" BETWEEN ? AND ?
         AND "clientId" IS NOT NULL
     )
-    SELECT j."value" AS "language", COUNT(DISTINCT p."clientId") AS "households"
+    SELECT ${label} AS "language", COUNT(DISTINCT p."clientId") AS "households"
     FROM "ServiceClientProfileRevision" p
     JOIN served s ON s."clientId" = p."clientId"
     JOIN "ServiceClientProfileResponse" r ON r."profileRevisionId" = p."id"
     JOIN json_each(r."values") j
     WHERE p."isCurrent" = 1 AND r."dimension" = 'household_languages'
       AND r."responseStatus" = 'provided'
-    GROUP BY j."value" ORDER BY "households" DESC, "language"`;
+    GROUP BY "language" ORDER BY "households" DESC, "language"`;
+
+  const languageRows = await client.$queryRawUnsafe<
+    Array<{ language: string; households: bigint }>
+  >(languageSql(languageCase), startDate, endDate);
+
+  // Every answer as recorded, for the export — merging is a reading aid on the
+  // chart, not a rewrite of what households said.
+  const languageRawRows = await client.$queryRawUnsafe<
+    Array<{ language: string; households: bigint }>
+  >(languageSql('j."value"'), startDate, endDate);
 
   const coverageByDimension = await client.$queryRaw<Array<{
     dimension: string; responseStatus: string; households: bigint; sources: string;
@@ -683,10 +734,10 @@ export async function getServiceAnalytics(
     coverageTotals.set(row.dimension, entry);
   }
 
-  const languageValues = languageRows.map((row) => ({
-    language: row.language,
-    households: Number(row.households),
-  }));
+  const toLanguageValues = (rows: Array<{ language: string; households: bigint }>) =>
+    rows.map((row) => ({ language: row.language, households: Number(row.households) }));
+  const languageValues = toLanguageValues(languageRows);
+  const languageRawValues = toLanguageValues(languageRawRows);
   const languagesAsked = coverageTotals.get('household_languages');
 
   return {
@@ -764,6 +815,8 @@ export async function getServiceAnalytics(
     },
     languages: {
       values: languageValues,
+      rawValues: languageRawValues,
+      mergedLabels: Object.keys(LANGUAGE_LABEL_ALIASES).length,
       householdsAsked: (languagesAsked?.provided ?? 0) + (languagesAsked?.notProvided ?? 0),
       householdsAnswered: languagesAsked?.provided ?? 0,
     },
