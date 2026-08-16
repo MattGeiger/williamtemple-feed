@@ -103,9 +103,11 @@ export interface ServiceAnalytics {
    *
    * Two measures of the same rows, because they answer different questions and
    * a reader comparing years needs to say which they mean. Households counts a
-   * household once however often it came; visits counts every encounter. A
-   * visit recorded without a household record can only appear in the second —
-   * it has no identity to be distinct by.
+   * household once however often it came; visits counts every encounter.
+   *
+   * An anonymous visit counts as one household in the first measure. It is a
+   * household — Link2Feed just recorded no client id — so what is missing is
+   * the ability to deduplicate it, not the household itself.
    */
   seasonal: {
     years: string[];
@@ -331,7 +333,8 @@ export async function getServiceAnalytics(
   }>>`
     SELECT
       SUM(CASE WHEN "recordKind" IN ('identified_household_encounter','identity_unavailable_encounter') THEN 1 ELSE 0 END) AS "visits",
-      COUNT(DISTINCT "clientId") AS "intakeHouseholds",
+      COUNT(DISTINCT "clientId")
+             + SUM(CASE WHEN "recordKind" = 'identity_unavailable_encounter' THEN 1 ELSE 0 END) AS "intakeHouseholds",
       -- Every recorded person, bulk-event tallies included. Those tallies are
       -- excluded from household counts because a crowd entered as one row is
       -- not a household, but the people in it were served.
@@ -370,15 +373,22 @@ export async function getServiceAnalytics(
   // Seasonal comparison uses per-month distinct households, which is sound even
   // though a whole-range distinct count is not: a client holds one profile per
   // system, and only one system is live in any given month.
-  // Visits come from the same rows, counted without the DISTINCT. The two are
-  // not interchangeable: a visit with no household record has a null
-  // `clientId`, so it counts as a visit and cannot count as a household.
+  // Visits come from the same rows, counted without the DISTINCT.
+  //
+  // An anonymous visit is still a household — Link2Feed simply recorded no
+  // client id for it — so it counts as one household rather than being dropped
+  // from the household measure. What is lost is deduplication, not the
+  // household: two anonymous visits by the same family count twice, because
+  // nothing in the record can tell they were the same family. The household
+  // series is therefore a slight over-count on those rows and a far smaller
+  // error than omitting them, which understated 2023 by nearly 13%.
   const seasonalRows = await client.$queryRaw<Array<{
     year: string; monthIndex: string; households: bigint; visits: bigint;
   }>>`
     SELECT substr("serviceDate", 1, 4) AS "year",
            substr("serviceDate", 6, 2) AS "monthIndex",
-           COUNT(DISTINCT "clientId") AS "households",
+           COUNT(DISTINCT "clientId")
+             + SUM(CASE WHEN "recordKind" = 'identity_unavailable_encounter' THEN 1 ELSE 0 END) AS "households",
            COUNT(*) AS "visits"
     FROM "ServiceEncounterRevision"
     WHERE "isCurrent" = 1 AND "serviceDate" BETWEEN ${startDate} AND ${endDate}
@@ -518,6 +528,11 @@ export async function getServiceAnalytics(
       AND "reportedPeopleCount" IS NOT NULL
     GROUP BY "reportedPeopleCount" ORDER BY "reportedPeopleCount"`;
 
+  // The one measure that stays identified-only. Everywhere else an anonymous
+  // visit counts as a household; here it cannot, because this asks how often a
+  // household returns and an anonymous row carries no repeat information at
+  // all. Folding them in would add one visit and one household apiece and drag
+  // the average toward 1 — an artefact of recording, reported as behaviour.
   const reachRows = await client.$queryRaw<Array<{
     year: string; households: bigint; visits: bigint;
   }>>`

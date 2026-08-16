@@ -159,8 +159,10 @@ what its figure rests on. Read the note under a card before quoting its number.
   household once a month however often it came, visits counts every encounter.
   The two answer different questions — "how many families did we reach in
   March" against "how busy was March" — so the card renames itself and restates
-  its footnote when you switch. Visits with no household record can only appear
-  under Visits.
+  its footnote when you switch. Some visits were recorded without a client
+  record; each still counts as a household, but repeat trips by the same
+  anonymous household cannot be recognised as repeats, so the household figure
+  is slightly high on those.
 - **How Service Was Delivered** shows households by method. A method begins
   where that program began — Emergency Bags starts in November 2025, not at the
   left edge of the chart.

@@ -471,7 +471,7 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
                     <Tile label="Visits" value={count(summary.visits)} icon={ShoppingBasket} />
                     <Tile label="People served *" value={count(summary.peopleServed)} icon={UsersRound} />
                     <Tile
-                      label="Visits without a household record"
+                      label="Anonymous visits"
                       value={count(summary.identityUnavailableVisits)}
                       icon={BadgeQuestionMark}
                     />
@@ -700,7 +700,8 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
                 ) : (
                   <>
                     Distinct households each month, so repeated visits by the same
-                    household are only counted once.
+                    household are only counted once. Anonymous visits are counted but
+                    not deduplicated.
                   </>
                 )}
                 {(() => {

@@ -33,6 +33,18 @@ All notable changes to FEED are documented here. This project adheres to
   questions, so a short bar usually means the question is newer rather than that
   households refused it.
 
+- **Anonymous visits count as households.** Roughly 4,500 Link2Feed visits
+  carry no client id, and every household count derived from intake was
+  excluding them — `COUNT(DISTINCT "clientId")` skips nulls. That understated
+  2023, the worst-affected year, by 12.7%. A visit is a household whether or
+  not its identity was recorded, so each anonymous visit now counts as one.
+  What is genuinely lost is deduplication, not the household: two anonymous
+  visits by the same family count twice, because nothing in the record can say
+  they were the same family. The cards state that rather than implying the
+  count is exact. Visits per household deliberately keeps its identified-only
+  scope — an anonymous row says nothing about returning, and folding those rows
+  in would drag the average toward 1 and report a recording artefact as
+  behaviour.
 - **Households by Season measures the same rows two ways.** A toggle switches
   between distinct households and total visits. Households counts a household
   once a month however often it came; visits counts every encounter, including
