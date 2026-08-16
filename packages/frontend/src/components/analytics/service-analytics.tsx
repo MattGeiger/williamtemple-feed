@@ -198,7 +198,7 @@ function MethodRow({
 export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAnalytics }) {
   const {
     coverage, summary, overTime, seasonal, methodSeries, recordAgreement, householdSize,
-    reachAndFrequency, unmetDemand, languages, responseCoverage,
+    unmetDemand, languages, responseCoverage,
   } = analytics;
 
   /**
@@ -704,21 +704,6 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
                     not deduplicated.
                   </>
                 )}
-                {(() => {
-                  // Only complete calendar years are compared. The first year on
-                  // record starts when service began, and the current year is
-                  // still running, so quoting either against a full year
-                  // compares different lengths of time.
-                  const currentYear = String(new Date().getFullYear());
-                  const complete = reachAndFrequency.filter((row, index) =>
-                    row.year !== currentYear && index > 0);
-                  if (complete.length < 2) return null;
-                  const peak = complete.reduce((best, row) =>
-                    row.visitsPerHousehold > best.visitsPerHousehold ? row : best);
-                  const last = complete[complete.length - 1];
-                  if (peak.year === last.year) return null;
-                  return ` In ${peak.year} the average household visited ${peak.visitsPerHousehold} times over the year; in ${last.year} it was ${last.visitsPerHousehold}. Partial years are not compared.`;
-                })()}
               </Footnote>
             </CardContent>
           </Card>

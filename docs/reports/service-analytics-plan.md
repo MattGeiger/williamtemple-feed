@@ -306,6 +306,42 @@ The importer does not guess a record kind from a large number alone. It may
 raise a quality flag, but changing meaning requires an explicit, versioned
 source-data resolution.
 
+### How each kind is counted
+
+Settled August 2026, after the household counts were found to be silently
+dropping anonymous visits. The rule is one sentence: **an anonymous visit is a
+household; what is missing is the identity, not the household.**
+
+| Record kind | `clientId` | Counts as a visit | Counts as a household |
+| --- | --- | --- | --- |
+| `identified_household_encounter` | set | yes | yes, deduplicated by `clientId` |
+| `identity_unavailable_encounter` | **null** | yes | yes, **one per visit, not deduplicated** |
+| `special_event_people_aggregate` | null | no | **never** — a crowd is not a household |
+
+The trap this replaced: `COUNT(DISTINCT "clientId")` skips nulls, so anonymous
+visits vanished from every household figure without any code saying so. In the
+production corpus that is 4,506 of 82,600 visits, and it is not spread evenly —
+12.7% of 2023 against 2.2% of 2025, because 2023 was recorded on paper under
+pressure. Year-over-year growth was therefore partly measuring recording
+quality.
+
+Counting them costs deduplication: two anonymous visits by the same family
+count twice, because nothing in the record can say they were the same family.
+That over-count is bounded by the anonymous share and is far smaller than the
+error it replaced. Cards state it rather than implying the figure is exact.
+
+Any expression that adds anonymous visits must test
+`recordKind = 'identity_unavailable_encounter'` rather than
+`clientId IS NULL`. Bulk crowd rows also carry a null `clientId`, and a
+264-person Thanksgiving row becoming "a household" would corrupt every
+household-grained measure.
+
+**The one deliberate exception is visits per household** (`reachAndFrequency`),
+which stays identified-only. It asks how often a household returns, and an
+anonymous row carries no repeat information at all — including those rows adds
+one visit and one household apiece, dragging the average toward 1 and reporting
+a recording artefact as behaviour.
+
 ### WTH Thanksgiving 2025 resolution
 
 The Link2Feed observation with:
