@@ -33,10 +33,11 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { SelectableBlock } from '@/components/reports/selection';
 import { ErrorHandlerService } from '@/services/error/ErrorHandlerService';
 import { carbonChartColors } from '@/lib/colors';
+import { formatAxisNumber, formatNumber } from '@/lib/formatting/number';
 import { serviceApi, type ServiceAnalytics } from '@/services/service';
 import type { AnalyticsDateRange } from '@/types/analytics';
 
-const count = (value: number) => value.toLocaleString();
+const count = (value: number) => formatNumber(value);
 const seriesColor = (configKey: string) => `var(--color-${configKey})`;
 
 /** Source provenance, stated as a pill rather than a sentence. */
@@ -168,7 +169,7 @@ export function ClientAnalyticsWorkspace({ analytics }: { analytics: ServiceAnal
                 <BarChart data={sizeData} margin={{ left: 4, right: 8, top: 8 }}>
                   <CartesianGrid vertical={false} strokeDasharray="3 3" />
                   <XAxis dataKey="label" tickLine={false} axisLine={false} />
-                  <YAxis tickLine={false} axisLine={false} width={52} />
+                  <YAxis tickLine={false} axisLine={false} width={52} tickFormatter={formatAxisNumber} />
                   <ChartTooltip content={<ChartTooltipContent labelFormatter={(value) => `${value} ${value === '1' ? 'person' : 'people'}`} />} />
                   <Bar dataKey="visits" fill={seriesColor('visits')} radius={[3, 3, 0, 0]} />
                 </BarChart>
@@ -200,7 +201,7 @@ export function ClientAnalyticsWorkspace({ analytics }: { analytics: ServiceAnal
               >
                 <BarChart data={languageRows} layout="vertical" margin={{ left: 8, right: 24, top: 4 }}>
                   <CartesianGrid horizontal={false} strokeDasharray="3 3" />
-                  <XAxis type="number" tickLine={false} axisLine={false} />
+                  <XAxis type="number" tickLine={false} axisLine={false} tickFormatter={formatAxisNumber} />
                   <YAxis
                     type="category"
                     dataKey="language"
@@ -245,7 +246,7 @@ export function ClientAnalyticsWorkspace({ analytics }: { analytics: ServiceAnal
               >
                 <BarChart data={responseCoverage} layout="vertical" margin={{ left: 8, right: 24, top: 4 }}>
                   <CartesianGrid horizontal={false} strokeDasharray="3 3" />
-                  <XAxis type="number" tickLine={false} axisLine={false} />
+                  <XAxis type="number" tickLine={false} axisLine={false} tickFormatter={formatAxisNumber} />
                   <YAxis
                     type="category"
                     dataKey="displayName"

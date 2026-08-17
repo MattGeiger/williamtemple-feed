@@ -556,6 +556,16 @@ kept since October 2023.
   rather than a month that has not happened. Applies to Service Over Time, How
   Service Was Delivered, Households by Season, and Seasonal Inbound Weight on
   Procurement.
+- **Figures over 999 carry thousands separators, everywhere.** `formatNumber`
+  and `formatAxisNumber` in `lib/formatting/number.ts` are the one place a
+  number becomes chart text; `ChartTooltipContent` uses the same function, so an
+  axis and the tooltip above it cannot disagree. Every numeric axis needs an
+  explicit `tickFormatter={formatAxisNumber}` — Recharts prints bare digits
+  otherwise, and `45000` beside `4500` makes a reader count zeros. Do **not**
+  apply it to a category or date axis: a month name through a number formatter
+  yields an empty label and an axis of blanks. The locale is pinned rather than
+  taken from the device, so one page cannot show `1.000` and `1,000` for the
+  same quantity.
 - **A line ends where its data ends.** Procurement payloads are a dense grid of
   zeros so Recharts cannot bridge a gap and invent a delivery; `trimSeriesToData`
   then nulls the leading and trailing zeros so a partner who stopped delivering

@@ -50,6 +50,19 @@ All notable changes to FEED are documented here. This project adheres to
   scope — an anonymous row says nothing about returning, and folding those rows
   in would drag the average toward 1 and report a recording artefact as
   behaviour.
+- **Thousands separators on every chart axis and tooltip.** `formatNumber` and
+  `formatAxisNumber` in `lib/formatting/number.ts` are now the one place a
+  figure becomes text on a chart; `ChartTooltipContent` routes through the same
+  function, so an axis and the tooltip above it cannot disagree. The locale is
+  pinned to en-US rather than following the device, which would otherwise
+  render `1.000` for one thousand on the axis beside `1,000` in a tile. Twenty
+  numeric axes were unformatted across Operations, Procurement, Service and
+  Clients; category and date axes are untouched, because running a month name
+  through a number formatter yields an axis of blanks.
+- **Service Metrics descriptions truncate with an ellipsis.** The cell was
+  clipped correctly but `text-overflow` never reached text nested inside the
+  cell's own elements, so descriptions stopped mid-word with nothing to show
+  they continued.
 - **Analytics gained a fourth lens, Clients**, carrying Household Size,
   Languages Spoken at Home and Demographics Questions Response Rate. Service
   answers what happened on a service day; Clients answers who the people are.

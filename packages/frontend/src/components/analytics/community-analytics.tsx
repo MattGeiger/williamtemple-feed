@@ -43,6 +43,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { carbonCategoricalTheme, carbonTheme } from '@/lib/colors';
+import { formatAxisNumber } from '@/lib/formatting/number';
 import { SelectableBlock } from '@/components/reports/selection';
 import type { ProcurementAnalytics } from '@/types/procurement';
 
@@ -238,7 +239,7 @@ export function CommunityDonationAnalytics({
           >
             <BarChart accessibilityLayer data={mixRows} layout="vertical" margin={{ left: 8, right: 16 }}>
               <CartesianGrid horizontal={false} />
-              <XAxis type="number" tickLine={false} axisLine={false} />
+              <XAxis type="number" tickLine={false} axisLine={false} tickFormatter={formatAxisNumber} />
               <YAxis dataKey="label" type="category" width={160} tickLine={false} axisLine={false} />
               <ChartTooltip
                 content={({ active, payload }) => {
@@ -344,7 +345,7 @@ export function CommunityDonationAnalytics({
                   axisLine={false}
                   tickFormatter={(month: string) => format(parseISO(`${month}-01`), 'MMM yy')}
                 />
-                <YAxis tickLine={false} axisLine={false} width={64} />
+                <YAxis tickLine={false} axisLine={false} width={64} tickFormatter={formatAxisNumber} />
                 <ChartTooltip
                   content={({ active, payload, label }) => {
                     if (!active || !payload?.length) return null;

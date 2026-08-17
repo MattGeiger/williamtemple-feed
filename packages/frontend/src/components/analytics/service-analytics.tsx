@@ -49,6 +49,7 @@ import { SelectableBlock } from '@/components/reports/selection';
 import { prefersReducedMotion } from '@/lib/reduced-motion';
 import { ErrorHandlerService } from '@/services/error/ErrorHandlerService';
 import { carbonChartColors } from '@/lib/colors';
+import { formatAxisNumber, formatNumber } from '@/lib/formatting/number';
 import { buildSeasonalYearChartConfig } from './index';
 import {
   serviceApi,
@@ -109,7 +110,7 @@ export function ServiceAnalyticsLens({ range }: { range: AnalyticsDateRange }) {
   return <ServiceAnalyticsWorkspace analytics={analytics} />;
 }
 
-const count = (value: number) => value.toLocaleString();
+const count = (value: number) => formatNumber(value);
 const round1 = (value: number) => Math.round(value * 10) / 10;
 const monthLabel = (month: string) => format(parseISO(`${month}-01`), 'MMM yyyy');
 const monthOfDate = (date: string) => format(parseISO(date), 'MMM yyyy');
@@ -541,7 +542,7 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
                 <LineChart data={timeline} margin={{ left: 4, right: 8, top: 8 }}>
                   <CartesianGrid vertical={false} strokeDasharray="3 3" />
                   <XAxis dataKey="month" tickFormatter={(value) => labelBucket(String(value))} tickLine={false} axisLine={false} minTickGap={44} />
-                  <YAxis tickLine={false} axisLine={false} width={48} />
+                  <YAxis tickLine={false} axisLine={false} width={48} tickFormatter={formatAxisNumber} />
                   <ChartTooltip content={<ChartTooltipContent sortByValue labelFormatter={(value) => labelBucket(String(value))} />} />
                   <ChartLegend content={<ChartLegendContent />} />
                   {cutoverDate && <ReferenceLine
@@ -647,7 +648,7 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
                   <LineChart data={seasonalMonths} margin={{ left: 4, right: 8, top: 8 }}>
                     <CartesianGrid vertical={false} strokeDasharray="3 3" />
                     <XAxis dataKey="month" tickLine={false} axisLine={false} />
-                    <YAxis tickLine={false} axisLine={false} width={48} />
+                    <YAxis tickLine={false} axisLine={false} width={48} tickFormatter={formatAxisNumber} />
                     {/* Sorted highest-first, so the tooltip's order matches how
                         the lines actually stack at the hovered month. The default
                         content lists series in render order — ascending year —
@@ -740,7 +741,7 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
                 <LineChart data={methodBuckets} margin={{ left: 4, right: 8, top: 8 }}>
                   <CartesianGrid vertical={false} strokeDasharray="3 3" />
                   <XAxis dataKey="bucket" tickFormatter={(value) => labelBucket(String(value))} tickLine={false} axisLine={false} minTickGap={28} />
-                  <YAxis tickLine={false} axisLine={false} width={48} />
+                  <YAxis tickLine={false} axisLine={false} width={48} tickFormatter={formatAxisNumber} />
                   <ChartTooltip content={<ChartTooltipContent sortByValue labelFormatter={(value) => labelBucket(String(value))} />} />
                   <ChartLegend content={<ChartLegendContent />} />
                   {/* Dashed and neutral so it reads as the sum of the others
@@ -814,7 +815,7 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
                     tickFormatter={unmetDemand.granularity === 'month' ? monthLabel : dayLabelFor(true)}
                     minTickGap={24}
                   />
-                  <YAxis tickLine={false} axisLine={false} width={44} allowDecimals={false} />
+                  <YAxis tickLine={false} axisLine={false} width={44} allowDecimals={false} tickFormatter={formatAxisNumber} />
                   <ChartTooltip
                     content={
                       <ChartTooltipContent
