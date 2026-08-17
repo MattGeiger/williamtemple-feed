@@ -269,6 +269,29 @@ export interface ServiceAnalytics {
     notProvided: number;
     sources: string[];
   }>;
+  /**
+   * Ages as of the end of the range, banded. Only Link2Feed records a birth
+   * year, so `sources` is empty for a range after the June 2026 changeover and
+   * the card must say so rather than drawing six empty bars.
+   */
+  ageBands: {
+    asOfYear: number;
+    bands: Array<{ label: string; clients: number }>;
+    estimatedBirthYears: number;
+    clientsWithoutBirthYear: number;
+    sources: string[];
+  };
+  /**
+   * Postal codes, excluding households recorded as having no fixed address —
+   * their postal code is the agency's, entered because SIMC requires one.
+   */
+  geography: {
+    postalCodes: Array<{ postalCode: string; clients: number }>;
+    noFixedAddress: number;
+    noFixedAddressAsked: boolean;
+    clientsWithoutPostalCode: number;
+    clientsWithPostalCode: number;
+  };
   householdSize: Array<{ people: number; visits: number }>;
   reachAndFrequency: Array<{
     year: string;

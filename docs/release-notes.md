@@ -40,6 +40,11 @@
   rows are counted but not deduplicated, and the cards say so. Visits per
   household is unchanged: it still uses identified records only, since an
   anonymous row carries no information about returning.
+- **Two new cards on Clients: Age of People Served and Where Households Live.**
+  Both come from data FEED already holds, so nothing new needs importing. Ages
+  are taken as of the end of the range, and the card says plainly that only
+  Link2Feed records a birth year. The postal-code card leaves out households
+  with no fixed address, whose recorded postal code is the agency's own.
 - **Figures over 999 carry commas everywhere.** Chart axes printed `8000`
   where the summary tiles beside them printed `8,000`, so reading a scale meant
   counting zeros to tell forty-five thousand from forty-five hundred. Every

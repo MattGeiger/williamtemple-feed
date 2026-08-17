@@ -2222,6 +2222,107 @@ export const SERVICE_RESPONSE_COVERAGE: AnalyticsCard = {
     legendSvg(data.series.map(s => s.name)),
 };
 
+export const CLIENTS_AGE_BANDS: AnalyticsCard = {
+  id: 'clients-age-bands',
+  kind: 'chart',
+  defaultTitle: 'Age of People Served',
+  lens: 'clients',
+  data: (analytics: any) => {
+    const ages = analytics?.ageBands ?? {};
+    const bands = ages.bands ?? [];
+    const sources: string[] = ages.sources ?? [];
+
+    const notes: string[] = [];
+    if (sources.length === 0 || !bands.some((b: any) => (b.clients ?? 0) > 0)) {
+      // Not an empty chart with no explanation: SIMC records no birth year, so
+      // a range after the changeover legitimately has none.
+      notes.push(
+        'No ages recorded in this range. Birth year comes from Link2Feed intake; ' +
+        'SIMC does not record one.'
+      );
+    } else {
+      notes.push('Recorded in Link2Feed only.');
+      if ((ages.clientsWithoutBirthYear ?? 0) > 0) {
+        notes.push(
+          `${COUNT(ages.clientsWithoutBirthYear)} people served in this range have no ` +
+          'birth year on file and are not counted here.'
+        );
+      }
+      if ((ages.estimatedBirthYears ?? 0) > 0) {
+        notes.push(
+          `${COUNT(ages.estimatedBirthYears)} birth years were estimated at intake ` +
+          'rather than reported.'
+        );
+      }
+    }
+
+    return {
+      title: `Age of People Served${ages.asOfYear ? ` (as of ${ages.asOfYear})` : ''}`,
+      categories: bands.map((b: any) => b.label),
+      series: [{ name: 'People', values: bands.map((b: any) => b.clients ?? 0) }],
+      categoryColumn: 'age band',
+      note: notes.join(' '),
+    };
+  },
+  print: data => hBarSvg(
+    data.categories.map((label, i) => ({ label, value: data.series[0]?.values[i] ?? 0 })),
+    900, 30, COUNT
+  ),
+};
+
+/** Named rows a reader can act on; the tail is summed, never dropped. */
+const POSTAL_CODES_PLOTTED = 12;
+
+export const CLIENTS_GEOGRAPHY: AnalyticsCard = {
+  id: 'clients-geography',
+  kind: 'chart',
+  defaultTitle: 'Where Households Live',
+  lens: 'clients',
+  data: (analytics: any) => {
+    const geography = analytics?.geography ?? {};
+    const all = geography.postalCodes ?? [];
+    const top = all.slice(0, POSTAL_CODES_PLOTTED);
+    const tail = all.slice(POSTAL_CODES_PLOTTED);
+    const tailTotal = tail.reduce((sum: number, row: any) => sum + (row.clients ?? 0), 0);
+    const rows = tailTotal > 0
+      ? [...top, { postalCode: `${tail.length} more postal codes`, clients: tailTotal }]
+      : top;
+
+    const notes = [
+      'A postal code is not a catchment area, and this is not a map — it is where ' +
+      'households said they live.',
+    ];
+    if (geography.noFixedAddressAsked && (geography.noFixedAddress ?? 0) > 0) {
+      notes.push(
+        `${COUNT(geography.noFixedAddress)} households have no fixed address and are ` +
+        'counted separately, not by postal code: SIMC requires one, so the agency\u2019s ' +
+        'own is recorded instead.'
+      );
+    }
+    if ((geography.clientsWithoutPostalCode ?? 0) > 0) {
+      notes.push(`${COUNT(geography.clientsWithoutPostalCode)} did not give a postal code.`);
+    }
+
+    const toGrain = (values: any[]) => ({
+      categories: values.map((row: any) => row.postalCode),
+      series: [{ name: 'Households', values: values.map((row: any) => row.clients ?? 0) }],
+      categoryColumn: 'postal code',
+    });
+
+    return {
+      title: 'Where Households Live',
+      ...toGrain(rows),
+      note: notes.join(' '),
+      // The chart folds the tail; the CSV keeps every postal code.
+      raw: toGrain(all),
+    };
+  },
+  print: data => hBarSvg(
+    data.categories.map((label, i) => ({ label, value: data.series[0]?.values[i] ?? 0 })),
+    900, 26, COUNT
+  ),
+};
+
 export const ANALYTICS_CARDS: AnalyticsCard[] = [
   INBOUND_SUPPLY_SUMMARY,
   PAID_PROCUREMENT_SUMMARY,
@@ -2254,6 +2355,8 @@ export const ANALYTICS_CARDS: AnalyticsCard[] = [
   SERVICE_UNMET_DEMAND,
   SERVICE_LANGUAGES,
   SERVICE_RESPONSE_COVERAGE,
+  CLIENTS_AGE_BANDS,
+  CLIENTS_GEOGRAPHY,
 ];
 
 export const getAnalyticsCard = (id: string): AnalyticsCard | undefined =>
