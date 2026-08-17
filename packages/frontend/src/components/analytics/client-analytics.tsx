@@ -102,7 +102,7 @@ export function ClientAnalyticsLens({ range }: { range: AnalyticsDateRange }) {
 }
 
 export function ClientAnalyticsWorkspace({ analytics }: { analytics: ServiceAnalytics }) {
-  const { coverage, householdSize, languages, responseCoverage } = analytics;
+  const { coverage, householdSize, languages, responseCoverage, ageBands, geography } = analytics;
 
   /**
    * Only the records this range contains. `coverage.sources` is range-scoped,
@@ -144,6 +144,26 @@ export function ClientAnalyticsWorkspace({ analytics }: { analytics: ServiceAnal
   const LANGUAGES_PLOTTED = 15;
   const languageRows = languages.values.slice(0, LANGUAGES_PLOTTED);
   const languageOverflow = Math.max(0, languages.values.length - languageRows.length);
+  /**
+   * Postal codes are a long tail — 272 of them, most with a handful of
+   * households. The named rows are the ones a reader can act on; the rest are
+   * summed into one row rather than dropped, so the bars still account for
+   * every household with a recorded address.
+   */
+  const POSTAL_CODES_PLOTTED = 12;
+  const geographyRows = React.useMemo(() => {
+    const top = geography.postalCodes.slice(0, POSTAL_CODES_PLOTTED);
+    const tail = geography.postalCodes.slice(POSTAL_CODES_PLOTTED);
+    const tailTotal = tail.reduce((sum, row) => sum + row.clients, 0);
+    return tailTotal > 0
+      ? [...top, { postalCode: `${tail.length} more postal codes`, clients: tailTotal }]
+      : top;
+  }, [geography.postalCodes]);
+
+  /** Only Link2Feed records a birth year, so a SIMC-only range has no ages. */
+  const hasAges = ageBands.sources.length > 0
+    && ageBands.bands.some((band) => band.clients > 0);
+
   const languageAnsweredPercent = languages.householdsAsked > 0
     ? Math.round((languages.householdsAnswered / languages.householdsAsked) * 100)
     : 0;
@@ -177,6 +197,95 @@ export function ClientAnalyticsWorkspace({ analytics }: { analytics: ServiceAnal
               <Footnote>
                 {singlePersonShare}% of visits are by a household of one. Excludes
                 outliers marked as special events, flagged during data import.
+              </Footnote>
+            </CardContent>
+          </Card>
+        </SelectableBlock>
+      )}
+
+      {/* ---- Age ----------------------------------------------------------- */}
+      <SelectableBlock cardId="clients-age-bands">
+        <Card className="min-w-0">
+          <CardHeader>
+            <CardTitle>Age of People Served</CardTitle>
+            <CardDescription>
+              Age as of {ageBands.asOfYear}, for the households served in this range.
+            </CardDescription>
+            <SourcePills sources={ageBands.sources.includes('link2feed') ? ['Link2Feed'] : []} />
+          </CardHeader>
+          <CardContent>
+            {!hasAges ? (
+              /* Not an error, and not an empty chart either. SIMC records no
+                 birth year, so a range after the changeover legitimately has
+                 none — saying which record is missing is the whole content. */
+              <p className="py-8 text-center text-sm text-muted-foreground">
+                No ages recorded in this range. Birth year comes from Link2Feed
+                intake; SIMC does not record one, so ranges after the June 2026
+                changeover have no ages to show.
+              </p>
+            ) : (
+              <>
+                <ChartContainer
+                  config={{ clients: { label: 'People', color: carbonChartColors.purple.primary.light } } satisfies ChartConfig}
+                  className="h-[260px] w-full"
+                >
+                  <BarChart data={ageBands.bands} margin={{ left: 4, right: 8, top: 8 }}>
+                    <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                    <XAxis dataKey="label" tickLine={false} axisLine={false} />
+                    <YAxis tickLine={false} axisLine={false} width={52} tickFormatter={formatAxisNumber} />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Bar dataKey="clients" fill={seriesColor('clients')} radius={[3, 3, 0, 0]} />
+                  </BarChart>
+                </ChartContainer>
+                <Footnote>
+                  Recorded in Link2Feed only.
+                  {ageBands.clientsWithoutBirthYear > 0 &&
+                    ` ${count(ageBands.clientsWithoutBirthYear)} people served in this range have no birth year on file and are not counted here.`}
+                  {ageBands.estimatedBirthYears > 0 &&
+                    ` ${count(ageBands.estimatedBirthYears)} birth years were estimated at intake rather than reported.`}
+                </Footnote>
+              </>
+            )}
+          </CardContent>
+        </Card>
+      </SelectableBlock>
+
+      {/* ---- Geography ------------------------------------------------------ */}
+      {geographyRows.length > 0 && (
+        <SelectableBlock cardId="clients-geography">
+          <Card className="min-w-0">
+            <CardHeader>
+              <CardTitle>Where Households Live</CardTitle>
+              <CardDescription>Households by postal code.</CardDescription>
+              <SourcePills sources={intakePills} />
+            </CardHeader>
+            <CardContent>
+              <ChartContainer
+                config={{ clients: { label: 'Households', color: carbonChartColors.green.primary.light } } satisfies ChartConfig}
+                className="h-[380px] w-full"
+              >
+                <BarChart data={geographyRows} layout="vertical" margin={{ left: 8, right: 24, top: 4 }}>
+                  <CartesianGrid horizontal={false} strokeDasharray="3 3" />
+                  <XAxis type="number" tickLine={false} axisLine={false} tickFormatter={formatAxisNumber} />
+                  <YAxis
+                    type="category"
+                    dataKey="postalCode"
+                    tickLine={false}
+                    axisLine={false}
+                    width={148}
+                    interval={0}
+                  />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <Bar dataKey="clients" fill={seriesColor('clients')} radius={[0, 3, 3, 0]} />
+                </BarChart>
+              </ChartContainer>
+              <Footnote>
+                A postal code is not a catchment area, and this is not a map — it is
+                where households said they live.
+                {geography.noFixedAddressAsked && geography.noFixedAddress > 0 &&
+                  ` ${count(geography.noFixedAddress)} households have no fixed address and are counted separately, not by postal code: SIMC requires one, so the agency's own is recorded instead.`}
+                {geography.clientsWithoutPostalCode > 0 &&
+                  ` ${count(geography.clientsWithoutPostalCode)} did not give a postal code.`}
               </Footnote>
             </CardContent>
           </Card>

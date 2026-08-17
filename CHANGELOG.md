@@ -50,7 +50,18 @@ All notable changes to FEED are documented here. This project adheres to
   scope — an anonymous row says nothing about returning, and folding those rows
   in would drag the average toward 1 and report a recording artefact as
   behaviour.
-- **Thousands separators on every chart axis and tooltip.** `formatNumber` and
+- **Age of People Served and Where Households Live**, on the Clients lens,
+  built from data the visits import already collected — 9,596 birth years and
+  272 postal codes, covering every Link2Feed client rather than the 45% a
+  client-export import would have reached. Ages band as of the range end,
+  because "how many people of retirement age did we serve in December 2024" is
+  a question about then. Only Link2Feed records a birth year, so a SIMC-only
+  range renders an explanation rather than six empty bars. Geography excludes
+  households flagged `no_fixed_address`, whose postal code is the agency's own —
+  91% of those rows carry one postal code, and counting them as residents would
+  draw the pantry's own neighborhood as where its clients live. The exclusion
+  tests the flag rather than a hardcoded postal code, so it survives the agency
+  moving. `formatNumber` and
   `formatAxisNumber` in `lib/formatting/number.ts` are now the one place a
   figure becomes text on a chart; `ChartTooltipContent` routes through the same
   function, so an axis and the tooltip above it cannot disagree. The locale is

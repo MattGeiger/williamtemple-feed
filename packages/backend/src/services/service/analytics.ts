@@ -182,6 +182,41 @@ export interface ServiceAnalytics {
     notProvided: number;
     sources: string[];
   }>;
+  /**
+   * Ages of the households served, banded, as of the end of the range.
+   *
+   * Age is a moving figure, so the card has to say when it was taken: a
+   * household served in December 2024 was a different age then than now, and
+   * "how many people of retirement age did we serve that month" is a question
+   * about then. Birth years come from intake, and only Link2Feed records one —
+   * `sources` says which records contributed, so a range after the changeover
+   * reports honestly rather than looking empty for no stated reason.
+   */
+  ageBands: {
+    asOfYear: number;
+    bands: Array<{ label: string; clients: number }>;
+    estimatedBirthYears: number;
+    clientsWithoutBirthYear: number;
+    sources: string[];
+  };
+  /**
+   * Where households live, by postal code.
+   *
+   * Excludes households recorded as having no fixed address. SIMC requires a
+   * postal code and WTH enters the agency's own when there is nowhere else to
+   * put — 91% of those rows carry one postal code — so counting them as
+   * residents would draw the pantry's own neighbourhood as the place its
+   * clients live. They are reported as their own figure instead, which is the
+   * more useful number anyway.
+   */
+  geography: {
+    postalCodes: Array<{ postalCode: string; clients: number }>;
+    noFixedAddress: number;
+    /** Whether the no-fixed-address question was asked at all in this range. */
+    noFixedAddressAsked: boolean;
+    clientsWithoutPostalCode: number;
+    clientsWithPostalCode: number;
+  };
   householdSize: Array<{ people: number; visits: number }>;
   reachAndFrequency: Array<{
     year: string;
@@ -190,6 +225,9 @@ export interface ServiceAnalytics {
     visitsPerHousehold: number;
   }>;
 }
+
+/** Fixed bands, so a chart can be compared with last quarter's. */
+const AGE_BANDS = ['Under 18', '18-29', '30-44', '45-59', '60-74', '75+'] as const;
 
 const MONTH_LABELS = [
   'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
@@ -556,6 +594,120 @@ ${Object.entries(LANGUAGE_LABEL_ALIASES)
     WHERE p."isCurrent" = 1
     GROUP BY r."dimension", r."responseStatus"`;
 
+  /**
+   * Ages, banded, as of the end of the range.
+   *
+   * `endDate` rather than today: a household served in December 2024 was the
+   * age it was then, and that is the question the card is asked. The bands are
+   * fixed here rather than derived so the same boundaries hold across ranges —
+   * a chart whose buckets move cannot be compared with last quarter's.
+   *
+   * The oldest recorded birth year puts one client past 105. It falls in the
+   * top band rather than being dropped: one implausible row does not distort a
+   * band of hundreds, and silently discarding a record is worse than carrying
+   * an obvious data-entry error.
+   */
+  const asOfYear = Number(endDate.slice(0, 4));
+  const ageRows = await client.$queryRaw<Array<{ band: string; clients: bigint }>>`
+    WITH served AS (
+      SELECT DISTINCT "clientId" FROM "ServiceEncounterRevision"
+      WHERE "isCurrent" = 1 AND "serviceDate" BETWEEN ${startDate} AND ${endDate}
+        AND "clientId" IS NOT NULL
+    )
+    SELECT CASE
+        WHEN ${asOfYear} - p."birthYear" < 18 THEN 'Under 18'
+        WHEN ${asOfYear} - p."birthYear" < 30 THEN '18-29'
+        WHEN ${asOfYear} - p."birthYear" < 45 THEN '30-44'
+        WHEN ${asOfYear} - p."birthYear" < 60 THEN '45-59'
+        WHEN ${asOfYear} - p."birthYear" < 75 THEN '60-74'
+        ELSE '75+' END AS "band",
+      COUNT(DISTINCT p."clientId") AS "clients"
+    FROM "ServiceClientProfileRevision" p
+    JOIN served s ON s."clientId" = p."clientId"
+    WHERE p."isCurrent" = 1 AND p."birthYear" IS NOT NULL
+    GROUP BY "band"`;
+
+  const ageMetaRows = await client.$queryRaw<Array<{
+    estimated: bigint; missing: bigint; sources: string;
+  }>>`
+    WITH served AS (
+      SELECT DISTINCT "clientId" FROM "ServiceEncounterRevision"
+      WHERE "isCurrent" = 1 AND "serviceDate" BETWEEN ${startDate} AND ${endDate}
+        AND "clientId" IS NOT NULL
+    )
+    SELECT
+      COUNT(DISTINCT CASE WHEN p."birthYearEstimated" = 1 THEN p."clientId" END) AS "estimated",
+      COUNT(DISTINCT CASE WHEN p."birthYear" IS NULL THEN p."clientId" END) AS "missing",
+      GROUP_CONCAT(DISTINCT CASE WHEN p."birthYear" IS NOT NULL THEN p."source" END) AS "sources"
+    FROM "ServiceClientProfileRevision" p
+    JOIN served s ON s."clientId" = p."clientId"
+    WHERE p."isCurrent" = 1`;
+
+  /**
+   * Postal codes, excluding households with no fixed address.
+   *
+   * SIMC requires a postal code, and WTH enters the agency's own when a
+   * household has nowhere else to give — 91% of no-fixed-address rows carry a
+   * single postal code as a result. Counting those as residents would draw the
+   * pantry's own neighbourhood as the place its clients live, and the
+   * distortion would grow as SIMC's share of the record grows. The flag is data
+   * rather than a hardcoded postal code, so this stays correct if the agency
+   * moves.
+   */
+  const geographyRows = await client.$queryRaw<Array<{ postalCode: string; clients: bigint }>>`
+    WITH served AS (
+      SELECT DISTINCT "clientId" FROM "ServiceEncounterRevision"
+      WHERE "isCurrent" = 1 AND "serviceDate" BETWEEN ${startDate} AND ${endDate}
+        AND "clientId" IS NOT NULL
+    ),
+    unhoused AS (
+      SELECT p."id" AS "revisionId"
+      FROM "ServiceClientProfileRevision" p
+      JOIN "ServiceClientProfileResponse" r ON r."profileRevisionId" = p."id"
+      JOIN json_each(r."values") j
+      WHERE p."isCurrent" = 1 AND r."dimension" = 'no_fixed_address'
+        AND LOWER(j."value") = 'yes'
+    )
+    SELECT j."value" AS "postalCode", COUNT(DISTINCT p."clientId") AS "clients"
+    FROM "ServiceClientProfileRevision" p
+    JOIN served s ON s."clientId" = p."clientId"
+    JOIN "ServiceClientProfileResponse" r ON r."profileRevisionId" = p."id"
+    JOIN json_each(r."values") j
+    WHERE p."isCurrent" = 1 AND r."dimension" = 'postal_code'
+      AND r."responseStatus" = 'provided'
+      AND p."id" NOT IN (SELECT "revisionId" FROM unhoused)
+    GROUP BY j."value" ORDER BY "clients" DESC, "postalCode"`;
+
+  const geographyMetaRows = await client.$queryRaw<Array<{
+    noFixedAddress: bigint; asked: bigint; withPostal: bigint; withoutPostal: bigint;
+  }>>`
+    WITH served AS (
+      SELECT DISTINCT "clientId" FROM "ServiceEncounterRevision"
+      WHERE "isCurrent" = 1 AND "serviceDate" BETWEEN ${startDate} AND ${endDate}
+        AND "clientId" IS NOT NULL
+    ),
+    flagged AS (
+      SELECT p."clientId", MAX(CASE WHEN LOWER(j."value") = 'yes' THEN 1 ELSE 0 END) AS "unhoused"
+      FROM "ServiceClientProfileRevision" p
+      JOIN served s ON s."clientId" = p."clientId"
+      JOIN "ServiceClientProfileResponse" r ON r."profileRevisionId" = p."id"
+      JOIN json_each(r."values") j
+      WHERE p."isCurrent" = 1 AND r."dimension" = 'no_fixed_address'
+      GROUP BY p."clientId"
+    ),
+    postal AS (
+      SELECT p."clientId", r."responseStatus"
+      FROM "ServiceClientProfileRevision" p
+      JOIN served s ON s."clientId" = p."clientId"
+      JOIN "ServiceClientProfileResponse" r ON r."profileRevisionId" = p."id"
+      WHERE p."isCurrent" = 1 AND r."dimension" = 'postal_code'
+    )
+    SELECT
+      (SELECT COUNT(*) FROM flagged WHERE "unhoused" = 1) AS "noFixedAddress",
+      (SELECT COUNT(*) FROM flagged) AS "asked",
+      (SELECT COUNT(*) FROM postal WHERE "responseStatus" = 'provided') AS "withPostal",
+      (SELECT COUNT(*) FROM postal WHERE "responseStatus" = 'not_provided') AS "withoutPostal"`;
+
   const agreementRows = methodKeys.length === 0 ? [] :
     await client.$queryRawUnsafe<Array<{ serviceDate: string; intake: number; serviceLog: number | null }>>(
       `WITH intake AS (
@@ -864,6 +1016,30 @@ ${Object.entries(LANGUAGE_LABEL_ALIASES)
         const bShare = b.provided / Math.max(1, b.provided + b.notProvided);
         return bShare - aShare || a.dimension.localeCompare(b.dimension);
       }),
+    ageBands: {
+      asOfYear,
+      // Fixed order, and an absent band still appears at zero: a distribution
+      // with bands missing invites the reader to infer a shape from which
+      // labels happen to be present.
+      bands: AGE_BANDS.map((label) => ({
+        label,
+        clients: Number(ageRows.find((row) => row.band === label)?.clients ?? 0),
+      })),
+      estimatedBirthYears: Number(ageMetaRows[0]?.estimated ?? 0),
+      clientsWithoutBirthYear: Number(ageMetaRows[0]?.missing ?? 0),
+      sources: String(ageMetaRows[0]?.sources ?? '')
+        .split(',').filter(Boolean).sort(),
+    },
+    geography: {
+      postalCodes: geographyRows.map((row) => ({
+        postalCode: row.postalCode,
+        clients: Number(row.clients),
+      })),
+      noFixedAddress: Number(geographyMetaRows[0]?.noFixedAddress ?? 0),
+      noFixedAddressAsked: Number(geographyMetaRows[0]?.asked ?? 0) > 0,
+      clientsWithPostalCode: Number(geographyMetaRows[0]?.withPostal ?? 0),
+      clientsWithoutPostalCode: Number(geographyMetaRows[0]?.withoutPostal ?? 0),
+    },
     householdSize: sizeRows.map((row) => ({ people: Number(row.people), visits: Number(row.visits) })),
     reachAndFrequency: reachRows.map((row) => {
       const households = Number(row.households);

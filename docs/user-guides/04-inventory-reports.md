@@ -193,6 +193,17 @@ not everyone on file.
   confirmed the blank means. The figure is reported against the number of days
   the Service Log was kept, because the count alone invites the wrong
   denominator.
+- **Age of People Served** groups people into age bands, taken as of the end of
+  the date range — a household served in December 2024 was the age it was then.
+  Birth year comes from Link2Feed only; SIMC does not record one, so a range
+  after the June 2026 changeover has no ages and the card says so rather than
+  showing empty bars.
+- **Where Households Live** ranks postal codes. Households recorded as having
+  no fixed address are counted separately rather than by postal code: SIMC
+  requires a postal code, so the agency's own is entered when there is nowhere
+  else to give, and counting those as residents would draw the pantry's own
+  neighborhood as the place its clients live. It is not a map — a postal code
+  is not a catchment area.
 - **Languages Spoken at Home** shows which languages households speak. Where
   the two intake systems wrote the same answer differently, the labels are
   merged — "Mandarin Chinese" counts as "Mandarin". Answers that are different
