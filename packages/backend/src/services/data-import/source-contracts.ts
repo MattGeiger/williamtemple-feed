@@ -9,7 +9,13 @@ import {
 } from '../procurement/contracts';
 
 export type DataImportDomain = 'procurement' | 'service';
-export type DataSourceReadiness = 'operational' | 'prototype' | 'pending_sample';
+export type DataSourceReadiness =
+  | 'operational'
+  | 'prototype'
+  /** No sample of this export has been seen yet. */
+  | 'pending_sample'
+  /** A sample was reviewed and activation was decided against; `nextStep` says why. */
+  | 'sample_reviewed';
 
 interface DataSourceContract {
   id: string;
@@ -231,7 +237,7 @@ const CONTRACTS: readonly DataSourceContract[] = [
     sourceLabel: 'Link2Feed',
     datasetLabel: 'Client profiles and demographics',
     domain: 'service',
-    readiness: 'pending_sample',
+    readiness: 'sample_reviewed',
     requiredHeaders: ['Client ID'],
     requiredAnyOf: [
       ['Client Date of Birth', 'Client Estimated Date of Birth'],
@@ -243,7 +249,54 @@ const CONTRACTS: readonly DataSourceContract[] = [
       'Enrich Link2Feed-scoped profiles independently of visit import order.',
       'Ignore every column outside the provisional client allowlist.',
     ],
-    nextStep: 'Confirm the exact vocabulary against a sanitized client export before activation.',
+    /**
+     * Reviewed 2026-08-17 against a sanitized all-time client export, and not
+     * activated. Recorded here so the question is not re-opened from scratch.
+     *
+     * **The visits import already collected this.** Every demographic dimension
+     * in the client export is stored for all 9,596 Link2Feed clients — gender
+     * identity and its parent types, ethnicity, disability, self-identifies-as,
+     * city/county/state/postal code, housing type, languages, primary income
+     * source, dietary considerations, social assistance — plus every birth year.
+     *
+     * **The export covers less, not more.** 6,460 rows against 9,596 clients
+     * FEED holds; 4,324 in both. 3,344 of our clients carry ids below the file's
+     * lowest (5,466,020) and cannot appear in it at all, and above that floor
+     * coverage climbs 64% → 88% from oldest ids to newest. The clients it omits
+     * have *better* demographic coverage in FEED (55–95% per dimension) than the
+     * ones it includes (26–66%), because a long-standing client has more visits
+     * and each visit was another chance to record a profile.
+     *
+     * **Most of its extra columns are empty.** The 23 per-income-source flags
+     * are `0` on every one of the 6,460 rows. Monthly Household Income carries a
+     * real figure on 15 rows. Names, emails, phones and street are PII this
+     * importer would drop anyway, which is why they are absent from the
+     * allowlist above.
+     *
+     * **Two fields are genuinely only here.** `Client Ethnicity-Parent Types` —
+     * the rollup that would make an ethnicity card legible, since the labels
+     * alone run to 86 combinations, and it is absent from the visits export.
+     * And `Household ID`, which groups clients into 5,328 households. Household
+     * ID confirms rather than corrects: only 47 of 4,277 households have more
+     * than one visiting client id, and 5 household-days out of 26,827 visits
+     * were served under two, so Link2Feed records visits against the head of
+     * household and the existing household counts are sound.
+     *
+     * Link2Feed is proprietary and the visits export cannot be extended, so the
+     * ethnicity rollup is obtainable only through this path. Revisit if a
+     * legible ethnicity breakdown becomes worth a second import path — and
+     * expect the recency bias above to need stating on any card drawn from it.
+     *
+     * The real vocabulary is 51 columns against the 20 provisionally listed
+     * here; `Client First Visit- Personal Tab` and `Client First Visit-Date` are
+     * absent from the sample. Dates arrive as Excel serials when the file has
+     * been opened in Excel, as with the visits export.
+     */
+    nextStep:
+      'Reviewed against a sanitized sample and not activated: the visits import '
+      + 'already carries these demographics for more clients, at higher coverage. '
+      + 'Only Client Ethnicity-Parent Types and Household ID are unique to this '
+      + 'file. See the note above before reopening.',
     priority: 40,
   },
   {

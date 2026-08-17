@@ -10,6 +10,14 @@ The Tracking migration schema has been applied locally, the known source-cell
 error has been corrected, and the complete 34-sheet workbook now produces a
 contract-valid 1,114-observation migration artifact. Reviewing and activating
 that artifact is now complete: all 1,114 historical revisions are active.
+The Link2Feed client export was reviewed on 2026-08-17 and **not** adopted: the
+visits import already carries every demographic dimension it holds, for 9,596
+clients against the export's 4,324, and at higher per-dimension coverage. Only
+`Client Ethnicity-Parent Types` and `Household ID` are unique to it, and
+Household ID confirms the existing household counts rather than correcting
+them. The reasoning is recorded on the `link2feed_clients_v1` contract in
+`source-contracts.ts`.
+
 Service Analytics is now built and shipped in 1.5.0-beta.19: the lens carries
 eight cards, all of them exportable through the Analytics report contract.
 Completing the parallel cutover, the Link2Feed client-export adapter, and the
