@@ -71,6 +71,7 @@ import {
 } from '@/lib/colors';
 import { SortableHeader } from "@/components/ui/sortable-header"
 import { formatDateTime } from '@/lib/formatting/date';
+import { formatAxisNumber } from '@/lib/formatting/number';
 
 const PageTitleAnalyticsIcon = createPageTitleIcon(ChartNoAxesCombinedIcon);
 
@@ -449,7 +450,7 @@ export function OperationalAnalyticsWorkspace({
                       margin={{ left: 8, right: 16 }}
                     >
                       <CartesianGrid horizontal={false} />
-                      <XAxis type="number" allowDecimals={false} tickLine={false} axisLine={false} />
+                      <XAxis type="number" allowDecimals={false} tickLine={false} axisLine={false} tickFormatter={formatAxisNumber} />
                       <YAxis dataKey="metric" type="category" width={104} tickLine={false} axisLine={false} />
                       <ChartTooltip content={<ChartTooltipContent hideLabel />} />
                       <Bar isAnimationActive={!prefersReducedMotion()} dataKey="value" radius={4} />
@@ -529,7 +530,7 @@ export function OperationalAnalyticsWorkspace({
                   <ComposedChart data={assortmentChart.data}>
                     <CartesianGrid vertical={false} />
                     <XAxis dataKey="date" tickLine={false} axisLine={false} tickFormatter={(value: string) => format(new Date(`${value}T00:00:00`), 'MMM d')} />
-                    <YAxis width={34} tickLine={false} axisLine={false} />
+                    <YAxis width={34} tickLine={false} axisLine={false} tickFormatter={formatAxisNumber} />
                     <ChartTooltip content={<ChartTooltipContent sortByValue />} />
                     <ChartLegend content={<ChartLegendContent />} />
                     {assortmentCategory === 'all' ? (
@@ -605,7 +606,7 @@ export function OperationalAnalyticsWorkspace({
                             margin={{ left: 8, right: 24 }}
                           >
                             <CartesianGrid horizontal={false} />
-                            <XAxis type="number" allowDecimals={false} tickLine={false} axisLine={false} />
+                            <XAxis type="number" allowDecimals={false} tickLine={false} axisLine={false} tickFormatter={formatAxisNumber} />
                             <YAxis dataKey="itemName" type="category" width={168} tickLine={false} axisLine={false} />
                             <ChartTooltip content={<ChartTooltipContent />} />
                             <ChartLegend content={<ChartLegendContent />} />
@@ -637,7 +638,7 @@ export function OperationalAnalyticsWorkspace({
                 <LineChart data={pressureChart.data}>
                     <CartesianGrid vertical={false} />
                     <XAxis dataKey="date" tickLine={false} axisLine={false} tickFormatter={(value: string) => format(new Date(`${value}T00:00:00`), 'MMM d')} />
-                    <YAxis width={34} tickLine={false} axisLine={false} />
+                    <YAxis width={34} tickLine={false} axisLine={false} tickFormatter={formatAxisNumber} />
                     <ChartTooltip content={<ChartTooltipContent sortByValue />} />
                     <ChartLegend content={<ChartLegendContent />} />
                     <Line isAnimationActive={!prefersReducedMotion()} dataKey="limitedSupply" stroke="var(--color-limitedSupply)" dot={false} />
@@ -712,7 +713,7 @@ export function OperationalAnalyticsWorkspace({
                         margin={{ left: 8, right: 16 }}
                       >
                         <CartesianGrid horizontal={false} />
-                        <XAxis type="number" allowDecimals={false} tickLine={false} axisLine={false} />
+                        <XAxis type="number" allowDecimals={false} tickLine={false} axisLine={false} tickFormatter={formatAxisNumber} />
                         <YAxis dataKey="categoryName" type="category" width={112} tickLine={false} axisLine={false} />
                         <ChartTooltip content={<ChartTooltipContent />} />
                         <ChartLegend content={<ChartLegendContent />} />

@@ -54,6 +54,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { carbonCategoricalTheme, carbonTheme } from '@/lib/colors';
+import { formatAxisNumber } from '@/lib/formatting/number';
 import type { DonorSummary, DonorValueSummary } from '@/types/procurement';
 
 interface DonorAnalyticsProps {
@@ -203,7 +204,7 @@ export function DonorAnalytics({
           <ChartContainer config={donorMixConfig} className="h-80 min-w-0 w-full">
             <BarChart accessibilityLayer data={mix} layout="vertical" margin={{ left: 8, right: 16 }}>
               <CartesianGrid horizontal={false} />
-              <XAxis type="number" tickLine={false} axisLine={false} />
+              <XAxis type="number" tickLine={false} axisLine={false} tickFormatter={formatAxisNumber} />
               <YAxis dataKey="donor" type="category" width={190} tickLine={false} axisLine={false} />
               <ChartTooltip content={<ChartTooltipContent />} />
               <Bar isAnimationActive={!prefersReducedMotion()} dataKey="weight" fill="var(--color-weight)" radius={3} />
@@ -339,7 +340,7 @@ export function DonorAnalytics({
                   axisLine={false}
                   tickFormatter={(month: string) => format(parseISO(`${month}-01`), 'MMM yy')}
                 />
-                <YAxis tickLine={false} axisLine={false} width={64} />
+                <YAxis tickLine={false} axisLine={false} width={64} tickFormatter={formatAxisNumber} />
                 <ChartTooltip content={<ChartTooltipContent sortByValue />} />
                 <ChartLegend content={<ChartLegendContent />} />
                 {visibleDonors.map((donor) => (

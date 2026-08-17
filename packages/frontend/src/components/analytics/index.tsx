@@ -107,6 +107,7 @@ import { AnalyticsReportDialog, type ReportFilterContext } from './report-dialog
 import { FileChartColumnIcon } from '@/components/ui/file-chart-column';
 import { SortableHeader } from "@/components/ui/sortable-header"
 import { formatDate } from '@/lib/formatting/date';
+import { formatAxisNumber } from '@/lib/formatting/number';
 
 const PageTitleAnalyticsIcon = createPageTitleIcon(ChartNoAxesCombinedIcon);
 
@@ -1500,7 +1501,7 @@ export function ProcurementAnalyticsWorkspace({
             <LineChart accessibilityLayer data={monthlyWeightPlotted} margin={{ left: 8, right: 16 }}>
               <CartesianGrid vertical={false} />
               <XAxis dataKey="month" tickLine={false} axisLine={false} tickFormatter={(month: string) => format(parseISO(`${month}-01`), 'MMM yy')} />
-              <YAxis width={52} tickLine={false} axisLine={false} />
+              <YAxis width={52} tickLine={false} axisLine={false} tickFormatter={formatAxisNumber} />
               <ChartTooltip content={<ChartTooltipContent sortByValue />} />
               <ChartLegend content={<ChartLegendContent />} />
               {monthlyWeightSeriesKeys.map((seriesKey) => (
@@ -1680,7 +1681,7 @@ export function ProcurementAnalyticsWorkspace({
             <ChartContainer config={acquisitionMixConfig} className="h-72 min-w-0 w-full">
               <BarChart accessibilityLayer data={acquisitionMix} layout="vertical" margin={{ left: 8, right: 16 }}>
                 <CartesianGrid horizontal={false} />
-                <XAxis type="number" tickLine={false} axisLine={false} />
+                <XAxis type="number" tickLine={false} axisLine={false} tickFormatter={formatAxisNumber} />
                 <YAxis dataKey="acquisitionClass" type="category" width={92} tickLine={false} axisLine={false} />
                 <ChartTooltip content={<ChartTooltipContent />} />
                 <Bar isAnimationActive={!prefersReducedMotion()} dataKey="weight" fill="var(--color-weight)" radius={3} />
@@ -1698,7 +1699,7 @@ export function ProcurementAnalyticsWorkspace({
             <ChartContainer config={channelMixConfig} className="h-72 min-w-0 w-full">
               <BarChart accessibilityLayer data={channelMix} layout="vertical" margin={{ left: 8, right: 16 }}>
                 <CartesianGrid horizontal={false} />
-                <XAxis type="number" tickLine={false} axisLine={false} />
+                <XAxis type="number" tickLine={false} axisLine={false} tickFormatter={formatAxisNumber} />
                 <YAxis dataKey="channel" type="category" width={110} tickLine={false} axisLine={false} />
                 <ChartTooltip content={<ChartTooltipContent />} />
                 <Bar isAnimationActive={!prefersReducedMotion()} dataKey="primaryWeight" stackId="channel" fill="var(--color-primaryWeight)" radius={[3, 0, 0, 3]} />
@@ -1746,7 +1747,7 @@ export function ProcurementAnalyticsWorkspace({
                   margin={{ left: 8, right: 16 }}
                 >
                   <CartesianGrid horizontal={false} />
-                  <XAxis type="number" tickLine={false} axisLine={false} />
+                  <XAxis type="number" tickLine={false} axisLine={false} tickFormatter={formatAxisNumber} />
                   <YAxis dataKey="category" type="category" width={150} tickLine={false} axisLine={false} />
                   {/* One row summary plus the donor split, same pattern as the
                       paid-product chart's tooltip — a single Bar payload
@@ -1930,7 +1931,7 @@ export function ProcurementAnalyticsWorkspace({
               <LineChart accessibilityLayer data={seasonalData} margin={{ left: 8, right: 16 }}>
                 <CartesianGrid vertical={false} />
                 <XAxis dataKey="month" tickLine={false} axisLine={false} />
-                <YAxis width={52} tickLine={false} axisLine={false} />
+                <YAxis width={52} tickLine={false} axisLine={false} tickFormatter={formatAxisNumber} />
                 {/* Sorted heaviest-first per month, so the tooltip's order
                     mirrors the lines' visual stacking at that point rather than
                     a fixed year order. */}

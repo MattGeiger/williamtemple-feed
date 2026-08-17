@@ -40,6 +40,12 @@
   rows are counted but not deduplicated, and the cards say so. Visits per
   household is unchanged: it still uses identified records only, since an
   anonymous row carries no information about returning.
+- **Figures over 999 carry commas everywhere.** Chart axes printed `8000`
+  where the summary tiles beside them printed `8,000`, so reading a scale meant
+  counting zeros to tell forty-five thousand from forty-five hundred. Every
+  numeric axis and tooltip across all four tabs now separates thousands.
+- **Long descriptions in Service Metrics end in an ellipsis** instead of
+  stopping mid-word, and the full text appears on hover.
 - **Analytics has a fourth tab, Clients.** Household Size, Languages Spoken at
   Home, and Demographics Questions Response Rate moved there from Service. The
   two tabs answer different questions — who the people are, against what
