@@ -56,6 +56,34 @@ export interface ServiceMethodDefinition {
   firstRecordedDate?: string | null;
 }
 
+/**
+ * One demographic question's answers, ranked.
+ *
+ * `answered` and `asked` are the denominators the bars must be read against —
+ * a share of answers is meaningless without them. `values` can sum above
+ * `answered` where a question accepts more than one answer, which `multiValue`
+ * declares so a card can say so rather than leaving a reader to notice the
+ * arithmetic does not close.
+ */
+export interface DemographicBreakdown {
+  values: Array<{ label: string; count: number }>;
+  answered: number;
+  asked: number;
+  sources: string[];
+  multiValue: boolean;
+  /** `households` or `people` — the two grains are never summed. */
+  unit: 'households' | 'people';
+}
+
+/** Banded ages from one record, at that record's own grain. */
+export interface AgeBandSet {
+  bands: Array<{ label: string; count: number }>;
+  estimatedBirthYears: number;
+  withoutBirthYear: number;
+  unit: 'households' | 'people';
+  available: boolean;
+}
+
 export interface ServiceAnalytics {
   coverage: {
     startDate: string;
@@ -192,12 +220,37 @@ export interface ServiceAnalytics {
    * `sources` says which records contributed, so a range after the changeover
    * reports honestly rather than looking empty for no stated reason.
    */
+  /**
+   * Ranked answers for one demographic question, with the record that asked it.
+   *
+   * The two intake systems ask different questions with different vocabularies
+   * and at different grains — Link2Feed records ethnicity against the household
+   * profile, SIMC records race against each person — so a breakdown names its
+   * source rather than blending two answers into one bar.
+   */
+  demographics: {
+    /** Household-grained, Link2Feed. */
+    ethnicity: DemographicBreakdown;
+    genderIdentity: DemographicBreakdown;
+    genderIdentityGrouped: DemographicBreakdown;
+    housingType: DemographicBreakdown;
+    /** Person-grained, SIMC. Counted in people, not households. */
+    simcRaceOrEthnicity: DemographicBreakdown;
+    simcGenderIdentity: DemographicBreakdown;
+  };
   ageBands: {
     asOfYear: number;
-    bands: Array<{ label: string; clients: number }>;
-    estimatedBirthYears: number;
-    clientsWithoutBirthYear: number;
-    sources: string[];
+    /**
+     * Two records, kept apart because they count different people.
+     *
+     * Link2Feed records one birth year per household profile — the person who
+     * registered — so its bands describe heads of household. SIMC records one
+     * per household member, so its bands describe everyone who came. Summing
+     * them would weight a SIMC household by its size and a Link2Feed household
+     * by one, and the total would mean nothing.
+     */
+    link2feed: AgeBandSet;
+    simc: AgeBandSet;
   };
   /**
    * Where households live, by postal code.
@@ -608,40 +661,82 @@ ${Object.entries(LANGUAGE_LABEL_ALIASES)
    * an obvious data-entry error.
    */
   const asOfYear = Number(endDate.slice(0, 4));
-  const ageRows = await client.$queryRaw<Array<{ band: string; clients: bigint }>>`
-    WITH served AS (
-      SELECT DISTINCT "clientId" FROM "ServiceEncounterRevision"
-      WHERE "isCurrent" = 1 AND "serviceDate" BETWEEN ${startDate} AND ${endDate}
-        AND "clientId" IS NOT NULL
-    )
-    SELECT CASE
-        WHEN ${asOfYear} - p."birthYear" < 18 THEN 'Under 18'
-        WHEN ${asOfYear} - p."birthYear" < 30 THEN '18-29'
-        WHEN ${asOfYear} - p."birthYear" < 45 THEN '30-44'
-        WHEN ${asOfYear} - p."birthYear" < 60 THEN '45-59'
-        WHEN ${asOfYear} - p."birthYear" < 75 THEN '60-74'
-        ELSE '75+' END AS "band",
-      COUNT(DISTINCT p."clientId") AS "clients"
-    FROM "ServiceClientProfileRevision" p
-    JOIN served s ON s."clientId" = p."clientId"
-    WHERE p."isCurrent" = 1 AND p."birthYear" IS NOT NULL
-    GROUP BY "band"`;
 
-  const ageMetaRows = await client.$queryRaw<Array<{
-    estimated: bigint; missing: bigint; sources: string;
-  }>>`
-    WITH served AS (
-      SELECT DISTINCT "clientId" FROM "ServiceEncounterRevision"
-      WHERE "isCurrent" = 1 AND "serviceDate" BETWEEN ${startDate} AND ${endDate}
-        AND "clientId" IS NOT NULL
-    )
-    SELECT
-      COUNT(DISTINCT CASE WHEN p."birthYearEstimated" = 1 THEN p."clientId" END) AS "estimated",
-      COUNT(DISTINCT CASE WHEN p."birthYear" IS NULL THEN p."clientId" END) AS "missing",
-      GROUP_CONCAT(DISTINCT CASE WHEN p."birthYear" IS NOT NULL THEN p."source" END) AS "sources"
-    FROM "ServiceClientProfileRevision" p
-    JOIN served s ON s."clientId" = p."clientId"
-    WHERE p."isCurrent" = 1`;
+  /**
+   * Ages, banded, as of the end of the range.
+   *
+   * `endDate` rather than today: a household served in December 2024 was the
+   * age it was then, and that is the question the card is asked. The bands are
+   * fixed here rather than derived so the same boundaries hold across ranges —
+   * a chart whose buckets move cannot be compared with last quarter's.
+   *
+   * The oldest recorded birth year puts one person past 105. It falls in the
+   * top band rather than being dropped: one implausible row does not distort a
+   * band of hundreds, and silently discarding a record is worse than carrying
+   * an obvious data-entry error.
+   */
+  const ageBandSet = async (grain: 'client' | 'person'): Promise<AgeBandSet> => {
+    const revision = grain === 'client' ? 'ServiceClientProfileRevision' : 'ServicePersonProfileRevision';
+    const unitKey = grain === 'client' ? 'p."clientId"' : 'p."personId"';
+    const link = grain === 'client'
+      ? `JOIN served s ON s."clientId" = p."clientId"`
+      : `JOIN "ServiceEncounterPerson" ep ON ep."personId" = p."personId"
+         JOIN "ServiceEncounterRevision" e ON e."id" = ep."encounterRevisionId"
+           AND e."isCurrent" = 1 AND e."serviceDate" BETWEEN ? AND ?`;
+    const args = grain === 'client'
+      ? [startDate, endDate]
+      : [startDate, endDate, startDate, endDate];
+
+    const bands = await client.$queryRawUnsafe<Array<{ band: string; count: bigint }>>(
+      `WITH served AS (
+         SELECT DISTINCT "clientId" FROM "ServiceEncounterRevision"
+         WHERE "isCurrent" = 1 AND "serviceDate" BETWEEN ? AND ? AND "clientId" IS NOT NULL
+       )
+       SELECT CASE
+           WHEN ${asOfYear} - p."birthYear" < 18 THEN 'Under 18'
+           WHEN ${asOfYear} - p."birthYear" < 30 THEN '18-29'
+           WHEN ${asOfYear} - p."birthYear" < 45 THEN '30-44'
+           WHEN ${asOfYear} - p."birthYear" < 60 THEN '45-59'
+           WHEN ${asOfYear} - p."birthYear" < 75 THEN '60-74'
+           ELSE '75+' END AS "band",
+         COUNT(DISTINCT ${unitKey}) AS "count"
+       FROM "${revision}" p
+       ${link}
+       WHERE p."isCurrent" = 1 AND p."birthYear" IS NOT NULL
+       GROUP BY "band"`,
+      ...args,
+    );
+
+    const meta = await client.$queryRawUnsafe<Array<{ estimated: bigint; missing: bigint }>>(
+      `WITH served AS (
+         SELECT DISTINCT "clientId" FROM "ServiceEncounterRevision"
+         WHERE "isCurrent" = 1 AND "serviceDate" BETWEEN ? AND ? AND "clientId" IS NOT NULL
+       )
+       SELECT
+         COUNT(DISTINCT CASE WHEN p."birthYearEstimated" = 1 THEN ${unitKey} END) AS "estimated",
+         COUNT(DISTINCT CASE WHEN p."birthYear" IS NULL THEN ${unitKey} END) AS "missing"
+       FROM "${revision}" p
+       ${link}
+       WHERE p."isCurrent" = 1`,
+      ...args,
+    );
+
+    return {
+      bands: AGE_BANDS.map((label) => ({
+        label,
+        count: Number(bands.find((row) => row.band === label)?.count ?? 0),
+      })),
+      estimatedBirthYears: Number(meta[0]?.estimated ?? 0),
+      withoutBirthYear: Number(meta[0]?.missing ?? 0),
+      unit: grain === 'client' ? 'households' : 'people',
+      available: bands.some((row) => Number(row.count) > 0),
+    };
+  };
+
+  const [link2feedAges, simcAges] = await Promise.all([
+    ageBandSet('client'),
+    ageBandSet('person'),
+  ]);
 
   /**
    * Postal codes, excluding households with no fixed address.
@@ -707,6 +802,92 @@ ${Object.entries(LANGUAGE_LABEL_ALIASES)
       (SELECT COUNT(*) FROM flagged) AS "asked",
       (SELECT COUNT(*) FROM postal WHERE "responseStatus" = 'provided') AS "withPostal",
       (SELECT COUNT(*) FROM postal WHERE "responseStatus" = 'not_provided') AS "withoutPostal"`;
+
+  /**
+   * One demographic question, ranked, at whichever grain records it.
+   *
+   * Client-grained questions come from the household profile (Link2Feed's
+   * vocabulary); person-grained ones from each member's profile (SIMC's). The
+   * two are never combined into one breakdown — they count different things
+   * and use different category names for the same idea.
+   */
+  const breakdown = async (
+    dimension: string,
+    grain: 'client' | 'person',
+  ): Promise<DemographicBreakdown> => {
+    const table = grain === 'client' ? 'ServiceClientProfileResponse' : 'ServicePersonProfileResponse';
+    const revision = grain === 'client' ? 'ServiceClientProfileRevision' : 'ServicePersonProfileRevision';
+    const link = grain === 'client'
+      ? `JOIN served s ON s."clientId" = p."clientId"`
+      // A person is in range if any encounter they attended is.
+      : `JOIN "ServiceEncounterPerson" ep ON ep."personId" = p."personId"
+         JOIN "ServiceEncounterRevision" e ON e."id" = ep."encounterRevisionId"
+           AND e."isCurrent" = 1 AND e."serviceDate" BETWEEN ? AND ?`;
+    const unitKey = grain === 'client' ? 'p."clientId"' : 'p."personId"';
+
+    const values = await client.$queryRawUnsafe<Array<{ label: string; count: bigint }>>(
+      `WITH served AS (
+         SELECT DISTINCT "clientId" FROM "ServiceEncounterRevision"
+         WHERE "isCurrent" = 1 AND "serviceDate" BETWEEN ? AND ? AND "clientId" IS NOT NULL
+       )
+       SELECT j."value" AS "label", COUNT(DISTINCT ${unitKey}) AS "count"
+       FROM "${revision}" p
+       ${link}
+       JOIN "${table}" r ON r."profileRevisionId" = p."id"
+       JOIN json_each(r."values") j
+       WHERE p."isCurrent" = 1 AND r."dimension" = ? AND r."responseStatus" = 'provided'
+       GROUP BY j."value" ORDER BY "count" DESC, "label"`,
+      ...(grain === 'client'
+        ? [startDate, endDate, dimension]
+        : [startDate, endDate, startDate, endDate, dimension]),
+    );
+
+    const totals = await client.$queryRawUnsafe<Array<{
+      answered: bigint; asked: bigint; sources: string; multi: bigint;
+    }>>(
+      `WITH served AS (
+         SELECT DISTINCT "clientId" FROM "ServiceEncounterRevision"
+         WHERE "isCurrent" = 1 AND "serviceDate" BETWEEN ? AND ? AND "clientId" IS NOT NULL
+       ),
+       scoped AS (
+         SELECT DISTINCT ${unitKey} AS "unit", p."source", r."responseStatus", r."values"
+         FROM "${revision}" p
+         ${link}
+         JOIN "${table}" r ON r."profileRevisionId" = p."id"
+         WHERE p."isCurrent" = 1 AND r."dimension" = ?
+       )
+       SELECT
+         COUNT(DISTINCT CASE WHEN "responseStatus" = 'provided' THEN "unit" END) AS "answered",
+         COUNT(DISTINCT "unit") AS "asked",
+         GROUP_CONCAT(DISTINCT CASE WHEN "responseStatus" = 'provided' THEN "source" END) AS "sources",
+         COUNT(DISTINCT CASE WHEN json_array_length("values") > 1 THEN "unit" END) AS "multi"
+       FROM scoped`,
+      ...(grain === 'client'
+        ? [startDate, endDate, dimension]
+        : [startDate, endDate, startDate, endDate, dimension]),
+    );
+
+    return {
+      values: values.map((row) => ({ label: row.label, count: Number(row.count) })),
+      answered: Number(totals[0]?.answered ?? 0),
+      asked: Number(totals[0]?.asked ?? 0),
+      sources: String(totals[0]?.sources ?? '').split(',').filter(Boolean).sort(),
+      multiValue: Number(totals[0]?.multi ?? 0) > 0,
+      unit: grain === 'client' ? 'households' : 'people',
+    };
+  };
+
+  const [
+    ethnicityBreakdown, genderBreakdown, genderGroupedBreakdown, housingBreakdown,
+    simcRaceBreakdown, simcGenderBreakdown,
+  ] = await Promise.all([
+    breakdown('ethnicity', 'client'),
+    breakdown('gender_identity', 'client'),
+    breakdown('gender_identity_parent_type', 'client'),
+    breakdown('housing_type', 'client'),
+    breakdown('race_or_ethnicity', 'person'),
+    breakdown('gender_identity', 'person'),
+  ]);
 
   const agreementRows = methodKeys.length === 0 ? [] :
     await client.$queryRawUnsafe<Array<{ serviceDate: string; intake: number; serviceLog: number | null }>>(
@@ -1016,20 +1197,15 @@ ${Object.entries(LANGUAGE_LABEL_ALIASES)
         const bShare = b.provided / Math.max(1, b.provided + b.notProvided);
         return bShare - aShare || a.dimension.localeCompare(b.dimension);
       }),
-    ageBands: {
-      asOfYear,
-      // Fixed order, and an absent band still appears at zero: a distribution
-      // with bands missing invites the reader to infer a shape from which
-      // labels happen to be present.
-      bands: AGE_BANDS.map((label) => ({
-        label,
-        clients: Number(ageRows.find((row) => row.band === label)?.clients ?? 0),
-      })),
-      estimatedBirthYears: Number(ageMetaRows[0]?.estimated ?? 0),
-      clientsWithoutBirthYear: Number(ageMetaRows[0]?.missing ?? 0),
-      sources: String(ageMetaRows[0]?.sources ?? '')
-        .split(',').filter(Boolean).sort(),
+    demographics: {
+      ethnicity: ethnicityBreakdown,
+      genderIdentity: genderBreakdown,
+      genderIdentityGrouped: genderGroupedBreakdown,
+      housingType: housingBreakdown,
+      simcRaceOrEthnicity: simcRaceBreakdown,
+      simcGenderIdentity: simcGenderBreakdown,
     },
+    ageBands: { asOfYear, link2feed: link2feedAges, simc: simcAges },
     geography: {
       postalCodes: geographyRows.map((row) => ({
         postalCode: row.postalCode,

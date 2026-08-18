@@ -1806,6 +1806,48 @@ const trimToData = (series: Series): Series => {
   };
 };
 
+export const PROCUREMENT_SPEND_OVER_TIME: AnalyticsCard = {
+  id: 'procurement-spend-over-time',
+  kind: 'chart',
+  defaultTitle: 'OFB Spending Over Time',
+  lens: 'procurement',
+  data: (analytics: any) => {
+    const rows = analytics?.monthlySpend ?? [];
+    const categories = rows.map((row: any) => row.month);
+    // Dollars, not cents: the CSV is read by people, and a column of 776800
+    // invites a reader to mistake the scale by two orders of magnitude.
+    const series = [
+      trimToData({
+        name: 'Product charges',
+        values: rows.map((row: any) => (row.productChargesCents ?? 0) / 100),
+      }),
+      trimToData({
+        name: 'Net recorded cost',
+        values: rows.map((row: any) => (row.netRecordedCostCents ?? 0) / 100),
+      }),
+    ];
+
+    const condensed = condenseTimeSeries(categories, series);
+    return {
+      title: 'OFB Spending Over Time',
+      categories: condensed.categories,
+      series: condensed.series,
+      categoryColumn: condensed.grain === 'month' ? 'month' : condensed.grain,
+      grain: condensed.grain,
+      note: [
+        'Recorded charges by delivery month, in dollars. Net recorded cost adds ' +
+        'service fees and subtracts grants; where the two series match, neither ' +
+        'applied. Fees and grants sit on a whole order, so a filter that divides ' +
+        'one leaves them out rather than assigning them to a month arbitrarily.',
+        condensed.note,
+      ].filter(Boolean).join(' '),
+      raw: condensed.condensed ? { categories, series, categoryColumn: 'month' } : undefined,
+    };
+  },
+  print: data => lineChartSvg(data.categories, data.series, 900, 280, false, { formatValue: DOLLARS })
+    + legendSvg(data.series.map(s => s.name)),
+};
+
 /* ---------------------------------------------------------------- service */
 /*
  * Two lenses share this section and one payload.
@@ -2227,39 +2269,41 @@ export const CLIENTS_AGE_BANDS: AnalyticsCard = {
   kind: 'chart',
   defaultTitle: 'Age of People Served',
   lens: 'clients',
-  data: (analytics: any) => {
+  data: (analytics: any, options?: any) => {
     const ages = analytics?.ageBands ?? {};
-    const bands = ages.bands ?? [];
-    const sources: string[] = ages.sources ?? [];
+    // The two records count different people, so the export carries whichever
+    // the screen was showing rather than merging them into a total that would
+    // weight a SIMC household by its size and a Link2Feed one by one.
+    const source: 'link2feed' | 'simc' = options?.source === 'simc' ? 'simc' : 'link2feed';
+    const set = ages[source] ?? {};
+    const bands = set.bands ?? [];
+    const label = source === 'simc' ? 'SIMC' : 'Link2Feed';
+    const unit = set.unit === 'people' ? 'People' : 'Households';
 
     const notes: string[] = [];
-    if (sources.length === 0 || !bands.some((b: any) => (b.clients ?? 0) > 0)) {
-      // Not an empty chart with no explanation: SIMC records no birth year, so
-      // a range after the changeover legitimately has none.
+    if (!set.available) {
       notes.push(
-        'No ages recorded in this range. Birth year comes from Link2Feed intake; ' +
-        'SIMC does not record one.'
+        `No ages recorded in this range from ${label}.` +
+        (source === 'link2feed'
+          ? ' Link2Feed stopped receiving visits at the June 2026 changeover.'
+          : ' SIMC records began in June 2026.')
       );
     } else {
-      notes.push('Recorded in Link2Feed only.');
-      if ((ages.clientsWithoutBirthYear ?? 0) > 0) {
-        notes.push(
-          `${COUNT(ages.clientsWithoutBirthYear)} people served in this range have no ` +
-          'birth year on file and are not counted here.'
-        );
+      notes.push(source === 'link2feed'
+        ? 'Link2Feed records one birth year per household — the person who registered — so these are heads of household.'
+        : 'SIMC records a birth year for each household member, so these are people.');
+      if ((set.withoutBirthYear ?? 0) > 0) {
+        notes.push(`${COUNT(set.withoutBirthYear)} have no birth year on file and are not counted here.`);
       }
-      if ((ages.estimatedBirthYears ?? 0) > 0) {
-        notes.push(
-          `${COUNT(ages.estimatedBirthYears)} birth years were estimated at intake ` +
-          'rather than reported.'
-        );
+      if ((set.estimatedBirthYears ?? 0) > 0) {
+        notes.push(`${COUNT(set.estimatedBirthYears)} birth years were estimated at intake rather than reported.`);
       }
     }
 
     return {
-      title: `Age of People Served${ages.asOfYear ? ` (as of ${ages.asOfYear})` : ''}`,
+      title: `Age of People Served — ${label}${ages.asOfYear ? ` (as of ${ages.asOfYear})` : ''}`,
       categories: bands.map((b: any) => b.label),
-      series: [{ name: 'People', values: bands.map((b: any) => b.clients ?? 0) }],
+      series: [{ name: unit, values: bands.map((b: any) => b.count ?? 0) }],
       categoryColumn: 'age band',
       note: notes.join(' '),
     };
@@ -2269,6 +2313,69 @@ export const CLIENTS_AGE_BANDS: AnalyticsCard = {
     900, 30, COUNT
   ),
 };
+
+/**
+ * Ethnicity, gender identity and housing type differ only in which answers
+ * they hold, so one factory builds all of them rather than four near-copies.
+ */
+const breakdownCard = (
+  id: string,
+  defaultTitle: string,
+  pick: (analytics: any) => any,
+  extra = '',
+): AnalyticsCard => ({
+  id,
+  kind: 'chart',
+  defaultTitle,
+  lens: 'clients',
+  data: (analytics: any) => {
+    const breakdown = pick(analytics) ?? {};
+    const values = breakdown.values ?? [];
+    const unit = breakdown.unit === 'people' ? 'people' : 'households';
+    const asked = breakdown.asked ?? 0;
+    const percent = asked > 0 ? Math.round(((breakdown.answered ?? 0) / asked) * 100) : 0;
+
+    const notes = [
+      `About ${percent}% of ${unit} answered this question ` +
+      `(${COUNT(breakdown.answered ?? 0)} of ${COUNT(asked)}).`,
+    ];
+    if (breakdown.multiValue) {
+      notes.push(
+        `A ${unit === 'people' ? 'person' : 'household'} can give more than one answer, ` +
+        'so the bars sum above that.'
+      );
+    }
+    if (extra) notes.push(extra);
+
+    return {
+      title: defaultTitle,
+      categories: values.map((row: any) => row.label),
+      series: [{ name: unit === 'people' ? 'People' : 'Households', values: values.map((row: any) => row.count ?? 0) }],
+      categoryColumn: 'answer',
+      note: notes.join(' '),
+    };
+  },
+  print: data => hBarSvg(
+    data.categories.map((label, i) => ({ label, value: data.series[0]?.values[i] ?? 0 })),
+    900, 26, COUNT
+  ),
+});
+
+export const CLIENTS_ETHNICITY = breakdownCard(
+  'clients-ethnicity', 'Ethnicity', (a) => a?.demographics?.ethnicity,
+  'Recorded in Link2Feed only; SIMC asks a different question with different categories.',
+);
+export const CLIENTS_RACE_SIMC = breakdownCard(
+  'clients-race-simc', 'Race or Ethnicity (SIMC)', (a) => a?.demographics?.simcRaceOrEthnicity,
+  'Counted in people rather than households, and not comparable with the Link2Feed ethnicity card.',
+);
+export const CLIENTS_GENDER_IDENTITY = breakdownCard(
+  'clients-gender-identity', 'Gender Identity', (a) => a?.demographics?.genderIdentity,
+);
+export const CLIENTS_HOUSING_TYPE = breakdownCard(
+  'clients-housing-type', 'Housing Type', (a) => a?.demographics?.housingType,
+  'Pairs with the no-fixed-address figure on Where Households Live.',
+);
 
 /** Named rows a reader can act on; the tail is summed, never dropped. */
 const POSTAL_CODES_PLOTTED = 12;
@@ -2347,6 +2454,7 @@ export const ANALYTICS_CARDS: AnalyticsCard[] = [
   FRESH_ALLIANCE_DONATIONS_OVER_TIME,
   LEGACY_DONATION_HISTORY,
   LEGACY_DONATIONS_OVER_TIME,
+  PROCUREMENT_SPEND_OVER_TIME,
   SERVICE_SUMMARY,
   SERVICE_OVER_TIME,
   SERVICE_SEASONAL_HOUSEHOLDS,
@@ -2357,6 +2465,10 @@ export const ANALYTICS_CARDS: AnalyticsCard[] = [
   SERVICE_RESPONSE_COVERAGE,
   CLIENTS_AGE_BANDS,
   CLIENTS_GEOGRAPHY,
+  CLIENTS_ETHNICITY,
+  CLIENTS_RACE_SIMC,
+  CLIENTS_GENDER_IDENTITY,
+  CLIENTS_HOUSING_TYPE,
 ];
 
 export const getAnalyticsCard = (id: string): AnalyticsCard | undefined =>

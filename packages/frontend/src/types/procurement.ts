@@ -324,6 +324,17 @@ export interface ProcurementAnalytics {
     channel: ProcurementChannel;
     weightHundredths: number;
   }>;
+  /**
+   * Recorded spend by delivery month. Separate from weight because the two do
+   * not move together — a heavy donated load costs nothing.
+   */
+  monthlySpend: Array<{
+    month: string;
+    productChargesCents: number;
+    serviceFeesCents: number;
+    grantsAppliedCents: number;
+    netRecordedCostCents: number;
+  }>;
   monthlyWeight: Array<{
     month: string;
     donatedWeightHundredths: number;

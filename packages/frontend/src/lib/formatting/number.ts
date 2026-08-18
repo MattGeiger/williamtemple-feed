@@ -47,3 +47,17 @@ export const formatAxisNumber = (value: unknown): string => {
   }
   return String(value ?? '');
 };
+
+/**
+ * Money on a chart axis: whole dollars with separators, no cents.
+ *
+ * Cents on an axis label add three characters and no information — the tick
+ * exists to place a magnitude, and $7,768.00 places it no better than $7,768.
+ */
+export const formatAxisMoney = (value: unknown): string => {
+  const amount = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(amount)) return String(value ?? '');
+  return amount.toLocaleString('en-US', {
+    style: 'currency', currency: 'USD', maximumFractionDigits: 0,
+  });
+};

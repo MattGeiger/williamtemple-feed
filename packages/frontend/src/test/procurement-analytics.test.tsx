@@ -83,6 +83,7 @@ const emptyAnalytics: ProcurementAnalytics = {
   },
   acquisitionMix: [],
   channelMix: [],
+  monthlySpend: [],
   monthlyWeight: [],
   seasonalWeight: [],
   seasonalChannelWeight: [],

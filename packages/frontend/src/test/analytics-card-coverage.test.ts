@@ -76,11 +76,21 @@ const registeredIds = (): string[] => {
   if (!array) throw new Error('ANALYTICS_CARDS array not found — has it been renamed?');
   const names = [...array[1].matchAll(/^\s*([A-Z_][A-Z0-9_]*),/gm)].map(m => m[1]);
   return names.map(name => {
-    const declaration = new RegExp(
+    // Two declaration shapes. Most cards are written out in full; the four
+    // Clients breakdowns share a factory, because ethnicity, gender identity
+    // and housing type differ only in which answers they hold and four
+    // near-copies would drift apart. Both forms put the id first.
+    const literal = new RegExp(
       `export const ${name}: AnalyticsCard = \\{\\s*\\n\\s*id: '([^']+)'`
     ).exec(source);
-    if (!declaration) throw new Error(`No id found for registered card ${name}.`);
-    return declaration[1];
+    if (literal) return literal[1];
+
+    const factory = new RegExp(
+      `export const ${name} = \\w+\\(\\s*\\n?\\s*'([^']+)'`
+    ).exec(source);
+    if (factory) return factory[1];
+
+    throw new Error(`No id found for registered card ${name}.`);
   });
 };
 
@@ -102,7 +112,13 @@ const cardTitles = (source: string): { title: string; cardId: string | null }[] 
     else if (match[0] === '</SelectableBlock>') open.pop();
     else if (match[1] !== undefined && open.length > 0) open[open.length - 1] = match[1];
     else if (match[2] !== undefined) {
-      found.push({ title: match[2].trim(), cardId: open[open.length - 1] ?? null });
+      const title = match[2].trim();
+      // `<CardTitle>{title}</CardTitle>` is a shared card *component* taking
+      // its heading as a prop, not a card with a literal name. Its callers
+      // pass a literal `cardId`, which the registry check below still sees, so
+      // skipping it here loses no coverage.
+      if (/^\{\w+\}$/.test(title)) continue;
+      found.push({ title, cardId: open[open.length - 1] ?? null });
     }
   }
   return found;

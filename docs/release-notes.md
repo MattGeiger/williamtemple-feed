@@ -40,6 +40,19 @@
   rows are counted but not deduplicated, and the cards say so. Visits per
   household is unchanged: it still uses identified records only, since an
   anonymous row carries no information about returning.
+- **Four more Clients cards: Ethnicity, Race or Ethnicity (SIMC), Gender
+  Identity, and Housing Type.** All built from data FEED already holds. The two
+  ethnicity cards are kept apart because the systems ask different questions
+  and count different things — households in one, people in the other.
+- **Age of People Served now covers both records.** A Link2Feed / SIMC switch
+  chooses which to read, so the card keeps working after the June 2026
+  changeover instead of going empty.
+- **A SIMC parsing fault is fixed.** Answers whose category name contains a
+  comma — "Hispanic, Latino, or Spanish" — were being stored as several
+  separate answers. Existing records can be corrected by re-importing the
+  export or by running the repair script.
+- **Procurement gains OFB Spending Over Time**, showing recorded charges by
+  month alongside net cost after fees and grants.
 - **Two new cards on Clients: Age of People Served and Where Households Live.**
   Both come from data FEED already holds, so nothing new needs importing. Ages
   are taken as of the end of the range, and the card says plainly that only

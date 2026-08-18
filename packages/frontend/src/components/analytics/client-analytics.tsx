@@ -30,11 +30,16 @@ import {
 } from '@/components/ui/chart';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { SelectableBlock } from '@/components/reports/selection';
 import { ErrorHandlerService } from '@/services/error/ErrorHandlerService';
 import { carbonChartColors } from '@/lib/colors';
 import { formatAxisNumber, formatNumber } from '@/lib/formatting/number';
-import { serviceApi, type ServiceAnalytics } from '@/services/service';
+import {
+  serviceApi,
+  type DemographicBreakdown,
+  type ServiceAnalytics,
+} from '@/services/service';
 import type { AnalyticsDateRange } from '@/types/analytics';
 
 const count = (value: number) => formatNumber(value);
@@ -54,6 +59,72 @@ function SourcePills({ sources }: { sources: string[] }) {
 function Footnote({ children }: { children: React.ReactNode }) {
   return <p className="mt-3 text-xs text-muted-foreground">{children}</p>;
 }
+
+
+/**
+ * One demographic question as ranked bars.
+ *
+ * Ethnicity, gender identity and housing type differ only in which answers
+ * they hold, so they share a component rather than three near-copies. The
+ * denominators travel with it: a bar is meaningless without how many were
+ * asked, and a multi-answer question needs to say why its bars sum above the
+ * people counted.
+ */
+function BreakdownCard({
+  cardId, title, description, breakdown, color, height = '320px', children,
+}: {
+  cardId: string;
+  title: string;
+  description: string;
+  breakdown: DemographicBreakdown;
+  color: string;
+  height?: string;
+  children?: React.ReactNode;
+}) {
+  if (breakdown.values.length === 0) return null;
+  const percent = breakdown.asked > 0
+    ? Math.round((breakdown.answered / breakdown.asked) * 100)
+    : 0;
+  const unit = breakdown.unit === 'people' ? 'people' : 'households';
+
+  return (
+    <SelectableBlock cardId={cardId}>
+      <Card className="min-w-0">
+        <CardHeader>
+          <CardTitle>{title}</CardTitle>
+          <CardDescription>{description}</CardDescription>
+          <SourcePills sources={breakdown.sources.map(sourceLabel)} />
+        </CardHeader>
+        <CardContent>
+          <ChartContainer
+            config={{ count: { label: unit === 'people' ? 'People' : 'Households', color } } satisfies ChartConfig}
+            className={`w-full`}
+            style={{ height }}
+          >
+            <BarChart data={breakdown.values} layout="vertical" margin={{ left: 8, right: 24, top: 4 }}>
+              <CartesianGrid horizontal={false} strokeDasharray="3 3" />
+              <XAxis type="number" tickLine={false} axisLine={false} tickFormatter={formatAxisNumber} />
+              <YAxis type="category" dataKey="label" tickLine={false} axisLine={false} width={176} interval={0} />
+              <ChartTooltip content={<ChartTooltipContent />} />
+              <Bar dataKey="count" fill={seriesColor('count')} radius={[0, 3, 3, 0]} />
+            </BarChart>
+          </ChartContainer>
+          <Footnote>
+            About {percent}% of {unit} answered this question ({count(breakdown.answered)} of{' '}
+            {count(breakdown.asked)}).
+            {breakdown.multiValue &&
+              ` A ${unit === 'people' ? 'person' : 'household'} can give more than one answer, so the bars sum above that.`}
+            {children}
+          </Footnote>
+        </CardContent>
+      </Card>
+    </SelectableBlock>
+  );
+}
+
+/** Record names as staff know them, not as the importer spells them. */
+const sourceLabel = (source: string) =>
+  source === 'link2feed' ? 'Link2Feed' : source === 'simc' ? 'SIMC' : source;
 
 export function ClientAnalyticsLens({ range }: { range: AnalyticsDateRange }) {
   const [analytics, setAnalytics] = React.useState<ServiceAnalytics | null>(null);
@@ -102,7 +173,9 @@ export function ClientAnalyticsLens({ range }: { range: AnalyticsDateRange }) {
 }
 
 export function ClientAnalyticsWorkspace({ analytics }: { analytics: ServiceAnalytics }) {
-  const { coverage, householdSize, languages, responseCoverage, ageBands, geography } = analytics;
+  const {
+    coverage, householdSize, languages, responseCoverage, ageBands, geography, demographics,
+  } = analytics;
 
   /**
    * Only the records this range contains. `coverage.sources` is range-scoped,
@@ -150,6 +223,15 @@ export function ClientAnalyticsWorkspace({ analytics }: { analytics: ServiceAnal
    * summed into one row rather than dropped, so the bars still account for
    * every household with a recorded address.
    */
+  /**
+   * Which record's ages to show. Not a filter — the two count different
+   * people, so switching changes what a bar means.
+   */
+  const [ageSource, setAgeSource] = React.useState<'link2feed' | 'simc'>(
+    ageBands.link2feed.available ? 'link2feed' : 'simc',
+  );
+  const activeAges = ageSource === 'link2feed' ? ageBands.link2feed : ageBands.simc;
+
   const POSTAL_CODES_PLOTTED = 12;
   const geographyRows = React.useMemo(() => {
     const top = geography.postalCodes.slice(0, POSTAL_CODES_PLOTTED);
@@ -159,10 +241,6 @@ export function ClientAnalyticsWorkspace({ analytics }: { analytics: ServiceAnal
       ? [...top, { postalCode: `${tail.length} more postal codes`, clients: tailTotal }]
       : top;
   }, [geography.postalCodes]);
-
-  /** Only Link2Feed records a birth year, so a SIMC-only range has no ages. */
-  const hasAges = ageBands.sources.length > 0
-    && ageBands.bands.some((band) => band.clients > 0);
 
   const languageAnsweredPercent = languages.householdsAsked > 0
     ? Math.round((languages.householdsAnswered / languages.householdsAsked) * 100)
@@ -204,51 +282,108 @@ export function ClientAnalyticsWorkspace({ analytics }: { analytics: ServiceAnal
       )}
 
       {/* ---- Age ----------------------------------------------------------- */}
-      <SelectableBlock cardId="clients-age-bands">
+      <SelectableBlock cardId="clients-age-bands" options={{ source: ageSource }}>
         <Card className="min-w-0">
-          <CardHeader>
-            <CardTitle>Age of People Served</CardTitle>
-            <CardDescription>
-              Age as of {ageBands.asOfYear}, for the households served in this range.
-            </CardDescription>
-            <SourcePills sources={ageBands.sources.includes('link2feed') ? ['Link2Feed'] : []} />
+          <CardHeader className="flex-row items-start justify-between gap-3 space-y-0">
+            <div className="space-y-1.5">
+              <CardTitle>Age of People Served</CardTitle>
+              <CardDescription>
+                Age as of {ageBands.asOfYear}, for those served in this range.
+              </CardDescription>
+              <SourcePills sources={[sourceLabel(ageSource)]} />
+            </div>
+            {/* The two records count different people, so this is a source
+                switch rather than a filter — the y-axis changes meaning with
+                it, from households to people. */}
+            <Tabs
+              value={ageSource}
+              onValueChange={(value) => setAgeSource(value as 'link2feed' | 'simc')}
+              className="w-auto"
+            >
+              <TabsList aria-label="Age source" className="h-8">
+                <TabsTrigger value="link2feed">Link2Feed</TabsTrigger>
+                <TabsTrigger value="simc">SIMC</TabsTrigger>
+              </TabsList>
+            </Tabs>
           </CardHeader>
           <CardContent>
-            {!hasAges ? (
-              /* Not an error, and not an empty chart either. SIMC records no
-                 birth year, so a range after the changeover legitimately has
-                 none — saying which record is missing is the whole content. */
+            {!activeAges.available ? (
               <p className="py-8 text-center text-sm text-muted-foreground">
-                No ages recorded in this range. Birth year comes from Link2Feed
-                intake; SIMC does not record one, so ranges after the June 2026
-                changeover have no ages to show.
+                No ages recorded in this range from {sourceLabel(ageSource)}.
+                {ageSource === 'link2feed'
+                  ? ' Link2Feed stopped receiving visits at the June 2026 changeover.'
+                  : ' SIMC records began in June 2026.'}
               </p>
             ) : (
               <>
                 <ChartContainer
-                  config={{ clients: { label: 'People', color: carbonChartColors.purple.primary.light } } satisfies ChartConfig}
+                  config={{ count: { label: activeAges.unit === 'people' ? 'People' : 'Households', color: carbonChartColors.purple.primary.light } } satisfies ChartConfig}
                   className="h-[260px] w-full"
                 >
-                  <BarChart data={ageBands.bands} margin={{ left: 4, right: 8, top: 8 }}>
+                  <BarChart data={activeAges.bands} margin={{ left: 4, right: 8, top: 8 }}>
                     <CartesianGrid vertical={false} strokeDasharray="3 3" />
                     <XAxis dataKey="label" tickLine={false} axisLine={false} />
                     <YAxis tickLine={false} axisLine={false} width={52} tickFormatter={formatAxisNumber} />
                     <ChartTooltip content={<ChartTooltipContent />} />
-                    <Bar dataKey="clients" fill={seriesColor('clients')} radius={[3, 3, 0, 0]} />
+                    <Bar dataKey="count" fill={seriesColor('count')} radius={[3, 3, 0, 0]} />
                   </BarChart>
                 </ChartContainer>
                 <Footnote>
-                  Recorded in Link2Feed only.
-                  {ageBands.clientsWithoutBirthYear > 0 &&
-                    ` ${count(ageBands.clientsWithoutBirthYear)} people served in this range have no birth year on file and are not counted here.`}
-                  {ageBands.estimatedBirthYears > 0 &&
-                    ` ${count(ageBands.estimatedBirthYears)} birth years were estimated at intake rather than reported.`}
+                  {ageSource === 'link2feed'
+                    ? 'Link2Feed records one birth year per household — the person who registered — so these are heads of household.'
+                    : 'SIMC records a birth year for each household member, so these are people.'}
+                  {activeAges.withoutBirthYear > 0 &&
+                    ` ${count(activeAges.withoutBirthYear)} have no birth year on file and are not counted here.`}
+                  {activeAges.estimatedBirthYears > 0 &&
+                    ` ${count(activeAges.estimatedBirthYears)} birth years were estimated at intake rather than reported.`}
                 </Footnote>
               </>
             )}
           </CardContent>
         </Card>
       </SelectableBlock>
+
+      {/* ---- Ethnicity, gender, housing ------------------------------------ */}
+      <BreakdownCard
+        cardId="clients-ethnicity"
+        title="Ethnicity"
+        description="As households reported it at intake."
+        breakdown={demographics.ethnicity}
+        color={carbonChartColors.magenta.primary.light}
+      >
+        {' Recorded in Link2Feed only; SIMC asks a different question with different categories.'}
+      </BreakdownCard>
+
+      <BreakdownCard
+        cardId="clients-race-simc"
+        title="Race or Ethnicity (SIMC)"
+        description="As each household member reported it at intake."
+        breakdown={demographics.simcRaceOrEthnicity}
+        color={carbonChartColors.orange.primary.light}
+        height="280px"
+      >
+        {' Counted in people rather than households, and not comparable with the Link2Feed ethnicity card — the two systems ask different questions.'}
+      </BreakdownCard>
+
+      <BreakdownCard
+        cardId="clients-gender-identity"
+        title="Gender Identity"
+        description="As households reported it at intake."
+        breakdown={demographics.genderIdentity}
+        color={carbonChartColors.cyan.primary.light}
+        height="280px"
+      />
+
+      <BreakdownCard
+        cardId="clients-housing-type"
+        title="Housing Type"
+        description="Where households said they were living."
+        breakdown={demographics.housingType}
+        color={carbonChartColors.green.primary.light}
+        height="360px"
+      >
+        {' Pairs with the no-fixed-address figure on Where Households Live.'}
+      </BreakdownCard>
 
       {/* ---- Geography ------------------------------------------------------ */}
       {geographyRows.length > 0 && (

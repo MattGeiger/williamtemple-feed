@@ -300,6 +300,37 @@ The separately developed Chrome extension should emit a versioned,
 FEED-recognizable artifact when possible. It still passes through review,
 staging, validation, and activation rather than bypassing ingestion controls.
 
+## SIMC multi-value parsing
+
+Settled August 2026. SIMC joins multiple answers to one question with a comma,
+and four of its category names contain a comma of their own:
+
+| Field | Label |
+| --- | --- |
+| `Neighbor Race or Ethnicity` | `Hispanic, Latino, or Spanish` |
+| `Household Living Situation` | `I have a place to live today, but I am worried about losing it in the future` |
+| `Household Military Status` | `No, never on active duty except for initial/basic training` |
+| `Household Military Status` | `No, never served in the U.S. Armed Forces` |
+
+A naive split stored the first as three answers — "Hispanic", "Latino", "or
+Spanish" — each counted separately, so a race breakdown built on it would have
+reported "or Spanish" as a race. Changing the delimiter cannot fix this:
+`Asian, Chinese` genuinely is two answers. The adapter therefore holds known
+comma-bearing labels aside before splitting, and the list has to grow when SIMC
+adds a category containing one. Values arriving as obvious sentence fragments
+are the symptom.
+
+**Link2Feed is unaffected.** It uses ` / ` inside a label (`Black / African
+American`) and `,` between labels, so the two never collide.
+
+**Fixing the adapter does not fix rows already written.** Either re-import the
+same export — which supersedes them, and picks up anything newer at the same
+time — or run `scripts/repair-simc-comma-labels.ts`, which rejoins the affected
+arrays. The repair is an exact inverse rather than a guess: the fragments sit
+adjacent and in order, because that is how the split produced them. The
+development copy was repaired this way (75 responses of 92,413); production
+needs the same treatment or a re-import after deploy.
+
 ## Record kinds and source-data resolutions
 
 Not every formal-source row proves one ordinary household visit. The canonical

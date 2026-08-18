@@ -91,6 +91,10 @@ Warehouse Orders and agency-reported Fresh Food Alliance grocery-partner receipt
   Receipts, receiving dates, and inbound weight separate.
 - **Inbound Weight Over Time** shows monthly inbound pounds immediately after
   the summary, keeping Warehouse and Fresh Food Alliance channels separate.
+- **OFB Spending Over Time** shows recorded charges by delivery month. It is
+  deliberately separate from weight, because the two do not move together — a
+  heavy donated load costs nothing. Net recorded cost adds service fees and
+  subtracts grants, so where the two lines meet, neither applied that month.
 - **Paid Procurement Summary** shows product charges, service fees, grants, and
   the resulting net recorded charge. If an acquisition-class filter splits an
   order, fees, grants, and net cost display as **Not attributable** rather than
@@ -195,15 +199,27 @@ not everyone on file.
   denominator.
 - **Age of People Served** groups people into age bands, taken as of the end of
   the date range — a household served in December 2024 was the age it was then.
-  Birth year comes from Link2Feed only; SIMC does not record one, so a range
-  after the June 2026 changeover has no ages and the card says so rather than
-  showing empty bars.
+  Use the **Link2Feed / SIMC** switch to choose which record to read. The two
+  count different people and must not be added: Link2Feed records one birth
+  year per household, for whoever registered, while SIMC records one for every
+  household member. The card says which it is showing.
 - **Where Households Live** ranks postal codes. Households recorded as having
   no fixed address are counted separately rather than by postal code: SIMC
   requires a postal code, so the agency's own is entered when there is nowhere
   else to give, and counting those as residents would draw the pantry's own
   neighborhood as the place its clients live. It is not a map — a postal code
   is not a catchment area.
+- **Ethnicity** shows how households described themselves at intake, recorded
+  in Link2Feed only — SIMC asks a different question with different categories,
+  which appears on its own card. A household can give more than one answer, so
+  the bars add up to more than the households counted.
+- **Race or Ethnicity (SIMC)** is the same question as SIMC asks it, counted in
+  people rather than households because SIMC records an answer for each
+  household member. The two ethnicity cards are not comparable and should not
+  be added together.
+- **Gender Identity** and **Housing Type** show what households reported, again
+  from Link2Feed. Housing Type pairs with the no-fixed-address figure on Where
+  Households Live.
 - **Languages Spoken at Home** shows which languages households speak. Where
   the two intake systems wrote the same answer differently, the labels are
   merged — "Mandarin Chinese" counts as "Mandarin". Answers that are different
