@@ -3,6 +3,7 @@
 
 import { prefersReducedMotion } from '@/lib/reduced-motion'
 import { trimSeriesToData } from '@/lib/chart-series'
+import { formatAxisMoney } from '@/lib/formatting/number'
 import * as React from 'react';
 import type { ColumnDef } from '@tanstack/react-table';
 import { format, parseISO } from 'date-fns';
@@ -751,6 +752,7 @@ function ReportToolbar({ filters }: { filters: ReportFilterContext }) {
     'procurement-acquisition-mix': 'Acquisition Mix',
     'procurement-channels': 'Procurement Channels',
     'procurement-inbound-weight-over-time': 'Inbound Weight Over Time',
+    'procurement-spend-over-time': 'OFB Spending Over Time',
     'procurement-paid-product-spend': 'Where Paid Procurement Dollars Went',
     'procurement-seasonal-inbound-weight': 'Seasonal Inbound Weight',
     'procurement-fresh-alliance-category-mix': 'Fresh Food Alliance Category Mix',
@@ -1074,6 +1076,22 @@ export function ProcurementAnalyticsWorkspace({
     })),
     [analytics]
   );
+  /**
+   * Spend by month, in dollars.
+   *
+   * Product charges and net recorded cost are drawn as separate lines rather
+   * than one: they diverge only where fees or grants applied, and where they
+   * coincide the reader can see that nothing was added or forgiven.
+   */
+  const monthlySpend = React.useMemo(() => {
+    const rows = (analytics?.monthlySpend ?? []).map((row) => ({
+      month: row.month,
+      productCharges: row.productChargesCents / 100,
+      netRecordedCost: row.netRecordedCostCents / 100,
+    }));
+    return trimSeriesToData(rows, ['productCharges', 'netRecordedCost']);
+  }, [analytics]);
+
   const acquisitionMix = React.useMemo(
     () => (analytics?.acquisitionMix ?? []).map((row) => ({
       acquisitionClass: acquisitionLabels[row.acquisitionClass],
@@ -1519,6 +1537,51 @@ export function ProcurementAnalyticsWorkspace({
         </CardContent>
         </Card>
       </SelectableBlock>
+
+      {monthlySpend.length > 0 && (
+        <SelectableBlock cardId="procurement-spend-over-time">
+          <Card className="min-w-0">
+            <CardHeader>
+              <CardTitle>OFB Spending Over Time</CardTitle>
+              <CardDescription>
+                Recorded charges by delivery month. Money and weight do not move
+                together — a heavy donated load costs nothing.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ChartContainer
+                config={{
+                  productCharges: { label: 'Product charges', color: carbonChartColors.blue.primary.light },
+                  netRecordedCost: { label: 'Net recorded cost', color: carbonChartColors.teal.primary.light },
+                } satisfies ChartConfig}
+                className="h-80 min-w-0 w-full"
+              >
+                <LineChart accessibilityLayer data={monthlySpend} margin={{ left: 8, right: 16 }}>
+                  <CartesianGrid vertical={false} />
+                  <XAxis
+                    dataKey="month"
+                    tickLine={false}
+                    axisLine={false}
+                    tickFormatter={(month: string) => format(parseISO(`${month}-01`), 'MMM yy')}
+                    minTickGap={32}
+                  />
+                  <YAxis width={72} tickLine={false} axisLine={false} tickFormatter={formatAxisMoney} />
+                  <ChartTooltip content={<ChartTooltipContent sortByValue />} />
+                  <ChartLegend content={<ChartLegendContent />} />
+                  <Line isAnimationActive={!prefersReducedMotion()} dataKey="productCharges" stroke="var(--color-productCharges)" strokeWidth={2} dot={false} />
+                  <Line isAnimationActive={!prefersReducedMotion()} dataKey="netRecordedCost" stroke="var(--color-netRecordedCost)" strokeWidth={2} dot={false} strokeDasharray="4 3" />
+                </LineChart>
+              </ChartContainer>
+              <p className="mt-3 text-xs text-muted-foreground">
+                Net recorded cost adds service fees and subtracts grants. Where the
+                two lines coincide, neither applied that month. Fees and grants sit
+                on a whole order, so a filter that divides one leaves them out
+                rather than assigning them to a month arbitrarily.
+              </p>
+            </CardContent>
+          </Card>
+        </SelectableBlock>
+      )}
 
       {selectedChannel !== 'fresh_alliance' && <SelectableBlock cardId="procurement-paid-summary">
         <Card>

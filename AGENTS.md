@@ -528,6 +528,30 @@ kept since October 2023.
   a zero, confirmed by staff.
 - **Drop the unfinished month** from monthly charts and name it. A partial month
   beside complete ones reads as a collapse that did not happen.
+- **A comma is not reliably a separator in SIMC.** The export joins multiple
+  answers with a comma *and* has four category names containing one, so a naive
+  split shreds them — "Hispanic, Latino, or Spanish" became three answers, and
+  a race breakdown reported "or Spanish" as a race. The delimiter cannot be
+  changed, because "Asian, Chinese" really is two answers. The adapter holds
+  known comma-bearing labels aside before splitting
+  (`SIMC_LABELS_CONTAINING_COMMAS`); extend that list when SIMC adds a category
+  with a comma, and treat values arriving as obvious sentence fragments as the
+  symptom. Link2Feed is unaffected — it uses ` / ` inside labels and `,`
+  between them.
+- **Data already stored under a parsing bug needs re-importing or repairing.**
+  Fixing an adapter fixes the next import, not the rows already written.
+  `scripts/repair-simc-comma-labels.ts` rejoins the affected arrays and is an
+  exact inverse rather than a guess, because the fragments sit adjacent and in
+  order. Re-importing the same export does the same thing and supersedes the
+  rows. Either is fine; doing neither leaves a card drawing corrupted
+  categories.
+- **The two records sit at different grains.** Link2Feed writes demographics on
+  the *household* profile (`ServiceClientProfileResponse`); SIMC writes them
+  per *person* (`ServicePersonProfileResponse`). A card must say which it
+  counts and must never sum the two — the same question answered at both
+  grains weights a SIMC household by its size and a Link2Feed household by one.
+  This is why age and ethnicity each carry a source switch rather than a
+  combined total.
 - **Merge language labels only where two labels are the same word.** "Mandarin
   Chinese" folds into "Mandarin" because that is the two intake systems writing
   one answer two ways — a redundant qualifier, not a different name. Answers

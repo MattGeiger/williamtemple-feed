@@ -1030,6 +1030,21 @@ export async function getProcurementAnalytics(
   const acquisitionWeights = new Map<AcquisitionClass, number>();
   const channelWeights = new Map<ProcurementChannel, number>();
   const monthly = new Map<string, Record<string, number>>();
+  /**
+   * Recorded spend by delivery month.
+   *
+   * Kept beside the weight map rather than derived from it: weight and money
+   * do not move together — a heavy donated load costs nothing, and a light
+   * purchased one can be the month's largest charge. Fees and grants follow
+   * the same attributability rule the totals use, so a filter that divides an
+   * order leaves them out here too rather than assigning them to a month
+   * arbitrarily.
+   */
+  const monthlySpend = new Map<string, {
+    productChargesCents: number;
+    serviceFeesCents: number;
+    grantsAppliedCents: number;
+  }>();
   const seasonal = new Map<string, number>();
   // Keyed by year-month and channel so the seasonal view can separate OFB
   // Warehouse orders from Fresh Food Alliance receipts without a second query.
@@ -1190,13 +1205,19 @@ export async function getProcurementAnalytics(
       }
       calculatedGrossProductChargesCents += line.calculatedPriceTotalCents;
       sourceReportedProductChargesCents += line.sourcePriceTotalCents;
+      const spendBucket = monthlySpend.get(month)
+        ?? { productChargesCents: 0, serviceFeesCents: 0, grantsAppliedCents: 0 };
+      spendBucket.productChargesCents += line.calculatedPriceTotalCents;
       // OFB exports place event-level fees and grants on individual source
       // rows. A channel filter retains whole source events; an acquisition
       // filter may divide one event, making its adjustments unattributable.
       if (costAdjustmentsAttributable) {
         serviceFeesCents += line.serviceFeeCents;
         grantsAppliedCents += line.grantsAppliedCents;
+        spendBucket.serviceFeesCents += line.serviceFeeCents;
+        spendBucket.grantsAppliedCents += line.grantsAppliedCents;
       }
+      monthlySpend.set(month, spendBucket);
       if (!line.priceTotalMatches) priceMismatchLineCount += 1;
       // A zero-quantity line is a data-quality signal about an OFB export. A
       // legacy month legitimately has no quantity at all -- only a weight --
@@ -1615,6 +1636,14 @@ export async function getProcurementAnalytics(
       .map((channel) => ({
         channel,
         weightHundredths: channelWeights.get(channel) ?? 0,
+      })),
+    monthlySpend: [...monthlySpend.entries()]
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([month, values]) => ({
+        month,
+        ...values,
+        netRecordedCostCents:
+          values.productChargesCents + values.serviceFeesCents - values.grantsAppliedCents,
       })),
     monthlyWeight: [...monthly.entries()]
       .sort(([left], [right]) => left.localeCompare(right))

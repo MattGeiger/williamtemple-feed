@@ -50,6 +50,22 @@ All notable changes to FEED are documented here. This project adheres to
   scope — an anonymous row says nothing about returning, and folding those rows
   in would drag the average toward 1 and report a recording artefact as
   behaviour.
+- **Ethnicity, Race or Ethnicity (SIMC), Gender Identity and Housing Type** on
+  the Clients lens, from data the visits import already collected. The two
+  ethnicity cards stay separate: Link2Feed records ethnicity on the household
+  profile and SIMC records race per person, so they count different things with
+  different vocabularies and summing them would weight a SIMC household by its
+  size. The four share one factory rather than existing as near-copies.
+- **Age of People Served reads either record**, chosen by a source switch, so
+  it keeps working past the June 2026 changeover. Link2Feed contributes one
+  birth year per household — whoever registered — and SIMC one per household
+  member; the card names which it is showing and never adds them.
+- **OFB Spending Over Time** on Procurement: recorded charges by delivery
+  month, with net cost after service fees and grants drawn alongside. Money is
+  tracked separately from weight because the two do not move together.
+- **SIMC answer labels containing commas are no longer split apart.** See
+  `service-analytics-plan.md`; rows already stored can be corrected by
+  re-importing or with `scripts/repair-simc-comma-labels.ts`.
 - **Age of People Served and Where Households Live**, on the Clients lens,
   built from data the visits import already collected — 9,596 birth years and
   272 postal codes, covering every Link2Feed client rather than the 45% a

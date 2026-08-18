@@ -181,6 +181,27 @@ export interface ServiceMethodDefinition {
   firstRecordedDate?: string | null;
 }
 
+export interface AgeBandSet {
+  bands: Array<{ label: string; count: number }>;
+  estimatedBirthYears: number;
+  withoutBirthYear: number;
+  unit: 'households' | 'people';
+  available: boolean;
+}
+
+/**
+ * `values` can sum above `answered` where a question accepts more than one
+ * answer, which `multiValue` declares so a card can say so.
+ */
+export interface DemographicBreakdown {
+  values: Array<{ label: string; count: number }>;
+  answered: number;
+  asked: number;
+  sources: string[];
+  multiValue: boolean;
+  unit: 'households' | 'people';
+}
+
 export interface ServiceAnalytics {
   coverage: {
     startDate: string;
@@ -274,12 +295,25 @@ export interface ServiceAnalytics {
    * year, so `sources` is empty for a range after the June 2026 changeover and
    * the card must say so rather than drawing six empty bars.
    */
+  /**
+   * Two records kept apart: Link2Feed records one birth year per household
+   * profile (the person who registered), SIMC one per household member.
+   * Summing them would weight a SIMC household by its size and a Link2Feed
+   * household by one.
+   */
   ageBands: {
     asOfYear: number;
-    bands: Array<{ label: string; clients: number }>;
-    estimatedBirthYears: number;
-    clientsWithoutBirthYear: number;
-    sources: string[];
+    link2feed: AgeBandSet;
+    simc: AgeBandSet;
+  };
+  /** Ranked answers for one demographic question, at that record's grain. */
+  demographics: {
+    ethnicity: DemographicBreakdown;
+    genderIdentity: DemographicBreakdown;
+    genderIdentityGrouped: DemographicBreakdown;
+    housingType: DemographicBreakdown;
+    simcRaceOrEthnicity: DemographicBreakdown;
+    simcGenderIdentity: DemographicBreakdown;
   };
   /**
    * Postal codes, excluding households recorded as having no fixed address —
