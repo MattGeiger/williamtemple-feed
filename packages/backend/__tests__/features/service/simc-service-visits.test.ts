@@ -126,3 +126,48 @@ describe('SIMC service visit adapter', () => {
       ]));
   });
 });
+
+describe('answer labels that contain a comma of their own', () => {
+  /**
+   * SIMC joins multiple answers with a comma and has four category names that
+   * contain one. A naive split shredded them: "Hispanic, Latino, or Spanish"
+   * became "Hispanic", "Latino" and "or Spanish", three separate answers, and
+   * a race breakdown built on that reported "or Spanish" as a race.
+   *
+   * The delimiter cannot be changed, because "Asian, Chinese" really is two
+   * answers. These pin both halves of that distinction.
+   */
+  const raceOf = async (raw: string) => {
+    const result = await parseFixture(csv([
+      row({ 'Head of Household': 'Yes', 'Neighbor Race or Ethnicity': raw }),
+    ]));
+    const response = result.people[0].profileResponses
+      .find((r) => r.dimension === 'race_or_ethnicity');
+    return response?.values ?? [];
+  };
+
+  test('keeps a comma-bearing label whole', async () => {
+    expect(await raceOf('Hispanic, Latino, or Spanish')).toEqual(['Hispanic, Latino, or Spanish']);
+  });
+
+  test('still splits a genuine list of two answers', async () => {
+    expect(await raceOf('Asian, Chinese')).toEqual(['Asian', 'Chinese']);
+  });
+
+  test('handles a comma-bearing label beside another answer', async () => {
+    expect(await raceOf('Hispanic, Latino, or Spanish, White'))
+      .toEqual(['Hispanic, Latino, or Spanish', 'White']);
+    expect(await raceOf('American Indian or Alaska Native, Hispanic, Latino, or Spanish'))
+      .toEqual(['American Indian or Alaska Native', 'Hispanic, Latino, or Spanish']);
+  });
+
+  test('protects the living-situation sentence, which also carries a comma', async () => {
+    const sentence = 'I have a place to live today, but I am worried about losing it in the future';
+    const result = await parseFixture(csv([
+      row({ 'Head of Household': 'Yes', 'Household Living Situation': sentence }),
+    ]));
+    const response = result.visits[0].profileResponses
+      .find((r) => r.dimension === 'housing_stability');
+    expect(response?.values).toEqual([sentence]);
+  });
+});

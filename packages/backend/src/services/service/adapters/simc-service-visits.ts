@@ -181,7 +181,56 @@ const nonAnswer = (value: string) => {
     || key === 'dont know / prefer not to answer' || key === 'do not know / prefer not to answer';
 };
 
-const commaValues = (raw: string | undefined) => clean(raw).split(',').map(clean).filter(Boolean);
+/**
+ * SIMC answer labels that contain a comma of their own.
+ *
+ * The export joins multiple answers with a comma, and four of its category
+ * names contain one — so a naive split shreds them. "Hispanic, Latino, or
+ * Spanish" became three answers ("Hispanic", "Latino", "or Spanish"), each
+ * counted separately, and a race breakdown built on that would have shown
+ * "or Spanish" as a race.
+ *
+ * The delimiter cannot be changed to fix this: "Asian, Chinese" really is two
+ * answers. The only reliable rule is to know which labels contain commas and
+ * hold them aside before splitting. Extend this list when SIMC adds a category
+ * with a comma in it; a value that arrives split into obvious fragments is the
+ * symptom.
+ *
+ * Sorted longest-first so an overlapping label cannot be partly consumed by a
+ * shorter one.
+ */
+const SIMC_LABELS_CONTAINING_COMMAS: readonly string[] = [
+  'I have a place to live today, but I am worried about losing it in the future',
+  'No, never on active duty except for initial/basic training',
+  'No, never served in the U.S. Armed Forces',
+  'Hispanic, Latino, or Spanish',
+].sort((left, right) => right.length - left.length);
+
+/** Placeholder that cannot occur in exported text. */
+const HOLD = '\u0000';
+
+const commaValues = (raw: string | undefined) => {
+  let text = clean(raw);
+  const held: string[] = [];
+
+  for (const label of SIMC_LABELS_CONTAINING_COMMAS) {
+    for (;;) {
+      const at = text.toLocaleLowerCase('en-US').indexOf(label.toLocaleLowerCase('en-US'));
+      if (at === -1) break;
+      held.push(text.slice(at, at + label.length));
+      text = `${text.slice(0, at)}${HOLD}${held.length - 1}${HOLD}${text.slice(at + label.length)}`;
+    }
+  }
+
+  return text
+    .split(',')
+    .map(clean)
+    .filter(Boolean)
+    .map((value) => value.replace(
+      new RegExp(`${HOLD}(\\d+)${HOLD}`, 'g'),
+      (_, index: string) => held[Number(index)],
+    ));
+};
 const answerValues = (raw: string | undefined) => commaValues(raw).filter((value) => !nonAnswer(value));
 const languageResponse = (raw: string | undefined) => {
   const values = answerValues(raw)
