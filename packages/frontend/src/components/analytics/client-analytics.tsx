@@ -500,7 +500,7 @@ export function ClientAnalyticsWorkspace({ analytics }: { analytics: ServiceAnal
               </div>
               <FootnoteList
                 items={[
-                  'Postal codes only \u2014 no addresses are stored or shown.',
+                  'Postal codes only. No addresses are stored or shown.',
                   geography.noFixedAddressAsked && geography.noFixedAddress > 0
                     && `${count(geography.noFixedAddress)} households have no fixed address `
                       + 'and are not on the map.',
