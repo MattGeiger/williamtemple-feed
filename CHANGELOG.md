@@ -5,6 +5,47 @@ All notable changes to FEED are documented here. This project adheres to
 
 ## [Unreleased]
 
+### Added
+
+- **Gender Identity (SIMC)** on the Clients lens. SIMC has recorded a gender
+  for every household member since the June 2026 changeover — 2,166 people —
+  and FEED was already reading and storing it; nothing drew it. It gets its own
+  card rather than joining the Link2Feed one, for the same reason the two
+  ethnicity cards stay apart: SIMC answers per person and Link2Feed per
+  household, so one total would weight a large household more heavily than a
+  small one. The categories are worded differently too — "Trans Male/Trans Man"
+  against "Transgender man" — and silently folding them together would invent a
+  taxonomy neither system uses.
+
+### Fixed
+
+- **The Service tab rendered blank on the YTD and All ranges.** How Service Was
+  Delivered plots every service day at every range, but still labelled its axis
+  with the page-wide grain, which is monthly on exactly those two presets. A day
+  key reached the month formatter, which built `2026-06-02-01`, and the
+  resulting `RangeError` inside Recharts' render unmounted the entire lens — a
+  blank page rather than a wrong label. Each chart now labels by its own
+  granularity, and no tick formatter can take down a tab again: an unparseable
+  bucket falls back to the raw key.
+
+### Changed
+
+- **Card footnotes are lists rather than paragraphs.** Age of People Served,
+  Ethnicity, Race or Ethnicity (SIMC), both Gender Identity cards, Housing Type,
+  Where Households Live and Demographics Questions Response Rate each carried a
+  block of prose that had to be read whole to find the one caveat that applied.
+  They are now bulleted, one fact per line, with the placeholder birth years
+  nested under the estimated-age note they qualify.
+- **Where Households Live names the agency's own postal code** as
+  over-represented. Households with no fixed address were already off the map,
+  but SIMC requires a postal code, so the agency's is also entered for housed
+  households whose code is unknown — and nothing in the record separates the
+  two. The code stays plotted and the footnote says to read it with caution.
+  It is derived as the code most often recorded for a no-fixed-address
+  household rather than written into the source, so it follows the agency
+  rather than going stale, and it stays silent unless one code holds a clear
+  majority.
+
 ## [1.5.0-beta.19] — 2026-08-16
 
 ### Added

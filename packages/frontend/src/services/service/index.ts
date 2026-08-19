@@ -323,6 +323,8 @@ export interface ServiceAnalytics {
       longitude: number | null;
     }>;
     clientsWithoutPlace: number;
+    /** The agency's own code, derived; null when no code clearly dominates. */
+    agencyPostalCode: string | null;
     noFixedAddress: number;
     noFixedAddressAsked: boolean;
     clientsWithoutPostalCode: number;

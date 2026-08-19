@@ -218,6 +218,14 @@ not everyone on file.
   place its clients live. A handful of codes give no map location at all — a
   PO-box-only code, for one — and are noted beneath the map instead.
 
+  One code is called out beneath the map as over-represented: the agency's own.
+  Households recorded as having no fixed address are already left off, but the
+  same code also gets entered for housed households whose code simply is not
+  known, and nothing in the record separates those from people who really live
+  there. The circle stays on the map and the note says to read it with caution.
+  FEED works out which code this is from the data rather than being told, so it
+  stays correct if the agency ever moves.
+
   Read the map as postal codes, not as neighborhoods: a circle marks the whole
   code, not an address, and a postal code is not a catchment area. The map
   opens on the metro area rather than on the full spread of the data, because a
@@ -235,9 +243,15 @@ not everyone on file.
   people rather than households because SIMC records an answer for each
   household member. The two ethnicity cards are not comparable and should not
   be added together.
-- **Gender Identity** and **Housing Type** show what households reported, again
-  from Link2Feed. Housing Type pairs with the no-fixed-address figure on Where
-  Households Live.
+- **Gender Identity** shows what households reported to Link2Feed, and **Gender
+  Identity (SIMC)** the same question as SIMC asks it. They stay on separate
+  cards for the same reason the two ethnicity cards do: SIMC records an answer
+  for every household member and Link2Feed one for whoever registered, so a
+  combined total would weight a large household more heavily than a small one.
+  The wording differs between the systems too — SIMC writes "Trans Male/Trans
+  Man" where Link2Feed writes "Transgender man".
+- **Housing Type** shows where households said they were living, from
+  Link2Feed. It pairs with the no-fixed-address figure on Where Households Live.
 - **Languages Spoken at Home** shows which languages households speak. Where
   the two intake systems wrote the same answer differently, the labels are
   merged — "Mandarin Chinese" counts as "Mandarin". Answers that are different
