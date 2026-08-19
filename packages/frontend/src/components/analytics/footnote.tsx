@@ -39,7 +39,23 @@ export type FootnoteEntry = React.ReactNode;
  * applied to them. Empty and false entries are dropped so a card can build its
  * list with inline conditions and never render a stray bullet.
  */
-export function FootnoteList({ items }: { items: FootnoteEntry[] }) {
+export function FootnoteList({
+  items,
+  marker = '\u2022',
+}: {
+  items: FootnoteEntry[];
+  /**
+   * What precedes each line. A bullet by default.
+   *
+   * Pass `*` (or `**`) to make the list a reference note keyed to a marked
+   * figure above it — Service Summary's "treat this as an undercount" is
+   * meaningless without saying *what* is undercounted, and the asterisk on the
+   * "People served" tile is what supplies the referent. A marker only earns
+   * its place when something above carries the matching mark; a bare asterisk
+   * with nothing to point at is just a bullet the reader has to decode.
+   */
+  marker?: string;
+}) {
   const kept = items.filter((item) => item !== null && item !== undefined && item !== false && item !== '');
   if (kept.length === 0) return null;
 
@@ -48,7 +64,7 @@ export function FootnoteList({ items }: { items: FootnoteEntry[] }) {
       {kept.map((item, index) => (
         // Index keys: these lists are static per render and never reordered.
         <li key={index} className="flex gap-1.5">
-          <span aria-hidden="true" className="select-none">•</span>
+          <span aria-hidden="true" className="select-none">{marker}</span>
           <span className="min-w-0">{item}</span>
         </li>
       ))}
