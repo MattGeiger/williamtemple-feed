@@ -17,7 +17,10 @@
  *
  * Usage — the directory holds the exports and lives OUTSIDE this repository:
  *
+ *   cd packages/backend
  *   npx tsx scripts/measure-l2f-client-coverage.ts <directory> [--baseline 4324]
+ *
+ * The repo root is not the runtime package — run it from `packages/backend`.
  *
  * `--baseline` is how many stored clients the all-time export matched (4,324),
  * so the report can state plainly whether the per-year set is an improvement.
@@ -117,9 +120,14 @@ async function main() {
     );
   }
   console.log(
-    '\n  Rows unmatched here are clients the visits import never saw — a gap in\n' +
-    '  FEED, not in the export. Clients below the lowest exported id cannot\n' +
-    '  appear in these files at all, however complete they are.\n',
+    '\n  Unmatched rows are clients with a Link2Feed profile that FEED has no\n' +
+    '  visit for. A client export offers a date range back to 2017, but William\n' +
+    '  Temple House adopted Link2Feed in October 2020, so an early start date\n' +
+    '  does NOT mean the file reaches further back than the visits do — both\n' +
+    '  records begin at adoption. Registration without a recorded visit is the\n' +
+    '  likelier explanation; confirm before reading it either way.\n\n' +
+    '  Clients below the lowest exported id cannot appear in these files at\n' +
+    '  all, however complete they are.\n',
   );
 }
 

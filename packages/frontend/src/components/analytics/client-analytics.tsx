@@ -31,12 +31,12 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SelectableBlock } from '@/components/reports/selection';
-import { Footnote, FootnoteList, type FootnoteEntry } from '@/components/analytics/footnote';
+import { FootnoteList, type FootnoteEntry } from '@/components/analytics/footnote';
 import { Map, MapControls, MapMarker, MarkerContent, MarkerTooltip } from '@/components/ui/map';
 import { useTheme } from 'next-themes';
 import { ErrorHandlerService } from '@/services/error/ErrorHandlerService';
 import { carbonChartColors } from '@/lib/colors';
-import { categoryAxisTicks, useElementWidth } from '@/lib/chart-axis';
+import { useCategoryAxis } from '@/lib/chart-axis';
 import { formatAxisNumber, formatNumber } from '@/lib/formatting/number';
 import {
   serviceApi,
@@ -291,10 +291,13 @@ export function ClientAnalyticsWorkspace({ analytics }: { analytics: ServiceAnal
    * grows by whatever the tilted labels need, rather than the bars giving up
    * the space.
    */
-  const [ageChartRef, ageChartWidth] = useElementWidth<HTMLDivElement>();
-  const { extraHeight: ageAxisExtraHeight, ...ageAxisProps } = categoryAxisTicks(
-    ageChartWidth,
+  const [ageChartRef, ageAxisProps, ageAxisExtraHeight] = useCategoryAxis(
     ageBands.bands.map((band) => band.label),
+  );
+
+  /** Short labels, but the same treatment so a long one never runs together. */
+  const [sizeChartRef, sizeAxisProps, sizeAxisExtraHeight] = useCategoryAxis(
+    sizeData.map((row) => String(row.label)),
   );
 
   return (
@@ -311,18 +314,21 @@ export function ClientAnalyticsWorkspace({ analytics }: { analytics: ServiceAnal
               <SourcePills sources={intakePills} />
             </CardHeader>
             <CardContent>
+              <div ref={sizeChartRef}>
               <ChartContainer
                 config={{ visits: { label: 'Visits', color: carbonChartColors.blue.primary.light } } satisfies ChartConfig}
-                className="h-[240px] w-full"
+                className="w-full"
+                style={{ height: `${240 + sizeAxisExtraHeight}px` }}
               >
                 <BarChart data={sizeData} margin={{ left: 4, right: 8, top: 8 }}>
                   <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                  <XAxis dataKey="label" tickLine={false} axisLine={false} />
+                  <XAxis dataKey="label" tickLine={false} axisLine={false} {...sizeAxisProps} />
                   <YAxis tickLine={false} axisLine={false} width={52} tickFormatter={formatAxisNumber} />
                   <ChartTooltip content={<ChartTooltipContent labelFormatter={(value) => `${value} ${value === '1' ? 'person' : 'people'}`} />} />
                   <Bar dataKey="visits" fill={seriesColor('visits')} radius={[3, 3, 0, 0]} />
                 </BarChart>
               </ChartContainer>
+              </div>
               <FootnoteList
                 items={[
                   `${singlePersonShare}% of visits are by a household of one.`,
@@ -549,12 +555,16 @@ export function ClientAnalyticsWorkspace({ analytics }: { analytics: ServiceAnal
                   <Bar dataKey="households" fill={seriesColor('households')} radius={[0, 3, 3, 0]} />
                 </BarChart>
               </ChartContainer>
-              <Footnote>
-                About {languageAnsweredPercent}% of households answered this question
-                {languageOverflow > 0 && `, across ${count(languages.values.length)} answers; the ${count(languageOverflow)} rarest are in the exported data`}
-                . “Mandarin Chinese” counts as “Mandarin”; the export keeps every answer
-                as recorded.
-              </Footnote>
+              <FootnoteList
+                items={[
+                  `About ${languageAnsweredPercent}% of households answered this question.`,
+                  languageOverflow > 0
+                    && `${count(languages.values.length)} answers in total; the `
+                      + `${count(languageOverflow)} rarest are in the exported data.`,
+                  '\u201CMandarin Chinese\u201D counts as \u201CMandarin\u201D; the export '
+                    + 'keeps every answer as recorded.',
+                ]}
+              />
             </CardContent>
           </Card>
         </SelectableBlock>

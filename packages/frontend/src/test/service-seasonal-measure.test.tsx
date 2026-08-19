@@ -95,9 +95,9 @@ describe('Households by Season measure toggle', () => {
     expect(screen.getByText('Households by Season')).toBeInTheDocument();
     expect(measureTab('Households')).toHaveAttribute('aria-selected', 'true');
     expect(measureTab('Visits')).toHaveAttribute('aria-selected', 'false');
-    expect(
-      screen.getByText(/repeated visits by the same\s+household are only counted once/)
-    ).toBeInTheDocument();
+    expect(screen.getByText(/repeat visits are counted once/)).toBeInTheDocument();
+    expect(screen.getByText(/Anonymous visits are counted but not deduplicated/))
+      .toBeInTheDocument();
   });
 
   test('switching to visits renames the card and changes what the footnote claims', () => {
@@ -111,7 +111,7 @@ describe('Households by Season measure toggle', () => {
     // The claim has to flip with the data. Leaving "only counted once" under a
     // visits chart would be the card lying about its own numbers.
     expect(screen.getByText(/counted each time/)).toBeInTheDocument();
-    expect(screen.queryByText(/only counted once/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/counted once/)).not.toBeInTheDocument();
   });
 
   test('uses the project\u2019s animated tab control, not a bespoke one', () => {
