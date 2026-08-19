@@ -5,6 +5,39 @@ All notable changes to FEED are documented here. This project adheres to
 
 ## [Unreleased]
 
+## [1.5.0-beta.21] — 2026-08-19
+
+Two defects found within an hour of deploying beta.20 to production, both while
+re-importing SIMC visits.
+
+### Fixed
+
+- **A rejected import showed an empty dialog instead of the reason.** The server
+  knew exactly what was wrong — *"Visit 26685486 must identify exactly one Head
+  of Household. Correct the SIMC export and retry."* — and the user saw a panel
+  headed "Review the detected records before activation" with no body and a
+  Cancel button. The message was only reachable by querying `DataImportJob` from
+  a shell on the Pi.
+
+  Three harmless things combined: `importPhase` had no branch for `failed` or
+  `cancelled` and fell through to "Reading the data file…", `showProgress` went
+  false the moment the job was terminal so the panel unmounted, and both
+  completion blocks were gated on a result or a review summary that a job dying
+  during parse never has. The dialog was already computing `isTerminal`
+  *including* `failed`; it simply never said so. Failures now render the
+  server's message and error code, and offer **Try Another File** — the actual
+  next step after a rejected file. A drift guard asserts every status in the
+  union reaches a deliberate branch. See ISSUES.md #75.
+- **A one-person household with no Head of Household ticked aborted the whole
+  import.** 3,799 visits refused over a single row. SIMC does not require the
+  box on a single-member visit, and a sweep of the export found exactly one such
+  visit and no multi-head cases at all. A household of one has nothing to
+  disambiguate, so it is now its own head. Zero heads across *several* members
+  is a real ambiguity — the export does not say who the household is recorded
+  under, and guessing would attach demographics to the wrong person — so that
+  still fails, as does more than one head. Both errors now say which case
+  they hit and how many members were involved. See ISSUES.md #76.
+
 ## [1.5.0-beta.20] — 2026-08-19
 
 The Clients lens, a map of where households live, and one consistent shape for

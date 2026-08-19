@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+## Version 1.5.0-beta.21 — 2026-08-19
+
+*Beta — two import fixes found on the first real use of beta.20.*
+
+- **A file FEED cannot import now tells you why.** It was possible to reach a
+  dialog that said "Review the detected records" with nothing in it and no
+  explanation — even though FEED knew precisely which record was at fault and
+  what to do about it. The reason, the record, and a **Try Another File** button
+  now appear where the empty panel was. Nothing about your data is changed by a
+  rejected file, and the message says so.
+- **A household of one no longer stops an import.** SIMC does not require the
+  Head of Household box to be ticked when there is only one person in the
+  household, but FEED insisted on it — so a single unticked box refused all
+  3,799 visits in the file. A household of one is now understood to be its own
+  head. FEED still refuses a file where several people share a household and
+  none is marked as head, because in that case it genuinely cannot tell who the
+  record belongs to.
+
 ## Version 1.5.0-beta.20 — 2026-08-19
 
 *Beta — the Clients tab, a map of where households live, and a consistent

@@ -690,6 +690,27 @@ export function AddDataDialog({
           <ImportProgressPanel job={job} pending={activationRequested && !isTerminal} />
         )}
 
+        {/* A failed job has no result and no review summary, so every other
+            block below renders nothing and the dialog goes blank — the exact
+            shape of ISSUES.md #75. The server's message names the offending
+            record and says what to do about it; it is the most useful thing on
+            the screen and it was being dropped. */}
+        {step === 'complete' && job?.status === 'failed' && (
+          <div className="flex items-start gap-3 rounded-md border border-destructive/40 bg-destructive/5 p-3">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" aria-hidden="true" />
+            <div className="min-w-0 flex-1 space-y-1">
+              <p className="text-sm font-medium leading-none">This file was not imported</p>
+              <p className="text-sm text-muted-foreground">
+                {job.errorMessage || 'The import stopped before any data was changed.'}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Nothing was changed. Correct the file and add it again
+                {job.errorCode ? ` (${job.errorCode})` : ''}.
+              </p>
+            </div>
+          </div>
+        )}
+
         {step === 'complete' && job?.reviewSummary && (
           <div className="space-y-4">
             <div className="grid gap-3 sm:grid-cols-3">
@@ -961,7 +982,16 @@ export function AddDataDialog({
                   work continues and the resume offer brings the user back. */}
               {job && !result && (
                 <Button type="button" variant="outline" onClick={() => void close()} disabled={isWorking}>
-                  {isBackgroundRunning ? 'Close' : 'Cancel Import'}
+                  {/* "Cancel Import" on a job that already failed offers to
+                      cancel something that is not running. There is nothing
+                      left to abandon, and the word implies the user is
+                      discarding work rather than acknowledging a rejection. */}
+                  {isBackgroundRunning ? 'Close' : job.status === 'failed' ? 'Close' : 'Cancel Import'}
+                </Button>
+              )}
+              {job?.status === 'failed' && !result && (
+                <Button type="button" onClick={reset} disabled={isWorking}>
+                  Try Another File
                 </Button>
               )}
               {job?.status === 'ready' && !result && (

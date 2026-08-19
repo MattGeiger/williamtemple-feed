@@ -120,3 +120,50 @@ describe('elapsed formatting', () => {
     expect(formatElapsed(222)).toBe('3m 42s');
   });
 });
+
+/**
+ * ISSUES.md #75. `importPhase` handled five of the seven statuses and fell
+ * through to "Reading the data file…" for the rest, so a failed import showed a
+ * spinner for work that had already stopped. This asserts every status in the
+ * union reaches a deliberate branch — a status added later cannot quietly
+ * inherit the default again.
+ */
+describe('every job status maps to a deliberate phase', () => {
+  const STATUSES = [
+    'preparing', 'awaiting_review', 'ready', 'activating',
+    'completed', 'failed', 'cancelled',
+  ] as const;
+
+  test.each(STATUSES)('%s does not fall through to the reading default', (status) => {
+    const phase = importPhase(job({ status }));
+    if (status === 'preparing') {
+      // The only status for which "Reading the data file…" is the truth.
+      expect(phase.message).toBe('Reading the data file…');
+      return;
+    }
+    expect(phase.message).not.toBe('Reading the data file…');
+  });
+
+  test('a failed job carries the server reason and stops working', () => {
+    const phase = importPhase(job({
+      status: 'failed',
+      errorMessage: 'Visit 26685486 must identify exactly one Head of Household.',
+    }));
+
+    expect(phase.failed).toBe(true);
+    expect(phase.working).toBe(false);
+    expect(phase.message).toContain('26685486');
+  });
+
+  test('a failed job with no message still says something useful', () => {
+    const phase = importPhase(job({ status: 'failed', errorMessage: null }));
+    expect(phase.failed).toBe(true);
+    expect(phase.message).toMatch(/no data was changed/i);
+  });
+
+  test('a cancelled job is not reported as failure of the file', () => {
+    const phase = importPhase(job({ status: 'cancelled' }));
+    expect(phase.working).toBe(false);
+    expect(phase.message).toMatch(/cancelled/i);
+  });
+});

@@ -38,6 +38,77 @@ Everything else in this file. The application is shippable today.
 
 ## Open Issues
 
+### #75 — A failed import shows an empty dialog instead of the reason it failed
+**Priority**: High · **Status**: Fixed in source 2026-08-19 (beta.21); awaiting deployment
+**Bucket**: Data Management / Add Data
+
+Found during the beta.20 deployment, re-importing SIMC visits. The import
+failed with a precise, actionable message:
+
+    Visit 26685486 must identify exactly one Head of Household.
+    Correct the SIMC export and retry.
+
+The user saw a dialog headed **"Review the detected records before activation."**
+with an empty body and a single **Cancel Import** button. The message naming
+the visit was only reachable by querying `DataImportJob` over a shell on the
+Pi. That is not a workflow — without an operator holding a database prompt,
+this failure is indistinguishable from a hang.
+
+Three things line up to produce it, and each one alone is harmless:
+
+- `importPhase` in `import-progress-panel.tsx` branches on `activating`,
+  `completed`, `ready`, `awaiting_review` and `preparing`, then falls through
+  to `"Reading the data file…"`. `failed` and `cancelled` are both in the
+  status union and neither has a branch.
+- `showProgress` in `add-data-dialog.tsx` goes false the moment the job is
+  terminal, so the progress panel unmounts and takes its status line with it.
+- Both `step === 'complete'` render blocks are conditioned on `result` or
+  `job.reviewSummary`. A job that dies during parse has neither, so nothing
+  renders at all.
+
+The dialog already computes `isTerminal` *including* `'failed'`. It knows. It
+just never says so, and `job.errorMessage` is not rendered anywhere in the
+component.
+
+**Fix**: give `importPhase` explicit `failed` and `cancelled` phases, surface
+`job.errorMessage` and `errorCode` in a failure block at `step === 'complete'`,
+and offer "Start over" rather than only "Cancel Import" — the user's next
+action after a rejected file is a new upload, not a cancellation.
+
+**Test**: the drift guard should assert every member of the status union maps
+to a phase, so a status added later cannot silently fall through to "Reading
+the data file…" again.
+
+---
+
+### #76 — SIMC import rejects a one-person household that has no Head of Household ticked
+**Priority**: High · **Status**: Fixed in source 2026-08-19 (beta.21); awaiting deployment
+**Bucket**: Data import / SIMC adapter
+
+The whole import — 3,799 visits — aborted on a single row. Visit 26685486 has
+one member, `Neighbor ID` 12628430, with `Head of Household = No`. The adapter
+requires exactly one head per non-anonymous visit:
+
+    if (!anonymous && headIds.length !== 1) throw …INVALID_SIMC_HOUSEHOLD_HEAD
+
+A sweep of the export found this is the *only* such visit, and there are no
+multi-head cases at all: 3,799 visits, 1 with zero heads, 0 with more than one.
+
+The rule is right in spirit and too strict in this case. A visit with one
+member has exactly one candidate for head; there is nothing to disambiguate,
+and refusing it discards 3,798 good visits. Zero heads across *several*
+members is genuinely ambiguous and must keep failing.
+
+**Fix**: treat a single-member visit as its own head. Keep the error for zero
+heads with more than one member, and for more than one head. Tests for all
+three shapes.
+
+**Note**: this is separate from #75 but the two compounded — a
+one-cell data condition presented as an unexplained empty dialog, twice, and
+the second attempt could not be told apart from the first without a shell.
+
+---
+
 ### #73 — Restore aborted on any instance with AI usage telemetry
 **Priority**: High · **Status**: Fixed in source 2026-08-15; awaiting deployment
 **Bucket**: Data Management / backup and restore

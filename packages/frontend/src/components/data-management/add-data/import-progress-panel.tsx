@@ -25,6 +25,15 @@ export type ImportStageKey = typeof IMPORT_STAGES[number]['key'];
 
 export interface ImportPhase {
   stage: ImportStageKey;
+  /**
+   * True when the job ended without importing anything.
+   *
+   * The panel draws a failure rather than a progress bar, and the dialog shows
+   * the server's reason. Absent this, a failed job fell through to "Reading the
+   * data file…" and the user watched a spinner for work that had already
+   * stopped — see ISSUES.md #75.
+   */
+  failed?: boolean;
   /** What the server is doing right now, in the user's terms. */
   message: string;
   /** True while the server owns the job and no one is waiting on a response. */
@@ -46,6 +55,28 @@ export interface ImportPhase {
  * summary exists with nothing left to decide.
  */
 export function importPhase(job: DataImportJobReview, pending = false): ImportPhase {
+  // Terminal failures first. These used to fall through to the "still reading"
+  // default at the bottom, which is how a rejected file presented as an empty
+  // dialog with a Cancel button and no reason (ISSUES.md #75). The server
+  // always knows why it stopped; the panel's job is to not lose that.
+  if (job.status === 'failed') {
+    return {
+      stage: 'validate',
+      message: job.errorMessage || 'The import stopped and no data was changed.',
+      working: false,
+      determinate: false,
+      failed: true,
+    };
+  }
+  if (job.status === 'cancelled') {
+    return {
+      stage: 'validate',
+      message: 'This import was cancelled. No data was changed.',
+      working: false,
+      determinate: false,
+      failed: true,
+    };
+  }
   if (job.status === 'activating') {
     return { stage: 'activate', message: 'Making the reviewed data available…', working: true, determinate: false };
   }
