@@ -575,6 +575,13 @@ kept since October 2023.
 - **Do not hardcode operational facts** — program start dates, visit policies,
   system-changeover months. Derive them from the data so the card follows the
   record.
+- **Bucket grain is a per-card decision, not a page-wide one.** How Service Was
+  Delivered plots every recorded service day at every range, because the Service
+  Log holds one row per day the pantry ran and monthly sums hide the shape staff
+  recognise. Service Over Time still adapts, because it plots intake records
+  whose daily volume is an order of magnitude higher. A card's description must
+  name the grain it is actually using — "by day" on a monthly chart is a lie the
+  reader has no way to catch.
 - **Drop the period in progress** from any seasonal or monthly comparison, and
   say so. A half-finished month beside eleven complete ones reads as a collapse
   rather than a month that has not happened. Applies to Service Over Time, How

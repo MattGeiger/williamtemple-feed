@@ -173,7 +173,10 @@ what its figure rests on. Read the note under a card before quoting its number.
   record; each still counts as a household, but repeat trips by the same
   anonymous household cannot be recognised as repeats, so the household figure
   is slightly high on those.
-- **How Service Was Delivered** shows households by method. A method begins
+- **How Service Was Delivered** shows households by method, one point per
+  recorded service day at every date range — the Service Log holds one row per
+  day the pantry ran, and summing those into months hides the difference
+  between a busy Thursday and a Friday backpack session. A method begins
   where that program began — Emergency Bags starts in November 2025, not at the
   left edge of the chart.
 
@@ -199,10 +202,12 @@ not everyone on file.
   denominator.
 - **Age of People Served** groups people into age bands, taken as of the end of
   the date range — a household served in December 2024 was the age it was then.
-  Use the **Link2Feed / SIMC** switch to choose which record to read. The two
-  count different people and must not be added: Link2Feed records one birth
+  Both intake systems contribute, but unevenly: Link2Feed records one birth
   year per household, for whoever registered, while SIMC records one for every
-  household member. The card says which it is showing.
+  household member, so years before the June 2026 changeover under-count
+  household members. Birth years of 1901 or earlier are placeholders rather
+  than real ages and are shown rather than hidden, so the top band can be read
+  as a data-entry signal.
 - **Where Households Live** ranks postal codes. Households recorded as having
   no fixed address are counted separately rather than by postal code: SIMC
   requires a postal code, so the agency's own is entered when there is nowhere

@@ -50,6 +50,20 @@ All notable changes to FEED are documented here. This project adheres to
   scope — an anonymous row says nothing about returning, and folding those rows
   in would drag the average toward 1 and report a recording artefact as
   behaviour.
+- **Age of People Served combines both records** rather than switching between
+  them, and splits the top band into 75-89, 90-104 and 105+. The two systems
+  contribute unevenly — Link2Feed stores one birth year per household, SIMC one
+  per member — and the footnote states the shortfall instead of leaving two
+  charts to add up. Birth years of 1901 or earlier are counted and named as
+  placeholders: 22 SIMC profiles carry 1900, and hiding them would conceal a
+  data-entry problem worth seeing.
+- **How Service Was Delivered plots every recorded service day** at every
+  range. The Service Log holds one row per day the pantry ran, so there is no
+  readability argument for monthly sums, and they hid the shape staff
+  recognise. Service Over Time still adapts, and its description now names the
+  grain it is actually drawing.
+- **Demographic breakdown cards size themselves to their row count**, so a
+  fourteen-answer chart no longer crushes its labels into each other.
 - **Ethnicity, Race or Ethnicity (SIMC), Gender Identity and Housing Type** on
   the Clients lens, from data the visits import already collected. The two
   ethnicity cards stay separate: Link2Feed records ethnicity on the household
