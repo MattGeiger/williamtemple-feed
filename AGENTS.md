@@ -745,9 +745,11 @@ Passdown messages should be concrete enough that a fresh agent can continue with
   deliberately no paragraph variant, and a one-item list is still a list. These
   notes are always a series of separate facts — a denominator, which system
   asked the question, what a placeholder means — and as prose the reader had to
-  parse the whole block to find the one that applied. Nested items exist for a
-  caveat that only makes sense as a qualification of its parent (the placeholder
-  birth years under the estimated-age note).
+  parse the whole block to find the one that applied. The list is **flat**:
+  nesting was tried for the placeholder birth years under the estimated-age note
+  and read worse than the thing it clarified — an indented second level in small
+  muted text looks like a rendering fault, and the reader has to work out the
+  relationship before reading the fact. Every point carries the same bullet.
 - **Axis labels tilt rather than collide.** `useCategoryAxis` in
   `lib/chart-axis.ts` measures the container and angles labels to -35° only when
   a horizontal label would not fit its band, growing the chart by the height the

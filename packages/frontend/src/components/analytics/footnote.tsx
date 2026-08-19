@@ -19,18 +19,16 @@ import React from 'react';
  */
 
 /**
- * A caveat that is nested under the one above it.
+ * One caveat. Flat — there is no nested variant.
  *
- * Used where a point only makes sense as a qualification of its parent — the
- * placeholder birth years under the estimated-age note, for instance, which
- * read as a separate claim about the data when listed flat.
+ * Nesting was tried for the placeholder birth years under the estimated-age
+ * note and read worse than the thing it was meant to clarify: an indented
+ * second level in small muted text looks like a rendering fault rather than a
+ * qualification, and the reader has to work out the relationship before
+ * reading the fact. Every point here is worth the same weight, so they all get
+ * the same bullet.
  */
-export type FootnoteEntry =
-  | React.ReactNode
-  | { note: React.ReactNode; sub: React.ReactNode[] };
-
-const isNested = (entry: FootnoteEntry): entry is { note: React.ReactNode; sub: React.ReactNode[] } =>
-  typeof entry === 'object' && entry !== null && 'sub' in entry;
+export type FootnoteEntry = React.ReactNode;
 
 /**
  * Footnote caveats as a list rather than a paragraph.
@@ -51,19 +49,7 @@ export function FootnoteList({ items }: { items: FootnoteEntry[] }) {
         // Index keys: these lists are static per render and never reordered.
         <li key={index} className="flex gap-1.5">
           <span aria-hidden="true" className="select-none">•</span>
-          <span className="min-w-0">
-            {isNested(item) ? item.note : item}
-            {isNested(item) && (
-              <ul className="mt-1 space-y-1">
-                {item.sub.map((child, childIndex) => (
-                  <li key={childIndex} className="flex gap-1.5">
-                    <span aria-hidden="true" className="select-none">–</span>
-                    <span className="min-w-0">{child}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </span>
+          <span className="min-w-0">{item}</span>
         </li>
       ))}
     </ul>

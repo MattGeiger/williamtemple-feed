@@ -387,13 +387,11 @@ export function ClientAnalyticsWorkspace({ analytics }: { analytics: ServiceAnal
                     ageBands.withoutBirthYear > 0
                       && `${count(ageBands.withoutBirthYear)} have no birth year on file `
                         + 'and are not counted.',
-                    ageBands.estimatedBirthYears > 0 && {
-                      note: `${count(ageBands.estimatedBirthYears)} were flagged as estimated.`,
-                      sub: ageBands.implausibleBirthYears > 0
-                        ? [`${count(ageBands.implausibleBirthYears)} placeholder birth years `
-                          + '(1901 or earlier) are shown rather than hidden.']
-                        : [],
-                    },
+                    ageBands.estimatedBirthYears > 0
+                      && `${count(ageBands.estimatedBirthYears)} were flagged as estimated.`,
+                    ageBands.implausibleBirthYears > 0
+                      && `${count(ageBands.implausibleBirthYears)} placeholder birth years `
+                        + '(1901 or earlier) are shown rather than hidden.',
                     // Kept, shortened: without it the chart reads as one age
                     // distribution when it is two records counted differently.
                     'Link2Feed records one birth year per household, SIMC one per member.',
