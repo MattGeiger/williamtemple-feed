@@ -547,13 +547,35 @@ kept since October 2023.
   with a comma, and treat values arriving as obvious sentence fragments as the
   symptom. Link2Feed is unaffected — it uses ` / ` inside labels and `,`
   between them.
-- **Data already stored under a parsing bug needs re-importing or repairing.**
-  Fixing an adapter fixes the next import, not the rows already written.
-  `scripts/repair-simc-comma-labels.ts` rejoins the affected arrays and is an
-  exact inverse rather than a guess, because the fragments sit adjacent and in
-  order. Re-importing the same export does the same thing and supersedes the
-  rows. Either is fine; doing neither leaves a card drawing corrupted
-  categories.
+- **Data already stored under a parsing bug needs re-importing.** Fixing an
+  adapter fixes the next import, not the rows already written. **Re-import; do
+  not scrub first, and prefer it over the repair script.** A re-import
+  reproduces exactly what the fixed adapter produces, where a repair
+  *reconstructs* from damaged rows.
+  - It supersedes rather than duplicates. Revisions are keyed on `(source,
+    sourceRecordKey)`, and `refreshCurrentEncounters` / `refreshCurrentProfiles`
+    in `import-lifecycle.ts` clear `isCurrent` across the key then re-set it on
+    the highest revision from an *active* import. Every demographics query
+    joins responses through their revision under `p."isCurrent" = 1`, so
+    corrupted responses stop being visible the moment the new revision lands —
+    nothing has to delete them.
+  - **The safety condition is that the key derivation did not change.** SIMC's
+    is `simc_visit:${visitId}`, which the comma fix never touched. If a fix
+    *does* change how a key is formed, the new rows will not displace the old
+    ones — they will sit alongside them, both current, double-counting.
+    Check this before re-importing, every time.
+  - **The export must cover the whole period, not a slice.** Superseding only
+    touches keys present in the new file. A re-import that stops short leaves
+    the tail current and corrupted, and the cards look fixed because the bulk
+    was replaced.
+  - Scrubbing first buys nothing: it opens a window with the data absent, has
+    no undo, and leans on the delete/restore path where #73 was found.
+    Supersede leaves the old revisions in place but not current, so a bad
+    import is recoverable.
+  - `scripts/repair-simc-comma-labels.ts` remains the fallback for when the
+    original export is not available. It is an exact inverse rather than a
+    guess, because the fragments sit adjacent and in order. Doing neither
+    leaves a card drawing corrupted categories.
 - **The two records sit at different grains.** Link2Feed writes demographics on
   the *household* profile (`ServiceClientProfileResponse`); SIMC writes them
   per *person* (`ServicePersonProfileResponse`). A card must say which it
