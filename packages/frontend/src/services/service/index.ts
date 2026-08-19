@@ -315,7 +315,14 @@ export interface ServiceAnalytics {
    * their postal code is the agency's, entered because SIMC requires one.
    */
   geography: {
-    postalCodes: Array<{ postalCode: string; clients: number }>;
+    /** `latitude`/`longitude` are null where the postal code has no centroid. */
+    postalCodes: Array<{
+      postalCode: string;
+      clients: number;
+      latitude: number | null;
+      longitude: number | null;
+    }>;
+    clientsWithoutPlace: number;
     noFixedAddress: number;
     noFixedAddressAsked: boolean;
     clientsWithoutPostalCode: number;

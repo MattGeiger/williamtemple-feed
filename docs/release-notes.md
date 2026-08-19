@@ -46,6 +46,18 @@
   they are shown rather than hidden so the count is visible.
 - **How Service Was Delivered plots every service day** at every date range,
   rather than summing into months.
+- **Where Households Live is now a map.** Each postal code is a circle over
+  the place it covers, sized by how many households gave it — by area, so
+  twice the households looks twice as large rather than four times. Hover a
+  circle for the code and its count. A ranked list could say which code was
+  largest; it could not show where in the city people live. Nothing about an
+  address is stored or looked up to draw it: FEED knows only the postal code,
+  and the map places the code itself.
+
+  The map opens on the metro area rather than on everything plotted, because a
+  few out-of-state codes reach as far as Hawaii and the east coast. They are
+  still there, a pan and a zoom away. Generated reports keep the ranked list,
+  since a printed page cannot carry a map.
 - **Four more Clients cards: Ethnicity, Race or Ethnicity (SIMC), Gender
   Identity, and Housing Type.** All built from data FEED already holds. The two
   ethnicity cards are kept apart because the systems ask different questions
