@@ -8,14 +8,15 @@
 import React from 'react';
 
 /**
- * The small print under a chart.
+ * Every Analytics footnote is a bulleted list.
  *
- * Both analytics lenses had their own copy of this; they are one component so
- * the two cannot drift apart in size or colour.
+ * There is deliberately no paragraph variant. These notes are always a series
+ * of separate facts — a denominator, which system asked the question, what a
+ * placeholder means — and as prose the reader had to parse the whole block to
+ * find the one that applied to them. A single-item list is still a list, so
+ * one short caveat costs nothing and the format stays uniform across all four
+ * lenses.
  */
-export function Footnote({ children }: { children: React.ReactNode }) {
-  return <p className="mt-3 text-xs text-muted-foreground">{children}</p>;
-}
 
 /**
  * A caveat that is nested under the one above it.

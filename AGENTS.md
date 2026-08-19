@@ -740,13 +740,34 @@ Passdown messages should be concrete enough that a fresh agent can continue with
 - **Multi-series chart tooltips must be sorted explicitly.** Recharts hands the payload over in series-declaration order, which on overlapping lines is the order they appear in the source, not the order they stack on screen — a 1,543 lb source printed above a 6,480 lb one. Pass `sortByValue` to `ChartTooltipContent`. Do **not** pass it to stacked charts: their payload order *is* the stack order, and re-ordering breaks the correspondence with the bar under the cursor. Paired before/after series (Previous vs Latest Unit Cost) also stay fixed. Recharts' own `itemSorter` prop does not help — only `DefaultTooltipContent` reads it, and this project replaces that component.
 - **Print helpers take a value formatter; the default is pounds.** `hBarSvg` and `stackedHBarSvg` default to `POUNDS`, so a card counting households or items prints "1,443 lb" unless it passes `COUNT`. This has now shipped three times (paid procurement dollars, availability counts, response coverage). Check the unit whenever adding a card that is not measuring weight.
 - **Run test suites per package, not from the repo root.** `npx vitest run` at the root picks up a config that fails 46 tests across 86 files on `Cannot find package '@/routes/auth'` — pre-existing and unrelated to any change under test. The real gates are `cd packages/backend && npx vitest run` and `cd packages/frontend && npx vitest run`.
-- **Axis labels tilt rather than collide.** `categoryAxisTicks` in
+- **Every Analytics footnote is a bulleted list.** `FootnoteList` in
+  `components/analytics/footnote.tsx` is the only footnote component; there is
+  deliberately no paragraph variant, and a one-item list is still a list. These
+  notes are always a series of separate facts — a denominator, which system
+  asked the question, what a placeholder means — and as prose the reader had to
+  parse the whole block to find the one that applied. Nested items exist for a
+  caveat that only makes sense as a qualification of its parent (the placeholder
+  birth years under the estimated-age note).
+- **Axis labels tilt rather than collide.** `useCategoryAxis` in
   `lib/chart-axis.ts` measures the container and angles labels to -35° only when
   a horizontal label would not fit its band, growing the chart by the height the
   tilted labels need. `interval={0}` stays non-negotiable on a banded chart —
   Recharts thins crowded ticks, and an age axis reading "18-29, 45-59, 75-89,
   105+" invites the reader to believe those are the bands — but forcing every
-  tick at a narrow width is the same illegibility by another route.
+  tick at a narrow width is the same illegibility by another route. Applied to
+  every forced category axis: age bands, household size, and both seasonal
+  month charts.
+- **Measure with a callback ref, never `useRef` + a mount effect.** An effect
+  with `[]` deps attaches once and never again, so a chart behind a loading
+  state or an empty-data branch is never measured and silently keeps its
+  horizontal labels however narrow the screen. Procurement's seasonal chart did
+  exactly this while Service's identical one worked, because only one of them
+  mounts behind a guard.
+- **A measuring hook still cannot sit below an early return.** `useCategoryAxis`
+  is a hook; declaring it beside the chart it serves put it under
+  `ProcurementAnalyticsWorkspace`'s loading guard and React failed the entire
+  workspace. Same trap as the `useMemo` before it — hooks go above every guard,
+  however far that is from the JSX they feed.
 - **A Recharts test that does not force dimensions asserts against nothing.** jsdom
   reports zero size for every element, and Recharts renders no axes, ticks, or
   formatters at zero size — so a chart test passes whatever the formatters do.

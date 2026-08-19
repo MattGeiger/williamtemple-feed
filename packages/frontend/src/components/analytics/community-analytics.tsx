@@ -19,6 +19,7 @@ import * as React from 'react';
 import { Bar, BarChart, CartesianGrid, Cell, Line, LineChart, XAxis, YAxis } from 'recharts';
 import { ChevronDown } from 'lucide-react';
 import { bucketLabeller, type BucketGranularity } from '@/lib/formatting/bucket-label';
+import { FootnoteList } from '@/components/analytics/footnote';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -430,7 +431,7 @@ export function CommunityDonationAnalytics({
               </LineChart>
             </ChartContainer>
           )}
-          <p className="mt-3 text-xs text-muted-foreground">{receivedNote}</p>
+          <FootnoteList items={[receivedNote]} />
         </CardContent>
       </Card>
       </SelectableBlock>

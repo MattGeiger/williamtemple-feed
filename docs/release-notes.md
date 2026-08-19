@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- **Card footnotes read as short bulleted points** on every Analytics tab, so a
+  caveat can be found at a glance instead of read through.
+- **Charts stay legible on a phone.** Any chart that has to show every label —
+  age bands, household size, the seasonal month comparisons — now tilts those
+  labels when the screen is narrow, rather than running them together or
+  dropping half of them.
+
 - **Procurement charts now show individual deliveries on shorter date ranges.**
   Picking 30 days used to give you one or two points, because the charts always
   summed by month. They now plot the delivery dates themselves for any range up

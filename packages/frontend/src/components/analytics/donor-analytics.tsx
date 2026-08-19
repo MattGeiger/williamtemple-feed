@@ -15,6 +15,7 @@
 
 import { prefersReducedMotion } from '@/lib/reduced-motion'
 import { trimSeriesToData } from '@/lib/chart-series'
+import { FootnoteList } from '@/components/analytics/footnote'
 import { bucketLabeller, type BucketGranularity } from '@/lib/formatting/bucket-label'
 import * as React from 'react';
 import { Bar, BarChart, CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts';
@@ -226,7 +227,7 @@ export function DonorAnalytics({
               <Bar isAnimationActive={!prefersReducedMotion()} dataKey="weight" fill="var(--color-weight)" radius={3} />
             </BarChart>
           </ChartContainer>
-          <p className="mt-3 text-xs text-muted-foreground">Does not include legacy donations data.</p>
+          <FootnoteList items={['Does not include legacy donations data.']} />
         </CardContent>
       </Card>
       </SelectableBlock>

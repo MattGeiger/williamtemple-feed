@@ -4,6 +4,8 @@
 import { prefersReducedMotion } from '@/lib/reduced-motion'
 import { trimSeriesToData } from '@/lib/chart-series'
 import { bucketLabeller } from '@/lib/formatting/bucket-label'
+import { FootnoteList } from '@/components/analytics/footnote'
+import { useCategoryAxis } from '@/lib/chart-axis'
 import { formatAxisMoney } from '@/lib/formatting/number'
 import * as React from 'react';
 import type { ColumnDef } from '@tanstack/react-table';
@@ -1294,6 +1296,16 @@ export function ProcurementAnalyticsWorkspace({
     },
   ], []);
 
+  /**
+   * Twelve month abbreviations; tilts on a phone, flat on a desktop card.
+   *
+   * Declared above the guards below, not beside the chart that uses it: a hook
+   * after an early return runs on some renders and not others, and React fails
+   * the entire workspace rather than just this card.
+   */
+  const [seasonalChartRef, seasonalAxisProps, seasonalAxisExtraHeight] =
+    useCategoryAxis(monthLabels);
+
   if (isLoading) {
     return (
       <div className="space-y-4">
@@ -1383,6 +1395,7 @@ export function ProcurementAnalyticsWorkspace({
     return buckets[0].slice(0, 4) !== buckets[buckets.length - 1].slice(0, 4);
   })();
   const bucketLabel = bucketLabeller(bucketGranularity, bucketSpansYears);
+
   // Series are not dropped when empty: the acquisition classes are a fixed
   // taxonomy, and FEED imports both OFB channels, so "nothing this range" is a
   // real observation rather than an absent series. The line simply stops.
@@ -1587,12 +1600,14 @@ export function ProcurementAnalyticsWorkspace({
                   <Line isAnimationActive={!prefersReducedMotion()} dataKey="netRecordedCost" stroke="var(--color-netRecordedCost)" strokeWidth={2} dot={false} strokeDasharray="4 3" />
                 </LineChart>
               </ChartContainer>
-              <p className="mt-3 text-xs text-muted-foreground">
-                Net recorded cost adds service fees and subtracts grants. Where the
-                two lines coincide, neither applied that month. Fees and grants sit
-                on a whole order, so a filter that divides one leaves them out
-                rather than assigning them to a month arbitrarily.
-              </p>
+              <FootnoteList
+                items={[
+                  'Net recorded cost adds service fees and subtracts grants.',
+                  'Where the two lines coincide, neither applied.',
+                  'Fees and grants sit on a whole order, so a filter that divides one '
+                    + 'leaves them out rather than assigning them arbitrarily.',
+                ]}
+              />
             </CardContent>
           </Card>
         </SelectableBlock>
@@ -1886,7 +1901,7 @@ export function ProcurementAnalyticsWorkspace({
                 ))}
               </div>
             )}
-            <p className="mt-3 text-xs text-muted-foreground">Does not include legacy donations data.</p>
+            <FootnoteList items={['Does not include legacy donations data.']} />
           </CardContent>
           </Card>
         </SelectableBlock>
@@ -2007,10 +2022,15 @@ export function ProcurementAnalyticsWorkspace({
           {seasonalYears.length === 0 ? (
             <div className="flex h-72 items-center justify-center text-sm text-muted-foreground">Choose at least one year.</div>
           ) : (
-            <ChartContainer config={seasonalConfig} className="h-80 min-w-0 w-full">
+            <div ref={seasonalChartRef} className="min-w-0">
+            <ChartContainer
+              config={seasonalConfig}
+              className="min-w-0 w-full"
+              style={{ height: `${320 + seasonalAxisExtraHeight}px` }}
+            >
               <LineChart accessibilityLayer data={seasonalData} margin={{ left: 8, right: 16 }}>
                 <CartesianGrid vertical={false} />
-                <XAxis dataKey="month" tickLine={false} axisLine={false} />
+                <XAxis dataKey="month" tickLine={false} axisLine={false} {...seasonalAxisProps} />
                 <YAxis width={52} tickLine={false} axisLine={false} tickFormatter={formatAxisNumber} />
                 {/* Sorted heaviest-first per month, so the tooltip's order
                     mirrors the lines' visual stacking at that point rather than
@@ -2064,11 +2084,12 @@ export function ProcurementAnalyticsWorkspace({
                 })}
               </LineChart>
             </ChartContainer>
+            </div>
           )}
           {seasonalInProgressLabel && (
-            <p className="mt-3 text-xs text-muted-foreground">
-              {seasonalInProgressLabel} is still in progress and is not plotted.
-            </p>
+            <FootnoteList
+              items={[`${seasonalInProgressLabel} is still in progress and is not plotted.`]}
+            />
           )}
         </CardContent>
         </Card>
@@ -2224,16 +2245,15 @@ export function DataShapingNote({
     `${pounds(entry.weightHundredths)} ${SHAPING_FLAG_LABELS[entry.flag] ?? entry.flag}`;
 
   return (
-    <div className={`space-y-1 text-xs text-muted-foreground ${className}`}>
-      {exclusions.length > 0 && (
-        <p>
-          Does not include {pounds(dataShaping.excludedWeightHundredths)} flagged as{' '}
-          {exclusions.map((entry) => SHAPING_FLAG_LABELS[entry.flag] ?? entry.flag).join(', ')}.
-        </p>
-      )}
-      {annotations.length > 0 && (
-        <p>Also noted: {annotations.map(describe).join(', ')}.</p>
-      )}
+    <div className={className}>
+      <FootnoteList
+        items={[
+          exclusions.length > 0
+            && `Does not include ${pounds(dataShaping.excludedWeightHundredths)} flagged as `
+              + `${exclusions.map((entry) => SHAPING_FLAG_LABELS[entry.flag] ?? entry.flag).join(', ')}.`,
+          annotations.length > 0 && `Also noted: ${annotations.map(describe).join(', ')}.`,
+        ]}
+      />
     </div>
   );
 }
@@ -2255,10 +2275,14 @@ function FreshAlliancePendingNote({
 }) {
   if (!pending) return null;
   return (
-    <p className={`text-xs text-muted-foreground ${className}`}>
-      Includes {pounds(pending.weightHundredths)} of Fresh Food Alliance donations still
-      awaiting OFB's confirmation.
-    </p>
+    <div className={className}>
+      <FootnoteList
+        items={[
+          `Includes ${pounds(pending.weightHundredths)} of Fresh Food Alliance donations `
+            + "still awaiting OFB's confirmation.",
+        ]}
+      />
+    </div>
   );
 }
 

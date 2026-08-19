@@ -250,8 +250,34 @@ const CONTRACTS: readonly DataSourceContract[] = [
       'Ignore every column outside the provisional client allowlist.',
     ],
     /**
-     * Reviewed 2026-08-17 against a sanitized all-time client export, and not
-     * activated. Recorded here so the question is not re-opened from scratch.
+     * **Superseded 2026-08-18 — read this first.** The file reviewed on the
+     * 17th was labelled "ALL-TIME" and was not: a real 2017-01-01..2026-05-31
+     * export holds 16,728 rows and matches **every one** of the 9,596 Link2Feed
+     * clients FEED stores, against 4,324 for the file below. The recency bias,
+     * the id floor, and the "covers less, not more" verdict were all artefacts
+     * of that one export, not properties of this dataset.
+     *
+     * 7,132 of its rows are clients FEED has no visit for. Note what this is
+     * *not*: the export's 2017-01-01 start is simply the earliest date
+     * Link2Feed offers, and William Temple House did not adopt Link2Feed until
+     * October 2020 — FEED's visits begin 2020-10-19, so both records start at
+     * adoption and the file does not reach further back. Registration without a
+     * recorded visit is the likelier reading, but it is unconfirmed; establish
+     * which before quoting the figure or treating it as an import gap.
+     *
+     * So the two fields that are genuinely unique to this path —
+     * `Client Ethnicity-Parent Types` (the rollup that makes an ethnicity card
+     * legible; the labels alone run to 86 combinations) and `Household ID` —
+     * are now available at full coverage rather than 45%. The case for
+     * activating this path is materially stronger than the note below concluded.
+     * Re-measure with `scripts/measure-l2f-client-coverage.ts` before acting,
+     * and confirm the export's span against FEED's visit span.
+     *
+     * ---
+     *
+     * Reviewed 2026-08-17 against a sanitized "all-time" client export, and not
+     * activated. Retained because its column-level findings still hold; its
+     * coverage findings do not.
      *
      * **The visits import already collected this.** Every demographic dimension
      * in the client export is stored for all 9,596 Link2Feed clients — gender
@@ -293,10 +319,11 @@ const CONTRACTS: readonly DataSourceContract[] = [
      * been opened in Excel, as with the visits export.
      */
     nextStep:
-      'Reviewed against a sanitized sample and not activated: the visits import '
-      + 'already carries these demographics for more clients, at higher coverage. '
-      + 'Only Client Ethnicity-Parent Types and Household ID are unique to this '
-      + 'file. See the note above before reopening.',
+      'Not activated, but the case has strengthened: a full 2017-2026 export '
+      + 'matches all 9,596 stored Link2Feed clients, so Client Ethnicity-Parent '
+      + 'Types and Household ID are available at full coverage rather than 45%. '
+      + 'The earlier "covers less, not more" finding came from a mislabelled '
+      + 'sample. See the note above before reopening.',
     priority: 40,
   },
   {

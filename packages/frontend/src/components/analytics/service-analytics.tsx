@@ -45,7 +45,8 @@ import { ChevronDown } from '@/components/ui/icons';
 import { BadgeQuestionMark, ShoppingBasket, UsersRound } from 'lucide-react';
 import { getIconComponent } from '@/lib/icon-library';
 import { SelectableBlock } from '@/components/reports/selection';
-import { Footnote } from '@/components/analytics/footnote';
+import { FootnoteList } from '@/components/analytics/footnote';
+import { useCategoryAxis } from '@/lib/chart-axis';
 import { bucketLabeller, monthLabel } from '@/lib/formatting/bucket-label';
 import { prefersReducedMotion } from '@/lib/reduced-motion';
 import { ErrorHandlerService } from '@/services/error/ErrorHandlerService';
@@ -378,6 +379,10 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
   const labelMethodBucket = labelFor(methodSeries.granularity);
   const pointNoun = coverage.granularity === 'month' ? 'one month' : 'one service day';
 
+  /** Twelve month abbreviations: roomy on a wide card, tight on a phone. */
+  const [seasonalChartRef, seasonalAxisProps, seasonalAxisExtraHeight] =
+    useCategoryAxis(MONTH_LABELS as unknown as string[]);
+
   const householdsFromLog = summary.householdsSource === 'service_log';
   const serviceLogStartsLater = householdsFromLog
     && coverage.serviceLogFirstDate
@@ -505,25 +510,19 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
               )}
             </div>
 
-            <div className="mt-6 space-y-1 border-t pt-4">
-              <Footnote>People served counts every visit by household size.</Footnote>
-              <Footnote>
-                * Not all clients disclose their household size, so this is likely an
-                undercount of the true total.
-              </Footnote>
-              {recordAgreement.sharedDays > 0 && (
-                <Footnote>
-                  ** Across {count(recordAgreement.sharedDays)} days covered by both
-                  records they differ by an average of{' '}
-                  {Math.abs(round1(100 - recordAgreement.agreementPercent))}%.
-                </Footnote>
-              )}
-              {serviceLogStartsLater && coverage.serviceLogFirstDate && (
-                <Footnote>
-                  ** The Service Log begins {monthOfDate(coverage.serviceLogFirstDate)}; earlier
-                  dates in this range are covered by intake records only.
-                </Footnote>
-              )}
+            <div className="mt-6 border-t pt-4">
+              <FootnoteList
+                items={[
+                  'People served counts every visit by household size.',
+                  '* Not all clients disclose household size, treat this as an undercount.',
+                  recordAgreement.sharedDays > 0
+                    && `** Across ${count(recordAgreement.sharedDays)} days in both records they `
+                      + `differ by an average of ${Math.abs(round1(100 - recordAgreement.agreementPercent))}%.`,
+                  serviceLogStartsLater && coverage.serviceLogFirstDate
+                    && `** The Service Log begins ${monthOfDate(coverage.serviceLogFirstDate)}; `
+                      + 'earlier dates are covered by intake records only.',
+                ]}
+              />
             </div>
           </CardContent>
         </Card>
@@ -567,11 +566,15 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
                   ))}
                 </LineChart>
               </ChartContainer>
-              <Footnote>
-                Each point is {pointNoun}.
-                {spansCutover && ' The gap between the two intake lines is the changeover, not a drop in service.'}
-                {timelinePartial && ` ${monthLabel(timelinePartial)} is still in progress and is not plotted.`}
-              </Footnote>
+              <FootnoteList
+                items={[
+                  `Each point is ${pointNoun}.`,
+                  spansCutover
+                    && 'The gap between the two intake lines is the changeover, not a drop in service.',
+                  timelinePartial
+                    && `${monthLabel(timelinePartial)} is still in progress and is not plotted.`,
+                ]}
+              />
             </CardContent>
           </Card>
         </SelectableBlock>
@@ -647,10 +650,15 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
                   Choose at least one year.
                 </div>
               ) : (
-                <ChartContainer config={seasonalConfig} className="h-[300px] w-full">
+                <div ref={seasonalChartRef}>
+                <ChartContainer
+                  config={seasonalConfig}
+                  className="w-full"
+                  style={{ height: `${300 + seasonalAxisExtraHeight}px` }}
+                >
                   <LineChart data={seasonalMonths} margin={{ left: 4, right: 8, top: 8 }}>
                     <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                    <XAxis dataKey="month" tickLine={false} axisLine={false} />
+                    <XAxis dataKey="month" tickLine={false} axisLine={false} {...seasonalAxisProps} />
                     <YAxis tickLine={false} axisLine={false} width={48} tickFormatter={formatAxisNumber} />
                     {/* Sorted highest-first, so the tooltip's order matches how
                         the lines actually stack at the hovered month. The default
@@ -705,21 +713,16 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
                     })}
                   </LineChart>
                 </ChartContainer>
+                </div>
               )}
-              <Footnote>
-                {seasonalMeasure === 'visits' ? (
-                  <>
-                    Every visit each month, so repeated visits by the same household are
-                    counted each time.
-                  </>
-                ) : (
-                  <>
-                    Distinct households each month, so repeated visits by the same
-                    household are only counted once. Anonymous visits are counted but
-                    not deduplicated.
-                  </>
-                )}
-              </Footnote>
+              <FootnoteList
+                items={seasonalMeasure === 'visits'
+                  ? ['Every visit each month, so repeat visits are counted each time.']
+                  : [
+                    'Distinct households each month, so repeat visits are counted once.',
+                    'Anonymous visits are counted but not deduplicated.',
+                  ]}
+              />
             </CardContent>
           </Card>
         </SelectableBlock>
@@ -773,11 +776,14 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
                   ))}
                 </LineChart>
               </ChartContainer>
-              <Footnote>
-                Households per {coverage.granularity === 'month' ? 'month' : 'service day'}. Each
-                line begins when that service was first recorded.
-                {methodPartial && ` ${monthLabel(methodPartial)} is still in progress and is not plotted.`}
-              </Footnote>
+              <FootnoteList
+                items={[
+                  `Households per ${methodSeries.granularity === 'month' ? 'month' : 'service day'}.`,
+                  'Each line begins when that service was first recorded.',
+                  methodPartial
+                    && `${monthLabel(methodPartial)} is still in progress and is not plotted.`,
+                ]}
+              />
             </CardContent>
           </Card>
         </SelectableBlock>
@@ -831,9 +837,7 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
                   <Bar dataKey="turnedAway" fill={seriesColor('turnedAway')} radius={[3, 3, 0, 0]} />
                 </BarChart>
               </ChartContainer>
-              <Footnote>
-                Blank entries are treated as a zero count.
-              </Footnote>
+              <FootnoteList items={['Blank entries are treated as a zero count.']} />
             </CardContent>
           </Card>
         </SelectableBlock>

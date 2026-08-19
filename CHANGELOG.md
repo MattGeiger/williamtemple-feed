@@ -37,6 +37,19 @@ All notable changes to FEED are documented here. This project adheres to
 
 ### Fixed
 
+- **The Link2Feed client-export review is superseded.** The file assessed on
+  17 August was labelled "ALL-TIME" and was not one: a full export matches every
+  one of the 9,596 Link2Feed clients FEED stores, against 4,324 for that file.
+  The recency bias, the id floor, and the "covers less, not more" conclusion
+  were properties of that one export rather than of the dataset, so the two
+  fields unique to this path — `Client Ethnicity-Parent Types`, the rollup that
+  would make an ethnicity card legible, and `Household ID` — are available at
+  full coverage rather than 45%. Still not activated; the contract note records
+  what changed. 7,132 of its rows are clients FEED holds no visit for, which is
+  an open question rather than a finding: a client export offers dates back to
+  2017, but William Temple House adopted Link2Feed in October 2020, so both
+  records begin at adoption and the gap is not explained by span.
+
 - **The Service tab rendered blank on the YTD and All ranges.** How Service Was
   Delivered plots every service day at every range, but still labelled its axis
   with the page-wide grain, which is monthly on exactly those two presets. A day
@@ -47,6 +60,19 @@ All notable changes to FEED are documented here. This project adheres to
   bucket falls back to the raw key.
 
 ### Changed
+
+- **Every Analytics footnote is now a bulleted list**, across all four lenses —
+  Operations, Procurement, Service and Clients. They were a mix of paragraphs
+  and stacked sentences, and a caveat that matters (which system asked a
+  question, what a denominator is) had to be found by reading the whole block.
+  `FootnoteList` is now the only footnote component; the paragraph variant was
+  removed rather than left as an option.
+- **Crowded axis labels tilt at narrow widths on every chart that forces them**,
+  not just Age of People Served: household size and both seasonal month charts
+  now angle their labels when the container is too narrow for flat ones, and
+  keep them flat when there is room.
+
+### Fixed
 
 - **Crowded axis labels tilt instead of colliding.** Age of People Served forces
   all eight bands onto the axis, which ran "Under 18" flush into "18-29" once

@@ -16,18 +16,30 @@ import React from 'react';
  * one. Returns 0 until the first measurement, which callers treat as "not
  * measured yet" and fall back to their roomy default.
  */
-export function useElementWidth<T extends HTMLElement>(): [React.RefObject<T | null>, number] {
-  const ref = React.useRef<T>(null);
+export function useElementWidth<T extends HTMLElement>(): [(node: T | null) => void, number] {
   const [width, setWidth] = React.useState(0);
+  const observerRef = React.useRef<ResizeObserver | null>(null);
 
-  React.useEffect(() => {
-    const element = ref.current;
-    if (!element) return;
+  /**
+   * A callback ref, not `useRef` plus an effect.
+   *
+   * The effect version attaches on mount and never again, so a chart that is
+   * not in the tree on the first render — anything behind a loading state or an
+   * empty-data branch — is never measured, and its labels silently keep the
+   * horizontal default however narrow the screen gets. That is exactly what
+   * happened to Procurement's seasonal chart while Service's identical one
+   * worked, because only one of them mounts behind a guard. A callback ref runs
+   * whenever the node appears or is replaced.
+   */
+  const measureRef = React.useCallback((node: T | null) => {
+    observerRef.current?.disconnect();
+    observerRef.current = null;
+    if (!node) return;
 
     // Guarded because jsdom and older Safari lack it; without a measurement
     // the axis simply keeps its horizontal labels.
     if (typeof ResizeObserver === 'undefined') {
-      setWidth(element.getBoundingClientRect().width);
+      setWidth(node.getBoundingClientRect().width);
       return;
     }
 
@@ -35,11 +47,11 @@ export function useElementWidth<T extends HTMLElement>(): [React.RefObject<T | n
       const measured = entries[0]?.contentRect.width;
       if (typeof measured === 'number') setWidth(measured);
     });
-    observer.observe(element);
-    return () => observer.disconnect();
+    observer.observe(node);
+    observerRef.current = observer;
   }, []);
 
-  return [ref, width];
+  return [measureRef, width];
 }
 
 /**
@@ -110,4 +122,30 @@ export function categoryAxisTicks(
     interval: 0,
     extraHeight: Math.max(0, angled - 30),
   };
+}
+
+/**
+ * Measure a chart container and get the axis props its labels need.
+ *
+ * Wraps the measurement and the decision together, because every caller wants
+ * both and the pair is easy to get subtly wrong apart — spreading
+ * `extraHeight` onto an `<XAxis>` makes React warn about an unknown DOM
+ * attribute, so it is returned separately rather than mixed into the props.
+ *
+ *   const [ref, axis, extraHeight] = useCategoryAxis(labels);
+ *   <div ref={ref}>
+ *     <ChartContainer style={{ height: `${260 + extraHeight}px` }}>
+ *       <BarChart …><XAxis dataKey="label" {...axis} /></BarChart>
+ *
+ * Pass the labels as they are *rendered*, not the raw keys: a date bucket is
+ * `2026-08-13` in the data and "Aug 13, 2026" on the axis, and the second is
+ * what has to fit.
+ */
+export function useCategoryAxis<T extends HTMLElement = HTMLDivElement>(
+  labels: string[],
+  fontSize = 11,
+): [(node: T | null) => void, Omit<CategoryAxisTicks, 'extraHeight'>, number] {
+  const [ref, width] = useElementWidth<T>();
+  const { extraHeight, ...axis } = categoryAxisTicks(width, labels, fontSize);
+  return [ref, axis, extraHeight];
 }
