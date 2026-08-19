@@ -365,6 +365,38 @@ docker compose pull && docker compose up -d
 docker ps --format "table {{.Names}}\t{{.Image}}\t{{.Status}}"
 ```
 
+### Re-importing data after an adapter fix
+
+Deploying a parser fix corrects the *next* import. It does nothing to rows
+already written — those keep whatever the old parser stored, and the cards keep
+drawing them. When a release fixes an adapter, the data needs a re-import
+afterwards.
+
+**Re-import. Do not delete the data first.** Revisions are keyed on `(source,
+sourceRecordKey)`, so activating a new import clears `isCurrent` across those
+keys and re-sets it on the new revision. Analytics joins every profile response
+through its revision under `isCurrent = 1`, so the old rows stop being visible
+the moment the new ones land. Deleting first only opens a window with the data
+absent, and leans on the delete/restore path.
+
+Two things to confirm before running it:
+
+- **The export must cover the whole period the bad import covered.**
+  Superseding only touches keys present in the new file, so an export that
+  stops short leaves the tail current and wrong — and it will look fixed,
+  because the bulk was replaced.
+- **The fix must not have changed how `sourceRecordKey` is derived.** If it
+  did, the new rows will not displace the old ones; both stay current and the
+  totals double. Check the adapter diff before importing.
+
+Then verify on Analytics → Clients that the affected card draws whole category
+names rather than sentence fragments.
+
+*1.5.0 case:* the SIMC comma fix (`b93eead`). Re-import the SIMC export from the
+June 2026 changeover through today. `packages/backend/scripts/repair-simc-comma-labels.ts`
+is the fallback if the original export is not available; it is a dry run unless
+given `--confirm`.
+
 ## Rollback
 
 Same discipline: edit `.env`, confirm resolution, then deploy.
