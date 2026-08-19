@@ -750,6 +750,11 @@ Passdown messages should be concrete enough that a fresh agent can continue with
   and read worse than the thing it clarified — an indented second level in small
   muted text looks like a rendering fault, and the reader has to work out the
   relationship before reading the fact. Every point carries the same bullet.
+  **No reference marks either** — a leading `*` or `**` in a bulleted note reads
+  as a second bullet, not a pointer to a tile. Service Summary carried both, and
+  its `**` pair had already lost the tile it pointed at. Where notes genuinely
+  group, render two adjacent `FootnoteList`s: the gap does the work a marker
+  scheme was doing, and needs no legend.
 - **Axis labels tilt rather than collide.** `useCategoryAxis` in
   `lib/chart-axis.ts` measures the container and angles labels to -35° only when
   a horizontal label would not fit its band, growing the chart by the height the
