@@ -430,9 +430,34 @@ export async function parseSimcServiceVisitCsv(
     const eventId = assertInvariant(visit.rows, 'Event ID', visitId) || null;
     const memberIds = anonymous ? [] : [...new Set(visit.rows.map((row) => clean(row['Neighbor ID'])).filter(Boolean))];
     const headIds = anonymous ? [] : [...new Set(visit.rows.filter((row) => yes(row['Head of Household'])).map((row) => clean(row['Neighbor ID'])).filter(Boolean))];
-    if (!anonymous && headIds.length !== 1) {
+    /**
+     * A household of one is its own head.
+     *
+     * SIMC does not force the Head of Household box on a single-member
+     * visit, and one such row aborted an entire 3,799-visit import in
+     * production (ISSUES.md #76). There is nothing to disambiguate when the
+     * household has one member — refusing it discards 3,798 good visits over a
+     * box nobody was required to tick.
+     *
+     * The strictness is still right everywhere else. Zero heads across
+     * *several* members is a real ambiguity: the export does not say who the
+     * household is recorded under, and guessing would attach demographics to
+     * the wrong person. More than one head is a contradiction. Both still fail.
+     */
+    const headId = anonymous
+      ? null
+      : headIds.length === 1
+        ? headIds[0]
+        : headIds.length === 0 && memberIds.length === 1
+          ? memberIds[0]
+          : null;
+    if (!anonymous && headId === null) {
       throw new SimcServiceVisitImportError(
-        `Visit ${visitId} must identify exactly one Head of Household. Correct the SIMC export and retry.`,
+        headIds.length > 1
+          ? `Visit ${visitId} identifies ${headIds.length} Heads of Household; it must identify exactly one. `
+            + 'Correct the SIMC export and retry.'
+          : `Visit ${visitId} has ${memberIds.length} household members and no Head of Household. `
+            + 'Correct the SIMC export and retry.',
         'INVALID_SIMC_HOUSEHOLD_HEAD',
       );
     }
@@ -452,7 +477,7 @@ export async function parseSimcServiceVisitCsv(
       numberSeniors,
       numberUnknownAge,
       sourcePersonIds: memberIds,
-      headOfHouseholdSourcePersonId: headIds[0] ?? null,
+      headOfHouseholdSourcePersonId: headId,
     });
     const warningCodes: string[] = [];
     const memberDifference = size - memberIds.length;
@@ -520,7 +545,7 @@ export async function parseSimcServiceVisitCsv(
       memberships.push({
         sourceRecordKey,
         sourcePersonId: personId,
-        isHeadOfHousehold: personId === headIds[0],
+        isHeadOfHousehold: personId === headId,
       });
     }
 

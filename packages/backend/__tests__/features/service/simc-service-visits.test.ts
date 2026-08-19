@@ -170,4 +170,38 @@ describe('answer labels that contain a comma of their own', () => {
       .find((r) => r.dimension === 'housing_stability');
     expect(response?.values).toEqual([sentence]);
   });
+  /**
+   * ISSUES.md #76. One row of a 3,799-visit production export aborted the whole
+   * import: a household of one whose single member had the Head of Household
+   * box left unticked. Three shapes, three answers.
+   */
+  describe('Head of Household', () => {
+    test('a one-member visit is its own head, ticked or not', async () => {
+      const result = await parseFixture(csv([
+        row({
+          'Neighbor ID': 'PERSON-1', 'Head of Household': 'No',
+          'Household Size': '1', 'Number of Adults': '1',
+        }),
+      ]));
+
+      expect(result.visits).toHaveLength(1);
+      expect(result.memberships).toEqual([
+        expect.objectContaining({ sourcePersonId: 'PERSON-1', isHeadOfHousehold: true }),
+      ]);
+    });
+
+    test('several members and no head is still refused', async () => {
+      await expect(parseFixture(csv([
+        row({ 'Neighbor ID': 'PERSON-1', 'Head of Household': 'No' }),
+        row({ 'Neighbor ID': 'PERSON-2', 'Head of Household': 'No' }),
+      ]))).rejects.toThrow(/2 household members and no Head of Household/);
+    });
+
+    test('more than one head is still refused', async () => {
+      await expect(parseFixture(csv([
+        row({ 'Neighbor ID': 'PERSON-1', 'Head of Household': 'Yes' }),
+        row({ 'Neighbor ID': 'PERSON-2', 'Head of Household': 'Yes' }),
+      ]))).rejects.toThrow(/identifies 2 Heads of Household/);
+    });
+  });
 });

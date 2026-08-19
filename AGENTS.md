@@ -704,6 +704,23 @@ A card's own controls are frozen when the user selects it and travel as
 `options` — a control the card does not read is a control the export silently
 ignores. `docs/reports/analytics-report-architecture.md` has the rest.
 
+- **A terminal status needs its own branch, not a default.** `importPhase`
+  handled five of seven job statuses and let `failed` and `cancelled` fall
+  through to "Reading the data file…", so a rejected import showed a spinner for
+  work that had already stopped and the server's own explanation — naming the
+  offending record — was unreachable outside a database shell. The dialog was
+  already computing `isTerminal` including `failed`; knowing and saying are
+  different things. When a status union grows, assert in a test that every
+  member reaches a deliberate branch. See ISSUES.md #75.
+- **An import must not abort a file over a condition it can resolve.** Requiring
+  exactly one Head of Household per SIMC visit refused 3,799 visits over one
+  single-member household where the box was not ticked — and SIMC does not
+  require it there. A household of one has exactly one candidate; refusing it
+  buys no safety. Zero heads across *several* members stays an error, because
+  the export genuinely does not say who the record belongs to and guessing
+  attaches demographics to the wrong person. Strictness earns its place where
+  there is real ambiguity, not where the answer is forced. See ISSUES.md #76.
+
 ## Documentation Standards
 
 Documentation is part of the deliverable.
