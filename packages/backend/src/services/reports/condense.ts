@@ -38,10 +38,10 @@ export const maxReadableCategories = (
   minBarMm = MIN_BAR_MM
 ): number => Math.floor((widthMm * BAR_FRACTION) / minBarMm);
 
-export type Grain = 'month' | 'quarter' | 'year';
+export type Grain = 'day' | 'month' | 'quarter' | 'year';
 
 /** Coarsening ladder. Each step must strictly reduce the category count. */
-const LADDER: Grain[] = ['month', 'quarter', 'year'];
+const LADDER: Grain[] = ['day', 'month', 'quarter', 'year'];
 
 export interface Series {
   name: string;
@@ -75,17 +75,23 @@ export interface Condensed {
 }
 
 const GRAIN_PLURAL: Record<Grain, string> = {
+  day: 'days',
   month: 'months',
   quarter: 'quarters',
   year: 'years',
 };
 
-/** `2009-11` → `2009 Q4`, `2009`. Input is always the `YYYY-MM` month key. */
-const keyFor = (month: string, grain: Grain): string => {
-  const [year, mm] = month.split('-');
+/**
+ * `2009-11` → `2009 Q4`, `2009`. Input is a `YYYY-MM` month key or, since
+ * Procurement's short ranges plot deliveries, a `YYYY-MM-DD` day key — the
+ * split takes the first two parts either way, so a day condenses correctly.
+ */
+const keyFor = (bucket: string, grain: Grain): string => {
+  const [year, mm] = bucket.split('-');
   if (grain === 'year') return year;
   if (grain === 'quarter') return `${year} Q${Math.floor((Number(mm) - 1) / 3) + 1}`;
-  return month;
+  if (grain === 'month') return `${year}-${mm}`;
+  return bucket;
 };
 
 /** Sums each series into the coarser buckets, preserving first-seen order. */

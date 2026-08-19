@@ -64,6 +64,15 @@ Read these before deployment, auth, runtime mode, or infrastructure changes:
 - `docs/deployment/raspberry-pi-cloudflare-tunnel.md`
 - `docs/deployment/troubleshooting.md`
 
+The per-year Link2Feed client exports are measured, not guessed:
+`scripts/measure-l2f-client-coverage.ts` points at a directory of real exports
+(kept outside the repo) and reports what the union actually covers against the
+all-time export's 4,324 matched clients. The arithmetic is in
+`services/data-import/l2f-client-coverage.ts` and is unit-tested against
+fixtures, because real exports carry PII and are never committed. The all-time
+review's verdict — and the 3,344 clients whose ids sit below the file's floor —
+is recorded on `link2feed_clients_v1` in `source-contracts.ts`.
+
 Read these before external-data import, Data Management, backup/restore, or
 administrator-authority work:
 
@@ -584,6 +593,24 @@ kept since October 2023.
   whose daily volume is an order of magnitude higher. A card's description must
   name the grain it is actually using — "by day" on a monthly chart is a lie the
   reader has no way to catch.
+- **The grain rule is one function, `granularityForRange`,** shared by Service
+  and Procurement (`services/analytics-granularity.ts`). Day up to a quarter,
+  month beyond it. The two lenses had no reason to disagree, and a rule copied
+  into two files is a rule that eventually does. Procurement's short ranges used
+  to collapse four charts to one or two monthly points; its full span is 1,710
+  delivery dates across seventeen years, which is why "always daily" is wrong
+  there too. **Seasonal Inbound Weight is deliberately exempt** — it compares
+  calendar months across years, so its buckets are months by definition, and it
+  keeps its own `yearMonth` key.
+- **`bucket`, not `month`, once a series can be either.** The four Procurement
+  over-time payloads carry `bucket` plus a payload-level `bucketGranularity`; a
+  field named `month` holding `2026-08-13` misleads the CSV reader as much as
+  the next developer. Report cards pass that grain into `condenseTimeSeries`
+  (which now has `day` at the bottom of its ladder) so `categoryColumn` names
+  what the rows actually are.
+- **`MMM yy` is ambiguous the moment a chart can also plot days.** "Aug 26" is
+  August 2026 on a monthly axis and reads as the 26th beside a daily one.
+  Procurement's month labels are `MMM yyyy` for exactly that reason.
 - **A card's tick formatter must follow that card's grain, and never throw.**
   The corollary was missed when the grain went per-card and cost a blank
   Service tab: How Service Was Delivered kept the page-wide labeller, so on
@@ -713,6 +740,13 @@ Passdown messages should be concrete enough that a fresh agent can continue with
 - **Multi-series chart tooltips must be sorted explicitly.** Recharts hands the payload over in series-declaration order, which on overlapping lines is the order they appear in the source, not the order they stack on screen — a 1,543 lb source printed above a 6,480 lb one. Pass `sortByValue` to `ChartTooltipContent`. Do **not** pass it to stacked charts: their payload order *is* the stack order, and re-ordering breaks the correspondence with the bar under the cursor. Paired before/after series (Previous vs Latest Unit Cost) also stay fixed. Recharts' own `itemSorter` prop does not help — only `DefaultTooltipContent` reads it, and this project replaces that component.
 - **Print helpers take a value formatter; the default is pounds.** `hBarSvg` and `stackedHBarSvg` default to `POUNDS`, so a card counting households or items prints "1,443 lb" unless it passes `COUNT`. This has now shipped three times (paid procurement dollars, availability counts, response coverage). Check the unit whenever adding a card that is not measuring weight.
 - **Run test suites per package, not from the repo root.** `npx vitest run` at the root picks up a config that fails 46 tests across 86 files on `Cannot find package '@/routes/auth'` — pre-existing and unrelated to any change under test. The real gates are `cd packages/backend && npx vitest run` and `cd packages/frontend && npx vitest run`.
+- **Axis labels tilt rather than collide.** `categoryAxisTicks` in
+  `lib/chart-axis.ts` measures the container and angles labels to -35° only when
+  a horizontal label would not fit its band, growing the chart by the height the
+  tilted labels need. `interval={0}` stays non-negotiable on a banded chart —
+  Recharts thins crowded ticks, and an age axis reading "18-29, 45-59, 75-89,
+  105+" invites the reader to believe those are the bands — but forcing every
+  tick at a narrow width is the same illegibility by another route.
 - **A Recharts test that does not force dimensions asserts against nothing.** jsdom
   reports zero size for every element, and Recharts renders no axes, ticks, or
   formatters at zero size — so a chart test passes whatever the formatters do.

@@ -328,15 +328,17 @@ export interface ProcurementAnalytics {
    * Recorded spend by delivery month. Separate from weight because the two do
    * not move together — a heavy donated load costs nothing.
    */
+  /** The grain the four over-time series are bucketed at. */
+  bucketGranularity: 'day' | 'week' | 'month';
   monthlySpend: Array<{
-    month: string;
+    bucket: string;
     productChargesCents: number;
     serviceFeesCents: number;
     grantsAppliedCents: number;
     netRecordedCostCents: number;
   }>;
   monthlyWeight: Array<{
-    month: string;
+    bucket: string;
     donatedWeightHundredths: number;
     purchDonWeightHundredths: number;
     governmentWeightHundredths: number;
@@ -363,7 +365,7 @@ export interface ProcurementAnalytics {
   freshAllianceDonorCategories: FreshAllianceDonorCategorySummary[];
   donors: DonorSummary[];
   donorMonthlyWeight: Array<{
-    month: string;
+    bucket: string;
     donorCode: string;
     weightHundredths: number;
   }>;
@@ -384,14 +386,14 @@ export interface ProcurementAnalytics {
     lastReceivedDate: string;
   }>;
   communityMonthlyWeight: Array<{
-    month: string;
+    bucket: string;
     sourceName: string;
     weightHundredths: number;
   }>;
   /** FFA partners' pre-Primarius monthly history, keyed by the live donor code,
    *  for the Donations-Over-Time "Show Legacy Data" toggle. */
   freshAllianceLegacyMonthlyWeight: Array<{
-    month: string;
+    bucket: string;
     donorCode: string;
     weightHundredths: number;
   }>;

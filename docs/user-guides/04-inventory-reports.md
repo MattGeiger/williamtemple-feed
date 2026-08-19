@@ -89,12 +89,23 @@ Warehouse Orders and agency-reported Fresh Food Alliance grocery-partner receipt
 
 - **Inbound Supply Summary** keeps OFB Warehouse Orders, Fresh Food Alliance
   Receipts, receiving dates, and inbound weight separate.
-- **Inbound Weight Over Time** shows monthly inbound pounds immediately after
-  the summary, keeping Warehouse and Fresh Food Alliance channels separate.
-- **OFB Spending Over Time** shows recorded charges by delivery month. It is
-  deliberately separate from weight, because the two do not move together — a
-  heavy donated load costs nothing. Net recorded cost adds service fees and
-  subtracts grants, so where the two lines meet, neither applied that month.
+- **Inbound Weight Over Time** shows inbound pounds immediately after the
+  summary, keeping Warehouse and Fresh Food Alliance channels separate.
+- **OFB Spending Over Time** shows recorded charges against the same dates. It
+  is deliberately separate from weight, because the two do not move together —
+  a heavy donated load costs nothing. Net recorded cost adds service fees and
+  subtracts grants, so where the two lines meet, neither applied.
+
+  These two, along with **Fresh Food Alliance Donations Over Time** and **Other
+  Donations Over Time (Legacy Data)**, follow the date range you pick. Up to
+  about three months they plot each delivery date, so you can see the individual
+  deliveries. Over a longer range they total by month instead — the full record
+  holds 1,710 delivery dates across seventeen years, and drawing every one of
+  them produces a smear rather than a trend. The axis says which you are looking
+  at: a month reads "Aug 2026", a delivery date reads "Aug 13".
+
+  **Seasonal Inbound Weight is not affected.** It compares the same calendar
+  month across different years, so months are what it is made of.
 - **Paid Procurement Summary** shows product charges, service fees, grants, and
   the resulting net recorded charge. If an acquisition-class filter splits an
   order, fees, grants, and net cost display as **Not attributable** rather than

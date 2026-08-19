@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- **Procurement charts now show individual deliveries on shorter date ranges.**
+  Picking 30 days used to give you one or two points, because the charts always
+  summed by month. They now plot the delivery dates themselves for any range up
+  to about a quarter, and keep monthly totals beyond that, where seventeen years
+  of individual deliveries would be an unreadable smear. Seasonal Inbound Weight
+  still compares calendar months, which is what it is for.
+- **Age of People Served no longer runs its labels together** on a narrow
+  screen; they tilt when there is not room to sit flat.
+
 - **The Service tab came up blank on the YTD and All ranges.** Fixed. One chart
   was labelling its dates with the wrong calendar grain, which failed in a way
   that took the whole tab down instead of spoiling a single label. The other

@@ -21,6 +21,16 @@ import {
 import { condenseTimeSeries, type Grain, type Series } from './condense';
 
 /**
+ * The grain a procurement payload's over-time buckets carry.
+ *
+ * Short ranges plot deliveries by day, so a card that assumed months would
+ * label a CSV column "month" over a column of dates — the export and the data
+ * disagreeing about what a row is.
+ */
+const grainOf = (analytics: any): Grain =>
+  (analytics?.bucketGranularity === 'day' ? 'day' : 'month');
+
+/**
  * The card contract: one accessor, two outputs.
  *
  * Every card declares a single `data()` that turns the analytics payload into
@@ -247,7 +257,7 @@ export const INBOUND_WEIGHT_OVER_TIME: AnalyticsCard = {
       ];
     }
 
-    const categories = monthly.map((r: any) => r.month);
+    const categories = monthly.map((r: any) => r.bucket);
     // Trimmed before condensing, so the grain step carries the coverage through
     // and a channel that ended mid-range stops at its last delivery. Series are
     // never dropped: the acquisition classes are a fixed taxonomy, and a report
@@ -259,7 +269,7 @@ export const INBOUND_WEIGHT_OVER_TIME: AnalyticsCard = {
 
     // Grain is chosen here, before either output, so the chart and the CSV
     // always describe the same buckets.
-    const condensed = condenseTimeSeries(categories, series);
+    const condensed = condenseTimeSeries(categories, series, { grain: grainOf(analytics) });
 
     return {
       title,
@@ -269,7 +279,7 @@ export const INBOUND_WEIGHT_OVER_TIME: AnalyticsCard = {
       note: condensed.note,
       grain: condensed.grain,
       raw: condensed.condensed
-        ? { categories, series, categoryColumn: 'month' }
+        ? { categories, series, categoryColumn: grainOf(analytics) }
         : undefined,
     };
   },
@@ -1608,7 +1618,7 @@ export const FRESH_ALLIANCE_DONATIONS_OVER_TIME: AnalyticsCard = {
       ...(analytics?.donorMonthlyWeight ?? []),
     ];
     const codes = new Set(donors.map((d: any) => d.donorCode));
-    const months = [...new Set(rows.map((r: any) => r.month))].sort() as string[];
+    const months = [...new Set(rows.map((r: any) => r.bucket))].sort() as string[];
 
     const series: Series[] = donors
       .map((donor: any) => trimToData({
@@ -1620,7 +1630,7 @@ export const FRESH_ALLIANCE_DONATIONS_OVER_TIME: AnalyticsCard = {
         values: months.map(month =>
           toPounds(
             rows
-              .filter((r: any) => r.month === month && r.donorCode === donor.donorCode)
+              .filter((r: any) => r.bucket === month && r.donorCode === donor.donorCode)
               .reduce((sum: number, r: any) => sum + (r.weightHundredths ?? 0), 0)
           )
         ),
@@ -1735,11 +1745,11 @@ export const LEGACY_DONATIONS_OVER_TIME: AnalyticsCard = {
       : null;
     const isVisible = (name: string) => selected === null || selected.includes(name);
 
-    const months = [...new Set(monthly.map((r: any) => r.month))].sort() as string[];
+    const months = [...new Set(monthly.map((r: any) => r.bucket))].sort() as string[];
     const weightFor = (month: string, match: (name: string) => boolean) =>
       toPounds(
         monthly
-          .filter((r: any) => r.month === month && match(r.sourceName))
+          .filter((r: any) => r.bucket === month && match(r.sourceName))
           .reduce((sum: number, r: any) => sum + (r.weightHundredths ?? 0), 0)
       );
 
@@ -1813,7 +1823,7 @@ export const PROCUREMENT_SPEND_OVER_TIME: AnalyticsCard = {
   lens: 'procurement',
   data: (analytics: any) => {
     const rows = analytics?.monthlySpend ?? [];
-    const categories = rows.map((row: any) => row.month);
+    const categories = rows.map((row: any) => row.bucket);
     // Dollars, not cents: the CSV is read by people, and a column of 776800
     // invites a reader to mistake the scale by two orders of magnitude.
     const series = [
@@ -1827,7 +1837,7 @@ export const PROCUREMENT_SPEND_OVER_TIME: AnalyticsCard = {
       }),
     ];
 
-    const condensed = condenseTimeSeries(categories, series);
+    const condensed = condenseTimeSeries(categories, series, { grain: grainOf(analytics) });
     return {
       title: 'OFB Spending Over Time',
       categories: condensed.categories,

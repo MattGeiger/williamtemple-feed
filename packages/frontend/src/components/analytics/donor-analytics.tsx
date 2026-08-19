@@ -15,10 +15,10 @@
 
 import { prefersReducedMotion } from '@/lib/reduced-motion'
 import { trimSeriesToData } from '@/lib/chart-series'
+import { bucketLabeller, type BucketGranularity } from '@/lib/formatting/bucket-label'
 import * as React from 'react';
 import { Bar, BarChart, CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts';
 import { ChevronDown } from 'lucide-react';
-import { format, parseISO } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { SelectableBlock } from '@/components/reports/selection';
@@ -60,10 +60,12 @@ import type { DonorSummary, DonorValueSummary } from '@/types/procurement';
 interface DonorAnalyticsProps {
   donors: DonorSummary[];
   donorValue: DonorValueSummary;
-  donorMonthlyWeight: Array<{ month: string; donorCode: string; weightHundredths: number }>;
+  donorMonthlyWeight: Array<{ bucket: string; donorCode: string; weightHundredths: number }>;
+  /** The grain those buckets carry, so the axis labels them correctly. */
+  bucketGranularity?: BucketGranularity;
   /** FFA partners' pre-Primarius monthly history, shown when "Show Legacy Data"
    *  is on. Keyed by the live donor code, so it extends the same lines back. */
-  legacyMonthlyWeight?: Array<{ month: string; donorCode: string; weightHundredths: number }>;
+  legacyMonthlyWeight?: Array<{ bucket: string; donorCode: string; weightHundredths: number }>;
   formatDate: (isoDate: string) => string;
 }
 
@@ -83,6 +85,7 @@ export function DonorAnalytics({
   donorValue,
   donorMonthlyWeight,
   legacyMonthlyWeight,
+  bucketGranularity = 'month',
   formatDate,
 }: DonorAnalyticsProps) {
   const legacyRows = React.useMemo(() => legacyMonthlyWeight ?? [], [legacyMonthlyWeight]);
@@ -103,6 +106,19 @@ export function DonorAnalytics({
 
   const safeMonthly = React.useMemo(() => donorMonthlyWeight ?? [], [donorMonthlyWeight]);
 
+  /**
+   * Labels the axis at the grain the buckets actually carry. A month formatter
+   * handed a day key throws inside Recharts and unmounts the lens, so this
+   * always goes through the guarded shared labeller.
+   */
+  const bucketLabel = React.useMemo(() => {
+    const all = [...(legacyMonthlyWeight ?? []), ...(donorMonthlyWeight ?? [])]
+      .map((row) => row.bucket).sort();
+    const spansYears = all.length === 0
+      || all[0].slice(0, 4) !== all[all.length - 1].slice(0, 4);
+    return bucketLabeller(bucketGranularity, spansYears);
+  }, [bucketGranularity, donorMonthlyWeight, legacyMonthlyWeight]);
+
   // Partner selection is a view over data already fetched, so it filters here
   // rather than through the server. Keeping it client-side also means it never
   // interacts with the channel and acquisition filters, whose whole-event
@@ -118,12 +134,12 @@ export function DonorAnalytics({
     // back. They abut the live data (legacy ends May 2023, Fresh Alliance starts
     // June 2023) with no overlap, so no month is double-counted.
     const rows = showLegacy ? [...legacyRows, ...safeMonthly] : safeMonthly;
-    const months = [...new Set(rows.map((entry) => entry.month))].sort();
+    const months = [...new Set(rows.map((entry) => entry.bucket))].sort();
     const visibleCodes = new Set(visibleDonors.map((donor) => donor.donorCode));
     const dense = months.map((month) => {
-      const row: Record<string, string | number> = { month };
+      const row: Record<string, string | number> = { bucket: month };
       for (const entry of rows) {
-        if (entry.month !== month || !visibleCodes.has(entry.donorCode)) continue;
+        if (entry.bucket !== month || !visibleCodes.has(entry.donorCode)) continue;
         row[entry.donorCode] = (Number(row[entry.donorCode]) || 0) + Math.round(entry.weightHundredths / 100);
       }
       // Recharts needs an explicit 0 for a month a partner did not deliver in,
@@ -335,10 +351,10 @@ export function DonorAnalytics({
               <LineChart accessibilityLayer data={trend} margin={{ left: 8, right: 16 }}>
                 <CartesianGrid vertical={false} />
                 <XAxis
-                  dataKey="month"
+                  dataKey="bucket"
                   tickLine={false}
                   axisLine={false}
-                  tickFormatter={(month: string) => format(parseISO(`${month}-01`), 'MMM yy')}
+                  tickFormatter={bucketLabel}
                 />
                 <YAxis tickLine={false} axisLine={false} width={64} tickFormatter={formatAxisNumber} />
                 <ChartTooltip content={<ChartTooltipContent sortByValue />} />

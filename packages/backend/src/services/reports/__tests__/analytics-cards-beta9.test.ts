@@ -78,12 +78,12 @@ const procurement = {
     unvaluedWeightHundredths: 400_000,
   },
   donorMonthlyWeight: [
-    { month: '2026-04', donorCode: 'FRED', weightHundredths: 300_000 },
-    { month: '2026-05', donorCode: 'FRED', weightHundredths: 450_000 },
-    { month: '2026-05', donorCode: 'TJ', weightHundredths: 250_000 },
+    { bucket: '2026-04', donorCode: 'FRED', weightHundredths: 300_000 },
+    { bucket: '2026-05', donorCode: 'FRED', weightHundredths: 450_000 },
+    { bucket: '2026-05', donorCode: 'TJ', weightHundredths: 250_000 },
   ],
   freshAllianceLegacyMonthlyWeight: [
-    { month: '2023-05', donorCode: 'FRED', weightHundredths: 100_000 },
+    { bucket: '2023-05', donorCode: 'FRED', weightHundredths: 100_000 },
   ],
   communitySources: [
     { sourceName: 'St. Andrew Parish', weightHundredths: 500_000, isFreshAlliancePartner: false },
@@ -91,9 +91,9 @@ const procurement = {
     { sourceName: 'Neighborhood Drive', weightHundredths: 200_000, isFreshAlliancePartner: false },
   ],
   communityMonthlyWeight: [
-    { month: '2022-11', sourceName: 'St. Andrew Parish', weightHundredths: 300_000 },
-    { month: '2022-12', sourceName: 'Neighborhood Drive', weightHundredths: 200_000 },
-    { month: '2022-12', sourceName: 'Fred Meyer Hollywood', weightHundredths: 900_000 },
+    { bucket: '2022-11', sourceName: 'St. Andrew Parish', weightHundredths: 300_000 },
+    { bucket: '2022-12', sourceName: 'Neighborhood Drive', weightHundredths: 200_000 },
+    { bucket: '2022-12', sourceName: 'Fred Meyer Hollywood', weightHundredths: 900_000 },
   ],
 };
 

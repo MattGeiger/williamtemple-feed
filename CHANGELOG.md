@@ -7,6 +7,24 @@ All notable changes to FEED are documented here. This project adheres to
 
 ### Added
 
+- **Procurement's over-time charts follow the date range.** Inbound Weight,
+  Fresh Food Alliance Donations, Other Donations (Legacy Data) and OFB Spending
+  now plot individual delivery dates on ranges up to a quarter, where they
+  previously collapsed a 30-day window to one or two monthly points. Longer
+  ranges still aggregate by month: the full span is 1,710 delivery dates across
+  seventeen years, which is a smear rather than a shape. The rule is the one the
+  Service lens already used, now shared by both rather than written twice.
+  Seasonal Inbound Weight is unaffected — it compares calendar months across
+  years, so months are what it is made of.
+- **A harness for the per-year Link2Feed client exports.**
+  `scripts/measure-l2f-client-coverage.ts` reports what a directory of per-year
+  exports actually covers against the clients FEED holds, and whether that beats
+  the all-time export's 4,324. The all-time file was rejected partly because
+  3,344 of our clients carry ids below its lowest and could not appear in it at
+  all; this measures whether per-year files reach past that floor. The
+  arithmetic is unit-tested against fixtures — real exports carry PII and stay
+  out of the repository.
+
 - **Gender Identity (SIMC)** on the Clients lens. SIMC has recorded a gender
   for every household member since the June 2026 changeover — 2,166 people —
   and FEED was already reading and storing it; nothing drew it. It gets its own
@@ -29,6 +47,16 @@ All notable changes to FEED are documented here. This project adheres to
   bucket falls back to the raw key.
 
 ### Changed
+
+- **Crowded axis labels tilt instead of colliding.** Age of People Served forces
+  all eight bands onto the axis, which ran "Under 18" flush into "18-29" once
+  the card was narrow. Labels now angle to -35° when, and only when, a
+  horizontal label would not fit, and the chart takes the extra height rather
+  than the bars giving it up. Wide layouts are unchanged.
+- **Procurement's monthly labels read `Aug 2026`, not `Aug 26`.** The compact
+  form became ambiguous the moment the same charts could plot days, where
+  "Aug 26" is a date rather than a year.
+- **Household Size's footnote is a list**, like the other Clients cards.
 
 - **Card footnotes are lists rather than paragraphs.** Age of People Served,
   Ethnicity, Race or Ethnicity (SIMC), both Gender Identity cards, Housing Type,

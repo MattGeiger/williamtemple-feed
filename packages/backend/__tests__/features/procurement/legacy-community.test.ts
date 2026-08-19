@@ -150,7 +150,7 @@ describe('legacy months in Analytics (D17: weight yes, product detail no)', () =
       weightHundredths: 240050,
     });
     expect(result.monthlyWeight[0]).toMatchObject({
-      month: '2019-11',
+      bucket: '2019-11',
       communityDonationWeightHundredths: 240050,
       ofbWarehouseWeightHundredths: 0,
       freshAllianceWeightHundredths: 0,
@@ -340,7 +340,7 @@ describe('Fresh Alliance partner classification (D16 stack + toggle)', () => {
     // Amazon's legacy 5,000 lb is the FFA-partner legacy total; Coava is not counted.
     expect(result.summary.freshAllianceLegacyWeightHundredths).toBe(500000);
     expect(result.freshAllianceLegacyMonthlyWeight).toEqual([
-      { month: '2019-11', donorCode: 'RAZ100', weightHundredths: 500000 },
+      { bucket: '2019-11', donorCode: 'RAZ100', weightHundredths: 500000 },
     ]);
     // The full community roster still holds both (mix card shows everyone).
     expect(result.communitySources.map((s) => s.sourceName).sort()).toEqual([

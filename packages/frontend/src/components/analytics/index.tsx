@@ -3,6 +3,7 @@
 
 import { prefersReducedMotion } from '@/lib/reduced-motion'
 import { trimSeriesToData } from '@/lib/chart-series'
+import { bucketLabeller } from '@/lib/formatting/bucket-label'
 import { formatAxisMoney } from '@/lib/formatting/number'
 import * as React from 'react';
 import type { ColumnDef } from '@tanstack/react-table';
@@ -1065,7 +1066,7 @@ export function ProcurementAnalyticsWorkspace({
 
   const monthlyWeight = React.useMemo(
     () => (analytics?.monthlyWeight ?? []).map((row) => ({
-      month: row.month,
+      bucket: row.bucket,
       donatedWeight: toPounds(row.donatedWeightHundredths),
       purchDonWeight: toPounds(row.purchDonWeightHundredths),
       governmentWeight: toPounds(row.governmentWeightHundredths),
@@ -1085,7 +1086,7 @@ export function ProcurementAnalyticsWorkspace({
    */
   const monthlySpend = React.useMemo(() => {
     const rows = (analytics?.monthlySpend ?? []).map((row) => ({
-      month: row.month,
+      bucket: row.bucket,
       productCharges: row.productChargesCents / 100,
       netRecordedCost: row.netRecordedCostCents / 100,
     }));
@@ -1368,6 +1369,20 @@ export function ProcurementAnalyticsWorkspace({
   // others — React reports it as a change in hook order and the whole
   // workspace fails to render.
   const monthlyWeightPlotted = trimSeriesToData(monthlyWeight, monthlyWeightAllKeys);
+
+  /**
+   * One labeller for every over-time chart on this lens, built from the grain
+   * the payload actually carries. Short ranges now plot deliveries by day, and
+   * a month formatter handed a day key throws inside Recharts' render — which
+   * blanks the tab rather than spoiling a label. `bucketLabeller` guards that.
+   */
+  const bucketGranularity = analytics?.bucketGranularity ?? 'month';
+  const bucketSpansYears = (() => {
+    const buckets = (analytics?.monthlyWeight ?? []).map((row) => row.bucket);
+    if (buckets.length === 0) return true;
+    return buckets[0].slice(0, 4) !== buckets[buckets.length - 1].slice(0, 4);
+  })();
+  const bucketLabel = bucketLabeller(bucketGranularity, bucketSpansYears);
   // Series are not dropped when empty: the acquisition classes are a fixed
   // taxonomy, and FEED imports both OFB channels, so "nothing this range" is a
   // real observation rather than an absent series. The line simply stops.
@@ -1518,7 +1533,7 @@ export function ProcurementAnalyticsWorkspace({
           >
             <LineChart accessibilityLayer data={monthlyWeightPlotted} margin={{ left: 8, right: 16 }}>
               <CartesianGrid vertical={false} />
-              <XAxis dataKey="month" tickLine={false} axisLine={false} tickFormatter={(month: string) => format(parseISO(`${month}-01`), 'MMM yy')} />
+              <XAxis dataKey="bucket" tickLine={false} axisLine={false} tickFormatter={bucketLabel} minTickGap={32} />
               <YAxis width={52} tickLine={false} axisLine={false} tickFormatter={formatAxisNumber} />
               <ChartTooltip content={<ChartTooltipContent sortByValue />} />
               <ChartLegend content={<ChartLegendContent />} />
@@ -1559,10 +1574,10 @@ export function ProcurementAnalyticsWorkspace({
                 <LineChart accessibilityLayer data={monthlySpend} margin={{ left: 8, right: 16 }}>
                   <CartesianGrid vertical={false} />
                   <XAxis
-                    dataKey="month"
+                    dataKey="bucket"
                     tickLine={false}
                     axisLine={false}
-                    tickFormatter={(month: string) => format(parseISO(`${month}-01`), 'MMM yy')}
+                    tickFormatter={bucketLabel}
                     minTickGap={32}
                   />
                   <YAxis width={72} tickLine={false} axisLine={false} tickFormatter={formatAxisMoney} />
@@ -1883,6 +1898,7 @@ export function ProcurementAnalyticsWorkspace({
           donorValue={analytics.donorValue}
           donorMonthlyWeight={analytics.donorMonthlyWeight}
           legacyMonthlyWeight={analytics.freshAllianceLegacyMonthlyWeight}
+          bucketGranularity={analytics.bucketGranularity}
           formatDate={tableDate}
         />
       )}
@@ -1891,6 +1907,7 @@ export function ProcurementAnalyticsWorkspace({
         <CommunityDonationAnalytics
           communitySources={analytics.communitySources}
           communityMonthlyWeight={analytics.communityMonthlyWeight}
+          bucketGranularity={analytics.bucketGranularity}
         />
       )}
 
