@@ -496,7 +496,7 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
                   </div>
                   <div className="space-y-3">
                     <Tile label="Visits" value={count(summary.visits)} icon={ShoppingBasket} />
-                    <Tile label="People served" value={count(summary.peopleServed)} icon={UsersRound} />
+                    <Tile label="People served *" value={count(summary.peopleServed)} icon={UsersRound} />
                     <Tile
                       label="Anonymous visits"
                       value={count(summary.identityUnavailableVisits)}
@@ -511,13 +511,13 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
             </div>
 
             <div className="mt-6 border-t pt-4">
-              {/* Two lists, not one with a marker scheme. The asterisks these
-                  notes used to carry were reference marks tied to a tile, and
-                  once every note is a bullet a leading "*" reads as a second
-                  bullet rather than a pointer — the "**" pair had already lost
-                  the tile it referred to. The caveat that qualifies the headline
-                  figure leads and stands apart; the rest describe the records. */}
+              {/* An asterisk, not a bullet, and it earns it: "treat this as an
+                  undercount" needs to say what is undercounted, and the mark on
+                  the People served tile above is what supplies the referent. The
+                  "**" pair this card also carried is gone — those pointed at a
+                  tile that never had the mark, so they decoded to nothing. */}
               <FootnoteList
+                marker="*"
                 items={['Not all clients disclose household size, treat this as an undercount.']}
               />
               <FootnoteList
