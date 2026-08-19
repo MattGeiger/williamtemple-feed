@@ -64,6 +64,22 @@ All notable changes to FEED are documented here. This project adheres to
   grain it is actually drawing.
 - **Demographic breakdown cards size themselves to their row count**, so a
   fourteen-answer chart no longer crushes its labels into each other.
+- **Where Households Live is a map.** A ranked list of postal codes answered
+  "which code is largest" and nothing else; the question staff actually ask is
+  where in the city the households are, which a list cannot show. Each code is
+  a circle scaled by area rather than radius, so twice the households reads as
+  twice the circle instead of four times, and hovering gives the code and its
+  count. Placement uses `us-zips`, an MIT-licensed table of postal-code
+  centroids that ships with the backend, so no address is stored, sent, or
+  looked up — FEED never held one, and a centroid is a property of the code
+  itself.
+
+  The opening view is the household-weighted *median*, not the mean. The mean
+  is dragged by a handful of codes reaching Hawaii and the east coast and
+  opened the map on farmland well south of the city; a median cannot be moved
+  by how far an outlier sits, only by how many households sit there. Those
+  distant codes are still plotted, a pan away. Generated reports keep the
+  ranked list, since a printed page cannot carry a map.
 - **Ethnicity, Race or Ethnicity (SIMC), Gender Identity and Housing Type** on
   the Clients lens, from data the visits import already collected. The two
   ethnicity cards stay separate: Link2Feed records ethnicity on the household

@@ -208,12 +208,25 @@ not everyone on file.
   household members. Birth years of 1901 or earlier are placeholders rather
   than real ages and are shown rather than hidden, so the top band can be read
   as a data-entry signal.
-- **Where Households Live** ranks postal codes. Households recorded as having
-  no fixed address are counted separately rather than by postal code: SIMC
-  requires a postal code, so the agency's own is entered when there is nowhere
-  else to give, and counting those as residents would draw the pantry's own
-  neighborhood as the place its clients live. It is not a map — a postal code
-  is not a catchment area.
+- **Where Households Live** plots postal codes on a map, one circle per code,
+  sized by how many households gave it. The circle's *area* tracks the count,
+  so a code with twice the households looks twice as large rather than four
+  times. Hover a circle for the code and its household count. Households
+  recorded as having no fixed address are left off the map: SIMC requires a
+  postal code, so the agency's own is entered when there is nowhere else to
+  give, and plotting those would draw the pantry's own neighborhood as the
+  place its clients live. A handful of codes give no map location at all — a
+  PO-box-only code, for one — and are noted beneath the map instead.
+
+  Read the map as postal codes, not as neighborhoods: a circle marks the whole
+  code, not an address, and a postal code is not a catchment area. The map
+  opens on the metro area rather than on the full spread of the data, because a
+  few out-of-state codes reach as far as Hawaii and the east coast; those are
+  still plotted, a pan and a zoom away.
+
+  In a generated report this card appears as a ranked list of postal codes
+  rather than a map, since a printed page cannot carry one. The numbers are the
+  same either way.
 - **Ethnicity** shows how households described themselves at intake, recorded
   in Link2Feed only — SIMC asks a different question with different categories,
   which appears on its own card. A household can give more than one answer, so

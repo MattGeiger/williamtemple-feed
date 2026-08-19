@@ -604,9 +604,31 @@ kept since October 2023.
   drop an empty series from a fixed taxonomy (the acquisition classes, the two
   OFB channels): a report whose rows change between ranges cannot be compared
   with another.
-- Age and geography cards remain **blocked** on the cutover question in the card
-  proposal's §2.8. One distribution cannot honestly be drawn across two systems
-  that asked different questions.
+- Age and geography cards are **built**; the card proposal's §2.8 cutover
+  question was answered by combining the records and stating the shortfall in a
+  footnote rather than drawing two charts the reader has to add up. Age must
+  make identities distinct before counting — the person side scopes to a range
+  by joining through encounters, which otherwise repeats anyone who came twice.
+- **Where Households Live is a map, and its centre is a weighted median.** The
+  household-weighted *mean* is dragged by the handful of postal codes reaching
+  Hawaii and the east coast, and opened the map on farmland south of the city;
+  a median moves only with how many households sit somewhere, never with how
+  far an outlier sits. mapcn's `Map` takes `center`/`zoom` and exposes no
+  `fitBounds`, so the opening view is computed rather than fitted — and fitting
+  the true extent would draw the whole country and make the local picture, the
+  entire point of the card, unreadable.
+- Placement uses `us-zips` (MIT) on the backend: a postal code's centroid is a
+  property of the code, not of anyone's address. **This does not weaken the PII
+  rule** — FEED still never imports or stores an address. Bubbles scale by
+  **area**, not radius, or a code with twice the households renders four times
+  as large.
+- A map cannot be printed, so `CLIENTS_GEOGRAPHY` keeps a ranked postal-code bar
+  list for PDF and CSV. That is the intended shape of the contract below, not a
+  gap: screen and export share the accessor and the numbers, and differ only in
+  how they draw them.
+- `Map` applies `center` only at initialisation unless its viewport is
+  controlled, so an HMR edit to the centre appears to do nothing. Reload fully
+  before concluding a centring change failed.
 
 Analytics cards are a contract: screen, PDF, and CSV share one accessor, so a
 guard applied on screen must be applied in the card too (`analytics-cards.ts`).

@@ -31,6 +31,8 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SelectableBlock } from '@/components/reports/selection';
+import { Map, MapControls, MapMarker, MarkerContent, MarkerTooltip } from '@/components/ui/map';
+import { useTheme } from 'next-themes';
 import { ErrorHandlerService } from '@/services/error/ErrorHandlerService';
 import { carbonChartColors } from '@/lib/colors';
 import { formatAxisNumber, formatNumber } from '@/lib/formatting/number';
@@ -185,6 +187,9 @@ export function ClientAnalyticsWorkspace({ analytics }: { analytics: ServiceAnal
   const {
     coverage, householdSize, languages, responseCoverage, ageBands, geography, demographics,
   } = analytics;
+  // `resolvedTheme`, not `theme`: the latter can be "system", which the map
+  // has no palette for. This resolves it to light or dark.
+  const { resolvedTheme } = useTheme();
 
   /**
    * Only the records this range contains. `coverage.sources` is range-scoped,
@@ -232,15 +237,46 @@ export function ClientAnalyticsWorkspace({ analytics }: { analytics: ServiceAnal
    * summed into one row rather than dropped, so the bars still account for
    * every household with a recorded address.
    */
-  const POSTAL_CODES_PLOTTED = 12;
-  const geographyRows = React.useMemo(() => {
-    const top = geography.postalCodes.slice(0, POSTAL_CODES_PLOTTED);
-    const tail = geography.postalCodes.slice(POSTAL_CODES_PLOTTED);
-    const tailTotal = tail.reduce((sum, row) => sum + row.clients, 0);
-    return tailTotal > 0
-      ? [...top, { postalCode: `${tail.length} more postal codes`, clients: tailTotal }]
-      : top;
+  /**
+   * Postal codes as points, sized by how many households they hold.
+   *
+   * Circle area is proportional to the count — radius scales with its square
+   * root — because the eye compares areas, and scaling the radius directly
+   * would make a code with twice the households look four times as large.
+   */
+  const mapPoints = React.useMemo(() => {
+    const placed = geography.postalCodes.filter(
+      (row): row is typeof row & { latitude: number; longitude: number } =>
+        row.latitude !== null && row.longitude !== null,
+    );
+    const largest = Math.max(1, ...placed.map((row) => row.clients));
+    return placed.map((row) => ({
+      ...row,
+      size: 8 + 46 * Math.sqrt(row.clients / largest),
+    }));
   }, [geography.postalCodes]);
+
+  /**
+   * The household-weighted *median*, not the mean. A mean is dragged by the
+   * handful of postal codes reaching Hawaii and the east coast, and opened the
+   * map on farmland south of the city. A median cannot be moved by how far an
+   * outlier sits, only by how many households sit there, so it lands on the
+   * neighbourhoods the pantry actually serves.
+   */
+  const mapCenter = React.useMemo((): [number, number] => {
+    const total = mapPoints.reduce((sum, row) => sum + row.clients, 0);
+    if (total === 0) return [-122.68, 45.52];
+    const weightedMedian = (pick: (row: (typeof mapPoints)[number]) => number) => {
+      const sorted = [...mapPoints].sort((left, right) => pick(left) - pick(right));
+      let seen = 0;
+      for (const row of sorted) {
+        seen += row.clients;
+        if (seen >= total / 2) return pick(row);
+      }
+      return pick(sorted[sorted.length - 1]);
+    };
+    return [weightedMedian((row) => row.longitude), weightedMedian((row) => row.latitude)];
+  }, [mapPoints]);
 
   const languageAnsweredPercent = languages.householdsAsked > 0
     ? Math.round((languages.householdsAnswered / languages.householdsAsked) * 100)
@@ -377,41 +413,58 @@ export function ClientAnalyticsWorkspace({ analytics }: { analytics: ServiceAnal
       </BreakdownCard>
 
       {/* ---- Geography ------------------------------------------------------ */}
-      {geographyRows.length > 0 && (
+      {mapPoints.length > 0 && (
         <SelectableBlock cardId="clients-geography">
           <Card className="min-w-0">
             <CardHeader>
               <CardTitle>Where Households Live</CardTitle>
-              <CardDescription>Households by postal code.</CardDescription>
+              <CardDescription>
+                Households by postal code. Each circle covers a whole postal code,
+                not an address.
+              </CardDescription>
               <SourcePills sources={intakePills} />
             </CardHeader>
             <CardContent>
-              <ChartContainer
-                config={{ clients: { label: 'Households', color: carbonChartColors.green.primary.light } } satisfies ChartConfig}
-                className="h-[380px] w-full"
-              >
-                <BarChart data={geographyRows} layout="vertical" margin={{ left: 8, right: 24, top: 4 }}>
-                  <CartesianGrid horizontal={false} strokeDasharray="3 3" />
-                  <XAxis type="number" tickLine={false} axisLine={false} tickFormatter={formatAxisNumber} />
-                  <YAxis
-                    type="category"
-                    dataKey="postalCode"
-                    tickLine={false}
-                    axisLine={false}
-                    width={148}
-                    interval={0}
-                  />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Bar dataKey="clients" fill={seriesColor('clients')} radius={[0, 3, 3, 0]} />
-                </BarChart>
-              </ChartContainer>
+              <div className="h-[460px] overflow-hidden rounded-lg border">
+                {/* Centred on where the households actually are rather than on
+                    the extent of the data: a handful of out-of-state postal
+                    codes reach Hawaii and the east coast, and fitting those
+                    would zoom out to the whole country and render the local
+                    picture — which is the entire point — unreadable. They are
+                    still plotted, a pan away. */}
+                <Map center={mapCenter} zoom={9} theme={resolvedTheme === 'dark' ? 'dark' : 'light'}>
+                  <MapControls />
+                  {mapPoints.map((point) => (
+                    <MapMarker
+                      key={point.postalCode}
+                      longitude={point.longitude}
+                      latitude={point.latitude}
+                    >
+                      <MarkerContent>
+                        {/* Area scales with the count, not radius: doubling a
+                            radius quadruples the ink, and the eye reads area. */}
+                        <span
+                          className="block rounded-full border border-white/70 bg-emerald-500/55"
+                          style={{ width: point.size, height: point.size }}
+                          aria-hidden="true"
+                        />
+                      </MarkerContent>
+                      <MarkerTooltip>
+                        {point.postalCode} · {count(point.clients)} households
+                      </MarkerTooltip>
+                    </MapMarker>
+                  ))}
+                </Map>
+              </div>
               <Footnote>
-                A postal code is not a catchment area, and this is not a map — it is
-                where households said they live.
+                A postal code is not a catchment area — a circle marks the code, not
+                where anyone lives.
                 {geography.noFixedAddressAsked && geography.noFixedAddress > 0 &&
-                  ` ${count(geography.noFixedAddress)} households have no fixed address and are counted separately, not by postal code: SIMC requires one, so the agency's own is recorded instead.`}
+                  ` ${count(geography.noFixedAddress)} households have no fixed address and are not on the map: SIMC requires a postal code, so the agency's own is recorded instead.`}
+                {geography.clientsWithoutPlace > 0 &&
+                  ` ${count(geography.clientsWithoutPlace)} gave a postal code with no map location, such as a PO-box-only code.`}
                 {geography.clientsWithoutPostalCode > 0 &&
-                  ` ${count(geography.clientsWithoutPostalCode)} did not give a postal code.`}
+                  ` ${count(geography.clientsWithoutPostalCode)} gave no postal code.`}
               </Footnote>
             </CardContent>
           </Card>

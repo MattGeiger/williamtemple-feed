@@ -6,6 +6,7 @@ import prisma from '../../db';
 import { getOperatingHoursSettings } from '../operating-hours';
 import { resolveRange, type AnalyticsRangePreset } from '../inventory-analytics/timezone';
 import { serviceProfileDimensionLabel } from './profiles';
+import zipCentroids from 'us-zips';
 
 /**
  * Service Analytics — the third lens, beside Operations and Procurement.
@@ -259,7 +260,19 @@ export interface ServiceAnalytics {
    * more useful number anyway.
    */
   geography: {
-    postalCodes: Array<{ postalCode: string; clients: number }>;
+    /**
+     * `latitude`/`longitude` are null where the postal code has no centroid —
+     * PO-box-only codes such as 97207, and typos. Those households are counted
+     * in `clientsWithoutPlace` rather than dropped, so a map cannot quietly
+     * lose people it could not place.
+     */
+    postalCodes: Array<{
+      postalCode: string;
+      clients: number;
+      latitude: number | null;
+      longitude: number | null;
+    }>;
+    clientsWithoutPlace: number;
     noFixedAddress: number;
     /** Whether the no-fixed-address question was asked at all in this range. */
     noFixedAddressAsked: boolean;
@@ -806,6 +819,20 @@ ${Object.entries(LANGUAGE_LABEL_ALIASES)
       AND p."id" NOT IN (SELECT "revisionId" FROM unhoused)
     GROUP BY j."value" ORDER BY "clients" DESC, "postalCode"`;
 
+  /**
+   * Postal code to a point, for the map.
+   *
+   * Only the first five characters are looked up: some records carry ZIP+4,
+   * and the centroid table is keyed by the five-digit code. Codes with no
+   * centroid — PO-box-only ranges like 97207, and typos — keep their row and
+   * their count but carry no point, so the bar list stays complete while the
+   * map plots what it can and says how many it could not.
+   */
+  const centroidFor = (postalCode: string) => {
+    const table = zipCentroids as Record<string, { latitude: number; longitude: number } | undefined>;
+    return table[postalCode.trim().slice(0, 5)];
+  };
+
   const geographyMetaRows = await client.$queryRaw<Array<{
     noFixedAddress: bigint; asked: bigint; withPostal: bigint; withoutPostal: bigint;
   }>>`
@@ -1113,6 +1140,19 @@ ${Object.entries(LANGUAGE_LABEL_ALIASES)
     'county',
   ]);
 
+  const placedPostalCodes = geographyRows.map((row) => {
+    const point = centroidFor(row.postalCode);
+    return {
+      postalCode: row.postalCode,
+      clients: Number(row.clients),
+      latitude: point?.latitude ?? null,
+      longitude: point?.longitude ?? null,
+    };
+  });
+  const unplacedClients = placedPostalCodes
+    .filter((row) => row.latitude === null)
+    .reduce((sum, row) => sum + row.clients, 0);
+
   const coverageTotals = new Map<string, {
     provided: number; notProvided: number; sources: Set<string>;
   }>();
@@ -1250,10 +1290,8 @@ ${Object.entries(LANGUAGE_LABEL_ALIASES)
       available: ageRows.some((row) => Number(row.count) > 0),
     },
     geography: {
-      postalCodes: geographyRows.map((row) => ({
-        postalCode: row.postalCode,
-        clients: Number(row.clients),
-      })),
+      postalCodes: placedPostalCodes,
+      clientsWithoutPlace: unplacedClients,
       noFixedAddress: Number(geographyMetaRows[0]?.noFixedAddress ?? 0),
       noFixedAddressAsked: Number(geographyMetaRows[0]?.asked ?? 0) > 0,
       clientsWithPostalCode: Number(geographyMetaRows[0]?.withPostal ?? 0),
