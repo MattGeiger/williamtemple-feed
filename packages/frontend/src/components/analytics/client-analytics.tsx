@@ -31,6 +31,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SelectableBlock } from '@/components/reports/selection';
+import { Footnote, FootnoteList, type FootnoteEntry } from '@/components/analytics/footnote';
 import { Map, MapControls, MapMarker, MarkerContent, MarkerTooltip } from '@/components/ui/map';
 import { useTheme } from 'next-themes';
 import { ErrorHandlerService } from '@/services/error/ErrorHandlerService';
@@ -57,9 +58,6 @@ function SourcePills({ sources }: { sources: string[] }) {
   );
 }
 
-function Footnote({ children }: { children: React.ReactNode }) {
-  return <p className="mt-3 text-xs text-muted-foreground">{children}</p>;
-}
 
 
 /**
@@ -72,14 +70,15 @@ function Footnote({ children }: { children: React.ReactNode }) {
  * people counted.
  */
 function BreakdownCard({
-  cardId, title, description, breakdown, color, children,
+  cardId, title, description, breakdown, color, notes = [],
 }: {
   cardId: string;
   title: string;
   description: string;
   breakdown: DemographicBreakdown;
   color: string;
-  children?: React.ReactNode;
+  /** Extra caveats, appended below the shared denominator lines. */
+  notes?: FootnoteEntry[];
 }) {
   if (breakdown.values.length === 0) return null;
   const percent = breakdown.asked > 0
@@ -120,13 +119,16 @@ function BreakdownCard({
               <Bar dataKey="count" fill={seriesColor('count')} radius={[0, 3, 3, 0]} />
             </BarChart>
           </ChartContainer>
-          <Footnote>
-            About {percent}% of {unit} answered this question ({count(breakdown.answered)} of{' '}
-            {count(breakdown.asked)}).
-            {breakdown.multiValue &&
-              ` A ${unit === 'people' ? 'person' : 'household'} can give more than one answer, so the bars sum above that.`}
-            {children}
-          </Footnote>
+          <FootnoteList
+            items={[
+              `About ${percent}% of ${unit} answered this question `
+                + `(${count(breakdown.answered)} of ${count(breakdown.asked)}).`,
+              breakdown.multiValue
+                && `A ${unit === 'people' ? 'person' : 'household'} can give more than one `
+                  + 'answer, so the bars sum above that total.',
+              ...notes,
+            ]}
+          />
         </CardContent>
       </Card>
     </SelectableBlock>
@@ -356,17 +358,23 @@ export function ClientAnalyticsWorkspace({ analytics }: { analytics: ServiceAnal
                     <Bar dataKey="count" fill={seriesColor('count')} radius={[3, 3, 0, 0]} />
                   </BarChart>
                 </ChartContainer>
-                <Footnote>
-                  Link2Feed records one birth year per household and SIMC one for every
-                  member, so years before the June 2026 changeover under-count household
-                  members.
-                  {ageBands.withoutBirthYear > 0 &&
-                    ` ${count(ageBands.withoutBirthYear)} have no birth year on file and are not counted.`}
-                  {ageBands.estimatedBirthYears > 0 &&
-                    ` ${count(ageBands.estimatedBirthYears)} were estimated at intake rather than reported.`}
-                  {ageBands.implausibleBirthYears > 0 &&
-                    ` ${count(ageBands.implausibleBirthYears)} carry a birth year of 1901 or earlier, which is a placeholder rather than a real age — they are shown rather than hidden.`}
-                </Footnote>
+                <FootnoteList
+                  items={[
+                    ageBands.withoutBirthYear > 0
+                      && `${count(ageBands.withoutBirthYear)} have no birth year on file `
+                        + 'and are not counted.',
+                    ageBands.estimatedBirthYears > 0 && {
+                      note: `${count(ageBands.estimatedBirthYears)} were flagged as estimated.`,
+                      sub: ageBands.implausibleBirthYears > 0
+                        ? [`${count(ageBands.implausibleBirthYears)} placeholder birth years `
+                          + '(1901 or earlier) are shown rather than hidden.']
+                        : [],
+                    },
+                    // Kept, shortened: without it the chart reads as one age
+                    // distribution when it is two records counted differently.
+                    'Link2Feed records one birth year per household, SIMC one per member.',
+                  ]}
+                />
               </>
             )}
           </CardContent>
@@ -380,9 +388,8 @@ export function ClientAnalyticsWorkspace({ analytics }: { analytics: ServiceAnal
         description="As households reported it at intake."
         breakdown={demographics.ethnicity}
         color={carbonChartColors.magenta.primary.light}
-      >
-        {' Recorded in Link2Feed only; SIMC asks a different question with different categories.'}
-      </BreakdownCard>
+        notes={['Link2Feed only \u2014 SIMC asks a different question.']}
+      />
 
       <BreakdownCard
         cardId="clients-race-simc"
@@ -390,9 +397,8 @@ export function ClientAnalyticsWorkspace({ analytics }: { analytics: ServiceAnal
         description="As each household member reported it at intake."
         breakdown={demographics.simcRaceOrEthnicity}
         color={carbonChartColors.orange.primary.light}
-      >
-        {' Counted in people rather than households, and not comparable with the Link2Feed ethnicity card — the two systems ask different questions.'}
-      </BreakdownCard>
+        notes={['Counted in people, not households. Not comparable with Ethnicity above.']}
+      />
 
       <BreakdownCard
         cardId="clients-gender-identity"
@@ -400,6 +406,21 @@ export function ClientAnalyticsWorkspace({ analytics }: { analytics: ServiceAnal
         description="As households reported it at intake."
         breakdown={demographics.genderIdentity}
         color={carbonChartColors.cyan.primary.light}
+        notes={['Link2Feed only \u2014 SIMC records this per person, shown below.']}
+      />
+
+      {/* Kept apart from the Link2Feed card above rather than summed: SIMC
+          records gender for every household member and Link2Feed for whoever
+          registered, so adding them would weight a SIMC household by its size
+          and a Link2Feed household by one. The categories differ in wording
+          too — "Trans Male/Trans Man" against "Transgender man". */}
+      <BreakdownCard
+        cardId="clients-gender-identity-simc"
+        title="Gender Identity (SIMC)"
+        description="As each household member reported it at intake."
+        breakdown={demographics.simcGenderIdentity}
+        color={carbonChartColors.purple.primary.light}
+        notes={['Counted in people, not households. Not comparable with Gender Identity above.']}
       />
 
       <BreakdownCard
@@ -408,9 +429,8 @@ export function ClientAnalyticsWorkspace({ analytics }: { analytics: ServiceAnal
         description="Where households said they were living."
         breakdown={demographics.housingType}
         color={carbonChartColors.green.primary.light}
-      >
-        {' Pairs with the no-fixed-address figure on Where Households Live.'}
-      </BreakdownCard>
+        notes={['Pairs with the no-fixed-address figure on Where Households Live.']}
+      />
 
       {/* ---- Geography ------------------------------------------------------ */}
       {mapPoints.length > 0 && (
@@ -456,16 +476,25 @@ export function ClientAnalyticsWorkspace({ analytics }: { analytics: ServiceAnal
                   ))}
                 </Map>
               </div>
-              <Footnote>
-                A postal code is not a catchment area — a circle marks the code, not
-                where anyone lives.
-                {geography.noFixedAddressAsked && geography.noFixedAddress > 0 &&
-                  ` ${count(geography.noFixedAddress)} households have no fixed address and are not on the map: SIMC requires a postal code, so the agency's own is recorded instead.`}
-                {geography.clientsWithoutPlace > 0 &&
-                  ` ${count(geography.clientsWithoutPlace)} gave a postal code with no map location, such as a PO-box-only code.`}
-                {geography.clientsWithoutPostalCode > 0 &&
-                  ` ${count(geography.clientsWithoutPostalCode)} gave no postal code.`}
-              </Footnote>
+              <FootnoteList
+                items={[
+                  'Postal codes only \u2014 no addresses are stored or shown.',
+                  geography.noFixedAddressAsked && geography.noFixedAddress > 0
+                    && `${count(geography.noFixedAddress)} households have no fixed address `
+                      + 'and are not on the map.',
+                  // Named from the data, never hardcoded: it is the code most
+                  // often recorded for a household with no fixed address, so
+                  // this follows the agency rather than going stale if it moves.
+                  geography.agencyPostalCode
+                    && `${geography.agencyPostalCode} is the agency's own code, entered when a `
+                      + 'household has none to give, and is over-represented.',
+                  geography.clientsWithoutPlace > 0
+                    && `${count(geography.clientsWithoutPlace)} gave a postal code with no map `
+                      + 'location, such as a PO-box-only code.',
+                  geography.clientsWithoutPostalCode > 0
+                    && `${count(geography.clientsWithoutPostalCode)} gave no postal code.`,
+                ]}
+              />
             </CardContent>
           </Card>
         </SelectableBlock>
@@ -549,12 +578,13 @@ export function ClientAnalyticsWorkspace({ analytics }: { analytics: ServiceAnal
                   <Bar dataKey="notProvided" stackId="a" fill={seriesColor('notProvided')} radius={[0, 3, 3, 0]} />
                 </BarChart>
               </ChartContainer>
-              <Footnote>
-                Questions asked during intake. Includes intake data from both Link2Feed
-                and SIMC. Not all households have been asked the same questions.
-                Declining to answer counts as not answered. Read any demographic share
-                against this card first.
-              </Footnote>
+              <FootnoteList
+                items={[
+                  'Questions asked during intake.',
+                  'Not all households have been asked the same questions.',
+                  'Declining to answer counts as not answered.',
+                ]}
+              />
             </CardContent>
           </Card>
         </SelectableBlock>

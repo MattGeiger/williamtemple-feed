@@ -1,0 +1,70 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Matt Geiger
+//
+// FEED — Food Equity & Efficient Delivery. Application code licensed
+// under AGPL-3.0-or-later; see LICENSE. William Temple House branding is
+// not covered by this license; see TRADEMARKS.md.
+
+import React from 'react';
+
+/**
+ * The small print under a chart.
+ *
+ * Both analytics lenses had their own copy of this; they are one component so
+ * the two cannot drift apart in size or colour.
+ */
+export function Footnote({ children }: { children: React.ReactNode }) {
+  return <p className="mt-3 text-xs text-muted-foreground">{children}</p>;
+}
+
+/**
+ * A caveat that is nested under the one above it.
+ *
+ * Used where a point only makes sense as a qualification of its parent — the
+ * placeholder birth years under the estimated-age note, for instance, which
+ * read as a separate claim about the data when listed flat.
+ */
+export type FootnoteEntry =
+  | React.ReactNode
+  | { note: React.ReactNode; sub: React.ReactNode[] };
+
+const isNested = (entry: FootnoteEntry): entry is { note: React.ReactNode; sub: React.ReactNode[] } =>
+  typeof entry === 'object' && entry !== null && 'sub' in entry;
+
+/**
+ * Footnote caveats as a list rather than a paragraph.
+ *
+ * These notes are a series of separate facts — how many records lack a field,
+ * which system asked the question, what a placeholder means — and running them
+ * together as prose made the reader parse a paragraph to find the one that
+ * applied to them. Empty and false entries are dropped so a card can build its
+ * list with inline conditions and never render a stray bullet.
+ */
+export function FootnoteList({ items }: { items: FootnoteEntry[] }) {
+  const kept = items.filter((item) => item !== null && item !== undefined && item !== false && item !== '');
+  if (kept.length === 0) return null;
+
+  return (
+    <ul className="mt-3 space-y-1 text-xs text-muted-foreground">
+      {kept.map((item, index) => (
+        // Index keys: these lists are static per render and never reordered.
+        <li key={index} className="flex gap-1.5">
+          <span aria-hidden="true" className="select-none">•</span>
+          <span className="min-w-0">
+            {isNested(item) ? item.note : item}
+            {isNested(item) && (
+              <ul className="mt-1 space-y-1">
+                {item.sub.map((child, childIndex) => (
+                  <li key={childIndex} className="flex gap-1.5">
+                    <span aria-hidden="true" className="select-none">–</span>
+                    <span className="min-w-0">{child}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}

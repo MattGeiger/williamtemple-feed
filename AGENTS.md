@@ -550,8 +550,10 @@ kept since October 2023.
   per *person* (`ServicePersonProfileResponse`). A card must say which it
   counts and must never sum the two — the same question answered at both
   grains weights a SIMC household by its size and a Link2Feed household by one.
-  This is why age and ethnicity each carry a source switch rather than a
-  combined total.
+  This is why ethnicity and gender identity each get two cards rather than a
+  combined total. (Age is the exception and combines them, because "how many
+  seniors did we serve" is one question — it dedupes identities first and states
+  the shortfall in a footnote.)
 - **Merge language labels only where two labels are the same word.** "Mandarin
   Chinese" folds into "Mandarin" because that is the two intake systems writing
   one answer two ways — a redundant qualifier, not a different name. Answers
@@ -582,6 +584,16 @@ kept since October 2023.
   whose daily volume is an order of magnitude higher. A card's description must
   name the grain it is actually using — "by day" on a monthly chart is a lie the
   reader has no way to catch.
+- **A card's tick formatter must follow that card's grain, and never throw.**
+  The corollary was missed when the grain went per-card and cost a blank
+  Service tab: How Service Was Delivered kept the page-wide labeller, so on
+  YTD and All (the two presets with a monthly page grain) a day key reached the
+  month formatter, which built `2026-06-02-01`, and `RangeError: Invalid time
+  value` inside Recharts' render unmounted the whole lens. Build the labeller
+  from the series' own granularity (`labelFor(methodSeries.granularity)`), and
+  keep `safeDate` between every formatter and `parseISO` — a tick that cannot be
+  parsed must degrade to the raw key, because an ugly axis is a bug report and a
+  blank page is a mystery.
 - **Drop the period in progress** from any seasonal or monthly comparison, and
   say so. A half-finished month beside eleven complete ones reads as a collapse
   rather than a month that has not happened. Applies to Service Over Time, How
@@ -617,6 +629,13 @@ kept since October 2023.
   `fitBounds`, so the opening view is computed rather than fitted — and fitting
   the true extent would draw the whole country and make the local picture, the
   entire point of the card, unreadable.
+- **The agency's own postal code is derived, never named in code.** It is the
+  modal code among no-fixed-address households (97209 today, 379 of ~418), and
+  the card says it is over-represented rather than dropping it: SIMC requires a
+  code, so staff enter the agency's for housed households whose code is unknown
+  too, and nothing in the record separates those from real residents. Requires a
+  clear majority, not a plurality — otherwise `agencyPostalCode` stays null and
+  the card says nothing rather than accusing a code on weak evidence.
 - Placement uses `us-zips` (MIT) on the backend: a postal code's centroid is a
   property of the code, not of anyone's address. **This does not weaken the PII
   rule** — FEED still never imports or stores an address. Bubbles scale by
@@ -694,5 +713,17 @@ Passdown messages should be concrete enough that a fresh agent can continue with
 - **Multi-series chart tooltips must be sorted explicitly.** Recharts hands the payload over in series-declaration order, which on overlapping lines is the order they appear in the source, not the order they stack on screen — a 1,543 lb source printed above a 6,480 lb one. Pass `sortByValue` to `ChartTooltipContent`. Do **not** pass it to stacked charts: their payload order *is* the stack order, and re-ordering breaks the correspondence with the bar under the cursor. Paired before/after series (Previous vs Latest Unit Cost) also stay fixed. Recharts' own `itemSorter` prop does not help — only `DefaultTooltipContent` reads it, and this project replaces that component.
 - **Print helpers take a value formatter; the default is pounds.** `hBarSvg` and `stackedHBarSvg` default to `POUNDS`, so a card counting households or items prints "1,443 lb" unless it passes `COUNT`. This has now shipped three times (paid procurement dollars, availability counts, response coverage). Check the unit whenever adding a card that is not measuring weight.
 - **Run test suites per package, not from the repo root.** `npx vitest run` at the root picks up a config that fails 46 tests across 86 files on `Cannot find package '@/routes/auth'` — pre-existing and unrelated to any change under test. The real gates are `cd packages/backend && npx vitest run` and `cd packages/frontend && npx vitest run`.
+- **A Recharts test that does not force dimensions asserts against nothing.** jsdom
+  reports zero size for every element, and Recharts renders no axes, ticks, or
+  formatters at zero size — so a chart test passes whatever the formatters do.
+  The first version of `service-bucket-labels.test.tsx` passed with the blank-tab
+  bug deliberately reintroduced. Stub `ResizeObserver` to report a real box
+  *and* define `offsetWidth`/`offsetHeight`/`clientWidth`/`clientHeight` plus
+  `getBoundingClientRect` on the prototypes; the same test then failed with the
+  exact production `RangeError`. **Prove a new regression test fails against the
+  bug before trusting it** — with charts, a green run is the default, not
+  evidence. Note also that Recharts splits tick text across tspans, so
+  `getByText('Aug 13, 2026')` never matches; query
+  `.recharts-cartesian-axis-tick-value` and strip whitespace.
 - **`rg -r` is `--replace`, not "recursive".** ripgrep is recursive by default; `-r` silently rewrites matches in the output, so `rg -rn "beta\.18" .` prints a mangled version of the file contents. Twice in one session this produced output that looked like real findings (`"version": "1.5.0-n"`). Just use `rg -n`.
 - **`ColumnDef<X>[]` not assignable to `ColumnDef<unknown>[]`, and Lucide icon `ComponentType` mismatches, are pre-existing accepted debt** — see `docs/TSC-DEBT.md`. They recur on every new table built with `EnhancedDataTable` because of the shared component's generic typing, not because of anything the calling code does wrong. Don't attempt to fix them opportunistically inside an unrelated feature change; that's a systemic `EnhancedDataTable`/`TableRowAction` generics fix requiring its own scoped, discussed pass. Confirm a given error is actually this category (same file, same TS code, same message shape as the doc describes) before assuming it's pre-existing rather than something new.

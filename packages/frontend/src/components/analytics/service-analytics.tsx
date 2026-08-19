@@ -46,6 +46,7 @@ import { ChevronDown } from '@/components/ui/icons';
 import { BadgeQuestionMark, ShoppingBasket, UsersRound } from 'lucide-react';
 import { getIconComponent } from '@/lib/icon-library';
 import { SelectableBlock } from '@/components/reports/selection';
+import { Footnote } from '@/components/analytics/footnote';
 import { prefersReducedMotion } from '@/lib/reduced-motion';
 import { ErrorHandlerService } from '@/services/error/ErrorHandlerService';
 import { carbonChartColors } from '@/lib/colors';
@@ -112,12 +113,29 @@ export function ServiceAnalyticsLens({ range }: { range: AnalyticsDateRange }) {
 
 const count = (value: number) => formatNumber(value);
 const round1 = (value: number) => Math.round(value * 10) / 10;
-const monthLabel = (month: string) => format(parseISO(`${month}-01`), 'MMM yyyy');
-const monthOfDate = (date: string) => format(parseISO(date), 'MMM yyyy');
+/**
+ * A tick formatter runs inside Recharts' render, so a throw here unmounts the
+ * entire tab rather than spoiling one label — which is exactly what a day key
+ * reaching a month formatter did. Fall back to the raw bucket: an ugly axis is
+ * a bug report, a blank page is a mystery.
+ */
+const safeDate = (value: string, build: () => string) => {
+  try {
+    const label = build();
+    return label === 'Invalid Date' ? value : label;
+  } catch {
+    return value;
+  }
+};
+
+const monthLabel = (month: string) =>
+  safeDate(month, () => format(parseISO(`${month}-01`), 'MMM yyyy'));
+const monthOfDate = (date: string) =>
+  safeDate(date, () => format(parseISO(date), 'MMM yyyy'));
 
 /** Day labels carry the year only when the range crosses one. */
 const dayLabelFor = (spansYears: boolean) => (day: string) =>
-  format(parseISO(day), spansYears ? 'MMM d, yyyy' : 'MMM d');
+  safeDate(day, () => format(parseISO(day), spansYears ? 'MMM d, yyyy' : 'MMM d'));
 
 const MONTH_LABELS = [
   'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
@@ -145,9 +163,6 @@ function SourcePills({ sources }: { sources: string[] }) {
   );
 }
 
-function Footnote({ children }: { children: React.ReactNode }) {
-  return <p className="mt-3 text-xs text-muted-foreground">{children}</p>;
-}
 
 /** Matches the Dashboard stat cards: figure left, icon top-right. */
 function Tile({
@@ -372,9 +387,16 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
   }) satisfies ChartConfig, [methodConfig]);
 
   const spansYears = coverage.startDate.slice(0, 4) !== coverage.endDate.slice(0, 4);
-  const labelBucket = coverage.granularity === 'month'
-    ? monthLabel
-    : dayLabelFor(spansYears);
+  /**
+   * Built per granularity, not per page. Bucket grain is a card's own decision
+   * — How Service Was Delivered plots every service day at every range — so a
+   * chart that labelled its buckets with the page-wide grain fed a day key to
+   * a month formatter and threw, blanking the whole tab.
+   */
+  const labelFor = (granularity: ServiceBucketGranularity) =>
+    (granularity === 'month' ? monthLabel : dayLabelFor(spansYears));
+  const labelBucket = labelFor(coverage.granularity);
+  const labelMethodBucket = labelFor(methodSeries.granularity);
   const pointNoun = coverage.granularity === 'month' ? 'one month' : 'one service day';
 
   const householdsFromLog = summary.householdsSource === 'service_log';
@@ -742,9 +764,9 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
               <ChartContainer config={methodChartConfig} className="h-[300px] w-full">
                 <LineChart data={methodBuckets} margin={{ left: 4, right: 8, top: 8 }}>
                   <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                  <XAxis dataKey="bucket" tickFormatter={(value) => labelBucket(String(value))} tickLine={false} axisLine={false} minTickGap={28} />
+                  <XAxis dataKey="bucket" tickFormatter={(value) => labelMethodBucket(String(value))} tickLine={false} axisLine={false} minTickGap={28} />
                   <YAxis tickLine={false} axisLine={false} width={48} tickFormatter={formatAxisNumber} />
-                  <ChartTooltip content={<ChartTooltipContent sortByValue labelFormatter={(value) => labelBucket(String(value))} />} />
+                  <ChartTooltip content={<ChartTooltipContent sortByValue labelFormatter={(value) => labelMethodBucket(String(value))} />} />
                   <ChartLegend content={<ChartLegendContent />} />
                   {/* Dashed and neutral so it reads as the sum of the others
                       rather than a fifth service method. */}

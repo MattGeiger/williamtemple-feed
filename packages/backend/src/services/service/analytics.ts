@@ -273,6 +273,11 @@ export interface ServiceAnalytics {
       longitude: number | null;
     }>;
     clientsWithoutPlace: number;
+    /**
+     * The agency's own code, derived as the modal code among no-fixed-address
+     * households. Null when no code holds a clear majority of them.
+     */
+    agencyPostalCode: string | null;
     noFixedAddress: number;
     /** Whether the no-fixed-address question was asked at all in this range. */
     noFixedAddressAsked: boolean;
@@ -833,6 +838,52 @@ ${Object.entries(LANGUAGE_LABEL_ALIASES)
     return table[postalCode.trim().slice(0, 5)];
   };
 
+  /**
+   * The agency's own postal code, derived rather than named.
+   *
+   * SIMC requires a postal code, so staff enter the agency's when a household
+   * has none to give. Those flagged `no_fixed_address` are already off the
+   * map, but the same code is also entered for housed households whose code is
+   * simply unknown, and nothing in the record separates the two — so the code
+   * stays plotted and the card says it is inflated instead of quietly
+   * dropping real households.
+   *
+   * It is the modal code among no-fixed-address households, which is a fact of
+   * the data rather than a constant to go stale when the agency moves. A
+   * plurality is not enough to accuse a code: without a clear majority this
+   * stays null and the card says nothing.
+   */
+  const agencyPostalRows = await client.$queryRaw<Array<{ postalCode: string; clients: bigint }>>`
+    WITH served AS (
+      SELECT DISTINCT "clientId" FROM "ServiceEncounterRevision"
+      WHERE "isCurrent" = 1 AND "serviceDate" BETWEEN ${startDate} AND ${endDate}
+        AND "clientId" IS NOT NULL
+    ),
+    unhoused AS (
+      SELECT p."id" AS "revisionId"
+      FROM "ServiceClientProfileRevision" p
+      JOIN served s ON s."clientId" = p."clientId"
+      JOIN "ServiceClientProfileResponse" r ON r."profileRevisionId" = p."id"
+      JOIN json_each(r."values") j
+      WHERE p."isCurrent" = 1 AND r."dimension" = 'no_fixed_address'
+        AND LOWER(j."value") = 'yes'
+    )
+    SELECT j."value" AS "postalCode", COUNT(DISTINCT p."clientId") AS "clients"
+    FROM "ServiceClientProfileRevision" p
+    JOIN "ServiceClientProfileResponse" r ON r."profileRevisionId" = p."id"
+    JOIN json_each(r."values") j
+    WHERE p."isCurrent" = 1 AND r."dimension" = 'postal_code'
+      AND r."responseStatus" = 'provided'
+      AND p."id" IN (SELECT "revisionId" FROM unhoused)
+    GROUP BY j."value" ORDER BY "clients" DESC LIMIT 2`;
+
+  const agencyPostalTotal = agencyPostalRows
+    .reduce((sum, row) => sum + Number(row.clients), 0);
+  const agencyPostalCode = agencyPostalRows.length > 0
+    && Number(agencyPostalRows[0].clients) > agencyPostalTotal / 2
+    ? agencyPostalRows[0].postalCode.trim().slice(0, 5)
+    : null;
+
   const geographyMetaRows = await client.$queryRaw<Array<{
     noFixedAddress: bigint; asked: bigint; withPostal: bigint; withoutPostal: bigint;
   }>>`
@@ -1292,6 +1343,7 @@ ${Object.entries(LANGUAGE_LABEL_ALIASES)
     geography: {
       postalCodes: placedPostalCodes,
       clientsWithoutPlace: unplacedClients,
+      agencyPostalCode,
       noFixedAddress: Number(geographyMetaRows[0]?.noFixedAddress ?? 0),
       noFixedAddressAsked: Number(geographyMetaRows[0]?.asked ?? 0) > 0,
       clientsWithPostalCode: Number(geographyMetaRows[0]?.withPostal ?? 0),

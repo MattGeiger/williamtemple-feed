@@ -2367,6 +2367,18 @@ export const CLIENTS_RACE_SIMC = breakdownCard(
 );
 export const CLIENTS_GENDER_IDENTITY = breakdownCard(
   'clients-gender-identity', 'Gender Identity', (a) => a?.demographics?.genderIdentity,
+  'Recorded in Link2Feed only; SIMC records this per person on its own card.',
+);
+/**
+ * Separate from the card above rather than summed with it. SIMC records a
+ * gender for every household member and Link2Feed for whoever registered, so
+ * one total would weight a SIMC household by its size and a Link2Feed
+ * household by one.
+ */
+export const CLIENTS_GENDER_SIMC = breakdownCard(
+  'clients-gender-identity-simc', 'Gender Identity (SIMC)',
+  (a) => a?.demographics?.simcGenderIdentity,
+  'Counted in people rather than households, and not comparable with the Link2Feed gender card.',
 );
 export const CLIENTS_HOUSING_TYPE = breakdownCard(
   'clients-housing-type', 'Housing Type', (a) => a?.demographics?.housingType,
@@ -2464,6 +2476,7 @@ export const ANALYTICS_CARDS: AnalyticsCard[] = [
   CLIENTS_ETHNICITY,
   CLIENTS_RACE_SIMC,
   CLIENTS_GENDER_IDENTITY,
+  CLIENTS_GENDER_SIMC,
   CLIENTS_HOUSING_TYPE,
 ];
 

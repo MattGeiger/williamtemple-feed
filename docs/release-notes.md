@@ -1,5 +1,24 @@
 # Release Notes
 
+## Unreleased
+
+- **The Service tab came up blank on the YTD and All ranges.** Fixed. One chart
+  was labelling its dates with the wrong calendar grain, which failed in a way
+  that took the whole tab down instead of spoiling a single label. The other
+  ranges were never affected, which is what made it look intermittent.
+- **Gender Identity (SIMC)** joins the Clients tab. SIMC has recorded this for
+  every household member since June 2026 and the data was already imported —
+  there was simply no card showing it. It sits beside the Link2Feed gender card
+  rather than merging with it, because SIMC answers per person and Link2Feed per
+  household; adding them would count a large household more heavily than a small
+  one.
+- **Footnotes under the cards are now bulleted lists** instead of paragraphs, so
+  a caveat can be found at a glance rather than read through.
+- **Where Households Live flags the agency's own postal code.** Because SIMC
+  requires a postal code, staff enter William Temple House's when a household
+  has none to give — so that circle is larger than the neighbourhood really is.
+  The map now says so.
+
 ## Version 1.5.0-beta.19 — 2026-08-16
 
 *Beta — Service Analytics arrives in reports, with three new cards.*
