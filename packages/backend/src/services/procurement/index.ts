@@ -12,6 +12,7 @@ import {
   resolveRange,
 } from '../inventory-analytics/timezone';
 import { getOperatingHoursSettings } from '../operating-hours';
+import { granularityForRange, bucketKeyFor } from '../analytics-granularity';
 import {
   DataShapingFlag,
   DataShapingRule,
@@ -996,6 +997,20 @@ export async function getProcurementAnalytics(
     earliestDeliveryDate
   );
 
+  /**
+   * Delivery is an event on a date, so short ranges plot the deliveries
+   * themselves rather than a month's sum — which on a 30-day range collapsed
+   * four charts to one or two points. Past a quarter the full span is 1,710
+   * delivery dates across seventeen years, which is a smear rather than a
+   * shape, so it aggregates by month. Same rule as the Service lens, shared
+   * rather than restated.
+   *
+   * Seasonal Inbound Weight is deliberately *not* on this grain: it compares
+   * calendar months across years, so its buckets are months by definition.
+   */
+  const bucketGranularity = granularityForRange(preset, range.startDate, range.endDate);
+  const bucketFor = (deliveryDate: string) => bucketKeyFor(bucketGranularity, deliveryDate);
+
   const [orders, status, shapingRules] = await Promise.all([
     client.procurementOrderRevision.findMany({
       where: {
@@ -1115,8 +1130,8 @@ export async function getProcurementAnalytics(
   let freshAlliancePendingLatestDate: string | null = null;
 
   for (const order of orders) {
-    const month = order.deliveryDate.slice(0, 7);
-    const monthValues = monthly.get(month) ?? {
+    const bucket = bucketFor(order.deliveryDate);
+    const monthValues = monthly.get(bucket) ?? {
       donatedWeightHundredths: 0,
       purchDonWeightHundredths: 0,
       governmentWeightHundredths: 0,
@@ -1205,7 +1220,7 @@ export async function getProcurementAnalytics(
       }
       calculatedGrossProductChargesCents += line.calculatedPriceTotalCents;
       sourceReportedProductChargesCents += line.sourcePriceTotalCents;
-      const spendBucket = monthlySpend.get(month)
+      const spendBucket = monthlySpend.get(bucket)
         ?? { productChargesCents: 0, serviceFeesCents: 0, grantsAppliedCents: 0 };
       spendBucket.productChargesCents += line.calculatedPriceTotalCents;
       // OFB exports place event-level fees and grants on individual source
@@ -1217,7 +1232,7 @@ export async function getProcurementAnalytics(
         spendBucket.serviceFeesCents += line.serviceFeeCents;
         spendBucket.grantsAppliedCents += line.grantsAppliedCents;
       }
-      monthlySpend.set(month, spendBucket);
+      monthlySpend.set(bucket, spendBucket);
       if (!line.priceTotalMatches) priceMismatchLineCount += 1;
       // A zero-quantity line is a data-quality signal about an OFB export. A
       // legacy month legitimately has no quantity at all -- only a weight --
@@ -1274,7 +1289,7 @@ export async function getProcurementAnalytics(
         if (order.deliveryDate < community.firstReceivedDate) community.firstReceivedDate = order.deliveryDate;
         if (order.deliveryDate > community.lastReceivedDate) community.lastReceivedDate = order.deliveryDate;
         communitySources.set(sourceName, community);
-        const communityMonthKey = `${yearMonth}|${sourceName}`;
+        const communityMonthKey = `${bucket}|${sourceName}`;
         communityMonthly.set(
           communityMonthKey,
           (communityMonthly.get(communityMonthKey) ?? 0) + line.weightHundredths
@@ -1283,7 +1298,7 @@ export async function getProcurementAnalytics(
         if (isFreshAlliancePartner) {
           freshAlliancePartnerNames.add(sourceName);
           freshAllianceLegacyWeightHundredths += line.weightHundredths;
-          const legacyKey = `${yearMonth}|${partnerCode}`;
+          const legacyKey = `${bucket}|${partnerCode}`;
           freshAllianceLegacyMonthly.set(
             legacyKey,
             (freshAllianceLegacyMonthly.get(legacyKey) ?? 0) + line.weightHundredths
@@ -1315,7 +1330,7 @@ export async function getProcurementAnalytics(
           ?? { description: line.sourceDescription, weightHundredths: 0 };
         category.weightHundredths += line.weightHundredths;
         donorObservation.categories.set(categoryCode, category);
-        const donorMonthKey = `${order.deliveryDate.slice(0, 7)}|${donorObservation.donorCode}`;
+        const donorMonthKey = `${bucket}|${donorObservation.donorCode}`;
         donorMonthly.set(
           donorMonthKey,
           (donorMonthly.get(donorMonthKey) ?? 0) + line.weightHundredths
@@ -1445,7 +1460,7 @@ export async function getProcurementAnalytics(
         }
       }
     }
-    monthly.set(month, monthValues);
+    monthly.set(bucket, monthValues);
   }
 
   const warehouseProductSummary = [...products.values()].map((product) => {
@@ -1637,17 +1652,18 @@ export async function getProcurementAnalytics(
         channel,
         weightHundredths: channelWeights.get(channel) ?? 0,
       })),
+    bucketGranularity,
     monthlySpend: [...monthlySpend.entries()]
       .sort(([left], [right]) => left.localeCompare(right))
-      .map(([month, values]) => ({
-        month,
+      .map(([bucket, values]) => ({
+        bucket,
         ...values,
         netRecordedCostCents:
           values.productChargesCents + values.serviceFeesCents - values.grantsAppliedCents,
       })),
     monthlyWeight: [...monthly.entries()]
       .sort(([left], [right]) => left.localeCompare(right))
-      .map(([month, values]) => ({ month, ...values })),
+      .map(([bucket, values]) => ({ bucket, ...values })),
     seasonalWeight: [...seasonal.entries()]
       .sort(([left], [right]) => left.localeCompare(right))
       .map(([yearMonth, weightHundredths]) => ({
@@ -1673,10 +1689,10 @@ export async function getProcurementAnalytics(
     donors: donorSummary,
     donorMonthlyWeight: [...donorMonthly.entries()]
       .map(([key, weightHundredths]) => {
-        const [month, donorCode] = key.split('|');
-        return { month, donorCode, weightHundredths };
+        const [bucket, donorCode] = key.split('|');
+        return { bucket, donorCode, weightHundredths };
       })
-      .sort((left, right) => left.month.localeCompare(right.month)
+      .sort((left, right) => left.bucket.localeCompare(right.bucket)
         || left.donorCode.localeCompare(right.donorCode)),
     // Legacy community donation history, by canonical source and by source-month.
     // A "received" view of donations as an activity (D21), keyed on the curated
@@ -1697,12 +1713,12 @@ export async function getProcurementAnalytics(
       .map(([key, weightHundredths]) => {
         const separator = key.indexOf('|');
         return {
-          month: key.slice(0, separator),
+          bucket: key.slice(0, separator),
           sourceName: key.slice(separator + 1),
           weightHundredths,
         };
       })
-      .sort((left, right) => left.month.localeCompare(right.month)
+      .sort((left, right) => left.bucket.localeCompare(right.bucket)
         || left.sourceName.localeCompare(right.sourceName)),
     // Fresh Alliance partners' pre-Primarius history, keyed by the live donor
     // code so the Donations-Over-Time chart can extend those partners' lines
@@ -1712,12 +1728,12 @@ export async function getProcurementAnalytics(
       .map(([key, weightHundredths]) => {
         const separator = key.indexOf('|');
         return {
-          month: key.slice(0, separator),
+          bucket: key.slice(0, separator),
           donorCode: key.slice(separator + 1),
           weightHundredths,
         };
       })
-      .sort((left, right) => left.month.localeCompare(right.month)
+      .sort((left, right) => left.bucket.localeCompare(right.bucket)
         || left.donorCode.localeCompare(right.donorCode)),
     // What the agency's own rules did to these numbers, stated plainly so an
     // exclusion is never invisible. `totalWeightHundredths` above remains

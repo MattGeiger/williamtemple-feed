@@ -35,6 +35,7 @@ Element.prototype.scrollIntoView = vi.fn();
 
 const emptyAnalytics: ProcurementAnalytics = {
   dataAsOf: '2026-07-14T12:00:00.000Z',
+  bucketGranularity: 'month' as const,
   status: {
     hasData: false,
     latestDeliveryDate: null,
@@ -236,7 +237,7 @@ describe('Analytics dataset separation', () => {
         { channel: 'fresh_alliance', weightHundredths: 20000 },
       ],
       monthlyWeight: [{
-        month: '2026-07',
+        bucket: '2026-07',
         donatedWeightHundredths: 120000,
         purchDonWeightHundredths: 0,
         governmentWeightHundredths: 0,
@@ -583,7 +584,7 @@ describe('Analytics dataset separation', () => {
         { channel: 'fresh_alliance', weightHundredths: 20000 },
       ],
       monthlyWeight: [{
-        month: '2026-07',
+        bucket: '2026-07',
         donatedWeightHundredths: 20000,
         purchDonWeightHundredths: 0,
         governmentWeightHundredths: 0,
@@ -788,9 +789,9 @@ describe('Grocery partner observations', () => {
   ];
 
   const monthly = [
-    { month: '2026-05', donorCode: 'RAZ100', weightHundredths: 1200000 },
-    { month: '2026-06', donorCode: 'RAZ100', weightHundredths: 1500000 },
-    { month: '2026-06', donorCode: 'RRD200', weightHundredths: 300000 },
+    { bucket: '2026-05', donorCode: 'RAZ100', weightHundredths: 1200000 },
+    { bucket: '2026-06', donorCode: 'RAZ100', weightHundredths: 1500000 },
+    { bucket: '2026-06', donorCode: 'RRD200', weightHundredths: 300000 },
   ];
 
   const donorValue = {
@@ -1242,7 +1243,7 @@ describe('Community Donation History cards (D16, Model A)', () => {
     ...emptyAnalytics,
     status: { ...emptyAnalytics.status, hasData: true },
     monthlyWeight: [{
-      month: '2019-11',
+      bucket: '2019-11',
       donatedWeightHundredths: 100000,
       purchDonWeightHundredths: 0,
       governmentWeightHundredths: 0,
@@ -1253,9 +1254,9 @@ describe('Community Donation History cards (D16, Model A)', () => {
     }],
     communitySources,
     communityMonthlyWeight: [
-      { month: '2019-11', sourceName: 'Amazon - NW Industrial (Prime Now)', weightHundredths: 60000 },
-      { month: '2019-11', sourceName: 'Ascension Episcopal', weightHundredths: 20000 },
-      { month: '2019-11', sourceName: 'Trinity Episcopal', weightHundredths: 20000 },
+      { bucket: '2019-11', sourceName: 'Amazon - NW Industrial (Prime Now)', weightHundredths: 60000 },
+      { bucket: '2019-11', sourceName: 'Ascension Episcopal', weightHundredths: 20000 },
+      { bucket: '2019-11', sourceName: 'Trinity Episcopal', weightHundredths: 20000 },
     ],
   } satisfies ProcurementAnalytics;
 
@@ -1296,7 +1297,7 @@ describe('Community Donation History cards (D16, Model A)', () => {
       ...emptyAnalytics,
       status: { ...emptyAnalytics.status, hasData: true },
       monthlyWeight: [{
-        month: '2026-06',
+        bucket: '2026-06',
         donatedWeightHundredths: 100000,
         purchDonWeightHundredths: 0,
         governmentWeightHundredths: 0,

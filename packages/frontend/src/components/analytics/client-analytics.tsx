@@ -36,6 +36,7 @@ import { Map, MapControls, MapMarker, MarkerContent, MarkerTooltip } from '@/com
 import { useTheme } from 'next-themes';
 import { ErrorHandlerService } from '@/services/error/ErrorHandlerService';
 import { carbonChartColors } from '@/lib/colors';
+import { categoryAxisTicks, useElementWidth } from '@/lib/chart-axis';
 import { formatAxisNumber, formatNumber } from '@/lib/formatting/number';
 import {
   serviceApi,
@@ -284,6 +285,18 @@ export function ClientAnalyticsWorkspace({ analytics }: { analytics: ServiceAnal
     ? Math.round((languages.householdsAnswered / languages.householdsAsked) * 100)
     : 0;
 
+  /**
+   * Eight age bands with `interval={0}` collide once the card is narrow, so
+   * the axis is measured and the labels tilt only when they have to. The chart
+   * grows by whatever the tilted labels need, rather than the bars giving up
+   * the space.
+   */
+  const [ageChartRef, ageChartWidth] = useElementWidth<HTMLDivElement>();
+  const { extraHeight: ageAxisExtraHeight, ...ageAxisProps } = categoryAxisTicks(
+    ageChartWidth,
+    ageBands.bands.map((band) => band.label),
+  );
+
   return (
     <div className="space-y-4">
       {/* ---- Household Size ----------------------------------------------- */}
@@ -310,12 +323,13 @@ export function ClientAnalyticsWorkspace({ analytics }: { analytics: ServiceAnal
                   <Bar dataKey="visits" fill={seriesColor('visits')} radius={[3, 3, 0, 0]} />
                 </BarChart>
               </ChartContainer>
-              <Footnote>
-                {singlePersonShare}% of visits are by a household of one. Excludes
-                outliers marked as special events, flagged during data import. Not
-                every household discloses its size, and anonymous visits record
-                none, so treat these as an undercount.
-              </Footnote>
+              <FootnoteList
+                items={[
+                  `${singlePersonShare}% of visits are by a household of one.`,
+                  'Excludes outliers marked as special events, flagged during data import.',
+                  'Not every household discloses its size, treat these figures as an undercount.',
+                ]}
+              />
             </CardContent>
           </Card>
         </SelectableBlock>
@@ -336,28 +350,32 @@ export function ClientAnalyticsWorkspace({ analytics }: { analytics: ServiceAnal
               </p>
             ) : (
               <>
+                <div ref={ageChartRef}>
                 <ChartContainer
                   config={{ count: { label: 'People', color: carbonChartColors.purple.primary.light } } satisfies ChartConfig}
-                  className="h-[260px] w-full"
+                  className="w-full"
+                  style={{ height: `${260 + ageAxisExtraHeight}px` }}
                 >
                   <BarChart data={ageBands.bands} margin={{ left: 4, right: 8, top: 8 }}>
                     <CartesianGrid vertical={false} strokeDasharray="3 3" />
                     {/* Every band labelled. Recharts thins ticks when they
                         crowd, which silently dropped half of them — a band
                         chart whose axis reads 18-29, 45-59, 75-89, 105+ invites
-                        the reader to think those are the bands. */}
+                        the reader to think those are the bands. Forcing all
+                        eight then collides them at narrow widths, so they tilt
+                        when there is not room to sit flat. */}
                     <XAxis
                       dataKey="label"
                       tickLine={false}
                       axisLine={false}
-                      interval={0}
-                      tick={{ fontSize: 11 }}
+                      {...ageAxisProps}
                     />
                     <YAxis tickLine={false} axisLine={false} width={52} tickFormatter={formatAxisNumber} />
                     <ChartTooltip content={<ChartTooltipContent />} />
                     <Bar dataKey="count" fill={seriesColor('count')} radius={[3, 3, 0, 0]} />
                   </BarChart>
                 </ChartContainer>
+                </div>
                 <FootnoteList
                   items={[
                     ageBands.withoutBirthYear > 0

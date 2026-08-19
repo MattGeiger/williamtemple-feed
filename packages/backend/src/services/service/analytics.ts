@@ -5,6 +5,7 @@ import { PrismaClient } from '@prisma/client';
 import prisma from '../../db';
 import { getOperatingHoursSettings } from '../operating-hours';
 import { resolveRange, type AnalyticsRangePreset } from '../inventory-analytics/timezone';
+import { granularityForRange } from '../analytics-granularity';
 import { serviceProfileDimensionLabel } from './profiles';
 import zipCentroids from 'us-zips';
 
@@ -316,26 +317,10 @@ const round = (value: number, places = 2): number => {
 };
 
 /**
- * A service day is the unit staff work and record in, so short ranges stay
- * daily. Over a year or more the daily shape stops being readable: WTH runs a
- * hundred-household Thursday against a Friday backpack session serving five,
- * and that real swing renders as noise once hundreds of points are on screen.
- * Anything past a quarter is therefore monthly.
+ * Shared with the Procurement lens: both plot events staff record a day at a
+ * time, and had no reason to disagree about when a day stops being readable.
  */
-const MONTHLY_THRESHOLD_DAYS = 90;
-
-const granularityFor = (
-  preset: AnalyticsRangePreset,
-  startDate: string,
-  endDate: string,
-): ServiceBucketGranularity => {
-  if (preset === 'ytd' || preset === 'all') return 'month';
-  if (preset !== 'custom') return 'day';
-  const days = Math.round(
-    (Date.parse(`${endDate}T00:00:00Z`) - Date.parse(`${startDate}T00:00:00Z`)) / 86_400_000,
-  ) + 1;
-  return days > MONTHLY_THRESHOLD_DAYS ? 'month' : 'day';
-};
+const granularityFor = granularityForRange;
 
 /** SQL producing the bucket key for a `serviceDate` column. */
 const bucketExpression = (granularity: ServiceBucketGranularity, column: string): string => {

@@ -26,7 +26,6 @@ import {
   Bar, BarChart, CartesianGrid, Cell, Label, Line, LineChart, Pie, PieChart,
   ReferenceLine, XAxis, YAxis,
 } from 'recharts';
-import { format, parseISO } from 'date-fns';
 import {
   Card, CardContent, CardDescription, CardHeader, CardTitle,
 } from '@/components/ui/card';
@@ -47,6 +46,7 @@ import { BadgeQuestionMark, ShoppingBasket, UsersRound } from 'lucide-react';
 import { getIconComponent } from '@/lib/icon-library';
 import { SelectableBlock } from '@/components/reports/selection';
 import { Footnote } from '@/components/analytics/footnote';
+import { bucketLabeller, monthLabel } from '@/lib/formatting/bucket-label';
 import { prefersReducedMotion } from '@/lib/reduced-motion';
 import { ErrorHandlerService } from '@/services/error/ErrorHandlerService';
 import { carbonChartColors } from '@/lib/colors';
@@ -113,29 +113,8 @@ export function ServiceAnalyticsLens({ range }: { range: AnalyticsDateRange }) {
 
 const count = (value: number) => formatNumber(value);
 const round1 = (value: number) => Math.round(value * 10) / 10;
-/**
- * A tick formatter runs inside Recharts' render, so a throw here unmounts the
- * entire tab rather than spoiling one label — which is exactly what a day key
- * reaching a month formatter did. Fall back to the raw bucket: an ugly axis is
- * a bug report, a blank page is a mystery.
- */
-const safeDate = (value: string, build: () => string) => {
-  try {
-    const label = build();
-    return label === 'Invalid Date' ? value : label;
-  } catch {
-    return value;
-  }
-};
-
-const monthLabel = (month: string) =>
-  safeDate(month, () => format(parseISO(`${month}-01`), 'MMM yyyy'));
-const monthOfDate = (date: string) =>
-  safeDate(date, () => format(parseISO(date), 'MMM yyyy'));
-
-/** Day labels carry the year only when the range crosses one. */
-const dayLabelFor = (spansYears: boolean) => (day: string) =>
-  safeDate(day, () => format(parseISO(day), spansYears ? 'MMM d, yyyy' : 'MMM d'));
+/** Shared with Procurement so the two lenses label buckets identically. */
+const monthOfDate = (date: string) => monthLabel(date.slice(0, 7));
 
 const MONTH_LABELS = [
   'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
@@ -394,7 +373,7 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
    * a month formatter and threw, blanking the whole tab.
    */
   const labelFor = (granularity: ServiceBucketGranularity) =>
-    (granularity === 'month' ? monthLabel : dayLabelFor(spansYears));
+    bucketLabeller(granularity, spansYears);
   const labelBucket = labelFor(coverage.granularity);
   const labelMethodBucket = labelFor(methodSeries.granularity);
   const pointNoun = coverage.granularity === 'month' ? 'one month' : 'one service day';
@@ -836,7 +815,7 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
                     dataKey="bucket"
                     tickLine={false}
                     axisLine={false}
-                    tickFormatter={unmetDemand.granularity === 'month' ? monthLabel : dayLabelFor(true)}
+                    tickFormatter={bucketLabeller(unmetDemand.granularity, true)}
                     minTickGap={24}
                   />
                   <YAxis tickLine={false} axisLine={false} width={44} allowDecimals={false} tickFormatter={formatAxisNumber} />

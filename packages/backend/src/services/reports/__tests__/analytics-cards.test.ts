@@ -137,7 +137,7 @@ const monthsPayload = (count: number, channel: string | null = null) => {
   const monthly = Array.from({ length: count }, (_, i) => {
     const d = new Date(Date.UTC(2009, 10 + i, 1));
     return {
-      month: `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`,
+      bucket: `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`,
       donatedWeightHundredths: 100_000,
       purchDonWeightHundredths: 0,
       governmentWeightHundredths: 0,
@@ -151,6 +151,42 @@ const monthsPayload = (count: number, channel: string | null = null) => {
 };
 
 describe('time-series grain follows the readability threshold', () => {
+  /**
+   * Short procurement ranges plot deliveries by day. The export has to say so:
+   * a CSV whose column reads "month" over a column of dates is the chart and
+   * the spreadsheet disagreeing about what a row is.
+   */
+  it('carries the day grain through to the CSV column', () => {
+    const daily = {
+      bucketGranularity: 'day',
+      monthlyWeight: ['2026-08-11', '2026-08-12', '2026-08-13'].map((bucket) => ({
+        bucket,
+        donatedWeightHundredths: 100_000,
+        purchDonWeightHundredths: 0,
+        governmentWeightHundredths: 0,
+        purchasedWeightHundredths: 0,
+        ofbWarehouseWeightHundredths: 100_000,
+        freshAllianceWeightHundredths: 0,
+        communityDonationWeightHundredths: 0,
+      })),
+      filters: { channel: 'all' },
+    };
+
+    const data = INBOUND_WEIGHT_OVER_TIME.data(daily);
+
+    expect(data.grain).toBe('day');
+    expect(data.categoryColumn).toBe('day');
+    expect(data.categories).toEqual(['2026-08-11', '2026-08-12', '2026-08-13']);
+    expect(data.note).toBeNull();
+  });
+
+  it('still reports months when the payload is monthly', () => {
+    const data = INBOUND_WEIGHT_OVER_TIME.data(monthsPayload(6));
+
+    expect(data.grain).toBe('month');
+    expect(data.categoryColumn).toBe('month');
+  });
+
   it('leaves a printable range at its native grain', () => {
     const limit = maxReadableCategories();
     const data = INBOUND_WEIGHT_OVER_TIME.data(monthsPayload(limit));

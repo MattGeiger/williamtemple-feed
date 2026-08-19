@@ -18,7 +18,7 @@ import { prefersReducedMotion } from '@/lib/reduced-motion'
 import * as React from 'react';
 import { Bar, BarChart, CartesianGrid, Cell, Line, LineChart, XAxis, YAxis } from 'recharts';
 import { ChevronDown } from 'lucide-react';
-import { format, parseISO } from 'date-fns';
+import { bucketLabeller, type BucketGranularity } from '@/lib/formatting/bucket-label';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -68,14 +68,32 @@ function sourceKey(name: string): string {
 interface CommunityAnalyticsProps {
   communitySources: ProcurementAnalytics['communitySources'];
   communityMonthlyWeight: ProcurementAnalytics['communityMonthlyWeight'];
+  /** The grain those buckets carry, so the axis labels them correctly. */
+  bucketGranularity?: BucketGranularity;
 }
 
 export function CommunityDonationAnalytics({
   communitySources,
   communityMonthlyWeight,
+  bucketGranularity = 'month',
 }: CommunityAnalyticsProps) {
   const safeSources = React.useMemo(() => communitySources ?? [], [communitySources]);
   const safeMonthly = React.useMemo(() => communityMonthlyWeight ?? [], [communityMonthlyWeight]);
+
+  /**
+   * Axis and tooltip label at the grain the buckets carry, through the guarded
+   * shared labeller — a month formatter handed a day key throws inside
+   * Recharts' render and unmounts the lens.
+   */
+  const [bucketLabel, tooltipLabel] = React.useMemo(() => {
+    const all = safeMonthly.map((row) => row.bucket).sort();
+    const spansYears = all.length === 0
+      || all[0].slice(0, 4) !== all[all.length - 1].slice(0, 4);
+    return [
+      bucketLabeller(bucketGranularity, spansYears),
+      bucketLabeller(bucketGranularity, spansYears),
+    ];
+  }, [bucketGranularity, safeMonthly]);
 
   // The mix card is the full roster (everyone who ever donated). The
   // time-series scope to NON-Fresh-Alliance sources, because a partner's
@@ -185,23 +203,23 @@ export function CommunityDonationAnalytics({
     if (!trendHasOther) return map;
     for (const entry of timeSeriesMonthly) {
       if (!trendFoldedNames.has(entry.sourceName)) continue;
-      const list = map.get(entry.month) ?? [];
+      const list = map.get(entry.bucket) ?? [];
       list.push({ label: entry.sourceName, weight: pounds(entry.weightHundredths) });
-      map.set(entry.month, list);
+      map.set(entry.bucket, list);
     }
     for (const list of map.values()) list.sort((left, right) => right.weight - left.weight);
     return map;
   }, [timeSeriesMonthly, trendFoldedNames, trendHasOther]);
 
   const trend = React.useMemo(() => {
-    const months = [...new Set(timeSeriesMonthly.map((entry) => entry.month))].sort();
+    const months = [...new Set(timeSeriesMonthly.map((entry) => entry.bucket))].sort();
     const namedSet = new Set(trendNamed.map((source) => source.sourceName));
     return months.map((month) => {
-      const row: Record<string, string | number> = { month };
+      const row: Record<string, string | number> = { bucket: month };
       for (const source of trendNamed) row[sourceKey(source.sourceName)] = 0;
       if (trendHasOther) row[sourceKey(OTHER_SOURCES_LABEL)] = 0;
       for (const entry of timeSeriesMonthly) {
-        if (entry.month !== month) continue;
+        if (entry.bucket !== month) continue;
         const key = namedSet.has(entry.sourceName)
           ? sourceKey(entry.sourceName)
           : sourceKey(OTHER_SOURCES_LABEL);
@@ -340,10 +358,11 @@ export function CommunityDonationAnalytics({
               <LineChart accessibilityLayer data={trend} margin={{ left: 8, right: 16 }}>
                 <CartesianGrid vertical={false} />
                 <XAxis
-                  dataKey="month"
+                  dataKey="bucket"
                   tickLine={false}
                   axisLine={false}
-                  tickFormatter={(month: string) => format(parseISO(`${month}-01`), 'MMM yy')}
+                  tickFormatter={bucketLabel}
+                  minTickGap={32}
                 />
                 <YAxis tickLine={false} axisLine={false} width={64} tickFormatter={formatAxisNumber} />
                 <ChartTooltip
@@ -368,7 +387,7 @@ export function CommunityDonationAnalytics({
                     if (rows.length === 0) return null;
                     return (
                       <div className="grid min-w-52 gap-1.5 rounded-lg border border-border/50 bg-background px-2.5 py-2 text-xs shadow-xl">
-                        <div className="font-medium">{format(parseISO(`${month}-01`), 'MMMM yyyy')}</div>
+                        <div className="font-medium">{tooltipLabel(month)}</div>
                         {rows.map((row) => (
                           <React.Fragment key={row.key}>
                             <div className="flex items-center justify-between gap-3">
