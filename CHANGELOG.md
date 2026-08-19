@@ -5,102 +5,17 @@ All notable changes to FEED are documented here. This project adheres to
 
 ## [Unreleased]
 
-### Added
+## [1.5.0-beta.20] — 2026-08-19
 
-- **Procurement's over-time charts follow the date range.** Inbound Weight,
-  Fresh Food Alliance Donations, Other Donations (Legacy Data) and OFB Spending
-  now plot individual delivery dates on ranges up to a quarter, where they
-  previously collapsed a 30-day window to one or two monthly points. Longer
-  ranges still aggregate by month: the full span is 1,710 delivery dates across
-  seventeen years, which is a smear rather than a shape. The rule is the one the
-  Service lens already used, now shared by both rather than written twice.
-  Seasonal Inbound Weight is unaffected — it compares calendar months across
-  years, so months are what it is made of.
-- **A harness for the per-year Link2Feed client exports.**
-  `scripts/measure-l2f-client-coverage.ts` reports what a directory of per-year
-  exports actually covers against the clients FEED holds, and whether that beats
-  the all-time export's 4,324. The all-time file was rejected partly because
-  3,344 of our clients carry ids below its lowest and could not appear in it at
-  all; this measures whether per-year files reach past that floor. The
-  arithmetic is unit-tested against fixtures — real exports carry PII and stay
-  out of the repository.
+The Clients lens, a map of where households live, and one consistent shape for
+every Analytics footnote and axis. Carries beta.18 and beta.19, neither of
+which was deployed.
 
-- **Gender Identity (SIMC)** on the Clients lens. SIMC has recorded a gender
-  for every household member since the June 2026 changeover — 2,166 people —
-  and FEED was already reading and storing it; nothing drew it. It gets its own
-  card rather than joining the Link2Feed one, for the same reason the two
-  ethnicity cards stay apart: SIMC answers per person and Link2Feed per
-  household, so one total would weight a large household more heavily than a
-  small one. The categories are worded differently too — "Trans Male/Trans Man"
-  against "Transgender man" — and silently folding them together would invent a
-  taxonomy neither system uses.
-
-### Fixed
-
-- **The Link2Feed client-export review is superseded.** The file assessed on
-  17 August was labelled "ALL-TIME" and was not one: a full export matches every
-  one of the 9,596 Link2Feed clients FEED stores, against 4,324 for that file.
-  The recency bias, the id floor, and the "covers less, not more" conclusion
-  were properties of that one export rather than of the dataset, so the two
-  fields unique to this path — `Client Ethnicity-Parent Types`, the rollup that
-  would make an ethnicity card legible, and `Household ID` — are available at
-  full coverage rather than 45%. Still not activated; the contract note records
-  what changed. 7,132 of its rows are clients FEED holds no visit for, which is
-  an open question rather than a finding: a client export offers dates back to
-  2017, but William Temple House adopted Link2Feed in October 2020, so both
-  records begin at adoption and the gap is not explained by span.
-
-- **The Service tab rendered blank on the YTD and All ranges.** How Service Was
-  Delivered plots every service day at every range, but still labelled its axis
-  with the page-wide grain, which is monthly on exactly those two presets. A day
-  key reached the month formatter, which built `2026-06-02-01`, and the
-  resulting `RangeError` inside Recharts' render unmounted the entire lens — a
-  blank page rather than a wrong label. Each chart now labels by its own
-  granularity, and no tick formatter can take down a tab again: an unparseable
-  bucket falls back to the raw key.
-
-### Changed
-
-- **Every Analytics footnote is now a bulleted list**, across all four lenses —
-  Operations, Procurement, Service and Clients. They were a mix of paragraphs
-  and stacked sentences, and a caveat that matters (which system asked a
-  question, what a denominator is) had to be found by reading the whole block.
-  `FootnoteList` is now the only footnote component; the paragraph variant was
-  removed rather than left as an option.
-- **Crowded axis labels tilt at narrow widths on every chart that forces them**,
-  not just Age of People Served: household size and both seasonal month charts
-  now angle their labels when the container is too narrow for flat ones, and
-  keep them flat when there is room.
-
-### Fixed
-
-- **Crowded axis labels tilt instead of colliding.** Age of People Served forces
-  all eight bands onto the axis, which ran "Under 18" flush into "18-29" once
-  the card was narrow. Labels now angle to -35° when, and only when, a
-  horizontal label would not fit, and the chart takes the extra height rather
-  than the bars giving it up. Wide layouts are unchanged.
-- **Procurement's monthly labels read `Aug 2026`, not `Aug 26`.** The compact
-  form became ambiguous the moment the same charts could plot days, where
-  "Aug 26" is a date rather than a year.
-- **Household Size's footnote is a list**, like the other Clients cards.
-
-- **Card footnotes are lists rather than paragraphs.** Age of People Served,
-  Ethnicity, Race or Ethnicity (SIMC), both Gender Identity cards, Housing Type,
-  Where Households Live and Demographics Questions Response Rate each carried a
-  block of prose that had to be read whole to find the one caveat that applied.
-  They are now bulleted, one fact per line, with the placeholder birth years
-  nested under the estimated-age note they qualify.
-- **Where Households Live names the agency's own postal code** as
-  over-represented. Households with no fixed address were already off the map,
-  but SIMC requires a postal code, so the agency's is also entered for housed
-  households whose code is unknown — and nothing in the record separates the
-  two. The code stays plotted and the footnote says to read it with caution.
-  It is derived as the code most often recorded for a no-fixed-address
-  household rather than written into the source, so it follows the agency
-  rather than going stale, and it stays silent unless one code holds a clear
-  majority.
-
-## [1.5.0-beta.19] — 2026-08-16
+**Production goes from beta.16 straight to this.** beta.17 was not deployed
+either, and its own section still holds its entry — the restore fix that
+matters most in this jump, since restore is the recovery path and the failure
+would otherwise have first appeared during an actual recovery. Read beta.17's
+notes alongside these.
 
 ### Added
 
@@ -232,6 +147,34 @@ All notable changes to FEED are documented here. This project adheres to
   same way the year selection is, so an exported card is the card that was on
   screen.
 
+- **Procurement's over-time charts follow the date range.** Inbound Weight,
+  Fresh Food Alliance Donations, Other Donations (Legacy Data) and OFB Spending
+  now plot individual delivery dates on ranges up to a quarter, where they
+  previously collapsed a 30-day window to one or two monthly points. Longer
+  ranges still aggregate by month: the full span is 1,710 delivery dates across
+  seventeen years, which is a smear rather than a shape. The rule is the one the
+  Service lens already used, now shared by both rather than written twice.
+  Seasonal Inbound Weight is unaffected — it compares calendar months across
+  years, so months are what it is made of.
+- **A harness for the per-year Link2Feed client exports.**
+  `scripts/measure-l2f-client-coverage.ts` reports what a directory of per-year
+  exports actually covers against the clients FEED holds, and whether that beats
+  the all-time export's 4,324. The all-time file was rejected partly because
+  3,344 of our clients carry ids below its lowest and could not appear in it at
+  all; this measures whether per-year files reach past that floor. The
+  arithmetic is unit-tested against fixtures — real exports carry PII and stay
+  out of the repository.
+
+- **Gender Identity (SIMC)** on the Clients lens. SIMC has recorded a gender
+  for every household member since the June 2026 changeover — 2,166 people —
+  and FEED was already reading and storing it; nothing drew it. It gets its own
+  card rather than joining the Link2Feed one, for the same reason the two
+  ethnicity cards stay apart: SIMC answers per person and Link2Feed per
+  household, so one total would weight a large household more heavily than a
+  small one. The categories are worded differently too — "Trans Male/Trans Man"
+  against "Transgender man" — and silently folding them together would invent a
+  taxonomy neither system uses.
+
 ### Changed
 
 - **The theme button is now a single toggle instead of a menu.** Choosing how
@@ -250,6 +193,17 @@ All notable changes to FEED are documented here. This project adheres to
   the records being replaced and cannot be carried across, because the
   identifiers they refer to are reassigned from the backup file. The confirmation
   step lists them by name instead of removing them quietly.
+
+- **Every Analytics footnote is now a bulleted list**, across all four lenses —
+  Operations, Procurement, Service and Clients. They were a mix of paragraphs
+  and stacked sentences, and a caveat that matters (which system asked a
+  question, what a denominator is) had to be found by reading the whole block.
+  `FootnoteList` is now the only footnote component; the paragraph variant was
+  removed rather than left as an option.
+- **Crowded axis labels tilt at narrow widths on every chart that forces them**,
+  not just Age of People Served: household size and both seasonal month charts
+  now angle their labels when the container is too narrow for flat ones, and
+  keep them flat when there is room.
 
 ### Fixed
 
@@ -273,11 +227,70 @@ All notable changes to FEED are documented here. This project adheres to
   helper takes a formatter now — the third card to hit this, and the reason the
   default is no longer silent.
 
+- **The Link2Feed client-export review is superseded.** The file assessed on
+  17 August was labelled "ALL-TIME" and was not one: a full export matches every
+  one of the 9,596 Link2Feed clients FEED stores, against 4,324 for that file.
+  The recency bias, the id floor, and the "covers less, not more" conclusion
+  were properties of that one export rather than of the dataset, so the two
+  fields unique to this path — `Client Ethnicity-Parent Types`, the rollup that
+  would make an ethnicity card legible, and `Household ID` — are available at
+  full coverage rather than 45%. Still not activated; the contract note records
+  what changed. 7,132 of its rows are clients FEED holds no visit for, which is
+  an open question rather than a finding: a client export offers dates back to
+  2017, but William Temple House adopted Link2Feed in October 2020, so both
+  records begin at adoption and the gap is not explained by span.
+
+- **The Service tab rendered blank on the YTD and All ranges.** How Service Was
+  Delivered plots every service day at every range, but still labelled its axis
+  with the page-wide grain, which is monthly on exactly those two presets. A day
+  key reached the month formatter, which built `2026-06-02-01`, and the
+  resulting `RangeError` inside Recharts' render unmounted the entire lens — a
+  blank page rather than a wrong label. Each chart now labels by its own
+  granularity, and no tick formatter can take down a tab again: an unparseable
+  bucket falls back to the raw key.
+
+
+- **Crowded axis labels tilt instead of colliding.** Age of People Served forces
+  all eight bands onto the axis, which ran "Under 18" flush into "18-29" once
+  the card was narrow. Labels now angle to -35° when, and only when, a
+  horizontal label would not fit, and the chart takes the extra height rather
+  than the bars giving it up. Wide layouts are unchanged.
+- **Procurement's monthly labels read `Aug 2026`, not `Aug 26`.** The compact
+  form became ambiguous the moment the same charts could plot days, where
+  "Aug 26" is a date rather than a year.
+- **Household Size's footnote is a list**, like the other Clients cards.
+
+- **Card footnotes are lists rather than paragraphs.** Age of People Served,
+  Ethnicity, Race or Ethnicity (SIMC), both Gender Identity cards, Housing Type,
+  Where Households Live and Demographics Questions Response Rate each carried a
+  block of prose that had to be read whole to find the one caveat that applied.
+  They are now bulleted, one fact per line, with the placeholder birth years
+  nested under the estimated-age note they qualify.
+- **Service Summary's asterisk points at something again.** "Treat this as an
+  undercount" has to say what is undercounted, and the mark on the *People
+  served* tile is what supplies the referent. The asterisk is now a marker
+  rendered in place of the bullet rather than a character inside the sentence,
+  where it read as a second bullet. The card's `**` pair is gone — those pointed
+  at a tile that never carried the mark, so they decoded to nothing.
+- **Where Households Live names the agency's own postal code** as
+  over-represented. Households with no fixed address were already off the map,
+  but SIMC requires a postal code, so the agency's is also entered for housed
+  households whose code is unknown — and nothing in the record separates the
+  two. The code stays plotted and the footnote says to read it with caution.
+  It is derived as the code most often recorded for a no-fixed-address
+  household rather than written into the source, so it follows the agency
+  rather than going stale, and it stays silent unless one code holds a clear
+  majority.
+
+## [1.5.0-beta.19] — not deployed
+
+Superseded by beta.20, which carries all of its changes.
+
 ## [1.5.0-beta.18] — not deployed
 
 Superseded by beta.19, which carries all of its changes.
 
-## [1.5.0-beta.17] — 2026-08-15
+## [1.5.0-beta.17] — not deployed (2026-08-15)
 
 ### Fixed
 

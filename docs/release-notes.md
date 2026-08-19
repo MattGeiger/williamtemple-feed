@@ -2,42 +2,11 @@
 
 ## Unreleased
 
-- **Card footnotes read as short bulleted points** on every Analytics tab, so a
-  caveat can be found at a glance instead of read through.
-- **Charts stay legible on a phone.** Any chart that has to show every label —
-  age bands, household size, the seasonal month comparisons — now tilts those
-  labels when the screen is narrow, rather than running them together or
-  dropping half of them.
+## Version 1.5.0-beta.20 — 2026-08-19
 
-- **Procurement charts now show individual deliveries on shorter date ranges.**
-  Picking 30 days used to give you one or two points, because the charts always
-  summed by month. They now plot the delivery dates themselves for any range up
-  to about a quarter, and keep monthly totals beyond that, where seventeen years
-  of individual deliveries would be an unreadable smear. Seasonal Inbound Weight
-  still compares calendar months, which is what it is for.
-- **Age of People Served no longer runs its labels together** on a narrow
-  screen; they tilt when there is not room to sit flat.
-
-- **The Service tab came up blank on the YTD and All ranges.** Fixed. One chart
-  was labelling its dates with the wrong calendar grain, which failed in a way
-  that took the whole tab down instead of spoiling a single label. The other
-  ranges were never affected, which is what made it look intermittent.
-- **Gender Identity (SIMC)** joins the Clients tab. SIMC has recorded this for
-  every household member since June 2026 and the data was already imported —
-  there was simply no card showing it. It sits beside the Link2Feed gender card
-  rather than merging with it, because SIMC answers per person and Link2Feed per
-  household; adding them would count a large household more heavily than a small
-  one.
-- **Footnotes under the cards are now bulleted lists** instead of paragraphs, so
-  a caveat can be found at a glance rather than read through.
-- **Where Households Live flags the agency's own postal code.** Because SIMC
-  requires a postal code, staff enter William Temple House's when a household
-  has none to give — so that circle is larger than the neighbourhood really is.
-  The map now says so.
-
-## Version 1.5.0-beta.19 — 2026-08-16
-
-*Beta — Service Analytics arrives in reports, with three new cards.*
+*Beta — the Clients tab, a map of where households live, and a consistent
+shape for every footnote and chart label. Carries beta.17, beta.18 and
+beta.19, none of which were deployed: the pantry goes from beta.16 to this.*
 
 - **Service cards can now be put in a report.** The Service tab's cards could be
   seen but not exported: selecting one produced a file that quietly left it out,
@@ -147,6 +116,43 @@
   its record begins rather than running along zero, and the current month is
   left off monthly charts until it finishes.
 
+- **Charts stay legible on a phone.** Any chart that has to show every label —
+  age bands, household size, the seasonal month comparisons — now tilts those
+  labels when the screen is narrow, rather than running them together or
+  dropping half of them.
+
+- **Procurement charts now show individual deliveries on shorter date ranges.**
+  Picking 30 days used to give you one or two points, because the charts always
+  summed by month. They now plot the delivery dates themselves for any range up
+  to about a quarter, and keep monthly totals beyond that, where seventeen years
+  of individual deliveries would be an unreadable smear. Seasonal Inbound Weight
+  still compares calendar months, which is what it is for.
+
+- **The Service tab came up blank on the YTD and All ranges.** Fixed. One chart
+  was labelling its dates with the wrong calendar grain, which failed in a way
+  that took the whole tab down instead of spoiling a single label. The other
+  ranges were never affected, which is what made it look intermittent.
+- **Gender Identity (SIMC)** joins the Clients tab. SIMC has recorded this for
+  every household member since June 2026 and the data was already imported —
+  there was simply no card showing it. It sits beside the Link2Feed gender card
+  rather than merging with it, because SIMC answers per person and Link2Feed per
+  household; adding them would count a large household more heavily than a small
+  one.
+- **Footnotes under the cards are now bulleted lists** instead of paragraphs, so
+  a caveat can be found at a glance rather than read through.
+- **The asterisk on Service Summary points at something again.** "Treat this as
+  an undercount" needs to say what is undercounted — the mark now sits on the
+  *People served* tile it refers to, and reads as a reference mark rather than
+  as another bullet.
+- **Where Households Live flags the agency's own postal code.** Because SIMC
+  requires a postal code, staff enter William Temple House's when a household
+  has none to give — so that circle is larger than the neighbourhood really is.
+  The map now says so.
+
+## Version 1.5.0-beta.19 — not deployed
+
+Superseded by beta.20, which carries all of its changes.
+
 ## Version 1.5.0-beta.18 — not deployed
 
 *Beta — introduces the Service tab on Analytics. Superseded by beta.19.*
@@ -162,7 +168,7 @@
   including *System*; pressing it now simply switches to the other mode, and
   FEED still follows your device until you press it.
 
-## Version 1.5.0-beta.17 — 2026-08-15
+## Version 1.5.0-beta.17 — not deployed (2026-08-15)
 
 *Beta — repairs the backup restore path.*
 
