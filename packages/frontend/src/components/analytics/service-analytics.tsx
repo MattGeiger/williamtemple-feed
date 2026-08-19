@@ -534,7 +534,9 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
           <Card className="min-w-0">
             <CardHeader>
               <CardTitle>Service Over Time</CardTitle>
-              <CardDescription>Service by day, by record.</CardDescription>
+              <CardDescription>
+                Service by {coverage.granularity === 'month' ? 'month' : 'day'}, by record.
+              </CardDescription>
               <SourcePills sources={[...intakePills, ...(coverage.hasServiceLog ? ['Service Log'] : [])]} />
             </CardHeader>
             <CardContent>

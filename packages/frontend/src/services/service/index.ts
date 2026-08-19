@@ -181,14 +181,6 @@ export interface ServiceMethodDefinition {
   firstRecordedDate?: string | null;
 }
 
-export interface AgeBandSet {
-  bands: Array<{ label: string; count: number }>;
-  estimatedBirthYears: number;
-  withoutBirthYear: number;
-  unit: 'households' | 'people';
-  available: boolean;
-}
-
 /**
  * `values` can sum above `answered` where a question accepts more than one
  * answer, which `multiValue` declares so a card can say so.
@@ -302,9 +294,12 @@ export interface ServiceAnalytics {
    * household by one.
    */
   ageBands: {
-    asOfYear: number;
-    link2feed: AgeBandSet;
-    simc: AgeBandSet;
+    bands: Array<{ label: string; count: number }>;
+    estimatedBirthYears: number;
+    withoutBirthYear: number;
+    implausibleBirthYears: number;
+    sources: string[];
+    available: boolean;
   };
   /** Ranked answers for one demographic question, at that record's grain. */
   demographics: {

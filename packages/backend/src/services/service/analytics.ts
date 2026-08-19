@@ -75,15 +75,6 @@ export interface DemographicBreakdown {
   unit: 'households' | 'people';
 }
 
-/** Banded ages from one record, at that record's own grain. */
-export interface AgeBandSet {
-  bands: Array<{ label: string; count: number }>;
-  estimatedBirthYears: number;
-  withoutBirthYear: number;
-  unit: 'households' | 'people';
-  available: boolean;
-}
-
 export interface ServiceAnalytics {
   coverage: {
     startDate: string;
@@ -238,19 +229,24 @@ export interface ServiceAnalytics {
     simcRaceOrEthnicity: DemographicBreakdown;
     simcGenderIdentity: DemographicBreakdown;
   };
+  /**
+   * Everyone whose age is on record, from both intake systems.
+   *
+   * The two contribute differently and the card says so rather than splitting:
+   * Link2Feed records one birth year per household — whoever registered — so
+   * its years under-represent household members, while SIMC records one for
+   * every member. Combined this is the best available answer to "how many
+   * seniors did we serve", and the footnote states the shortfall rather than
+   * leaving the reader with two charts to add up themselves.
+   */
   ageBands: {
-    asOfYear: number;
-    /**
-     * Two records, kept apart because they count different people.
-     *
-     * Link2Feed records one birth year per household profile — the person who
-     * registered — so its bands describe heads of household. SIMC records one
-     * per household member, so its bands describe everyone who came. Summing
-     * them would weight a SIMC household by its size and a Link2Feed household
-     * by one, and the total would mean nothing.
-     */
-    link2feed: AgeBandSet;
-    simc: AgeBandSet;
+    bands: Array<{ label: string; count: number }>;
+    estimatedBirthYears: number;
+    withoutBirthYear: number;
+    /** Birth years at or before 1901 — placeholders, not centenarians. */
+    implausibleBirthYears: number;
+    sources: string[];
+    available: boolean;
   };
   /**
    * Where households live, by postal code.
@@ -280,7 +276,17 @@ export interface ServiceAnalytics {
 }
 
 /** Fixed bands, so a chart can be compared with last quarter's. */
-const AGE_BANDS = ['Under 18', '18-29', '30-44', '45-59', '60-74', '75+'] as const;
+const AGE_BANDS = [
+  'Under 18', '18-29', '30-44', '45-59', '60-74', '75-89', '90-104', '105+',
+] as const;
+
+/**
+ * A birth year at or before this is treated as implausible and counted, not
+ * hidden. SIMC carries 22 profiles with a birth year of 1900 — a placeholder
+ * rather than a real age — and a card that silently dropped them would be
+ * concealing a data-entry problem worth seeing.
+ */
+const IMPLAUSIBLE_BIRTH_YEAR = 1901;
 
 const MONTH_LABELS = [
   'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
@@ -498,7 +504,18 @@ export async function getServiceAnalytics(
       AND "recordKind" IN (${kinds[0]}, ${kinds[1]})
     GROUP BY "year", "monthIndex" ORDER BY "year", "monthIndex"`;
 
-  const bucketSql = bucketExpression(granularity, 'o."serviceDate"');
+  /**
+   * How Service Was Delivered plots every recorded service day, at every range.
+   *
+   * The Service Log holds one row per day the pantry ran — 321 of them across
+   * three years — so there is no readability argument for summing them into
+   * months, and doing so hid the shape staff recognise: a hundred-household
+   * Thursday beside a five-household Friday backpack session. The timeline
+   * above it still adapts, because it plots two intake records whose daily
+   * volume is an order of magnitude higher.
+   */
+  const methodGranularity: ServiceBucketGranularity = 'day';
+  const bucketSql = bucketExpression(methodGranularity, 'o."serviceDate"');
   const methodSeriesRows = methodKeys.length === 0 ? [] :
     await client.$queryRawUnsafe<Array<{ bucket: string; metricKey: string; total: number | null }>>(
       `SELECT ${bucketSql} AS "bucket", d."metricKey", SUM(COALESCE(o."countValue",0)) AS "total"
@@ -675,68 +692,84 @@ ${Object.entries(LANGUAGE_LABEL_ALIASES)
    * band of hundreds, and silently discarding a record is worse than carrying
    * an obvious data-entry error.
    */
-  const ageBandSet = async (grain: 'client' | 'person'): Promise<AgeBandSet> => {
-    const revision = grain === 'client' ? 'ServiceClientProfileRevision' : 'ServicePersonProfileRevision';
-    const unitKey = grain === 'client' ? 'p."clientId"' : 'p."personId"';
-    const link = grain === 'client'
-      ? `JOIN served s ON s."clientId" = p."clientId"`
-      : `JOIN "ServiceEncounterPerson" ep ON ep."personId" = p."personId"
-         JOIN "ServiceEncounterRevision" e ON e."id" = ep."encounterRevisionId"
-           AND e."isCurrent" = 1 AND e."serviceDate" BETWEEN ? AND ?`;
-    const args = grain === 'client'
-      ? [startDate, endDate]
-      : [startDate, endDate, startDate, endDate];
+  /**
+   * Everyone whose age is on record, banded, as of the end of the range.
+   *
+   * `endDate` rather than today: a household served in December 2024 was the
+   * age it was then. Bands are fixed rather than derived so a chart can be
+   * compared with last quarter's, and an absent band still renders at zero.
+   *
+   * Both records contribute. They do so unevenly — Link2Feed stores one birth
+   * year per household and SIMC one per member — and the card states that
+   * rather than splitting into two charts a reader would have to add up.
+   */
+  const ageRows = await client.$queryRaw<Array<{ band: string; count: bigint }>>`
+    WITH served AS (
+      SELECT DISTINCT "clientId" FROM "ServiceEncounterRevision"
+      WHERE "isCurrent" = 1 AND "serviceDate" BETWEEN ${startDate} AND ${endDate}
+        AND "clientId" IS NOT NULL
+    ),
+    -- One row per person, not per visit. The person side joins through
+    -- encounters to scope the range, which repeats anyone who came twice, so
+    -- the identity is made distinct before any counting happens.
+    ages AS (
+      SELECT DISTINCT 'client' AS "kind", p."clientId" AS "id",
+             ${asOfYear} - p."birthYear" AS "age"
+      FROM "ServiceClientProfileRevision" p
+      JOIN served s ON s."clientId" = p."clientId"
+      WHERE p."isCurrent" = 1 AND p."birthYear" IS NOT NULL
+      UNION
+      SELECT DISTINCT 'person', p."personId",
+             ${asOfYear} - p."birthYear"
+      FROM "ServicePersonProfileRevision" p
+      JOIN "ServiceEncounterPerson" ep ON ep."personId" = p."personId"
+      JOIN "ServiceEncounterRevision" e ON e."id" = ep."encounterRevisionId"
+        AND e."isCurrent" = 1 AND e."serviceDate" BETWEEN ${startDate} AND ${endDate}
+      WHERE p."isCurrent" = 1 AND p."birthYear" IS NOT NULL
+    )
+    SELECT CASE
+        WHEN "age" < 18 THEN 'Under 18'
+        WHEN "age" < 30 THEN '18-29'
+        WHEN "age" < 45 THEN '30-44'
+        WHEN "age" < 60 THEN '45-59'
+        WHEN "age" < 75 THEN '60-74'
+        WHEN "age" < 90 THEN '75-89'
+        WHEN "age" < 105 THEN '90-104'
+        ELSE '105+' END AS "band",
+      COUNT(*) AS "count"
+    FROM ages GROUP BY "band"`;
 
-    const bands = await client.$queryRawUnsafe<Array<{ band: string; count: bigint }>>(
-      `WITH served AS (
-         SELECT DISTINCT "clientId" FROM "ServiceEncounterRevision"
-         WHERE "isCurrent" = 1 AND "serviceDate" BETWEEN ? AND ? AND "clientId" IS NOT NULL
-       )
-       SELECT CASE
-           WHEN ${asOfYear} - p."birthYear" < 18 THEN 'Under 18'
-           WHEN ${asOfYear} - p."birthYear" < 30 THEN '18-29'
-           WHEN ${asOfYear} - p."birthYear" < 45 THEN '30-44'
-           WHEN ${asOfYear} - p."birthYear" < 60 THEN '45-59'
-           WHEN ${asOfYear} - p."birthYear" < 75 THEN '60-74'
-           ELSE '75+' END AS "band",
-         COUNT(DISTINCT ${unitKey}) AS "count"
-       FROM "${revision}" p
-       ${link}
-       WHERE p."isCurrent" = 1 AND p."birthYear" IS NOT NULL
-       GROUP BY "band"`,
-      ...args,
-    );
-
-    const meta = await client.$queryRawUnsafe<Array<{ estimated: bigint; missing: bigint }>>(
-      `WITH served AS (
-         SELECT DISTINCT "clientId" FROM "ServiceEncounterRevision"
-         WHERE "isCurrent" = 1 AND "serviceDate" BETWEEN ? AND ? AND "clientId" IS NOT NULL
-       )
-       SELECT
-         COUNT(DISTINCT CASE WHEN p."birthYearEstimated" = 1 THEN ${unitKey} END) AS "estimated",
-         COUNT(DISTINCT CASE WHEN p."birthYear" IS NULL THEN ${unitKey} END) AS "missing"
-       FROM "${revision}" p
-       ${link}
-       WHERE p."isCurrent" = 1`,
-      ...args,
-    );
-
-    return {
-      bands: AGE_BANDS.map((label) => ({
-        label,
-        count: Number(bands.find((row) => row.band === label)?.count ?? 0),
-      })),
-      estimatedBirthYears: Number(meta[0]?.estimated ?? 0),
-      withoutBirthYear: Number(meta[0]?.missing ?? 0),
-      unit: grain === 'client' ? 'households' : 'people',
-      available: bands.some((row) => Number(row.count) > 0),
-    };
-  };
-
-  const [link2feedAges, simcAges] = await Promise.all([
-    ageBandSet('client'),
-    ageBandSet('person'),
-  ]);
+  const ageMeta = await client.$queryRaw<Array<{
+    estimated: bigint; missing: bigint; implausible: bigint; sources: string;
+  }>>`
+    WITH served AS (
+      SELECT DISTINCT "clientId" FROM "ServiceEncounterRevision"
+      WHERE "isCurrent" = 1 AND "serviceDate" BETWEEN ${startDate} AND ${endDate}
+        AND "clientId" IS NOT NULL
+    ),
+    -- Distinct for the same reason as above: a person who came twice is one
+    -- person with one birth year, not two.
+    profiles AS (
+      SELECT DISTINCT 'client' AS "kind", p."clientId" AS "id",
+             p."birthYear", p."birthYearEstimated", p."source"
+      FROM "ServiceClientProfileRevision" p
+      JOIN served s ON s."clientId" = p."clientId"
+      WHERE p."isCurrent" = 1
+      UNION
+      SELECT DISTINCT 'person', p."personId",
+             p."birthYear", p."birthYearEstimated", p."source"
+      FROM "ServicePersonProfileRevision" p
+      JOIN "ServiceEncounterPerson" ep ON ep."personId" = p."personId"
+      JOIN "ServiceEncounterRevision" e ON e."id" = ep."encounterRevisionId"
+        AND e."isCurrent" = 1 AND e."serviceDate" BETWEEN ${startDate} AND ${endDate}
+      WHERE p."isCurrent" = 1
+    )
+    SELECT
+      SUM(CASE WHEN "birthYearEstimated" = 1 THEN 1 ELSE 0 END) AS "estimated",
+      SUM(CASE WHEN "birthYear" IS NULL THEN 1 ELSE 0 END) AS "missing",
+      SUM(CASE WHEN "birthYear" IS NOT NULL AND "birthYear" <= ${IMPLAUSIBLE_BIRTH_YEAR} THEN 1 ELSE 0 END) AS "implausible",
+      GROUP_CONCAT(DISTINCT CASE WHEN "birthYear" IS NOT NULL THEN "source" END) AS "sources"
+    FROM profiles`;
 
   /**
    * Postal codes, excluding households with no fixed address.
@@ -1145,7 +1178,7 @@ ${Object.entries(LANGUAGE_LABEL_ALIASES)
       visits: seasonalVisits,
     },
     methodSeries: {
-      granularity,
+      granularity: methodGranularity,
       methods: methodDefinitions.map((row) => ({
         metricKey: row.metricKey,
         displayName: row.displayName,
@@ -1205,7 +1238,17 @@ ${Object.entries(LANGUAGE_LABEL_ALIASES)
       simcRaceOrEthnicity: simcRaceBreakdown,
       simcGenderIdentity: simcGenderBreakdown,
     },
-    ageBands: { asOfYear, link2feed: link2feedAges, simc: simcAges },
+    ageBands: {
+      bands: AGE_BANDS.map((label) => ({
+        label,
+        count: Number(ageRows.find((row) => row.band === label)?.count ?? 0),
+      })),
+      estimatedBirthYears: Number(ageMeta[0]?.estimated ?? 0),
+      withoutBirthYear: Number(ageMeta[0]?.missing ?? 0),
+      implausibleBirthYears: Number(ageMeta[0]?.implausible ?? 0),
+      sources: String(ageMeta[0]?.sources ?? '').split(',').filter(Boolean).sort(),
+      available: ageRows.some((row) => Number(row.count) > 0),
+    },
     geography: {
       postalCodes: geographyRows.map((row) => ({
         postalCode: row.postalCode,

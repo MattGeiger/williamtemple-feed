@@ -40,6 +40,12 @@
   rows are counted but not deduplicated, and the cards say so. Visits per
   household is unchanged: it still uses identified records only, since an
   anonymous row carries no information about returning.
+- **Age of People Served now combines both intake systems** into one chart,
+  with finer bands at the top — 75-89, 90-104 and 105+ instead of a single
+  75+. Birth years of 1901 or earlier are placeholders rather than real ages;
+  they are shown rather than hidden so the count is visible.
+- **How Service Was Delivered plots every service day** at every date range,
+  rather than summing into months.
 - **Four more Clients cards: Ethnicity, Race or Ethnicity (SIMC), Gender
   Identity, and Housing Type.** All built from data FEED already holds. The two
   ethnicity cards are kept apart because the systems ask different questions

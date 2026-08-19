@@ -30,7 +30,6 @@ import {
 } from '@/components/ui/chart';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { SelectableBlock } from '@/components/reports/selection';
 import { ErrorHandlerService } from '@/services/error/ErrorHandlerService';
 import { carbonChartColors } from '@/lib/colors';
@@ -71,14 +70,13 @@ function Footnote({ children }: { children: React.ReactNode }) {
  * people counted.
  */
 function BreakdownCard({
-  cardId, title, description, breakdown, color, height = '320px', children,
+  cardId, title, description, breakdown, color, children,
 }: {
   cardId: string;
   title: string;
   description: string;
   breakdown: DemographicBreakdown;
   color: string;
-  height?: string;
   children?: React.ReactNode;
 }) {
   if (breakdown.values.length === 0) return null;
@@ -86,6 +84,17 @@ function BreakdownCard({
     ? Math.round((breakdown.answered / breakdown.asked) * 100)
     : 0;
   const unit = breakdown.unit === 'people' ? 'people' : 'households';
+
+  /**
+   * Height follows the row count rather than a fixed figure per card.
+   *
+   * A category axis divides whatever height it is given by however many rows
+   * it has, so a card sized for eight answers crushes fourteen into the same
+   * space and the labels overlap — "American Indian or Alaska Native" wraps to
+   * two lines and collides with its neighbours. 34px a row leaves space for a
+   * wrapped label; the floor keeps a two-answer card from looking broken.
+   */
+  const chartHeight = Math.max(220, breakdown.values.length * 34 + 48);
 
   return (
     <SelectableBlock cardId={cardId}>
@@ -98,8 +107,8 @@ function BreakdownCard({
         <CardContent>
           <ChartContainer
             config={{ count: { label: unit === 'people' ? 'People' : 'Households', color } } satisfies ChartConfig}
-            className={`w-full`}
-            style={{ height }}
+            className="w-full"
+            style={{ height: `${chartHeight}px` }}
           >
             <BarChart data={breakdown.values} layout="vertical" margin={{ left: 8, right: 24, top: 4 }}>
               <CartesianGrid horizontal={false} strokeDasharray="3 3" />
@@ -223,15 +232,6 @@ export function ClientAnalyticsWorkspace({ analytics }: { analytics: ServiceAnal
    * summed into one row rather than dropped, so the bars still account for
    * every household with a recorded address.
    */
-  /**
-   * Which record's ages to show. Not a filter — the two count different
-   * people, so switching changes what a bar means.
-   */
-  const [ageSource, setAgeSource] = React.useState<'link2feed' | 'simc'>(
-    ageBands.link2feed.available ? 'link2feed' : 'simc',
-  );
-  const activeAges = ageSource === 'link2feed' ? ageBands.link2feed : ageBands.simc;
-
   const POSTAL_CODES_PLOTTED = 12;
   const geographyRows = React.useMemo(() => {
     const top = geography.postalCodes.slice(0, POSTAL_CODES_PLOTTED);
@@ -274,7 +274,9 @@ export function ClientAnalyticsWorkspace({ analytics }: { analytics: ServiceAnal
               </ChartContainer>
               <Footnote>
                 {singlePersonShare}% of visits are by a household of one. Excludes
-                outliers marked as special events, flagged during data import.
+                outliers marked as special events, flagged during data import. Not
+                every household discloses its size, and anonymous visits record
+                none, so treat these as an undercount.
               </Footnote>
             </CardContent>
           </Card>
@@ -282,60 +284,52 @@ export function ClientAnalyticsWorkspace({ analytics }: { analytics: ServiceAnal
       )}
 
       {/* ---- Age ----------------------------------------------------------- */}
-      <SelectableBlock cardId="clients-age-bands" options={{ source: ageSource }}>
+      <SelectableBlock cardId="clients-age-bands">
         <Card className="min-w-0">
-          <CardHeader className="flex-row items-start justify-between gap-3 space-y-0">
-            <div className="space-y-1.5">
-              <CardTitle>Age of People Served</CardTitle>
-              <CardDescription>
-                Age as of {ageBands.asOfYear}, for those served in this range.
-              </CardDescription>
-              <SourcePills sources={[sourceLabel(ageSource)]} />
-            </div>
-            {/* The two records count different people, so this is a source
-                switch rather than a filter — the y-axis changes meaning with
-                it, from households to people. */}
-            <Tabs
-              value={ageSource}
-              onValueChange={(value) => setAgeSource(value as 'link2feed' | 'simc')}
-              className="w-auto"
-            >
-              <TabsList aria-label="Age source" className="h-8">
-                <TabsTrigger value="link2feed">Link2Feed</TabsTrigger>
-                <TabsTrigger value="simc">SIMC</TabsTrigger>
-              </TabsList>
-            </Tabs>
+          <CardHeader>
+            <CardTitle>Age of People Served</CardTitle>
+            <CardDescription>Grouped age ranges for clients.</CardDescription>
+            <SourcePills sources={ageBands.sources.map(sourceLabel)} />
           </CardHeader>
           <CardContent>
-            {!activeAges.available ? (
+            {!ageBands.available ? (
               <p className="py-8 text-center text-sm text-muted-foreground">
-                No ages recorded in this range from {sourceLabel(ageSource)}.
-                {ageSource === 'link2feed'
-                  ? ' Link2Feed stopped receiving visits at the June 2026 changeover.'
-                  : ' SIMC records began in June 2026.'}
+                No ages recorded in this range.
               </p>
             ) : (
               <>
                 <ChartContainer
-                  config={{ count: { label: activeAges.unit === 'people' ? 'People' : 'Households', color: carbonChartColors.purple.primary.light } } satisfies ChartConfig}
+                  config={{ count: { label: 'People', color: carbonChartColors.purple.primary.light } } satisfies ChartConfig}
                   className="h-[260px] w-full"
                 >
-                  <BarChart data={activeAges.bands} margin={{ left: 4, right: 8, top: 8 }}>
+                  <BarChart data={ageBands.bands} margin={{ left: 4, right: 8, top: 8 }}>
                     <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                    <XAxis dataKey="label" tickLine={false} axisLine={false} />
+                    {/* Every band labelled. Recharts thins ticks when they
+                        crowd, which silently dropped half of them — a band
+                        chart whose axis reads 18-29, 45-59, 75-89, 105+ invites
+                        the reader to think those are the bands. */}
+                    <XAxis
+                      dataKey="label"
+                      tickLine={false}
+                      axisLine={false}
+                      interval={0}
+                      tick={{ fontSize: 11 }}
+                    />
                     <YAxis tickLine={false} axisLine={false} width={52} tickFormatter={formatAxisNumber} />
                     <ChartTooltip content={<ChartTooltipContent />} />
                     <Bar dataKey="count" fill={seriesColor('count')} radius={[3, 3, 0, 0]} />
                   </BarChart>
                 </ChartContainer>
                 <Footnote>
-                  {ageSource === 'link2feed'
-                    ? 'Link2Feed records one birth year per household — the person who registered — so these are heads of household.'
-                    : 'SIMC records a birth year for each household member, so these are people.'}
-                  {activeAges.withoutBirthYear > 0 &&
-                    ` ${count(activeAges.withoutBirthYear)} have no birth year on file and are not counted here.`}
-                  {activeAges.estimatedBirthYears > 0 &&
-                    ` ${count(activeAges.estimatedBirthYears)} birth years were estimated at intake rather than reported.`}
+                  Link2Feed records one birth year per household and SIMC one for every
+                  member, so years before the June 2026 changeover under-count household
+                  members.
+                  {ageBands.withoutBirthYear > 0 &&
+                    ` ${count(ageBands.withoutBirthYear)} have no birth year on file and are not counted.`}
+                  {ageBands.estimatedBirthYears > 0 &&
+                    ` ${count(ageBands.estimatedBirthYears)} were estimated at intake rather than reported.`}
+                  {ageBands.implausibleBirthYears > 0 &&
+                    ` ${count(ageBands.implausibleBirthYears)} carry a birth year of 1901 or earlier, which is a placeholder rather than a real age — they are shown rather than hidden.`}
                 </Footnote>
               </>
             )}
@@ -360,7 +354,6 @@ export function ClientAnalyticsWorkspace({ analytics }: { analytics: ServiceAnal
         description="As each household member reported it at intake."
         breakdown={demographics.simcRaceOrEthnicity}
         color={carbonChartColors.orange.primary.light}
-        height="280px"
       >
         {' Counted in people rather than households, and not comparable with the Link2Feed ethnicity card — the two systems ask different questions.'}
       </BreakdownCard>
@@ -371,7 +364,6 @@ export function ClientAnalyticsWorkspace({ analytics }: { analytics: ServiceAnal
         description="As households reported it at intake."
         breakdown={demographics.genderIdentity}
         color={carbonChartColors.cyan.primary.light}
-        height="280px"
       />
 
       <BreakdownCard
@@ -380,7 +372,6 @@ export function ClientAnalyticsWorkspace({ analytics }: { analytics: ServiceAnal
         description="Where households said they were living."
         breakdown={demographics.housingType}
         color={carbonChartColors.green.primary.light}
-        height="360px"
       >
         {' Pairs with the no-fixed-address figure on Where Households Live.'}
       </BreakdownCard>

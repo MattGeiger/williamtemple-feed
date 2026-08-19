@@ -2269,41 +2269,37 @@ export const CLIENTS_AGE_BANDS: AnalyticsCard = {
   kind: 'chart',
   defaultTitle: 'Age of People Served',
   lens: 'clients',
-  data: (analytics: any, options?: any) => {
+  data: (analytics: any) => {
     const ages = analytics?.ageBands ?? {};
-    // The two records count different people, so the export carries whichever
-    // the screen was showing rather than merging them into a total that would
-    // weight a SIMC household by its size and a Link2Feed one by one.
-    const source: 'link2feed' | 'simc' = options?.source === 'simc' ? 'simc' : 'link2feed';
-    const set = ages[source] ?? {};
-    const bands = set.bands ?? [];
-    const label = source === 'simc' ? 'SIMC' : 'Link2Feed';
-    const unit = set.unit === 'people' ? 'People' : 'Households';
+    const bands = ages.bands ?? [];
 
     const notes: string[] = [];
-    if (!set.available) {
-      notes.push(
-        `No ages recorded in this range from ${label}.` +
-        (source === 'link2feed'
-          ? ' Link2Feed stopped receiving visits at the June 2026 changeover.'
-          : ' SIMC records began in June 2026.')
-      );
+    if (!ages.available) {
+      notes.push('No ages recorded in this range.');
     } else {
-      notes.push(source === 'link2feed'
-        ? 'Link2Feed records one birth year per household — the person who registered — so these are heads of household.'
-        : 'SIMC records a birth year for each household member, so these are people.');
-      if ((set.withoutBirthYear ?? 0) > 0) {
-        notes.push(`${COUNT(set.withoutBirthYear)} have no birth year on file and are not counted here.`);
+      notes.push(
+        'Link2Feed records one birth year per household and SIMC one for every ' +
+        'member, so years before the June 2026 changeover under-count household ' +
+        'members.'
+      );
+      if ((ages.withoutBirthYear ?? 0) > 0) {
+        notes.push(`${COUNT(ages.withoutBirthYear)} have no birth year on file and are not counted.`);
       }
-      if ((set.estimatedBirthYears ?? 0) > 0) {
-        notes.push(`${COUNT(set.estimatedBirthYears)} birth years were estimated at intake rather than reported.`);
+      if ((ages.estimatedBirthYears ?? 0) > 0) {
+        notes.push(`${COUNT(ages.estimatedBirthYears)} were estimated at intake rather than reported.`);
+      }
+      if ((ages.implausibleBirthYears ?? 0) > 0) {
+        notes.push(
+          `${COUNT(ages.implausibleBirthYears)} carry a birth year of 1901 or earlier, ` +
+          'which is a placeholder rather than a real age — they are shown rather than hidden.'
+        );
       }
     }
 
     return {
-      title: `Age of People Served — ${label}${ages.asOfYear ? ` (as of ${ages.asOfYear})` : ''}`,
+      title: 'Age of People Served',
       categories: bands.map((b: any) => b.label),
-      series: [{ name: unit, values: bands.map((b: any) => b.count ?? 0) }],
+      series: [{ name: 'People', values: bands.map((b: any) => b.count ?? 0) }],
       categoryColumn: 'age band',
       note: notes.join(' '),
     };
