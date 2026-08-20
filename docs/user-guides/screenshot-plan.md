@@ -11,6 +11,12 @@ telling the reader what to do.
 - Capture both light and dark mode for every in-app screenshot so the guide
   matches the reader's current theme.
 - Update the matching guide when a screenshot is added.
+- **Type a placeholder into the field rather than cropping around it.** Where a
+  screen shows a real address or identifier, edit the input to a generic value —
+  `admin@org-name.com` — and capture that. Better than cropping, which distorts
+  the framing, and better than skipping, which leaves the guide blind. It is
+  also more correct for a product other agencies will adopt: the reader should
+  see the shape of the setting, not this agency's value. Do not save the change.
 - Store in-app help screenshots in `packages/frontend/public/help-screenshots/`
   and reference them from guides with `/help-screenshots/file-name.png`.
 - Use the base filename for the light screenshot and the matching `-dark`
@@ -133,16 +139,5 @@ after starting an import; the capture session stopped before that write.
 
 ## Known gaps, 2026-08-19
 
-- **`admin-overview` needs re-capturing.** The current pair rendered at roughly
-  2x zoom (1440x820 of device pixels covering about 720 CSS pixels), so the card
-  text is cut off at the right edge. Every other capture is a correct 1440x900.
-- **Capturing Admin correctly re-introduces a decision.** The Sign-in tab avoids
-  the staff roster, which is why it was chosen over the Staff tab — but the
-  sign-in notice carries `technology@williamtemple.org` at y=746, inside the
-  900px fold. The present capture excludes it only by accident of the zoom. A
-  corrected full-height capture would show it. It is a role address the app
-  displays to every user rather than anyone's personal address, but this
-  repository is public. Ask before capturing it; framing at 1440x730 excludes
-  the notice if the answer is no.
 - **`add-data-review` not captured.** Reconciliation totals appear only after an
   import begins, and capturing it means writing data. Correctly skipped.
