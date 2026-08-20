@@ -260,6 +260,8 @@ export interface ServiceAnalytics {
     daysWithTurnAway: number;
     daysRecorded: number;
     capacityReachedDays: number;
+    /** The administrator's icon for the capacity metric; null if none or several. */
+    capacityIconName: string | null;
     firstRecordedDate: string | null;
   };
   /**

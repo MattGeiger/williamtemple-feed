@@ -163,6 +163,16 @@ export interface ServiceAnalytics {
     daysWithTurnAway: number;
     daysRecorded: number;
     capacityReachedDays: number;
+    /**
+     * The administrator's chosen icon for the capacity metric, so the card
+     * shows what they configured rather than a second hardcoded list.
+     *
+     * Null when there is no capacity metric, and also when there is more than
+     * one: `capacityReachedDays` counts distinct dates across all of them, so
+     * a single icon would be picking one metric's identity to stand for a
+     * figure that is not only about it.
+     */
+    capacityIconName: string | null;
     firstRecordedDate: string | null;
   };
   /**
@@ -537,9 +547,11 @@ export async function getServiceAnalytics(
   const unmetKeys = definitions
     .filter((row) => row.semanticRole === 'unmet_demand')
     .map((row) => row.metricKey);
-  const capacityKeys = definitions
-    .filter((row) => row.semanticRole === 'capacity_marker')
-    .map((row) => row.metricKey);
+  const capacityDefinitions = definitions.filter((row) => row.semanticRole === 'capacity_marker');
+  const capacityKeys = capacityDefinitions.map((row) => row.metricKey);
+  const capacityIconName = capacityDefinitions.length === 1
+    ? capacityDefinitions[0].iconName
+    : null;
 
   const unmetBucketRows = unmetKeys.length === 0 ? [] :
     await client.$queryRawUnsafe<Array<{ bucket: string; total: number | null }>>(
@@ -1281,6 +1293,7 @@ ${Object.entries(LANGUAGE_LABEL_ALIASES)
       daysWithTurnAway: Number(unmetTotals[0]?.daysWithTurnAway ?? 0),
       daysRecorded: Number(loggedDays[0]?.days ?? 0),
       capacityReachedDays: Number(capacityDays[0]?.days ?? 0),
+      capacityIconName,
       firstRecordedDate: unmetTotals[0]?.firstDate ?? null,
     },
     languages: {
