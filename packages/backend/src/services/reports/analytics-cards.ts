@@ -2428,8 +2428,10 @@ export const CLIENTS_GEOGRAPHY: AnalyticsCard = {
       : top;
 
     const notes = [
-      'A postal code is not a catchment area, and this is not a map — it is where ' +
-      'households said they live.',
+      // Was "this is not a map" — written when the export was a bar list, and
+      // left standing above an actual map, contradicting the picture beneath it.
+      'A postal code is not a catchment area — a circle marks the code, not an ' +
+      'address.',
     ];
     if (geography.noFixedAddressAsked && (geography.noFixedAddress ?? 0) > 0) {
       notes.push(

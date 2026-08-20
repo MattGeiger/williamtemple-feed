@@ -95,3 +95,30 @@ describe('CLIENTS_GEOGRAPHY export contract', () => {
     expect(svg).not.toContain('<circle');
   });
 });
+
+describe('basemap', () => {
+  test('draws county outlines under the bubbles at metro zoom', () => {
+    const svg = bubbleMapSvg([NW_PORTLAND, BEAVERTON, GRESHAM], 900, 420);
+    expect(svg).toContain('<path');           // land is drawn
+    expect(svg.indexOf('<path')).toBeLessThan(svg.indexOf('<circle')); // and underneath
+  });
+
+  test('falls back to state outlines when the frame is too wide for counties', () => {
+    // Coast to coast. Nearly all 3,231 counties would intersect this frame, so
+    // a path count nowhere near that is the proof it switched to states.
+    // Counting paths rather than comparing to the local view on purpose: states
+    // carry many rings each (islands, coastline), so the wide view has *more*
+    // shapes than one metro's counties, just far coarser ones.
+    const wide = bubbleMapSvg(
+      [point('W', 45.5, -122.6, 100), point('E', 40.7, -74.0, 100)],
+      900, 420, 1,
+    );
+    expect((wide.match(/<path/g) ?? []).length).toBeLessThan(1000);
+    expect(wide).toContain('<circle');
+  });
+
+  test('land never escapes the frame', () => {
+    const svg = bubbleMapSvg([NW_PORTLAND, BEAVERTON, GRESHAM], 900, 420);
+    expect(svg).toContain('clipPath');
+  });
+});

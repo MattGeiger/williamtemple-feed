@@ -13,9 +13,14 @@ All notable changes to FEED are documented here. This project adheres to
   The PDF now draws the same picture: circles in the same places, scaled by area,
   the busiest five labelled, and a scale bar for distance.
 
+  County outlines are drawn beneath the circles — states instead, once the frame
+  is wide enough that county lines would be noise. Without them the card was a
+  scatter plot: points correct relative to each other, with nothing to place
+  them against.
+
   It is drawn server-side from the postal-code centroids the payload already
-  carries, so it needs no browser, no map tiles, no network, and no new
-  dependency. Capturing the on-screen map was rejected outright: a saved report
+  carries and public-domain Census boundaries on disk, so it needs no browser,
+  no map tiles, and no network. Capturing the on-screen map was rejected outright: a saved report
   re-runs server-side with no browser present, so that would have worked once
   and broken every saved report afterwards.
 
