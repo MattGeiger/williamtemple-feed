@@ -18,6 +18,8 @@ open the calendar. The calendar can choose a different past date even when it
 falls outside the recurring schedule, such as a special food-distribution
 event.
 
+![Service Log with the service-date control and configured daily metric cards](/help-screenshots/service-log-day.png)
+
 ## Record The Day
 
 1. Choose whether the pantry was **Open** or **Closed**.
@@ -47,6 +49,8 @@ These definitions determine which fields staff see when recording a day.
 Select **Add Metric** to configure another field, or use a row's **Actions**
 menu to edit an existing definition. Staff can use configured metrics but
 cannot change the organization-wide definitions.
+
+![Add Service Metric dialog with display fields and the searchable icon selection grid](/help-screenshots/service-log-metric-dialog.png)
 
 The three steps cover:
 

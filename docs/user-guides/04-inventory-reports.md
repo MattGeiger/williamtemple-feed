@@ -40,6 +40,8 @@ days, 6 months, 12 months, or the year to date.
 History begins when operational tracking was introduced. Earlier dates are
 untracked and are not displayed as zero availability.
 
+![Analytics workspace with Operations, Procurement, Service, and Clients lens tabs above the All date-range preset](/help-screenshots/analytics-lens-tabs.png)
+
 ## Read The Analytics
 
 - **Availability Summary** shows the current available, unavailable, Limited
@@ -167,6 +169,8 @@ completing intake.
 Because the two records start at different times, every Service card states
 what its figure rests on. Read the note under a card before quoting its number.
 
+![Service Summary with Service Log and intake-record totals, source labels, and the People served footnote](/help-screenshots/analytics-service-summary.png)
+
 - **Service Summary** gives visits, people served, and households served, then
   breaks households down by how service was delivered. Ancillary counts such as
   camping-gear requests are reported in their own units rather than as
@@ -190,6 +194,8 @@ what its figure rests on. Read the note under a card before quoting its number.
   between a busy Thursday and a Friday backpack session. A method begins
   where that program began — Emergency Bags starts in November 2025, not at the
   left edge of the chart.
+
+![Turned Away card with three summary tiles and the service-day chart](/help-screenshots/analytics-turned-away.png)
 
 Over a range longer than about three months the charts switch from daily to
 monthly totals, and the current month is left off until it finishes — a partial
@@ -219,6 +225,9 @@ not everyone on file.
   household members. Birth years of 1901 or earlier are placeholders rather
   than real ages and are shown rather than hidden, so the top band can be read
   as a data-entry signal.
+
+  ![Age of People Served chart with all eight age bands and four source notes](/help-screenshots/analytics-clients-age.png)
+
 - **Where Households Live** plots postal codes on a map, one circle per code,
   sized by how many households gave it. The circle's *area* tracks the count,
   so a code with twice the households looks twice as large rather than four
@@ -228,6 +237,8 @@ not everyone on file.
   give, and plotting those would draw the pantry's own neighborhood as the
   place its clients live. A handful of codes give no map location at all — a
   PO-box-only code, for one — and are noted beneath the map instead.
+
+  ![Where Households Live bubble map with postal-code markers across the Portland metro and source notes below](/help-screenshots/analytics-clients-map.png)
 
   One code is called out beneath the map as over-represented: the agency's own.
   Households recorded as having no fixed address are already left off, but the

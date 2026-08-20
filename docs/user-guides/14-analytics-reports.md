@@ -24,6 +24,10 @@ behind the scenes.
    type your own, drag the cards into the order you want, choose what to
    include, and click **Generate**.
 
+![Analytics selection mode with three cards chosen and numbered in report order](/help-screenshots/analytics-report-selection.png)
+
+![Generate report review dialog listing the selected cards, title, and output choices](/help-screenshots/analytics-report-review.png)
+
 Your report downloads as a ZIP file. Open it and you will find:
 
 - a **PDF** with your charts and tables, ready to print or email;
