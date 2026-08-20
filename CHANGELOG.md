@@ -5,6 +5,11 @@ All notable changes to FEED are documented here. This project adheres to
 
 ## [Unreleased]
 
+## [1.5.0-RELEASE-PREVIEW] — 2026-08-20
+
+Release candidate for 1.5.0. Carries everything from beta.17 through beta.21.
+The remaining gate is a verified restore against real production data.
+
 ### Changed
 
 - **Where Households Live prints as a map.** A generated report used to fall back

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## Version 1.5.0-RELEASE-PREVIEW — 2026-08-20
+
+*Release candidate — the same build as beta.21, renamed to say what it is.*
+
 ## Version 1.5.0-beta.21 — 2026-08-19
 
 *Beta — two import fixes found on the first real use of beta.20.*
