@@ -46,20 +46,20 @@ its place rather than decorating.
 
 | Priority | Guide | Section | Why prose is failing | Proposed screenshot | Status |
 |---|---|---|---|---|---|
-| **High** | Analytics Reports | Making a report | "The cards start to wiggle. Click the ones you want. Each gets a number showing where it will appear" — an entirely visual behaviour explained in words. The single clearest case in the set. | Selection mode active, several cards chosen and numbered | Planned |
-| **High** | Analytics Reports | Making a report | The Review step has drag-to-reorder, a name field, and include/exclude toggles; three paragraphs describe one screen. | Review dialog with cards ordered and the suggested name visible | Planned |
-| **High** | Data Management | Add Data | Import is the highest-stakes staff action and the flow is multi-step. | Drop area, then the detected-source review with reconciliation counts | Planned |
+| **High** | Analytics Reports | Making a report | "The cards start to wiggle. Click the ones you want. Each gets a number showing where it will appear" — an entirely visual behaviour explained in words. The single clearest case in the set. | Selection mode active, several cards chosen and numbered | Added |
+| **High** | Analytics Reports | Making a report | The Review step has drag-to-reorder, a name field, and include/exclude toggles; three paragraphs describe one screen. | Review dialog with cards ordered and the suggested name visible | Added |
+| **High** | Data Management | Add Data | Import is the highest-stakes staff action and the flow is multi-step. | Drop area, then the detected-source review with reconciliation counts | Partial — drop area Added; review not captured |
 | **High** | Data Management | Add Data | **New in beta.21**: a rejected file now names the record and offers Try Another File. Staff should recognise it before meeting it. | The failure panel with a real error message | Planned |
-| **High** | Inventory & Analytics | Read Client Analytics | Describing a bubble map in prose is close to pointless; a reader cannot picture bubble-area scaling. | Where Households Live, Portland metro, bubbles visible | Planned |
-| **High** | Service Log | Record The Day | Already listed below as Planned since before 1.5; still uncaptured, and the metric cards are the daily workflow. | Service Date control with configured metric cards | Planned |
-| Medium | Inventory & Analytics | Read The Analytics | Four tabs and a date-range control described in text; one image orients the whole page. | Analytics workspace, tab row and date presets visible | Planned |
+| **High** | Inventory & Analytics | Read Client Analytics | Describing a bubble map in prose is close to pointless; a reader cannot picture bubble-area scaling. | Where Households Live, Portland metro, bubbles visible | Added |
+| **High** | Service Log | Record The Day | Already listed below as Planned since before 1.5; still uncaptured, and the metric cards are the daily workflow. | Service Date control with configured metric cards | Added |
+| Medium | Inventory & Analytics | Read The Analytics | Four tabs and a date-range control described in text; one image orients the whole page. | Analytics workspace, tab row and date presets visible | Added |
 | Medium | Inventory & Analytics | Read Service Analytics | The Households/Visits toggle is a control the reader must find before the text makes sense. | Households by Season with the measure toggle | Planned |
 | Medium | Data Management | Restore A Backup | Recovery under stress; the confirmation step lists what will be replaced. | Restore confirmation with the unit list | Planned |
 | Medium | Admin | Inviting someone new | A form with role choice; currently 93 lines with nothing shown. | Invite dialog with role selection | Planned |
-| Medium | Admin | Choosing how strict sign-in is | The strictness options are the page's real decision and are easy to mis-set. | Sign-in policy controls | Planned |
-| Medium | Settings | Update The Weekly Schedule | A grid of day rows with open/close times — visual by nature. | Operating Hours weekly schedule | Planned |
+| Medium | Admin | Choosing how strict sign-in is | The strictness options are the page's real decision and are easy to mis-set. | Sign-in policy controls | Added |
+| Medium | Settings | Update The Weekly Schedule | A grid of day rows with open/close times — visual by nature. | Operating Hours weekly schedule | Added |
 | Low | Settings | Choose How FEED Looks | Theme choice is self-evident once found. | Appearance setting | Planned |
-| Low | Service Log | Configure Service Metrics | Three-step dialog; already listed below. | Metric dialog with icon selection | Planned |
+| Low | Service Log | Configure Service Metrics | Three-step dialog; already listed below. | Metric dialog with icon selection | Added |
 
 ### Deliberately not proposed
 
@@ -81,6 +81,29 @@ addresses. **Data Management and Admin screens are not automatically safe**:
 import history shows filenames, and Admin shows real email addresses. Use
 synthetic values or redact before capturing those two.
 
+## 1.5.0 Captures Added
+
+| Guide | Section | Filename | What it shows | Status |
+|---|---|---|---|---|
+| Inventory Analytics | Choose A Date Range | `analytics-lens-tabs` | Four lens tabs and the All preset | Added |
+| Generating Reports | Making a report | `analytics-report-selection` | Three selected cards numbered in report order | Added |
+| Generating Reports | Making a report | `analytics-report-review` | Review dialog with title, ordered cards, and output choices | Added |
+| Inventory Analytics | Read Service Analytics | `analytics-service-summary` | Service Log and intake totals with source pills and footnotes | Added |
+| Inventory Analytics | Read Service Analytics | `analytics-turned-away` | Three summary tiles and the Turned Away chart | Added |
+| Inventory Analytics | Read Client Analytics | `analytics-clients-map` | Household bubble map with 237 rendered postal-code markers | Added |
+| Inventory Analytics | Read Client Analytics | `analytics-clients-age` | Eight age bands and four source notes | Added |
+| Service Log | Record The Day | `service-log-day` | Service-date control and configured metric cards | Added |
+| Service Log | Configure Service Metrics | `service-log-metric-dialog` | Metric dialog with searchable icon selection | Added |
+| Data Management | Review Import History | `data-management-overview` | Coverage, data rules, and import history | Added |
+| Data Management | Add Data | `add-data-drop` | CSV drop area before file selection | Added |
+| Settings | Open Operating Hours | `settings-overview` | Settings page overview | Added |
+| Settings | Update The Weekly Schedule | `settings-operating-hours` | Recurring operating-hours control | Added |
+| Admin | Choosing how strict sign-in is | `admin-overview` | Sign-in tab cropped before any roster or email address | Added |
+
+The detected-source reconciliation review remains uncaptured. The synthetic
+fixture reaches source confirmation, but reconciliation totals appear only
+after starting an import; the capture session stopped before that write.
+
 ## Planned Screenshots
 
 | Priority | Guide | Section | User question | Proposed screenshot | Notes | Status |
@@ -91,8 +114,8 @@ synthetic values or redact before capturing those two.
 | Medium | Dashboard & Alerts | How To Review Alerts | Where are alerts? | Alert bell and alerts dialog | Show one safe example alert | Planned |
 | High | Inventory | How To Update Stock Status | How do I mark an item in stock? | Food Items table with status filter and row menu | Captured authenticated dev data; row menu screenshot can be added later if needed | Added |
 | Medium | Inventory | Categories | Where do limits change? | Category edit dialog | Use common category example | Planned |
-| High | Inventory Analytics | Read The Analytics | Where do I review availability and service pressure? | Analytics workspace with date range, summary, charts, and history tables | Use representative inventory data without client information | Planned |
-| High | Inventory Analytics | Generate Analytics Reports | How do I combine cards into one report? | Analytics selection mode and Generate Report review | Avoid showing locally downloaded files or identifying data | Planned |
+| High | Inventory Analytics | Read The Analytics | Where do I review availability and service pressure? | Analytics workspace with date range, summary, charts, and history tables | Captured lens navigation plus focused Service and Clients cards | Added |
+| High | Inventory Analytics | Generate Analytics Reports | How do I combine cards into one report? | Analytics selection mode and Generate Report review | Captured without downloaded filenames or identifying data | Added |
 | Medium | Inventory | Optional Supply Information | Where can I add an optional estimate or supply source? | Food Item editor with Supply tab selected | Show Unknown defaults and no client information | Planned |
 | High | Languages & Translations | What Translations Does | Where do translations live? | Translations table | Captured authenticated dev data | Added |
 | High | Languages & Translations | How To Find Missing Translations | How do I repair gaps? | Find Missing Translations dialog | Captured authenticated dev data | Added |
@@ -102,8 +125,24 @@ synthetic values or redact before capturing those two.
 | High | Shopping List Builder | What You Build | What am I editing? | Builder canvas with side panels | Captured authenticated dev data | Added |
 | High | Shopping List Builder | Translation Settings | How do I show English and translation? | Translation Settings dialog | Show row settings when possible | Planned |
 | Medium | AI Configuration | What It Controls | Where are provider settings? | AI Configuration list | Captured authenticated dev data; no API key values visible | Added |
-| High | Data Management | Add Data | Where do I import a CSV? | Unified Add Data drop area and detected-source review | Use a synthetic file with no client data | Planned |
-| High | Service Log | Record The Day | Where do I record service counts? | Service Date control and configured metric cards | Use synthetic counts and generic metric names | Planned |
-| Medium | Service Log | Configure Service Metrics | How do I add or edit a metric? | Three-step metric dialog with icon selection | Use generic pantry terminology | Planned |
+| High | Data Management | Add Data | Where do I import a CSV? | Unified Add Data drop area and detected-source review | Drop area captured; review stopped before an import write | Partial |
+| High | Service Log | Record The Day | Where do I record service counts? | Service Date control and configured metric cards | Captured current empty daily entry honestly | Added |
+| Medium | Service Log | Configure Service Metrics | How do I add or edit a metric? | Three-step metric dialog with icon selection | Captured the first step without entering or saving data | Added |
 | Medium | Support & Troubleshooting | Opening Help | Where do I search for help? | Help search results | Captured authenticated dev data | Added |
 | Medium | AI Configuration | Cost Limits | Where are spending limits? | Cost or usage step in model dialog | Use safe example values | Planned |
+
+## Known gaps, 2026-08-19
+
+- **`admin-overview` needs re-capturing.** The current pair rendered at roughly
+  2x zoom (1440x820 of device pixels covering about 720 CSS pixels), so the card
+  text is cut off at the right edge. Every other capture is a correct 1440x900.
+- **Capturing Admin correctly re-introduces a decision.** The Sign-in tab avoids
+  the staff roster, which is why it was chosen over the Staff tab — but the
+  sign-in notice carries `technology@williamtemple.org` at y=746, inside the
+  900px fold. The present capture excludes it only by accident of the zoom. A
+  corrected full-height capture would show it. It is a role address the app
+  displays to every user rather than anyone's personal address, but this
+  repository is public. Ask before capturing it; framing at 1440x730 excludes
+  the notice if the answer is no.
+- **`add-data-review` not captured.** Reconciliation totals appear only after an
+  import begins, and capturing it means writing data. Correctly skipped.

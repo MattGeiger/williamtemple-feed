@@ -7,11 +7,15 @@ source identity instead of becoming Food Items or native Service Log entries.
 Open **Information → Data** in the sidebar. The page title remains **Data
 Management**.
 
+![Data Management overview with source coverage, data rules, and import history](/help-screenshots/data-management-overview.png)
+
 ## Add Data
 
 Select **Add Data**, then drop a CSV into the window or choose one from your
 device. FEED identifies the file from its structure; you do not choose or force
 a source type.
+
+![Add Data dialog with the CSV drop area before a file is selected](/help-screenshots/add-data-drop.png)
 
 The operational flows recognize:
 

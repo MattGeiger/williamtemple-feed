@@ -7,6 +7,8 @@ Changing someone's role never changes what they can see. Everyone who signs in
 sees the same shared inventory, translations, templates, and reports. Roles
 decide who can manage access, not who sees what.
 
+![Admin page on the Sign-in tab with the staff roster kept out of frame](/help-screenshots/admin-overview.png)
+
 ## Staff and Administrators
 
 **Staff** can do all the everyday work: inventory, translations, shopping

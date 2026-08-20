@@ -8,12 +8,16 @@ everyone using FEED, and your own Appearance choice, which does not.
 Open **Tools & Settings → Settings** in the sidebar. The Operating Hours section shows
 all seven days and the pantry timezone.
 
+![Settings page with Operating Hours and Appearance controls](/help-screenshots/settings-overview.png)
+
 ## Update The Weekly Schedule
 
 1. Check each day when the pantry is open to clients.
 2. Set the opening and closing time for every open day.
 3. Choose the timezone where pantry service takes place.
 4. Select **Save Operating Hours**.
+
+![Recurring Operating Hours schedule with open days, opening times, and closing times](/help-screenshots/settings-operating-hours.png)
 
 The change takes effect on the pantry's current local date. FEED remembers
 earlier schedules automatically, so a later change does not rewrite past

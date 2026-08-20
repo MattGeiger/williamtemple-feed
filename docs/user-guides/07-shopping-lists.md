@@ -10,6 +10,8 @@ When you export a list, FEED uses current inventory data.
 
 ## When To Use This Page
 
+![Shopping Lists page showing saved templates in a table](/help-screenshots/shopping-lists-table.png)
+
 Use Shopping Lists when you already have a saved template and need to print or download it.
 
 Use the Builder when you need to design or change a template.
