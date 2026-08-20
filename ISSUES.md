@@ -39,7 +39,7 @@ Everything else in this file. The application is shippable today.
 ## Open Issues
 
 ### #75 — A failed import shows an empty dialog instead of the reason it failed
-**Priority**: High · **Status**: Fixed in source 2026-08-19 (beta.21); awaiting deployment
+**Priority**: High · **Status**: Fixed; deployed 2026-08-19 in beta.21
 **Bucket**: Data Management / Add Data
 
 Found during the beta.20 deployment, re-importing SIMC visits. The import
@@ -82,7 +82,7 @@ the data file…" again.
 ---
 
 ### #76 — SIMC import rejects a one-person household that has no Head of Household ticked
-**Priority**: High · **Status**: Fixed in source 2026-08-19 (beta.21); awaiting deployment
+**Priority**: High · **Status**: Fixed; deployed 2026-08-19 in beta.21
 **Bucket**: Data import / SIMC adapter
 
 The whole import — 3,799 visits — aborted on a single row. Visit 26685486 has
@@ -110,7 +110,7 @@ the second attempt could not be told apart from the first without a shell.
 ---
 
 ### #73 — Restore aborted on any instance with AI usage telemetry
-**Priority**: High · **Status**: Fixed in source 2026-08-15; awaiting deployment
+**Priority**: High · **Status**: Fixed; deployed 2026-08-19 in beta.20
 **Bucket**: Data Management / backup and restore
 
 Found 2026-08-15 restoring a production artifact onto a development database.
@@ -185,8 +185,12 @@ happens to the fresh-instance bootstrap on a restore into an empty instance,
 which is the case the include-and-neutralise design existed to handle.
 
 ### #72 — Import progress panel misreported which stage was running
-**Priority**: Medium · **Status**: Fixed in source 2026-08-15; awaiting deployment
+**Priority**: Medium · **Status**: Fixed; deployed 2026-08-19 in beta.20
 **Bucket**: Data Management / import UX
+
+**Confirmed in production 2026-08-19**: the panel tracked validate → review →
+activate through a real import. Its blind spot for *failed* jobs was a separate
+defect, found the same day — see #75.
 
 Found during the first successful end-to-end Link2Feed import on beta.15. The
 import worked; the panel describing it did not.
@@ -231,7 +235,7 @@ light and dark themes. The harness caught the full-bar-during-reconciliation
 case, which unit tests and a live run would both have missed.
 
 ### #71 — Link2Feed imports needing review were stranded mid-preparation
-**Priority**: High · **Status**: Fixed in source 2026-08-15; awaiting deployment
+**Priority**: High · **Status**: Fixed; deployed 2026-08-19 in beta.20
 **Bucket**: Data Management / Link2Feed ingestion
 
 Introduced by #67 and found in production on beta.14. Detaching preparation
@@ -276,7 +280,7 @@ synthetic generator in
 that check runnable in CI without a PII file.
 
 ### #70 — Link2Feed adapter could not parse a native Link2Feed export
-**Priority**: High · **Status**: Fixed in source 2026-08-14; awaiting deployment
+**Priority**: High · **Status**: Fixed; deployed 2026-08-19 in beta.20
 **Bucket**: Data Management / Link2Feed ingestion
 
 The Link2Feed visit adapter had never successfully parsed a real Link2Feed
@@ -330,8 +334,11 @@ Verified against WTH's real 25,124,653-byte export: 79,308 rows parse in 3.27 s
 on the developer Mac with 0 blocking issues.
 
 ### #69 — Staged import files are never swept; PII can persist indefinitely
-**Priority**: High · **Status**: Fixed in source 2026-08-14; awaiting deployment
+**Priority**: High · **Status**: Fixed; deployed 2026-08-19 in beta.20
 **Bucket**: Data Management / data protection
+
+**Confirmed in production 2026-08-19**: `Data import staging sweeper started`
+appears in the backend log on boot.
 
 A Link2Feed visits export is the most sensitive data FEED handles — client IDs,
 birth years, demographic responses. Uploads stream to a private staging file
@@ -376,7 +383,7 @@ therefore asserts the startup wiring directly alongside the behavioral cases;
 that guard was verified to fail against the pre-fix entrypoint.
 
 ### #68 — nginx rejects imports at 16 MB, against a 64 MB application ceiling
-**Priority**: High · **Status**: Fixed in source 2026-08-14; awaiting deployment
+**Priority**: High · **Status**: Fixed; deployed 2026-08-19 in beta.20
 **Bucket**: Data Management / deployment configuration
 
 `docker/nginx.conf` sets `client_max_body_size 16m` on `location /api/`, with a
@@ -410,8 +417,12 @@ the dev machine); the change is one directive value plus comments, and the
 deploy's own container start will surface a config error immediately.
 
 ### #67 — Imports run inside one synchronous request: no progress, ~100s ceiling
-**Priority**: High · **Status**: Fixed in source 2026-08-14; awaiting deployment
+**Priority**: High · **Status**: Fixed; deployed 2026-08-19 in beta.20
 **Bucket**: Data Management / import UX and architecture
+
+**Confirmed in production 2026-08-19**: a 3,799-visit SIMC import ran as a
+background job with a live progress panel, and a second one survived the
+request that started it.
 
 `POST /api/data-import/jobs` (`routes/data-import.ts:291`) awaits the entire
 `prepare()` before responding. For Link2Feed that one request performs staging,
