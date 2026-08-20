@@ -18,7 +18,7 @@ const HONOLULU = point('96814', 21.2969, -157.8460, 1);
 describe('bubbleMapSvg', () => {
   test('centres on the most frequent postal code, not the mean', () => {
     const svg = bubbleMapSvg([NW_PORTLAND, BEAVERTON, GRESHAM], 900, 420);
-    const circles = [...svg.matchAll(/<circle cx="([\d.]+)" cy="([\d.]+)" r="([\d.]+)"/g)];
+    const circles = [...svg.matchAll(/data-postal-code="[^"]*" cx="([\d.]+)" cy="([\d.]+)" r="([\d.]+)"/g)];
     const biggest = circles.reduce((top, c) => (Number(c[3]) > Number(top[3]) ? c : top), circles[0]);
 
     // The busiest code sits at the centre of the frame.
@@ -39,7 +39,8 @@ describe('bubbleMapSvg', () => {
 
   test('bubbles scale by area, so twice the households is not four times the circle', () => {
     const svg = bubbleMapSvg([point('A', 45.52, -122.68, 400), point('B', 45.53, -122.66, 100)], 900, 420);
-    const radii = [...svg.matchAll(/r="([\d.]+)"/g)].map(m => Number(m[1]));
+    // Only the bubbles: place-name dots are circles too.
+    const radii = [...svg.matchAll(/data-postal-code="[^"]*"[^>]*r="([\d.]+)"/g)].map(m => Number(m[1]));
     const [big, small] = [Math.max(...radii), Math.min(...radii)];
 
     // Radius carries a +3 floor, so compare the scaled part: 4x the value is 2x the scaled radius.
@@ -133,16 +134,16 @@ describe('place names', () => {
 
   test('rejects labels that would collide rather than piling them up', () => {
     const svg = bubbleMapSvg([NW_PORTLAND, BEAVERTON, GRESHAM], 900, 420);
-    const drawn = [...svg.matchAll(/letter-spacing="[^"]*">([^<]+)</g)].map(m => m[1]);
+    const drawn = [...svg.matchAll(/data-place="([^"]*)"/g)].map(m => m[1]);
     // 84 US places sit in this frame; only the ones that fit are drawn.
     expect(drawn.length).toBeGreaterThan(2);
-    expect(drawn.length).toBeLessThan(14);
+    expect(drawn.length).toBeLessThanOrEqual(8);
     expect(new Set(drawn).size).toBe(drawn.length);
   });
 
   test('grades by population, so the big places read first', () => {
     const svg = bubbleMapSvg([NW_PORTLAND, BEAVERTON, GRESHAM], 900, 420);
-    expect(svg).toMatch(/font-size="12"[^>]*>PORTLAND</);
+    expect(svg).toMatch(/data-place="Portland"[^>]*font-size="12"/);
   });
 });
 

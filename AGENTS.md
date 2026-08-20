@@ -716,6 +716,21 @@ kept since October 2023.
   once per process (~16ms), around 285 vertices at metro zoom. Public domain and
   generic across the country, matching `us-zips`' own scope, so nothing here is
   an agency-specific asset that white-labelling would have to undo.
+- **Look at the PDF, not the SVG.** Three defects shipped in this card because I
+  previewed the standalone SVG and never generated a report and opened it: a
+  blank first page, a key header printing through its own first row, and a place
+  name under a bubble. None were visible in the SVG alone. Render the real
+  artifact — `buildAnalyticsReport` with `includePdf`, then `qlmanage -t` the
+  result — before calling a print change done.
+- **A print card has a height budget.** Letter landscape at 0.5in margins leaves
+  roughly 447pt under the report header, and `.card` is `break-inside: avoid`,
+  so a card one pixel too tall does not overflow gracefully — it jumps whole to
+  the next page and leaves the first blank. The map is 900x330 for that reason,
+  not for looks. Adding anything to this card means re-checking the budget.
+- **Do not fill political boundaries.** Counties tile the entire land area, so a
+  fill conveys no land/water information and produces a hard edge wherever a
+  polygon happens to end inside the frame — which reads as a rendering fault.
+  Stroke only.
 - **The printed map centres on the most-frequent postal code.** Deterministic,
   needs no tuning, and for most agencies lands on or beside their own address.
   The extent covers 95% of placed households by distance from that centre, so a

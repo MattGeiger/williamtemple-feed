@@ -564,7 +564,13 @@ const milesPerLonDegree = (latitude: number) => 69.172 * Math.cos((latitude * Ma
 export function bubbleMapSvg(
   points: MapPoint[],
   width = 900,
-  height = 420,
+  /**
+   * Sized to fit, not chosen for looks. A letter-landscape page leaves roughly
+   * 447pt under the report header, and the card also carries a title, a note
+   * and the ranked key. At 420 the whole card overflowed and `break-inside:
+   * avoid` moved it to page two, leaving page one blank below the header.
+   */
+  height = 330,
   coveragePercent = 0.95,
 ): string {
   const usable = points.filter(p => Number.isFinite(p.latitude) && Number.isFinite(p.longitude) && p.value > 0);
@@ -631,7 +637,7 @@ export function bubbleMapSvg(
           return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)} ${y.toFixed(1)}`;
         })
         .join('');
-      return `<path d="${d}Z" fill="#F7F9FB" stroke="${GRID}" stroke-width="0.7"/>`;
+      return `<path d="${d}Z" fill="none" stroke="#C9D4E0" stroke-width="1"/>`;
     })
     .join('');
 
@@ -644,7 +650,7 @@ export function bubbleMapSvg(
    * overlapping names is worse than four clear ones.
    */
   const placed: { x: number; y: number; w: number }[] = [];
-  const places = placesFor(frameWest, frameEast, frameSouth, frameNorth, 14)
+  const places = placesFor(frameWest, frameEast, frameSouth, frameNorth, 8)
     .map(place => {
       const { x, y } = project(place.longitude, place.latitude);
       const major = place.population >= 100000;
@@ -655,8 +661,12 @@ export function bubbleMapSvg(
       const clash = placed.some(q => Math.abs(q.x - x) < (q.w + w) / 2 + 6 && Math.abs(q.y - y) < size + 6);
       if (clash) return '';
       placed.push({ x, y, w });
-      return `<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" font-size="${size}" text-anchor="middle" `
-        + `fill="${MUTED}" letter-spacing="${major ? 0.8 : 0}">${esc(text)}</text>`;
+      // Halo, because a place name crossing a bubble is otherwise unreadable —
+      // PORTLAND sat under the biggest circle and vanished.
+      return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="1.6" fill="${MUTED}"/>`
+        + `<text data-place="${escAttribute(place.name)}" x="${x.toFixed(1)}" y="${(y - 5).toFixed(1)}" font-size="${size}" text-anchor="middle" `
+        + `fill="${INK}" letter-spacing="${major ? 0.8 : 0}" `
+        + `stroke="#FFFFFF" stroke-width="2.6" paint-order="stroke" stroke-linejoin="round">${esc(text)}</text>`;
     })
     .join('');
 
@@ -674,7 +684,7 @@ export function bubbleMapSvg(
     .map(p => {
       const { x, y } = toXY(p);
       const r = 3 + 26 * Math.sqrt(p.value / largest);
-      return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${r.toFixed(1)}" `
+      return `<circle data-postal-code="${escAttribute(p.label)}" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${r.toFixed(1)}" `
         + `fill="${PALETTE[1]}" fill-opacity="0.45" stroke="${PALETTE[0]}" stroke-width="0.8"/>`;
     })
     .join('');
@@ -686,8 +696,15 @@ export function bubbleMapSvg(
     .map(p => {
       const { x, y } = toXY(p);
       const r = 3 + 26 * Math.sqrt(p.value / largest);
-      return `<text x="${x.toFixed(1)}" y="${(y - r - 4).toFixed(1)}" font-size="10" `
-        + `text-anchor="middle" fill="${INK}">${esc(p.label)} · ${esc(fmt(p.value))}</text>`;
+      const text = `${p.label} · ${fmt(p.value)}`;
+      const w = text.length * 10 * 0.58;
+      const ly = y - r - 4;
+      // Same `placed` list the city names used, so the two sets cannot collide.
+      if (placed.some(q => Math.abs(q.x - x) < (q.w + w) / 2 + 6 && Math.abs(q.y - ly) < 14)) return '';
+      placed.push({ x, y: ly, w });
+      return `<text x="${x.toFixed(1)}" y="${ly.toFixed(1)}" font-size="10" `
+        + `text-anchor="middle" fill="${INK}" stroke="#FFFFFF" stroke-width="2.6" `
+        + `paint-order="stroke" stroke-linejoin="round">${esc(text)}</text>`;
     })
     .join('');
 
@@ -712,7 +729,7 @@ export function bubbleMapSvg(
   const clipId = 'mapframe';
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" font-family="Helvetica, Arial, sans-serif">`
     + `<defs><clipPath id="${clipId}"><rect x="0" y="0" width="${width}" height="${height}"/></clipPath></defs>`
-    + `<g clip-path="url(#${clipId})">${land}${places}${circles}</g>`
+    + `<g clip-path="url(#${clipId})">${land}${circles}${places}</g>`
     + labels + scale + offNote
     + `<text x="${width - 6}" y="${height - 5}" font-size="8" text-anchor="end" fill="${MUTED}">`
     + `Boundaries: US Census. Places: GeoNames (CC BY).</text>`
@@ -745,8 +762,11 @@ export function rankedKeySvg(
   if (rows.length === 0) return '';
   const perColumn = Math.ceil(rows.length / 2);
   const columnW = width / 2;
-  const rowH = 16;
-  const headerH = 30;
+  const rowH = 15;
+  // 38, not 30: the subtitle baseline is at 24 and its descenders reached into
+  // the first row, so "Share of the 1,295 households…" printed through
+  // "1. 97209".
+  const headerH = 38;
   const height = headerH + perColumn * rowH + 6;
 
   const cells = rows.map((row, i) => {
