@@ -148,8 +148,29 @@ the second attempt could not be told apart from the first without a shell.
 ---
 
 ### #73 — Restore aborted on any instance with AI usage telemetry
-**Priority**: High · **Status**: Fixed; deployed 2026-08-19 in beta.20
+**Priority**: High · **Status**: Fixed; deployed 2026-08-19 in beta.20; **verified against production data 2026-08-20**
 **Bucket**: Data Management / backup and restore
+
+**Rehearsed 2026-08-20**, restoring the real 148MB production backup onto a
+scratch copy of the development database — never the development database
+itself, and nowhere near production. The precondition was checked first rather
+than assumed: the target held 8 `UsageRecord` rows against 2 AI configurations,
+which is the exact shape that produced the original failure, so the drill
+exercised the bug instead of passing around it.
+
+Both halves of the fix behaved as documented:
+
+- Restoring `service` **and** `configuration`: completed in 11.6s across 25
+  tables with no `P2003`, and telemetry went 8 → 0, cleared alongside the AI
+  configuration it referenced.
+- Restoring `service` alone: completed across 19 tables and telemetry stayed at
+  8, untouched — cleared *only* when the data it refers to is part of the
+  restore.
+
+Data landed correct: 83,107 encounters (79,308 Link2Feed + 3,799 SIMC, matching
+production after the SIMC re-import), `Hispanic, Latino, or Spanish` whole at
+59, and `PRAGMA integrity_check` = ok. A pre-change snapshot was written, so the
+recovery path has its own recovery path.
 
 Found 2026-08-15 restoring a production artifact onto a development database.
 The confirmation step reported **"Cannot delete this item because it is
