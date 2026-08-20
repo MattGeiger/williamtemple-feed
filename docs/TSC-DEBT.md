@@ -1,7 +1,7 @@
 # TypeScript Type-Check Debt
 
 **Status:** Option C applied (2026-05-19); **Option D ratchet installed
-2026-07-31**. Current baseline: **230** (was 279; deleting the unused
+2026-07-31**. Current baseline: **227** (was 279; deleting the unused
 `CustomDocumentTable` on 2026-08-05 removed 44 in one file, and correcting the
 shared animated navigation/toolbar icon slot types removed another five on
 2026-08-11).
