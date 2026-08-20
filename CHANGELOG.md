@@ -13,6 +13,10 @@ All notable changes to FEED are documented here. This project adheres to
   The PDF now draws the same picture: circles in the same places, scaled by area,
   the busiest five labelled, and a scale bar for distance.
 
+  City names are drawn over county outlines — Portland, Vancouver, Gresham —
+  graded by population and thinned where they would collide. Outlines alone
+  gave the aesthetic of a map with nothing in it that said where you were.
+
   County outlines are drawn beneath the circles — states instead, once the frame
   is wide enough that county lines would be noise. Without them the card was a
   scatter plot: points correct relative to each other, with nothing to place

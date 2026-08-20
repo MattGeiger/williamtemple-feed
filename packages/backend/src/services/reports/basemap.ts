@@ -29,6 +29,16 @@ import type { Topology, GeometryCollection } from 'topojson-specification';
 
 type Ring = [number, number][];
 
+/** A place worth naming on the map. */
+export interface Place {
+  name: string;
+  longitude: number;
+  latitude: number;
+  population: number;
+}
+
+let placeCache: Place[] | null = null;
+
 /** Decoding costs ~16ms and the result never changes, so it happens once. */
 let cache: { counties: GeoFeature[]; states: GeoFeature[] } | null = null;
 
@@ -98,4 +108,45 @@ export function boundaryRingsFor(
     f.bounds.east >= west && f.bounds.west <= east
     && f.bounds.north >= south && f.bounds.south <= north;
   return source.filter(overlaps).flatMap(f => f.rings);
+}
+
+/**
+ * The largest populated places inside a viewport, biggest first.
+ *
+ * County outlines alone give the *aesthetic* of a map and nothing that says
+ * where you are — the first printed version drew anonymous polygons where the
+ * screen showed Portland, Vancouver, Gresham and Beaverton. Names are the
+ * single most identifying thing on a map, and they cost one small dataset.
+ *
+ * GeoNames data via `all-the-cities` (MIT), filtered to the US. The data is
+ * CC-BY, so the map carries an attribution line — the same courtesy the screen
+ * extends to CARTO and OpenStreetMap.
+ */
+export function placesFor(
+  west: number,
+  east: number,
+  south: number,
+  north: number,
+  limit = 12,
+): Place[] {
+  if (!placeCache) {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const all = require('all-the-cities') as Array<{
+      name: string; country: string; population: number;
+      loc: { coordinates: [number, number] };
+    }>;
+    placeCache = all
+      .filter(c => c.country === 'US')
+      .map(c => ({
+        name: c.name,
+        longitude: c.loc.coordinates[0],
+        latitude: c.loc.coordinates[1],
+        population: c.population,
+      }));
+  }
+  return placeCache
+    .filter(p => p.longitude >= west && p.longitude <= east
+      && p.latitude >= south && p.latitude <= north)
+    .sort((a, b) => b.population - a.population)
+    .slice(0, limit);
 }
