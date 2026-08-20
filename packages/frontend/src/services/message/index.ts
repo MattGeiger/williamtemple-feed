@@ -11,8 +11,52 @@ import React from 'react'
 import type { MessageType, MessageOptions } from './types'
 import { computeMessageDuration, DEFAULT_TITLES, VARIANT_MAPPINGS } from './types'
 
+/**
+ * How long an identical message is treated as the same event.
+ *
+ * Long enough to catch the real cause — several components independently
+ * reporting one underlying failure — and short enough that a user who
+ * genuinely repeats an action still gets feedback for it.
+ */
+export const DUPLICATE_MESSAGE_WINDOW_MS = 3000
+
 class MessageService {
+  /** Recently shown messages, keyed by type and text, with their live handle. */
+  private recent = new Map<string, { at: number; handle: ReturnType<typeof toast> }>()
+
+  /**
+   * True when this exact message was just shown.
+   *
+   * One failure often has several witnesses. Three components subscribe to the
+   * alert stream, and each raised its own toast for a single dropped
+   * connection, so the user saw the same sentence stacked twice or three times.
+   * Fixing it at each call site fixes it once; collapsing identical messages
+   * here fixes the shape of the problem wherever it appears.
+   *
+   * Deliberately keyed on the text and type rather than on a caller identity:
+   * what makes two toasts redundant is that they say the same thing at the same
+   * moment, whoever raised them.
+   */
+  private recentKey(message: string, type: MessageType) {
+    return `${type}:${message}`
+  }
+
   private show(message: string, type: MessageType, options?: MessageOptions) {
+    const key = this.recentKey(message, type)
+    const now = Date.now()
+    const seen = this.recent.get(key)
+    if (seen && now - seen.at < DUPLICATE_MESSAGE_WINDOW_MS) {
+      // The live handle for the toast already on screen, so a caller that
+      // dismisses or updates its "own" toast still works and never learns it
+      // was collapsed into someone else's.
+      return seen.handle
+    }
+    // Opportunistic sweep; the map only ever holds recent, distinct messages.
+    if (this.recent.size > 50) {
+      for (const [k, entry] of this.recent) {
+        if (now - entry.at > DUPLICATE_MESSAGE_WINDOW_MS) this.recent.delete(k)
+      }
+    }
     // Length-aware default (ISSUES.md #44): scale the on-screen time with how
     // much there is to read. An explicit options.duration still wins.
     const duration = options?.duration ?? computeMessageDuration(message)
@@ -42,6 +86,7 @@ class MessageService {
       action: actionComponent
     })
     dismissToast = handle.dismiss
+    this.recent.set(key, { at: now, handle })
     return handle
   }
 
