@@ -5,6 +5,26 @@ All notable changes to FEED are documented here. This project adheres to
 
 ## [Unreleased]
 
+### Changed
+
+- **Where Households Live prints as a map.** A generated report used to fall back
+  to a ranked list of postal codes, which could say which code was largest but
+  not where in the city people live — the question the card exists to answer.
+  The PDF now draws the same picture: circles in the same places, scaled by area,
+  the busiest five labelled, and a scale bar for distance.
+
+  It is drawn server-side from the postal-code centroids the payload already
+  carries, so it needs no browser, no map tiles, no network, and no new
+  dependency. Capturing the on-screen map was rejected outright: a saved report
+  re-runs server-side with no browser present, so that would have worked once
+  and broken every saved report afterwards.
+
+  The map centres on the most frequent postal code and covers 95% of placed
+  households — one household in Hawaii cannot zoom the metro out to nothing.
+  Codes outside the frame are counted above the map rather than dropped. The
+  spreadsheet export is unchanged and still carries postal codes and counts, with
+  no coordinates.
+
 ## [1.5.0-beta.21] — 2026-08-19
 
 Two defects found within an hour of deploying beta.20 to production, both while

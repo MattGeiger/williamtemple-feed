@@ -243,9 +243,12 @@ not everyone on file.
   few out-of-state codes reach as far as Hawaii and the east coast; those are
   still plotted, a pan and a zoom away.
 
-  In a generated report this card appears as a ranked list of postal codes
-  rather than a map, since a printed page cannot carry one. The numbers are the
-  same either way.
+  A generated report draws the same map, printed rather than interactive: the
+  circles are in the same places at the same sizes, the busiest five postal
+  codes are labelled, and a scale bar gives the distances. Postal codes too far
+  out to fit the frame are counted in a line above the map rather than dropped.
+  The spreadsheet export stays a list of postal codes and household counts —
+  that is the data behind the picture, and it is what a spreadsheet is for.
 - **Ethnicity** shows how households described themselves at intake, recorded
   in Link2Feed only — SIMC asks a different question with different categories,
   which appears on its own card. A household can give more than one answer, so

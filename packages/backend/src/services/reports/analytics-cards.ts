@@ -16,6 +16,8 @@ import {
   stackedBarSvg,
   stackedHBarSvg,
   groupedHBarSvg,
+  bubbleMapSvg,
+  type MapPoint,
   tableHtml,
 } from './analytics-print';
 import { condenseTimeSeries, type Grain, type Series } from './condense';
@@ -101,6 +103,18 @@ export interface CardData extends CardGrain {
    * condensed, in which case the two are the same file.
    */
   raw?: CardGrain;
+  /**
+   * Coordinates for a card that prints as a map.
+   *
+   * Kept off `CardGrain` on purpose. `cardCsv` serialises
+   * `categoryColumn`/`categories`/`series` and nothing else, so putting the
+   * points here means the export keeps carrying postal codes and counts — the
+   * raw data a reader can act on — while the printed page gets the picture.
+   * Coordinates are a rendering detail derived from the postal code, not data
+   * FEED holds about anyone, and they do not belong in a file a user takes
+   * away.
+   */
+  map?: MapPoint[];
   /**
    * Headline figures printed above the chart, for a card that shows both.
    *
@@ -2440,12 +2454,28 @@ export const CLIENTS_GEOGRAPHY: AnalyticsCard = {
       note: notes.join(' '),
       // The chart folds the tail; the CSV keeps every postal code.
       raw: toGrain(all),
+      // Every placed postal code, not the folded top slice: the printed map has
+      // room for all of them, and the tail is where the reach of the pantry
+      // actually shows.
+      map: all
+        .filter((row: any) => row.latitude !== null && row.longitude !== null)
+        .map((row: any): MapPoint => ({
+          label: row.postalCode,
+          latitude: row.latitude,
+          longitude: row.longitude,
+          value: row.clients ?? 0,
+        })),
     };
   },
-  print: data => hBarSvg(
-    data.categories.map((label, i) => ({ label, value: data.series[0]?.values[i] ?? 0 })),
-    900, 26, COUNT
-  ),
+  // A map, where the screen shows a map. The ranked bar list this replaced
+  // could say which postal code was largest; it could not show where in the
+  // city people live, which is the question the card exists to answer.
+  print: data => (data.map && data.map.length > 0
+    ? bubbleMapSvg(data.map)
+    : hBarSvg(
+      data.categories.map((label, i) => ({ label, value: data.series[0]?.values[i] ?? 0 })),
+      900, 26, COUNT
+    )),
 };
 
 export const ANALYTICS_CARDS: AnalyticsCard[] = [
