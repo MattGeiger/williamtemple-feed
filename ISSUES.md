@@ -38,6 +38,45 @@ Everything else in this file. The application is shippable today.
 
 ## Open Issues
 
+### #78 — Header banner lost its frosted glass in dark mode
+**Priority**: Low · **Status**: Fixed in source 2026-08-20 (1.5.0)
+**Bucket**: Layout / shell surfaces
+
+The breadcrumb header read as flat transparency rather than frosted glass,
+while the Analytics filter bar directly beneath it — same intended treatment —
+looked correct. Dark mode only; light mode was always right.
+
+Not a missing effect. `.feed-shell-header-panel` declared
+`backdrop-filter: blur(14px) saturate(1.5)` the whole time, the header's
+`position: sticky` worked, no ancestor created a containing block that breaks
+backdrop-filter, and page content did scroll behind it. The blur was applied
+and then buried.
+
+The cause was token aliasing. In dark mode the header borrowed the *panel*
+gradient:
+
+    --feed-shell-header-start: var(--feed-shell-panel-start);  /* 0.82 */
+    --feed-shell-header-end:   var(--feed-shell-panel-end);    /* 0.70 */
+
+Panel tokens are sized for near-solid surfaces. Composited over the header's own
+`hsl(var(--background) / 0.4)` background-color that left the bar about **89%
+opaque**, so there was almost nothing to see through. Light mode had
+purpose-built header tokens at 0.40 / 0.32 and looked correct, which is why the
+fault was one-sided.
+
+Dark mode now has its own header tokens at 0.55 / 0.45 — more body than light,
+to keep the breadcrumb legible over bright content, but translucent enough for
+the blur to register. Measured effective opacity at the top edge: **0.89 → 0.73**
+in dark, 0.64 in light unchanged, against the Analytics bar's single 0.80 layer.
+
+The print theme's solid-white header tokens are untouched.
+
+**Lesson**: aliasing one surface's tokens to another couples two things that
+look similar and are not. A header meant to be seen through should not inherit
+its opacity from a panel meant to be opaque.
+
+---
+
 ### #77 — Alert-stream toasts fired on any brief interruption, and fired twice
 **Priority**: Medium · **Status**: Fixed in source 2026-08-20; awaiting deployment
 **Bucket**: Alerts / frontend messaging

@@ -333,8 +333,15 @@
     --feed-shell-veil: hsl(222 32% 4% / 0.26);
     --feed-shell-panel-start: hsl(var(--card) / 0.82);
     --feed-shell-panel-end: hsl(218 30% 12% / 0.7);
-    --feed-shell-header-start: var(--feed-shell-panel-start);
-    --feed-shell-header-end: var(--feed-shell-panel-end);
+    /* Not the panel tokens. Those are sized for near-solid surfaces (0.82 /
+       0.70), and composited over the header's own 0.4 background they left the
+       bar about 89% opaque — the frosted blur was applied and buried, so the
+       header read as plain transparency while the Analytics filter bar beside
+       it looked frosted. Dark needs a little more body than light to keep the
+       breadcrumb legible over bright content, but it has to stay translucent
+       enough for the blur to show. */
+    --feed-shell-header-start: hsl(var(--background) / 0.55);
+    --feed-shell-header-end: hsl(var(--background) / 0.45);
     --feed-shell-card-start: hsl(var(--card) / 0.88);
     --feed-shell-card-end: hsl(218 28% 12% / 0.78);
     --feed-shell-panel-border: hsl(var(--border) / 0.78);
