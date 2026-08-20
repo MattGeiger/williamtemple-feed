@@ -699,6 +699,14 @@ kept since October 2023.
   once interactively and break every saved report; and fetching basemap tiles
   server-side would put a network call inside a report generator that has none,
   failing on an offline Pi and dragging tile-usage terms into a printed page.
+- **Names are what make a printed map identifiable, not outlines.** County
+  boundaries alone shipped first and were rightly rejected as "a map aesthetic"
+  with nothing saying where you are — anonymous polygons where the screen showed
+  Portland, Vancouver and Gresham. `placesFor` in `basemap.ts` adds the largest
+  populated places in frame, graded by population the way an atlas does and
+  thinned by collision rejection, because a pile of overlapping names is worse
+  than four clear ones. GeoNames data via `all-the-cities` (MIT); the data is
+  CC-BY, so the map carries an attribution line.
 - **The printed map draws land under the bubbles.** Without it the card is a
   scatter plot — the circles sit in the right places relative to each other and
   the reader has nothing to place them against, which is what shipped first and

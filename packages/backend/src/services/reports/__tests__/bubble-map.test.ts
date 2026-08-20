@@ -122,3 +122,26 @@ describe('basemap', () => {
     expect(svg).toContain('clipPath');
   });
 });
+
+describe('place names', () => {
+  test('names the cities a reader would recognise', () => {
+    const svg = bubbleMapSvg([NW_PORTLAND, BEAVERTON, GRESHAM], 900, 420);
+    // Outlines alone were "a map aesthetic with nothing identifying in it".
+    expect(svg).toContain('PORTLAND');
+    expect(svg).toContain('GeoNames');   // CC-BY attribution travels with them
+  });
+
+  test('rejects labels that would collide rather than piling them up', () => {
+    const svg = bubbleMapSvg([NW_PORTLAND, BEAVERTON, GRESHAM], 900, 420);
+    const drawn = [...svg.matchAll(/letter-spacing="[^"]*">([^<]+)</g)].map(m => m[1]);
+    // 84 US places sit in this frame; only the ones that fit are drawn.
+    expect(drawn.length).toBeGreaterThan(2);
+    expect(drawn.length).toBeLessThan(14);
+    expect(new Set(drawn).size).toBe(drawn.length);
+  });
+
+  test('grades by population, so the big places read first', () => {
+    const svg = bubbleMapSvg([NW_PORTLAND, BEAVERTON, GRESHAM], 900, 420);
+    expect(svg).toMatch(/font-size="12"[^>]*>PORTLAND</);
+  });
+});

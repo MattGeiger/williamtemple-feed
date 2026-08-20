@@ -20,7 +20,7 @@
 
 import type { Series } from './condense';
 
-import { boundaryRingsFor } from './basemap';
+import { boundaryRingsFor, placesFor } from './basemap';
 
 const PALETTE = ['#2964A3', '#3090A8', '#78C0C0', '#F0D848', '#B08CC0', '#E08050', '#8FB339'];
 const INK = '#231F20';
@@ -635,6 +635,31 @@ export function bubbleMapSvg(
     })
     .join('');
 
+  /**
+   * City names, which are the thing that actually says where this is.
+   *
+   * Outlines alone gave the aesthetic of a map with nothing identifying in it.
+   * Graded by population the way an atlas does, so the eye finds the big places
+   * first, and thinned by simple collision rejection — an unreadable pile of
+   * overlapping names is worse than four clear ones.
+   */
+  const placed: { x: number; y: number; w: number }[] = [];
+  const places = placesFor(frameWest, frameEast, frameSouth, frameNorth, 14)
+    .map(place => {
+      const { x, y } = project(place.longitude, place.latitude);
+      const major = place.population >= 100000;
+      const size = major ? 12 : 9.5;
+      const text = major ? place.name.toUpperCase() : place.name;
+      const w = text.length * size * 0.58;
+      if (x < 4 || x > width - 4 || y < 12 || y > height - 20) return '';
+      const clash = placed.some(q => Math.abs(q.x - x) < (q.w + w) / 2 + 6 && Math.abs(q.y - y) < size + 6);
+      if (clash) return '';
+      placed.push({ x, y, w });
+      return `<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" font-size="${size}" text-anchor="middle" `
+        + `fill="${MUTED}" letter-spacing="${major ? 0.8 : 0}">${esc(text)}</text>`;
+    })
+    .join('');
+
   const largest = Math.max(...usable.map(p => p.value));
   const inFrame = usable.filter(p => {
     const m = mercator(p.latitude, p.longitude);
@@ -687,8 +712,10 @@ export function bubbleMapSvg(
   const clipId = 'mapframe';
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" font-family="Helvetica, Arial, sans-serif">`
     + `<defs><clipPath id="${clipId}"><rect x="0" y="0" width="${width}" height="${height}"/></clipPath></defs>`
-    + `<g clip-path="url(#${clipId})">${land}${circles}</g>`
+    + `<g clip-path="url(#${clipId})">${land}${places}${circles}</g>`
     + labels + scale + offNote
+    + `<text x="${width - 6}" y="${height - 5}" font-size="8" text-anchor="end" fill="${MUTED}">`
+    + `Boundaries: US Census. Places: GeoNames (CC BY).</text>`
     + `<rect x="0" y="0" width="${width}" height="${height}" fill="none" stroke="${GRID}" stroke-width="1"/>`
     + `</svg>`;
 }
