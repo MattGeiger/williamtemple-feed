@@ -13,6 +13,10 @@ All notable changes to FEED are documented here. This project adheres to
   The PDF now draws the same picture: circles in the same places, scaled by area,
   the busiest five labelled, and a scale bar for distance.
 
+  A ranked key sits beneath the map: the ten postal codes with the most
+  households, with counts and shares. A map answers "where" well and "how many,
+  exactly" badly, and the key carries the figures the circles only imply.
+
   City names are drawn over county outlines — Portland, Vancouver, Gresham —
   graded by population and thinned where they would collide. Outlines alone
   gave the aesthetic of a map with nothing in it that said where you were.

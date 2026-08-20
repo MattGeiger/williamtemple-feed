@@ -719,3 +719,50 @@ export function bubbleMapSvg(
     + `<rect x="0" y="0" width="${width}" height="${height}" fill="none" stroke="${GRID}" stroke-width="1"/>`
     + `</svg>`;
 }
+
+/**
+ * A ranked key beneath a map or chart.
+ *
+ * A map answers "where" well and "how many, exactly" badly — a reader can see
+ * that one circle is the biggest without being able to read a number off it.
+ * The key carries the figures the picture only implies, in rank order, so the
+ * card answers both questions without the map having to label every circle.
+ *
+ * Two columns rather than one long list: ten rows stacked vertically push the
+ * card onto another page for no reason.
+ *
+ * `total` is the denominator the share is computed against, and the caller
+ * states what it is in `denominatorLabel` — a percentage whose base is not on
+ * the page is a number a reader can only misuse.
+ */
+export function rankedKeySvg(
+  rows: { label: string; value: number }[],
+  total: number,
+  denominatorLabel: string,
+  title = 'Top postal codes',
+  width = 900,
+): string {
+  if (rows.length === 0) return '';
+  const perColumn = Math.ceil(rows.length / 2);
+  const columnW = width / 2;
+  const rowH = 16;
+  const headerH = 30;
+  const height = headerH + perColumn * rowH + 6;
+
+  const cells = rows.map((row, i) => {
+    const column = Math.floor(i / perColumn);
+    const x = column * columnW;
+    const y = headerH + (i % perColumn) * rowH;
+    const share = total > 0 ? `${((row.value / total) * 100).toFixed(1)}%` : '';
+    return `<text x="${x}" y="${y}" font-size="10" fill="${MUTED}">${i + 1}.</text>`
+      + `<text x="${x + 22}" y="${y}" font-size="11" fill="${INK}">${esc(row.label)}</text>`
+      + `<text x="${x + 210}" y="${y}" font-size="11" text-anchor="end" fill="${INK}">${esc(fmt(row.value))}</text>`
+      + `<text x="${x + 268}" y="${y}" font-size="10" text-anchor="end" fill="${MUTED}">${share}</text>`;
+  }).join('');
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" font-family="Helvetica, Arial, sans-serif">`
+    + `<text x="0" y="12" font-size="11" fill="${INK}" font-weight="bold">${esc(title)}</text>`
+    + `<text x="0" y="24" font-size="9" fill="${MUTED}">Share of the ${esc(fmt(total))} ${esc(denominatorLabel)}</text>`
+    + cells
+    + `</svg>`;
+}

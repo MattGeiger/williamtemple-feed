@@ -258,6 +258,12 @@ not everyone on file.
   circles are in the same places at the same sizes, the busiest five postal
   codes are labelled, and a scale bar gives the distances. Postal codes too far
   out to fit the frame are counted in a line above the map rather than dropped.
+  Beneath the map is a key: the ten postal codes with the most households, with
+  counts and each one's share of the households that gave a postal code. A map
+  shows where well and exact figures badly, so the key carries the numbers the
+  circles only imply. It ranks every postal code, including any that have no map
+  location, so it agrees with the spreadsheet about what the top ten are.
+
   The spreadsheet export stays a list of postal codes and household counts —
   that is the data behind the picture, and it is what a spreadsheet is for.
 - **Ethnicity** shows how households described themselves at intake, recorded
