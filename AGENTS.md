@@ -690,10 +690,27 @@ kept since October 2023.
   rule** — FEED still never imports or stores an address. Bubbles scale by
   **area**, not radius, or a code with twice the households renders four times
   as large.
-- A map cannot be printed, so `CLIENTS_GEOGRAPHY` keeps a ranked postal-code bar
-  list for PDF and CSV. That is the intended shape of the contract below, not a
-  gap: screen and export share the accessor and the numbers, and differ only in
-  how they draw them.
+- **A map can be printed — just not that map.** `CLIENTS_GEOGRAPHY` prints
+  `bubbleMapSvg`, drawn server-side from the `us-zips` centroids the payload
+  already carries. No browser, no tiles, no network, no new dependency. Two
+  approaches were rejected for concrete reasons worth keeping: capturing the
+  WebGL canvas is disqualified because a saved report re-runs from
+  `ReportTemplate.templateData` with **no browser present**, so it would work
+  once interactively and break every saved report; and fetching basemap tiles
+  server-side would put a network call inside a report generator that has none,
+  failing on an offline Pi and dragging tile-usage terms into a printed page.
+- **The printed map centres on the most-frequent postal code.** Deterministic,
+  needs no tuning, and for most agencies lands on or beside their own address.
+  The extent covers 95% of placed households by distance from that centre, so a
+  single household in Hawaii cannot zoom the metro out to nothing — those codes
+  are counted in a line above the map instead of vanishing. Bubbles scale by
+  area here too.
+- **Coordinates never enter an export.** They live on `CardData.map`, which
+  `cardCsv` does not read — it serialises `categoryColumn`/`categories`/`series`
+  only. A latitude is a rendering detail derived from a postal code, not
+  something FEED knows about anyone, and the file a user takes away stays postal
+  codes and counts. There is a test asserting this; do not "helpfully" add
+  coordinate columns to the CSV.
 - `Map` applies `center` only at initialisation unless its viewport is
   controlled, so an HMR edit to the centre appears to do nothing. Reload fully
   before concluding a centring change failed.

@@ -509,3 +509,153 @@ export function kpiGrid(tiles: { label: string; value: string }[]): string {
     </div>`).join('');
   return `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">${cells}</div>`;
 }
+
+/** One postal code's place on the map, and how many households gave it. */
+export interface MapPoint {
+  label: string;
+  latitude: number;
+  longitude: number;
+  value: number;
+}
+
+/**
+ * Web Mercator, normalised to 0..1. The projection every slippy map uses, so
+ * the printed picture has the same shape as the one on screen.
+ */
+const mercator = (latitude: number, longitude: number) => {
+  const lat = Math.max(-85.05, Math.min(85.05, latitude));
+  const sin = Math.sin((lat * Math.PI) / 180);
+  return {
+    x: (longitude + 180) / 360,
+    y: 0.5 - Math.log((1 + sin) / (1 - sin)) / (4 * Math.PI),
+  };
+};
+
+/** Great-circle-ish miles per degree of longitude at a given latitude. */
+const milesPerLonDegree = (latitude: number) => 69.172 * Math.cos((latitude * Math.PI) / 180);
+
+/**
+ * A bubble map, drawn from coordinates alone.
+ *
+ * The screen draws this card with MapLibre over CARTO tiles. None of that can
+ * reach a PDF: a saved report re-runs server-side from `templateData` with no
+ * browser present, so a canvas capture would work once interactively and break
+ * every saved report. Fetching tiles would put a network call inside a report
+ * generator that has none, and fail on an offline Pi.
+ *
+ * What survives is the part that carries the meaning. The postal-code centroids
+ * are already computed server-side by `us-zips`, so the distribution — which
+ * neighbourhoods, how concentrated, how far the tail reaches — draws from data
+ * we hold, deterministically, with no network and no new dependency.
+ *
+ * **Centred on the most-frequent postal code**, not on the mean or the extent.
+ * The mean is dragged by a handful of codes reaching Hawaii and the east coast;
+ * the extent would draw the whole country and render the local picture — the
+ * entire point of the card — unreadable. The busiest code is deterministic,
+ * needs no tuning, and for most agencies will sit at or beside their own
+ * address. Codes outside the frame are counted in a note rather than dropped
+ * silently.
+ *
+ * Bubbles scale by **area**, matching the screen: radius from the square root
+ * of the count, or a code with twice the households would read as four times.
+ */
+export function bubbleMapSvg(
+  points: MapPoint[],
+  width = 900,
+  height = 420,
+  coveragePercent = 0.95,
+): string {
+  const usable = points.filter(p => Number.isFinite(p.latitude) && Number.isFinite(p.longitude) && p.value > 0);
+  if (usable.length === 0) {
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="40" viewBox="0 0 ${width} 40" font-family="Helvetica, Arial, sans-serif">` +
+      `<text x="0" y="24" font-size="12" fill="${MUTED}">No postal code could be placed on a map.</text></svg>`;
+  }
+
+  const busiest = usable.reduce((top, p) => (p.value > top.value ? p : top), usable[0]);
+  const centre = mercator(busiest.latitude, busiest.longitude);
+
+  // How far out to draw. Sorting by distance from the centre and taking the
+  // radius that covers most households keeps a far-flung code from zooming the
+  // whole map out to nothing, without picking an arbitrary mileage.
+  const total = usable.reduce((sum, p) => sum + p.value, 0);
+  const byDistance = usable
+    .map(p => {
+      const m = mercator(p.latitude, p.longitude);
+      return { p, d: Math.max(Math.abs(m.x - centre.x), Math.abs(m.y - centre.y)) };
+    })
+    .sort((a, b) => a.d - b.d);
+  let seen = 0;
+  let span = 0;
+  for (const row of byDistance) {
+    seen += row.p.value;
+    span = row.d;
+    if (seen >= total * coveragePercent) break;
+  }
+  // A single-postal-code range still needs a frame with area in it.
+  span = Math.max(span * 1.15, 0.0004);
+
+  const aspect = height / width;
+  const halfX = span;
+  const halfY = span * aspect;
+  const toXY = (p: MapPoint) => {
+    const m = mercator(p.latitude, p.longitude);
+    return {
+      x: ((m.x - centre.x) / (halfX * 2) + 0.5) * width,
+      y: ((m.y - centre.y) / (halfY * 2) + 0.5) * height,
+    };
+  };
+
+  const largest = Math.max(...usable.map(p => p.value));
+  const inFrame = usable.filter(p => {
+    const m = mercator(p.latitude, p.longitude);
+    return Math.abs(m.x - centre.x) <= halfX && Math.abs(m.y - centre.y) <= halfY;
+  });
+  const offFrame = usable.length - inFrame.length;
+  const offFrameHouseholds = total - inFrame.reduce((sum, p) => sum + p.value, 0);
+
+  // Largest drawn first so a big faint circle cannot hide a small dense one.
+  const circles = [...inFrame]
+    .sort((a, b) => b.value - a.value)
+    .map(p => {
+      const { x, y } = toXY(p);
+      const r = 3 + 26 * Math.sqrt(p.value / largest);
+      return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${r.toFixed(1)}" `
+        + `fill="${PALETTE[1]}" fill-opacity="0.45" stroke="${PALETTE[0]}" stroke-width="0.8"/>`;
+    })
+    .join('');
+
+  // Label only the few that carry the story; every circle labelled is a smear.
+  const labels = [...inFrame]
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 5)
+    .map(p => {
+      const { x, y } = toXY(p);
+      const r = 3 + 26 * Math.sqrt(p.value / largest);
+      return `<text x="${x.toFixed(1)}" y="${(y - r - 4).toFixed(1)}" font-size="10" `
+        + `text-anchor="middle" fill="${INK}">${esc(p.label)} · ${esc(fmt(p.value))}</text>`;
+    })
+    .join('');
+
+  // A scale bar, because without a basemap there is nothing else to say how
+  // far apart these circles are. Sized to a round number of miles.
+  const mapWidthMiles = halfX * 2 * 360 * milesPerLonDegree(busiest.latitude);
+  const targetMiles = mapWidthMiles / 5;
+  const step = [1, 2, 5, 10, 20, 25, 50, 100, 200, 500]
+    .reduce((best, m) => (Math.abs(m - targetMiles) < Math.abs(best - targetMiles) ? m : best), 1);
+  const barW = (step / mapWidthMiles) * width;
+  const barY = height - 14;
+  const scale = `<line x1="12" y1="${barY}" x2="${(12 + barW).toFixed(1)}" y2="${barY}" stroke="${INK}" stroke-width="1.5"/>`
+    + `<line x1="12" y1="${barY - 3}" x2="12" y2="${barY + 3}" stroke="${INK}" stroke-width="1.5"/>`
+    + `<line x1="${(12 + barW).toFixed(1)}" y1="${barY - 3}" x2="${(12 + barW).toFixed(1)}" y2="${barY + 3}" stroke="${INK}" stroke-width="1.5"/>`
+    + `<text x="${(16 + barW).toFixed(1)}" y="${barY + 4}" font-size="10" fill="${MUTED}">${step} mi</text>`;
+
+  const offNote = offFrame > 0
+    ? `<text x="12" y="16" font-size="10" fill="${MUTED}">`
+      + `${esc(fmt(offFrameHouseholds))} households in ${esc(fmt(offFrame))} postal code${offFrame === 1 ? '' : 's'} outside this view</text>`
+    : '';
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" font-family="Helvetica, Arial, sans-serif">`
+    + `<rect x="0" y="0" width="${width}" height="${height}" fill="none" stroke="${GRID}" stroke-width="1"/>`
+    + circles + labels + scale + offNote
+    + `</svg>`;
+}
