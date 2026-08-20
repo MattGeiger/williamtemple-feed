@@ -17,6 +17,7 @@ import {
   stackedHBarSvg,
   groupedHBarSvg,
   bubbleMapSvg,
+  rankedKeySvg,
   type MapPoint,
   tableHtml,
 } from './analytics-print';
@@ -2472,12 +2473,31 @@ export const CLIENTS_GEOGRAPHY: AnalyticsCard = {
   // A map, where the screen shows a map. The ranked bar list this replaced
   // could say which postal code was largest; it could not show where in the
   // city people live, which is the question the card exists to answer.
-  print: data => (data.map && data.map.length > 0
-    ? bubbleMapSvg(data.map)
-    : hBarSvg(
-      data.categories.map((label, i) => ({ label, value: data.series[0]?.values[i] ?? 0 })),
-      900, 26, COUNT
-    )),
+  print: data => {
+    if (!data.map || data.map.length === 0) {
+      return hBarSvg(
+        data.categories.map((label, i) => ({ label, value: data.series[0]?.values[i] ?? 0 })),
+        900, 26, COUNT
+      );
+    }
+    // Ranked from every postal code, not from the placed ones: a code with no
+    // map location is still a real place households named, and dropping it
+    // would make the key disagree with the CSV about what the top ten are. The
+    // footnote already says some codes cannot be drawn.
+    const source = data.raw ?? data;
+    const ranked = source.categories
+      .map((label, i) => ({ label, value: source.series[0]?.values[i] ?? 0 }))
+      .filter(row => row.value > 0)
+      .sort((left, right) => right.value - left.value);
+    const total = ranked.reduce((sum, row) => sum + row.value, 0);
+    return bubbleMapSvg(data.map)
+      + rankedKeySvg(
+        ranked.slice(0, 10),
+        total,
+        'households that gave a postal code',
+        'Top 10 postal codes',
+      );
+  },
 };
 
 export const ANALYTICS_CARDS: AnalyticsCard[] = [

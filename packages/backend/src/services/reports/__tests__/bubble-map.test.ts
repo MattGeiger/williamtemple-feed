@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Matt Geiger
 
 import { describe, expect, test } from 'vitest';
-import { bubbleMapSvg, type MapPoint } from '../analytics-print';
+import { bubbleMapSvg, rankedKeySvg, type MapPoint } from '../analytics-print';
 import { CLIENTS_GEOGRAPHY, cardCsv } from '../analytics-cards';
 
 const point = (label: string, latitude: number, longitude: number, value: number): MapPoint =>
@@ -143,5 +143,41 @@ describe('place names', () => {
   test('grades by population, so the big places read first', () => {
     const svg = bubbleMapSvg([NW_PORTLAND, BEAVERTON, GRESHAM], 900, 420);
     expect(svg).toMatch(/font-size="12"[^>]*>PORTLAND</);
+  });
+});
+
+describe('ranked key', () => {
+  const analytics = {
+    geography: {
+      postalCodes: [
+        { postalCode: '97209', clients: 500, latitude: 45.5326, longitude: -122.6836 },
+        { postalCode: '97005', clients: 300, latitude: 45.4871, longitude: -122.8037 },
+        // No map location, but still a real place households named.
+        { postalCode: '00000', clients: 200, latitude: null, longitude: null },
+      ],
+      noFixedAddress: 0, noFixedAddressAsked: false, clientsWithoutPostalCode: 0,
+    },
+  };
+
+  test('prints the map and the key together', () => {
+    const svg = CLIENTS_GEOGRAPHY.print!(CLIENTS_GEOGRAPHY.data(analytics));
+    expect((svg.match(/<svg/g) ?? []).length).toBe(2);
+    expect(svg).toContain('Top 10 postal codes');
+  });
+
+  test('ranks every postal code, including ones that cannot be drawn', () => {
+    const svg = CLIENTS_GEOGRAPHY.print!(CLIENTS_GEOGRAPHY.data(analytics));
+    // Dropping it would make the key disagree with the CSV about the top ten.
+    expect(svg).toContain('00000');
+  });
+
+  test('states the denominator its shares are computed against', () => {
+    const svg = CLIENTS_GEOGRAPHY.print!(CLIENTS_GEOGRAPHY.data(analytics));
+    expect(svg).toContain('Share of the 1,000 households that gave a postal code');
+    expect(svg).toContain('50.0%');  // 500 of 1,000
+  });
+
+  test('the key is omitted when there is nothing to rank', () => {
+    expect(rankedKeySvg([], 0, 'households')).toBe('');
   });
 });
