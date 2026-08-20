@@ -41,7 +41,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ChevronDown } from '@/components/ui/icons';
+import { Ban, Calendar, ChevronDown, Gauge } from '@/components/ui/icons';
 import { BadgeQuestionMark, ShoppingBasket, UsersRound } from 'lucide-react';
 import { getIconComponent } from '@/lib/icon-library';
 import { SelectableBlock } from '@/components/reports/selection';
@@ -810,14 +810,25 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
             </CardHeader>
             <CardContent>
               <div className="mb-4 grid gap-3 sm:grid-cols-3">
-                <Tile label="Households turned away" value={count(unmetDemand.householdsTurnedAway)} icon={UsersRound} />
+                <Tile label="Households turned away" value={count(unmetDemand.householdsTurnedAway)} icon={Ban} />
                 <Tile
                   label="Days it happened"
                   value={count(unmetDemand.daysWithTurnAway)}
                   hint={`of ${count(unmetDemand.daysRecorded)} recorded service days`}
-                  icon={BadgeQuestionMark}
+                  icon={Calendar}
                 />
-                <Tile label="Times capacity was reached" value={count(unmetDemand.capacityReachedDays)} icon={ShoppingBasket} />
+                {/* The administrator's own icon for the capacity metric, resolved
+                    the same way the Service Log resolves it, so the two surfaces
+                    cannot disagree about what that metric looks like. Falls back
+                    only when there is no capacity metric, or several — the count
+                    spans all of them, so one metric's icon would misrepresent it. */}
+                <Tile
+                  label="Times capacity was reached"
+                  value={count(unmetDemand.capacityReachedDays)}
+                  icon={unmetDemand.capacityIconName
+                    ? getIconComponent(unmetDemand.capacityIconName)
+                    : Gauge}
+                />
               </div>
               <ChartContainer
                 config={{ turnedAway: { label: 'Households turned away', color: carbonChartColors.orange.primary.light } } satisfies ChartConfig}
