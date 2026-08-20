@@ -5,10 +5,19 @@ All notable changes to FEED are documented here. This project adheres to
 
 ## [Unreleased]
 
-## [1.5.0-RELEASE-PREVIEW] — 2026-08-20
+## [1.5.0] — 2026-08-20
 
-Release candidate for 1.5.0. Carries everything from beta.17 through beta.21.
-The remaining gate is a verified restore against real production data.
+Everything since 1.4.0, across twenty-one betas. Analytics reports, the Service
+and Clients lenses, client visit imports from Link2Feed and SIMC, backup and
+restore, and the Admin page.
+
+The release gate was a restore rehearsal rather than a test suite: the real
+production backup restored onto a scratch copy of a development database
+holding the AI usage telemetry that #73 originally failed on. Both halves
+verified — telemetry cleared when its AI configuration was part of the restore,
+and left untouched when it was not.
+
+Sections below carry the detail, newest first.
 
 ### Changed
 

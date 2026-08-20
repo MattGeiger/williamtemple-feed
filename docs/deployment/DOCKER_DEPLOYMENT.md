@@ -98,7 +98,7 @@ the step where a deploy can silently install the wrong build.
 ```bash
 # ~/feed/.env  (compose reads this automatically)
 DOCKER_REGISTRY=yourusername
-VERSION=1.5.0-beta.20
+VERSION=1.5.0
 CLOUDFLARE_TUNNEL_TOKEN=your-tunnel-token
 ```
 
@@ -350,7 +350,7 @@ cd ~/apps/williamtemple-feed && git --no-pager pull --ff-only
 Set the version in `.env`, verify, then deploy:
 
 ```bash
-sed -i 's/^VERSION=.*/VERSION=1.5.0-beta.20/' .env && grep -E "^VERSION|^DOCKER_REGISTRY" .env
+sed -i 's/^VERSION=.*/VERSION=1.5.0/' .env && grep -E "^VERSION|^DOCKER_REGISTRY" .env
 ```
 
 ```bash

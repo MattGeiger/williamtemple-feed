@@ -2,9 +2,48 @@
 
 ## Unreleased
 
-## Version 1.5.0-RELEASE-PREVIEW — 2026-08-20
+## Version 1.5.0 — 2026-08-20
 
-*Release candidate — the same build as beta.21, renamed to say what it is.*
+*Everything since 1.4.0. FEED can now describe who it serves, not only what is
+on the shelves — and can be recovered if something goes wrong.*
+
+**Analytics became something you can hand to someone.** Any card on any tab can
+be selected and turned into a report — a PDF to read and a spreadsheet of the
+figures behind it. Reports can be saved as templates and re-run later against a
+new date range, so a monthly funder report is set up once.
+
+**Two new lenses: Service and Clients.** Service describes what happened on a
+service day — households served, how service was delivered, household size,
+turned away, languages spoken. Clients describes who the people are — age
+ranges, ethnicity, gender identity, housing, and a map of the postal codes
+households gave. The four tabs are Operations, Procurement, Service and
+Clients.
+
+Both draw on records that begin years apart and are never added together. Where
+two records can answer the same question, the card says which one produced the
+figure and how far back it reaches. Where a question was asked of only some
+households, the card says so rather than implying a share of everyone.
+
+**Client visit history can be imported.** Link2Feed exports from 2020 onward and
+SIMC exports since the June 2026 changeover, along with the pantry's own service
+tracking. Large imports run in the background with a progress panel, so a
+multi-year file can be left to finish. FEED reads only what it needs and never
+stores names, addresses, phone numbers or email addresses.
+
+**Backup, restore, and reset.** A full backup downloads from Data Management,
+and FEED can be restored from one — choosing which parts to bring back, so
+restoring last month's inventory need not disturb anything else. The same tab
+can reset FEED to a clean slate. Backups deliberately leave out AI provider keys
+and sign-in secrets.
+
+**An Admin page, and control over who can sign in.** Administrators can see
+everyone with access, invite staff, and revoke access with immediate effect.
+Sign-in can be set to an allowlist so only people on the roster can get in.
+Admin → History records what administrators changed.
+
+**Plus** searchable in-app help with screenshots throughout, thousands
+separators on every figure, charts that end where their data ends, and a long
+list of PDF and layout corrections found in evaluation.
 
 ## Version 1.5.0-beta.21 — 2026-08-19
 
