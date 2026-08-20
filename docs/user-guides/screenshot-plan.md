@@ -17,6 +17,70 @@ telling the reader what to do.
   filename for dark mode. Example: `inventory-food-items-table.png` and
   `inventory-food-items-table-dark.png`.
 
+## 1.5.0 Coverage Audit (2026-08-19)
+
+Counted `![` per guide. The split is not subtle — **every guide written for the
+1.5 feature set has no screenshots at all**, and they are the longest ones:
+
+| Guide | Images | Lines |
+|---|---|---|
+| 04 Inventory & Analytics | **0** | 313 |
+| 12 Data Management | **0** | 181 |
+| 14 Analytics Reports | **0** | 181 |
+| 13 Admin | **0** | 93 |
+| 15 Service Log | **0** | 72 |
+| 11 Settings | **0** | 57 |
+| *(01–10, older features)* | 1–3 each | 45–83 |
+
+**897 lines of guide with no visual reference**, covering the newest and least
+familiar functionality. The older guides average one screenshot per ~25 lines.
+
+The 14 existing screenshots are all correctly paired light/dark — the convention
+holds, it simply stopped being applied when these guides were written.
+
+### Where a picture replaces prose
+
+Not every section needs one. These are the places where the text is currently
+describing something *visual* or *sequential*, which is where a screenshot earns
+its place rather than decorating.
+
+| Priority | Guide | Section | Why prose is failing | Proposed screenshot | Status |
+|---|---|---|---|---|---|
+| **High** | Analytics Reports | Making a report | "The cards start to wiggle. Click the ones you want. Each gets a number showing where it will appear" — an entirely visual behaviour explained in words. The single clearest case in the set. | Selection mode active, several cards chosen and numbered | Planned |
+| **High** | Analytics Reports | Making a report | The Review step has drag-to-reorder, a name field, and include/exclude toggles; three paragraphs describe one screen. | Review dialog with cards ordered and the suggested name visible | Planned |
+| **High** | Data Management | Add Data | Import is the highest-stakes staff action and the flow is multi-step. | Drop area, then the detected-source review with reconciliation counts | Planned |
+| **High** | Data Management | Add Data | **New in beta.21**: a rejected file now names the record and offers Try Another File. Staff should recognise it before meeting it. | The failure panel with a real error message | Planned |
+| **High** | Inventory & Analytics | Read Client Analytics | Describing a bubble map in prose is close to pointless; a reader cannot picture bubble-area scaling. | Where Households Live, Portland metro, bubbles visible | Planned |
+| **High** | Service Log | Record The Day | Already listed below as Planned since before 1.5; still uncaptured, and the metric cards are the daily workflow. | Service Date control with configured metric cards | Planned |
+| Medium | Inventory & Analytics | Read The Analytics | Four tabs and a date-range control described in text; one image orients the whole page. | Analytics workspace, tab row and date presets visible | Planned |
+| Medium | Inventory & Analytics | Read Service Analytics | The Households/Visits toggle is a control the reader must find before the text makes sense. | Households by Season with the measure toggle | Planned |
+| Medium | Data Management | Restore A Backup | Recovery under stress; the confirmation step lists what will be replaced. | Restore confirmation with the unit list | Planned |
+| Medium | Admin | Inviting someone new | A form with role choice; currently 93 lines with nothing shown. | Invite dialog with role selection | Planned |
+| Medium | Admin | Choosing how strict sign-in is | The strictness options are the page's real decision and are easy to mis-set. | Sign-in policy controls | Planned |
+| Medium | Settings | Update The Weekly Schedule | A grid of day rows with open/close times — visual by nature. | Operating Hours weekly schedule | Planned |
+| Low | Settings | Choose How FEED Looks | Theme choice is self-evident once found. | Appearance setting | Planned |
+| Low | Service Log | Configure Service Metrics | Three-step dialog; already listed below. | Metric dialog with icon selection | Planned |
+
+### Deliberately not proposed
+
+- **Analytics card-by-card descriptions** (04, lines 43–283). Twenty-odd cards
+  described in text. Screenshotting each would create a maintenance burden that
+  goes stale every time a chart changes, and the descriptions are about *what
+  the numbers mean*, which a picture does not convey. One orientation image for
+  the workspace is the right amount.
+- **Report output examples.** A PDF page or CSV screenshot dates instantly and
+  tells the reader nothing they cannot see by generating one.
+- **Admin history, Data Management import history.** Ordinary tables; the
+  existing table screenshots elsewhere already teach the pattern.
+
+### Capture note for these specific shots
+
+The dev database currently holds restored production data. Analytics screens are
+safe — every card is aggregate, and the map plots postal-code centroids, not
+addresses. **Data Management and Admin screens are not automatically safe**:
+import history shows filenames, and Admin shows real email addresses. Use
+synthetic values or redact before capturing those two.
+
 ## Planned Screenshots
 
 | Priority | Guide | Section | User question | Proposed screenshot | Notes | Status |

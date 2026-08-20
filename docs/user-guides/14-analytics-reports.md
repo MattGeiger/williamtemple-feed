@@ -13,13 +13,14 @@ behind the scenes.
 1. Go to **Analytics** and set things up the way you want them — pick your date
    range, choose a channel, filter a table, sort a column. Whatever you can see
    is what you will get.
-2. Click **Generate Report**, at the top right beside the Operations,
-   Procurement, and Service tabs.
+2. Click **Generate Report**, at the top right beneath the Operations,
+   Procurement, Service, and Clients tabs.
 3. The cards start to wiggle. Click the ones you want. Each gets a number
    showing where it will appear in the report.
 4. Click **Review**.
 5. FEED suggests **Procurement Report**, **Operations Report**, **Service
-   Report**, or **Combined Report** from the cards you chose. Keep that name or
+   Report**, **Clients Report**, or **Combined Report** from the cards you
+   chose. Keep that name or
    type your own, drag the cards into the order you want, choose what to
    include, and click **Generate**.
 
@@ -29,7 +30,7 @@ Your report downloads as a ZIP file. Open it and you will find:
 - one **CSV** per card, numbered in the same order, that opens in Excel;
 - a small `manifest.json` recording the date range and filters used.
 
-You can pick up to **eight cards** in one report. Every card on all three tabs
+You can pick up to **eight cards** in one report. Every card on all four tabs
 can be picked — charts, the summary tiles, and the tables. If something on the
 page does not wiggle, that is a fault worth reporting, not a card that was left
 out on purpose.
@@ -39,17 +40,21 @@ out on purpose.
 The date range and page filters are locked when you click **Generate Report**.
 A card's own controls — such as a seasonal year choice, donor selection, search,
 or table sort and page — are locked when you click that card. This lets you move
-between Operations, Procurement, and Service and still capture each card exactly
-as it is shown when you choose it.
+between Operations, Procurement, Service, and Clients and still capture each
+card exactly as it is shown when you choose it.
 
 If you realise you wanted a different date range, click **Cancel**, change it,
 and start again.
 
 ## Mixing the tabs
 
-Your selection carries across all three tabs. Pick a card on Operations, switch
-to Procurement, pick two more, add one from Service, and they all end up in one
-report.
+Your selection carries across all four tabs. Pick a card on Operations, switch
+to Procurement, pick two more, add one from Service and one from Clients, and
+they all end up in one report.
+
+One card behaves differently in a report: **Where Households Live** prints as a
+ranked list of postal codes rather than the map you see on screen, because a
+printed page cannot carry a map. The numbers are the same either way.
 
 ## Choosing what goes in the file
 
