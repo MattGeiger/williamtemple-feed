@@ -48,6 +48,8 @@
     "react": "^18.2.0",
     "resend": "^6.6.0",
     "tiktoken": "^1.0.21",
+    "topojson-client": "^3.1.0",
+    "us-atlas": "^3.0.1",
     "us-zips": "^2022.9.1",
     "zod": "^4.1.13"
   },
@@ -61,6 +63,7 @@
     "@types/node": "^24.1.0",
     "@types/react": "^18.2.64",
     "@types/supertest": "^6.0.3",
+    "@types/topojson-client": "^3.1.5",
     "prisma": "^6.12.0",
     "supertest": "^7.1.4",
     "ts-node": "^10.9.2",

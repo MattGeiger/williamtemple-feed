@@ -20,6 +20,8 @@
 
 import type { Series } from './condense';
 
+import { boundaryRingsFor } from './basemap';
+
 const PALETTE = ['#2964A3', '#3090A8', '#78C0C0', '#F0D848', '#B08CC0', '#E08050', '#8FB339'];
 const INK = '#231F20';
 const MUTED = '#6B7684';
@@ -605,6 +607,34 @@ export function bubbleMapSvg(
     };
   };
 
+  // Land under the circles. Without it this is a scatter plot: the points are
+  // in the right places relative to each other and the reader has nothing to
+  // place them against.
+  const invLat = (yNorm: number) =>
+    (Math.atan(Math.sinh(Math.PI * (1 - 2 * yNorm))) * 180) / Math.PI;
+  const frameWest = (centre.x - halfX) * 360 - 180;
+  const frameEast = (centre.x + halfX) * 360 - 180;
+  const frameNorth = invLat(centre.y - halfY);
+  const frameSouth = invLat(centre.y + halfY);
+  const project = (lon: number, lat: number) => {
+    const m = mercator(lat, lon);
+    return {
+      x: ((m.x - centre.x) / (halfX * 2) + 0.5) * width,
+      y: ((m.y - centre.y) / (halfY * 2) + 0.5) * height,
+    };
+  };
+  const land = boundaryRingsFor(frameWest, frameEast, frameSouth, frameNorth)
+    .map(ring => {
+      const d = ring
+        .map(([lon, lat], i) => {
+          const { x, y } = project(lon, lat);
+          return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)} ${y.toFixed(1)}`;
+        })
+        .join('');
+      return `<path d="${d}Z" fill="#F7F9FB" stroke="${GRID}" stroke-width="0.7"/>`;
+    })
+    .join('');
+
   const largest = Math.max(...usable.map(p => p.value));
   const inFrame = usable.filter(p => {
     const m = mercator(p.latitude, p.longitude);
@@ -654,8 +684,11 @@ export function bubbleMapSvg(
       + `${esc(fmt(offFrameHouseholds))} households in ${esc(fmt(offFrame))} postal code${offFrame === 1 ? '' : 's'} outside this view</text>`
     : '';
 
+  const clipId = 'mapframe';
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" font-family="Helvetica, Arial, sans-serif">`
+    + `<defs><clipPath id="${clipId}"><rect x="0" y="0" width="${width}" height="${height}"/></clipPath></defs>`
+    + `<g clip-path="url(#${clipId})">${land}${circles}</g>`
+    + labels + scale + offNote
     + `<rect x="0" y="0" width="${width}" height="${height}" fill="none" stroke="${GRID}" stroke-width="1"/>`
-    + circles + labels + scale + offNote
     + `</svg>`;
 }

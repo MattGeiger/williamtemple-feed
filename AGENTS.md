@@ -699,6 +699,15 @@ kept since October 2023.
   once interactively and break every saved report; and fetching basemap tiles
   server-side would put a network call inside a report generator that has none,
   failing on an offline Pi and dragging tile-usage terms into a printed page.
+- **The printed map draws land under the bubbles.** Without it the card is a
+  scatter plot — the circles sit in the right places relative to each other and
+  the reader has nothing to place them against, which is what shipped first and
+  was rightly rejected. `basemap.ts` reads Census cartographic boundaries from
+  `us-atlas`: counties for a local frame, states once the span passes 3° of
+  longitude and county lines stop being orientation and become noise. Decoded
+  once per process (~16ms), around 285 vertices at metro zoom. Public domain and
+  generic across the country, matching `us-zips`' own scope, so nothing here is
+  an agency-specific asset that white-labelling would have to undo.
 - **The printed map centres on the most-frequent postal code.** Deterministic,
   needs no tuning, and for most agencies lands on or beside their own address.
   The extent covers 95% of placed households by distance from that centre, so a
