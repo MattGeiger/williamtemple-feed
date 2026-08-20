@@ -38,6 +38,44 @@ Everything else in this file. The application is shippable today.
 
 ## Open Issues
 
+### #77 — Alert-stream toasts fired on any brief interruption, and fired twice
+**Priority**: Medium · **Status**: Fixed in source 2026-08-20; awaiting deployment
+**Bucket**: Alerts / frontend messaging
+
+Switching browser tabs, or any momentary network drop, produced **two**
+identical error toasts: *"We couldn't load alerts right now."* Normal behaviour
+reported as a fault, and reported twice.
+
+**Hair trigger.** `EventSource.onerror` fires for things that are not failures
+from the user's point of view — a tab backgrounded long enough to be throttled,
+a second of flaky wifi, a backend restart. `alertService` already reconnects
+every five seconds and usually recovers silently, but it announced the *first*
+drop. Fixed by tolerating
+`ALERT_STREAM_FAILURES_BEFORE_ANNOUNCING` (3) consecutive failures — roughly
+fifteen seconds down — before the event is marked non-transient. The counter
+resets on any good snapshot. Subscribers still update their own state
+immediately; only the toast waits.
+
+**Duplicate.** Three components call `useAlerts` (the bell, the dialog, the
+list), each subscribes to the service, and each raised its own toast for one
+service-level event. Two mounted at once meant two toasts.
+
+Fixed at the messaging layer rather than the call site, because "one failure,
+several witnesses" is a shape that recurs: `MessageService` now collapses an
+identical message and type shown within `DUPLICATE_MESSAGE_WINDOW_MS` (3s) and
+returns the live handle of the toast already on screen, so a collapsed caller
+can still dismiss or update "its" toast. Different text, different severity, or
+a genuine repeat after the window all still show.
+
+**Note**: there was no duplicate-suppression anywhere before this. An earlier
+fix for duplicate toasts must have addressed one specific call site.
+
+**Also fixed in passing**: `useAlerts` restated the service's event shape inline
+instead of importing it, and the two had already drifted — the hook's copy did
+not know about the new field. It now uses `Parameters<AlertEventCallback>[0]`.
+
+---
+
 ### #75 — A failed import shows an empty dialog instead of the reason it failed
 **Priority**: High · **Status**: Fixed; deployed 2026-08-19 in beta.21
 **Bucket**: Data Management / Add Data

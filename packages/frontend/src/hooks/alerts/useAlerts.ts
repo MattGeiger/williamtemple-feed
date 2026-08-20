@@ -6,7 +6,7 @@
 // not covered by this license; see TRADEMARKS.md.
 
 import { useState, useEffect, useCallback } from 'react';
-import { Alert, alertService } from '@/services/alert';
+import { Alert, alertService, type AlertEventCallback } from '@/services/alert';
 import { useMessage } from '../message/useMessage';
 
 interface UseAlertsOptions {
@@ -28,13 +28,9 @@ export function useAlerts(options: UseAlertsOptions = {}) {
   const { showError } = useMessage();
 
   // Handle real-time updates
-  const handleAlertEvent = useCallback((data: {
-    type: 'initial' | 'new' | 'update' | 'error';
-    alert?: Alert;
-    alerts?: Alert[];
-    unreadCount?: number;
-    message?: string;
-  }) => {
+  // Taken from the service rather than restated here. The two had already
+  // drifted — the hook's copy did not know about `transient`.
+  const handleAlertEvent = useCallback((data: Parameters<AlertEventCallback>[0]) => {
     switch (data.type) {
       case 'initial':
         if (data.alerts) {
@@ -78,10 +74,15 @@ export function useAlerts(options: UseAlertsOptions = {}) {
         }
         break;
       case 'error':
-        // Surface a friendly error and stop loading state
+        // Stop the loading state either way — the list has nothing to show.
         setIsLoading(false);
         setError(new Error(data.message || 'Failed to load alerts.'));
-        showError('We couldn\'t load alerts right now. Please retry in a moment or contact the administrator if this persists.');
+        // But only interrupt the user once the service has decided the stream
+        // is genuinely down rather than momentarily dropped. Tab switches and
+        // brief blips reconnect on their own and are not the user's problem.
+        if (!data.transient) {
+          showError('We couldn\'t load alerts right now. Please retry in a moment or contact the administrator if this persists.');
+        }
         break;
     }
   }, [options.limit]);

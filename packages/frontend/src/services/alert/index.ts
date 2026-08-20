@@ -22,12 +22,33 @@ export type AlertEventCallback = (data: {
   alerts?: Alert[];
   unreadCount?: number;
   message?: string;
+  /**
+   * True while the stream is only *probably* broken.
+   *
+   * `EventSource.onerror` fires for things that are not failures from the
+   * user's point of view: switching tabs long enough for the browser to
+   * throttle the connection, a moment of flaky wifi, a backend restart. The
+   * service already retries every 5 seconds and usually recovers silently, so
+   * announcing the first drop reports normal behaviour as a fault.
+   *
+   * Subscribers should update their own state either way and only tell the
+   * user when this is false.
+   */
+  transient?: boolean;
 }) => void;
+
+/** Failed reconnects tolerated before the user is told the stream is down. */
+export const ALERT_STREAM_FAILURES_BEFORE_ANNOUNCING = 3;
 
 export class AlertService extends BaseApiService {
   private eventSource: EventSource | null = null;
   private subscribers = new Set<AlertEventCallback>();
   private reconnectTimeout: number | null = null;
+  /**
+   * Consecutive failed connection attempts. Reset the moment a snapshot
+   * arrives, so an outage has to persist to be worth interrupting anyone over.
+   */
+  private consecutiveFailures = 0;
   // Cache the latest snapshot so late subscribers can be hydrated immediately
   private lastSnapshot: { alerts: Alert[]; unreadCount: number } | null = null;
   // Cache the last error so late subscribers can exit loading if the stream failed earlier
@@ -53,6 +74,7 @@ export class AlertService extends BaseApiService {
         this.lastSnapshot = { alerts: data.alerts ?? [], unreadCount: data.unreadCount ?? 0 };
         // Clear last error on successful fetch
         this.lastError = null;
+        this.consecutiveFailures = 0;
         // Notify all subscribers with the fetched snapshot
         this.subscribers.forEach(cb => cb({
           type: 'initial',
@@ -92,6 +114,7 @@ export class AlertService extends BaseApiService {
           };
           // Clear any prior connection error once we have a valid snapshot
           this.lastError = null;
+          this.consecutiveFailures = 0;
         } else if (data?.type === 'new' && data.alert) {
           // Prepend new alert and maintain a bounded list (server usually sends up to 20)
           const prevAlerts = this.lastSnapshot?.alerts ?? [];
@@ -120,11 +143,15 @@ export class AlertService extends BaseApiService {
     };
 
     this.eventSource.onerror = (error) => {
-      console.error('SSE Error:', error);
-      // Notify subscribers so UI can exit loading state and surface a toast
+      this.consecutiveFailures += 1;
+      // Three tries at five seconds apart: roughly fifteen seconds down before
+      // the user hears about it. A tab switch or a brief drop reconnects well
+      // inside that and stays silent.
+      const transient = this.consecutiveFailures < ALERT_STREAM_FAILURES_BEFORE_ANNOUNCING;
+      if (!transient) console.error('SSE Error:', error);
       const message = 'Unable to connect to alerts stream. Please ensure you are logged in and try again.';
-      this.lastError = message;
-      this.subscribers.forEach(callback => callback({ type: 'error', message }));
+      this.lastError = transient ? null : message;
+      this.subscribers.forEach(callback => callback({ type: 'error', message, transient }));
       this.eventSource?.close();
       this.eventSource = null;
 
