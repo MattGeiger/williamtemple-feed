@@ -18,7 +18,7 @@ food-distribution programs at scale.
 
 **Production deployment:** https://feed.williamtemple.app
 **License:** [AGPL-3.0-or-later](./LICENSE)
-**Status:** v1.5.0-beta.10 — evaluating unified data ingestion and native pantry-service logging
+**Status:** v1.5.0 — released 2026-08-20
 
 ---
 
@@ -47,14 +47,33 @@ software. FEED supports the common operational reality of food pantries:
 - **Dashboards** — translation throughput, cost projections, token
   usage by provider, response-time monitoring; all with proper
   empty-state handling for fresh installs.
-- **Operations and procurement analytics** — effective-dated inventory history,
-  imported Oregon Food Bank supply records, and reusable PDF/CSV report
-  templates.
-- **Pantry service operations** — a shared daily Service Log with configurable
-  metrics, historical Link2Feed and SIMC visit imports, and WTH operational-log
-  migration support.
+- **Analytics in four lenses** — *Operations* (inventory history and
+  availability), *Procurement* (Oregon Food Bank supply and spend), *Service*
+  (what happened on a service day: households served, how service was
+  delivered, household size, turned away, languages), and *Clients* (who the
+  people are: age ranges, ethnicity, gender identity, housing, and a map of the
+  postal codes households gave).
+- **Reports you can hand to someone** — select any cards from any lens and get
+  a PDF to read plus a CSV of the figures behind it. Save the selection as a
+  template and re-run it later against a new date range, so a monthly funder
+  report is set up once. Charts render server-side, including the postal-code
+  map, so a saved report reproduces without a browser.
+- **Honest counting** — cards draw on records that begin years apart and are
+  never summed. Each says which record produced its figure, how far back that
+  record reaches, and how many households were actually asked a question, so a
+  low answer rate reads as a newer question rather than a refusal.
+- **Pantry service operations** — a shared daily Service Log with
+  administrator-configurable metrics, plus client visit imports from Link2Feed
+  and SIMC. Large imports run as background jobs with live progress. FEED reads
+  only what it needs and never stores names, addresses, phone numbers, or email
+  addresses.
 - **Unified data management** — one source-detecting Add Data workflow, durable
-  cross-domain import history, rollback/restore, and sanitized backup/restore.
+  cross-domain import history, and backup, restore, and reset. A restore can
+  bring back selected units only, so recovering last month's inventory need not
+  disturb anything else.
+- **Administration** — see who has access, invite staff, revoke access with
+  immediate effect, and optionally restrict sign-in to an allowlist. An audit
+  history records what administrators changed.
 - **In-app Help** — searchable staff guides written in plain language,
   plus a concise About page with project and license information.
 - **Magic-link OTP authentication** — no passwords. Email-based
@@ -78,11 +97,26 @@ fork it, modify it, and deploy your own instance — see
 
 ## Screenshots
 
-**Shopping List Builder** — design a printable template once; the system
-generates current-inventory-aware PDFs on demand. Here, an English
-template previews inline in Chinese:
+**Where Households Live** — households by postal code, sized by count. Circles
+mark postal codes, never addresses; FEED stores no client location beyond the
+code itself:
 
-![Shopping List Builder with inline Chinese translation](./docs/screenshots/shopping-list-builder-dark.png)
+![Analytics Clients lens showing a bubble map of households by postal code](./docs/screenshots/analytics-clients-map.png)
+
+**Analytics, in four lenses** — Operations, Procurement, Service and Clients,
+each scoped by the same date range:
+
+![The four Analytics lens tabs with date-range presets](./docs/screenshots/analytics-lens-tabs.png)
+
+**Build a report from any cards** — select what you want, in order, and export
+a PDF plus a CSV of the underlying figures:
+
+![Analytics cards in selection mode, numbered for a report](./docs/screenshots/analytics-report-selection.png)
+
+**Service Log** — a shared daily record with administrator-configurable
+metrics:
+
+![Service Log showing configurable daily metric cards](./docs/screenshots/service-log.png)
 
 **Dashboard** — inventory distribution, translation throughput, and cost
 monitoring, with full light/dark theming:
@@ -91,20 +125,20 @@ monitoring, with full light/dark theming:
 |------|-------|
 | ![Dashboard, dark mode](./docs/screenshots/dashboard-dark.png) | ![Dashboard, light mode](./docs/screenshots/dashboard-light.png) |
 
+**Shopping List Builder** — design a printable template once; the system
+generates current-inventory-aware PDFs on demand:
+
+![Shopping List Builder canvas with side panels](./docs/screenshots/shopping-list-builder-dark.png)
+
 **Food Item Management** — inventory with per-item limits, stock status,
 and dietary flags:
 
-![Food Item Management](./docs/screenshots/food-item-management-dark.png)
+![Food Item Management table with status filters](./docs/screenshots/food-item-management-dark.png)
 
 **Document Translator** — upload English DOCX files and manage
 translations across 59 languages:
 
-![Document Translator](./docs/screenshots/document-translator-light.png)
-
-**AI Configuration** — configure providers, models, cost limits, and
-system prompts:
-
-![AI Configuration](./docs/screenshots/ai-configuration-light.png)
+![Document Translator with translated files listed](./docs/screenshots/document-translator-light.png)
 
 ---
 
@@ -178,7 +212,12 @@ to any Docker host (Synology, NAS, cloud VPS, your own home server).
 - **Database:** SQLite (file-backed; switchable to Postgres via
   Prisma adapter)
 - **PDF generation:** Chromium / HTML-to-PDF via Puppeteer; pdfmake
-  retained as a reference path
+  retained as a reference path. Analytics charts — including the
+  postal-code map — are generated server-side as SVG, so a saved report
+  reproduces without a browser and without a network call
+- **Mapping:** MapLibre GL in the browser; server-side maps use US Census
+  cartographic boundaries (public domain) and GeoNames place names (CC BY),
+  both read from disk
 - **AI providers:** Anthropic (Claude family), OpenAI (GPT family),
   Google (Gemini family) — selectable per use case via in-app config
 - **Email:** Resend for the magic-link OTP flow
@@ -281,6 +320,14 @@ and [Lucide Animated](https://lucide-animated.com/).
 
 Translation infrastructure is built on top of the major AI providers
 (Anthropic, OpenAI, Google) with their model APIs.
+
+Geographic data behind the Clients map: postal-code centroids from
+[us-zips](https://github.com/nickcatal/us-zips) (MIT), cartographic boundaries
+from the US Census via [us-atlas](https://github.com/topojson/us-atlas) (public
+domain), and place names from [GeoNames](https://www.geonames.org/) via
+[all-the-cities](https://github.com/zeke/all-the-cities), used under
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). FEED derives map
+positions from postal codes alone and never stores a client address.
 
 ---
 
