@@ -39,7 +39,7 @@ Everything else in this file. The application is shippable today.
 ## Open Issues
 
 ### #78 — Header banner lost its frosted glass in dark mode
-**Priority**: Low · **Status**: Fixed in source 2026-08-20 (1.5.0)
+**Priority**: Low · **Status**: Fixed; deployed 2026-08-20 in 1.5.0
 **Bucket**: Layout / shell surfaces
 
 The breadcrumb header read as flat transparency rather than frosted glass,
@@ -78,7 +78,7 @@ its opacity from a panel meant to be opaque.
 ---
 
 ### #77 — Alert-stream toasts fired on any brief interruption, and fired twice
-**Priority**: Medium · **Status**: Fixed in source 2026-08-20; awaiting deployment
+**Priority**: Medium · **Status**: Fixed; deployed 2026-08-20 in 1.5.0
 **Bucket**: Alerts / frontend messaging
 
 Switching browser tabs, or any momentary network drop, produced **two**
