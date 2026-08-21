@@ -605,7 +605,7 @@ server-side abort, and a control that only dropped the poll would let the import
 commit while telling the user the opposite.
 
 ### #66 — Imported Tracking observations were invisible in the Service Log
-**Priority**: High · **Status**: Fixed in source 2026-08-13; awaiting staff acceptance testing
+**Priority**: High · **Status**: Fixed; deployed in 1.5.0; **staff-accepted 2026-08-21** (Service Log matches the Tracking source)
 **Bucket**: Service Log / operational continuity
 
 The Tracking adapter activated 1,114 valid operational observations, but the
@@ -622,7 +622,7 @@ old value. The database enforces at most one current revision for each
 metric/date, and lifecycle projection always prefers a later native decision.
 
 ### #65 — Imports table omitted Service import history
-**Priority**: High · **Status**: Fixed in source 2026-08-11; awaiting staff acceptance testing
+**Priority**: High · **Status**: Fixed; deployed in 1.5.0; **staff-accepted 2026-08-21** (Imports table lists all three service sources; SIMC reports 525 imported visits rather than 3,799 CSV rows)
 **Bucket**: Data Management / unified imports
 
 The unified Add Data modal correctly activated Link2Feed, SIMC, and WTH
@@ -640,7 +640,7 @@ materialization are excluded. All authenticated staff can read history;
 rollback and restore remain administrator-only.
 
 ### #64 — OFB importer did not provide its required exporter
-**Priority**: Medium · **Status**: Fixed in source 2026-08-09; awaiting staff acceptance testing
+**Priority**: Medium · **Status**: Fixed; deployed in 1.5.0; **staff-accepted 2026-08-21** (verified live in production)
 **Bucket**: Data Management / procurement imports
 
 FEED accepts the unified 26-column OFB schema produced by the OFB Order CSV
@@ -664,7 +664,7 @@ retains the extension's README, privacy notice, support document, changelog,
 assets, and AGPL license.
 
 ### #63 — Reports Management bulk selection and deletion
-**Priority**: Medium · **Status**: Fixed in source 2026-08-09; awaiting staff acceptance testing
+**Priority**: Medium · **Status**: Fixed; deployed in 1.5.0; **staff-accepted 2026-08-21**
 **Bucket**: Reports Management / table consistency
 
 Reports Management was the only current management table without row
