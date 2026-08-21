@@ -157,7 +157,7 @@ The shopping list feature supports multiple template types and advanced configur
 1. **Template Types**
    - Full Page - Traditional 8.5" x 11" layout with multiple sections
    - Split Page - Narrow 4.25" x 11" layout for printing two lists per page
-   - Custom Grid - Multiple identical mini-lists per page in 2x3 or 2x4 grid
+   - Custom Grid - Multiple identical mini-lists per page in 2x2, 2x3, or 2x4 grid
 
 2. **Section Management (Updated for Three Section Types)**
    - **Custom Text Sections**: Text editor with style options, drag-and-drop placement
