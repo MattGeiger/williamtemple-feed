@@ -820,6 +820,30 @@ Passdown messages should be concrete enough that a fresh agent can continue with
 - **API response envelopes: unwrap consistently in the service layer.** Backend routes return *enveloped* objects — `{ foodItem }`, `{ foodItems }`, `{ template }`, `{ component }`, etc. Frontend services must unwrap to the inner value. A mismatch is a real bug source: `FoodItemService.updateFoodItem`/`createFoodItem` returned the raw `{ foodItem }` envelope (mistyped as `FoodItem`) while `getFoodItems` correctly returned `response.foodItems`; the malformed object (no `statusFlags`) was stored in state and crashed the next render with `Cannot read properties of undefined (reading 'isInStock')` — but only on *mutations* (initial load worked because GET unwrapped). When adding/editing any service method, mirror the unwrap the GET path uses, and confirm the returned object has the same shape the UI consumes.
 - **Keep the three version sources in sync on a release bump.** The in-app version tag is `APP_VERSION` = `packages/frontend/package.json` version (shown in the sidebar/login/logout); the backend `/api/health` reports `packages/backend/package.json` version; the deployed Docker image tag is the `VERSION` build arg (and the Pi's `.env`). They drift independently — bump all three together. (They were stuck at `0.99.0` in the UI while images shipped `1.0.x`.)
 - **DB migrations auto-apply on container start** via the backend Docker `CMD` (`prisma migrate deploy && node dist/index.js`). A new migration committed into the image runs automatically on the next Pi deploy — back up `production.db` first when a migration is destructive (e.g. a table rebuild), then build/push the image and `docker compose pull && up -d`.
+- **A pre-commit hook blocks operational data; install it.** `git config
+  core.hooksPath .githooks` — hooks are not cloned with a repository, so a fresh
+  checkout has no protection until someone runs that. `.githooks/pre-commit`
+  refuses any staged file that is a SQLite database, write-ahead log or rollback
+  journal **by magic number rather than by name**, exceeds 5MB
+  (`FEED_ALLOW_LARGE=1` overrides for legitimate assets), matches
+  `feed-backup-*.json`, or carries client PII column headers in a data file
+  outside a reviewed test-fixture path.
+- **`.gitignore` is always one format behind.** It closes filenames; the risk is
+  file *kinds*. `*.db` shipped in the very first commit and did not match
+  `dev.db-wal`, so write-ahead logs went unignored from 2026-05-19 until
+  2026-08-14 — and a WAL holds committed page data not yet checkpointed, so one
+  captured after a Link2Feed import contains real client rows. Nothing landed in
+  that window, by luck rather than design. `feed-backup-*.json` was the same gap
+  a second time: `*.db` does not match it, and a production backup is ~150MB of
+  every client record. When a new artifact appears, ask what it *is*, not what
+  it is called.
+- **Verify history by content, not by filename.** A name scan misses a database
+  renamed `notes.txt`. Read the first bytes of every blob and match magic
+  numbers — `SQLite format 3`, WAL `0x377f0682/83`, journal
+  `0xd9d505f920a163d7` — and grep blob content for the real exports' column
+  signatures. Done across all 3,557 blobs on 2026-08-20: zero databases, zero
+  WALs, zero journals, and the only five CSVs in history are synthetic fixtures
+  whose ids read `L2F-SYNTHETIC-1`.
 - **Secret leaks / public repo:** treat any committed secret as permanently compromised — **rotation is the real fix**, not deletion (git history keeps it; removing from the working tree does nothing). Scrub history with `git filter-repo --replace-text` then force-push; reconcile other checkouts with `git fetch && git reset --hard origin/main` (gitignored files like `.env` survive). The runtime encryption key lives in the DB `EncryptionKey` table (`KeyManager.getActiveKey`), **not** in `ENCRYPTION_MASTER_KEY` env — so a leaked env key may not even match the active key; verify before assuming exposure. GitGuardian alerts are legitimate, but verify via `dashboard.gitguardian.com`, never an emailed "grant access" link.
 - **`cd packages/frontend && npx tsc --noEmit` checks nothing and reports success anyway.** The frontend root `tsconfig.json` is a solution-style file (`"files": []` plus `references` to `tsconfig.app.json`/`tsconfig.node.json`); a bare `tsc --noEmit` run against it has zero root files to check and exits 0 regardless of real errors elsewhere in the project. An entire session's worth of "typecheck passed" claims were false on this basis — real type errors (a missing import, an incomplete test fixture, a narrowed-type-widened-to-`string` indexing bug) shipped uncaught across several commits before a stray unrelated command (`tsc --project tsconfig.app.json`) exposed the gap. **Always run `npx tsc --noEmit --project tsconfig.app.json`** (or `npx tsc -b`) for a real frontend check. The backend's `tsconfig.json` is an ordinary single-project config with a real `include`, so a bare `npx tsc --noEmit` from `packages/backend` has always been genuine — this trap is frontend-only. If a `tsc --noEmit` claim of "0 errors" seems too clean given the scope of a change, or is going to gate a commit/report to the user, verify the invocation actually names `tsconfig.app.json` before trusting it.
 - **When "0 new errors" needs to be trusted, verify against a real historical baseline, not memory.** `git worktree add /tmp/baseline-check <commit>` gives an isolated, disposable checkout to typecheck the pre-change state without touching the working tree or risking a destructive operation on it — `npm install` there, run the real `tsc --project tsconfig.app.json` invocation above, then `git worktree remove --force` when done. Comparing raw error-line counts between two runs is misleading when messages wrap across multiple lines (a 4x count swing can be entirely message-formatting noise); compare deduplicated `(file, code, message)` signatures with line/column numbers stripped instead.

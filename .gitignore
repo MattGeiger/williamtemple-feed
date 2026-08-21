@@ -46,6 +46,12 @@ data/
 # organization data and must never be committed or published.
 /docs/reports/RealData/
 
+# FEED's own backup artifact: every client record the system holds, as JSON.
+# Not covered by *.db, and a production backup runs to ~150MB. Anywhere in the
+# tree, because it is downloaded to wherever the browser puts it.
+feed-backup-*.json
+**/feed-backup-*.json
+
 # Generated local artifacts
 output/
 tmp/
