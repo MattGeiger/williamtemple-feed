@@ -1,5 +1,10 @@
 # Shopping Lists Print System Documentation
 
+> **Legacy print-system note:** This document describes the older `PrintView`
+> path. The active Shopping List Builder roadmap will add 2×2, 2×3, and 2×4
+> grids in v1.7.0. The legacy implementation documented below has only 2×3 and
+> 2×4; do not treat that omission as the active Builder contract.
+
 ## Overview
 
 The shopping lists print system provides a comprehensive solution for generating and printing shopping lists with multiple layout options. The system ensures consistent rendering between viewport preview and actual printed output.

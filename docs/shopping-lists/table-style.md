@@ -46,7 +46,8 @@ Align the Shopping List table with established patterns from Category Management
 - Icons for layout types:
   - `FileText` for Full Page
   - `Columns2` for Split Page  
-  - `LayoutGrid` for Grid (2x3 and 2x4)
+  - `LayoutGrid` for Grid (2x2, 2x3, and 2x4; 2x2 is planned for the active
+    Builder in v1.7.0 and is not implemented by this legacy table mapping)
 - Small icons with tooltips following Dietary column pattern
 
 #### Details Column

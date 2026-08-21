@@ -5,6 +5,18 @@ All notable changes to FEED are documented here. This project adheres to
 
 ## [Unreleased]
 
+### Changed
+
+- **The v1.6–v2.0 roadmap now fixes the Shopping List grid contract at 2×2,
+  2×3, and 2×4.** Legacy print-system documents are labelled so their older
+  2×3 / 2×4 implementation does not silently narrow the active Builder plan.
+- **The LOTTO integration now has a reviewed v1 daily-summary contract and a
+  ready-to-use implementation prompt.** The plan specifies append-only,
+  revision-aware session closeouts, a versioned bearer-authenticated endpoint,
+  pagination, privacy-minimized call timelines, and the evidence boundary that
+  LOTTO can report queue pace but cannot report actual client wait time without
+  ticket-issuance timestamps.
+
 ## [1.5.0] — 2026-08-20
 
 Everything since 1.4.0, across twenty-one betas. Analytics reports, the Service

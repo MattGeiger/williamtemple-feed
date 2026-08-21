@@ -68,7 +68,7 @@ Each section contains:
   name: string
   description?: string
   language: string // 'en', 'zh', 'es', etc. (for future bilingual support)
-  layoutType: 'full-page' | 'split-page' | 'grid-2x3' | 'grid-2x4'
+  layoutType: 'full-page' | 'split-page' | 'grid-2x2' | 'grid-2x3' | 'grid-2x4'
   isActive: boolean
   sections: ShoppingListSection[]
   createdAt: Date

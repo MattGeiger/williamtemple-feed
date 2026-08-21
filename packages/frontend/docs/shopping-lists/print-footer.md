@@ -1,5 +1,11 @@
 # PrintFooter Component Technical Documentation
 
+> **Legacy print-system note:** This component belongs to the older print path.
+> The active Shopping List Builder roadmap includes 2×2, 2×3, and 2×4 grids for
+> v1.7.0. `grid-2x2` is not added to the legacy prop type below by documentation
+> alone; the new Builder must define its own footer/cut behavior when that layout
+> is implemented.
+
 ## Component Overview
 
 The `PrintFooter` component is a unified footer solution for the shopping list print system that ensures consistent footer rendering across different layout types and media (screen vs print).
