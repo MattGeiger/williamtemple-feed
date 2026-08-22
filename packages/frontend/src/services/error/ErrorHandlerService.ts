@@ -5,7 +5,7 @@
 // under AGPL-3.0-or-later; see LICENSE. William Temple House branding is
 // not covered by this license; see TRADEMARKS.md.
 
-import { toast } from '@/components/ui/use-toast';
+import { messageService } from '@/services/message';
 
 /**
  * Maps known error messages to more user-friendly, actionable messages.
@@ -195,23 +195,26 @@ const errorMessageMap: { [key: string]: string } = {
  * - Server and service errors
  */
 export class ErrorHandlerService {
-  private static recentErrors = new Map<string, number>();
-  private static readonly DUPLICATE_WINDOW_MS = 3000; // 3 seconds
-
   /**
    * Handles an error by displaying a standardized toast message.
-   * Prevents duplicate error messages within a 3-second window.
+   * The centralized message service collapses identical messages raised by
+   * different page-load requests within its duplicate window.
    * @param error - The error object to handle.
    * @param context - An optional string providing context for the error.
    */
-  public static handleError(error: any, context?: string): void {
+  public static handleError(error: unknown, context?: string): void {
     let rawMessage = 'An unknown error occurred.';
+    const errorLike = error as {
+      code?: unknown;
+      message?: unknown;
+      response?: { data?: { message?: unknown } };
+    } | null;
 
     // Check for a detailed API error response
-    if (error && error.response && error.response.data && error.response.data.message) {
-      rawMessage = error.response.data.message;
-    } else if (error && error.message) {
-      rawMessage = error.message;
+    if (typeof errorLike?.response?.data?.message === 'string') {
+      rawMessage = errorLike.response.data.message;
+    } else if (typeof errorLike?.message === 'string') {
+      rawMessage = errorLike.message;
     }
 
     // A message the server labelled with an application error code is curated
@@ -219,8 +222,7 @@ export class ErrorHandlerService {
     // never carries one. That distinction is what lets a long, deliberate
     // explanation through while still blocking developer artifacts.
     const hasServerCode =
-      typeof (error as { code?: unknown } | null)?.code === 'string' &&
-      (error as { code: string }).code.length > 0;
+      typeof errorLike?.code === 'string' && errorLike.code.length > 0;
 
     const GENERIC_FALLBACK = 'An unexpected error occurred. Please try again.';
     let userMessage = GENERIC_FALLBACK;
@@ -246,32 +248,8 @@ export class ErrorHandlerService {
       userMessage = rawMessage;
     }
 
-    // Check for duplicate errors within the time window
-    const now = Date.now();
-    
-    // For network errors, ignore context to prevent multiple identical network error messages
-    const isNetworkError = userMessage.includes('Network error') || userMessage.includes('Please check your connection');
-    const errorKey = isNetworkError ? userMessage : `${userMessage}:${context || 'global'}`;
-    
-    const lastShown = this.recentErrors.get(errorKey);
-
-    if (lastShown && (now - lastShown) < this.DUPLICATE_WINDOW_MS) {
-      // Skip showing duplicate error
-      console.error(`[${context || 'Global'}] API Error (duplicate suppressed):`, error);
-      return;
-    }
-
-    // Record this error and clean up old entries
-    this.recentErrors.set(errorKey, now);
-    this.cleanupOldErrors(now);
-
     console.error(`[${context || 'Global'}] API Error:`, error);
-
-    toast({
-      variant: 'destructive',
-      title: 'Error',
-      description: userMessage,
-    });
+    messageService.error(userMessage);
   }
 
   /**
@@ -321,17 +299,6 @@ export class ErrorHandlerService {
     if (/node_modules|\.ts:\d+|\.js:\d+/.test(trimmed)) return false;
 
     return true;
-  }
-
-  /**
-   * Removes error entries older than the duplicate window
-   */
-  private static cleanupOldErrors(currentTime: number): void {
-    for (const [key, timestamp] of this.recentErrors.entries()) {
-      if (currentTime - timestamp > this.DUPLICATE_WINDOW_MS) {
-        this.recentErrors.delete(key);
-      }
-    }
   }
 
   /**

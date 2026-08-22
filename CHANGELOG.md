@@ -5,6 +5,13 @@ All notable changes to FEED are documented here. This project adheres to
 
 ## [Unreleased]
 
+### Fixed
+
+- **Identical page-load failures now produce one toast across the entire
+  frontend.** `ErrorHandlerService` now uses the centralized message service,
+  so concurrent requests cannot bypass duplicate collapsing merely because
+  they came from different component contexts.
+
 ## [1.6.0] — production acceptance pending
 
 ### Added
