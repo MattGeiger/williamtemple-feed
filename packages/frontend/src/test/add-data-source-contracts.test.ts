@@ -91,6 +91,15 @@ describe('unified Add Data source contracts', () => {
     expect(result.contract.status).toBe('operational');
   });
 
+  test('detects canonical LOTTO queue history as a staff-level operational import', () => {
+    const result = detectCsvSource('FEED Schema Version,Summary JSON\n1,"{}"');
+    expect(result.status).toBe('detected');
+    if (result.status !== 'detected') return;
+    expect(result.contract.id).toBe('lotto_queue_history_v1');
+    expect(result.contract.domain).toBe('service');
+    expect(result.contract.status).toBe('operational');
+  });
+
   test('does not ask the user to force an unknown file through a parser', () => {
     expect(detectCsvSource(fixture('unknown.csv'))).toEqual({
       status: 'unknown',

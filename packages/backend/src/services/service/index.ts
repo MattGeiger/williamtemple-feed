@@ -7,6 +7,7 @@ export * from './metrics';
 export * from './capacity';
 export * from './quality';
 export * from './analytics';
+export * from './lotto-queue';
 export * from './import-lifecycle';
 export * from './adapters/link2feed-visits';
 export * from './adapters/simc-service-visits';

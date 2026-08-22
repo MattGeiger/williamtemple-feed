@@ -32,6 +32,7 @@ import {
 import { ErrorHandlerService } from '@/services/error/ErrorHandlerService';
 import { messageService } from '@/services/message';
 import { procurementService } from '@/services/procurement';
+import { serviceApi, type LottoQueueImportResult } from '@/services/service';
 import type { LegacyImportResult, ProcurementWarning, UnifiedImportResult } from '@/types/procurement';
 import { format, parseISO } from 'date-fns';
 import { ImportProgressPanel } from './import-progress-panel';
@@ -112,6 +113,7 @@ export function AddDataDialog({
   const [job, setJob] = React.useState<DataImportJobReview | null>(null);
   const [result, setResult] = React.useState<DataImportActivationResult | null>(null);
   const [procurementResult, setProcurementResult] = React.useState<ProcurementResult | null>(null);
+  const [lottoResult, setLottoResult] = React.useState<LottoQueueImportResult | null>(null);
   const [isWorking, setIsWorking] = React.useState(false);
   const [decisionAction, setDecisionAction] = React.useState<Link2FeedReviewAction>('keep_source_interpretation');
   const [decisionReason, setDecisionReason] = React.useState('');
@@ -143,6 +145,7 @@ export function AddDataDialog({
     setJob(null);
     setResult(null);
     setProcurementResult(null);
+    setLottoResult(null);
     setIsWorking(false);
     setDecisionAction('keep_source_interpretation');
     setDecisionReason('');
@@ -265,7 +268,9 @@ export function AddDataDialog({
       setError(detection.contract.nextStep);
       return;
     }
-    if (detection.contract.domain === 'service' && !isAdministrator) {
+    if (detection.contract.domain === 'service'
+      && detection.contract.id !== 'lotto_queue_history_v1'
+      && !isAdministrator) {
       setError('Administrator access is required to import Service data. Ask an administrator to add this file.');
       return;
     }
@@ -277,6 +282,19 @@ export function AddDataDialog({
     try {
       setError(null);
       setIsWorking(true);
+
+      if (detection.contract.id === 'lotto_queue_history_v1') {
+        const imported = await serviceApi.importLottoHistory(file);
+        setLottoResult(imported);
+        setStep('complete');
+        await refreshAfterImport();
+        messageService[imported.outcome === 'no_op' ? 'info' : 'success'](
+          imported.outcome === 'no_op'
+            ? 'This LOTTO history is already current. No changes were made.'
+            : `LOTTO history imported. ${imported.review} session${imported.review === 1 ? '' : 's'} await staff review.`,
+        );
+        return;
+      }
 
       if (detection.contract.id === 'ofb_unified_v2') {
         const imported = await procurementService.importOfbExport(file);
@@ -406,7 +424,9 @@ export function AddDataDialog({
     void refreshAfterImport();
   }, [job, result, refreshAfterImport]);
   const serviceAccessBlocked = Boolean(
-    detection?.contract.domain === 'service' && !isAdministrator
+    detection?.contract.domain === 'service'
+      && detection.contract.id !== 'lotto_queue_history_v1'
+      && !isAdministrator
   );
   const legacyOfbContract = detection?.contract.id === 'ofb_completed_orders_v1'
     || detection?.contract.id === 'ofb_agency_pickups_v1';
@@ -420,7 +440,7 @@ export function AddDataDialog({
     ? 'Choose a CSV. FEED identifies the source automatically.'
     : step === 'review'
       ? 'Confirm the file before FEED continues.'
-      : procurementResult || result
+      : procurementResult || lottoResult || result
         ? 'Your import is complete.'
         : 'Review the detected records before activation.';
 
@@ -680,6 +700,25 @@ export function AddDataDialog({
                 </ScrollArea>
               </>
             )}
+          </div>
+        )}
+
+        {step === 'complete' && lottoResult && (
+          <div className="space-y-4 py-2 text-center">
+            <CheckCircle2 className="mx-auto h-10 w-10 text-primary" aria-hidden="true" />
+            <div>
+              <h3 className="font-semibold">
+                {lottoResult.outcome === 'no_op' ? 'No changes found' : 'LOTTO history imported'}
+              </h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {lottoResult.outcome === 'no_op'
+                  ? 'This history file was already imported.'
+                  : `${lottoResult.inserted.toLocaleString()} session${lottoResult.inserted === 1 ? '' : 's'} synchronized; ${lottoResult.review.toLocaleString()} await staff review.`}
+              </p>
+              <p className="mt-2 text-xs text-muted-foreground">
+                Sessions awaiting review are preserved but withheld from Service Analytics.
+              </p>
+            </div>
           </div>
         )}
 
@@ -968,7 +1007,7 @@ export function AddDataDialog({
               <Button type="button" onClick={() => void beginImport()} disabled={isWorking || !canStartImport}>
                 {isWorking
                   ? 'Importing…'
-                  : detection?.contract.domain === 'service'
+                  : detection?.contract.domain === 'service' && detection.contract.id !== 'lotto_queue_history_v1'
                     ? 'Validate and Review'
                     : 'Import Data'}
               </Button>
@@ -999,7 +1038,7 @@ export function AddDataDialog({
                   Activate Data
                 </Button>
               )}
-              {(procurementResult || result) && <Button type="button" onClick={() => void close()} disabled={isWorking}>Done</Button>}
+              {(procurementResult || lottoResult || result) && <Button type="button" onClick={() => void close()} disabled={isWorking}>Done</Button>}
             </>
           )}
         </DialogFooter>

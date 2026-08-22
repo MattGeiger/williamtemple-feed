@@ -166,7 +166,61 @@ class ServiceApi extends BaseApiService {
     ).toString();
     return (await this.get<{ analytics: ServiceAnalytics }>(`/analytics?${query}`)).analytics;
   }
+
+  async importLottoHistory(file: File): Promise<LottoQueueImportResult> {
+    const response = await this.request<{ result: LottoQueueImportResult }>('/lotto/history-import', {
+      method: 'POST', body: file,
+      headers: { 'Content-Type': file.type === 'application/csv' ? file.type : 'text/csv' },
+    });
+    return response.result;
+  }
+
+  async getLottoStatus(): Promise<LottoQueueStatus> {
+    return (await this.get<{ status: LottoQueueStatus }>('/lotto/status')).status;
+  }
+
+  async listLottoSessions(): Promise<LottoQueueSession[]> {
+    return (await this.get<{ sessions: LottoQueueSession[] }>('/lotto/sessions')).sessions;
+  }
+
+  async syncLotto(): Promise<{ inserted: number; unchanged: number; review: number }> {
+    return (await this.post<{ result: { inserted: number; unchanged: number; review: number } }>('/lotto/sync')).result;
+  }
+
+  async saveLottoConfig(baseUrl: string, token: string): Promise<void> {
+    await this.put('/lotto/config', { baseUrl, token });
+  }
+
+  async resolveLottoSession(sessionId: string, disposition: LottoQueueDisposition, reason: string): Promise<void> {
+    await this.post(`/lotto/sessions/${encodeURIComponent(sessionId)}/resolutions`, { disposition, reason });
+  }
 }
+
+export interface LottoQueueImportResult {
+  outcome: 'imported' | 'no_op';
+  importId: number;
+  received: number;
+  inserted: number;
+  unchanged: number;
+  review: number;
+}
+
+export type LottoQueueDisposition = 'needs_review' | 'included_service' | 'excluded_test' | 'excluded_duplicate' | 'excluded_other';
+export interface LottoQueueStatus {
+  configured: boolean;
+  pendingReviewCount: number;
+  config: { baseUrl: string; cursor: string | null; lastSyncedAt: string | null; updatedAt: string } | null;
+}
+export interface LottoQueueSession {
+  id: number; sessionId: string; serviceDate: string; issuedCount: number; calledCount: number;
+  withinOperatingWindow: boolean; allIssuedTicketsCalled: boolean;
+  switchedRandomToSequential: boolean; appendedTickets: boolean;
+  initialDisposition: LottoQueueDisposition; effectiveDisposition: LottoQueueDisposition;
+  timingCoverage: string; recordedAt: string;
+  qualityIssues: Array<{ id: number; code: string; severity: string }>;
+  latestResolution: { disposition: LottoQueueDisposition; reason: string; createdAt: string } | null;
+}
+
 
 /** Mirrors `getServiceAnalytics` in the backend service. */
 export type ServiceBucketGranularity = 'day' | 'week' | 'month';
@@ -339,6 +393,18 @@ export interface ServiceAnalytics {
     visits: number;
     visitsPerHousehold: number;
   }>;
+  queueTiming: {
+    includedSessionCount: number;
+    pendingReviewCount: number;
+    excludedSessionCount: number;
+    observedTicketCount: number;
+    medianWaitMinutes: number | null;
+    averageWaitMinutes: number | null;
+    p75WaitMinutes: number | null;
+    p90WaitMinutes: number | null;
+    historicalServingIntervalMinutes: number | null;
+    typicalLastCallLocalTime: string | null;
+  };
 }
 
 export const serviceApi = new ServiceApi();

@@ -13,7 +13,8 @@ export interface SourceContract {
     | 'link2feed_visits_v1'
     | 'link2feed_clients_v1'
     | 'simc_service_visits_v1'
-    | 'wth_service_tracking_v1';
+    | 'wth_service_tracking_v1'
+    | 'lotto_queue_history_v1';
   label: string;
   sourceLabel: string;
   datasetLabel: string;
@@ -129,6 +130,7 @@ export const WTH_LEGACY_PROCUREMENT_HEADERS = [
   'source_file',
   'caveat',
 ] as const;
+export const LOTTO_QUEUE_HISTORY_HEADERS = ['FEED Schema Version', 'Summary JSON'] as const;
 
 /**
  * Public Link2Feed visit allowlist. An original export may contain additional
@@ -222,6 +224,22 @@ export const WTH_SERVICE_TRACKING_HEADERS = [
 ] as const;
 
 export const SOURCE_CONTRACTS: readonly SourceContract[] = [
+  {
+    id: 'lotto_queue_history_v1',
+    label: 'LOTTO queue history',
+    sourceLabel: 'LOTTO',
+    datasetLabel: 'Historical queue-session timing',
+    domain: 'service',
+    status: 'operational',
+    exactHeaders: LOTTO_QUEUE_HISTORY_HEADERS,
+    allowedHeaders: LOTTO_QUEUE_HISTORY_HEADERS,
+    transformations: [
+      'Import privacy-minimized session closeouts without physical ticket numbers.',
+      'Keep unusual sessions out of Analytics until staff classify them.',
+    ],
+    nextStep: 'Import the reconstructed history, then review withheld sessions.',
+    priority: 110,
+  },
   {
     id: 'ofb_unified_v2',
     label: 'OFB unified order export',

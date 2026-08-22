@@ -1,6 +1,6 @@
 {
   "name": "backend",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "main": "index.js",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
@@ -20,7 +20,8 @@
     "admin:list": "ts-node src/cli/admin.ts list",
     "admin:grant": "ts-node src/cli/admin.ts grant",
     "admin:revoke": "ts-node src/cli/admin.ts revoke",
-    "admin:reset-access-mode": "ts-node src/cli/admin.ts reset-access-mode"
+    "admin:reset-access-mode": "ts-node src/cli/admin.ts reset-access-mode",
+    "convert:lotto-history": "ts-node --compiler-options '{\"module\":\"CommonJS\"}' ../../scripts/convert-lotto-snapshots.ts"
   },
   "keywords": [],
   "author": "",

@@ -4,7 +4,7 @@
 import React from 'react';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, test, vi } from 'vitest';
 import { AddDataDialog } from '@/components/data-management/add-data/add-data-dialog';
 import { SIMC_SERVICE_VISIT_ALLOWED_HEADERS } from '@/components/data-management/add-data/source-contracts';
@@ -220,6 +220,41 @@ describe('Add Data workflow', () => {
     expect(screen.getByText(/Administrator access is required to import Service data/)).toBeVisible();
     expect(screen.getByRole('button', { name: 'Validate and Review' })).toBeDisabled();
     expect(fetchSpy).not.toHaveBeenCalled();
+    fetchSpy.mockRestore();
+  });
+
+  test('allows staff to import canonical LOTTO queue history directly', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = typeof input === 'string' ? input : (input as Request).url ?? String(input);
+      if (url.includes('/jobs/active')) return jsonResponse({ job: null });
+      if (url.includes('/lotto/history-import')) return jsonResponse({
+        result: {
+          outcome: 'imported', importId: 31, received: 2, inserted: 2,
+          unchanged: 0, review: 1,
+        },
+      });
+      return jsonResponse({});
+    });
+    const onImported = vi.fn();
+    const lottoFixture = 'FEED Schema Version,Summary JSON\n1,"{}"';
+
+    render(<AddDataDialog open onOpenChange={() => {}} onImported={onImported} isAdministrator={false} />);
+    fireEvent.change(screen.getByLabelText('Choose data file'), {
+      target: { files: [new File([lottoFixture], 'lotto-history.csv', { type: 'text/csv' })] },
+    });
+
+    expect(await screen.findByText('LOTTO queue history')).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    expect(screen.getByRole('button', { name: 'Import Data' })).toBeEnabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Import Data' }));
+
+    expect(await screen.findByText('LOTTO history imported')).toBeVisible();
+    expect(screen.getByText(/2 sessions synchronized; 1 await staff review/)).toBeVisible();
+    expect(fetchSpy).toHaveBeenCalledWith(
+      expect.stringContaining('/api/service/lotto/history-import'),
+      expect.objectContaining({ method: 'POST', body: expect.any(File) }),
+    );
+    expect(onImported).toHaveBeenCalledOnce();
     fetchSpy.mockRestore();
   });
 

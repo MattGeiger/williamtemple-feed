@@ -45,6 +45,7 @@ export interface ServiceImportHistoryRecord extends ImportHistoryBase {
     clientProfileRevisionCount: number;
     personProfileRevisionCount: number;
     metricObservationRevisionCount: number;
+    lottoSessionRevisionCount: number;
     qualityIssueCount: number;
     qualityGroups: Array<{ code: string; severity: string; count: number }>;
   };

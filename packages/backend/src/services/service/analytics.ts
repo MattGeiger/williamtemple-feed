@@ -7,6 +7,7 @@ import { getOperatingHoursSettings } from '../operating-hours';
 import { resolveRange, type AnalyticsRangePreset } from '../inventory-analytics/timezone';
 import { granularityForRange } from '../analytics-granularity';
 import { serviceProfileDimensionLabel } from './profiles';
+import { getLottoQueueAnalytics } from './lotto-queue';
 import zipCentroids from 'us-zips';
 
 /**
@@ -302,6 +303,18 @@ export interface ServiceAnalytics {
     visits: number;
     visitsPerHousehold: number;
   }>;
+  queueTiming: {
+    includedSessionCount: number;
+    pendingReviewCount: number;
+    excludedSessionCount: number;
+    observedTicketCount: number;
+    medianWaitMinutes: number | null;
+    averageWaitMinutes: number | null;
+    p75WaitMinutes: number | null;
+    p90WaitMinutes: number | null;
+    historicalServingIntervalMinutes: number | null;
+    typicalLastCallLocalTime: string | null;
+  };
 }
 
 /** Fixed bands, so a chart can be compared with last quarter's. */
@@ -1221,6 +1234,7 @@ ${Object.entries(LANGUAGE_LABEL_ALIASES)
   const languageValues = toLanguageValues(languageRows);
   const languageRawValues = toLanguageValues(languageRawRows);
   const languagesAsked = coverageTotals.get('household_languages');
+  const queueTiming = await getLottoQueueAnalytics(startDate, endDate, client);
 
   return {
     coverage: {
@@ -1358,5 +1372,6 @@ ${Object.entries(LANGUAGE_LABEL_ALIASES)
         visitsPerHousehold: households > 0 ? round(rowVisits / households) : 0,
       };
     }),
+    queueTiming,
   };
 }

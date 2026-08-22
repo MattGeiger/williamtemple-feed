@@ -359,10 +359,133 @@ model ServiceImport {
   personProfiles     ServicePersonProfileRevision[]
   metricObservations ServiceMetricObservationRevision[]
   qualityIssues      ServiceQualityIssue[]
+  lottoSessions      LottoQueueSessionRevision[]
 
   @@index([source, datasetKind, importedAt])
   @@index([fileHash])
   @@index([status, importedAt])
+}
+
+// Privacy-minimized LOTTO closeouts. Queue tickets are operational timing
+// observations, never visits, households, clients, or people.
+model LottoQueueSessionRevision {
+  id                         Int                    @id @default(autoincrement())
+  summaryId                  String                 @unique
+  sessionId                  String
+  revision                   Int
+  supersedesSummaryId        String?
+  contentHash                String
+  isCurrent                  Boolean                @default(true)
+  source                     String
+  serviceDate                String
+  timezone                   String
+  sessionStartedAt           DateTime?
+  closedAt                   DateTime
+  recordedAt                 DateTime
+  mode                       String
+  timingCoverage             String
+  operatingWindow            Json?
+  configuredCount            Int
+  issuedCount                Int
+  calledCount                Int
+  unclaimedCount             Int
+  returnedCount              Int
+  notCalledCount             Int
+  unpairedCallCount          Int
+  allIssuedTicketsCalled     Boolean
+  switchedRandomToSequential Boolean
+  appendedTickets            Boolean
+  initialDisposition         String                 @default("needs_review")
+  rulesVersion               Int                    @default(1)
+  facts                      Json
+  importId                   Int?
+  syncRunId                  Int?
+  createdAt                  DateTime                @default(now())
+  import                     ServiceImport?          @relation(fields: [importId], references: [id])
+  syncRun                    LottoQueueSyncRun?       @relation(fields: [syncRunId], references: [id])
+  ticketObservations         LottoQueueTicketObservation[]
+  qualityIssues              LottoQueueQualityIssue[]
+
+  @@unique([sessionId, revision])
+  @@unique([sessionId, contentHash])
+  @@index([sessionId, isCurrent])
+  @@index([serviceDate, isCurrent])
+  @@index([initialDisposition, serviceDate])
+}
+
+model LottoQueueTicketObservation {
+  id                Int                       @id @default(autoincrement())
+  sessionRevisionId Int
+  sequence          Int
+  batchSequence     Int?
+  issuedAt          DateTime?
+  firstCalledAt     DateTime?
+  outcome           String
+  sessionRevision   LottoQueueSessionRevision @relation(fields: [sessionRevisionId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionRevisionId, sequence])
+  @@index([firstCalledAt])
+}
+
+model LottoQueueQualityIssue {
+  id                Int                       @id @default(autoincrement())
+  sessionRevisionId Int
+  code              String
+  severity          String
+  safeDetails       Json                      @default("{}")
+  createdAt         DateTime                  @default(now())
+  sessionRevision   LottoQueueSessionRevision @relation(fields: [sessionRevisionId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionRevisionId, code])
+  @@index([code, severity])
+}
+
+// Staff classification is append-only and bound to an exact immutable source
+// revision. A corrected LOTTO revision is classified independently.
+model LottoQueueSessionResolution {
+  id             Int      @id @default(autoincrement())
+  sessionId      String
+  sourceRevision Int
+  revision       Int
+  disposition    String
+  reason         String
+  createdBy      String?
+  createdAt      DateTime @default(now())
+
+  @@unique([sessionId, revision])
+  @@index([sessionId, sourceRevision, createdAt])
+}
+
+model LottoQueueIntegrationConfig {
+  id             String   @id @default("singleton")
+  baseUrl        String
+  encryptedToken String
+  salt           String
+  cursor         String?
+  lastSyncedAt   DateTime?
+  updatedBy      String?
+  updatedAt      DateTime @updatedAt
+}
+
+model LottoQueueSyncRun {
+  id             Int                        @id @default(autoincrement())
+  mode           String
+  status         String
+  cursorBefore   String?
+  cursorAfter    String?
+  receivedCount  Int                        @default(0)
+  insertedCount  Int                        @default(0)
+  unchangedCount Int                        @default(0)
+  reviewCount    Int                        @default(0)
+  errorCode      String?
+  errorMessage   String?
+  startedBy      String?
+  startedAt      DateTime                   @default(now())
+  completedAt    DateTime?
+  sessions       LottoQueueSessionRevision[]
+
+  @@index([startedAt])
+  @@index([status, startedAt])
 }
 
 // Stable identity inside one formal intake source. Link2Feed and SIMC ids are

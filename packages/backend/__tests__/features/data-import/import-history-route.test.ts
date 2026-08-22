@@ -3,7 +3,13 @@
 
 import express from 'express';
 import request from 'supertest';
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
+
+vi.mock('../../../src/services/data-import', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../../src/services/data-import')>()),
+  listImportHistory: vi.fn().mockResolvedValue([]),
+}));
+
 import dataImportRouter from '../../../src/routes/data-import';
 
 const app = express();
