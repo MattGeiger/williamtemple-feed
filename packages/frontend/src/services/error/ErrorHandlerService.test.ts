@@ -7,12 +7,17 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const toastMock = vi.fn();
+type ToastInput = { description?: string };
+const toastMock = vi.fn((args: ToastInput) => {
+  void args;
+  return { id: 'toast', dismiss: vi.fn(), update: vi.fn() };
+});
 vi.mock('@/components/ui/use-toast', () => ({
-  toast: (args: unknown) => toastMock(args),
+  toast: (args: ToastInput) => toastMock(args),
 }));
 
 import { ErrorHandlerService } from './ErrorHandlerService';
+import { messageService } from '@/services/message';
 
 const lastToastDescription = (): string =>
   toastMock.mock.calls.at(-1)?.[0]?.description ?? '';
@@ -20,8 +25,7 @@ const lastToastDescription = (): string =>
 describe('ErrorHandlerService.handleError (ASK-compliant messaging)', () => {
   beforeEach(() => {
     toastMock.mockClear();
-    // Defeat the duplicate-suppression window between cases.
-    (ErrorHandlerService as unknown as { recentErrors: Map<string, number> }).recentErrors.clear();
+    (messageService as unknown as { recent: Map<string, unknown> }).recent.clear();
   });
 
   it('surfaces a curated backend message verbatim when no override matches', () => {
@@ -55,5 +59,12 @@ describe('ErrorHandlerService.handleError (ASK-compliant messaging)', () => {
   it('does not surface a bare single-token message', () => {
     ErrorHandlerService.handleError(new Error('UNAVAILABLE'), 'ctx-6');
     expect(lastToastDescription()).toBe('An unexpected error occurred. Please try again.');
+  });
+
+  it('collapses the same page-load failure reported by different contexts', () => {
+    const error = new Error('An unknown error occurred.');
+    ErrorHandlerService.handleError(error, 'lottoQueueData');
+    ErrorHandlerService.handleError(error, 'dataImportHistory');
+    expect(toastMock).toHaveBeenCalledTimes(1);
   });
 });
