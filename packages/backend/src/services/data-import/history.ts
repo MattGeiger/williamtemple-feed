@@ -72,6 +72,7 @@ export interface ServiceImportHistoryRecord extends ImportHistoryBase {
     clientProfileRevisionCount: number;
     personProfileRevisionCount: number;
     metricObservationRevisionCount: number;
+    lottoSessionRevisionCount: number;
     qualityIssueCount: number;
     qualityGroups: ImportHistoryQualityGroup[];
   };
@@ -100,8 +101,10 @@ const serviceRecordSummary = (counts: {
   clientProfiles: number;
   personProfiles: number;
   metricObservations: number;
+  lottoSessions: number;
 }): Pick<ImportHistoryBase, 'recordCount' | 'recordUnit'> => {
   if (counts.encounters > 0) return { recordCount: counts.encounters, recordUnit: 'visits' };
+  if (counts.lottoSessions > 0) return { recordCount: counts.lottoSessions, recordUnit: 'records' };
   if (counts.metricObservations > 0) {
     return { recordCount: counts.metricObservations, recordUnit: 'observations' };
   }
@@ -149,10 +152,14 @@ export async function listImportHistory(client: PrismaClient = prisma): Promise<
             personProfiles: true,
             metricObservations: true,
             qualityIssues: true,
+            lottoSessions: true,
           },
         },
         qualityIssues: {
           select: { code: true, severity: true },
+        },
+        lottoSessions: {
+          select: { qualityIssues: { select: { code: true, severity: true } } },
         },
       },
     }),
@@ -205,6 +212,14 @@ export async function listImportHistory(client: PrismaClient = prisma): Promise<
         count: (held?.count ?? 0) + 1,
       });
     }
+    const lottoSessions = record.lottoSessions ?? [];
+    for (const session of lottoSessions) {
+      for (const issue of session.qualityIssues) {
+        const key = JSON.stringify([issue.code, issue.severity]);
+        const held = groups.get(key);
+        groups.set(key, { code: issue.code, severity: issue.severity, count: (held?.count ?? 0) + 1 });
+      }
+    }
     const summary = serviceRecordSummary(record._count);
     return {
       key: `service:${record.id}`,
@@ -229,7 +244,9 @@ export async function listImportHistory(client: PrismaClient = prisma): Promise<
         clientProfileRevisionCount: record._count.clientProfiles,
         personProfileRevisionCount: record._count.personProfiles,
         metricObservationRevisionCount: record._count.metricObservations,
-        qualityIssueCount: record._count.qualityIssues,
+        lottoSessionRevisionCount: record._count.lottoSessions ?? 0,
+        qualityIssueCount: record._count.qualityIssues
+          + lottoSessions.reduce((sum, session) => sum + session.qualityIssues.length, 0),
         qualityGroups: [...groups.values()].sort((left, right) => (
           right.count - left.count || left.code.localeCompare(right.code)
         )),

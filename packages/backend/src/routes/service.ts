@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 Matt Geiger
 
-import { Router } from 'express';
+import { raw, Router } from 'express';
 import { z } from 'zod';
 import { requireAdmin } from '../middleware/auth/require-admin';
 import { ANALYTICS_RANGE_PRESETS, isValidLocalDate } from '../services/inventory-analytics/timezone';
@@ -21,6 +21,14 @@ import {
   ServiceFoundationError,
   ServiceLogError,
   updateServiceMetricConfiguration,
+  getLottoIntegrationStatus,
+  importLottoQueueHistoryCsv,
+  listLottoQueueSessions,
+  LOTTO_DISPOSITIONS,
+  LottoQueueError,
+  resolveLottoQueueSession,
+  saveLottoIntegrationConfig,
+  syncLottoQueue,
 } from '../services/service';
 
 const router = Router();
@@ -55,6 +63,14 @@ const saveDaySchema = z.object({
   pantryStatus: z.enum(SERVICE_PANTRY_STATUSES),
   entryState: z.enum(SERVICE_ENTRY_STATES),
   observations: z.array(dayObservationSchema).max(250),
+}).strict();
+const lottoConfigSchema = z.object({
+  baseUrl: z.string().trim().min(1).max(500),
+  token: z.string().trim().min(16).max(4096),
+}).strict();
+const lottoResolutionSchema = z.object({
+  disposition: z.enum(LOTTO_DISPOSITIONS),
+  reason: z.string().trim().min(1).max(500),
 }).strict();
 
 // Same shape the procurement analytics endpoint accepts, so a preset means one
@@ -93,6 +109,9 @@ const sendServiceError = (res: Parameters<Parameters<typeof router.get>[1]>[1], 
       error: { code: error.code, message: error.message, details: error.details },
     });
   }
+  if (error instanceof LottoQueueError) {
+    return res.status(error.statusCode).json({ error: { code: error.code, message: error.message } });
+  }
   return null;
 };
 
@@ -116,6 +135,58 @@ router.get('/analytics', rateLimiter, async (req, res, next) => {
     if (sendServiceError(res, error)) return;
     return next(error);
   }
+});
+
+// Routine synchronization and review are staff workflows. Only the endpoint
+// and bearer-token configuration below requires administrator authority.
+router.get('/lotto/status', rateLimiter, async (_req, res, next) => {
+  try { return res.json({ status: await getLottoIntegrationStatus() }); }
+  catch (error) { return sendServiceError(res, error) ?? next(error); }
+});
+
+router.get('/lotto/sessions', rateLimiter, async (_req, res, next) => {
+  try { return res.json({ sessions: await listLottoQueueSessions() }); }
+  catch (error) { return sendServiceError(res, error) ?? next(error); }
+});
+
+router.post('/lotto/sync', rateLimiter, async (req, res, next) => {
+  try { return res.json({ result: await syncLottoQueue(req.auth?.userId ?? null) }); }
+  catch (error) { return sendServiceError(res, error) ?? next(error); }
+});
+
+router.post(
+  '/lotto/history-import',
+  rateLimiter,
+  raw({ type: ['text/csv', 'application/csv', 'application/vnd.ms-excel'], limit: '25mb' }),
+  async (req, res, next) => {
+    try {
+      if (!Buffer.isBuffer(req.body)) {
+        return res.status(415).json({ error: { code: 'INVALID_LOTTO_HISTORY_MEDIA_TYPE', message: 'Choose the FEED-formatted LOTTO history CSV.' } });
+      }
+      return res.json({ result: await importLottoQueueHistoryCsv(req.body, req.auth?.userId ?? null) });
+    } catch (error) { return sendServiceError(res, error) ?? next(error); }
+  },
+);
+
+router.post('/lotto/sessions/:sessionId/resolutions', rateLimiter, async (req, res, next) => {
+  try {
+    const sessionId = z.string().min(1).max(200).parse(req.params.sessionId);
+    const input = lottoResolutionSchema.parse(req.body);
+    return res.status(201).json({ resolution: await resolveLottoQueueSession(sessionId, input.disposition, input.reason, req.auth?.userId ?? null) });
+  } catch (error) { return sendServiceError(res, error) ?? next(error); }
+});
+
+router.get('/lotto/config', rateLimiter, requireAdmin, async (_req, res, next) => {
+  try { return res.json({ status: await getLottoIntegrationStatus() }); }
+  catch (error) { return sendServiceError(res, error) ?? next(error); }
+});
+
+router.put('/lotto/config', rateLimiter, requireAdmin, async (req, res, next) => {
+  try {
+    const input = lottoConfigSchema.parse(req.body);
+    const config = await saveLottoIntegrationConfig(input.baseUrl, input.token, req.auth?.userId ?? null);
+    return res.json({ config });
+  } catch (error) { return sendServiceError(res, error) ?? next(error); }
 });
 
 router.get('/metrics', rateLimiter, requireAdmin, async (_req, res, next) => {

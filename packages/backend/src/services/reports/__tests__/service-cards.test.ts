@@ -147,6 +147,7 @@ describe('the Service cards', () => {
   it('registers the service cards under the service lens', () => {
     const ids = [
       'service-summary',
+      'service-queue-timing',
       'service-over-time',
       'service-seasonal-households',
       'service-method-mix',

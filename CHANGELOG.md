@@ -5,17 +5,41 @@ All notable changes to FEED are documented here. This project adheres to
 
 ## [Unreleased]
 
+## [1.6.0] — production acceptance pending
+
+### Added
+
+- **LOTTO v1.21.0 queue closeouts now synchronize into FEED.** FEED stores every
+  immutable revision and anonymous ticket observation, advances the opaque
+  source cursor transactionally, and supports safe replay and late revisions.
+- **Staff can import preserved LOTTO snapshot history through Add Data, select
+  Sync now, and classify anomalous sessions.** Only administrators configure
+  the encrypted endpoint and bearer token. Source facts remain immutable and
+  staff decisions are append-only.
+- **Service Analytics has a shared screen/PDF/CSV Queue Timing card** for
+  median, average, p75 and p90 observed waits, historical serving interval,
+  typical last-call time, and explicit evidence counts. Queue tickets never
+  alter visits, households, clients, or people-served totals.
+
 ### Changed
+
+- **LOTTO authenticity rules are intentionally conservative.** FEED
+  automatically includes a session only when activity is within one hour of
+  operating hours, all issued tickets were called, Random changed to
+  Sequential, and tickets were appended. Everything else is preserved but
+  withheld pending staff review.
 
 - **The v1.6–v2.0 roadmap now fixes the Shopping List grid contract at 2×2,
   2×3, and 2×4.** Legacy print-system documents are labelled so their older
   2×3 / 2×4 implementation does not silently narrow the active Builder plan.
-- **The LOTTO integration now has a reviewed v1 daily-summary contract and a
-  ready-to-use implementation prompt.** The plan specifies append-only,
-  revision-aware session closeouts, a versioned bearer-authenticated endpoint,
-  pagination, privacy-minimized call timelines, and the evidence boundary that
-  LOTTO can report queue pace but cannot report actual client wait time without
-  ticket-issuance timestamps.
+- **The LOTTO integration now has an implementation-ready Queue Timing MVP.**
+  The source contract and agent prompt now capture ticket issuance/queue entry,
+  write-once first calls, batches, final outcomes, append-ordered revisions,
+  and privacy-minimized observations. A new FEED plan specifies encrypted
+  connection setup, manual-first synchronization, immutable local ingestion,
+  median/average/p75/p90 wait, serving interval, typical last-call time, one
+  shared screen/PDF/CSV card, staged production rollout, and the workflow check
+  that determines whether the duration may be labelled ticket wait.
 
 ## [1.5.0] — 2026-08-20
 

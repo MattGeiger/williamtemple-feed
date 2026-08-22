@@ -23,7 +23,8 @@ The operational flows recognize:
 - supported WTH historical procurement ledgers;
 - Link2Feed visit exports;
 - Service Insights Meal Connect service exports; and
-- the canonical CSV produced from WTH's historical Tracking workbook.
+- the canonical CSV produced from WTH's historical Tracking workbook; and
+- FEED-formatted LOTTO queue history.
 
 FEED shows the detected source and dataset before continuing. Extra columns
 outside an approved Service allowlist are ignored rather than retained. An
@@ -31,7 +32,27 @@ unknown or unsupported file stops with guidance instead of guessing.
 
 Staff can import supported procurement files. Link2Feed, SIMC, and WTH Tracking
 contain Service and demographic evidence, so those imports require an
-administrator.
+administrator. LOTTO queue history is anonymous operational evidence and is a
+staff-level import.
+
+## Synchronize And Review LOTTO Queue Data
+
+The **LOTTO Queue Data** card keeps queue operations separate from formal
+service counts. An administrator first selects **Configure** and saves the
+LOTTO URL and dedicated integration token. After that, any staff member can
+select **Sync now**.
+
+FEED preserves every synchronized session. A session is included automatically
+only when it occurred within one hour of operating hours, all issued tickets
+were called, the queue changed from Random to Sequential, and tickets were
+appended. Other sessions appear as **Needs review** and are withheld from
+Service Analytics. Open **Actions → Classify** to include authentic service or
+exclude testing, duplicate, or other activity, and record the reason.
+
+To recover pre-integration history, choose **Add Data** and select the
+FEED-formatted LOTTO queue-history CSV. Identical re-imports are safe and create
+no duplicate facts. Queue tickets never change visit, household, client, or
+people-served totals.
 
 ### Review and activate Service data
 
@@ -145,8 +166,10 @@ summary tools.
 
 Select **Database → Download Backup** to save a sanitized JSON copy of approved
 organization data. The current format includes Inventory, translations,
-shopping-list templates, Procurement, Service imports and Service Log history,
-Operating Hours, and non-secret configuration.
+shopping-list templates, Procurement, Service imports, Service Log history,
+LOTTO queue facts and classifications, Operating Hours, and non-secret
+configuration. LOTTO connection credentials and synchronization runs are not
+included.
 
 The portable file excludes uploaded documents, sign-in tokens, security audit
 history, encryption material, and AI provider keys. It is not a replacement for

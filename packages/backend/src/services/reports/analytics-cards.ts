@@ -2066,6 +2066,35 @@ export const SERVICE_OVER_TIME: AnalyticsCard = {
     legendSvg(data.series.map(s => s.name)),
 };
 
+export const SERVICE_QUEUE_TIMING: AnalyticsCard = {
+  id: 'service-queue-timing',
+  kind: 'kpi',
+  defaultTitle: 'Queue Timing',
+  lens: 'service',
+  data: (analytics: any) => {
+    const queue = analytics?.queueTiming ?? {};
+    const rows = [
+      { label: 'Median ticket wait', value: queue.medianWaitMinutes ?? 0, text: queue.medianWaitMinutes == null ? '—' : `${queue.medianWaitMinutes} min` },
+      { label: 'Average ticket wait', value: queue.averageWaitMinutes ?? 0, text: queue.averageWaitMinutes == null ? '—' : `${queue.averageWaitMinutes} min` },
+      { label: '75th percentile wait', value: queue.p75WaitMinutes ?? 0, text: queue.p75WaitMinutes == null ? '—' : `${queue.p75WaitMinutes} min` },
+      { label: '90th percentile wait', value: queue.p90WaitMinutes ?? 0, text: queue.p90WaitMinutes == null ? '—' : `${queue.p90WaitMinutes} min` },
+      { label: 'Typical serving interval', value: queue.historicalServingIntervalMinutes ?? 0, text: queue.historicalServingIntervalMinutes == null ? '—' : `${queue.historicalServingIntervalMinutes} min` },
+      { label: 'Typical last call', value: 0, text: queue.typicalLastCallLocalTime ?? '—' },
+      { label: 'Included sessions', value: queue.includedSessionCount ?? 0, text: COUNT(queue.includedSessionCount ?? 0) },
+      { label: 'Tickets observed', value: queue.observedTicketCount ?? 0, text: COUNT(queue.observedTicketCount ?? 0) },
+    ];
+    return {
+      title: 'Queue Timing',
+      categories: rows.map((row) => row.label),
+      series: [{ name: 'value', values: rows.map((row) => row.value), text: rows.map((row) => row.text) }],
+      categoryColumn: 'metric',
+      tiles: rows.map((row) => ({ label: row.label, value: row.text })),
+      note: `${COUNT(queue.pendingReviewCount ?? 0)} synchronized session(s) awaiting review are withheld. Queue tickets are operational timing observations, not visits, households, or people served.`,
+    };
+  },
+  print: data => kpiGrid(data.tiles ?? []),
+};
+
 export const SERVICE_SEASONAL_HOUSEHOLDS: AnalyticsCard = {
   id: 'service-seasonal-households',
   kind: 'chart',
@@ -2526,6 +2555,7 @@ export const ANALYTICS_CARDS: AnalyticsCard[] = [
   LEGACY_DONATIONS_OVER_TIME,
   PROCUREMENT_SPEND_OVER_TIME,
   SERVICE_SUMMARY,
+  SERVICE_QUEUE_TIMING,
   SERVICE_OVER_TIME,
   SERVICE_SEASONAL_HOUSEHOLDS,
   SERVICE_METHOD_MIX,

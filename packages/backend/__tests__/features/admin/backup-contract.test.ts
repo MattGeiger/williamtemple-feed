@@ -152,10 +152,10 @@ describe('sanitized backup table contract', () => {
     }
   });
 
-  it('has bumped the contract version for operational observation clear revisions', () => {
+  it('has bumped the contract version for LOTTO queue evidence', () => {
     // Readers key on this, so a shape change that does not bump it is a silent
     // incompatibility.
-    expect(TABLE_CONTRACT_VERSION).toBe(9);
+    expect(TABLE_CONTRACT_VERSION).toBe(10);
   });
 
   it('keeps prepared Service imports outside the portable organization snapshot', () => {
@@ -172,6 +172,9 @@ describe('sanitized backup table contract', () => {
       'ServiceQualityIssue',
       'ServiceQualityIssueDecision',
       'ServiceSourceResolution',
+      'LottoQueueSessionRevision',
+      'LottoQueueTicketObservation',
+      'LottoQueueQualityIssue',
     ]) {
       expect(BACKUP_QUERY_ARGS).toHaveProperty(table);
     }
@@ -188,6 +191,8 @@ describe('sanitized backup table contract', () => {
     expect(EXCLUDED_TABLES).toHaveProperty('User');
     expect(EXCLUDED_TABLES).toHaveProperty('AccessPolicy');
     expect(EXCLUDED_TABLES).toHaveProperty('AdminAuditLog');
+    expect(EXCLUDED_TABLES).toHaveProperty('LottoQueueIntegrationConfig');
+    expect(EXCLUDED_TABLES).toHaveProperty('LottoQueueSyncRun');
   });
 
   it('gives a reason for every exclusion', () => {
@@ -205,6 +210,9 @@ describe('sanitized backup table contract', () => {
       'ProcurementImport',
       'ServiceEncounterRevision',
       'OperatingHoursRevision',
+      'LottoQueueSessionRevision',
+      'LottoQueueTicketObservation',
+      'LottoQueueSessionResolution',
     ]) {
       expect(INCLUDED_TABLES).toContain(table);
     }

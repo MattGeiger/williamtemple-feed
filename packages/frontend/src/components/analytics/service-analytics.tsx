@@ -42,7 +42,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Ban, Calendar, ChevronDown, Gauge } from '@/components/ui/icons';
-import { BadgeQuestionMark, ShoppingBasket, UsersRound } from 'lucide-react';
+import { BadgeQuestionMark, Clock3, Hourglass, ShoppingBasket, UsersRound } from 'lucide-react';
 import { getIconComponent } from '@/lib/icon-library';
 import { SelectableBlock } from '@/components/reports/selection';
 import { FootnoteList } from '@/components/analytics/footnote';
@@ -92,7 +92,9 @@ export function ServiceAnalyticsLens({ range }: { range: AnalyticsDateRange }) {
   // staff "no service records" for the last seven days while their own Service
   // Log held entries through yesterday.
   const hasAnything = analytics
-    && (analytics.coverage.hasIntake || analytics.coverage.hasServiceLog);
+    && (analytics.coverage.hasIntake || analytics.coverage.hasServiceLog
+      || analytics.queueTiming.includedSessionCount > 0
+      || analytics.queueTiming.pendingReviewCount > 0);
 
   if (!analytics || !hasAnything) {
     return (
@@ -203,6 +205,7 @@ function MethodRow({
 export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAnalytics }) {
   const {
     coverage, summary, overTime, seasonal, methodSeries, recordAgreement, unmetDemand,
+    queueTiming,
   } = analytics;
 
   /**
@@ -322,7 +325,8 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
     const currentMonthLabel = MONTH_LABELS[now.getMonth()];
     return seasonal[seasonalMeasure].map((row) => {
       if (row.month !== currentMonthLabel || row[currentYear] === undefined) return row;
-      const { [currentYear]: _dropped, ...rest } = row;
+      const rest = { ...row };
+      delete rest[currentYear];
       return rest;
     });
   }, [seasonal, seasonalMeasure]);
@@ -341,17 +345,17 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
     [summary.methods],
   );
 
-  const methodPalette = [
+  const methodPalette = React.useMemo(() => [
     carbonChartColors.blue.primary.light,
     carbonChartColors.cyan.primary.light,
     carbonChartColors.teal.primary.light,
     carbonChartColors.orange.primary.light,
     carbonChartColors.purple.primary.light,
-  ];
+  ], []);
   const methodColorFor = React.useCallback((metricKey: string) => {
     const index = summary.methods.findIndex((method) => method.metricKey === metricKey);
     return index < 0 ? undefined : methodPalette[index % methodPalette.length];
-  }, [summary.methods]);
+  }, [methodPalette, summary.methods]);
 
   const methodConfig = React.useMemo(() => Object.fromEntries(
     (methodSeries.methods.length > 0 ? methodSeries.methods : summary.methods)
@@ -359,7 +363,7 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
       label: method.displayName,
       color: methodPalette[index % methodPalette.length],
     }]),
-  ) satisfies ChartConfig, [methodSeries.methods, summary.methods]);
+  ) satisfies ChartConfig, [methodPalette, methodSeries.methods, summary.methods]);
 
   const methodChartConfig = React.useMemo(() => ({
     ...methodConfig,
@@ -535,6 +539,64 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
           </CardContent>
         </Card>
       </SelectableBlock>
+
+      {/* Queue timing is operational evidence from LOTTO. It never contributes
+          to visits, households, or people served above. */}
+      {(queueTiming.includedSessionCount > 0 || queueTiming.pendingReviewCount > 0) && (
+        <SelectableBlock cardId="service-queue-timing">
+          <Card className="min-w-0">
+            <CardHeader>
+              <CardTitle>Queue Timing</CardTitle>
+              <CardDescription>
+                Observed ticket entry-to-first-call waits from reviewed LOTTO sessions.
+              </CardDescription>
+              <SourcePills sources={['LOTTO']} />
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                <Tile
+                  label="Median ticket wait"
+                  value={queueTiming.medianWaitMinutes === null ? '—' : `${queueTiming.medianWaitMinutes} min`}
+                  hint={`${count(queueTiming.observedTicketCount)} paired tickets`}
+                  icon={Hourglass}
+                />
+                <Tile
+                  label="Average ticket wait"
+                  value={queueTiming.averageWaitMinutes === null ? '—' : `${queueTiming.averageWaitMinutes} min`}
+                  icon={Hourglass}
+                />
+                <Tile
+                  label="75th percentile wait"
+                  value={queueTiming.p75WaitMinutes === null ? '—' : `${queueTiming.p75WaitMinutes} min`}
+                  icon={Hourglass}
+                />
+                <Tile
+                  label="90th percentile wait"
+                  value={queueTiming.p90WaitMinutes === null ? '—' : `${queueTiming.p90WaitMinutes} min`}
+                  icon={Hourglass}
+                />
+                <Tile
+                  label="Typical serving interval"
+                  value={queueTiming.historicalServingIntervalMinutes === null ? '—' : `${queueTiming.historicalServingIntervalMinutes} min`}
+                  icon={Clock3}
+                />
+                <Tile
+                  label="Typical last call"
+                  value={queueTiming.typicalLastCallLocalTime ?? '—'}
+                  hint="Local LOTTO time"
+                  icon={Clock3}
+                />
+              </div>
+              <FootnoteList items={[
+                `${count(queueTiming.includedSessionCount)} reviewed service sessions are included.`,
+                queueTiming.pendingReviewCount > 0
+                  && `${count(queueTiming.pendingReviewCount)} synchronized session${queueTiming.pendingReviewCount === 1 ? '' : 's'} await staff review and are withheld from these figures.`,
+                'Queue tickets are operational timing observations, not visits, households, or people served.',
+              ]} />
+            </CardContent>
+          </Card>
+        </SelectableBlock>
+      )}
 
       {/* ---- Service Over Time -------------------------------------------- */}
       {timeline.length > 1 && (

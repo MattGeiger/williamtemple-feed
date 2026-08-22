@@ -9,6 +9,7 @@ import {
 } from '../procurement/contracts';
 
 export type DataImportDomain = 'procurement' | 'service';
+export const LOTTO_QUEUE_HISTORY_HEADERS = ['FEED Schema Version', 'Summary JSON'] as const;
 export type DataSourceReadiness =
   | 'operational'
   | 'prototype'
@@ -130,6 +131,24 @@ export const WTH_SERVICE_TRACKING_HEADERS = [
 ] as const;
 
 const CONTRACTS: readonly DataSourceContract[] = [
+  {
+    id: 'lotto_queue_history_v1',
+    source: 'lotto',
+    datasetKind: 'queue_sessions',
+    label: 'LOTTO queue history',
+    sourceLabel: 'LOTTO',
+    datasetLabel: 'Historical queue-session timing',
+    domain: 'service',
+    readiness: 'operational',
+    exactHeaders: LOTTO_QUEUE_HISTORY_HEADERS,
+    allowedHeaders: LOTTO_QUEUE_HISTORY_HEADERS,
+    transformations: [
+      'Import privacy-minimized session closeouts without physical ticket numbers.',
+      'Synchronize every session and withhold anomalous sessions from Analytics pending staff review.',
+    ],
+    nextStep: 'Import the reconstructed history, then review any sessions FEED withholds from Analytics.',
+    priority: 110,
+  },
   {
     id: 'ofb_unified_v2',
     source: 'ofb',

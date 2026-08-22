@@ -57,6 +57,7 @@ import { DatabasePanel } from './database-panel';
 import { DataShapingRuleDialog, type RuleDialogSeed } from './data-shaping-rule-dialog';
 import { DataShapingRules } from './data-shaping-rules';
 import { AddDataDialog } from './add-data/add-data-dialog';
+import { LottoQueuePanel } from './lotto-queue-panel';
 import { formatDate, formatDateRange, formatDateTime } from '@/lib/formatting/date';
 
 const PageTitleDataManagementIcon = createPageTitleIcon(DatabaseIcon);
@@ -73,6 +74,7 @@ const sourceLabel = (source: string) => {
   if (source === 'link2feed') return 'Link2Feed';
   if (source === 'simc') return 'SIMC';
   if (source === 'wth_tracking') return 'WTH Tracking';
+  if (source === 'lotto') return 'LOTTO';
   return source;
 };
 
@@ -81,6 +83,7 @@ const datasetLabel = (record: ImportHistoryRecord) => {
   if (record.datasetKind === 'operational_metrics') return 'Service · Operational metrics';
   if (record.datasetKind === 'visits') return 'Service · Visits';
   if (record.datasetKind === 'clients') return 'Service · Client profiles';
+  if (record.datasetKind === 'queue_sessions') return 'Service · Queue sessions';
   return `Service · ${record.datasetKind.replace(/_/g, ' ')}`;
 };
 
@@ -408,6 +411,8 @@ export function DataManagementWorkspace() {
   const analyticsContent = (
     <>
     <ProcurementCoverageStrip status={status} formatDate={dateLabel} />
+
+    <LottoQueuePanel isAdministrator={isAdministrator} />
 
     {status?.isStale && status.latestDeliveryDate && (
       <Alert variant="warning" className="items-start">

@@ -2,7 +2,8 @@
 
 **Status:** Operational. Data Management exposes one **Add Data** action. The
 modal detects and routes unified OFB, WTH historical procurement, Link2Feed
-visits, SIMC visits, and canonical WTH Tracking files without asking the user
+visits, SIMC visits, canonical WTH Tracking files, and canonical LOTTO queue
+history without asking the user
 to choose a parser. The former OFB and Legacy toolbar buttons have been
 removed. Procurement imports retain their established endpoints; Service
 imports retain staged review and atomic activation.
@@ -90,6 +91,7 @@ Three approaches were considered:
 | Link2Feed visits | Service ingestion jobs | Administrator | Confirm → validate/reconcile → activate |
 | SIMC service visits | Service ingestion jobs | Administrator | Confirm → validate/reconcile → activate |
 | Canonical WTH Tracking | Service ingestion jobs | Administrator | Confirm → validate/reconcile → activate |
+| Canonical LOTTO queue history | Direct immutable queue-history ingest | Staff or administrator | Confirm → import → review anomalous sessions |
 | Retired single-channel OFB files | No importer | Staff or administrator | Recognize → request unified export |
 | Pending/unknown contracts | No importer | Staff or administrator | Explain the required artifact; never force a parser |
 
@@ -105,7 +107,10 @@ boundary between domains.
 This avoids migrating stable procurement history merely to make the modal look
 unified and avoids a generic JSON/EAV store that would weaken Service validation
 and Analytics queries. Service tables are organization-wide and form their own
-sanitized-backup/restore unit.
+sanitized-backup/restore unit. LOTTO history is the deliberate Service-domain
+exception to administrator-only formal intake imports: it contains anonymous
+operational timing facts, and staff review changes only Analytics inclusion,
+never client or household facts.
 
 The Data Management history is a read-side projection across those durable
 boundaries, not a third fact store. `GET /api/data-import/history` reads active

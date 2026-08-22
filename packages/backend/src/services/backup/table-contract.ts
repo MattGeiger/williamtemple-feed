@@ -78,6 +78,10 @@ export const INCLUDED_TABLES = [
   'ServiceCapacityPlan',
   'ServiceCapacityPlanRevision',
   'ServiceCapacityTarget',
+  'LottoQueueSessionRevision',
+  'LottoQueueTicketObservation',
+  'LottoQueueQualityIssue',
+  'LottoQueueSessionResolution',
 ] as const;
 
 export type IncludedTable = (typeof INCLUDED_TABLES)[number];
@@ -188,6 +192,10 @@ export const EXCLUDED_TABLES: Record<string, string> = {
     'Transient pre-activation quality review. Issues needed to explain active facts become durable ServiceQualityIssue rows.',
   DataImportReviewDecision:
     'Transient operator decision attached to a staged review issue; activation copies its audit meaning into durable Service decisions and resolutions.',
+  LottoQueueIntegrationConfig:
+    'Contains the encrypted LOTTO bearer token. Reconfigure the source connection after a restore.',
+  LottoQueueSyncRun:
+    'Synchronization telemetry and cursor progress. Durable session revisions are backed up separately.',
 
   // --- Dormant. ---
   ReportTemplate:
@@ -258,6 +266,15 @@ export const BACKUP_QUERY_ARGS: Partial<Record<IncludedTable, object>> = {
       ],
     },
   },
+  LottoQueueSessionRevision: {
+    where: { OR: [{ importId: null }, { import: { status: { not: 'pending' } } }] },
+  },
+  LottoQueueTicketObservation: {
+    where: { sessionRevision: { OR: [{ importId: null }, { import: { status: { not: 'pending' } } }] } },
+  },
+  LottoQueueQualityIssue: {
+    where: { sessionRevision: { OR: [{ importId: null }, { import: { status: { not: 'pending' } } }] } },
+  },
 };
 
 /**
@@ -266,6 +283,6 @@ export const BACKUP_QUERY_ARGS: Partial<Record<IncludedTable, object>> = {
  * version and from the migration name: an artifact can be produced by many FEED
  * builds while remaining the same contract.
  */
-export const TABLE_CONTRACT_VERSION = 9;
+export const TABLE_CONTRACT_VERSION = 10;
 
 export const ARTIFACT_KIND = 'feed-sanitized-backup';

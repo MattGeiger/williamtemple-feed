@@ -2,7 +2,8 @@
 
 **Status:** Phase 0, the shared Phase 1 foundation, the Phase 2 Link2Feed visit
 adapter, the native-entry and Tracking-adapter slices of Phase 3, and the Phase
-5 SIMC service adapter are complete. The administrator-only unified Add Data
+5 SIMC service adapter and FEED v1.6.0 LOTTO Queue Timing integration are
+complete. The administrator-only formal Service Add Data
 workflow streams, reviews, reconciles, and atomically activates Link2Feed and
 SIMC visits plus the canonical WTH Tracking export. FEED also provides shared,
 effective-dated Service metric administration and daily committed entry.
@@ -20,6 +21,8 @@ them. The reasoning is recorded on the `link2feed_clients_v1` contract in
 
 Service Analytics is now built and shipped in 1.5.0-beta.19: the lens carries
 eight cards, all of them exportable through the Analytics report contract.
+LOTTO Queue Timing shipped in v1.6.0 as a separate queue-operations evidence
+family; its source contract and FEED MVP are documented under `docs/roadmap`.
 Completing the parallel cutover, the Link2Feed client-export adapter, and the
 Chrome-extension artifact contract remain pending, as do the age and geography
 cards — those are still blocked on the cutover question in the card proposal's
@@ -41,15 +44,16 @@ Service is the third lens in FEED Analytics, positioned to the right of
 These remain separate evidence domains. FEED must not claim that a procurement
 event or inventory transition caused a specific service encounter.
 
-This plan now separates two kinds of Service evidence that overlap in time but
-answer different questions:
+Service evidence is separated by what each record can prove:
 
 - **Formal intake systems** establish authoritative household/individual
   service facts and demographics.
 - **Agency operational tracking** explains how service was delivered, when
   capacity was reached, and which locally meaningful needs were observed.
+- **LOTTO queue operations** describe anonymous ticket timing, batch issuance,
+  first calls, and closeout outcomes after FEED classification.
 
-Neither layer replaces the other, and overlapping counts are never added.
+No family replaces another, and overlapping counts are never added.
 
 ## Confirmed decisions
 
@@ -85,6 +89,8 @@ Neither layer replaces the other, and overlapping counts are never added.
 13. SIMC raw rows are household-member observations within a visit. FEED counts
     one formal household encounter per `Visit ID`, uses `Household Size` for
     reported people, and retains identified Neighbor profiles separately.
+14. LOTTO tickets are queue evidence, not household, person, visit, or completed
+    service evidence. Queue counts never alter formal or Service Log totals.
 
 ## Source authority and product role
 
@@ -95,6 +101,7 @@ Neither layer replaces the other, and overlapping counts are never added.
 | SIMC | Representative sanitized sample verifies 2026-06-02–2026-08-06; WTH went live in the first week of June 2026 | Household visit with repeated person/member rows | Current formal household/people facts and household/person demographics | Formal current authority |
 | WTH Tracking | Verified 2023-10-17–2026-08-11 direct observations; July 2024 workbook gap | Daily metric observations | Historical service method, capacity, unmet demand, and ancillary requests | WTH operational detail |
 | FEED Service Log | Operational; formal WTH cutover pending | Daily metric observations | Replaces Tracking for ongoing operational detail after parallel verification | WTH operational detail |
+| LOTTO | v1.6.0; durable LOTTO v1.21.0 closeouts | Queue session and anonymous ticket observations | Wait/queue-entry duration, serving interval, last-call time, and ticket outcomes | LOTTO queue-operational authority only |
 
 The long-range authoritative seam is Link2Feed → SIMC across late May/early
 June 2026. The shorter range of a sanitized review artifact is not evidence of
@@ -104,9 +111,10 @@ activated production imports and configured source policy. The operational
 seam is Tracking → FEED Service Log. These seams must not be mistaken for the
 same transition.
 
-## Architecture: dual evidence and dual grain
+## Architecture: separate evidence families and grains
 
-The canonical Service domain has two parallel fact families.
+The current Service domain has two implemented fact families. LOTTO adds a
+third, separate queue-operational family in v1.6.0.
 
 ### Formal service facts
 
@@ -133,6 +141,21 @@ Used for Tracking and FEED-native entry:
 
 An operational service-method sum may be reconciled with a formal household
 total. It never supersedes that total and is never added to it.
+
+### Queue session and ticket timing observations (implemented v1.6.0)
+
+Used for LOTTO evidence:
+
+- immutable queue-session revisions;
+- anonymous per-ticket issuance/queue-entry and first-call timestamps;
+- batch sequence and issuance mechanism;
+- called, unclaimed, returned-before-call, returned-after-call, and not-called
+  closeout outcomes;
+- configured versus actually issued ticket counts; and
+- source coverage, synchronization, revision, and quality provenance.
+
+The calculation, privacy, ingestion, and screen/PDF/CSV card contract is in
+[`../roadmap/lotto-queue-timing-mvp.md`](../roadmap/lotto-queue-timing-mvp.md).
 
 ## Link2Feed visit contract (`link2feed_visits_v1`)
 

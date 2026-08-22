@@ -71,7 +71,7 @@ resolution above, and the clean-slate model — are recorded in
 [beta-6-backup-restore-brief.md](beta-6-backup-restore-brief.md), which also
 named two prerequisites that had to land first: editable API keys, and
 `AIConfiguration` redaction in place of exclusion. **Both are implemented.**
-The artifact now declares table contract version 9: version 2 added sanitized
+The artifact now declares table contract version 10: version 2 added sanitized
 `AIConfiguration`; version 3 added the first formal Service and operational
 metric fact family; version 4 adds effective-dated Service capacity plans,
 structured quality issues, and append-only operator decisions; and version 5
@@ -84,7 +84,10 @@ editable native Service Log data; and version 9 adds revisioned Service Metric
 icons. Older artifacts restore the neutral `package` icon rather than inferring
 meaning from a label. Older artifacts do not manufacture person
 records or workbook provenance, and pre-v8 observations restore with the safe
-`recorded` default rather than being reinterpreted as clears.
+`recorded` default rather than being reinterpreted as clears. Version 10 adds
+privacy-minimized LOTTO session revisions, anonymous ticket observations,
+quality issues, and append-only staff resolutions. It excludes the encrypted
+LOTTO connection, cursor, and transient synchronization runs.
 Version 4 artifacts restore with that new status defaulted to `unknown`; FEED
 never infers it from unrelated fields. Transient `DataImportJob` progress and
 staged source files remain excluded. Normalized Service revisions prepared

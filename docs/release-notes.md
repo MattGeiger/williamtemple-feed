@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+## Version 1.6.0 — production acceptance pending
+
+**LOTTO queue operations now reach Service Analytics without becoming service
+counts.** LOTTO v1.21.0 records immutable daily closeouts with anonymous ticket
+issue and first-call times. Staff can synchronize those closeouts, import the
+preserved snapshot history through Add Data, and review sessions that do not
+meet all four authenticity signals. FEED preserves every source record but
+withholds unresolved anomalies from Analytics.
+
+The new Queue Timing card shares one calculation with screen, PDF, and CSV. It
+reports median, average, 75th- and 90th-percentile wait, historical call
+interval, and the typical local time of the last ticket call. Ticket counts are
+never added to visits, households, clients, or people served. Administrators
+manage the encrypted connection; synchronization, import, and classification
+are staff workflows.
+
 ## Version 1.5.0 — 2026-08-20
 
 *Everything since 1.4.0. FEED can now describe who it serves, not only what is

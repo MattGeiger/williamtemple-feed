@@ -22,6 +22,22 @@ The Admin page is omitted from Staff navigation, but every privileged backend
 route must independently enforce Administrator authority. A hidden page is not
 authorization.
 
+### LOTTO queue-data authority (v1.6.0)
+
+LOTTO queue ingestion follows the responsibility of the action, not the broad
+Service domain label:
+
+- **Staff:** import canonical historical queue CSVs through Add Data, select
+  **Sync now**, inspect synchronized sessions, and append an Analytics
+  inclusion/exclusion classification with a reason.
+- **Administrator:** all staff actions plus configure or replace the LOTTO
+  endpoint and encrypted bearer token.
+
+Queue records contain no client demographics and never create visits,
+households, clients, or people. Classification is reversible through a newer
+append-only decision and does not mutate source facts, so it does not warrant
+administrator authority. Connection secrets do.
+
 ## Fresh-instance bootstrap
 
 The first successfully verified user on a genuinely fresh deployment becomes

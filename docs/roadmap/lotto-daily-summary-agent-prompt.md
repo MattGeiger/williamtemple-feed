@@ -1,4 +1,12 @@
-# Prompt: Implement LOTTO Daily Summaries for FEED
+# Prompt: Implement LOTTO Queue Session Summaries for FEED
+
+**Status:** Fulfilled by LOTTO v1.21.0. Retained as the implementation brief and
+review checklist for the source repository.
+
+The delivered contract also snapshots the effective operating window and
+emits source activity signals for full-call completion,
+Random-to-Sequential switching, and appended tickets. LOTTO records these
+facts without classifying service versus testing; FEED v1.6.0 owns that review.
 
 Copy the prompt below into an AI coding agent whose workspace is the LOTTO
 repository.
@@ -13,41 +21,68 @@ Vitest, and documentation patterns. Do not add a dependency or introduce a new
 framework. Inspect before editing, preserve unrelated work, and use incremental
 patches.
 
-Task 1: Implement durable, append-only raffle-session closeouts when staff use
-**Reset for New Day**.
+Task 1: Add durable active-session timing facts.
 
-Current source facts you must verify before editing:
+Verify these source facts before editing:
 
 - `RaffleState` lives in `src/lib/state-types.ts`.
 - Production persistence is `src/lib/state-manager-db.ts`; local fallback is
   `src/lib/state-manager.ts`.
 - `raffle_state` is a singleton and `raffle_snapshots` is undo/redo history.
-- `calledAt` stores only the latest call timestamp per distinct ticket.
+- `calledAt` stores the latest call timestamp per distinct ticket and is used
+  by current client-facing behavior.
 - `ticketStatus` contains final mutually exclusive `returned` / `unclaimed`
   values.
-- The reset action is routed through `src/app/api/state/route.ts` and the Admin
-  control is labelled **Reset for New Day**.
+- full generation, `generateBatch`, and `appendTickets` add tickets to
+  `generatedOrder`.
+- `markTicketReturned` can auto-advance and call the next ticket.
+- Reset is routed through `src/app/api/state/route.ts` and the Admin control is
+  labelled **Reset for New Day**.
 - `schema.sql` is the canonical database schema and must remain idempotent.
 
-Add a stable `sessionId` and `sessionStartedAt` to active raffle state. Create
-them when the first range/order is successfully persisted, preserve them across
-all mutations and snapshots, and clear them on reset. Keep older state payloads
-loadable and document/test the compatibility behavior for an active legacy
-state that lacks these fields.
+For this integration, a ticket is issued when a successful state transition
+first adds it to `generatedOrder`. Capture one server timestamp for the whole
+transition and assign it to every ticket added by full generation, every batch,
+and append. Do not infer issuance from the inclusive configured range.
 
-When reset is requested:
+Add stable session metadata in the same first-issuance transition:
 
-1. If there is no meaningful session—no active range, generated tickets,
-   calls, or statuses—reset without writing an empty closeout.
-2. Otherwise derive and durably write an immutable summary revision before the
-   active state is cleared.
-3. In Postgres, the summary insert, reset snapshot, and singleton-state update
-   must be one transaction. If closeout persistence fails, the active state
-   must remain intact.
-4. Give the local file fallback the same observable guarantee. Use durable,
-   append-only per-session/revision storage; do not make local development
-   silently skip the feature.
-5. Snapshot cleanup must never touch summaries.
+- `sessionId`;
+- `sessionStartedAt`; and
+- `serviceDate`, fixed as the local calendar date of that transition in the
+  session's stored IANA timezone.
+
+Preserve those values through every mutation and snapshot and clear them on
+Reset.
+
+Retain, at minimum, these active timing facts:
+
+- per ticket: batch sequence, `issuedAt`, and write-once `firstCalledAt`;
+- per batch: sequence, `issuedAt`, issuance mechanism (`full`, `batch`, or
+  `append`), mode, and issued count.
+
+Keep the current latest-call `calledAt` behavior unchanged. Every call path,
+including direct update, next/previous navigation, and return auto-advance,
+must set `firstCalledAt` only when it is absent. A recall must not rewrite it.
+Use one captured timestamp for all facts written by one state transition so
+the state cannot report subtly different times for the same action.
+
+Older payloads must continue to load. Do not fabricate issue or first-call
+times for an active pre-migration session. Mark timing coverage as
+`partial_legacy`, preserve facts first observed after deployment, and close the
+session honestly. Fresh sessions use `complete` coverage.
+
+Task 2: Implement durable, append-only session closeouts on Reset.
+
+If no meaningful session exists—no active range, issued tickets, calls, or
+statuses—Reset without writing an empty closeout. Otherwise derive and write an
+immutable summary revision before active state is cleared.
+
+In Postgres, summary insertion, reset snapshot, and singleton-state replacement
+must be one transaction. If closeout persistence fails, active state stays
+intact. Give the local file fallback the same observable guarantee: write the
+idempotent closeout durably before clearing state. Snapshot cleanup must never
+touch summaries.
 
 Each immutable revision contains:
 
@@ -55,46 +90,68 @@ Each immutable revision contains:
 - stable `sessionId`;
 - one-based `revision`;
 - `supersedesSummaryId` or `null`;
-- deterministic `contentHash` (`sha256:` prefix);
+- deterministic `contentHash` with a `sha256:` prefix;
 - derived `isCurrent` when read;
-- `serviceDate`, fixed at closeout in the session's stored IANA timezone;
-- `timezone`;
-- `sessionStartedAt`, `closedAt`, and `recordedAt` as instants;
-- queue `mode`;
-- `ticketRange.start` / `ticketRange.end`;
-- `issuedCount`: inclusive configured-range size, matching LOTTO's current
-  **Tickets Issued** meaning;
-- `generatedCount`: `generatedOrder.length`;
-- `calledCount`: distinct keys in `calledAt`, even if their final status is
-  returned or unclaimed;
-- final `unclaimedCount` and `returnedCount`; and
-- `callTimeline`: the retained `calledAt` timestamps sorted ascending and
-  represented only as `{ sequence, calledAt }`. Do not expose ticket numbers.
+- stable `serviceDate` and `timezone`;
+- `sessionStartedAt`, `closedAt`, and `recordedAt`;
+- final queue `mode`;
+- `timingCoverage`: `complete` or `partial_legacy`;
+- `ticketRange.start` and `.end`;
+- `configuredCount`: inclusive valid range size;
+- `issuedCount`: tickets with an issuance observation, normally
+  `generatedOrder.length` for a fresh session;
+- `calledCount`: issued tickets with `firstCalledAt`;
+- final `unclaimedCount`, `returnedCount`, and `notCalledCount`;
+- `unpairedCallCount` for legacy or invalid calls with no issuance fact;
+- anonymous batches; and
+- anonymous ticket observations.
 
-Build `contentHash` from a canonical serialization of the session source facts:
-stable session id/start, timezone, mode, range, counts, and sorted call
-timeline. Exclude `summaryId`, `revision`, `supersedesSummaryId`, `isCurrent`,
-`serviceDate`, `closedAt`, `recordedAt`, and the hash itself. Add uniqueness
-constraints for both `(sessionId, revision)` and `(sessionId, contentHash)`.
+An anonymous ticket observation is:
 
-Immutability and reset/undo behavior are required:
+```ts
+{
+  sequence: number;
+  batchSequence: number | null;
+  issuedAt: string | null;
+  firstCalledAt: string | null;
+  outcome:
+    | 'called'
+    | 'unclaimed'
+    | 'returned_before_call'
+    | 'returned_after_call'
+    | 'not_called';
+}
+```
 
-- Same `sessionId` + `contentHash` is idempotent. A network retry or unchanged
-  undo/re-reset must not create a duplicate.
-- If staff undo a reset, change the restored session, and reset again, append a
-  new revision that supersedes the prior one. Never update or delete the older
-  revision.
+Do not include the physical ticket number. Give observations deterministic
+anonymous sequence values so canonical serialization is stable. Null batch or
+issuance values are permitted only for facts retained from a disclosed
+`partial_legacy` session; never invent the missing timestamp.
 
-Task 2: Add a versioned, read-only FEED integration endpoint:
+Build `contentHash` from stable session metadata, `serviceDate`, timezone, mode,
+range, timing coverage, counts, batches, and observations. Exclude `summaryId`,
+`revision`, `supersedesSummaryId`, `isCurrent`, `closedAt`, `recordedAt`, and the
+hash itself. Add uniqueness constraints for `(sessionId, revision)` and
+`(sessionId, contentHash)`.
+
+The same session and content hash is idempotent. A retry or unchanged
+undo/re-reset returns the existing revision. If staff undo, change the restored
+session, and reset again, append a new immutable revision superseding the
+previous one. Never delete or update the earlier revision.
+
+Task 3: Add the versioned FEED integration endpoint:
 
 ```text
 GET /api/integrations/feed/v1/daily-summaries
 ```
 
-It accepts optional inclusive `from` / `to` service dates (`YYYY-MM-DD`), an
-opaque `cursor`, and `limit` (default 100, maximum 500). Order by
-`serviceDate`, `closedAt`, `sessionId`, and `revision`, ascending, with stable
-cursor pagination.
+Accept optional inclusive `from` / `to` service-date filters, opaque `cursor`,
+and `limit` (default 100, maximum 500).
+
+Order incremental delivery by `recordedAt`, then `summaryId`, ascending, and
+encode that order in the cursor. Do not order the cursor by service date. A
+later revision of an older service date must be delivered after an already
+issued cursor. Date filters do not change cursor semantics.
 
 Return:
 
@@ -106,15 +163,14 @@ Return:
 }
 ```
 
-The summary objects and meanings are exactly those listed above. All timestamps
-on the wire are ISO-8601 UTC strings. Unknown additive fields are allowed in v1;
-breaking changes require a future `/v2/` route.
+Use the exact source meanings above. All timestamps on the wire are ISO-8601
+UTC strings. Unknown additive fields are allowed in v1; breaking changes
+require a future `/v2/` route.
 
-Require `Authorization: Bearer <token>` for every request using a dedicated
-deployment secret such as `FEED_DAILY_SUMMARY_TOKEN`. This is
-machine-to-machine authentication, not NextAuth. Fail closed when the secret is
-missing, compare supplied credentials safely, never log the token, and return
-`Cache-Control: no-store`.
+Require `Authorization: Bearer <token>` using a dedicated deployment secret
+such as `FEED_DAILY_SUMMARY_TOKEN`. This is machine-to-machine authentication,
+not NextAuth. Fail closed when it is missing, compare credentials safely, never
+log the token, and send `Cache-Control: no-store` on success and errors.
 
 Error contract:
 
@@ -123,36 +179,43 @@ Error contract:
 - `503` integration token or summary store not configured;
 - `500` unexpected failure.
 
-Return generic, ASK-aligned JSON errors without exception text, SQL, file paths,
-or secrets.
+Return generic, ASK-aligned JSON errors without exception text, SQL, file
+paths, or secrets.
 
-Task 3: Preserve the evidence and privacy boundaries.
+Task 4: Preserve evidence and privacy boundaries.
 
-This contract supports queue pace—the intervals between the latest distinct
-ticket-call timestamps LOTTO retained. It does **not** support actual client
-wait time because LOTTO records no ticket issuance timestamp, and recalls can
-overwrite an earlier `calledAt`. Do not introduce a metric or documentation
-claim called wait time. Do not expose names, emails, staff/session identity, IP
-addresses, or ticket-number-to-timestamp/status mappings.
+This contract supports observed duration from issue/queue entry to first call,
+plus historical intervals between first calls. Do not conflate those measures.
+Do not change or auto-tune LOTTO's existing 2.2-minutes-per-ticket planned live
+estimate in this task.
 
-Task 4: Test and document the feature completely.
+Do not expose names, emails, staff/session identity, IP addresses, browser
+identity, or physical ticket-number-to-time/status mappings. Counts, batch
+sequence, anonymous observation sequence, and timestamps are permitted.
+
+Task 5: Test and document completely.
 
 Tests must cover:
 
-- database and local-file closeout paths;
-- legacy persisted state compatibility;
-- inclusive issued count vs partial-batch generated count;
-- called/final-status calculations and timestamp-only call timeline;
-- blank reset;
-- transaction/failure atomicity;
-- reset retry idempotency;
-- unchanged and changed undo/re-reset revision behavior;
+- both database and local-file paths;
+- full generation, initial/subsequent batch generation, and append issuance;
+- one timestamp per issuance transition;
+- first-call capture through every call path;
+- recall preserving first call while latest `calledAt` changes;
+- return auto-advance;
+- configured range versus issued count in partial batching;
+- all final outcomes and count reconciliation;
+- active legacy compatibility without fabricated facts;
+- blank Reset and transaction/failure atomicity;
+- Reset retry idempotency;
+- unchanged and changed undo/re-reset behavior;
 - summary survival independent of snapshot retention;
-- local service date around UTC day boundaries and daylight-saving changes;
+- service date around UTC boundaries and daylight-saving changes;
 - bearer authentication and fail-closed missing configuration;
-- date validation, stable pagination, and cursor rejection;
-- no ticket numbers or other disallowed fields in the response; and
-- generic error responses that do not leak internals.
+- date validation, cursor rejection, and stable pagination;
+- late revision of an old service date after an existing cursor;
+- absence of physical ticket numbers and other disallowed fields; and
+- generic errors that do not leak internals.
 
 Update at least:
 
@@ -160,12 +223,12 @@ Update at least:
 - `.env.example`;
 - `docs/DEPLOYMENT.md` and the appropriate implementation/contract document;
 - `CHANGELOG.md`; and
-- any affected staff guide under `docs/user-guides/`, per `AGENTS.md`.
+- affected staff guides under `docs/user-guides/`, per `AGENTS.md`.
 
 Run targeted tests first, then the full LOTTO test suite, lint, and production
-build. Inspect the actual diff, report any pre-existing failures separately,
-and do not push unless explicitly asked. If implementation discovery reveals a
-contract conflict, stop before changing the contract and present the concrete
-evidence and alternatives.
+build. Inspect the actual diff, report pre-existing failures separately, and do
+not push unless explicitly asked. If implementation discovery conflicts with
+this contract, stop before changing its meanings and present concrete evidence
+and alternatives.
 
 ---
