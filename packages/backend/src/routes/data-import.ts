@@ -11,6 +11,7 @@ import {
   DataImportJobError,
   DataImportStagingError,
   findResumableDataImportJob,
+  getDataManagementCoverage,
   inspectCsvHeader,
   listImportHistory,
   stageRecognizedDataImport,
@@ -50,6 +51,14 @@ const router = Router();
 router.get('/history', rateLimiter, async (_req, res, next) => {
   try {
     return res.json({ imports: await listImportHistory() });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.get('/coverage', rateLimiter, async (_req, res, next) => {
+  try {
+    return res.json({ coverage: await getDataManagementCoverage() });
   } catch (error) {
     return next(error);
   }

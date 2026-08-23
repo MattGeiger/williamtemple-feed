@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Matt Geiger
 
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { describe, expect, test, vi } from 'vitest';
 
 import { DataManagementWorkspace } from '@/components/data-management';
@@ -90,11 +90,42 @@ vi.mock('@/services/procurement', () => ({
 vi.mock('@/services/data-import', () => ({
   dataImportService: {
     getHistory: vi.fn(() => Promise.resolve([])),
+    getCoverage: vi.fn(() => Promise.resolve({
+      link2feedVisits: {
+        recordCount: 4_100,
+        rangeStart: '2023-01-04',
+        rangeEnd: '2026-05-28',
+      },
+      simcVisits: {
+        recordCount: 3_305,
+        rangeStart: '2026-06-02',
+        rangeEnd: '2026-08-13',
+      },
+      lottoQueueSessions: {
+        recordCount: 3,
+        rangeStart: '2026-08-19',
+        rangeEnd: '2026-08-22',
+      },
+    })),
     changeHistoryStatus: vi.fn(),
     upload: vi.fn(),
     decide: vi.fn(),
     activate: vi.fn(),
     cancel: vi.fn(),
+  },
+}));
+
+vi.mock('@/services/service', () => ({
+  serviceApi: {
+    getLottoStatus: vi.fn(() => Promise.resolve({
+      configured: false,
+      pendingReviewCount: 0,
+      config: null,
+    })),
+    listLottoSessions: vi.fn(() => Promise.resolve([])),
+    syncLotto: vi.fn(),
+    saveLottoConfig: vi.fn(),
+    resolveLottoSession: vi.fn(),
   },
 }));
 
@@ -170,10 +201,12 @@ describe('Data Management', () => {
     expect(screen.getByRole('button', { name: 'Add Data' })).toBeVisible();
     expect(screen.queryByRole('button', { name: 'Import OFB Data' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Import Legacy' })).toBeNull();
-    expect(screen.getByRole('columnheader', { name: 'Source' })).toBeVisible();
-    expect(screen.getByRole('columnheader', { name: 'Records' })).toBeVisible();
-    expect(screen.getByRole('columnheader', { name: 'Actions' })).toBeVisible();
-    expect(screen.getByTestId('pagination-controls')).toBeVisible();
+    const importCard = screen.getByText('Imported Data').closest('[data-slot="card"]');
+    expect(importCard).not.toBeNull();
+    expect(within(importCard!).getByRole('columnheader', { name: 'Source' })).toBeVisible();
+    expect(within(importCard!).getByRole('columnheader', { name: 'Records' })).toBeVisible();
+    expect(within(importCard!).getByRole('columnheader', { name: 'Actions' })).toBeVisible();
+    expect(within(importCard!).getByTestId('pagination-controls')).toBeVisible();
   });
   test('reports each channel window separately without implying fault', async () => {
     render(<DataManagementWorkspace />);
@@ -188,12 +221,35 @@ describe('Data Management', () => {
     expect(screen.getByText('6/1/2023 – 4/18/2026')).toBeVisible();
     expect(screen.getByText('2,100 events')).toBeVisible();
     expect(screen.getByText('826 events')).toBeVisible();
+    expect(screen.getByText('SIMC Visits')).toBeVisible();
+    expect(screen.getByText('6/2/2026 – 8/13/2026')).toBeVisible();
+    expect(screen.getByText('3,305 visits')).toBeVisible();
+    expect(screen.getByText('Link2Feed Visits')).toBeVisible();
+    expect(screen.getByText('1/4/2023 – 5/28/2026')).toBeVisible();
+    expect(screen.getByText('4,100 visits')).toBeVisible();
+    expect(screen.getByText('LOTTO Queue Sessions')).toBeVisible();
+    expect(screen.getByText('8/19/2026 – 8/22/2026')).toBeVisible();
+    expect(screen.getByText('3 sessions')).toBeVisible();
 
     // A coverage gap measures available data-entry time, not performance, so
     // no surface may frame it as lateness or fault. See plan D12.
     for (const forbidden of [/overdue/i, /behind/i, /incomplete/i, /missing data/i, /failed to/i]) {
       expect(document.body.textContent).not.toMatch(forbidden);
     }
+  });
+
+  test('groups rules, Add Data controls, and history in the Imported Data card', async () => {
+    render(<DataManagementWorkspace />);
+
+    const importedDataTitle = await screen.findByText('Imported Data');
+    const card = importedDataTitle.closest('[data-slot="card"]');
+    expect(card).not.toBeNull();
+    expect(card).toHaveTextContent(
+      'Add and manage data imported from Link2Feed, SIMC, Oregon Food Bank Primarius.'
+    );
+    expect(card).toHaveTextContent('Data Rules');
+    expect(card).toContainElement(screen.getByRole('button', { name: 'Add Data' }));
+    expect(card).toContainElement(within(card!).getByRole('columnheader', { name: 'Source' }));
   });
 
   test('names the sibling row a unified upload produced, and only that row', async () => {
@@ -235,7 +291,7 @@ describe('Data Management', () => {
     expect(screen.getByText('SIMC')).toBeVisible();
     expect(screen.getByText('WTH Tracking')).toBeVisible();
     expect(screen.getByText('Community Donations (historical)')).toBeVisible();
-    expect(screen.getByText('3,305 visits')).toBeVisible();
+    expect(screen.getAllByText('3,305 visits')).toHaveLength(2);
     expect(screen.getByText('1,114 observations')).toBeVisible();
   });
 });

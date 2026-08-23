@@ -53,6 +53,18 @@ export interface ServiceImportHistoryRecord extends ImportHistoryBase {
 
 export type ImportHistoryRecord = ProcurementImportHistoryRecord | ServiceImportHistoryRecord;
 
+export interface DataManagementCoverageWindow {
+  recordCount: number;
+  rangeStart: string | null;
+  rangeEnd: string | null;
+}
+
+export interface DataManagementCoverage {
+  link2feedVisits: DataManagementCoverageWindow;
+  simcVisits: DataManagementCoverageWindow;
+  lottoQueueSessions: DataManagementCoverageWindow;
+}
+
 export type Link2FeedReviewAction = 'apply_source_resolution' | 'keep_source_interpretation';
 
 export interface DataImportReviewDecision {
@@ -211,6 +223,11 @@ class DataImportApiService extends BaseApiService {
   async getHistory(): Promise<ImportHistoryRecord[]> {
     const response = await this.get<{ imports: ImportHistoryRecord[] }>('/history');
     return response.imports;
+  }
+
+  async getCoverage(): Promise<DataManagementCoverage> {
+    const response = await this.get<{ coverage: DataManagementCoverage }>('/coverage');
+    return response.coverage;
   }
 
   async changeHistoryStatus(

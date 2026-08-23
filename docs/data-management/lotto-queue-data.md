@@ -76,6 +76,32 @@ a page is safe; a failed page does not advance the cursor. Saving a replacement
 connection deliberately resets the cursor so FEED can reconcile from the
 beginning by source id and content hash.
 
+### Production pairing
+
+The deployment administrator generates one high-entropy secret locally. This
+command emits a URL-safe 384-bit value and does not depend on either app:
+
+```bash
+node -e "console.log(require('node:crypto').randomBytes(48).toString('base64url'))"
+```
+
+Treat the output like a password: do not commit it, place it in documentation,
+or send it through ordinary chat. In the LOTTO Vercel project, save it as a
+Production **Sensitive** environment variable named
+`LOTTO_FEED_INTEGRATION_TOKEN`, then redeploy so the new deployment receives
+it. Enter the same value once in FEED's administrator-only **Configure**
+dialog. FEED encrypts that copy; staff use **Sync now** without seeing it.
+
+The Vercel environment variable is an MVP deployment choice, not a protocol
+requirement. LOTTO only requires a trusted runtime secret against which it can
+validate the bearer credential. A later token registry could instead store a
+one-way hash in LOTTO's database and provide one-time issuance, revocation,
+expiry, and audit history. Short-lived signed service tokens or an external
+secret manager are also possible, but add key rotation, identity, availability,
+and operational dependencies that are not justified for one FEED-to-LOTTO
+pairing. Revisit the database-backed registry when LOTTO has multiple consumers
+or routine self-service rotation becomes a real need.
+
 ## Analytics contract
 
 Only the current revision of sessions effectively classified **Include as

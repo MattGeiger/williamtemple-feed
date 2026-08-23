@@ -7,6 +7,11 @@ import { describe, expect, test, vi } from 'vitest';
 
 vi.mock('../../../src/services/data-import', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../../src/services/data-import')>()),
+  getDataManagementCoverage: vi.fn().mockResolvedValue({
+    link2feedVisits: { recordCount: 10, rangeStart: '2026-01-01', rangeEnd: '2026-01-02' },
+    simcVisits: { recordCount: 20, rangeStart: '2026-06-01', rangeEnd: '2026-06-02' },
+    lottoQueueSessions: { recordCount: 2, rangeStart: '2026-08-01', rangeEnd: '2026-08-02' },
+  }),
   listImportHistory: vi.fn().mockResolvedValue([]),
 }));
 
@@ -31,6 +36,17 @@ describe('unified import history routes', () => {
 
     expect(response.status).toBe(200);
     expect(Array.isArray(response.body.imports)).toBe(true);
+  });
+
+  test('allows authenticated staff to read current organization-wide coverage', async () => {
+    const response = await request(app).get('/api/data-import/coverage');
+
+    expect(response.status).toBe(200);
+    expect(response.body.coverage).toMatchObject({
+      link2feedVisits: { recordCount: 10 },
+      simcVisits: { recordCount: 20 },
+      lottoQueueSessions: { recordCount: 2 },
+    });
   });
 
   test('keeps lifecycle changes administrator-only', async () => {

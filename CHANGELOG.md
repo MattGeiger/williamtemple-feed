@@ -5,6 +5,19 @@ All notable changes to FEED are documented here. This project adheres to
 
 ## [Unreleased]
 
+### Added
+
+- **Data Management now summarizes current SIMC visits, Link2Feed visits, and
+  LOTTO queue sessions alongside procurement coverage.** These Service figures
+  count current active facts rather than summing immutable import revisions.
+
+### Changed
+
+- **Data Rules, Add Data, and import history now share one Imported Data card.**
+  LOTTO synchronization remains in its own operational card, and the production
+  pairing runbook now documents high-entropy token generation and Vercel's
+  sensitive-variable setup.
+
 ### Fixed
 
 - **LOTTO synchronization now accepts both `HH:mm` and SQL `HH:mm:ss`

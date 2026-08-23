@@ -80,6 +80,80 @@ export interface ServiceImportHistoryRecord extends ImportHistoryBase {
 
 export type ImportHistoryRecord = ProcurementImportHistoryRecord | ServiceImportHistoryRecord;
 
+export interface DataManagementCoverageWindow {
+  recordCount: number;
+  rangeStart: string | null;
+  rangeEnd: string | null;
+}
+
+export interface DataManagementCoverage {
+  link2feedVisits: DataManagementCoverageWindow;
+  simcVisits: DataManagementCoverageWindow;
+  lottoQueueSessions: DataManagementCoverageWindow;
+}
+
+const FORMAL_VISIT_KINDS = [
+  'identified_household_encounter',
+  'identity_unavailable_encounter',
+] as const;
+
+/**
+ * Current active coverage for the Data Management summary.
+ *
+ * Import-history row counts describe immutable revisions written by each
+ * import, so adding them would overstate coverage after an overlapping import.
+ * These aggregates count only the current active facts instead.
+ */
+export async function getDataManagementCoverage(
+  client: PrismaClient = prisma,
+): Promise<DataManagementCoverage> {
+  const visitCoverage = async (source: 'link2feed' | 'simc') => {
+    const result = await client.serviceEncounterRevision.aggregate({
+      where: {
+        source,
+        isCurrent: true,
+        recordKind: { in: [...FORMAL_VISIT_KINDS] },
+        import: { status: 'active' },
+      },
+      _count: { _all: true },
+      _min: { serviceDate: true },
+      _max: { serviceDate: true },
+    });
+    return {
+      recordCount: result._count._all,
+      rangeStart: result._min.serviceDate,
+      rangeEnd: result._max.serviceDate,
+    };
+  };
+
+  const [link2feedVisits, simcVisits, lottoResult] = await Promise.all([
+    visitCoverage('link2feed'),
+    visitCoverage('simc'),
+    client.lottoQueueSessionRevision.aggregate({
+      where: {
+        isCurrent: true,
+        OR: [
+          { importId: null },
+          { import: { status: 'active' } },
+        ],
+      },
+      _count: { _all: true },
+      _min: { serviceDate: true },
+      _max: { serviceDate: true },
+    }),
+  ]);
+
+  return {
+    link2feedVisits,
+    simcVisits,
+    lottoQueueSessions: {
+      recordCount: lottoResult._count._all,
+      rangeStart: lottoResult._min.serviceDate,
+      rangeEnd: lottoResult._max.serviceDate,
+    },
+  };
+}
+
 const safeProcurementWarnings = (value: unknown): ImportHistoryProcurementWarning[] => {
   if (!Array.isArray(value)) return [];
   return value.filter((warning): warning is ImportHistoryProcurementWarning => {

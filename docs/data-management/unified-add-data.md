@@ -23,6 +23,19 @@ Users do not choose Link2Feed, SIMC, OFB, or Tracking before selecting a file,
 and they cannot force an unknown file through a parser. Source choice creates
 avoidable confusion when files have unambiguous structural signatures.
 
+Data Management summarizes FEED's current active holdings: OFB Warehouse and
+Fresh Food Alliance events, SIMC and Link2Feed visits, and LOTTO queue sessions.
+Service counts come from current active fact revisions, not a sum of
+import-history rows, because overlapping imports may append later revisions of
+the same source record. LOTTO's banner count includes current sessions still
+awaiting classification; the separate LOTTO card states which sessions are
+withheld from Analytics.
+
+The history table, its Add Data control, and Data Rules share one **Imported
+Data** card. LOTTO synchronization and review remain in the separate **LOTTO
+Queue Data** card because that workflow pulls immutable source closeouts rather
+than accepting a routine staff-selected export.
+
 The global entry point covers procurement and service data. Database backup
 restore remains a system-maintenance workflow under the Database tab; it is not
 ordinary Add Data ingestion.
