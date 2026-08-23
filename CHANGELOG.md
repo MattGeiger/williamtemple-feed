@@ -7,6 +7,10 @@ All notable changes to FEED are documented here. This project adheres to
 
 ### Fixed
 
+- **LOTTO synchronization now accepts both `HH:mm` and SQL `HH:mm:ss`
+  operating-window values.** Postgres-backed LOTTO closeouts no longer fail
+  the v1 contract check, and a genuine future contract mismatch now names the
+  incompatible integration instead of reporting generic Service fields.
 - **Identical page-load failures now produce one toast across the entire
   frontend.** `ErrorHandlerService` now uses the centralized message service,
   so concurrent requests cannot bypass duplicate collapsing merely because

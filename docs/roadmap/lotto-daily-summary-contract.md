@@ -206,8 +206,8 @@ per-user record or invent another key-management system.
       "operatingWindow": {
         "day": "thursday",
         "isOpen": true,
-        "openTime": "11:00",
-        "closeTime": "14:00"
+        "openTime": "11:00:00",
+        "closeTime": "14:00:00"
       },
       "ticketRange": {
         "start": 640,
@@ -270,6 +270,10 @@ per-user record or invent another key-management system.
   "hasMore": false
 }
 ```
+
+`openTime` and `closeTime` are local wall-clock values. Contract v1 accepts
+both `HH:mm` and SQL `TIME` serialization as `HH:mm:ss`; they are semantically
+equivalent and FEED ignores seconds when applying the one-hour margin.
 
 ### Field meanings
 
