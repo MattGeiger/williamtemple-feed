@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Matt Geiger
 
 import { describe, expect, test, vi } from 'vitest';
-import { listImportHistory } from '../../../src/services/data-import';
+import { getDataManagementCoverage, listImportHistory } from '../../../src/services/data-import';
 
 describe('unified import history projection', () => {
   test('combines durable procurement and Service provenance without combining facts', async () => {
@@ -98,6 +98,68 @@ describe('unified import history projection', () => {
     }));
     expect(client.serviceImport.findMany).toHaveBeenCalledWith(expect.objectContaining({
       where: { status: { in: ['active', 'rolled_back'] } },
+    }));
+  });
+});
+
+describe('Data Management coverage', () => {
+  test('counts current formal visits and active LOTTO sessions without summing import revisions', async () => {
+    const encounterAggregate = vi.fn()
+      .mockResolvedValueOnce({
+        _count: { _all: 4_100 },
+        _min: { serviceDate: '2023-01-04' },
+        _max: { serviceDate: '2026-05-28' },
+      })
+      .mockResolvedValueOnce({
+        _count: { _all: 3_305 },
+        _min: { serviceDate: '2026-06-02' },
+        _max: { serviceDate: '2026-08-13' },
+      });
+    const client = {
+      serviceEncounterRevision: { aggregate: encounterAggregate },
+      lottoQueueSessionRevision: {
+        aggregate: vi.fn().mockResolvedValue({
+          _count: { _all: 3 },
+          _min: { serviceDate: '2026-08-19' },
+          _max: { serviceDate: '2026-08-22' },
+        }),
+      },
+    };
+
+    await expect(getDataManagementCoverage(client as never)).resolves.toEqual({
+      link2feedVisits: {
+        recordCount: 4_100,
+        rangeStart: '2023-01-04',
+        rangeEnd: '2026-05-28',
+      },
+      simcVisits: {
+        recordCount: 3_305,
+        rangeStart: '2026-06-02',
+        rangeEnd: '2026-08-13',
+      },
+      lottoQueueSessions: {
+        recordCount: 3,
+        rangeStart: '2026-08-19',
+        rangeEnd: '2026-08-22',
+      },
+    });
+
+    expect(encounterAggregate).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      where: expect.objectContaining({
+        source: 'link2feed',
+        isCurrent: true,
+        recordKind: { in: ['identified_household_encounter', 'identity_unavailable_encounter'] },
+        import: { status: 'active' },
+      }),
+    }));
+    expect(encounterAggregate).toHaveBeenNthCalledWith(2, expect.objectContaining({
+      where: expect.objectContaining({ source: 'simc', isCurrent: true }),
+    }));
+    expect(client.lottoQueueSessionRevision.aggregate).toHaveBeenCalledWith(expect.objectContaining({
+      where: {
+        isCurrent: true,
+        OR: [{ importId: null }, { import: { status: 'active' } }],
+      },
     }));
   });
 });

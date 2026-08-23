@@ -20,6 +20,13 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { DatabaseIcon } from '@/components/ui/database';
 import {
   Dialog,
@@ -43,6 +50,7 @@ import { messageService } from '@/services/message';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   dataImportService,
+  type DataManagementCoverage,
   type ImportHistoryRecord,
 } from '@/services/data-import';
 import { procurementService } from '@/services/procurement';
@@ -52,7 +60,7 @@ import type {
   ProcurementDataStatus,
 } from '@/types/procurement';
 import type { TableBulkAction } from '@/types/table';
-import { ProcurementCoverageStrip } from './coverage-strip';
+import { DataCoverageStrip } from './coverage-strip';
 import { DatabasePanel } from './database-panel';
 import { DataShapingRuleDialog, type RuleDialogSeed } from './data-shaping-rule-dialog';
 import { DataShapingRules } from './data-shaping-rules';
@@ -107,6 +115,7 @@ export function DataManagementWorkspace() {
   const { isAdministrator } = useAuth();
   const [imports, setImports] = React.useState<ImportHistoryRecord[]>([]);
   const [status, setStatus] = React.useState<ProcurementDataStatus | null>(null);
+  const [coverage, setCoverage] = React.useState<DataManagementCoverage | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
   const [addDataOpen, setAddDataOpen] = React.useState(false);
   const [detailTarget, setDetailTarget] = React.useState<ImportHistoryRecord | null>(null);
@@ -124,12 +133,14 @@ export function DataManagementWorkspace() {
   const refresh = React.useCallback(async () => {
     try {
       setIsLoading(true);
-      const [loadedImports, loadedStatus] = await Promise.all([
+      const [loadedImports, loadedStatus, loadedCoverage] = await Promise.all([
         dataImportService.getHistory(),
         procurementService.getStatus(),
+        dataImportService.getCoverage(),
       ]);
       setImports(loadedImports);
       setStatus(loadedStatus);
+      setCoverage(loadedCoverage);
     } catch (error) {
       ErrorHandlerService.handleError(error, 'dataImportHistory');
     } finally {
@@ -410,7 +421,11 @@ export function DataManagementWorkspace() {
   // the JSX would double every future edit — and every type error in it.
   const analyticsContent = (
     <>
-    <ProcurementCoverageStrip status={status} formatDate={dateLabel} />
+    <DataCoverageStrip
+      status={status}
+      serviceCoverage={coverage}
+      formatDate={dateLabel}
+    />
 
     <LottoQueuePanel isAdministrator={isAdministrator} />
 
@@ -426,43 +441,53 @@ export function DataManagementWorkspace() {
       </Alert>
     )}
 
-    <DataShapingRules
-      rules={rules}
-      isLoading={rulesLoading}
-      onAdd={() => openRuleDialog(null)}
-      onEdit={(rule) => openRuleDialog({ rule })}
-      onToggle={(rule, enabled) => void toggleRule(rule, enabled)}
-      onDelete={setRuleToDelete}
-      canManage={isAdministrator}
-    />
-    <EnhancedDataTable
-      ref={tableRef}
-      columns={columns}
-      data={imports}
-      isLoading={isLoading}
-      filterColumn="source"
-      filterPlaceholder="Filter imports..."
-      enableColumnVisibility
-      defaultPageSize={5}
-      selection={{
-        enabled: true,
-        selectionColumn: true,
-        bulkActions,
-      }}
-      toolbarActions={[
-        {
-          // All staff retain the established procurement import capability.
-          // The modal identifies Service files locally, then explains the
-          // administrator boundary before any protected upload is attempted.
-          label: 'Add Data',
-          icon: PlusIcon,
-          variant: 'default' as const,
-          action: () => setAddDataOpen(true),
-          title: 'Detect and import an external data file',
-          buttonRef: addDataButtonRef,
-        },
-      ]}
-    />
+    <Card className="min-w-0">
+      <CardHeader>
+        <CardTitle>Imported Data</CardTitle>
+        <CardDescription>
+          Add and manage data imported from Link2Feed, SIMC, Oregon Food Bank Primarius.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <DataShapingRules
+          rules={rules}
+          isLoading={rulesLoading}
+          onAdd={() => openRuleDialog(null)}
+          onEdit={(rule) => openRuleDialog({ rule })}
+          onToggle={(rule, enabled) => void toggleRule(rule, enabled)}
+          onDelete={setRuleToDelete}
+          canManage={isAdministrator}
+        />
+        <EnhancedDataTable
+          ref={tableRef}
+          columns={columns}
+          data={imports}
+          isLoading={isLoading}
+          filterColumn="source"
+          filterPlaceholder="Filter imports..."
+          enableColumnVisibility
+          defaultPageSize={5}
+          selection={{
+            enabled: true,
+            selectionColumn: true,
+            bulkActions,
+          }}
+          toolbarActions={[
+            {
+              // All staff retain the established procurement import capability.
+              // The modal identifies Service files locally, then explains the
+              // administrator boundary before any protected upload is attempted.
+              label: 'Add Data',
+              icon: PlusIcon,
+              variant: 'default' as const,
+              action: () => setAddDataOpen(true),
+              title: 'Detect and import an external data file',
+              buttonRef: addDataButtonRef,
+            },
+          ]}
+        />
+      </CardContent>
+    </Card>
 
     </>
   );

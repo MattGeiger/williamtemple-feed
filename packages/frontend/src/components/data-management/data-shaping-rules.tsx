@@ -11,13 +11,6 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import type { DataShapingRule } from '@/types/procurement';
 import { flagLabel } from './data-shaping-rule-dialog';
@@ -88,11 +81,11 @@ export function DataShapingRules({
   );
 
   return (
-    <Card className="min-w-0">
-      <CardHeader className="flex-row items-start justify-between gap-4 space-y-0">
+    <section className="min-w-0 space-y-4 border-b pb-6">
+      <div className="flex flex-row items-start justify-between gap-4">
         <div className="min-w-0">
           <div className="flex items-center gap-1.5">
-            <CardTitle>Data Rules</CardTitle>
+            <h3 className="text-lg font-semibold leading-none tracking-tight">Data Rules</h3>
             {/* The detail belongs here rather than in the card: it answers a
                 question staff ask once, and on screen it crowded the rules
                 themselves. */}
@@ -118,7 +111,7 @@ export function DataShapingRules({
               </Tooltip>
             </TooltipProvider>
           </div>
-          <CardDescription>How your agency reads its own data.</CardDescription>
+          <p className="mt-1.5 text-sm text-muted-foreground">How your agency reads its own data.</p>
         </div>
         {canManage && (
           <Button size="sm" onClick={onAdd} className="shrink-0">
@@ -126,8 +119,8 @@ export function DataShapingRules({
             Add Rule
           </Button>
         )}
-      </CardHeader>
-      <CardContent>
+      </div>
+      <div>
         {isLoading ? (
           <p className="py-6 text-center text-sm text-muted-foreground">Loading rules…</p>
         ) : rules.length === 0 ? (
@@ -194,7 +187,7 @@ export function DataShapingRules({
             is never silently dropped.
           </p>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </section>
   );
 }
