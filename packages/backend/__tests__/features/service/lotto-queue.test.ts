@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 Matt Geiger
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   classifyLottoSummary,
   getLottoQueueAnalytics,
+  ingestLottoSummaries,
   listLottoQueueSessions,
   type LottoDailySummary,
 } from '../../../src/services/service/lotto-queue';
@@ -46,6 +47,29 @@ describe('LOTTO queue-session classification', () => {
     }));
     expect(result.disposition).toBe('needs_review');
     expect(result.issues.map((issue) => issue.code)).toContain('activity_outside_operating_window');
+  });
+
+  it('accepts SQL TIME operating windows with seconds from LOTTO', async () => {
+    const create = vi.fn(async () => ({ id: 1 }));
+    const client = {
+      lottoQueueSessionRevision: {
+        findFirst: async () => null,
+        aggregate: async () => ({ _max: { revision: null } }),
+        updateMany: async () => ({ count: 0 }),
+        create,
+      },
+    };
+
+    const result = await ingestLottoSummaries([
+      summary({
+        operatingWindow: {
+          day: 'thursday', isOpen: true, openTime: '11:00:00', closeTime: '14:00:00',
+        },
+      }),
+    ], { source: 'lotto_api' }, client as never);
+
+    expect(result).toMatchObject({ received: 1, inserted: 1, unchanged: 0 });
+    expect(create).toHaveBeenCalledOnce();
   });
 
   it('does not carry a staff classification onto a corrected source revision', async () => {

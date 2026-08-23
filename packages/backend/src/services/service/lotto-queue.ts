@@ -18,7 +18,10 @@ export const LOTTO_DISPOSITIONS = [
 ] as const;
 
 const isoDateTime = z.string().datetime({ offset: true });
-const clockTime = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/);
+// LOTTO's Postgres-backed settings can serialize SQL TIME values with seconds,
+// while file-backed/local settings retain HH:mm. Both represent the same
+// wall-clock contract and must remain readable within v1.
+const clockTime = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/);
 const operatingWindowSchema = z.object({
   day: z.enum(['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']),
   isOpen: z.boolean(), openTime: clockTime, closeTime: clockTime,
@@ -258,7 +261,15 @@ export async function syncLottoQueue(actor: string | null) {
       if (cursor) endpoint.searchParams.set('cursor', cursor);
       const response = await fetch(endpoint, { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' }, signal: AbortSignal.timeout(20_000) });
       if (!response.ok) throw new LottoQueueError(`LOTTO returned HTTP ${response.status}.`, 'LOTTO_SYNC_SOURCE_ERROR', 502);
-      const envelope = envelopeSchema.parse(await response.json());
+      const parsedEnvelope = envelopeSchema.safeParse(await response.json());
+      if (!parsedEnvelope.success) {
+        throw new LottoQueueError(
+          'LOTTO returned an incompatible queue-summary contract. Confirm that LOTTO is v1.21.0 or later, then try again.',
+          'LOTTO_SYNC_CONTRACT_ERROR',
+          502,
+        );
+      }
+      const envelope = parsedEnvelope.data;
       const page = await prisma.$transaction(async (tx) => {
         const result = await ingestLottoSummaries(envelope.summaries, { source: 'lotto_api', syncRunId: run.id }, tx);
         if (envelope.nextCursor) await tx.lottoQueueIntegrationConfig.update({ where: { id: 'singleton' }, data: { cursor: envelope.nextCursor } });
