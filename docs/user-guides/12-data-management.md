@@ -39,10 +39,11 @@ staff-level import.
 
 The **LOTTO Queue Data** card keeps queue operations separate from formal
 service counts. An administrator first opens LOTTO's **History** card, selects
-**Sync history with FEED**, generates a token, and copies the displayed LOTTO
-URL and token into FEED's **Configure** dialog. After that, any staff member can
-select **Sync now**. Generating another token in LOTTO immediately invalidates
-the previous one, so copy the replacement into FEED before synchronizing.
+**Setup** under **Sync With FEED**, generates a token, and copies the displayed
+LOTTO URL and token into FEED's **Configure** dialog. After that, any staff
+member can select **Sync now**. Generating another token in LOTTO immediately
+invalidates the previous one, so copy the replacement into FEED before
+synchronizing.
 
 FEED preserves every synchronized session. A session is included automatically
 only when it occurred within one hour of operating hours, all issued tickets
