@@ -230,12 +230,27 @@ export async function saveLottoIntegrationConfig(baseUrl: string, token: string,
     throw new LottoQueueError('LOTTO must use an HTTP or HTTPS URL.', 'INVALID_LOTTO_URL');
   }
   const encrypted = await encryptApiKey(token.trim());
-  return prisma.lottoQueueIntegrationConfig.upsert({
+  const existing = await prisma.lottoQueueIntegrationConfig.findUnique({
+    where: { id: 'singleton' },
+  });
+  const sourceChanged = Boolean(existing && existing.baseUrl !== normalized);
+  const config = await prisma.lottoQueueIntegrationConfig.upsert({
     where: { id: 'singleton' },
     create: { id: 'singleton', baseUrl: normalized, encryptedToken: encrypted.encrypted, salt: encrypted.salt, updatedBy: actor },
-    update: { baseUrl: normalized, encryptedToken: encrypted.encrypted, salt: encrypted.salt, cursor: null, updatedBy: actor },
+    update: {
+      baseUrl: normalized,
+      encryptedToken: encrypted.encrypted,
+      salt: encrypted.salt,
+      // Replacing the credential for the same LOTTO deployment changes only
+      // authorization. Its synchronization position and history remain valid.
+      // A different source has a different cursor namespace and must replay its
+      // available window from the beginning.
+      ...(sourceChanged ? { cursor: null, lastSyncedAt: null } : {}),
+      updatedBy: actor,
+    },
     select: { baseUrl: true, cursor: true, lastSyncedAt: true, updatedAt: true },
   });
+  return { ...config, sourceChanged };
 }
 
 export async function getLottoIntegrationStatus() {
@@ -260,6 +275,13 @@ export async function syncLottoQueue(actor: string | null) {
       endpoint.searchParams.set('limit', '500');
       if (cursor) endpoint.searchParams.set('cursor', cursor);
       const response = await fetch(endpoint, { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' }, signal: AbortSignal.timeout(20_000) });
+      if (response.status === 401 || response.status === 403) {
+        throw new LottoQueueError(
+          'LOTTO rejected the saved connection. Ask a LOTTO administrator to generate a new synchronization token, then update the connection.',
+          'LOTTO_TOKEN_REJECTED',
+          409,
+        );
+      }
       if (!response.ok) throw new LottoQueueError(`LOTTO returned HTTP ${response.status}.`, 'LOTTO_SYNC_SOURCE_ERROR', 502);
       const parsedEnvelope = envelopeSchema.safeParse(await response.json());
       if (!parsedEnvelope.success) {

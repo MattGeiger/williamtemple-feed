@@ -28,6 +28,9 @@
 
 /** Organization operating data. The point of the artifact. */
 export const INCLUDED_TABLES = [
+  // Staff roster. Authority is neutralized by stripping role on export; the
+  // administrator performing an in-app restore is re-granted during restore.
+  'User',
   // Inventory and its translations
   'Category',
   'CategoryTranslation',
@@ -78,6 +81,7 @@ export const INCLUDED_TABLES = [
   'ServiceCapacityPlan',
   'ServiceCapacityPlanRevision',
   'ServiceCapacityTarget',
+  'LottoQueueSyncRun',
   'LottoQueueSessionRevision',
   'LottoQueueTicketObservation',
   'LottoQueueQualityIssue',
@@ -156,9 +160,6 @@ export const EXCLUDED_TABLES: Record<string, string> = {
   OtpFailure: 'Lockout state; restoring it would resurrect or clear lockouts arbitrarily.',
 
   // --- Authority. Restoring these would restore *access*. ---
-  User:
-    'Restoring the roster restores authority: a stale or edited artifact could grant administrator access. ' +
-    'In Domain mode the roster self-heals, because a successful sign-in recreates the row as Staff.',
   AccessPolicy:
     'Sign-in mode is an authority decision. A restore must not quietly widen or narrow who can sign in.',
   AdminAuditLog:
@@ -193,9 +194,7 @@ export const EXCLUDED_TABLES: Record<string, string> = {
   DataImportReviewDecision:
     'Transient operator decision attached to a staged review issue; activation copies its audit meaning into durable Service decisions and resolutions.',
   LottoQueueIntegrationConfig:
-    'Contains the encrypted LOTTO bearer token. Reconfigure the source connection after a restore.',
-  LottoQueueSyncRun:
-    'Synchronization telemetry and cursor progress. Durable session revisions are backed up separately.',
+    'Contains the LOTTO source URL, encrypted bearer token, token salt, and live cursor. In-place restore preserves the destination connection; a new installation must pair again.',
 
   // --- Dormant. ---
   ReportTemplate:
@@ -219,6 +218,7 @@ export const EXCLUDED_TABLES: Record<string, string> = {
  */
 export const REDACTED_COLUMNS: Record<string, readonly string[]> = {
   AIConfiguration: ['encryptedApiKey', 'salt'],
+  User: ['role'],
 };
 
 /**
@@ -283,6 +283,6 @@ export const BACKUP_QUERY_ARGS: Partial<Record<IncludedTable, object>> = {
  * version and from the migration name: an artifact can be produced by many FEED
  * builds while remaining the same contract.
  */
-export const TABLE_CONTRACT_VERSION = 10;
+export const TABLE_CONTRACT_VERSION = 11;
 
 export const ARTIFACT_KIND = 'feed-sanitized-backup';

@@ -119,6 +119,10 @@ export const DATABASE_SUMMARY_GROUPS: {
   tables: { table: string; label: string }[];
 }[] = [
   {
+    label: 'Staff roster',
+    tables: [{ table: 'User', label: 'Accounts' }],
+  },
+  {
     label: 'Inventory',
     tables: [
       { table: 'Category', label: 'Categories' },
@@ -167,6 +171,8 @@ export const DATABASE_SUMMARY_GROUPS: {
       { table: 'ServiceCapacityPlan', label: 'Capacity plans' },
       { table: 'ServiceCapacityPlanRevision', label: 'Capacity plan revisions' },
       { table: 'ServiceCapacityTarget', label: 'Capacity targets' },
+      { table: 'LottoQueueSyncRun', label: 'LOTTO synchronization runs' },
+      { table: 'LottoQueueSessionRevision', label: 'LOTTO queue sessions' },
     ],
   },
   {
@@ -188,6 +194,7 @@ export const DATABASE_SUMMARY_GROUPS: {
  * docs/data-management/beta-6-backup-restore-brief.md.
  */
 export type RestoreUnitId =
+  | 'staffRoster'
   | 'inventory'
   | 'languages'
   | 'shoppingLists'

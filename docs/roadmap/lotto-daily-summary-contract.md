@@ -173,10 +173,13 @@ facts; they do not change cursor semantics.
 ### Authentication
 
 Require `Authorization: Bearer <token>` on every request. This is a dedicated
-machine-to-machine integration token configured in the LOTTO deployment, not a
-NextAuth browser session and not a database credential. Missing configuration
-fails closed. Compare secrets without a timing-sensitive plain-string branch
-and never log the token.
+machine-to-machine integration token, not a NextAuth browser session and not a
+database credential. An administrator generates it from LOTTO's History card;
+LOTTO stores one SHA-256 hash in a singleton Neon row and displays plaintext
+once. Generating another token atomically replaces the hash and immediately
+invalidates the prior value. Missing configuration fails closed. Compare hashes
+without a timing-sensitive plain-string branch and never log the token, hash,
+or authorization header.
 
 FEED stores its copy in an organization-wide integration configuration and
 encrypts it with FEED's existing encryption machinery. Do not store it in a
@@ -347,7 +350,9 @@ calculate any MVP statistic.
 - Active legacy state loads without fabricated timing facts and closes with
   disclosed partial coverage.
 - The canonical `schema.sql` and deployment documentation include the
-  append-only store and integration-token configuration.
+  append-only store and singleton integration-token hash.
+- The authenticated Admin History card generates and displays a token once;
+  generating another immediately invalidates the previous token.
 - Database and local-file state managers provide equivalent closeout
   semantics.
 - Reset writes a meaningful closeout before clearing state; blank reset writes

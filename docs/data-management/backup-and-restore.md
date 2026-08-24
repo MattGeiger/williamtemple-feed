@@ -56,8 +56,10 @@ asked for:
 
 Because it is selective, this artifact is not a raw SQLite snapshot. Restore
 must create and validate a compatible database, import the approved logical
-records, and then require fresh encryption initialization and fresh AI provider
-keys.
+records, and preserve destination-owned encryption and credentials during an
+in-place restore. Restoring onto a new installation requires fresh encryption
+initialization, AI provider keys, and external-service pairing because none of
+those secrets are carried by the artifact.
 
 ## Status
 
@@ -71,7 +73,7 @@ resolution above, and the clean-slate model — are recorded in
 [beta-6-backup-restore-brief.md](beta-6-backup-restore-brief.md), which also
 named two prerequisites that had to land first: editable API keys, and
 `AIConfiguration` redaction in place of exclusion. **Both are implemented.**
-The artifact now declares table contract version 10: version 2 added sanitized
+The artifact now declares table contract version 11: version 2 added sanitized
 `AIConfiguration`; version 3 added the first formal Service and operational
 metric fact family; version 4 adds effective-dated Service capacity plans,
 structured quality issues, and append-only operator decisions; and version 5
@@ -86,8 +88,10 @@ meaning from a label. Older artifacts do not manufacture person
 records or workbook provenance, and pre-v8 observations restore with the safe
 `recorded` default rather than being reinterpreted as clears. Version 10 adds
 privacy-minimized LOTTO session revisions, anonymous ticket observations,
-quality issues, and append-only staff resolutions. It excludes the encrypted
-LOTTO connection, cursor, and transient synchronization runs.
+quality issues, and append-only staff resolutions. Version 11 carries the
+authority-neutralized staff roster and LOTTO synchronization-run provenance.
+It still excludes the LOTTO URL, encrypted token, token salt, live cursor, and
+encryption keys.
 Version 4 artifacts restore with that new status defaulted to `unknown`; FEED
 never infers it from unrelated fields. Transient `DataImportJob` progress and
 staged source files remain excluded. Normalized Service revisions prepared
@@ -110,10 +114,18 @@ workflow must:
 6. run integrity and contract checks;
 7. restart/reconnect the backend cleanly;
 8. delete rejected and completed temporary artifacts;
-9. require fresh encryption/API-key setup for sanitized restores.
+9. preserve destination-owned secrets in place, or require fresh
+   encryption/API-key setup when the artifact is restored onto a new
+   installation.
 
 Procurement rollback is not database restore. It is a reversible domain action
 that changes which retained import revisions contribute to Analytics.
 Service imports and source resolutions form their own foreign-key-closed restore
 unit. Restoring Service does not restore Procurement, Inventory, or user
-authority.
+authority. LOTTO is the deliberate exception to replace-only restore semantics:
+LOTTO retains a rolling source window while FEED owns the longer record, so a
+Service restore keeps the union of immutable LOTTO revisions in the artifact
+and newer revisions already in FEED. It restores synchronization runs with
+their sessions, recalculates which revision is current, and stops before the
+swap if one immutable identity has conflicting content. The destination's live
+LOTTO connection and cursor remain untouched.

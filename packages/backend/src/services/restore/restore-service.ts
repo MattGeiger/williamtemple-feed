@@ -12,7 +12,12 @@ import { dirname, join, resolve } from 'path';
 import prisma from '../../db';
 import { MaintenanceMode } from './maintenance-mode';
 import { RESTORE_CLEARED_TABLES } from '../backup/table-contract';
+import {
+  mergeMonotonicLottoHistory,
+  MONOTONIC_LOTTO_TABLES,
+} from './monotonic-lotto-history';
 import { tablesFor, type UnitId } from './restore-units';
+import { ACCESS_STATES, ROLES, normalizeEmail } from '../auth/authorization';
 
 /**
  * Restore by **building a new database and swapping it in**, never by mutating
@@ -107,7 +112,44 @@ const delegateFor = (client: PrismaClient, table: string) => {
     deleteMany: (args?: unknown) => Promise<unknown>;
     createMany: (args: unknown) => Promise<unknown>;
     count: () => Promise<number>;
+    findMany: (args?: unknown) => Promise<Record<string, unknown>[]>;
   }>)[key];
+};
+
+export const prepareRestoredUsers = (
+  backupRows: unknown[],
+  liveRows: Record<string, unknown>[],
+  actor: string
+): Record<string, unknown>[] => {
+  const actorEmail = actor.includes('@') ? normalizeEmail(actor) : null;
+  const byEmail = new Map<string, Record<string, unknown>>();
+
+  for (const value of backupRows) {
+    const row = value as Record<string, unknown>;
+    const email = typeof row.email === 'string' ? normalizeEmail(row.email) : '';
+    if (!email || byEmail.has(email)) {
+      throw new Error('Staff roster restore conflict: the backup contains a missing or duplicate email address.');
+    }
+    byEmail.set(email, { ...row, email, role: ROLES.STAFF });
+  }
+
+  if (actorEmail) {
+    const liveActor = liveRows.find(row =>
+      typeof row.email === 'string' && normalizeEmail(row.email) === actorEmail
+    );
+    const restoredActor = byEmail.get(actorEmail);
+    if (restoredActor || liveActor) {
+      byEmail.set(actorEmail, {
+        ...(restoredActor ?? liveActor),
+        ...(liveActor?.id ? { id: liveActor.id } : {}),
+        email: actorEmail,
+        role: ROLES.ADMINISTRATOR,
+        accessState: ACCESS_STATES.ALLOWED,
+      });
+    }
+  }
+
+  return [...byEmail.values()];
 };
 
 export class RestoreService {
@@ -132,7 +174,41 @@ export class RestoreService {
 
     const { snapshotPath } = await buildAndSwap(
       async scratch => {
-        // Replace, never merge — within the selected units only.
+        const restoreData: Record<string, unknown[]> = { ...data };
+
+        // LOTTO retains only a rolling source window; FEED is the historical
+        // record. Preserve the union of the artifact and every immutable LOTTO
+        // fact already in the destination before replacing the Service unit.
+        // The live connection and cursor are excluded from `tables`, so the
+        // scratch copy carries them across untouched.
+        if (units.includes('service')) {
+          const liveLottoData: Record<string, unknown[]> = {
+            ServiceImport: await delegateFor(scratch, 'ServiceImport').findMany(),
+          };
+          for (const table of MONOTONIC_LOTTO_TABLES) {
+            liveLottoData[table] = await delegateFor(scratch, table).findMany();
+          }
+          Object.assign(
+            restoreData,
+            mergeMonotonicLottoHistory(restoreData, liveLottoData)
+          );
+        }
+
+        // The artifact never carries role. Every restored account starts as
+        // Staff; only the already-authenticated administrator running this
+        // in-app restore keeps Administrator and their current database id, so
+        // the JWT that initiated the operation remains valid after restart.
+        if (units.includes('staffRoster')) {
+          const liveUsers = await delegateFor(scratch, 'User').findMany();
+          restoreData.User = prepareRestoredUsers(
+            restoreData.User ?? [],
+            liveUsers,
+            options.actor
+          );
+        }
+
+        // Replace, never merge — within the selected units only, except for
+        // the explicit monotonic LOTTO-history union above.
         //
         // Merging would have to reconcile two autoincrement id-spaces:
         // FoodItemTranslation and the inventory events reference FoodItem and
@@ -158,7 +234,7 @@ export class RestoreService {
         }
 
         for (const table of tables) {
-          const rows = data[table] ?? [];
+          const rows = restoreData[table] ?? [];
           if (rows.length) {
             // createMany rather than a create per row: this is a bulk load into
             // a file nobody is reading yet.

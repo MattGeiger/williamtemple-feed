@@ -7,12 +7,23 @@ All notable changes to FEED are documented here. This project adheres to
 
 ### Added
 
+- **Portable backups now carry the authority-neutralized staff roster and LOTTO
+  synchronization-run provenance.** Restored accounts land as Staff while the
+  administrator performing the restore keeps Administrator; URLs, credentials,
+  cursor state, and encryption material remain excluded.
+- **LOTTO pairing now supports the administrator-generated single-token
+  workflow.** FEED preserves its cursor when only the token changes and reports
+  an actionable, credential-free message when LOTTO rejects an outdated token.
 - **Data Management now summarizes current SIMC visits, Link2Feed visits, and
   LOTTO queue sessions alongside procurement coverage.** These Service figures
   count current active facts rather than summing immutable import revisions.
 
 ### Changed
 
+- **Service restore preserves LOTTO history monotonically.** Queue revisions in
+  an artifact are unioned with newer immutable revisions already in FEED, sync
+  provenance follows them, and conflicting immutable identities stop the
+  restore before the live database is touched.
 - **Data Rules, Add Data, and import history now share one Imported Data card.**
   LOTTO synchronization remains in its own operational card, and the production
   pairing runbook now documents high-entropy token generation and Vercel's
