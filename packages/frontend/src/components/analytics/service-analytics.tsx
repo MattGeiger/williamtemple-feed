@@ -93,8 +93,8 @@ export function ServiceAnalyticsLens({ range }: { range: AnalyticsDateRange }) {
   // Log held entries through yesterday.
   const hasAnything = analytics
     && (analytics.coverage.hasIntake || analytics.coverage.hasServiceLog
-      || analytics.queueTiming.includedSessionCount > 0
-      || analytics.queueTiming.pendingReviewCount > 0);
+      || (analytics.queueTiming?.includedSessionCount ?? 0) > 0
+      || (analytics.queueTiming?.pendingReviewCount ?? 0) > 0);
 
   if (!analytics || !hasAnything) {
     return (
@@ -116,6 +116,18 @@ export function ServiceAnalyticsLens({ range }: { range: AnalyticsDateRange }) {
 
 const count = (value: number) => formatNumber(value);
 const round1 = (value: number) => Math.round(value * 10) / 10;
+const EMPTY_QUEUE_TIMING: NonNullable<ServiceAnalytics['queueTiming']> = {
+  includedSessionCount: 0,
+  pendingReviewCount: 0,
+  excludedSessionCount: 0,
+  observedTicketCount: 0,
+  medianWaitMinutes: null,
+  averageWaitMinutes: null,
+  p75WaitMinutes: null,
+  p90WaitMinutes: null,
+  historicalServingIntervalMinutes: null,
+  typicalLastCallLocalTime: null,
+};
 /** Shared with Procurement so the two lenses label buckets identically. */
 const monthOfDate = (date: string) => monthLabel(date.slice(0, 7));
 
@@ -205,8 +217,8 @@ function MethodRow({
 export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAnalytics }) {
   const {
     coverage, summary, overTime, seasonal, methodSeries, recordAgreement, unmetDemand,
-    queueTiming,
   } = analytics;
+  const queueTiming = analytics.queueTiming ?? EMPTY_QUEUE_TIMING;
 
   /**
    * The turned-away series carries nulls outside the Service Log's span. A bar

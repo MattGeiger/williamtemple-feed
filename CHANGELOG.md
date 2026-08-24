@@ -31,6 +31,9 @@ All notable changes to FEED are documented here. This project adheres to
 
 ### Fixed
 
+- **Service Analytics now tolerates a pre-v1.6 response that omits LOTTO queue
+  timing.** A cached response or rolling frontend/backend deployment is treated
+  as having no queue observations instead of crashing the entire Service lens.
 - **LOTTO synchronization now accepts both `HH:mm` and SQL `HH:mm:ss`
   operating-window values.** Postgres-backed LOTTO closeouts no longer fail
   the v1 contract check, and a genuine future contract mismatch now names the
