@@ -366,6 +366,7 @@ const percentile = (values: number[], share: number) => {
   return sorted[lower] + (sorted[upper] - sorted[lower]) * (index - lower);
 };
 const roundMinutes = (milliseconds: number | null) => milliseconds === null ? null : Math.round(milliseconds / 6000) / 10;
+const roundOne = (value: number | null) => value === null ? null : Math.round(value * 10) / 10;
 
 export async function getLottoQueueAnalytics(
   startDate: string,
@@ -379,23 +380,65 @@ export async function getLottoQueueAnalytics(
   const observations = revisionIds.length === 0 ? [] : await client.lottoQueueTicketObservation.findMany({ where: { sessionRevisionId: { in: revisionIds } }, orderBy: [{ sessionRevisionId: 'asc' }, { firstCalledAt: 'asc' }] });
   const waits = observations.filter((item) => item.issuedAt && item.firstCalledAt).map((item) => item.firstCalledAt!.getTime() - item.issuedAt!.getTime()).filter((value) => value >= 0);
   const sessionByRevisionId = new Map(included.map((session) => [session.id, session]));
-  const callsByServiceDate = new Map<string, { timezone: string; calls: Set<number> }>();
+  type DailyQueueAccumulator = {
+    serviceDate: string;
+    issuedCount: number;
+    returnedCount: number;
+    calledCount: number;
+    initialBatchIssuedCount: number | null;
+    initialBatchAt: number | null;
+    volumeCoverageComplete: boolean;
+    calls: Array<{ at: number; timezone: string }>;
+  };
+  const dailyByServiceDate = new Map<string, DailyQueueAccumulator>();
+  for (const session of included) {
+    const day = dailyByServiceDate.get(session.serviceDate) ?? {
+      serviceDate: session.serviceDate,
+      issuedCount: 0,
+      returnedCount: 0,
+      calledCount: 0,
+      initialBatchIssuedCount: null,
+      initialBatchAt: null,
+      volumeCoverageComplete: true,
+      calls: [],
+    };
+    day.issuedCount += session.issuedCount;
+    day.returnedCount += session.returnedCount;
+    day.calledCount += session.calledCount;
+    if (session.timingCoverage !== 'complete') day.volumeCoverageComplete = false;
+
+    // A service date should normally have one session. If an operational reset
+    // split it into more than one, only the day's earliest first batch is the
+    // initial drawing; summing every session's first batch would overstate it.
+    const facts = summarySchema.parse(session.facts);
+    const firstBatch = facts.batches.find((batch) => batch.sequence === 1);
+    const firstBatchAt = firstBatch ? Date.parse(firstBatch.issuedAt) : null;
+    if (firstBatch && firstBatchAt !== null
+      && (day.initialBatchAt === null || firstBatchAt < day.initialBatchAt)) {
+      day.initialBatchAt = firstBatchAt;
+      day.initialBatchIssuedCount = firstBatch.issuedCount;
+    }
+    dailyByServiceDate.set(session.serviceDate, day);
+  }
+
   for (const observation of observations) {
     if (!observation.firstCalledAt) continue;
     const session = sessionByRevisionId.get(observation.sessionRevisionId);
     if (!session) continue;
-    const day = callsByServiceDate.get(session.serviceDate) ?? { timezone: session.timezone, calls: new Set<number>() };
-    day.calls.add(observation.firstCalledAt.getTime());
-    callsByServiceDate.set(session.serviceDate, day);
+    const day = dailyByServiceDate.get(session.serviceDate);
+    if (!day) continue;
+    day.calls.push({ at: observation.firstCalledAt.getTime(), timezone: session.timezone });
   }
   const intervals: number[] = [];
-  for (const day of callsByServiceDate.values()) {
-    const calls = [...day.calls].sort((a, b) => a - b);
+  for (const day of dailyByServiceDate.values()) {
+    // Identical timestamps can arise when closeouts overlap. They remain
+    // separate ticket calls for milestones but not zero-length serving gaps.
+    const calls = [...new Set(day.calls.map((call) => call.at))].sort((a, b) => a - b);
     for (let index = 1; index < calls.length; index += 1) intervals.push(calls[index] - calls[index - 1]);
   }
-  const lastCalls = [...callsByServiceDate.values()].flatMap((day) => {
-    const last = [...day.calls].sort((a, b) => a - b).at(-1);
-    return last === undefined ? [] : [localParts(new Date(last).toISOString(), day.timezone).minutes];
+  const lastCalls = [...dailyByServiceDate.values()].flatMap((day) => {
+    const last = [...day.calls].sort((left, right) => left.at - right.at).at(-1);
+    return last === undefined ? [] : [localParts(new Date(last.at).toISOString(), last.timezone).minutes];
   });
   const medianLast = percentile(lastCalls, 0.5);
   const formatClock = (minutes: number | null) => {
@@ -405,8 +448,36 @@ export async function getLottoQueueAnalytics(
     const hours12 = hours24 % 12 || 12;
     return `${hours12}:${String(roundedMinutes % 60).padStart(2, '0')} ${hours24 < 12 ? 'AM' : 'PM'}`;
   };
+  const daily = [...dailyByServiceDate.values()]
+    .sort((left, right) => left.serviceDate.localeCompare(right.serviceDate))
+    .map((day) => {
+      const calls = [...day.calls].sort((left, right) => left.at - right.at);
+      const localMinuteAt = (index: number) => {
+        const call = calls[index];
+        return call ? localParts(new Date(call.at).toISOString(), call.timezone).minutes : null;
+      };
+      return {
+        serviceDate: day.serviceDate,
+        issuedCount: day.volumeCoverageComplete ? day.issuedCount : null,
+        returnedCount: day.volumeCoverageComplete ? day.returnedCount : null,
+        calledCount: day.volumeCoverageComplete ? day.calledCount : null,
+        initialBatchIssuedCount: day.volumeCoverageComplete ? day.initialBatchIssuedCount : null,
+        tenthCallLocalMinute: localMinuteAt(9),
+        twentyFifthCallLocalMinute: localMinuteAt(24),
+        fiftiethCallLocalMinute: localMinuteAt(49),
+        lastCallLocalMinute: localMinuteAt(calls.length - 1),
+      };
+    });
+  const initialBatchCounts = daily.flatMap((day) =>
+    day.initialBatchIssuedCount === null ? [] : [day.initialBatchIssuedCount]);
+  const serviceDayCount = daily.length;
+  const volumeDays = daily.filter((day) => day.issuedCount !== null
+    && day.returnedCount !== null && day.calledCount !== null);
+  const volumeServiceDayCount = volumeDays.length;
   return {
     includedSessionCount: included.length,
+    includedServiceDayCount: serviceDayCount,
+    volumeServiceDayCount,
     pendingReviewCount: selected.filter((session) => session.effectiveDisposition === 'needs_review').length,
     excludedSessionCount: selected.filter((session) => session.effectiveDisposition.startsWith('excluded_')).length,
     observedTicketCount: waits.length,
@@ -416,5 +487,13 @@ export async function getLottoQueueAnalytics(
     p90WaitMinutes: roundMinutes(percentile(waits, 0.9)),
     historicalServingIntervalMinutes: roundMinutes(percentile(intervals, 0.5)),
     typicalLastCallLocalTime: formatClock(medianLast),
+    medianInitialBatchSize: roundOne(percentile(initialBatchCounts, 0.5)),
+    averageIssuedPerServiceDay: roundOne(volumeServiceDayCount
+      ? volumeDays.reduce((sum, day) => sum + day.issuedCount!, 0) / volumeServiceDayCount
+      : null),
+    averageReturnedPerServiceDay: roundOne(volumeServiceDayCount
+      ? volumeDays.reduce((sum, day) => sum + day.returnedCount!, 0) / volumeServiceDayCount
+      : null),
+    daily,
   };
 }

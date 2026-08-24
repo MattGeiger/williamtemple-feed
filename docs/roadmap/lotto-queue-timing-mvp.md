@@ -187,14 +187,24 @@ queueTiming: {
     p90WaitSeconds: number | null;
     medianServingIntervalSeconds: number | null;
     typicalLastCallLocalMinute: number | null;
+    medianInitialBatchSize: number | null;
+    averageIssuedPerServiceDay: number | null;
+    averageReturnedPerServiceDay: number | null;
   };
   daily: Array<{
     serviceDate: string;
+    issuedCount: number | null;
+    returnedCount: number | null;
+    calledCount: number | null;
+    initialBatchIssuedCount: number | null;
     observedWaits: number;
     medianWaitSeconds: number | null;
     p90WaitSeconds: number | null;
     lastCallAt: string | null;
     lastCallLocalMinute: number | null;
+    tenthCallLocalMinute: number | null;
+    twentyFifthCallLocalMinute: number | null;
+    fiftiethCallLocalMinute: number | null;
   }>;
 }
 ```
@@ -299,20 +309,39 @@ and withholds it from Analytics. Staff can append a reasoned Include or Exclude
 classification; the source closeout remains immutable. LOTTO never interrupts
 Reset to ask the question.
 
-## Queue Timing card
+## Queue Statistics and daily charts
 
-Add one selectable **Queue Timing** card to the Service lens after the existing
-service-delivery cards. It should render only when LOTTO coverage reaches the
-selected range.
+Add a selectable **Queue Statistics** card and two daily chart cards to the
+Service lens. They render only when reviewed LOTTO coverage reaches the
+selected range. Keep the original `service-queue-timing` identifier for the KPI
+card so saved report selections survive the visible-title change.
 
-The card contains:
+The Queue Statistics card contains:
 
+- median initial-batch size as the typical initial issuance;
+- average tickets issued per included pantry day;
+- average tickets returned per included pantry day;
 - median wait as the plain-language headline;
 - average, p75, and p90 wait;
 - median serving interval, visibly separate from wait;
 - typical last ticket called;
-- observed-ticket and service-day denominators; and
-- a daily median/p90 trend when at least two days are present.
+- observed-ticket and service-day denominators.
+
+**Queue Volume by Pantry Day** plots issued, returned, called, and initial-batch
+ticket counts. Called means a ticket has an observed `firstCalledAt`; it is
+never calculated as issued minus returned. A ticket can be returned after a
+call, and an issued non-returned ticket can remain uncalled. If multiple
+reviewed sessions share a service date, totals are summed but only the earliest
+session's first batch is that day's initial issuance. A day containing
+`partial_legacy` coverage has unknown total volume, so these four points are
+gaps and the day is excluded from the volume averages rather than converted to
+zero.
+
+**Call Milestones by Pantry Day** plots the stored local clock minute of the
+10th, 25th, 50th, and last observed first call. A day that did not reach a
+milestone has a missing point, not a zero. These are clock times answering when
+the queue reached each point; elapsed throughput remains a separate possible
+analysis.
 
 The footer discloses:
 
@@ -322,9 +351,10 @@ The footer discloses:
 - partial legacy-session coverage, when present; and
 - that recalls use the first call.
 
-The card must follow the Analytics report contract: add one shared card
-accessor whose display-ready result feeds the screen, PDF, and CSV. Do not
-recalculate percentiles in React or inside the print renderer.
+All three cards must follow the Analytics report contract: shared card
+accessors provide display-ready results to PDF and CSV from the same backend
+payload rendered on screen. Do not recalculate source metrics in React or
+inside the print renderer.
 
 ## MVP acceptance criteria in FEED
 

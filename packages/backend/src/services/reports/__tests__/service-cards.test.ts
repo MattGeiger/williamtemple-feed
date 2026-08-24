@@ -13,6 +13,9 @@ import {
   SERVICE_HOUSEHOLD_SIZE,
   SERVICE_LANGUAGES,
   SERVICE_METHOD_MIX,
+  SERVICE_QUEUE_CALL_MILESTONES,
+  SERVICE_QUEUE_TIMING,
+  SERVICE_QUEUE_VOLUME,
   SERVICE_RESPONSE_COVERAGE,
   SERVICE_OVER_TIME,
   SERVICE_SEASONAL_HOUSEHOLDS,
@@ -141,6 +144,27 @@ const SERVICE_ANALYTICS = {
     { people: 2, visits: 30 },
   ],
   reachAndFrequency: [{ year: '2023', households: 80, visits: 100, visitsPerHousehold: 1.25 }],
+  queueTiming: {
+    includedSessionCount: 2,
+    includedServiceDayCount: 2,
+    volumeServiceDayCount: 2,
+    pendingReviewCount: 1,
+    excludedSessionCount: 0,
+    observedTicketCount: 38,
+    medianWaitMinutes: 20,
+    averageWaitMinutes: 22,
+    p75WaitMinutes: 30,
+    p90WaitMinutes: 40,
+    historicalServingIntervalMinutes: 2.2,
+    typicalLastCallLocalTime: '11:26 AM',
+    medianInitialBatchSize: 10,
+    averageIssuedPerServiceDay: 33.5,
+    averageReturnedPerServiceDay: 0.5,
+    daily: [
+      { serviceDate: '2026-08-20', issuedCount: 40, returnedCount: 0, calledCount: 12, initialBatchIssuedCount: 10, tenthCallLocalMinute: 670, twentyFifthCallLocalMinute: null, fiftiethCallLocalMinute: null, lastCallLocalMinute: 672 },
+      { serviceDate: '2026-08-21', issuedCount: 27, returnedCount: 1, calledCount: 26, initialBatchIssuedCount: 10, tenthCallLocalMinute: 670, twentyFifthCallLocalMinute: 685, fiftiethCallLocalMinute: null, lastCallLocalMinute: 686 },
+    ],
+  },
 };
 
 describe('the Service cards', () => {
@@ -148,6 +172,8 @@ describe('the Service cards', () => {
     const ids = [
       'service-summary',
       'service-queue-timing',
+      'service-queue-volume',
+      'service-queue-call-milestones',
       'service-over-time',
       'service-seasonal-households',
       'service-method-mix',
@@ -158,6 +184,44 @@ describe('the Service cards', () => {
       expect(card, `${id} is on screen but not in the registry`).toBeDefined();
       expect(card!.lens).toBe('service');
     }
+  });
+
+  it('exports queue statistics and daily volume using actual call counts', () => {
+    const statistics = SERVICE_QUEUE_TIMING.data(SERVICE_ANALYTICS);
+    expect(statistics.title).toBe('Queue Statistics');
+    expect(statistics.tiles).toEqual(expect.arrayContaining([
+      { label: 'Typical initial issuance', value: '10' },
+      { label: 'Average tickets issued', value: '33.5' },
+      { label: 'Average tickets returned', value: '0.5' },
+    ]));
+
+    const volume = SERVICE_QUEUE_VOLUME.data(SERVICE_ANALYTICS);
+    expect(volume.series.find((series) => series.name === 'Tickets called')?.values).toEqual([12, 26]);
+    expect(cardCsv(volume)).toContain('2026-08-20,40,0,12,10');
+  });
+
+  it('exports unknown partial legacy volume as blank rather than zero', () => {
+    const withPartial = {
+      ...SERVICE_ANALYTICS,
+      queueTiming: {
+        ...SERVICE_ANALYTICS.queueTiming,
+        daily: [
+          { ...SERVICE_ANALYTICS.queueTiming.daily[0], issuedCount: null, returnedCount: null, calledCount: null, initialBatchIssuedCount: null },
+          SERVICE_ANALYTICS.queueTiming.daily[1],
+        ],
+      },
+    };
+    const volume = SERVICE_QUEUE_VOLUME.data(withPartial);
+    expect(cardCsv(volume).split('\r\n')[1]).toBe('2026-08-20,,,,');
+    expect(volume.note).toContain('Partial legacy days are gaps');
+  });
+
+  it('exports call milestones as local clock times and leaves unmet milestones blank', () => {
+    const milestones = SERVICE_QUEUE_CALL_MILESTONES.data(SERVICE_ANALYTICS);
+    const csv = cardCsv(milestones);
+    expect(csv).toContain('2026-08-20,11:10 AM,,,11:12 AM');
+    expect(csv).toContain('2026-08-21,11:10 AM,11:25 AM,,11:26 AM');
+    expect(SERVICE_QUEUE_CALL_MILESTONES.print(milestones)).toContain('11:00 AM');
   });
 
   it('registers the client cards under their own lens', () => {
@@ -305,6 +369,9 @@ describe('the Service cards', () => {
   it('renders every card on an empty range without throwing', () => {
     for (const card of [
       SERVICE_SUMMARY,
+      SERVICE_QUEUE_TIMING,
+      SERVICE_QUEUE_VOLUME,
+      SERVICE_QUEUE_CALL_MILESTONES,
       SERVICE_OVER_TIME,
       SERVICE_SEASONAL_HOUSEHOLDS,
       SERVICE_METHOD_MIX,

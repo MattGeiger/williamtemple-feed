@@ -42,7 +42,9 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Ban, Calendar, ChevronDown, Gauge } from '@/components/ui/icons';
-import { BadgeQuestionMark, Clock3, Hourglass, ShoppingBasket, UsersRound } from 'lucide-react';
+import {
+  BadgeQuestionMark, Clock3, Hourglass, ShoppingBasket, Ticket, TicketCheck, Tickets, UsersRound,
+} from 'lucide-react';
 import { getIconComponent } from '@/lib/icon-library';
 import { SelectableBlock } from '@/components/reports/selection';
 import { FootnoteList } from '@/components/analytics/footnote';
@@ -118,6 +120,8 @@ const count = (value: number) => formatNumber(value);
 const round1 = (value: number) => Math.round(value * 10) / 10;
 const EMPTY_QUEUE_TIMING: NonNullable<ServiceAnalytics['queueTiming']> = {
   includedSessionCount: 0,
+  includedServiceDayCount: 0,
+  volumeServiceDayCount: 0,
   pendingReviewCount: 0,
   excludedSessionCount: 0,
   observedTicketCount: 0,
@@ -127,6 +131,10 @@ const EMPTY_QUEUE_TIMING: NonNullable<ServiceAnalytics['queueTiming']> = {
   p90WaitMinutes: null,
   historicalServingIntervalMinutes: null,
   typicalLastCallLocalTime: null,
+  medianInitialBatchSize: null,
+  averageIssuedPerServiceDay: null,
+  averageReturnedPerServiceDay: null,
+  daily: [],
 };
 /** Shared with Procurement so the two lenses label buckets identically. */
 const monthOfDate = (date: string) => monthLabel(date.slice(0, 7));
@@ -145,6 +153,37 @@ const TIMELINE_SERIES = [
   ['simcIndividuals', 'SIMC individuals', carbonChartColors.magenta.primary.light],
   ['serviceLogHouseholds', 'Service Log households', carbonChartColors.teal.primary.light],
 ] as const;
+
+const QUEUE_VOLUME_SERIES = [
+  ['issuedCount', 'Tickets issued', carbonChartColors.blue.primary.light],
+  ['returnedCount', 'Tickets returned', carbonChartColors.magenta.primary.light],
+  ['calledCount', 'Tickets called', carbonChartColors.teal.primary.light],
+  ['initialBatchIssuedCount', 'Initial issuance', carbonChartColors.purple.primary.light],
+] as const;
+
+const QUEUE_CALL_SERIES = [
+  ['tenthCallLocalMinute', '10th ticket called', carbonChartColors.blue.primary.light],
+  ['twentyFifthCallLocalMinute', '25th ticket called', carbonChartColors.teal.primary.light],
+  ['fiftiethCallLocalMinute', '50th ticket called', carbonChartColors.purple.primary.light],
+  ['lastCallLocalMinute', 'Last ticket called', carbonChartColors.orange.primary.light],
+] as const;
+
+const queueVolumeConfig = Object.fromEntries(
+  QUEUE_VOLUME_SERIES.map(([key, label, color]) => [key, { label, color }]),
+) satisfies ChartConfig;
+
+const queueCallConfig = Object.fromEntries(
+  QUEUE_CALL_SERIES.map(([key, label, color]) => [key, { label, color }]),
+) satisfies ChartConfig;
+
+const formatLocalClockMinute = (value: unknown) => {
+  const raw = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(raw)) return '—';
+  const minutes = Math.round(raw);
+  const hours24 = Math.floor(minutes / 60) % 24;
+  const hours12 = hours24 % 12 || 12;
+  return `${hours12}:${String(minutes % 60).padStart(2, '0')} ${hours24 < 12 ? 'AM' : 'PM'}`;
+};
 
 /** Source provenance, stated as a pill rather than a sentence. */
 function SourcePills({ sources }: { sources: string[] }) {
@@ -218,7 +257,30 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
   const {
     coverage, summary, overTime, seasonal, methodSeries, recordAgreement, unmetDemand,
   } = analytics;
-  const queueTiming = analytics.queueTiming ?? EMPTY_QUEUE_TIMING;
+  // Merge rather than merely coalesce so a frontend deployed ahead of the
+  // expanded backend contract still treats the new fields as empty.
+  const queueTiming = {
+    ...EMPTY_QUEUE_TIMING,
+    ...analytics.queueTiming,
+    daily: analytics.queueTiming?.daily ?? [],
+  };
+  const queueDaily = queueTiming.daily;
+  const queueCallTimeDomain = React.useMemo<[number, number]>(() => {
+    const values = queueDaily.flatMap((day) => [
+      day.tenthCallLocalMinute,
+      day.twentyFifthCallLocalMinute,
+      day.fiftiethCallLocalMinute,
+      day.lastCallLocalMinute,
+    ]).filter((value): value is number => value !== null);
+    if (values.length === 0) return [0, 1440];
+    let minimum = Math.max(0, Math.floor(Math.min(...values) / 60) * 60);
+    let maximum = Math.min(1440, Math.ceil(Math.max(...values) / 60) * 60);
+    if (minimum === maximum) {
+      minimum = Math.max(0, minimum - 60);
+      maximum = Math.min(1440, maximum + 60);
+    }
+    return [minimum, maximum];
+  }, [queueDaily]);
 
   /**
    * The turned-away series carries nulls outside the Service Log's span. A bar
@@ -552,20 +614,38 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
         </Card>
       </SelectableBlock>
 
-      {/* Queue timing is operational evidence from LOTTO. It never contributes
+      {/* Queue statistics are operational evidence from LOTTO. They never contribute
           to visits, households, or people served above. */}
       {(queueTiming.includedSessionCount > 0 || queueTiming.pendingReviewCount > 0) && (
         <SelectableBlock cardId="service-queue-timing">
           <Card className="min-w-0">
             <CardHeader>
-              <CardTitle>Queue Timing</CardTitle>
+              <CardTitle>Queue Statistics</CardTitle>
               <CardDescription>
-                Observed ticket entry-to-first-call waits from reviewed LOTTO sessions.
+                Observed queue activities and ticket entry-to-first-call waits from reviewed LOTTO sessions.
               </CardDescription>
               <SourcePills sources={['LOTTO']} />
             </CardHeader>
             <CardContent>
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                <Tile
+                  label="Typical initial issuance"
+                  value={queueTiming.medianInitialBatchSize === null ? '—' : count(queueTiming.medianInitialBatchSize)}
+                  hint="Median initial batch per pantry day"
+                  icon={Ticket}
+                />
+                <Tile
+                  label="Average tickets issued"
+                  value={queueTiming.averageIssuedPerServiceDay === null ? '—' : count(queueTiming.averageIssuedPerServiceDay)}
+                  hint="Per pantry day"
+                  icon={Tickets}
+                />
+                <Tile
+                  label="Average tickets returned"
+                  value={queueTiming.averageReturnedPerServiceDay === null ? '—' : count(queueTiming.averageReturnedPerServiceDay)}
+                  hint="Per pantry day"
+                  icon={TicketCheck}
+                />
                 <Tile
                   label="Median ticket wait"
                   value={queueTiming.medianWaitMinutes === null ? '—' : `${queueTiming.medianWaitMinutes} min`}
@@ -600,10 +680,115 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
                 />
               </div>
               <FootnoteList items={[
-                `${count(queueTiming.includedSessionCount)} reviewed service sessions are included.`,
+                `${count(queueTiming.includedSessionCount)} reviewed service sessions across ${count(queueTiming.includedServiceDayCount)} pantry days are included.`,
+                queueTiming.volumeServiceDayCount < queueTiming.includedServiceDayCount
+                  && `Daily volume averages use ${count(queueTiming.volumeServiceDayCount)} complete-capture pantry days; partial legacy days are shown as gaps.`,
                 queueTiming.pendingReviewCount > 0
                   && `${count(queueTiming.pendingReviewCount)} synchronized session${queueTiming.pendingReviewCount === 1 ? '' : 's'} await staff review and are withheld from these figures.`,
                 'Queue tickets are operational timing observations, not visits, households, or people served.',
+              ]} />
+            </CardContent>
+          </Card>
+        </SelectableBlock>
+      )}
+
+      {queueDaily.length > 0 && (
+        <SelectableBlock cardId="service-queue-volume">
+          <Card className="min-w-0">
+            <CardHeader>
+              <CardTitle>Queue Volume by Pantry Day</CardTitle>
+              <CardDescription>
+                Daily ticket issuance, returns, and calls from reviewed LOTTO sessions.
+              </CardDescription>
+              <SourcePills sources={['LOTTO']} />
+            </CardHeader>
+            <CardContent>
+              <ChartContainer config={queueVolumeConfig} className="h-[300px] w-full">
+                <LineChart accessibilityLayer data={queueDaily} margin={{ left: 4, right: 8, top: 8 }}>
+                  <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                  <XAxis dataKey="serviceDate" tickFormatter={(value) => labelFor('day')(String(value))} tickLine={false} axisLine={false} minTickGap={44} />
+                  <YAxis tickLine={false} axisLine={false} width={48} tickFormatter={formatAxisNumber} allowDecimals={false} />
+                  <ChartTooltip content={<ChartTooltipContent sortByValue labelFormatter={(value) => labelFor('day')(String(value))} />} />
+                  <ChartLegend content={<ChartLegendContent />} />
+                  {QUEUE_VOLUME_SERIES.map(([key]) => (
+                    <Line
+                      key={key}
+                      type="monotone"
+                      dataKey={key}
+                      stroke={seriesColor(key)}
+                      strokeWidth={2}
+                      dot={queueDaily.filter((day) => day[key] !== null).length === 1}
+                      connectNulls={false}
+                    />
+                  ))}
+                </LineChart>
+              </ChartContainer>
+              <FootnoteList items={[
+                'Tickets called counts observed first calls; it is not calculated as tickets issued minus tickets returned.',
+                'Initial issuance is the first recorded ticket batch for each pantry day.',
+                queueDaily.some((day) => day.issuedCount === null)
+                  && 'Partial legacy days are shown as gaps because their total volume is unknown.',
+              ]} />
+            </CardContent>
+          </Card>
+        </SelectableBlock>
+      )}
+
+      {queueDaily.some((day) => day.lastCallLocalMinute !== null) && (
+        <SelectableBlock cardId="service-queue-call-milestones">
+          <Card className="min-w-0">
+            <CardHeader>
+              <CardTitle>Call Milestones by Pantry Day</CardTitle>
+              <CardDescription>
+                Local times when reviewed LOTTO sessions reached each call milestone.
+              </CardDescription>
+              <SourcePills sources={['LOTTO']} />
+            </CardHeader>
+            <CardContent>
+              <ChartContainer config={queueCallConfig} className="h-[300px] w-full">
+                <LineChart accessibilityLayer data={queueDaily} margin={{ left: 12, right: 8, top: 8 }}>
+                  <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                  <XAxis dataKey="serviceDate" tickFormatter={(value) => labelFor('day')(String(value))} tickLine={false} axisLine={false} minTickGap={44} />
+                  <YAxis
+                    domain={queueCallTimeDomain}
+                    tickLine={false}
+                    axisLine={false}
+                    width={72}
+                    tickFormatter={formatLocalClockMinute}
+                  />
+                  <ChartTooltip
+                    content={<ChartTooltipContent
+                      labelFormatter={(value) => labelFor('day')(String(value))}
+                      formatter={(value, _name, item) => (
+                        <div className="flex flex-1 items-center justify-between gap-3">
+                          <span className="flex items-center gap-1.5 text-muted-foreground">
+                            <span className="h-2 w-2 shrink-0 rounded-[2px]" style={{ backgroundColor: item.color }} />
+                            {String(queueCallConfig[String(item.dataKey)]?.label ?? item.dataKey)}
+                          </span>
+                          <span className="font-mono font-medium tabular-nums">
+                            {formatLocalClockMinute(value)}
+                          </span>
+                        </div>
+                      )}
+                    />}
+                  />
+                  <ChartLegend content={<ChartLegendContent />} />
+                  {QUEUE_CALL_SERIES.map(([key]) => (
+                    <Line
+                      key={key}
+                      type="monotone"
+                      dataKey={key}
+                      stroke={seriesColor(key)}
+                      strokeWidth={2}
+                      dot={queueDaily.filter((day) => day[key] !== null).length === 1}
+                      connectNulls={false}
+                    />
+                  ))}
+                </LineChart>
+              </ChartContainer>
+              <FootnoteList items={[
+                'Times use the timezone stored by LOTTO for each session.',
+                'A blank milestone means that pantry day did not reach that many observed first calls.',
               ]} />
             </CardContent>
           </Card>

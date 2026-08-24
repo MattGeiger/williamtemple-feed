@@ -305,6 +305,8 @@ export interface ServiceAnalytics {
   }>;
   queueTiming: {
     includedSessionCount: number;
+    includedServiceDayCount: number;
+    volumeServiceDayCount: number;
     pendingReviewCount: number;
     excludedSessionCount: number;
     observedTicketCount: number;
@@ -314,6 +316,20 @@ export interface ServiceAnalytics {
     p90WaitMinutes: number | null;
     historicalServingIntervalMinutes: number | null;
     typicalLastCallLocalTime: string | null;
+    medianInitialBatchSize: number | null;
+    averageIssuedPerServiceDay: number | null;
+    averageReturnedPerServiceDay: number | null;
+    daily: Array<{
+      serviceDate: string;
+      issuedCount: number | null;
+      returnedCount: number | null;
+      calledCount: number | null;
+      initialBatchIssuedCount: number | null;
+      tenthCallLocalMinute: number | null;
+      twentyFifthCallLocalMinute: number | null;
+      fiftiethCallLocalMinute: number | null;
+      lastCallLocalMinute: number | null;
+    }>;
   };
 }
 

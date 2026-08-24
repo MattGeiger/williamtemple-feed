@@ -7,6 +7,10 @@ All notable changes to FEED are documented here. This project adheres to
 
 ### Added
 
+- **Service Analytics now includes daily LOTTO queue-volume and call-milestone
+  charts.** Reviewed pantry days plot tickets issued, returned, actually called,
+  and issued in the initial batch, plus the local times of the 10th, 25th,
+  50th, and final observed calls. The same rows feed screen, PDF, and CSV.
 - **Portable backups now carry the authority-neutralized staff roster and LOTTO
   synchronization-run provenance.** Restored accounts land as Staff while the
   administrator performing the restore keeps Administrator; URLs, credentials,
@@ -20,6 +24,10 @@ All notable changes to FEED are documented here. This project adheres to
 
 ### Changed
 
+- **Queue Timing is now Queue Statistics.** The card adds median initial-batch
+  size and average issued and returned tickets per pantry day while retaining
+  wait percentiles, serving interval, and typical last-call time. Actual calls
+  come from LOTTO first-call observations, never issued tickets minus returns.
 - **Service restore preserves LOTTO history monotonically.** Queue revisions in
   an artifact are unioned with newer immutable revisions already in FEED, sync
   provenance follows them, and conflicting immutable identities stop the
