@@ -758,6 +758,7 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
                   />
                   <ChartTooltip
                     content={<ChartTooltipContent
+                      sortByValue
                       labelFormatter={(value) => labelFor('day')(String(value))}
                       formatter={(value, _name, item) => (
                         <div className="flex flex-1 items-center justify-between gap-3">

@@ -39,6 +39,9 @@ All notable changes to FEED are documented here. This project adheres to
 
 ### Fixed
 
+- **Call Milestones tooltips now follow the chart's visible top-to-bottom line
+  order.** Hover details sort milestone times from latest to earliest while the
+  legend retains its fixed milestone sequence.
 - **Service Analytics now tolerates a pre-v1.6 response that omits LOTTO queue
   timing.** A cached response or rolling frontend/backend deployment is treated
   as having no queue observations instead of crashing the entire Service lens.

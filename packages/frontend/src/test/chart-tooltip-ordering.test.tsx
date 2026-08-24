@@ -93,9 +93,9 @@ describe('the charts that opted in', () => {
     });
   }
 
-  it('Queue Volume, Service Over Time, and How Service Was Delivered sort', () => {
+  it('Queue Volume, Call Milestones, Service Over Time, and How Service Was Delivered sort', () => {
     const source = read('components', 'analytics', 'service-analytics.tsx');
-    expect(source.match(/<ChartTooltipContent sortByValue/g)).toHaveLength(3);
+    expect(source.match(/<ChartTooltipContent\s+sortByValue/g)).toHaveLength(4);
   });
 
   it('leaves the stacked charts in stack order', () => {
