@@ -38,9 +38,11 @@ staff-level import.
 ## Synchronize And Review LOTTO Queue Data
 
 The **LOTTO Queue Data** card keeps queue operations separate from formal
-service counts. An administrator first selects **Configure** and saves the
-LOTTO URL and dedicated integration token. After that, any staff member can
-select **Sync now**.
+service counts. An administrator first opens LOTTO's **History** card, selects
+**Sync history with FEED**, generates a token, and copies the displayed LOTTO
+URL and token into FEED's **Configure** dialog. After that, any staff member can
+select **Sync now**. Generating another token in LOTTO immediately invalidates
+the previous one, so copy the replacement into FEED before synchronizing.
 
 FEED preserves every synchronized session. A session is included automatically
 only when it occurred within one hour of operating hours, all issued tickets
@@ -167,8 +169,10 @@ summary tools.
 Select **Database → Download Backup** to save a sanitized JSON copy of approved
 organization data. The current format includes Inventory, translations,
 shopping-list templates, Procurement, Service imports, Service Log history,
-LOTTO queue facts and classifications, Operating Hours, and non-secret
-configuration. LOTTO connection credentials and synchronization runs are not
+LOTTO queue facts, classifications, and synchronization-run history, Operating
+Hours, the staff roster, and non-secret configuration. Restored roster accounts
+return as Staff; the administrator performing the restore keeps Administrator.
+LOTTO URLs, connection credentials, cursor state, and encryption keys are not
 included.
 
 The portable file excludes uploaded documents, sign-in tokens, security audit
@@ -182,6 +186,7 @@ Select **Restore Backup** and choose a JSON file created by FEED. FEED validates
 the file and shows the available restore units before anything changes. You can
 restore the complete artifact or a compatible subset such as Inventory,
 translations, Shopping Lists, Procurement, Service, or configuration.
+The staff roster is a separate selectable unit.
 
 The confirmation step names what will be replaced and, where it applies, what
 else will be cleared. Some records point at the records being replaced — a
@@ -194,6 +199,11 @@ After confirmation, FEED builds and validates the replacement alongside the
 current database, enters maintenance mode only for the final swap, and restarts.
 A failed preparation leaves the current data untouched. Restored AI settings do
 not include provider keys; those secrets must be entered again.
+
+LOTTO history is never rolled backward by a Service restore. FEED keeps the
+union of sessions in the backup and newer sessions already stored locally,
+because LOTTO may no longer retain an older service day. The current LOTTO
+connection and synchronization position remain in place.
 
 ## Reset To A Clean Slate
 

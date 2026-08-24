@@ -20,6 +20,7 @@ import { INCLUDED_TABLES } from '../backup/table-contract';
  */
 
 export type UnitId =
+  | 'staffRoster'
   | 'inventory'
   | 'languages'
   | 'shoppingLists'
@@ -38,6 +39,14 @@ export interface RestoreUnit {
 }
 
 export const RESTORE_UNITS: readonly RestoreUnit[] = [
+  {
+    id: 'staffRoster',
+    label: 'Staff roster',
+    description:
+      'Staff accounts without administrator authority. The administrator performing the restore keeps their role.',
+    tables: ['User'],
+    requires: [],
+  },
   {
     id: 'languages',
     label: 'Languages & translations',
@@ -116,6 +125,7 @@ export const RESTORE_UNITS: readonly RestoreUnit[] = [
       'ServiceCapacityPlan',
       'ServiceCapacityPlanRevision',
       'ServiceCapacityTarget',
+      'LottoQueueSyncRun',
       'LottoQueueSessionRevision',
       'LottoQueueTicketObservation',
       'LottoQueueQualityIssue',

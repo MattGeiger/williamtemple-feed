@@ -152,10 +152,10 @@ describe('sanitized backup table contract', () => {
     }
   });
 
-  it('has bumped the contract version for LOTTO queue evidence', () => {
+  it('has bumped the contract version for roster and LOTTO sync provenance', () => {
     // Readers key on this, so a shape change that does not bump it is a silent
     // incompatibility.
-    expect(TABLE_CONTRACT_VERSION).toBe(10);
+    expect(TABLE_CONTRACT_VERSION).toBe(11);
   });
 
   it('keeps prepared Service imports outside the portable organization snapshot', () => {
@@ -180,19 +180,20 @@ describe('sanitized backup table contract', () => {
     }
   });
 
-  it('excludes every table that carries secrets or authority', () => {
+  it('excludes secrets and authority while carrying a neutralized roster', () => {
     // Spelled out individually rather than as a loop: each of these is a
     // deliberate promise in backup-and-restore.md, and a failure should name
     // exactly which promise broke.
     expect(EXCLUDED_TABLES).toHaveProperty('EncryptionKey');
     expect(EXCLUDED_TABLES).toHaveProperty('VerificationToken');
     expect(EXCLUDED_TABLES).toHaveProperty('OtpFailure');
-    // Authority: restoring these would restore access, not just data.
-    expect(EXCLUDED_TABLES).toHaveProperty('User');
+    expect(INCLUDED_TABLES).toContain('User');
+    expect(REDACTED_COLUMNS.User).toEqual(['role']);
+    // Authority configuration and security history remain destination-owned.
     expect(EXCLUDED_TABLES).toHaveProperty('AccessPolicy');
     expect(EXCLUDED_TABLES).toHaveProperty('AdminAuditLog');
     expect(EXCLUDED_TABLES).toHaveProperty('LottoQueueIntegrationConfig');
-    expect(EXCLUDED_TABLES).toHaveProperty('LottoQueueSyncRun');
+    expect(INCLUDED_TABLES).toContain('LottoQueueSyncRun');
   });
 
   it('gives a reason for every exclusion', () => {
@@ -210,6 +211,8 @@ describe('sanitized backup table contract', () => {
       'ProcurementImport',
       'ServiceEncounterRevision',
       'OperatingHoursRevision',
+      'User',
+      'LottoQueueSyncRun',
       'LottoQueueSessionRevision',
       'LottoQueueTicketObservation',
       'LottoQueueSessionResolution',

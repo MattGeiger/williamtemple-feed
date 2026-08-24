@@ -211,6 +211,13 @@ describe('restore units are closed under foreign keys', () => {
     expect(added).toEqual([]);
   });
 
+  it('keeps the staff roster separate from data and configuration', () => {
+    const { units, added } = closeSelection(['staffRoster']);
+    expect(units).toEqual(['staffRoster']);
+    expect(added).toEqual([]);
+    expect(tablesFor(units)).toEqual(['User']);
+  });
+
   it('reports nothing added when the user already chose the dependency', () => {
     const { added } = closeSelection(['inventory', 'languages']);
     expect(added).toEqual([]);

@@ -10,7 +10,7 @@ What shipped, and where it differs from this document:
 | Design | Shipped |
 | --- | --- |
 | Build a fresh file, `migrate deploy`, import, carry across what the artifact lacks | **`VACUUM INTO` a copy of the live file**, then rewrite only the selected units. Same destination, fewer moving parts — see [The mechanism](#the-mechanism-build-and-swap-never-a-live-transaction) |
-| Include the roster in the artifact, force every restored role to `STAFF` | **Not needed for in-app restore, and not done.** Copying the live file means the roster, access policy, keys, and audit log are simply still there. Still required for the disaster-recovery case — see [below](#the-roster-in-the-artifact-still-open) |
+| Include the roster in the artifact, force every restored role to `STAFF` | **Implemented in backup contract v11.** Role is stripped from the artifact; restore assigns Staff and preserves Administrator only for the authenticated administrator performing the restore. |
 | Maintenance mode, partial units, replace-never-merge, exit-to-restart | As designed |
 
 Verified end to end against a copy of the production-scale database: a renamed
@@ -18,17 +18,14 @@ category and a stray row were reverted, 120,856 procurement lines and the
 4-account roster were carried across untouched, the pre-restore snapshot was
 written, and the scratch file was cleaned up.
 
-### The roster in the artifact: still open
+### The roster in the artifact: closed in contract v11
 
-This document argued the artifact should carry the roster so a restore onto new
-hardware brings accounts back. That reasoning still holds, and it is **not
-implemented** — `User` remains excluded from backups.
-
-In-app restore does not need it: the live file already has the roster, so
-nothing is lost. The gap is the hardware-disaster case — restoring onto a fresh
-Pi from a file alone still produces an instance with no accounts, which arms the
-fresh-instance bootstrap. Closing it means adding `User` to the backup contract
-(a bump to version 3) with every restored role forced to `STAFF`.
+The artifact now carries `User` rows with `role` stripped. Restore assigns every
+artifact account to Staff and re-grants Administrator only to the authenticated
+administrator who initiated the in-app restore, preserving that account's live
+id so its session survives the restart. `AccessPolicy`, authentication tokens,
+encryption keys, and the administrator audit log remain destination-owned and
+excluded.
 
 ### Sizing, measured
 

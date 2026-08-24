@@ -280,6 +280,17 @@ export function RestoreDialog({ open, onOpenChange, onRestored }: RestoreDialogP
               saves a snapshot of the current database first, so this can be undone from the
               server if it turns out to be wrong.
             </p>
+            {closure.has('service') && (
+              <p className="text-muted-foreground">
+                LOTTO history is the exception: FEED keeps the union of the backup and newer
+                queue sessions already stored here, because LOTTO may no longer hold older days.
+              </p>
+            )}
+            {closure.has('staffRoster') && (
+              <p className="text-muted-foreground">
+                Restored accounts return as Staff. Your Administrator access remains in place.
+              </p>
+            )}
             {closure.has('inventory') && (
               <p className="text-muted-foreground">
                 Items deleted since then will come back. They are easy to clear in bulk, but

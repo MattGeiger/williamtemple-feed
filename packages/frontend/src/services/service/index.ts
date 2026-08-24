@@ -187,8 +187,8 @@ class ServiceApi extends BaseApiService {
     return (await this.post<{ result: { inserted: number; unchanged: number; review: number } }>('/lotto/sync')).result;
   }
 
-  async saveLottoConfig(baseUrl: string, token: string): Promise<void> {
-    await this.put('/lotto/config', { baseUrl, token });
+  async saveLottoConfig(baseUrl: string, token: string): Promise<{ sourceChanged: boolean }> {
+    return (await this.put<{ config: { sourceChanged: boolean } }>('/lotto/config', { baseUrl, token })).config;
   }
 
   async resolveLottoSession(sessionId: string, disposition: LottoQueueDisposition, reason: string): Promise<void> {

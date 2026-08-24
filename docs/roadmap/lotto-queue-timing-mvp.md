@@ -111,6 +111,11 @@ query LOTTO live from Analytics and it does not make LOTTO
 push during Reset. A failed FEED request can therefore never prevent LOTTO from
 closing the service day.
 
+LOTTO generates the one active token from its authenticated History card and
+stores only a one-way hash. Generating a replacement invalidates the previous
+token immediately. FEED preserves its cursor when the URL is unchanged; token
+replacement is authorization maintenance, not a new source.
+
 Manual synchronization is intentional for the first production release:
 FEED's durable imports are staff-observed workflows, while its current
 background helpers are not a persistent scheduler. Once production revisions,

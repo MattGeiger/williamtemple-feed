@@ -263,7 +263,7 @@ Translations. Service, Procurement, Inventory, and Shopping Lists restore
 normally, because none of them replace `AIConfiguration` or `Translation`.
 
 ### #74 — Backup documentation contradicts the table contract on `User`
-**Priority**: Medium · **Status**: Open, found 2026-08-15
+**Priority**: Medium · **Status**: Fixed in v1.6.0, 2026-08-23
 **Bucket**: Documentation / security boundary
 
 `docs/data-management/backup-and-restore.md` describes `User` under **"Included,
@@ -275,12 +275,11 @@ fresh-instance bootstrap.
 restoring the roster restores authority and that in Domain mode the roster
 self-heals because a successful sign-in recreates the row as Staff.
 
-Both are defensible; they cannot both be current. The code is authoritative in
-practice, so the risk is a reader trusting the document's account of a security
-boundary. Resolving it means deciding which design is intended and correcting
-the other — and if exclusion is intended, the document should also record what
-happens to the fresh-instance bootstrap on a restore into an empty instance,
-which is the case the include-and-neutralise design existed to handle.
+Resolved in backup contract v11: `User` is included, `role` is stripped from
+the artifact, every restored account lands as Staff, and the authenticated
+administrator performing the restore is re-granted while retaining their live
+id. `AccessPolicy`, authentication tokens, encryption material, and the audit
+log remain excluded.
 
 ### #72 — Import progress panel misreported which stage was running
 **Priority**: Medium · **Status**: Fixed; deployed 2026-08-19 in beta.20

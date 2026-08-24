@@ -65,42 +65,38 @@ quality decision, not data loss.
 
 ## Forward synchronization
 
-An administrator opens **Information → Data → LOTTO Queue Data → Configure**
-once and saves the LOTTO base URL and dedicated bearer token. FEED encrypts the
-token with its existing key manager and never returns it to the browser.
+An administrator first opens LOTTO's **History** card, selects **Sync history
+with FEED**, and generates the one active synchronization token. LOTTO shows
+the plaintext once and stores only its one-way hash. The administrator copies
+the displayed LOTTO URL and token into **Information → Data → LOTTO Queue Data
+→ Configure** in FEED. FEED encrypts its copy with the existing key manager and
+never returns it to the browser.
 
 Any staff member can then select **Sync now**. FEED pulls the LOTTO v1 endpoint
 in append order (`recordedAt`, then `summaryId`), retains immutable revisions,
 and shows the last successful synchronization time and review queue. Replaying
-a page is safe; a failed page does not advance the cursor. Saving a replacement
-connection deliberately resets the cursor so FEED can reconcile from the
-beginning by source id and content hash.
+a page is safe; a failed page does not advance the cursor. Replacing only the
+token for the same LOTTO URL preserves the cursor. Changing the source URL
+clears that source-specific cursor and reconciles the new source's available
+window from the beginning.
 
 ### Production pairing
 
-The deployment administrator generates one high-entropy secret locally. This
-command emits a URL-safe 384-bit value and does not depend on either app:
+Apply LOTTO's current `schema.sql` before deploying the pairing UI. The schema
+adds one singleton credential row in Neon. No Vercel token variable or terminal
+token-generation command is required for normal pairing.
 
-```bash
-node -e "console.log(require('node:crypto').randomBytes(48).toString('base64url'))"
-```
+Only one token can be active. Selecting **Generate new token** atomically
+replaces the stored hash, immediately invalidating the token currently saved in
+FEED. If FEED subsequently synchronizes with that old value, it reports that
+LOTTO rejected the saved connection and tells the user to obtain a new token;
+neither application returns or logs credential material. After copying the new
+value into FEED, the existing cursor and historical sessions remain intact.
 
-Treat the output like a password: do not commit it, place it in documentation,
-or send it through ordinary chat. In the LOTTO Vercel project, save it as a
-Production **Sensitive** environment variable named
-`LOTTO_FEED_INTEGRATION_TOKEN`, then redeploy so the new deployment receives
-it. Enter the same value once in FEED's administrator-only **Configure**
-dialog. FEED encrypts that copy; staff use **Sync now** without seeing it.
-
-The Vercel environment variable is an MVP deployment choice, not a protocol
-requirement. LOTTO only requires a trusted runtime secret against which it can
-validate the bearer credential. A later token registry could instead store a
-one-way hash in LOTTO's database and provide one-time issuance, revocation,
-expiry, and audit history. Short-lived signed service tokens or an external
-secret manager are also possible, but add key rotation, identity, availability,
-and operational dependencies that are not justified for one FEED-to-LOTTO
-pairing. Revisit the database-backed registry when LOTTO has multiple consumers
-or routine self-service rotation becomes a real need.
+`LOTTO_FEED_INTEGRATION_TOKEN` remains a deployment migration fallback only
+when LOTTO has no database token. The first token generated through the History
+card takes precedence and becomes the sole valid credential. The legacy value
+can then be removed from Vercel without affecting pairing.
 
 ## Analytics contract
 
@@ -122,8 +118,10 @@ or LOTTO's planned live service-capacity estimate.
 
 ## Backup boundary
 
-Portable Service backups include LOTTO session revisions, anonymous ticket
-observations, quality issues, and staff resolutions. They exclude the encrypted
-connection token, cursor/configuration, and transient synchronization runs.
-Operator database snapshots still contain the entire database and remain a
-separate recovery mechanism.
+Portable Service backups include LOTTO synchronization runs, session revisions,
+anonymous ticket observations, quality issues, and staff resolutions. They
+exclude the LOTTO URL, encrypted connection token, token salt, live cursor, and
+encryption keys. Restoring Service preserves the union of the artifact and any
+newer LOTTO history already held by FEED, while preserving the destination's
+connection and cursor. Operator database snapshots still contain the entire
+database and remain a separate recovery mechanism.

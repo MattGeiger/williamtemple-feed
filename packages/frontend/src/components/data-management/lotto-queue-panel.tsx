@@ -68,9 +68,13 @@ export function LottoQueuePanel({ isAdministrator }: { isAdministrator: boolean 
 
   const saveConfig = async () => {
     try {
-      await serviceApi.saveLottoConfig(baseUrl, token);
+      const result = await serviceApi.saveLottoConfig(baseUrl, token);
       setToken(''); setConfigOpen(false); await refresh();
-      messageService.success('LOTTO connection saved. The synchronization cursor was reset safely.');
+      messageService.success(
+        result.sourceChanged
+          ? 'New LOTTO source saved. FEED will reconcile its available history from the beginning.'
+          : 'LOTTO connection saved. Existing synchronization history and position were preserved.'
+      );
     } catch (error) { ErrorHandlerService.handleError(error, 'lottoQueueConfig'); }
   };
 
@@ -169,7 +173,7 @@ export function LottoQueuePanel({ isAdministrator }: { isAdministrator: boolean 
 
       <Dialog open={configOpen} onOpenChange={setConfigOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Configure LOTTO connection</DialogTitle><DialogDescription>The bearer token is encrypted with FEED’s existing key manager. Saving a new connection resets the cursor so FEED can reconcile safely.</DialogDescription></DialogHeader>
+          <DialogHeader><DialogTitle>Configure LOTTO connection</DialogTitle><DialogDescription>The synchronization token is encrypted with FEED’s existing key manager. Replacing a token for the same LOTTO URL preserves synchronization history and position.</DialogDescription></DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2"><Label htmlFor="lotto-base-url">LOTTO URL</Label><Input id="lotto-base-url" value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} placeholder="https://lotto.example.org" /></div>
             <div className="space-y-2"><Label htmlFor="lotto-token">Integration token</Label><Input id="lotto-token" type="password" value={token} onChange={(event) => setToken(event.target.value)} autoComplete="new-password" /></div>
