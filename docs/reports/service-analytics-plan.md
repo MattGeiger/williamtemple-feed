@@ -2,7 +2,7 @@
 
 **Status:** Phase 0, the shared Phase 1 foundation, the Phase 2 Link2Feed visit
 adapter, the native-entry and Tracking-adapter slices of Phase 3, and the Phase
-5 SIMC service adapter and FEED v1.6.0 LOTTO Queue Timing integration are
+5 SIMC service adapter and FEED v1.6.0 LOTTO Queue Statistics integration are
 complete. The administrator-only formal Service Add Data
 workflow streams, reviews, reconciles, and atomically activates Link2Feed and
 SIMC visits plus the canonical WTH Tracking export. FEED also provides shared,
@@ -21,8 +21,11 @@ them. The reasoning is recorded on the `link2feed_clients_v1` contract in
 
 Service Analytics is now built and shipped in 1.5.0-beta.19: the lens carries
 eight cards, all of them exportable through the Analytics report contract.
-LOTTO Queue Timing shipped in v1.6.0 as a separate queue-operations evidence
-family; its source contract and FEED MVP are documented under `docs/roadmap`.
+LOTTO Queue Statistics shipped in v1.6.0 as a separate queue-operations
+evidence family. It includes wait and serving-time KPIs, initial issuance and
+daily ticket averages, daily queue-volume lines, and 10th/25th/50th/final-call
+clock-time lines. Its source contract and FEED MVP are documented under
+`docs/roadmap`.
 Completing the parallel cutover, the Link2Feed client-export adapter, and the
 Chrome-extension artifact contract remain pending, as do the age and geography
 cards — those are still blocked on the cutover question in the card proposal's

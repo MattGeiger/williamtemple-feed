@@ -129,5 +129,112 @@ describe('LOTTO queue-session classification', () => {
     const analytics = await getLottoQueueAnalytics('2026-08-20', '2026-08-20', client as never);
     expect(analytics.historicalServingIntervalMinutes).toBe(30);
     expect(analytics.typicalLastCallLocalTime).toBe('12:00 PM');
+    expect(analytics.includedServiceDayCount).toBe(1);
+    expect(analytics.medianInitialBatchSize).toBe(1);
+    expect(analytics.averageIssuedPerServiceDay).toBe(4);
+    expect(analytics.daily[0]).toMatchObject({
+      serviceDate: '2026-08-20',
+      issuedCount: 4,
+      calledCount: 4,
+      initialBatchIssuedCount: 1,
+      lastCallLocalMinute: 720,
+    });
+  });
+
+  it('keeps actual calls distinct from issued-minus-returned and plots call milestones', async () => {
+    const sources = [
+      summary({
+        summaryId: 'summary-volume-1', sessionId: 'session-volume-1',
+        contentHash: `sha256:${'c'.repeat(64)}`,
+        ticketRange: { start: 1, end: 40 }, configuredCount: 40,
+        issuedCount: 40, calledCount: 12, returnedCount: 0, notCalledCount: 28,
+        batches: [{ sequence: 1, issuedAt: '2026-08-20T18:00:00.000Z', issuedCount: 10, mechanism: 'batch', mode: 'random' }],
+      }),
+      summary({
+        summaryId: 'summary-volume-2', sessionId: 'session-volume-2',
+        contentHash: `sha256:${'d'.repeat(64)}`, serviceDate: '2026-08-21',
+        sessionStartedAt: '2026-08-21T18:00:00.000Z', closedAt: '2026-08-21T21:00:00.000Z',
+        recordedAt: '2026-08-21T21:00:00.100Z',
+        ticketRange: { start: 1, end: 27 }, configuredCount: 27,
+        issuedCount: 27, calledCount: 26, returnedCount: 1, notCalledCount: 0,
+        batches: [{ sequence: 1, issuedAt: '2026-08-21T18:00:00.000Z', issuedCount: 10, mechanism: 'batch', mode: 'random' }],
+      }),
+    ];
+    const sessions = sources.map((source, index) => ({
+      id: index + 1, ...source, source: 'lotto_api',
+      sessionStartedAt: new Date(source.sessionStartedAt!), closedAt: new Date(source.closedAt),
+      recordedAt: new Date(source.recordedAt), operatingWindow: source.operatingWindow,
+      facts: source, initialDisposition: 'included_service', rulesVersion: 1,
+      importId: null, syncRunId: null, createdAt: new Date(), qualityIssues: [],
+    }));
+    const calls = (sessionRevisionId: number, day: string, count: number) =>
+      Array.from({ length: count }, (_, index) => ({
+        sessionRevisionId,
+        issuedAt: new Date(`${day}T18:00:00.000Z`),
+        firstCalledAt: new Date(Date.parse(`${day}T18:00:00.000Z`) + (index + 1) * 60_000),
+      }));
+    const client = {
+      lottoQueueSessionRevision: { findMany: async () => sessions },
+      lottoQueueSessionResolution: { findMany: async () => [] },
+      lottoQueueTicketObservation: { findMany: async () => [
+        ...calls(1, '2026-08-20', 12),
+        ...calls(2, '2026-08-21', 26),
+      ] },
+    };
+
+    const analytics = await getLottoQueueAnalytics('2026-08-20', '2026-08-21', client as never);
+    expect(analytics.medianInitialBatchSize).toBe(10);
+    expect(analytics.averageIssuedPerServiceDay).toBe(33.5);
+    expect(analytics.averageReturnedPerServiceDay).toBe(0.5);
+    expect(analytics.daily[0]).toMatchObject({
+      issuedCount: 40,
+      returnedCount: 0,
+      calledCount: 12,
+      tenthCallLocalMinute: 670,
+      twentyFifthCallLocalMinute: null,
+      lastCallLocalMinute: 672,
+    });
+    expect(analytics.daily[1]).toMatchObject({
+      issuedCount: 27,
+      returnedCount: 1,
+      calledCount: 26,
+      twentyFifthCallLocalMinute: 685,
+      fiftiethCallLocalMinute: null,
+      lastCallLocalMinute: 686,
+    });
+  });
+
+  it('leaves partial legacy volume unknown instead of converting it to zero', async () => {
+    const source = summary({
+      serviceDateBasis: 'legacy_activity', sessionStartedAt: null,
+      timingCoverage: 'partial_legacy', batches: [],
+      issuedCount: 0, calledCount: 0, returnedCount: 1, notCalledCount: 1,
+      ticketObservations: [
+        { sequence: 1, batchSequence: null, issuedAt: null, firstCalledAt: null, outcome: 'returned_before_call' },
+        { sequence: 2, batchSequence: null, issuedAt: null, firstCalledAt: null, outcome: 'not_called' },
+      ],
+    });
+    const client = {
+      lottoQueueSessionRevision: { findMany: async () => [{
+        id: 1, ...source, source: 'lotto_api', sessionStartedAt: null,
+        closedAt: new Date(source.closedAt), recordedAt: new Date(source.recordedAt),
+        facts: source, initialDisposition: 'included_service', rulesVersion: 1,
+        importId: null, syncRunId: null, createdAt: new Date(), qualityIssues: [],
+      }] },
+      lottoQueueSessionResolution: { findMany: async () => [] },
+      lottoQueueTicketObservation: { findMany: async () => [] },
+    };
+
+    const analytics = await getLottoQueueAnalytics('2026-08-20', '2026-08-20', client as never);
+    expect(analytics.includedServiceDayCount).toBe(1);
+    expect(analytics.volumeServiceDayCount).toBe(0);
+    expect(analytics.averageIssuedPerServiceDay).toBeNull();
+    expect(analytics.averageReturnedPerServiceDay).toBeNull();
+    expect(analytics.daily[0]).toMatchObject({
+      issuedCount: null,
+      returnedCount: null,
+      calledCount: null,
+      initialBatchIssuedCount: null,
+    });
   });
 });

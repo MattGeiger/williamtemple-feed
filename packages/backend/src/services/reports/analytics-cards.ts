@@ -2069,11 +2069,17 @@ export const SERVICE_OVER_TIME: AnalyticsCard = {
 export const SERVICE_QUEUE_TIMING: AnalyticsCard = {
   id: 'service-queue-timing',
   kind: 'kpi',
-  defaultTitle: 'Queue Timing',
+  defaultTitle: 'Queue Statistics',
   lens: 'service',
   data: (analytics: any) => {
     const queue = analytics?.queueTiming ?? {};
+    const oneDecimalCount = (value: number | null | undefined) => value == null
+      ? '—'
+      : value.toLocaleString('en-US', { maximumFractionDigits: 1 });
     const rows = [
+      { label: 'Typical initial issuance', value: queue.medianInitialBatchSize ?? 0, text: oneDecimalCount(queue.medianInitialBatchSize) },
+      { label: 'Average tickets issued', value: queue.averageIssuedPerServiceDay ?? 0, text: oneDecimalCount(queue.averageIssuedPerServiceDay) },
+      { label: 'Average tickets returned', value: queue.averageReturnedPerServiceDay ?? 0, text: oneDecimalCount(queue.averageReturnedPerServiceDay) },
       { label: 'Median ticket wait', value: queue.medianWaitMinutes ?? 0, text: queue.medianWaitMinutes == null ? '—' : `${queue.medianWaitMinutes} min` },
       { label: 'Average ticket wait', value: queue.averageWaitMinutes ?? 0, text: queue.averageWaitMinutes == null ? '—' : `${queue.averageWaitMinutes} min` },
       { label: '75th percentile wait', value: queue.p75WaitMinutes ?? 0, text: queue.p75WaitMinutes == null ? '—' : `${queue.p75WaitMinutes} min` },
@@ -2081,10 +2087,12 @@ export const SERVICE_QUEUE_TIMING: AnalyticsCard = {
       { label: 'Typical serving interval', value: queue.historicalServingIntervalMinutes ?? 0, text: queue.historicalServingIntervalMinutes == null ? '—' : `${queue.historicalServingIntervalMinutes} min` },
       { label: 'Typical last call', value: 0, text: queue.typicalLastCallLocalTime ?? '—' },
       { label: 'Included sessions', value: queue.includedSessionCount ?? 0, text: COUNT(queue.includedSessionCount ?? 0) },
+      { label: 'Included pantry days', value: queue.includedServiceDayCount ?? 0, text: COUNT(queue.includedServiceDayCount ?? 0) },
+      { label: 'Complete volume days', value: queue.volumeServiceDayCount ?? 0, text: COUNT(queue.volumeServiceDayCount ?? 0) },
       { label: 'Tickets observed', value: queue.observedTicketCount ?? 0, text: COUNT(queue.observedTicketCount ?? 0) },
     ];
     return {
-      title: 'Queue Timing',
+      title: 'Queue Statistics',
       categories: rows.map((row) => row.label),
       series: [{ name: 'value', values: rows.map((row) => row.value), text: rows.map((row) => row.text) }],
       categoryColumn: 'metric',
@@ -2093,6 +2101,99 @@ export const SERVICE_QUEUE_TIMING: AnalyticsCard = {
     };
   },
   print: data => kpiGrid(data.tiles ?? []),
+};
+
+const queueDailySeries = (
+  rows: any[],
+  definitions: Array<[name: string, key: string]>,
+  formatText?: (value: number) => string,
+): Series[] => definitions.map(([name, key]) => {
+  const raw = rows.map((row) => row[key]);
+  return {
+    name,
+    values: numbersFrom(raw),
+    defined: definedFrom(raw),
+    ...(formatText ? { text: raw.map((value) => value == null ? '' : formatText(Number(value))) } : {}),
+  };
+});
+
+const localClockLabel = (value: number) => {
+  const minutes = Math.round(value);
+  const hours24 = Math.floor(minutes / 60) % 24;
+  const hours12 = hours24 % 12 || 12;
+  return `${hours12}:${String(minutes % 60).padStart(2, '0')} ${hours24 < 12 ? 'AM' : 'PM'}`;
+};
+
+const localClockDomain = (series: Series[]): [number, number] => {
+  const values = series.flatMap((entry) => entry.values.filter(
+    (_, index) => entry.defined?.[index] !== false,
+  ));
+  if (values.length === 0) return [0, 1440];
+  let minimum = Math.max(0, Math.floor(Math.min(...values) / 60) * 60);
+  let maximum = Math.min(1440, Math.ceil(Math.max(...values) / 60) * 60);
+  if (minimum === maximum) {
+    minimum = Math.max(0, minimum - 60);
+    maximum = Math.min(1440, maximum + 60);
+  }
+  return [minimum, maximum];
+};
+
+export const SERVICE_QUEUE_VOLUME: AnalyticsCard = {
+  id: 'service-queue-volume',
+  kind: 'chart',
+  defaultTitle: 'Queue Volume by Pantry Day',
+  lens: 'service',
+  data: (analytics: any) => {
+    const rows = analytics?.queueTiming?.daily ?? [];
+    const hasPartialVolume = rows.some((row: any) => row.issuedCount == null);
+    const series = queueDailySeries(rows, [
+      ['Tickets issued', 'issuedCount'],
+      ['Tickets returned', 'returnedCount'],
+      ['Tickets called', 'calledCount'],
+      ['Initial issuance', 'initialBatchIssuedCount'],
+    ]);
+    return {
+      title: 'Queue Volume by Pantry Day',
+      categories: rows.map((row: any) => row.serviceDate),
+      series,
+      categoryColumn: 'service_date',
+      grain: 'day',
+      note: 'Tickets called counts observed first calls; it is not tickets issued minus tickets returned. Initial issuance is the first recorded ticket batch for each pantry day.'
+        + (hasPartialVolume ? ' Partial legacy days are gaps because their total volume is unknown.' : ''),
+    };
+  },
+  print: data =>
+    lineChartSvg(data.categories, data.series, 900, 280, false, { formatValue: COUNT })
+    + legendSvg(data.series.map((series) => series.name)),
+};
+
+export const SERVICE_QUEUE_CALL_MILESTONES: AnalyticsCard = {
+  id: 'service-queue-call-milestones',
+  kind: 'chart',
+  defaultTitle: 'Call Milestones by Pantry Day',
+  lens: 'service',
+  data: (analytics: any) => {
+    const rows = analytics?.queueTiming?.daily ?? [];
+    const series = queueDailySeries(rows, [
+      ['10th ticket called', 'tenthCallLocalMinute'],
+      ['25th ticket called', 'twentyFifthCallLocalMinute'],
+      ['50th ticket called', 'fiftiethCallLocalMinute'],
+      ['Last ticket called', 'lastCallLocalMinute'],
+    ], localClockLabel);
+    return {
+      title: 'Call Milestones by Pantry Day',
+      categories: rows.map((row: any) => row.serviceDate),
+      series,
+      categoryColumn: 'service_date',
+      grain: 'day',
+      note: 'Times use the timezone stored by LOTTO. A blank milestone means that pantry day did not reach that many observed first calls.',
+    };
+  },
+  print: data =>
+    lineChartSvg(data.categories, data.series, 900, 280, false, {
+      domain: localClockDomain(data.series),
+      formatAxisValue: localClockLabel,
+    }) + legendSvg(data.series.map((series) => series.name)),
 };
 
 export const SERVICE_SEASONAL_HOUSEHOLDS: AnalyticsCard = {
@@ -2556,6 +2657,8 @@ export const ANALYTICS_CARDS: AnalyticsCard[] = [
   PROCUREMENT_SPEND_OVER_TIME,
   SERVICE_SUMMARY,
   SERVICE_QUEUE_TIMING,
+  SERVICE_QUEUE_VOLUME,
+  SERVICE_QUEUE_CALL_MILESTONES,
   SERVICE_OVER_TIME,
   SERVICE_SEASONAL_HOUSEHOLDS,
   SERVICE_METHOD_MIX,

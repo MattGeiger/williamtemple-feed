@@ -255,22 +255,29 @@ export function lineChartSvg(
     /** Show the latest defined value beside every line. */
     endLabels?: boolean;
     formatValue?: BarValueFormat;
+    /** Override the numeric axis, used when zero is not a meaningful baseline. */
+    domain?: [number, number];
+    /** Format Y-axis ticks independently from endpoint labels. */
+    formatAxisValue?: BarValueFormat;
   } = {}
 ): string {
   const padL = 62, padR = options.endLabels ? 86 : 8, padT = 10, padB = 34;
   const plotW = width - padL - padR, plotH = height - padT - padB;
-  const max = Math.max(
+  const dataMax = Math.max(
     1,
     ...series.flatMap(s => s.values.filter((_, index) => s.defined?.[index] !== false))
   );
+  const domainMin = options.domain?.[0] ?? 0;
+  const domainMax = Math.max(domainMin + 1, options.domain?.[1] ?? dataMax);
   const step = categories.length > 1 ? plotW / (categories.length - 1) : 0;
   const x = (i: number) => padL + i * step;
-  const y = (v: number) => padT + plotH - (v / max) * plotH;
+  const y = (v: number) => padT + plotH - ((v - domainMin) / (domainMax - domainMin)) * plotH;
 
   const ticks = [0, 0.25, 0.5, 0.75, 1].map(f => {
     const ty = padT + plotH - f * plotH;
+    const value = domainMin + (domainMax - domainMin) * f;
     return `<line x1="${padL}" y1="${ty}" x2="${width - padR}" y2="${ty}" stroke="${GRID}" stroke-width="1"/>` +
-      `<text x="${padL - 8}" y="${ty + 4}" font-size="10" fill="${MUTED}" text-anchor="end">${fmt(Math.round(max * f))}</text>`;
+      `<text x="${padL - 8}" y="${ty + 4}" font-size="10" fill="${MUTED}" text-anchor="end">${esc((options.formatAxisValue ?? COUNT)(value))}</text>`;
   }).join('');
 
   const lines = series.map((s, si) => {
