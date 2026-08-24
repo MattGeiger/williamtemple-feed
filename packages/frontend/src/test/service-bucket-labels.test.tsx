@@ -123,6 +123,15 @@ const cardTicks = (title: string) => {
 
 const methodAxisTicks = () => cardTicks('How Service Was Delivered');
 
+describe('Service queue timing compatibility', () => {
+  test('keeps the Service lens usable when a pre-v1.6 response omits queue timing', () => {
+    render(<ServiceAnalyticsWorkspace analytics={analytics} />);
+
+    expect(screen.getByText('Service Summary')).toBeInTheDocument();
+    expect(screen.queryByText('Queue Timing')).not.toBeInTheDocument();
+  });
+});
+
 describe('Service bucket labels', () => {
   test('renders with a daily method series under a monthly page grain', () => {
     // The regression was total: nothing rendered at all. Asserting on any

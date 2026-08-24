@@ -393,7 +393,12 @@ export interface ServiceAnalytics {
     visits: number;
     visitsPerHousehold: number;
   }>;
-  queueTiming: {
+  /**
+   * Added in FEED 1.6. Older cached responses and a frontend briefly served
+   * ahead of its backend may omit it, so Analytics treats absence as no LOTTO
+   * observations rather than failing the entire Service lens.
+   */
+  queueTiming?: {
     includedSessionCount: number;
     pendingReviewCount: number;
     excludedSessionCount: number;
