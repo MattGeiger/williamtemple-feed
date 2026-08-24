@@ -201,7 +201,9 @@ describe('Data Management', () => {
     expect(screen.getByRole('button', { name: 'Add Data' })).toBeVisible();
     expect(screen.queryByRole('button', { name: 'Import OFB Data' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Import Legacy' })).toBeNull();
-    const importCard = screen.getByText('Imported Data').closest('[data-slot="card"]');
+    const importCard = screen
+      .getByText('Imported Data')
+      .closest<HTMLElement>('[data-slot="card"]');
     expect(importCard).not.toBeNull();
     expect(within(importCard!).getByRole('columnheader', { name: 'Source' })).toBeVisible();
     expect(within(importCard!).getByRole('columnheader', { name: 'Records' })).toBeVisible();
@@ -242,7 +244,7 @@ describe('Data Management', () => {
     render(<DataManagementWorkspace />);
 
     const importedDataTitle = await screen.findByText('Imported Data');
-    const card = importedDataTitle.closest('[data-slot="card"]');
+    const card = importedDataTitle.closest<HTMLElement>('[data-slot="card"]');
     expect(card).not.toBeNull();
     expect(card).toHaveTextContent(
       'Add and manage data imported from Link2Feed, SIMC, Oregon Food Bank Primarius.'
