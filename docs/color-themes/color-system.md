@@ -111,22 +111,22 @@ Use semantic status classes with proper background, border, and text colors:
 
 ```tsx
 // Success/In Stock Status
-<span className="bg-[hsl(var(--status-success-bg))] border-[hsl(var(--status-success-border))] text-[hsl(var(--status-success-text))] border rounded-full px-2 py-1">
+<span className="bg-[var(--status-success-bg)] border-[var(--status-success-border)] text-[var(--status-success-text)] border rounded-full px-2 py-1">
   In Stock
 </span>
 
 // Warning/Limited Status
-<span className="bg-[hsl(var(--status-warning-bg))] border-[hsl(var(--status-warning-border))] text-[hsl(var(--status-warning-text))] border rounded-full px-2 py-1">
+<span className="bg-[var(--status-warning-bg)] border-[var(--status-warning-border)] text-[var(--status-warning-text)] border rounded-full px-2 py-1">
   Limited
 </span>
 
 // Danger/Clearance Status
-<span className="bg-[hsl(var(--status-danger-bg))] border-[hsl(var(--status-danger-border))] text-[hsl(var(--status-danger-text))] border rounded-full px-2 py-1">
+<span className="bg-[var(--status-danger-bg)] border-[var(--status-danger-border)] text-[var(--status-danger-text)] border rounded-full px-2 py-1">
   Clearance
 </span>
 
 // Neutral/Out of Stock Status
-<span className="bg-[hsl(var(--status-neutral-bg))] border-[hsl(var(--status-neutral-border))] text-[hsl(var(--status-neutral-text))] border rounded-full px-2 py-1">
+<span className="bg-[var(--status-neutral-bg)] border-[var(--status-neutral-border)] text-[var(--status-neutral-text)] border rounded-full px-2 py-1">
   Out of Stock
 </span>
 ```

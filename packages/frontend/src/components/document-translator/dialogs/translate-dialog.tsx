@@ -1171,14 +1171,14 @@ export function TranslateDialog({
                             const isCompleteFailure = progress.status === 'failed';
                             return (
                               <div key={lang} className={`p-3 rounded-md w-full ${
-                                isCompleteFailure ? 'bg-[hsl(var(--status-danger-bg))] border border-[hsl(var(--status-danger-border))]' : 
-                                hasFailures ? 'bg-[hsl(var(--status-warning-bg))] border border-[hsl(var(--status-warning-border))]' : 
+                                isCompleteFailure ? 'bg-[var(--status-danger-bg)] border border-[var(--status-danger-border)]' :
+                                hasFailures ? 'bg-[var(--status-warning-bg)] border border-[var(--status-warning-border)]' :
                                 'bg-muted'
                               }`}>
                                 <h4 className="text-sm font-medium mb-1">
                                   {lang} Translation
-                                  {isCompleteFailure && <span className="text-[hsl(var(--status-danger-text))] ml-2">✗ Failed</span>}
-                                  {hasFailures && !isCompleteFailure && <span className="text-[hsl(var(--status-warning-text))] ml-2">⚠ Partial</span>}
+                                  {isCompleteFailure && <span className="text-[var(--status-danger-text)] ml-2">✗ Failed</span>}
+                                  {hasFailures && !isCompleteFailure && <span className="text-[var(--status-warning-text)] ml-2">⚠ Partial</span>}
                                 </h4>
                                 <div className="text-xs space-y-1">
                                   <div className="flex justify-between">
@@ -1198,7 +1198,7 @@ export function TranslateDialog({
                                     <span>{progress.stats.newTranslations}</span>
                                   </div>
                                   {hasFailures && (
-                                    <div className="flex justify-between text-[hsl(var(--status-warning-text))]">
+                                    <div className="flex justify-between text-[var(--status-warning-text)]">
                                       <span>Failed segments:</span>
                                       <span>{progress.stats.failed}</span>
                                     </div>
@@ -1270,9 +1270,9 @@ export function TranslateDialog({
                                             variant="outline" 
                                             size="sm"
                                             onClick={() => onDownloadTranslation(documentId, lang)}
-                                            className="border-[hsl(var(--status-warning-border))]"
+                                            className="border-[var(--status-warning-border)]"
                                           >
-                                            <span className="text-[hsl(var(--status-warning-text))] mr-2">⚠</span>
+                                            <span className="text-[var(--status-warning-text)] mr-2">⚠</span>
                                             <Download className="w-4 h-4 mr-2" />
                                             {lang}
                                           </Button>
@@ -1295,8 +1295,8 @@ export function TranslateDialog({
                                 ) : progress?.status === 'failed' ? (
                                   <Tooltip>
                                     <TooltipTrigger asChild>
-                                      <Button variant="outline" size="sm" disabled className="border-[hsl(var(--status-danger-border))]">
-                                        <span className="text-[hsl(var(--status-danger-text))] mr-2">✗</span>
+                                      <Button variant="outline" size="sm" disabled className="border-[var(--status-danger-border)]">
+                                        <span className="text-[var(--status-danger-text)] mr-2">✗</span>
                                         Failed
                                       </Button>
                                     </TooltipTrigger>

@@ -52,9 +52,19 @@ export const INCLUDED_TABLES = [
   'AIConfiguration',
   'ExportSettings',
   'OperatingHoursRevision',
+  // Deployment capabilities. Included with the other organization
+  // configuration, which means restoring an older backup can restore an older
+  // publishing decision — the same is already true of operating hours and
+  // branding, and restore is selective, so consistency wins over a special
+  // case. It carries no credentials, unlike LottoQueueIntegrationConfig below.
+  'DeploymentSettings',
   'SystemPrompt',
   'FormattingChoice',
   'SavedCustomText',
+  // Organization branding. Assets are stored in the database deliberately so
+  // a sanitized backup is a complete, portable copy of the active identity.
+  'BrandConfiguration',
+  'BrandAsset',
   // Procurement observations and the overlays that shape them
   'ProcurementImport',
   'ProcurementOrderRevision',
@@ -283,6 +293,6 @@ export const BACKUP_QUERY_ARGS: Partial<Record<IncludedTable, object>> = {
  * version and from the migration name: an artifact can be produced by many FEED
  * builds while remaining the same contract.
  */
-export const TABLE_CONTRACT_VERSION = 11;
+export const TABLE_CONTRACT_VERSION = 12;
 
 export const ARTIFACT_KIND = 'feed-sanitized-backup';

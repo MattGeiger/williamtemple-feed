@@ -164,7 +164,7 @@ export const SERVICE_SPECIFICATIONS: Record<ServiceProvider, {
       outputCost: 0.600,
       unitPrice: 'per_1m'
     },
-    color: 'hsl(var(--service-openai))'
+    color: 'var(--service-openai)'
   },
   Anthropic: {
     defaultModel: 'claude-3-haiku-20240307',
@@ -179,7 +179,7 @@ export const SERVICE_SPECIFICATIONS: Record<ServiceProvider, {
       outputCost: 1.25,
       unitPrice: 'per_1m'
     },
-    color: 'hsl(var(--service-anthropic))'
+    color: 'var(--service-anthropic)'
   },
   Google: {
     defaultModel: 'gemini-1.5-flash',
@@ -194,7 +194,7 @@ export const SERVICE_SPECIFICATIONS: Record<ServiceProvider, {
       outputCost: 0.30,
       unitPrice: 'per_1m'
     },
-    color: 'hsl(var(--service-google))'
+    color: 'var(--service-google)'
   },
   Azure: {
     defaultModel: 'gpt-4o-mini',
@@ -209,7 +209,7 @@ export const SERVICE_SPECIFICATIONS: Record<ServiceProvider, {
       outputCost: 0.660,
       unitPrice: 'per_1m'
     },
-    color: 'hsl(var(--service-azure))'
+    color: 'var(--service-azure)'
   }
 };
 

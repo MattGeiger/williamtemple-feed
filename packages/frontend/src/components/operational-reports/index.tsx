@@ -63,7 +63,7 @@ import {
 import type { AnalyticsDateRange } from '@/types/analytics';
 import { DEFAULT_ANALYTICS_RANGE } from '@/types/analytics';
 import {
-  CARBON_CATEGORICAL_ORDER,
+  carbonCategoricalFamilies,
   CarbonFamily,
   carbonCategoricalTheme,
   carbonTheme,
@@ -79,8 +79,8 @@ const baseAssortmentConfig = {
   available: {
     label: 'Combined Assortment',
     theme: {
-      light: 'hsl(var(--foreground))',
-      dark: 'hsl(var(--foreground))',
+      light: 'var(--foreground)',
+      dark: 'var(--foreground)',
     },
   },
 } satisfies ChartConfig;
@@ -209,16 +209,17 @@ const basePressureConfig = {
   },
 } satisfies ChartConfig;
 
-const PRESSURE_SERIES_FAMILIES: readonly CarbonFamily[] =
-  CARBON_CATEGORICAL_ORDER.filter(
+const pressureSeriesFamilies = (): readonly CarbonFamily[] =>
+  carbonCategoricalFamilies().filter(
     (family) =>
       family !== 'orange' && family !== 'purple' && family !== 'teal'
   );
 
 const pressureSeriesTheme = (index: number) => {
-  const family = PRESSURE_SERIES_FAMILIES[index % PRESSURE_SERIES_FAMILIES.length];
+  const families = pressureSeriesFamilies();
+  const family = families[index % families.length];
   const grade =
-    Math.floor(index / PRESSURE_SERIES_FAMILIES.length) % 2 === 0
+    Math.floor(index / families.length) % 2 === 0
       ? ('primary' as const)
       : ('secondary' as const);
   return carbonTheme(family, grade);

@@ -137,14 +137,17 @@ export const RESTORE_UNITS: readonly RestoreUnit[] = [
     id: 'configuration',
     label: 'Configuration',
     description:
-      'Export settings, operating hours, system prompts, formatting, saved text, and AI models (without their keys).',
+      'Branding and assets, export settings, operating hours, published-data settings, system prompts, formatting, saved text, and AI models (without their keys).',
     tables: [
       'ExportSettings',
       'OperatingHoursRevision',
+      'DeploymentSettings',
       'SystemPrompt',
       'FormattingChoice',
       'SavedCustomText',
       'AIConfiguration',
+      'BrandConfiguration',
+      'BrandAsset',
     ],
     requires: [],
   },

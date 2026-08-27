@@ -49,85 +49,27 @@ export function ThemeProvider({ children, ...props }) {
 
 ### Theme Switching
 
-A theme switcher component allows users to toggle between light, dark, and system themes:
-
-```tsx
-// src/components/theme-switcher.tsx
-import { useTheme } from "next-themes";
-
-export function ThemeSwitcher() {
-  const { theme, setTheme } = useTheme();
-  
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger>
-        <Button variant="ghost">{/* Icon */}</Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent>
-        <DropdownMenuRadioGroup value={theme} onValueChange={setTheme}>
-          <DropdownMenuRadioItem value="light">Light</DropdownMenuRadioItem>
-          <DropdownMenuRadioItem value="dark">Dark</DropdownMenuRadioItem>
-          <DropdownMenuRadioItem value="system">System</DropdownMenuRadioItem>
-        </DropdownMenuRadioGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
-```
+The header control is deliberately a two-state light/dark toggle. The explicit
+three-way Light, Dark, and Follow this device choice lives in Settings →
+Appearance and is stored only in that browser. See
+`docs/frontend-services/theme-control.md` for the complete contract.
 
 ## Tailwind CSS
 
 ### Configuration
 
-The application uses a customized Tailwind configuration:
+Tailwind v4 reads the `@theme inline` block in `src/index.css`; there is no
+runtime Tailwind configuration object. Each semantic color maps directly to a
+complete CSS color value, for example:
 
-```js
-// tailwind.config.js
-module.exports = {
-  darkMode: ["class"],
-  content: ["./src/**/*.{ts,tsx}"],
-  theme: {
-    extend: {
-      colors: {
-        border: "hsl(var(--border))",
-        input: "hsl(var(--input))",
-        ring: "hsl(var(--ring))",
-        background: "hsl(var(--background))",
-        foreground: "hsl(var(--foreground))",
-        primary: {
-          DEFAULT: "hsl(var(--primary))",
-          foreground: "hsl(var(--primary-foreground))",
-        },
-        secondary: {
-          DEFAULT: "hsl(var(--secondary))",
-          foreground: "hsl(var(--secondary-foreground))",
-        },
-        destructive: {
-          DEFAULT: "hsl(var(--destructive))",
-          foreground: "hsl(var(--destructive-foreground))",
-        },
-        muted: {
-          DEFAULT: "hsl(var(--muted))",
-          foreground: "hsl(var(--muted-foreground))",
-        },
-        accent: {
-          DEFAULT: "hsl(var(--accent))",
-          foreground: "hsl(var(--accent-foreground))",
-        },
-        popover: {
-          DEFAULT: "hsl(var(--popover))",
-          foreground: "hsl(var(--popover-foreground))",
-        },
-        card: {
-          DEFAULT: "hsl(var(--card))",
-          foreground: "hsl(var(--card-foreground))",
-        },
-      },
-      // Other theme extensions...
-    },
-  },
-  plugins: [require("tailwindcss-animate")],
-};
+```css
+@theme inline {
+  --color-border: var(--border);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+}
 ```
 
 ### Utility Classes
@@ -142,26 +84,33 @@ The application uses Tailwind utility classes for most styling:
 
 ## Branding and Color System
 
-The application's color schemes are based on William Temple House's branding, matching their logo and website colors. Colors are defined as CSS variables in `src/index.css` and used throughout the application for consistency.
+The compiled, fail-closed color scheme is William Temple House. An active
+organization configuration can replace the brand-owned tokens at runtime; the
+status, success/destructive, geometry, and print-layout contracts stay fixed.
+The app-shell gradients and glows are expressed as `color-mix()` relationships
+between those semantic tokens, so they follow the active brand without adding a
+second configurable palette.
 
 ### Color Variables
 
-The color system is implemented through CSS variables with HSL values:
+Brand-owned tokens are complete OKLCH values. The authored fallback in
+`src/index.css` and the public `/api/brand/theme.css` response are generated from
+the same Tailwind-family stop map:
 
 ```css
 /* Light mode */
 :root {
   /* Core brand colors */
-  --background: 211 100% 100%;
-  --foreground: 211 5% 10%;
-  --primary: 211 60% 40%;      /* William Temple House blue */
-  --primary-foreground: 0 0% 100%;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.129 0.042 264.7);
+  --primary: oklch(0.443 0.11 240.8);
+  --primary-foreground: oklch(1 0 0);
   
   /* Secondary palette */
-  --secondary: 240 4.8% 95.9%;
-  --secondary-foreground: 240 5.9% 10%;
-  --accent: 173 30% 90%;       /* Teal accent */
-  --accent-foreground: 211 5% 15%;
+  --secondary: oklch(0.929 0.013 255.5);
+  --secondary-foreground: oklch(0.208 0.042 265.8);
+  --accent: oklch(0.953 0.051 180.8);
+  --accent-foreground: oklch(0.386 0.063 188.4);
   
   /* Status colors */
   --color-inStock: hsl(141, 53%, 53%);
@@ -172,10 +121,10 @@ The color system is implemented through CSS variables with HSL values:
 
 /* Dark mode */
 .dark {
-  --background: 222 50% 0%;
-  --foreground: 222 5% 100%;
-  --primary: 49 100% 65%;      /* William Temple House gold */
-  --primary-foreground: 211 60% 40%;
+  --background: oklch(0.129 0.042 264.7);
+  --foreground: oklch(0.984 0.003 247.9);
+  --primary: oklch(0.879 0.169 91.6);
+  --primary-foreground: oklch(0.129 0.042 264.7);
   
   /* Status colors (dark mode variants) */
   --color-inStock: hsl(141, 53%, 40%);
@@ -195,17 +144,16 @@ Status colors remain consistent with their meaning across both themes but are ad
 
 ### Customization for Other Organizations
 
-To rebrand the application for another organization:
+Do not edit `index.css` for an organization deployment. Administrators use
+Settings → Appearance → Organization customization. The backend validates the
+small color story, snaps each role to the nearest allowed Tailwind family,
+derives both scopes, and delivers it before React mounts. Invalid data and
+storage failures return the compiled WTH configuration.
 
-1. Modify the CSS variables in `src/index.css`
-2. Focus on these key variables:
-   - `--primary`: Main brand color
-   - `--accent`: Secondary brand color
-   - `--background`/`--foreground`: Base colors
-3. Ensure proper contrast in both light and dark modes
-4. Update the favicon and logos in the `public` directory
-
-All themed components will automatically reflect the new color scheme in both light and dark modes due to the centralized variable system.
+The renderer supports three CSS states and every surface must work in all of
+them: no class (system), `.light`, and `.dark`. Alpha over a semantic color uses
+`color-mix(in oklch, var(--token) N%, transparent)`; never place an OKLCH token
+inside `hsl(var(--token))`.
 
 ### Chart Colors
 
@@ -213,25 +161,15 @@ Colors for charts and visualizations:
 
 ```typescript
 // src/lib/chart-colors.ts
-export const chartColors = {
-  inStock: 'hsl(var(--color-inStock))',
-  limited: 'hsl(var(--color-limited))',
-  clearance: 'hsl(var(--color-clearance))',
-  outOfStock: 'hsl(var(--color-outOfStock))',
-  
-  // Chart series colors
-  series: [
-    'hsl(221.2 83.2% 53.3%)',
-    'hsl(262.1 83.3% 57.8%)',
-    'hsl(316.6 73.5% 52.5%)',
-    'hsl(354.3 70.5% 53.5%)',
-    'hsl(24.6 95% 53.1%)',
-    'hsl(38 92.7% 50.6%)',
-    'hsl(142.1 76.2% 36.3%)',
-    'hsl(176.2 87.6% 44.1%)',
-  ]
+export const chartPresets = {
+  primary: { theme: { light: 'var(--chart-primary)', dark: 'var(--chart-primary)' } },
+  success: { theme: { light: 'var(--chart-success)', dark: 'var(--chart-success)' } },
+  warning: { theme: { light: 'var(--chart-warning)', dark: 'var(--chart-warning)' } },
 };
 ```
+
+Categorical series keep FEED's contrast-tested Carbon values. Brand resolution
+rotates their order by hue distance; it does not generate replacement colors.
 
 ## Component Styling
 
@@ -435,6 +373,11 @@ Use these treatments for dashboard/status/configuration cards where subtle eleva
 whatever sat behind them — the app-shell atmosphere gradient, a `Card`, a
 tinted panel — show through, so the same filter field read as a different
 colour on every page and had almost no edge contrast against the shell.
+
+The set is `Input`, `Textarea`, `SelectTrigger`, and `InputOTPSlot`. The OTP
+slot was missed in the original pass and reported later from the login screen —
+worth remembering that the standard lives in the *primitives*, so auditing call
+sites will not find a transparent control whose primitive never had a fill.
 
 The fill is a **primitive default, not a call-site class.** Do not write
 `bg-background` on an `<Input>`, `<Textarea>`, or `<SelectTrigger>` — it is

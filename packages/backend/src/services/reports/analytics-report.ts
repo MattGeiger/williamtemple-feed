@@ -8,7 +8,9 @@
 import JSZip from 'jszip';
 
 import { renderHtmlToPdf } from '../pdf/chromium';
+import { printBrand } from '../brand-config';
 import { cardCsv, getAnalyticsCard, type CardData, type CsvGrain } from './analytics-cards';
+import { withReportPrintTheme, type ReportPrintTheme } from './print-theme';
 
 /**
  * Assembles a selection of Analytics cards into one downloadable archive.
@@ -100,23 +102,28 @@ const provenanceOf = (payloads: LensPayloads): ReportProvenance => {
 /** The printed document. Cards keep the order they were selected in. */
 const documentHtml = (
   title: string,
+  organizationName: string,
   provenance: ReportProvenance,
-  cards: { data: CardData; svg: string }[]
+  cards: { data: CardData; svg: string }[],
+  theme: ReportPrintTheme,
 ): string => `<!doctype html><html><head><meta charset="utf-8"><style>
   @page { size: letter landscape; margin: 0.5in; }
-  body { font-family: Helvetica, Arial, sans-serif; color:#231F20; margin:0; }
-  header { border-bottom:3px solid #2964A3; padding-bottom:10px; margin-bottom:18px; }
+  body { font-family: Helvetica, Arial, sans-serif; color:${theme.ink}; background:${theme.background}; margin:0; }
+  header { border-bottom:3px solid ${theme.primary}; padding-bottom:10px; margin-bottom:18px; }
   h1 { font-size:19px; margin:0 0 3px 0; }
-  .meta { font-size:11px; color:#6B7684; line-height:1.5; }
+  .organization { color:${theme.primary}; font-size:10px; font-weight:700; letter-spacing:.06em;
+                  text-transform:uppercase; margin-bottom:3px; }
+  .meta { font-size:11px; color:${theme.muted}; line-height:1.5; }
   .card { break-inside: avoid; page-break-inside: avoid; margin-bottom:22px;
-          border:1px solid #E3E8EE; border-radius:8px; padding:14px 16px; }
-  .card h2 { font-size:13px; margin:0 0 6px 0; color:#2964A3;
+          border:1px solid ${theme.grid}; border-radius:8px; padding:14px 16px; }
+  .card h2 { font-size:13px; margin:0 0 6px 0; color:${theme.primary};
              text-transform:uppercase; letter-spacing:.06em; }
   .note { font-size:10px; color:#8A5A00; background:#FFF8E1; border:1px solid #FFE9A8;
           border-radius:4px; padding:5px 8px; margin:0 0 10px 0; }
   svg { max-width:100%; height:auto; display:block; }
 </style></head><body>
   <header>
+    <div class="organization">${escapeHtml(organizationName)}</div>
     <h1>${escapeHtml(title)}</h1>
     <div class="meta">
       ${
@@ -176,6 +183,16 @@ export async function buildAnalyticsReport(
   payloads: LensPayloads,
   request: AnalyticsReportRequest
 ): Promise<AnalyticsReportResult> {
+  const brand = await printBrand();
+  const theme: ReportPrintTheme = {
+    palette: brand.chartColors,
+    ink: brand.colors.foreground,
+    muted: brand.colors['muted-foreground'],
+    grid: brand.colors.border,
+    background: brand.colors.background,
+    primary: brand.colors.primary,
+    primarySoft: brand.colors.accent,
+  };
   const ids = request.cardIds.slice(0, MAX_CARDS);
   const unknownCardIds: string[] = [];
   const resolved: { data: CardData; svg: string; id: string }[] = [];
@@ -196,7 +213,7 @@ export async function buildAnalyticsReport(
       continue;
     }
     const data = card.data(payload, request.cardOptions?.[id]);
-    resolved.push({ id, data, svg: card.print(data) });
+    resolved.push({ id, data, svg: withReportPrintTheme(theme, () => card.print(data)) });
   }
 
   // Provenance is reported from whichever lens the report drew on.
@@ -212,7 +229,7 @@ export async function buildAnalyticsReport(
   }
 
   if (request.includePdf) {
-    const html = documentHtml(request.title, meta, resolved);
+    const html = documentHtml(request.title, brand.config.identity.organizationName, meta, resolved, theme);
     const pdf = await renderHtmlToPdf(html, {
       width: '11in',
       height: '8.5in',
@@ -232,6 +249,10 @@ export async function buildAnalyticsReport(
     JSON.stringify(
       {
         title: request.title,
+        organization: {
+          name: brand.config.identity.organizationName,
+          appName: brand.config.identity.appName,
+        },
         generatedAt: new Date().toISOString(),
         dataAsOf: meta.dataAsOf,
         range: meta.range,

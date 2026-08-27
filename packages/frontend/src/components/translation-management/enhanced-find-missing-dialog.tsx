@@ -152,31 +152,31 @@ export function EnhancedFindMissingDialog({
         type: 'FoodItem',
         count: result.details.byType.FoodItem || 0,
         displayName: 'Food Items',
-        icon: <Circle className="h-4 w-4 text-[hsl(var(--status-success-border))]" />
+        icon: <Circle className="h-4 w-4 text-[var(--status-success-border)]" />
       },
       { 
         type: 'Category',
         count: result.details.byType.Category || 0,
         displayName: 'Categories',
-        icon: <Circle className="h-4 w-4 text-[hsl(var(--status-warning-border))]" />
+        icon: <Circle className="h-4 w-4 text-[var(--status-warning-border)]" />
       },
       { 
         type: 'Custom',
         count: result.details.byType.Custom || 0,
         displayName: 'Custom Texts',
-        icon: <Circle className="h-4 w-4 text-[hsl(var(--status-danger-border))]" />
+        icon: <Circle className="h-4 w-4 text-[var(--status-danger-border)]" />
       },
       {
         type: 'Generated',
         count: result.details.byType.Generated || 0,
         displayName: 'Generated (Document)',
-        icon: <Circle className="h-4 w-4 text-[hsl(var(--status-neutral-border))]" />
+        icon: <Circle className="h-4 w-4 text-[var(--status-neutral-border)]" />
       },
       {
         type: 'Generated (List)',
         count: result.details.byType['Generated (List)'] || 0,
         displayName: 'Generated (Shopping List)',
-        icon: <Circle className="h-4 w-4 text-[hsl(var(--status-neutral-border))]" />
+        icon: <Circle className="h-4 w-4 text-[var(--status-neutral-border)]" />
       }
     ];
   };
@@ -502,11 +502,11 @@ export function EnhancedFindMissingDialog({
                       </CardHeader>
                       <CardContent>
                         <div className="flex items-center gap-3">
-                          <div className="h-8 w-8 rounded-full bg-[hsla(var(--status-warning-bg),0.4)] flex items-center justify-center">
-                            <Search className="h-5 w-5 text-[hsl(var(--status-warning-border))]" />
+                          <div className="h-8 w-8 rounded-full bg-[color-mix(in_oklch,var(--status-warning-bg)_40%,transparent)] flex items-center justify-center">
+                            <Search className="h-5 w-5 text-[var(--status-warning-border)]" />
                           </div>
                           <div>
-                            <p className="text-[hsl(var(--status-warning-text))] font-medium">
+                            <p className="text-[var(--status-warning-text)] font-medium">
                               Missing translations were found
                             </p>
                             <p className="text-sm text-muted-foreground">
@@ -607,7 +607,7 @@ export function EnhancedFindMissingDialog({
                     // Show failed translations card if there are failed or stale translations 
                     hasFailedTranslations || hasStaleTranslations ? (
                       // Case: Failed translations exist, but no missing translations
-                      <Card className="border-[hsl(var(--status-warning-border))]">
+                      <Card className="border-[var(--status-warning-border)]">
                         <CardHeader>
                           <CardTitle className="text-base">Failed Translations Found</CardTitle>
                           <CardDescription>
@@ -616,11 +616,11 @@ export function EnhancedFindMissingDialog({
                         </CardHeader>
                         <CardContent>
                           <div className="flex items-center gap-3">
-                            <div className="h-8 w-8 rounded-full bg-[hsla(var(--status-warning-bg),0.4)] flex items-center justify-center">
-                              <XCircle className="h-5 w-5 text-[hsl(var(--status-warning-border))]" />
+                            <div className="h-8 w-8 rounded-full bg-[color-mix(in_oklch,var(--status-warning-bg)_40%,transparent)] flex items-center justify-center">
+                              <XCircle className="h-5 w-5 text-[var(--status-warning-border)]" />
                             </div>
                             <div>
-                              <p className="text-[hsl(var(--status-warning-text))] font-medium">Failed translations require attention</p>
+                              <p className="text-[var(--status-warning-text)] font-medium">Failed translations require attention</p>
                               <p className="text-sm text-muted-foreground">
                                 While there are no missing translations, some translations have failed.
                                 {hasStaleTranslations && (
@@ -714,17 +714,17 @@ export function EnhancedFindMissingDialog({
                       </Card>
                     ) : (!hasMissingTranslations && !hasStaleTranslations ? (
                       // Case: No missing translations and no failed translations
-                      <Card className="border-[hsl(var(--status-success-border))]">
+                      <Card className="border-[var(--status-success-border)]">
                         <CardHeader>
                           <CardTitle className="text-base">No Missing Translations</CardTitle>
                         </CardHeader>
                         <CardContent>
                           <div className="flex items-center gap-3">
-                            <div className="h-8 w-8 rounded-full bg-[hsla(var(--status-success-bg),0.4)] flex items-center justify-center">
-                              <CheckCircle className="h-5 w-5 text-[hsl(var(--status-success-border))]" />
+                            <div className="h-8 w-8 rounded-full bg-[color-mix(in_oklch,var(--status-success-bg)_40%,transparent)] flex items-center justify-center">
+                              <CheckCircle className="h-5 w-5 text-[var(--status-success-border)]" />
                             </div>
                             <div>
-                              <p className="text-[hsl(var(--status-success-text))] font-medium">All content is fully translated</p>
+                              <p className="text-[var(--status-success-text)] font-medium">All content is fully translated</p>
                               <p className="text-sm text-muted-foreground">
                                 No missing translations found for any enabled languages.
                               </p>
@@ -738,7 +738,7 @@ export function EnhancedFindMissingDialog({
                   {result.details && (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {getTypeCounts().map((category) => (
-                        <Card key={category.type} className={category.count > 0 ? "border-[hsl(var(--status-warning-border))]" : ""}>
+                        <Card key={category.type} className={category.count > 0 ? "border-[var(--status-warning-border)]" : ""}>
                           <CardHeader className="pb-2">
                             <CardTitle className="text-sm font-medium flex items-center gap-2">
                               {category.icon}

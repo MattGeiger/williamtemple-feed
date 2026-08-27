@@ -126,25 +126,25 @@ export const FOOD_ITEM_SECTIONS = {
 export const STATUS_DISPLAY_CONFIG = {
   IN_STOCK: {
     label: 'In Stock',
-    color: 'bg-[hsl(var(--status-success-bg))] border-[hsl(var(--status-success-border))] text-[hsl(var(--status-success-text))]',
+    color: 'bg-[var(--status-success-bg)] border-[var(--status-success-border)] text-[var(--status-success-text)]',
     icon: 'package',
     description: 'Item is available for distribution'
   },
   LIMITED: {
     label: 'Limited Supply',
-    color: 'bg-[hsl(var(--status-warning-bg))] border-[hsl(var(--status-warning-border))] text-[hsl(var(--status-warning-text))]',
+    color: 'bg-[var(--status-warning-bg)] border-[var(--status-warning-border)] text-[var(--status-warning-text)]',
     icon: 'alert-triangle',
     description: 'Inventory is running low'
   },
   CLEARANCE: {
     label: 'Clearance',
-    color: 'bg-[hsl(var(--status-danger-bg))] border-[hsl(var(--status-danger-border))] text-[hsl(var(--status-danger-text))]',
+    color: 'bg-[var(--status-danger-bg)] border-[var(--status-danger-border)] text-[var(--status-danger-text)]',
     icon: 'tag',
     description: 'Marked for priority distribution'
   },
   OUT_OF_STOCK: {
     label: 'Out of Stock',
-    color: 'bg-[hsl(var(--status-neutral-bg))] border-[hsl(var(--status-neutral-border))] text-[hsl(var(--status-neutral-text))]',
+    color: 'bg-[var(--status-neutral-bg)] border-[var(--status-neutral-border)] text-[var(--status-neutral-text)]',
     icon: 'x',
     description: 'Currently unavailable'
   }

@@ -10,6 +10,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { SectionHeader } from "@/components/shared/section-header"
 import { APP_VERSION } from "@/config/app-version"
+import { useBrand } from '@/contexts/BrandContext'
 
 const aboutFacts = [
   { label: "Version", value: APP_VERSION },
@@ -34,18 +35,19 @@ function TempleConsultingIcon() {
 }
 
 export function AboutCard() {
+  const brand = useBrand()
   return (
     <Card className="mx-auto max-w-xl rounded-lg">
       <CardContent className="flex flex-col items-center gap-6 p-8 text-center sm:p-10">
         <div className="space-y-4">
           <TempleConsultingIcon />
           <div>
-            <h2 className="text-3xl font-semibold tracking-tight">FEED</h2>
+            <h2 className="text-3xl font-semibold tracking-tight">{brand.identity.appName}</h2>
             <p className="mt-1 text-sm font-medium text-muted-foreground">
-              Food Equity & Efficient Delivery
+              {brand.identity.tagline}
             </p>
             <p className="mt-3 text-sm leading-6 text-muted-foreground">
-              Food pantry management software for non-profits.
+              {brand.identity.description}
             </p>
           </div>
         </div>
@@ -78,12 +80,12 @@ export function AboutCard() {
             <dt className="text-right font-medium text-foreground">Made for</dt>
             <dd className="text-muted-foreground">
               <a
-                href="https://williamtemple.org/"
+                href={brand.identity.organizationWebsite}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="font-medium text-foreground underline-offset-4 hover:underline"
               >
-                William Temple House
+                {brand.identity.organizationName}
               </a>
             </dd>
           </div>
@@ -125,12 +127,13 @@ export function AboutCard() {
 }
 
 export function AboutPage() {
+  const brand = useBrand()
   return (
     <div className="space-y-6 min-w-0 w-full pt-6">
       <div className="w-full min-w-0">
         <SectionHeader
           icon={Info}
-          title="About FEED"
+          title={`About ${brand.identity.appName}`}
           description="A brief note about the project, its source, and its license."
         />
       </div>

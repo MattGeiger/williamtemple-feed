@@ -9,6 +9,10 @@ import { SectionHeader } from '@/components/shared/section-header';
 import { Settings } from '@/components/ui/icons';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs, TabsContent, TabsContents, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useAuth } from '@/contexts/AuthContext';
+import { useBrand } from '@/contexts/BrandContext';
+import { useTerminology } from '@/contexts/TerminologyContext';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,6 +31,7 @@ import {
   type OperatingHoursSettings,
 } from '@/types/settings';
 import { AppearanceSetting } from './appearance-setting';
+import { AppearanceCard } from './customization/appearance-card';
 import { DAYS, OperatingHoursEditor } from './operating-hours-editor';
 
 const TIME_PATTERN = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
@@ -45,6 +50,9 @@ function validationMessage(settings: OperatingHoursSettings): string | null {
 }
 
 export function SettingsWorkspace() {
+  const { isAdministrator } = useAuth();
+  const brand = useBrand();
+  const terminology = useTerminology();
   const [settings, setSettings] = React.useState<OperatingHoursSettings>(
     DEFAULT_OPERATING_HOURS_SETTINGS
   );
@@ -110,8 +118,16 @@ export function SettingsWorkspace() {
       <SectionHeader
         icon={Settings}
         title="Settings"
-        description="Change settings in FEED."
+        description={`Change settings in ${brand.identity.appName}.`}
       />
+
+      <Tabs defaultValue="general" className="max-w-4xl min-w-0">
+        <TabsList className="grid w-full grid-cols-2 sm:w-[360px]">
+          <TabsTrigger value="general">General</TabsTrigger>
+          <TabsTrigger value="appearance">Appearance</TabsTrigger>
+        </TabsList>
+        <TabsContents>
+          <TabsContent value="general" className="pt-4">
 
       <section
         aria-labelledby="operating-hours-heading"
@@ -126,7 +142,7 @@ export function SettingsWorkspace() {
             Operating Hours
           </h3>
           <p className="text-sm text-muted-foreground">
-            Choose the pantry's recurring service days, hours, and timezone. Analytics uses this schedule to compare recorded availability during client service hours.
+            {terminology.format("Choose the {pantry}'s recurring service days, hours, and timezone. Analytics uses this schedule to compare recorded availability during {client} service hours.")}
           </p>
         </div>
 
@@ -153,6 +169,9 @@ export function SettingsWorkspace() {
         </AnimateIcon>
       </section>
 
+          </TabsContent>
+          <TabsContent value="appearance" className="space-y-6 pt-4">
+
       <section
         aria-labelledby="appearance-heading"
         className="max-w-4xl space-y-4"
@@ -166,19 +185,24 @@ export function SettingsWorkspace() {
             Appearance
           </h3>
           <p className="text-sm text-muted-foreground">
-            Choose default settings for how FEED looks on this device.
+            Choose default settings for how {brand.identity.appName} looks on this device.
           </p>
         </div>
 
         <AppearanceSetting />
       </section>
 
+            {isAdministrator ? <AppearanceCard /> : null}
+          </TabsContent>
+        </TabsContents>
+      </Tabs>
+
       <AlertDialog open={timezoneMismatchOpen} onOpenChange={setTimezoneMismatchOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Confirm timezone selection</AlertDialogTitle>
             <AlertDialogDescription>
-              Your device timezone does not match the pantry timezone. Reports should use the timezone where pantry services take place. Continue anyway?
+              {terminology.format('Your device timezone does not match the {pantry} timezone. Reports should use the timezone where {pantry} services take place. Continue anyway?')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

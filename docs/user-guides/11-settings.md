@@ -41,6 +41,44 @@ The button in the top bar is the shortcut — one press switches between light a
 dark. Setting it back to whatever your computer already uses returns FEED to
 following your computer.
 
+## Customize The Organization
+
+Administrators also see **Organization customization** on the Appearance tab.
+This setting is shared by everyone, unlike your personal Light/Dark/System
+choice.
+
+Select **Set up appearance** or **New appearance**. The guided workflow has
+seven steps:
+
+1. choose the William Temple House or St. Johns Food Share example, or start
+   from scratch, and give the saved configuration a short name;
+2. enter the organization and app identity; optionally enable the organization's
+   own singular/plural words for pantry and client plus its service department;
+3. upload separate light- and dark-surface logos and one square app mark;
+4. choose the color story and review the accessible Tailwind family match and
+   its closest alternatives in light and dark;
+5. write the sign-in heading, staff guidance, and email placeholder;
+6. choose whether the public inventory page is available; and
+7. review the result.
+
+The square app mark must be square or nearly square. FEED normalizes uploaded
+PNG, JPEG, WebP, and SVG files into inert PNG records and makes the 64, 192, and
+512 pixel icon sizes automatically. Files must be 4 MB or smaller.
+
+At Review, choose **Save draft** to keep the configuration without changing the
+live app. Choose **Preview in this browser** to walk through the real app with
+the draft until the browser session ends or you select **Stop previewing**.
+Choose **Save & activate** when it is ready for everyone.
+
+An inactive draft can be edited, activated, or deleted. To return to the
+compiled William Temple House identity, select **Use built-in appearance**.
+That keeps every saved draft available.
+
+Organization terminology changes display copy only. It never renames database
+fields or changes calculations. **Household**, **visit**, and **person served**
+always retain the definitions used by Analytics. Inventory status colors also
+keep the same operational meaning under every organization appearance.
+
 ## How Analytics Uses The Schedule
 
 Availability analytics compares inventory states only during the hours when the

@@ -50,10 +50,10 @@ export function TokenUsageRadialChart({
   // Color based on warning level
   const getColor = () => {
     switch(warningLevel) {
-      case 'critical': return 'hsl(var(--chart-danger))';
-      case 'elevated': return 'hsl(var(--chart-warning))';
-      case 'warning': return 'hsl(var(--chart-warning))';
-      default: return 'hsl(var(--chart-success))';
+      case 'critical': return 'var(--chart-danger)';
+      case 'elevated': return 'var(--chart-warning)';
+      case 'warning': return 'var(--chart-warning)';
+      default: return 'var(--chart-success)';
     }
   };
   
@@ -99,7 +99,7 @@ export function TokenUsageRadialChart({
             />
             <RadialBar isAnimationActive={!prefersReducedMotion()} 
               dataKey="value" 
-              background={{ fill: 'hsl(var(--chart-background))' }}
+              background={{ fill: 'var(--chart-background)' }}
               cornerRadius={10} 
             />
             <PolarRadiusAxis tick={false} tickLine={false} axisLine={false}>

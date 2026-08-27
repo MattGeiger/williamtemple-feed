@@ -21,13 +21,10 @@ const theme = deriveTheme({
   accentDark: hexToOklch('#FFE066'),
 }).tokens;
 
-describe('the app stylesheet serializer (v1.7.0, HSL)', () => {
+describe('the legacy HSL stylesheet serializer', () => {
   const css = serializeHslTriplets(theme);
 
-  it('emits bare triplets, because index.css wraps them in hsl()', () => {
-    // `hsl(var(--background) / 0.4)` in the app-shell atmosphere reads the raw
-    // triplet. An oklch() value here would break it — that conversion is the
-    // whole of the v1.7.5 migration.
+  it('emits parseable bare triplets for backward compatibility', () => {
     const match = css.match(/--background:\s*([^;]+);/);
     expect(match).not.toBeNull();
     expect(parseHslTriplet(match![1])).not.toBeNull();

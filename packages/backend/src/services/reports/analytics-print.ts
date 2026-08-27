@@ -21,11 +21,12 @@
 import type { Series } from './condense';
 
 import { boundaryRingsFor, placesFor } from './basemap';
+import { currentReportPrintTheme } from './print-theme';
 
-const PALETTE = ['#2964A3', '#3090A8', '#78C0C0', '#F0D848', '#B08CC0', '#E08050', '#8FB339'];
-const INK = '#231F20';
-const MUTED = '#6B7684';
-const GRID = '#E3E8EE';
+const palette = () => currentReportPrintTheme().palette;
+const ink = () => currentReportPrintTheme().ink;
+const muted = () => currentReportPrintTheme().muted;
+const grid = () => currentReportPrintTheme().grid;
 
 const esc = (s: string) => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 const escAttribute = (s: string) => esc(s).replace(/"/g, '&quot;');
@@ -155,7 +156,8 @@ export function hBarSvg(
   // a small gutter. Anything longer is cut rather than drawn over the bar.
   const labelMaxW = labelW - 10;
   const max = Math.max(1, ...rows.map(r => r.value));
-  const segmentColor = new Map(segmentNames.map((name, index) => [name, PALETTE[index % PALETTE.length]]));
+  const colors = palette();
+  const segmentColor = new Map(segmentNames.map((name, index) => [name, colors[index % colors.length]]));
   const height = rows.length * rowH + pad * 2;
   const bars = rows.map((r, i) => {
     const y = pad + i * rowH;
@@ -165,14 +167,14 @@ export function hBarSvg(
     const rects = usableSegments.length > 0
       ? usableSegments.map((segment, segmentIndex) => {
           const segmentW = r.value > 0 ? (segment.value / r.value) * w : 0;
-          const rect = `<rect data-segment="${escAttribute(segment.name)}" x="${segmentX}" y="${y + 5}" width="${segmentW}" height="${rowH - 14}" fill="${segmentColor.get(segment.name) ?? PALETTE[segmentIndex % PALETTE.length]}"/>`;
+          const rect = `<rect data-segment="${escAttribute(segment.name)}" x="${segmentX}" y="${y + 5}" width="${segmentW}" height="${rowH - 14}" fill="${segmentColor.get(segment.name) ?? colors[segmentIndex % colors.length]}"/>`;
           segmentX += segmentW;
           return rect;
         }).join('')
-      : `<rect x="${labelW}" y="${y + 5}" width="${w}" height="${rowH - 14}" rx="2" fill="${PALETTE[i % PALETTE.length]}"/>`;
-    return `<text x="0" y="${y + rowH / 2 + 4}" font-size="12" fill="${INK}">${esc(truncateToWidth(r.label, labelMaxW, 12))}</text>` +
+      : `<rect x="${labelW}" y="${y + 5}" width="${w}" height="${rowH - 14}" rx="2" fill="${colors[i % colors.length]}"/>`;
+    return `<text x="0" y="${y + rowH / 2 + 4}" font-size="12" fill="${ink()}">${esc(truncateToWidth(r.label, labelMaxW, 12))}</text>` +
       rects +
-      `<text x="${labelW + w + 8}" y="${y + rowH / 2 + 4}" font-size="11" fill="${MUTED}">${esc(formatValue(r.value))}</text>`;
+      `<text x="${labelW + w + 8}" y="${y + rowH / 2 + 4}" font-size="11" fill="${muted()}">${esc(formatValue(r.value))}</text>`;
   }).join('');
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" font-family="Helvetica, Arial, sans-serif">${bars}</svg>`;
 }
@@ -192,8 +194,8 @@ export function stackedBarSvg(
 
   const ticks = [0, 0.25, 0.5, 0.75, 1].map(f => {
     const y = padT + plotH - f * plotH;
-    return `<line x1="${padL}" y1="${y}" x2="${width - padR}" y2="${y}" stroke="${GRID}" stroke-width="1"/>` +
-      `<text x="${padL - 8}" y="${y + 4}" font-size="10" fill="${MUTED}" text-anchor="end">${fmt(Math.round(max * f))}</text>`;
+    return `<line x1="${padL}" y1="${y}" x2="${width - padR}" y2="${y}" stroke="${grid()}" stroke-width="1"/>` +
+      `<text x="${padL - 8}" y="${y + 4}" font-size="10" fill="${muted()}" text-anchor="end">${fmt(Math.round(max * f))}</text>`;
   }).join('');
 
   const bars = categories.map((c, i) => {
@@ -205,12 +207,12 @@ export function stackedBarSvg(
       const h = (v / max) * plotH;
       const y = padT + plotH - acc - h;
       acc += h;
-      return `<rect x="${x}" y="${y}" width="${barW}" height="${h}" fill="${PALETTE[si % PALETTE.length]}"/>`;
+      return `<rect x="${x}" y="${y}" width="${barW}" height="${h}" fill="${palette()[si % palette().length]}"/>`;
     }).join('');
     // Thin out labels so a long series stays readable on paper.
     const showLabel = categories.length <= 14 || i % Math.ceil(categories.length / 12) === 0;
     const label = showLabel
-      ? `<text x="${x + barW / 2}" y="${height - padB + 16}" font-size="9" fill="${MUTED}" text-anchor="middle" transform="rotate(-40 ${x + barW / 2} ${height - padB + 16})">${esc(c)}</text>`
+      ? `<text x="${x + barW / 2}" y="${height - padB + 16}" font-size="9" fill="${muted()}" text-anchor="middle" transform="rotate(-40 ${x + barW / 2} ${height - padB + 16})">${esc(c)}</text>`
       : '';
     return segs + label;
   }).join('');
@@ -223,8 +225,8 @@ export function legendSvg(names: string[], width = 900): string {
   const items = names.map((n, i) => {
     const x = (i % 4) * (width / 4);
     const y = Math.floor(i / 4) * 18 + 12;
-    return `<rect x="${x}" y="${y - 8}" width="10" height="10" rx="2" fill="${PALETTE[i % PALETTE.length]}"/>` +
-      `<text x="${x + 15}" y="${y + 1}" font-size="11" fill="${INK}">${esc(n)}</text>`;
+    return `<rect x="${x}" y="${y - 8}" width="10" height="10" rx="2" fill="${palette()[i % palette().length]}"/>` +
+      `<text x="${x + 15}" y="${y + 1}" font-size="11" fill="${ink()}">${esc(n)}</text>`;
   }).join('');
   const rows = Math.ceil(names.length / 4);
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${rows * 18 + 6}" font-family="Helvetica, Arial, sans-serif">${items}</svg>`;
@@ -276,12 +278,12 @@ export function lineChartSvg(
   const ticks = [0, 0.25, 0.5, 0.75, 1].map(f => {
     const ty = padT + plotH - f * plotH;
     const value = domainMin + (domainMax - domainMin) * f;
-    return `<line x1="${padL}" y1="${ty}" x2="${width - padR}" y2="${ty}" stroke="${GRID}" stroke-width="1"/>` +
-      `<text x="${padL - 8}" y="${ty + 4}" font-size="10" fill="${MUTED}" text-anchor="end">${esc((options.formatAxisValue ?? COUNT)(value))}</text>`;
+    return `<line x1="${padL}" y1="${ty}" x2="${width - padR}" y2="${ty}" stroke="${grid()}" stroke-width="1"/>` +
+      `<text x="${padL - 8}" y="${ty + 4}" font-size="10" fill="${muted()}" text-anchor="end">${esc((options.formatAxisValue ?? COUNT)(value))}</text>`;
   }).join('');
 
   const lines = series.map((s, si) => {
-    const stroke = PALETTE[si % PALETTE.length];
+    const stroke = palette()[si % palette().length];
     const runs: number[][] = [];
     s.values.forEach((_, index) => {
       if (s.defined?.[index] === false) return;
@@ -309,7 +311,7 @@ export function lineChartSvg(
   const stride = Math.max(1, Math.ceil(categories.length / 12));
   const labels = categories.map((c, i) =>
     i % stride === 0
-      ? `<text x="${x(i)}" y="${height - padB + 16}" font-size="10" fill="${MUTED}" text-anchor="middle">${esc(c)}</text>`
+      ? `<text x="${x(i)}" y="${height - padB + 16}" font-size="10" fill="${muted()}" text-anchor="middle">${esc(c)}</text>`
       : ''
   ).join('');
 
@@ -340,7 +342,7 @@ export function lineChartSvg(
         return positions.map(candidate => {
           const pointX = x(candidate.index);
           const pointY = candidate.desiredY;
-          const color = PALETTE[candidate.si % PALETTE.length];
+          const color = palette()[candidate.si % palette().length];
           return `<line x1="${pointX.toFixed(1)}" y1="${pointY.toFixed(1)}" x2="${(pointX + 5).toFixed(1)}" y2="${candidate.labelY.toFixed(1)}" stroke="${color}" stroke-width="1"/>` +
             `<text data-end-label="${escAttribute(candidate.series.name)}" x="${(pointX + 8).toFixed(1)}" y="${(candidate.labelY + 4).toFixed(1)}" font-size="10" font-weight="700" fill="${color}">${esc((options.formatValue ?? COUNT)(candidate.series.values[candidate.index]))}</text>`;
         }).join('');
@@ -384,13 +386,13 @@ export function stackedHBarSvg(
       const v = s.values[i] ?? 0;
       if (v <= 0) return '';
       const w = (v / max) * chartW;
-      const rect = `<rect x="${x.toFixed(1)}" y="${y + 4}" width="${w.toFixed(1)}" height="${rowH - 12}" fill="${PALETTE[si % PALETTE.length]}"/>`;
+      const rect = `<rect x="${x.toFixed(1)}" y="${y + 4}" width="${w.toFixed(1)}" height="${rowH - 12}" fill="${palette()[si % palette().length]}"/>`;
       x += w;
       return rect;
     }).join('');
-    return `<text x="0" y="${y + rowH / 2 + 4}" font-size="11" fill="${INK}">${esc(truncateToWidth(label, labelMaxW, 11))}</text>` +
+    return `<text x="0" y="${y + rowH / 2 + 4}" font-size="11" fill="${ink()}">${esc(truncateToWidth(label, labelMaxW, 11))}</text>` +
       segments +
-      `<text x="${(x + 8).toFixed(1)}" y="${y + rowH / 2 + 4}" font-size="10" fill="${MUTED}">${formatValue(totals[i])}</text>`;
+      `<text x="${(x + 8).toFixed(1)}" y="${y + rowH / 2 + 4}" font-size="10" fill="${muted()}">${formatValue(totals[i])}</text>`;
   }).join('');
 
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" font-family="Helvetica, Arial, sans-serif">${rows}</svg>`;
@@ -438,11 +440,11 @@ export function groupedHBarSvg(
       const w = Math.max(0, (v / max) * chartW);
       const y = top + si * groupH;
       const value = options.formatValue
-        ? `<text data-bar-value="${escAttribute(s.name)}" x="${(labelW + w + 5).toFixed(1)}" y="${y + groupH - 4}" font-size="10" fill="${MUTED}">${esc(options.formatValue(v))}</text>`
+        ? `<text data-bar-value="${escAttribute(s.name)}" x="${(labelW + w + 5).toFixed(1)}" y="${y + groupH - 4}" font-size="10" fill="${muted()}">${esc(options.formatValue(v))}</text>`
         : '';
-      return `<rect x="${labelW}" y="${y}" width="${w.toFixed(1)}" height="${groupH - 3}" rx="1.5" fill="${PALETTE[si % PALETTE.length]}"/>${value}`;
+      return `<rect x="${labelW}" y="${y}" width="${w.toFixed(1)}" height="${groupH - 3}" rx="1.5" fill="${palette()[si % palette().length]}"/>${value}`;
     }).join('');
-    return `<text x="0" y="${top + (rowH - 8) / 2 + 4}" font-size="11" fill="${INK}">${esc(truncateToWidth(label, labelMaxW, 11))}</text>${bars}`;
+    return `<text x="0" y="${top + (rowH - 8) / 2 + 4}" font-size="11" fill="${ink()}">${esc(truncateToWidth(label, labelMaxW, 11))}</text>${bars}`;
   }).join('');
 
   const axisY = pad + categories.length * rowH;
@@ -456,8 +458,8 @@ export function groupedHBarSvg(
         const formatted = options.formatValue === PERCENT
           ? `${Math.round(value)}%`
           : fmt(Math.round(value));
-        return `<line data-axis-tick="true" x1="${x.toFixed(1)}" y1="${pad}" x2="${x.toFixed(1)}" y2="${axisY}" stroke="${GRID}" stroke-width="1"/>` +
-          `<text x="${x.toFixed(1)}" y="${axisY + 16}" font-size="10" fill="${MUTED}" text-anchor="middle">${formatted}</text>`;
+        return `<line data-axis-tick="true" x1="${x.toFixed(1)}" y1="${pad}" x2="${x.toFixed(1)}" y2="${axisY}" stroke="${grid()}" stroke-width="1"/>` +
+          `<text x="${x.toFixed(1)}" y="${axisY + 16}" font-size="10" fill="${muted()}" text-anchor="middle">${formatted}</text>`;
       }).join('')
     : '';
 
@@ -483,7 +485,7 @@ export function tableHtml(
   const th = headers
     .map(
       (h, i) =>
-        `<th style="text-align:${aligns[i] ?? 'left'};border-bottom:1.5px solid ${INK};padding:5px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:${MUTED};">${esc(h)}</th>`
+        `<th style="text-align:${aligns[i] ?? 'left'};border-bottom:1.5px solid ${ink()};padding:5px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:${muted()};">${esc(h)}</th>`
     )
     .join('');
   const tr = rows
@@ -492,7 +494,7 @@ export function tableHtml(
         `<tr style="break-inside:avoid;page-break-inside:avoid;">${row
           .map(
             (cell, i) =>
-              `<td style="text-align:${aligns[i] ?? 'left'};border-bottom:1px solid ${GRID};padding:5px 8px;font-size:11px;color:${INK};">${esc(cell)}</td>`
+              `<td style="text-align:${aligns[i] ?? 'left'};border-bottom:1px solid ${grid()};padding:5px 8px;font-size:11px;color:${ink()};">${esc(cell)}</td>`
           )
           .join('')}</tr>`
     )
@@ -512,9 +514,9 @@ export function tableHtml(
  */
 export function kpiGrid(tiles: { label: string; value: string }[]): string {
   const cells = tiles.map(t => `
-    <div style="border:1px solid ${GRID};border-radius:6px;padding:9px 11px;">
-      <div style="font-size:9px;letter-spacing:.05em;text-transform:uppercase;color:${MUTED};">${esc(t.label)}</div>
-      <div style="font-size:15px;font-weight:700;color:${INK};margin-top:3px;">${esc(t.value)}</div>
+    <div style="border:1px solid ${grid()};border-radius:6px;padding:9px 11px;">
+      <div style="font-size:9px;letter-spacing:.05em;text-transform:uppercase;color:${muted()};">${esc(t.label)}</div>
+      <div style="font-size:15px;font-weight:700;color:${ink()};margin-top:3px;">${esc(t.value)}</div>
     </div>`).join('');
   return `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">${cells}</div>`;
 }
@@ -583,7 +585,7 @@ export function bubbleMapSvg(
   const usable = points.filter(p => Number.isFinite(p.latitude) && Number.isFinite(p.longitude) && p.value > 0);
   if (usable.length === 0) {
     return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="40" viewBox="0 0 ${width} 40" font-family="Helvetica, Arial, sans-serif">` +
-      `<text x="0" y="24" font-size="12" fill="${MUTED}">No postal code could be placed on a map.</text></svg>`;
+      `<text x="0" y="24" font-size="12" fill="${muted()}">No postal code could be placed on a map.</text></svg>`;
   }
 
   const busiest = usable.reduce((top, p) => (p.value > top.value ? p : top), usable[0]);
@@ -670,9 +672,9 @@ export function bubbleMapSvg(
       placed.push({ x, y, w });
       // Halo, because a place name crossing a bubble is otherwise unreadable —
       // PORTLAND sat under the biggest circle and vanished.
-      return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="1.6" fill="${MUTED}"/>`
+      return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="1.6" fill="${muted()}"/>`
         + `<text data-place="${escAttribute(place.name)}" x="${x.toFixed(1)}" y="${(y - 5).toFixed(1)}" font-size="${size}" text-anchor="middle" `
-        + `fill="${INK}" letter-spacing="${major ? 0.8 : 0}" `
+        + `fill="${ink()}" letter-spacing="${major ? 0.8 : 0}" `
         + `stroke="#FFFFFF" stroke-width="2.6" paint-order="stroke" stroke-linejoin="round">${esc(text)}</text>`;
     })
     .join('');
@@ -692,7 +694,7 @@ export function bubbleMapSvg(
       const { x, y } = toXY(p);
       const r = 3 + 26 * Math.sqrt(p.value / largest);
       return `<circle data-postal-code="${escAttribute(p.label)}" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${r.toFixed(1)}" `
-        + `fill="${PALETTE[1]}" fill-opacity="0.45" stroke="${PALETTE[0]}" stroke-width="0.8"/>`;
+        + `fill="${palette()[1]}" fill-opacity="0.45" stroke="${palette()[0]}" stroke-width="0.8"/>`;
     })
     .join('');
 
@@ -710,7 +712,7 @@ export function bubbleMapSvg(
       if (placed.some(q => Math.abs(q.x - x) < (q.w + w) / 2 + 6 && Math.abs(q.y - ly) < 14)) return '';
       placed.push({ x, y: ly, w });
       return `<text x="${x.toFixed(1)}" y="${ly.toFixed(1)}" font-size="10" `
-        + `text-anchor="middle" fill="${INK}" stroke="#FFFFFF" stroke-width="2.6" `
+        + `text-anchor="middle" fill="${ink()}" stroke="#FFFFFF" stroke-width="2.6" `
         + `paint-order="stroke" stroke-linejoin="round">${esc(text)}</text>`;
     })
     .join('');
@@ -723,13 +725,13 @@ export function bubbleMapSvg(
     .reduce((best, m) => (Math.abs(m - targetMiles) < Math.abs(best - targetMiles) ? m : best), 1);
   const barW = (step / mapWidthMiles) * width;
   const barY = height - 14;
-  const scale = `<line x1="12" y1="${barY}" x2="${(12 + barW).toFixed(1)}" y2="${barY}" stroke="${INK}" stroke-width="1.5"/>`
-    + `<line x1="12" y1="${barY - 3}" x2="12" y2="${barY + 3}" stroke="${INK}" stroke-width="1.5"/>`
-    + `<line x1="${(12 + barW).toFixed(1)}" y1="${barY - 3}" x2="${(12 + barW).toFixed(1)}" y2="${barY + 3}" stroke="${INK}" stroke-width="1.5"/>`
-    + `<text x="${(16 + barW).toFixed(1)}" y="${barY + 4}" font-size="10" fill="${MUTED}">${step} mi</text>`;
+  const scale = `<line x1="12" y1="${barY}" x2="${(12 + barW).toFixed(1)}" y2="${barY}" stroke="${ink()}" stroke-width="1.5"/>`
+    + `<line x1="12" y1="${barY - 3}" x2="12" y2="${barY + 3}" stroke="${ink()}" stroke-width="1.5"/>`
+    + `<line x1="${(12 + barW).toFixed(1)}" y1="${barY - 3}" x2="${(12 + barW).toFixed(1)}" y2="${barY + 3}" stroke="${ink()}" stroke-width="1.5"/>`
+    + `<text x="${(16 + barW).toFixed(1)}" y="${barY + 4}" font-size="10" fill="${muted()}">${step} mi</text>`;
 
   const offNote = offFrame > 0
-    ? `<text x="12" y="16" font-size="10" fill="${MUTED}">`
+    ? `<text x="12" y="16" font-size="10" fill="${muted()}">`
       + `${esc(fmt(offFrameHouseholds))} households in ${esc(fmt(offFrame))} postal code${offFrame === 1 ? '' : 's'} outside this view</text>`
     : '';
 
@@ -738,9 +740,9 @@ export function bubbleMapSvg(
     + `<defs><clipPath id="${clipId}"><rect x="0" y="0" width="${width}" height="${height}"/></clipPath></defs>`
     + `<g clip-path="url(#${clipId})">${land}${circles}${places}</g>`
     + labels + scale + offNote
-    + `<text x="${width - 6}" y="${height - 5}" font-size="8" text-anchor="end" fill="${MUTED}">`
+    + `<text x="${width - 6}" y="${height - 5}" font-size="8" text-anchor="end" fill="${muted()}">`
     + `Boundaries: US Census. Places: GeoNames (CC BY).</text>`
-    + `<rect x="0" y="0" width="${width}" height="${height}" fill="none" stroke="${GRID}" stroke-width="1"/>`
+    + `<rect x="0" y="0" width="${width}" height="${height}" fill="none" stroke="${grid()}" stroke-width="1"/>`
     + `</svg>`;
 }
 
@@ -781,15 +783,15 @@ export function rankedKeySvg(
     const x = column * columnW;
     const y = headerH + (i % perColumn) * rowH;
     const share = total > 0 ? `${((row.value / total) * 100).toFixed(1)}%` : '';
-    return `<text x="${x}" y="${y}" font-size="10" fill="${MUTED}">${i + 1}.</text>`
-      + `<text x="${x + 22}" y="${y}" font-size="11" fill="${INK}">${esc(row.label)}</text>`
-      + `<text x="${x + 210}" y="${y}" font-size="11" text-anchor="end" fill="${INK}">${esc(fmt(row.value))}</text>`
-      + `<text x="${x + 268}" y="${y}" font-size="10" text-anchor="end" fill="${MUTED}">${share}</text>`;
+    return `<text x="${x}" y="${y}" font-size="10" fill="${muted()}">${i + 1}.</text>`
+      + `<text x="${x + 22}" y="${y}" font-size="11" fill="${ink()}">${esc(row.label)}</text>`
+      + `<text x="${x + 210}" y="${y}" font-size="11" text-anchor="end" fill="${ink()}">${esc(fmt(row.value))}</text>`
+      + `<text x="${x + 268}" y="${y}" font-size="10" text-anchor="end" fill="${muted()}">${share}</text>`;
   }).join('');
 
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" font-family="Helvetica, Arial, sans-serif">`
-    + `<text x="0" y="12" font-size="11" fill="${INK}" font-weight="bold">${esc(title)}</text>`
-    + `<text x="0" y="24" font-size="9" fill="${MUTED}">Share of the ${esc(fmt(total))} ${esc(denominatorLabel)}</text>`
+    + `<text x="0" y="12" font-size="11" fill="${ink()}" font-weight="bold">${esc(title)}</text>`
+    + `<text x="0" y="24" font-size="9" fill="${muted()}">Share of the ${esc(fmt(total))} ${esc(denominatorLabel)}</text>`
     + cells
     + `</svg>`;
 }

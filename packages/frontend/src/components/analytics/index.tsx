@@ -88,6 +88,7 @@ import {
 import { ServiceAnalyticsLens } from './service-analytics'
 import { ClientAnalyticsLens } from './client-analytics';
 import { ErrorHandlerService } from '@/services/error/ErrorHandlerService';
+import { useTerminology } from '@/contexts/TerminologyContext';
 import { procurementService } from '@/services/procurement';
 import type {
   AcquisitionClass,
@@ -811,6 +812,7 @@ function ReportToolbar({ filters }: { filters: ReportFilterContext }) {
 }
 
 export function AnalyticsWorkspace() {
+  const terminology = useTerminology();
   const [searchParams, setSearchParams] = useSearchParams();
   const searchKey = searchParams.toString();
   const tabParam = searchParams.get('tab');
@@ -865,7 +867,7 @@ export function AnalyticsWorkspace() {
     <div className="space-y-6 min-w-0 w-full pt-6">
       <SectionHeader
         title="Analytics"
-        description="Inventory, supply, and pantry service, kept in distinct analytical lenses."
+        description={terminology.format('Inventory, supply, and {pantry} service, kept in distinct analytical lenses.')}
         icon={PageTitleAnalyticsIcon}
       />
 
@@ -880,7 +882,7 @@ export function AnalyticsWorkspace() {
               <TabsTrigger value="operations">Operations</TabsTrigger>
               <TabsTrigger value="procurement">Procurement</TabsTrigger>
               <TabsTrigger value="service">Service</TabsTrigger>
-              <TabsTrigger value="clients">Clients</TabsTrigger>
+              <TabsTrigger value="clients">{terminology.format('{Clients}')}</TabsTrigger>
             </TabsList>
             {/* Both lenses now have registered cards, so the action is
                 unconditional. Selection persists across the tabs, so a report

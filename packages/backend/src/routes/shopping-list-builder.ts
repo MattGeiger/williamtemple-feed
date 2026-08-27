@@ -10,6 +10,7 @@ import { Prisma } from '@prisma/client';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { renderHtmlToPdf } from '../services/pdf/chromium';
+import { printBrand } from '../services/brand-config';
 import prisma from '../db';
 import { FOOD_ICON_SVG_PATHS } from '../lib/icon-svgs';
 import {
@@ -2365,7 +2366,7 @@ const buildPageContent = (template: ShoppingListBuilderTemplate) => {
   return content;
 };
 
-const buildDocDefinition = (template: ShoppingListBuilderTemplate) => {
+const buildDocDefinition = (template: ShoppingListBuilderTemplate, author = 'FEED') => {
   const content = buildPageContent(template);
 
   if (getTemplatePrintMode(template) === 'two-sided-duplicate') {
@@ -2389,7 +2390,7 @@ const buildDocDefinition = (template: ShoppingListBuilderTemplate) => {
     },
     info: {
       title: template.name || 'Shopping List Builder Preview',
-      author: 'William Temple House',
+      author,
       subject: `Shopping list builder preview PDF. Max pages: ${getTemplateMaxPages(template)}.`,
     },
     content,
@@ -3261,6 +3262,7 @@ const builderPreviewHtml = async (
   // needs them. Skips the ~36 MB base64 payload for English / Latin /
   // RTL renders.
   const fontCss = await getBuilderFontCss(isCJKTargetLanguage(targetLanguage));
+  const brand = await printBrand();
   const flowPlan = createFlowingTablePlan(
     template,
     translations || inventoryTranslations
@@ -3279,6 +3281,8 @@ const builderPreviewHtml = async (
     <html lang="en">
       <head>
         <meta charset="utf-8" />
+        <title>${escapeHtml(template.name || `${brand.config.identity.appName} Shopping List`)}</title>
+        <meta name="author" content="${escapeHtml(brand.config.identity.organizationName)}" />
         <style>
           ${fontCss}
 

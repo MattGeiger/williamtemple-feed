@@ -8,10 +8,11 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { LoginPage as LoginForm } from "@/components/auth/login-page";
 import { Navigate } from "react-router-dom";
-import wthLogoHorizontal from "@/assets/WTH_Logo_Horizontal.png";
+import { useBrand } from '@/contexts/BrandContext';
 
 export default function LoginPage() {
   const { isAuthenticated, isLoading } = useAuth();
+  const brand = useBrand();
   
   // Avoid redirect loops while session status is loading
   if (isLoading) {
@@ -28,13 +29,13 @@ export default function LoginPage() {
       <div className="flex w-full max-w-lg flex-col items-center gap-8">
         <div className="space-y-5 text-center">
           <img
-            src={wthLogoHorizontal}
-            alt="William Temple House Logo"
+            src={brand.logo.lightSrc}
+            alt={`${brand.identity.organizationName} Logo`}
             className="mx-auto h-auto w-72 max-w-full object-contain dark:brightness-[0.9]"
           />
           <div className="space-y-2">
             <h1 className="text-2xl font-semibold tracking-tight">
-              Food Equity & Efficient Delivery
+              {brand.identity.tagline}
             </h1>
           </div>
         </div>

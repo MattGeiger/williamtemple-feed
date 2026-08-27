@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
+import { useTerminology } from '@/contexts/TerminologyContext'
 
 interface AddDialogProps {
   open: boolean
@@ -31,6 +32,7 @@ export function AddTranslationDialog({
   onSave,
   isLoading 
 }: AddDialogProps) {
+  const terminology = useTerminology();
   const [text, setText] = React.useState('');
 
   const [validationError, setValidationError] = React.useState('');
@@ -74,7 +76,7 @@ export function AddTranslationDialog({
         <DialogHeader>
           <DialogTitle>Add Translation</DialogTitle>
           <DialogDescription>
-            Add a custom translation for your food pantry.
+            {terminology.format('Add a custom translation for your {pantry}.')}
             Text must be between 3 and 1,783 characters.
           </DialogDescription>
         </DialogHeader>

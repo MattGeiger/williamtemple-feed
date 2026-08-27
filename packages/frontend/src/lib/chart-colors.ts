@@ -10,38 +10,38 @@ import { type ChartConfig } from "@/components/ui/chart"
 export const chartPresets = {
   primary: {
     theme: {
-      light: 'hsl(var(--chart-primary))',
-      dark: 'hsl(var(--chart-primary))'
+      light: 'var(--chart-primary)',
+      dark: 'var(--chart-primary)'
     }
   },
   success: {
     theme: {
-      light: 'hsl(var(--chart-success))',
-      dark: 'hsl(var(--chart-success))'
+      light: 'var(--chart-success)',
+      dark: 'var(--chart-success)'
     }
   },
   warning: {
     theme: {
-      light: 'hsl(var(--chart-warning))',
-      dark: 'hsl(var(--chart-warning))'
+      light: 'var(--chart-warning)',
+      dark: 'var(--chart-warning)'
     }
   },
   danger: {
     theme: {
-      light: 'hsl(var(--chart-danger))',
-      dark: 'hsl(var(--chart-danger))'
+      light: 'var(--chart-danger)',
+      dark: 'var(--chart-danger)'
     }
   },
   info: {
     theme: {
-      light: 'hsl(var(--chart-info))',
-      dark: 'hsl(var(--chart-info))'
+      light: 'var(--chart-info)',
+      dark: 'var(--chart-info)'
     }
   },
   muted: {
     theme: {
-      light: 'hsl(var(--chart-muted))',
-      dark: 'hsl(var(--chart-muted))'
+      light: 'var(--chart-muted)',
+      dark: 'var(--chart-muted)'
     }
   }
 } as const;
@@ -50,8 +50,8 @@ export const chartConfigs = {
   base: {
     label: {
       theme: {
-        light: 'hsl(var(--foreground))',
-        dark: 'hsl(var(--foreground))'
+        light: 'var(--foreground)',
+        dark: 'var(--foreground)'
       }
     }
   },

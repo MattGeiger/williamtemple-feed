@@ -37,6 +37,7 @@ import {
 import { useReportSelection } from '@/components/reports/selection';
 import { analyticsReportsService } from '@/services/analytics-reports';
 import { messageService } from '@/services/message';
+import { useTerminology } from '@/contexts/TerminologyContext';
 
 /**
  * The ZEV flow's modal, for the Analytics lenses.
@@ -64,20 +65,22 @@ const LENS_REPORT_NAMES: Record<string, string> = {
   'procurement-': 'Procurement Report',
   'operations-': 'Operations Report',
   'service-': 'Service Report',
-  'clients-': 'Clients Report',
 };
 
-export function defaultAnalyticsReportTitle(cardIds: string[]): string {
+export function defaultAnalyticsReportTitle(cardIds: string[], clientsLabel = 'Clients'): string {
   // Counted rather than compared pairwise: with two lenses a pair of booleans
   // was enough, but a third made "not the other one" wrong — a Service-only
   // selection came out as Combined, which is the one thing it is not.
   const lenses = new Set(
     cardIds
-      .map(id => Object.keys(LENS_REPORT_NAMES).find(prefix => id.startsWith(prefix)))
+      .map(id => [...Object.keys(LENS_REPORT_NAMES), 'clients-'].find(prefix => id.startsWith(prefix)))
       .filter((prefix): prefix is string => prefix !== undefined)
   );
 
-  if (lenses.size === 1) return LENS_REPORT_NAMES[[...lenses][0]];
+  if (lenses.size === 1) {
+    const lens = [...lenses][0];
+    return lens === 'clients-' ? `${clientsLabel} Report` : LENS_REPORT_NAMES[lens];
+  }
   return 'Combined Report';
 }
 
@@ -105,11 +108,12 @@ export function AnalyticsReportDialog({
   filters: ReportFilterContext;
   onGenerated: () => void;
 }) {
+  const terminology = useTerminology();
   const { selectedIds, applySelection, moveCard, removeCard, cardOptions } =
     useReportSelection();
   const suggestedTitle = React.useMemo(
-    () => defaultAnalyticsReportTitle(selectedIds),
-    [selectedIds]
+    () => defaultAnalyticsReportTitle(selectedIds, terminology.format('{Clients}')),
+    [selectedIds, terminology]
   );
   const [title, setTitle] = React.useState(() => suggestedTitle);
   const titleCustomized = React.useRef(false);

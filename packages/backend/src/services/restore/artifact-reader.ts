@@ -31,7 +31,7 @@ import { RESTORE_UNITS, type UnitId } from './restore-units';
  */
 
 /** Contract versions this build can read. Add a reader before adding a number. */
-export const SUPPORTED_CONTRACT_VERSIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] as const;
+export const SUPPORTED_CONTRACT_VERSIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] as const;
 
 export interface ArtifactProblem {
   code:
@@ -106,6 +106,10 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
  * v10 → v11: v10 predates the authority-neutralized staff roster and LOTTO
  * synchronization-run provenance. Their absence leaves those restore units
  * unavailable; no account or run is manufactured from older artifacts.
+ *
+ * v11 → v12: v11 predates organization branding and database-backed brand
+ * assets. Their absent sections are preserved in the destination rather than
+ * being interpreted as an instruction to remove the destination identity.
  */
 const adapt = (
   version: number,

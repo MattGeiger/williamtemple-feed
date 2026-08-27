@@ -98,6 +98,7 @@ import { AddFoodItemDialog } from '@/components/food-item-management/add-dialog'
 import { EditDialog as CategoryEditDialog } from '@/components/category-management/edit-dialog';
 import { useCategoryContext } from '@/contexts/CategoryContext';
 import { useFoodItemContext } from '@/contexts/FoodItemContext';
+import { useTerminology } from '@/contexts/TerminologyContext';
 import { Category } from '@/types/category';
 import { DietaryFlags, FoodItem, FoodItemSupply, StatusFlags } from '@/types/food-item';
 import { useMessage } from '@/hooks/message/useMessage';
@@ -2988,6 +2989,7 @@ function GridGuidesToggle({
 const globalLimitService = new GlobalLimitService();
 
 export function ShoppingListBuilder() {
+  const terminology = useTerminology();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { showSuccess, showWarning } = useMessage();
@@ -4635,7 +4637,7 @@ export function ShoppingListBuilder() {
         <div className="flex flex-col gap-4">
           <SectionHeader
             title="Shopping List Builder"
-            description="Compose printable shopping list templates from constrained pantry components"
+            description={terminology.format('Compose printable shopping list templates from constrained {pantry} components')}
             icon={ShoppingListBuilderTitleIcon}
           />
           <div className="flex items-center justify-between gap-2">

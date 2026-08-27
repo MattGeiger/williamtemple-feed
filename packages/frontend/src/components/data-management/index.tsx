@@ -65,6 +65,7 @@ import { DatabasePanel } from './database-panel';
 import { DataShapingRuleDialog, type RuleDialogSeed } from './data-shaping-rule-dialog';
 import { DataShapingRules } from './data-shaping-rules';
 import { AddDataDialog } from './add-data/add-data-dialog';
+import { DeploymentCapabilitiesPanel } from './deployment-capabilities-panel';
 import { LottoQueuePanel } from './lotto-queue-panel';
 import { formatDate, formatDateRange, formatDateTime } from '@/lib/formatting/date';
 
@@ -426,6 +427,8 @@ export function DataManagementWorkspace() {
       serviceCoverage={coverage}
       formatDate={dateLabel}
     />
+
+    <DeploymentCapabilitiesPanel isAdministrator={isAdministrator} />
 
     <LottoQueuePanel isAdministrator={isAdministrator} />
 
