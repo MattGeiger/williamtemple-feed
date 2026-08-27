@@ -1,6 +1,6 @@
 {
   "name": "backend",
-  "version": "1.6.5",
+  "version": "1.7.5-beta.1",
   "main": "index.js",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
@@ -49,6 +49,7 @@
     "puppeteer": "^24.17.0",
     "react": "^18.2.0",
     "resend": "^6.6.0",
+    "sharp": "^0.35.4",
     "tiktoken": "^1.0.21",
     "topojson-client": "^3.1.0",
     "us-atlas": "^3.0.1",

@@ -37,6 +37,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import { useBrand } from '@/contexts/BrandContext';
 
 // Extract Dashboard as a special item (at index 0)
 const dashboardItem = navigationItems[0];
@@ -45,6 +46,7 @@ export function AppSidebar() {
   const { pathname } = useLocation();
   const { state } = useSidebar();
   const { isAdministrator } = useAuth();
+  const brand = useBrand();
   const isCollapsed = state === 'collapsed';
   const itemRefs = React.useRef<(HTMLAnchorElement | null)[]>([]);
 
@@ -139,7 +141,7 @@ export function AppSidebar() {
                       group-data-[collapsible=icon]:hidden
                     "
                   >
-                    FEED Dashboard
+                    {brand.identity.appName} Dashboard
                   </span>
                 </Link>
               </AnimateIcon>
@@ -178,7 +180,7 @@ export function AppSidebar() {
                   ml-3 text-md font-medium
                 "
               >
-                FEED Dashboard
+                {brand.identity.appName} Dashboard
               </span>
             </Link>
           </AnimateIcon>
@@ -415,7 +417,7 @@ export function AppSidebar() {
                       hover:text-foreground
                       focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
                     "
-                    aria-label="About FEED"
+                  aria-label={`About ${brand.identity.appName}`}
                   >
                     <AboutNavIcon className="h-4 w-4 shrink-0" aria-hidden="true" />
                     <span>About</span>
@@ -423,9 +425,9 @@ export function AppSidebar() {
                 </AnimateIcon>
               </DialogTrigger>
               <DialogContent className="border-0! bg-transparent! p-0! shadow-none! outline-hidden! ring-0! focus:outline-hidden! focus-visible:outline-hidden! focus-visible:ring-0! sm:max-w-xl [&>button]:right-10 [&>button]:top-4">
-                <DialogTitle className="sr-only">About FEED</DialogTitle>
+                <DialogTitle className="sr-only">About {brand.identity.appName}</DialogTitle>
                 <DialogDescription className="sr-only">
-                  Product, source, and licensing information for FEED.
+                  Product, source, and licensing information for {brand.identity.appName}.
                 </DialogDescription>
                 <AboutCard />
               </DialogContent>

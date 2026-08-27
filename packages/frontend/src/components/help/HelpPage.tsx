@@ -16,10 +16,14 @@ import {
 } from "@/components/ui/card"
 import { SectionHeader } from "@/components/shared/section-header"
 import { getAllUserGuides, getHelpSearchIndex } from "@/lib/user-guides"
+import { useBrand } from "@/contexts/BrandContext"
+import { useTerminology } from "@/contexts/TerminologyContext"
 
 import { HelpSearch } from "./HelpSearch"
 
 export function HelpPage() {
+  const brand = useBrand()
+  const terminology = useTerminology()
   const guides = getAllUserGuides()
   const searchIndex = getHelpSearchIndex()
 
@@ -29,7 +33,7 @@ export function HelpPage() {
         <SectionHeader
           icon={CircleHelp}
           title="Help"
-          description="Short guides for using FEED during daily pantry work."
+          description={terminology.format(`Short guides for using ${brand.identity.appName} during daily {pantry} work.`)}
         />
       </div>
 

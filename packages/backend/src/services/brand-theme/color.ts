@@ -9,11 +9,9 @@
  * Colour space conversions and contrast maths for brand derivation.
  *
  * Everything here is pure and dependency-free. Perceptual comparisons happen in
- * OKLab, where plain Euclidean distance is meaningful; HSL exists only because
- * `index.css` authors tokens as bare `H S% L%` triplets consumed through
- * `hsl(var(--token))` — including the alpha form `hsl(var(--background) / 0.4)`,
- * which reads the raw triplet and is why the v1.7.0 serializer cannot emit
- * `oklch()` yet. See docs/roadmap/v1.7-white-label-plan.md, Phase 5.
+ * OKLab, where plain Euclidean distance is meaningful. HSL conversion remains
+ * for legacy artifact compatibility and migration-fidelity tests; the active
+ * v1.7.5 app boundary emits complete OKLCH values.
  */
 
 /** Lightness 0..1, chroma 0..~0.37, hue in degrees. */

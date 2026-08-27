@@ -8,7 +8,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { ResendService } from '../resend-service';
-import { BRAND } from '../email-layout';
+import { BRAND, type EmailLayoutBrand } from '../email-layout';
 
 /**
  * Sign-in mail is the one message staff get that looks like what they are
@@ -97,5 +97,32 @@ describe('email branding', () => {
 
     expect(previews.every(Boolean)).toBe(true);
     expect(new Set(previews).size).toBe(previews.length);
+  });
+
+  it('renders a non-default identity and palette from the shared brand contract', () => {
+    const stJohns: EmailLayoutBrand = {
+      organizationName: 'St. Johns Food Share',
+      appName: 'FEED',
+      tagline: 'Food access with dignity and choice',
+      organizationWebsite: 'https://www.stjohnsfoodshare.org/',
+      logoUrl: 'https://example.org/api/brand/assets/logo-id',
+      colors: {
+        ...BRAND,
+        blue: '#047857',
+        gold: '#2d2d2d',
+      },
+    };
+    const customTemplates = ResendService as unknown as {
+      getOTPTemplate(code: string, brand: EmailLayoutBrand): string;
+      getOTPText(code: string, brand: EmailLayoutBrand): string;
+    };
+    const html = customTemplates.getOTPTemplate('482913', stJohns);
+    const text = customTemplates.getOTPText('482913', stJohns);
+    expect(html).toContain('St. Johns Food Share');
+    expect(html).toContain('Food access with dignity and choice');
+    expect(html).toContain('#047857');
+    expect(html).toContain(stJohns.logoUrl);
+    expect(html).not.toContain('feed.williamtemple.app');
+    expect(text).toContain('St. Johns Food Share');
   });
 });

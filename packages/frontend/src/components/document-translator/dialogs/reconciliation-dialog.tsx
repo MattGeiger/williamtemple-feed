@@ -214,19 +214,19 @@ export function ReconciliationDialog({ open, onOpenChange, onComplete }: Reconci
                   </CardHeader>
                   <CardContent className="flex flex-col gap-4">
                     <div className="flex items-start gap-3">
-                      <FileCheck className="h-4 w-4 mt-0.5 text-[hsl(var(--status-success-border))] shrink-0" />
+                      <FileCheck className="h-4 w-4 mt-0.5 text-[var(--status-success-border)] shrink-0" />
                       <p className="text-sm">Verify all database references to document files are valid</p>
                     </div>
                     <div className="flex items-start gap-3">
-                      <FileX className="h-4 w-4 mt-0.5 text-[hsl(var(--status-warning-border))] shrink-0" />
+                      <FileX className="h-4 w-4 mt-0.5 text-[var(--status-warning-border)] shrink-0" />
                       <p className="text-sm">Find any orphaned files that exist on disk but not in database</p>
                     </div>
                     <div className="flex items-start gap-3">
-                      <FolderArchive className="h-4 w-4 mt-0.5 text-[hsl(var(--status-danger-border))] shrink-0" />
+                      <FolderArchive className="h-4 w-4 mt-0.5 text-[var(--status-danger-border)] shrink-0" />
                       <p className="text-sm">Move orphaned files to quarantine for potential recovery</p>
                     </div>
                     <div className="flex items-start gap-3">
-                      <AlertTriangle className="h-4 w-4 mt-0.5 text-[hsl(var(--status-danger-border))] shrink-0" />
+                      <AlertTriangle className="h-4 w-4 mt-0.5 text-[var(--status-danger-border)] shrink-0" />
                       <p className="text-sm">Flag documents with missing files for administrator attention</p>
                     </div>
                   </CardContent>
@@ -275,7 +275,7 @@ export function ReconciliationDialog({ open, onOpenChange, onComplete }: Reconci
             <TabsContent value="overview" className="flex-1 min-h-0">
               <div className="flex flex-col gap-4 p-4">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <Card className={issueCounts.missing > 0 ? "border-[hsl(var(--status-danger-border))]" : ""}>
+                    <Card className={issueCounts.missing > 0 ? "border-[var(--status-danger-border)]" : ""}>
                       <CardHeader className="pb-2">
                         <CardTitle className="text-sm font-medium">Missing Files</CardTitle>
                       </CardHeader>
@@ -293,7 +293,7 @@ export function ReconciliationDialog({ open, onOpenChange, onComplete }: Reconci
                       </CardFooter>
                     </Card>
 
-                    <Card className={issueCounts.orphaned > 0 ? "border-[hsl(var(--status-warning-border))]" : ""}>
+                    <Card className={issueCounts.orphaned > 0 ? "border-[var(--status-warning-border)]" : ""}>
                       <CardHeader className="pb-2">
                         <CardTitle className="text-sm font-medium">Orphaned Files</CardTitle>
                       </CardHeader>
@@ -311,7 +311,7 @@ export function ReconciliationDialog({ open, onOpenChange, onComplete }: Reconci
                       </CardFooter>
                     </Card>
 
-                    <Card className={issueCounts.quarantine > 0 ? "border-[hsl(var(--status-neutral-border))]" : ""}>
+                    <Card className={issueCounts.quarantine > 0 ? "border-[var(--status-neutral-border)]" : ""}>
                       <CardHeader className="pb-2">
                         <CardTitle className="text-sm font-medium">Quarantined</CardTitle>
                       </CardHeader>
@@ -339,7 +339,7 @@ export function ReconciliationDialog({ open, onOpenChange, onComplete }: Reconci
                         {issues.missingFiles.length > 0 && (
                           <div className="flex flex-col gap-2">
                             <h4 className="text-sm font-semibold flex items-center">
-                              <FileWarning className="inline h-4 w-4 mr-2 text-[hsl(var(--status-danger-border))]" />
+                              <FileWarning className="inline h-4 w-4 mr-2 text-[var(--status-danger-border)]" />
                               Missing Files ({issues.missingFiles.length})
                             </h4>
                             {/* Native max-h grow-to-fit is intentional for the
@@ -367,7 +367,7 @@ export function ReconciliationDialog({ open, onOpenChange, onComplete }: Reconci
                         {issues.integrityIssues.length > 0 && (
                           <div className="flex flex-col gap-2">
                             <h4 className="text-sm font-semibold flex items-center">
-                              <AlertTriangle className="inline h-4 w-4 mr-2 text-[hsl(var(--status-warning-border))]" />
+                              <AlertTriangle className="inline h-4 w-4 mr-2 text-[var(--status-warning-border)]" />
                               Integrity Issues ({issues.integrityIssues.length})
                             </h4>
                             <div className="max-h-[30vh] sm:max-h-[250px] overflow-auto rounded-md border p-3">
@@ -383,17 +383,17 @@ export function ReconciliationDialog({ open, onOpenChange, onComplete }: Reconci
                       </CardContent>
                     </Card>
                   ) : (
-                    <Card className="border-[hsl(var(--status-success-border))]">
+                    <Card className="border-[var(--status-success-border)]">
                       <CardHeader>
                         <CardTitle className="text-base">Storage Check Results</CardTitle>
                       </CardHeader>
                       <CardContent>
                         <div className="flex items-center gap-3">
-                          <div className="h-8 w-8 rounded-full bg-[hsla(var(--status-success-bg),0.4)] flex items-center justify-center">
-                            <FileCheck className="h-5 w-5 text-[hsl(var(--status-success-border))]" />
+                          <div className="h-8 w-8 rounded-full bg-[color-mix(in_oklch,var(--status-success-bg)_40%,transparent)] flex items-center justify-center">
+                            <FileCheck className="h-5 w-5 text-[var(--status-success-border)]" />
                           </div>
                           <div>
-                            <p className="text-[hsl(var(--status-success-text))] font-medium">All checks passed</p>
+                            <p className="text-[var(--status-success-text)] font-medium">All checks passed</p>
                             <p className="text-sm text-muted-foreground">
                               No issues found. Storage is in sync with database.
                             </p>
@@ -433,19 +433,19 @@ export function ReconciliationDialog({ open, onOpenChange, onComplete }: Reconci
                     
                     {issueCounts.quarantine > 0 && (
                       <div className="px-6 pb-4">
-                        <div className="p-3 rounded border bg-[hsl(var(--status-warning-bg))] border-[hsl(var(--status-warning-border))] flex items-center justify-between">
+                        <div className="p-3 rounded border bg-[var(--status-warning-bg)] border-[var(--status-warning-border)] flex items-center justify-between">
                           <div>
-                            <p className="text-sm font-medium text-[hsl(var(--status-warning-text))] flex items-center">
-                              <FolderArchive className="h-4 w-4 mr-2 text-[hsl(var(--status-warning-border))]" />
+                            <p className="text-sm font-medium text-[var(--status-warning-text)] flex items-center">
+                              <FolderArchive className="h-4 w-4 mr-2 text-[var(--status-warning-border)]" />
                               {issueCounts.quarantine} {issueCounts.quarantine === 1 ? 'file' : 'files'} in quarantine
                             </p>
-                            <p className="text-xs text-[hsl(var(--status-warning-text))] mt-1">These files were moved to quarantine during reconciliation</p>
+                            <p className="text-xs text-[var(--status-warning-text)] mt-1">These files were moved to quarantine during reconciliation</p>
                           </div>
                           <Button 
                             variant="outline"
                             size="sm"
                             onClick={handleClearQuarantine}
-                            className="text-[hsl(var(--status-warning-text))]! border-[hsl(var(--status-warning-border))]! bg-transparent! hover:bg-[hsla(var(--status-warning-bg),0.7)]!"
+                            className="text-[var(--status-warning-text)]! border-[var(--status-warning-border)]! bg-transparent! hover:bg-[color-mix(in_oklch,var(--status-warning-bg)_70%,transparent)]!"
                           >
                             Clear All
                           </Button>
@@ -460,17 +460,17 @@ export function ReconciliationDialog({ open, onOpenChange, onComplete }: Reconci
                               <div className="text-sm">
                                 {action.includes('quarantine') ? (
                                   <span className="flex items-start gap-2">
-                                    <FolderArchive className="h-4 w-4 mt-0.5 text-[hsl(var(--status-neutral-border))] shrink-0" />
+                                    <FolderArchive className="h-4 w-4 mt-0.5 text-[var(--status-neutral-border)] shrink-0" />
                                     <span>Moved orphaned file to protected storage</span>
                                   </span>
                                 ) : action.includes('metadata') ? (
                                   <span className="flex items-start gap-2">
-                                    <FileCheck className="h-4 w-4 mt-0.5 text-[hsl(var(--status-success-border))] shrink-0" />
+                                    <FileCheck className="h-4 w-4 mt-0.5 text-[var(--status-success-border)] shrink-0" />
                                     <span>Updated file metadata for better tracking</span>
                                   </span>
                                 ) : (
                                   <span className="flex items-start gap-2">
-                                    <FileCheck className="h-4 w-4 mt-0.5 text-[hsl(var(--status-success-border))] shrink-0" />
+                                    <FileCheck className="h-4 w-4 mt-0.5 text-[var(--status-success-border)] shrink-0" />
                                     <span>{action}</span>
                                   </span>
                                 )}

@@ -31,7 +31,7 @@ const alertVariants = cva(
         default: "bg-white text-slate-950 dark:bg-slate-950 dark:text-slate-50",
         destructive:
           "border-red-500/50 text-red-500 dark:border-red-500 [&>svg]:text-red-500 dark:border-red-900/50 dark:text-red-900 dark:dark:border-red-900 dark:[&>svg]:text-red-900",
-        warning: "bg-[hsl(var(--status-warning-bg))] text-[hsl(var(--status-warning-text))] border-[hsl(var(--status-warning-border))] [&>svg]:stroke-[hsl(var(--status-warning-text))] dark:bg-[hsl(var(--status-warning-bg))] dark:text-[hsl(var(--status-warning-text))] dark:border-[hsl(var(--status-warning-border))] dark:[&>svg]:stroke-[hsl(var(--status-warning-text))]",
+        warning: "bg-[var(--status-warning-bg)] text-[var(--status-warning-text)] border-[var(--status-warning-border)] [&>svg]:stroke-[var(--status-warning-text)] dark:bg-[var(--status-warning-bg)] dark:text-[var(--status-warning-text)] dark:border-[var(--status-warning-border)] dark:[&>svg]:stroke-[var(--status-warning-text)]",
       },
     },
     defaultVariants: {

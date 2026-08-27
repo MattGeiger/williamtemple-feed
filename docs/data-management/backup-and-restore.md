@@ -73,7 +73,7 @@ resolution above, and the clean-slate model — are recorded in
 [beta-6-backup-restore-brief.md](beta-6-backup-restore-brief.md), which also
 named two prerequisites that had to land first: editable API keys, and
 `AIConfiguration` redaction in place of exclusion. **Both are implemented.**
-The artifact now declares table contract version 11: version 2 added sanitized
+The artifact now declares table contract version 12: version 2 added sanitized
 `AIConfiguration`; version 3 added the first formal Service and operational
 metric fact family; version 4 adds effective-dated Service capacity plans,
 structured quality issues, and append-only operator decisions; and version 5
@@ -92,6 +92,12 @@ quality issues, and append-only staff resolutions. Version 11 carries the
 authority-neutralized staff roster and LOTTO synchronization-run provenance.
 It still excludes the LOTTO URL, encrypted token, token salt, live cursor, and
 encryption keys.
+Version 12 adds the singleton organization brand configuration and its
+database-backed logo and app-mark assets. Artifacts created before version 12
+do not contain those tables; restoring one preserves the destination's current
+brand rather than interpreting absence as an instruction to erase it. A version
+12 artifact that deliberately includes either table with zero rows still
+replaces that table with an empty set.
 Version 4 artifacts restore with that new status defaulted to `unknown`; FEED
 never infers it from unrelated fields. Transient `DataImportJob` progress and
 staged source files remain excluded. Normalized Service revisions prepared

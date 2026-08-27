@@ -13,6 +13,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { useToast } from "@/components/ui/use-toast";
 import config from "@/config/config";
+import { useBrand } from '@/contexts/BrandContext';
 
 // `requestFailed` is distinct from `error` on purpose. A failure to *send* a
 // code must keep the user on the email step — advancing to the code entry
@@ -29,6 +30,7 @@ type OTPStatus =
   | "error";
 
 export function OTPTab() {
+  const brand = useBrand();
   const apiBase =
     ((import.meta.env.VITE_API_BASE_URL as string | undefined) || config.api.baseUrl).replace(/\/$/, '');
   const [email, setEmail] = useState("");
@@ -140,7 +142,7 @@ export function OTPTab() {
                 setErrorMessage("");
               }
             }}
-            placeholder="you@williamtemple.org"
+            placeholder={brand.staff.emailPlaceholder}
             className="bg-white dark:bg-slate-950"
             required
             disabled={status === "requesting"}

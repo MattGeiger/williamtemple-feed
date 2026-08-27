@@ -21,6 +21,7 @@ import { SectionHeader } from '@/components/shared/section-header';
 import { Loader2 } from '@/components/ui/icons';
 import { UsersRoundIcon } from '@/components/ui/users-round';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTerminology } from '@/contexts/TerminologyContext';
 import { useMessage } from '@/hooks/message/useMessage';
 import { ErrorHandlerService } from '@/services/error/ErrorHandlerService';
 import { settingsService } from '@/services/settings';
@@ -184,6 +185,7 @@ const sectionForRole = (role: ServiceMetricDayDefinition['semanticRole']) => {
 };
 
 export function ServiceLogWorkspace() {
+  const terminology = useTerminology();
   const defaultToday = dateInTimezone(DEFAULT_OPERATING_HOURS_SETTINGS.timezone);
   const [serviceDate, setServiceDate] = React.useState(defaultToday);
   const [operatingHours, setOperatingHours] = React.useState(DEFAULT_OPERATING_HOURS_SETTINGS);
@@ -321,7 +323,7 @@ export function ServiceLogWorkspace() {
     <div className="space-y-6 min-w-0 w-full pt-6">
       <SectionHeader
         title="Service Log"
-        description="Record the shared operational details for one pantry service day."
+        description={terminology.format('Record the shared operational details for one {pantry} service day.')}
         icon={PageTitleUsersRoundIcon}
       />
 
@@ -333,7 +335,7 @@ export function ServiceLogWorkspace() {
           onChange={setServiceDate}
         />
         <div className="space-y-2">
-          <Label>Pantry status</Label>
+          <Label>{terminology.format('{Pantry} status')}</Label>
           <Select value={pantryStatus} onValueChange={(value) => changePantryStatus(value as ServicePantryStatus)}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
@@ -376,7 +378,7 @@ export function ServiceLogWorkspace() {
             </Card>
             <Card>
               <CardHeader className="pb-2">
-                <CardDescription>Regular pantry capacity</CardDescription>
+                <CardDescription>{terminology.format('Regular {pantry} capacity')}</CardDescription>
                 <CardTitle>
                   {overallCapacity === null
                     ? 'Not configured'

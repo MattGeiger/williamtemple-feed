@@ -24,7 +24,7 @@ import { resolve } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { hexToOklch, hslToOklch, parseHslTriplet, perceptualDistance } from '../color';
+import { hexToOklch, hslToOklch, parseHslTriplet, perceptualDistance, type Oklch } from '../color';
 import { deriveTheme } from '../derive';
 import { BRAND_TOKENS, type BrandToken, type ThemeScope } from '../tokens';
 
@@ -32,6 +32,7 @@ const INDEX_CSS = resolve(__dirname, '../../../../../frontend/src/index.css');
 
 /** William Temple House's two identity colours, from the logo and email brand. */
 const WTH_BLUE = '#186090';
+const WTH_TEAL = '#2AA198';
 const WTH_GOLD = '#FFE066';
 const WTH_SURFACE = { h: 222, s: 50, l: 10 };
 
@@ -72,41 +73,50 @@ const shippedTokens = (): Record<ThemeScope, Partial<Record<BrandToken, string>>
   return result;
 };
 
+const parseOklchLiteral = (value: string): Oklch | null => {
+  const match = value.match(/^oklch\(\s*([\d.]+)\s+([\d.]+)\s+([\d.-]+)\s*\)$/);
+  return match ? { l: Number(match[1]), c: Number(match[2]), h: Number(match[3]) } : null;
+};
+
 /**
- * Tokens where the derived value deliberately differs from what FEED ships.
+ * Tokens where the derived approximation deliberately differs from the
+ * hand-tuned identity FEED ships.
  *
- * Kept as an explicit list with reasons rather than by loosening the threshold:
- * a wider bound would hide real drift everywhere to excuse four known cases. The
- * test also asserts each of these *still* diverges, so the list cannot quietly
- * rot once a divergence is resolved.
+ * Kept as an explicit list with reasons rather than by widening the threshold:
+ * a looser bound would hide real drift everywhere to excuse a handful of known
+ * cases. The test also asserts each of these *still* diverges, so an entry
+ * cannot quietly outlive the difference it describes.
+ *
+ * Since the compiled default now ships the hand-tuned values verbatim, these
+ * are the gaps a *configured* agency would see rather than defects in what
+ * William Temple House runs — this gate measures how well derivation
+ * approximates a hand-tuned identity, which is what a new agency gets.
  */
 const ACCEPTED_DIVERGENCES: Record<string, string> = {
   'light --input':
-    'FEED ships --input at 50% lightness in both themes, and the Input primitive ' +
-    'does not consume it (it hardcodes border-slate-200). The derived slate-300 ' +
-    'is the value the token is supposed to carry.',
+    'FEED authors --input at mid lightness in both themes and the Input ' +
+    'primitive does not consume it (it hardcodes border-slate-200). The derived ' +
+    'value is what the token is supposed to carry.',
+  // The next four are FEED's untuned placeholders. All carry the identical
+  // value `222 10.9% 18%`, which measures 1.50:1 against the dark page — below
+  // the WCAG 1.4.11 floor for a focus indicator. Sharing one value across four
+  // unrelated roles is the signature of copied defaults rather than chosen
+  // colours. The derived values clear their floors, so these divergences are
+  // corrections rather than drift.
+  'dark --ring':
+    'FEED ships a dark focus ring at 1.50:1 against the page. The derived ring ' +
+    'clears the 3:1 WCAG 1.4.11 floor.',
+  'dark --sidebar-primary':
+    'Same untuned placeholder as --ring.',
+  'dark --sidebar-primary-foreground':
+    'Follows --sidebar-primary: white on FEED\'s dark placeholder, near-black on ' +
+    'the derived light accent. Each is correct for its own fill.',
+  'dark --sidebar-ring':
+    'Same untuned placeholder as --ring.',
   'dark --primary-foreground':
     'FEED hand-picks WTH blue as the text on the gold primary. The derived value ' +
-    'is near-black, which is higher contrast and brand-neutral. Restoring the ' +
-    'exact pairing is an Advanced-tier override (plan, D9).',
-  // The next three are FEED's untuned sidebar defaults. All three carry the
-  // identical value `222 10.9% 18%` that `--ring` does — the one measuring
-  // 1.50:1 — which is the signature of copied placeholders rather than chosen
-  // colours. The derived values follow the same accent logic as the rest of the
-  // app and clear their contrast floors.
-  'dark --sidebar-primary':
-    'FEED ships the same untuned value here as for --ring. The derived value ' +
-    'carries the dark accent and passes its contrast pair.',
-  'dark --sidebar-primary-foreground':
-    'Follows --sidebar-primary: FEED pairs white on its dark placeholder, the ' +
-    'derived theme pairs near-black on a light accent. Each is correct for its ' +
-    'own fill.',
-  'dark --sidebar-ring':
-    'Same untuned placeholder as --ring and --sidebar-primary.',
-  'dark --ring':
-    'FEED\'s dark focus ring measures 1.50:1 against the page — below the WCAG ' +
-    '1.4.11 floor for focus indicators. The derived ring clears 3:1. This ' +
-    'divergence is a correction, not drift.',
+    'is near-black: higher contrast, less characterful. Restoring the exact ' +
+    'pairing is an Advanced-tier override.',
 };
 
 describe('Phase 0 fidelity gate — reproducing William Temple House', () => {
@@ -114,6 +124,7 @@ describe('Phase 0 fidelity gate — reproducing William Temple House', () => {
     accent: hexToOklch(WTH_BLUE),
     accentDark: hexToOklch(WTH_GOLD),
     neutral: hslToOklch(WTH_SURFACE),
+    hierarchy: [WTH_BLUE, WTH_TEAL, WTH_GOLD].map(hexToOklch),
   });
 
   it('reads the shipped theme out of index.css', () => {
@@ -129,7 +140,7 @@ describe('Phase 0 fidelity gate — reproducing William Temple House', () => {
     expect(derived.neutralFamily).toBe('slate');
   });
 
-  it('stays perceptually close to every shipped token it can compare', () => {
+  it('lands close to the hand-tuned identity on every comparable token', () => {
     const shipped = shippedTokens();
     const drifted: string[] = [];
     let compared = 0;
@@ -140,22 +151,27 @@ describe('Phase 0 fidelity gate — reproducing William Temple House', () => {
         const raw = shipped[scope][token];
         if (!raw) continue;
         const triplet = parseHslTriplet(raw);
+        const authored = parseOklchLiteral(raw) ?? (triplet ? hslToOklch(triplet) : null);
         // `var(--primary)` style aliases are not comparable values.
-        if (!triplet) continue;
+        if (!authored) continue;
 
         compared += 1;
         const distance = perceptualDistance(
-          hslToOklch(triplet),
+          authored,
           derived.tokens[scope][token]
         );
         // 0.20 in OKLab is a generous but meaningful bound: same colour family
         // and broadly the same lightness, which is what "still reads as FEED"
         // requires. Anything larger is a different colour, not a snap.
+        //
+        // This threshold was briefly 0.002 while `index.css` itself held the
+        // derived output, which made the comparison a tautology — derivation
+        // measured against derivation, unable to fail by construction. It only
+        // means something while the file holds the hand-tuned values.
         const key = `${scope} --${token}`;
         const diverges = distance > 0.2;
-
         if (diverges && !(key in ACCEPTED_DIVERGENCES)) {
-          drifted.push(`${key}: ${raw} drifted ${distance.toFixed(3)}`);
+          drifted.push(`${key}: ${raw} drifted ${distance.toFixed(4)}`);
         }
         if (diverges) stillDiverging.add(key);
       }
@@ -163,15 +179,13 @@ describe('Phase 0 fidelity gate — reproducing William Temple House', () => {
 
     expect(drifted, `\n${drifted.join('\n')}`).toEqual([]);
 
+    // Every accepted divergence must still be one, so the list cannot rot into
+    // excuses for differences that no longer exist.
+    const stale = Object.keys(ACCEPTED_DIVERGENCES).filter((key) => !stillDiverging.has(key));
+    expect(stale, `no longer diverging: ${stale.join(', ')}`).toEqual([]);
+
     // A green run here means nothing unless tokens were actually compared.
     expect(compared).toBeGreaterThanOrEqual(20);
 
-    // Every accepted divergence must still be one. If a change brings a token
-    // back into line, the entry should be deleted rather than left to imply a
-    // difference that no longer exists.
-    const stale = Object.keys(ACCEPTED_DIVERGENCES).filter(
-      (key) => !stillDiverging.has(key)
-    );
-    expect(stale, `no longer diverging: ${stale.join(', ')}`).toEqual([]);
   });
 });

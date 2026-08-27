@@ -38,7 +38,7 @@ const toastVariants = cva(
         destructive:
           "destructive group border-red-500 bg-red-500 text-slate-50 dark:border-red-900 dark:bg-red-900 dark:text-slate-50",
         warning:
-          "warning group bg-[hsl(var(--status-warning-bg))] text-[hsl(var(--status-warning-text))] border-[hsl(var(--status-warning-border))] [&>svg]:stroke-[hsl(var(--status-warning-text))] dark:bg-[hsl(var(--status-warning-bg))] dark:text-[hsl(var(--status-warning-text))] dark:border-[hsl(var(--status-warning-border))] dark:[&>svg]:stroke-[hsl(var(--status-warning-text))]",
+          "warning group bg-[var(--status-warning-bg)] text-[var(--status-warning-text)] border-[var(--status-warning-border)] [&>svg]:stroke-[var(--status-warning-text)] dark:bg-[var(--status-warning-bg)] dark:text-[var(--status-warning-text)] dark:border-[var(--status-warning-border)] dark:[&>svg]:stroke-[var(--status-warning-text)]",
       },
     },
     defaultVariants: {

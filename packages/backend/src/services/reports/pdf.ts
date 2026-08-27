@@ -21,9 +21,11 @@ import {
   getReportFontCss,
   renderHtmlToPdf,
 } from '../pdf/chromium';
+import { printBrand } from '../brand-config';
 import { TabResults } from '../inventory-analytics';
 import { ReportCardDefinition } from './card-registry';
 import type { DashboardSnapshot } from './dashboard';
+import { currentReportPrintTheme, withReportPrintTheme, type ReportPrintTheme } from './print-theme';
 
 // ---- shared print formatting (mirrors the frontend display helpers) --------
 
@@ -46,10 +48,10 @@ const fmtDate = (iso: string | null): string =>
 // ---- inline SVG charts ------------------------------------------------------
 
 // Print palette: one ink-friendly blue; direct labels carry the meaning.
-const BAR_FILL = '#3b6ea5';
-const BAR_FILL_SECONDARY = '#9db8d2';
-const AXIS_COLOR = '#666666';
-const LABEL_COLOR = '#333333';
+const barFill = () => currentReportPrintTheme().primary;
+const barFillSecondary = () => currentReportPrintTheme().palette[1] ?? currentReportPrintTheme().primarySoft;
+const axisColor = () => currentReportPrintTheme().muted;
+const labelColor = () => currentReportPrintTheme().ink;
 
 interface BarDatum {
   label: string;
@@ -66,7 +68,7 @@ function barChartSvg(
   const height = options.height ?? 220;
   const format = options.format ?? ((v: number) => String(v));
   if (data.length === 0) {
-    return `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg"><text x="${width / 2}" y="${height / 2}" text-anchor="middle" font-size="11" fill="${AXIS_COLOR}">No data in this range</text></svg>`;
+    return `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg"><text x="${width / 2}" y="${height / 2}" text-anchor="middle" font-size="11" fill="${axisColor()}">No data in this range</text></svg>`;
   }
   const margin = { top: 18, right: 8, bottom: 34, left: 8 };
   const innerW = width - margin.left - margin.right;
@@ -89,24 +91,24 @@ function barChartSvg(
         const y = margin.top + innerH - h;
         parts.push(
           `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${h.toFixed(1)}" fill="${fill}" rx="2"/>`,
-          `<text x="${(x + barW / 2).toFixed(1)}" y="${(y - 4).toFixed(1)}" text-anchor="middle" font-size="9" fill="${LABEL_COLOR}">${escapeHtml(format(d.value === value ? d.value : value))}</text>`
+          `<text x="${(x + barW / 2).toFixed(1)}" y="${(y - 4).toFixed(1)}" text-anchor="middle" font-size="9" fill="${labelColor()}">${escapeHtml(format(d.value === value ? d.value : value))}</text>`
         );
       };
       if (hasSecondary) {
-        drawBar(d.secondary ?? 0, BAR_FILL_SECONDARY, -barW * 0.6);
-        drawBar(d.value, BAR_FILL, barW * 0.6);
+        drawBar(d.secondary ?? 0, barFillSecondary(), -barW * 0.6);
+        drawBar(d.value, barFill(), barW * 0.6);
       } else {
-        drawBar(d.value, BAR_FILL, 0);
+        drawBar(d.value, barFill(), 0);
       }
       const label = d.label.length > 14 ? `${d.label.slice(0, 13)}…` : d.label;
       parts.push(
-        `<text x="${cx.toFixed(1)}" y="${height - 18}" text-anchor="middle" font-size="9" fill="${AXIS_COLOR}">${escapeHtml(label)}</text>`
+        `<text x="${cx.toFixed(1)}" y="${height - 18}" text-anchor="middle" font-size="9" fill="${axisColor()}">${escapeHtml(label)}</text>`
       );
       return parts.join('');
     })
     .join('');
 
-  const baseline = `<line x1="${margin.left}" y1="${margin.top + innerH}" x2="${width - margin.right}" y2="${margin.top + innerH}" stroke="${AXIS_COLOR}" stroke-width="0.75"/>`;
+  const baseline = `<line x1="${margin.left}" y1="${margin.top + innerH}" x2="${width - margin.right}" y2="${margin.top + innerH}" stroke="${axisColor()}" stroke-width="0.75"/>`;
   return `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg" role="img">${baseline}${bars}</svg>`;
 }
 
@@ -121,7 +123,7 @@ function hBarChartSvg(
   const margin = { top: 6, right: 60, bottom: 6, left: 150 };
   const height = margin.top + margin.bottom + Math.max(1, data.length) * rowH;
   if (data.length === 0) {
-    return `<svg width="${width}" height="120" viewBox="0 0 ${width} 120" xmlns="http://www.w3.org/2000/svg"><text x="${width / 2}" y="60" text-anchor="middle" font-size="11" fill="${AXIS_COLOR}">No data in this range</text></svg>`;
+    return `<svg width="${width}" height="120" viewBox="0 0 ${width} 120" xmlns="http://www.w3.org/2000/svg"><text x="${width / 2}" y="60" text-anchor="middle" font-size="11" fill="${axisColor()}">No data in this range</text></svg>`;
   }
   const innerW = width - margin.left - margin.right;
   const max = Math.max(1, ...data.map((d) => Math.abs(d.value)));
@@ -131,9 +133,9 @@ function hBarChartSvg(
       const w = (Math.abs(d.value) / max) * innerW;
       const label = d.label.length > 24 ? `${d.label.slice(0, 23)}…` : d.label;
       return [
-        `<text x="${margin.left - 6}" y="${y + rowH / 2 + 3}" text-anchor="end" font-size="9" fill="${LABEL_COLOR}">${escapeHtml(label)}</text>`,
-        `<rect x="${margin.left}" y="${y + 4}" width="${w.toFixed(1)}" height="${rowH - 8}" fill="${BAR_FILL}" rx="2"/>`,
-        `<text x="${(margin.left + w + 4).toFixed(1)}" y="${y + rowH / 2 + 3}" font-size="9" fill="${LABEL_COLOR}">${escapeHtml(format(d.value))}</text>`,
+        `<text x="${margin.left - 6}" y="${y + rowH / 2 + 3}" text-anchor="end" font-size="9" fill="${labelColor()}">${escapeHtml(label)}</text>`,
+        `<rect x="${margin.left}" y="${y + 4}" width="${w.toFixed(1)}" height="${rowH - 8}" fill="${barFill()}" rx="2"/>`,
+        `<text x="${(margin.left + w + 4).toFixed(1)}" y="${y + rowH / 2 + 3}" font-size="9" fill="${labelColor()}">${escapeHtml(format(d.value))}</text>`,
       ].join('');
     })
     .join('');
@@ -152,7 +154,7 @@ function areaChartSvg(
   const innerH = height - margin.top - margin.bottom;
   const known = points.filter((p) => p.value !== null);
   if (known.length === 0) {
-    return `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg"><text x="${width / 2}" y="${height / 2}" text-anchor="middle" font-size="11" fill="${AXIS_COLOR}">No tracked data in this range</text></svg>`;
+    return `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg"><text x="${width / 2}" y="${height / 2}" text-anchor="middle" font-size="11" fill="${axisColor()}">No tracked data in this range</text></svg>`;
   }
   const maxY = options.maxY ?? Math.max(1, ...known.map((p) => p.value as number));
   const stepX = points.length > 1 ? innerW / (points.length - 1) : innerW;
@@ -178,7 +180,7 @@ function areaChartSvg(
   const lines = segments
     .map(
       (segment) =>
-        `<polyline points="${segment}" fill="none" stroke="${BAR_FILL}" stroke-width="1.5"/>`
+        `<polyline points="${segment}" fill="none" stroke="${barFill()}" stroke-width="1.5"/>`
     )
     .join('');
 
@@ -188,11 +190,11 @@ function areaChartSvg(
     .map((fraction) => {
       const y = margin.top + innerH - innerH * fraction;
       const value = maxY * fraction;
-      return `<line x1="${margin.left}" y1="${y}" x2="${width - margin.right}" y2="${y}" stroke="#dddddd" stroke-width="0.5"/><text x="${margin.left - 4}" y="${y + 3}" text-anchor="end" font-size="8" fill="${AXIS_COLOR}">${Math.round(value)}</text>`;
+      return `<line x1="${margin.left}" y1="${y}" x2="${width - margin.right}" y2="${y}" stroke="#dddddd" stroke-width="0.5"/><text x="${margin.left - 4}" y="${y + 3}" text-anchor="end" font-size="8" fill="${axisColor()}">${Math.round(value)}</text>`;
     })
     .join('');
 
-  return `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg" role="img">${gridY}${lines}<text x="${margin.left}" y="${height - 12}" font-size="9" fill="${AXIS_COLOR}">${escapeHtml(first)}</text><text x="${width - margin.right}" y="${height - 12}" text-anchor="end" font-size="9" fill="${AXIS_COLOR}">${escapeHtml(last)}</text></svg>`;
+  return `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg" role="img">${gridY}${lines}<text x="${margin.left}" y="${height - 12}" font-size="9" fill="${axisColor()}">${escapeHtml(first)}</text><text x="${width - margin.right}" y="${height - 12}" text-anchor="end" font-size="9" fill="${axisColor()}">${escapeHtml(last)}</text></svg>`;
 }
 
 // ---- per-card HTML blocks ----------------------------------------------------
@@ -544,13 +546,23 @@ export async function renderReportPdfHtml(
   options: ReportPdfOptions
 ): Promise<string> {
   const fontCss = await getReportFontCss();
+  const brand = await printBrand();
+  const theme: ReportPrintTheme = {
+    palette: brand.chartColors,
+    ink: brand.colors.foreground,
+    muted: brand.colors['muted-foreground'],
+    grid: brand.colors.border,
+    background: brand.colors.background,
+    primary: brand.colors.primary,
+    primarySoft: brand.colors.accent,
+  };
   const context: RenderContext = {
     tabs: options.tabs,
     horizonDays: options.horizonDays,
     dashboard: options.dashboard,
   };
 
-  const blocks = options.cards
+  const blocks = withReportPrintTheme(theme, () => options.cards
     .map((card, index) => {
       const body = cardBodyHtml(card, context);
       const isTable = card.type === 'table';
@@ -559,7 +571,7 @@ export async function renderReportPdfHtml(
         ${body}
       </section>`;
     })
-    .join('');
+    .join(''));
 
   const notices = options.notices.length
     ? `<div class="notices">${options.notices
@@ -579,32 +591,33 @@ ${fontCss}
 html, body { margin: 0; padding: 0; }
 body {
   font-family: "Noto Sans", Arial, Helvetica, sans-serif;
-  color: #1a1a1a;
-  background: #ffffff;
+  color: ${theme.ink};
+  background: ${theme.background};
   font-size: 10pt;
 }
-header.report-header { border-bottom: 2px solid #3b6ea5; padding-bottom: 8px; margin-bottom: 10px; }
+header.report-header { border-bottom: 2px solid ${theme.primary}; padding-bottom: 8px; margin-bottom: 10px; }
 header.report-header h1 { font-size: 18pt; margin: 0 0 2px 0; }
-header.report-header .meta { font-size: 9pt; color: #555; }
-.notices { font-size: 8.5pt; color: #555; margin-bottom: 8px; }
+header.report-header .organization { color:${theme.primary}; font-size:8.5pt; font-weight:700; letter-spacing:.05em; text-transform:uppercase; }
+header.report-header .meta { font-size: 9pt; color: ${theme.muted}; }
+.notices { font-size: 8.5pt; color: ${theme.muted}; margin-bottom: 8px; }
 .notices p { margin: 1px 0; }
 .cards { display: flex; flex-wrap: wrap; gap: 12px; }
-.card { border: 0.75pt solid #cccccc; border-radius: 4px; padding: 10px 12px; break-inside: avoid; }
+.card { border: 0.75pt solid ${theme.grid}; border-radius: 4px; padding: 10px 12px; break-inside: avoid; }
 .card-half { flex: 0 0 calc(50% - 6px); }
 .card-full { flex: 0 0 100%; break-inside: auto; }
 .card h2 { font-size: 11pt; margin: 0 0 8px 0; }
 .kpi-grid { display: flex; flex-wrap: wrap; gap: 10px; }
 .kpi { flex: 1 1 40%; min-width: 120px; }
-.kpi-label { font-size: 8.5pt; color: #555; }
+.kpi-label { font-size: 8.5pt; color: ${theme.muted}; }
 .kpi-value { font-size: 15pt; font-weight: 700; }
 .kpi-hint { font-size: 8pt; color: #777; }
 table.data-table { width: 100%; border-collapse: collapse; font-size: 8.5pt; }
 table.data-table thead { display: table-header-group; }
 table.data-table th {
-  text-align: left; border-bottom: 1pt solid #3b6ea5; padding: 3px 6px;
-  font-size: 8.5pt; background: #eef3f8;
+  text-align: left; border-bottom: 1pt solid ${theme.primary}; padding: 3px 6px;
+  font-size: 8.5pt; background: ${theme.primarySoft};
 }
-table.data-table td { border-bottom: 0.5pt solid #dddddd; padding: 3px 6px; }
+table.data-table td { border-bottom: 0.5pt solid ${theme.grid}; padding: 3px 6px; }
 table.data-table tr { break-inside: avoid; }
 table.data-table td.empty { color: #777; text-align: center; padding: 10px; }
 svg { max-width: 100%; }
@@ -612,6 +625,7 @@ svg { max-width: 100%; }
 </head>
 <body>
 <header class="report-header">
+  <div class="organization">${escapeHtml(brand.config.identity.organizationName)}</div>
   <h1>${escapeHtml(options.title)}</h1>
   <div class="meta">
     ${escapeHtml(options.rangeLabel)} · ${escapeHtml(options.timeZone)} ·

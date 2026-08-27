@@ -35,6 +35,7 @@ import serviceRouter from './routes/service';
 import authTestRouter from './routes/auth-test';
 import authRouter from './routes/auth';
 import adminRouter from './routes/admin';
+import brandRouter from './routes/brand';
 import { maintenanceGuard } from './services/restore/maintenance-mode';
 import { errorHandler } from './middleware/error-handler';
 import { jsonErrorHandler } from './middleware/json-error-handler';
@@ -76,6 +77,10 @@ export const createServer = () => {
   app.get('/api/health', (req, res) => {
     res.status(200).json({ status: 'ok', version });
   });
+
+  // Public identity/theme reads are needed before sign-in and before first
+  // paint. All mutations remain administrator-only under /api/admin/brand.
+  app.use('/api/brand', brandRouter);
 
   // Serve the built frontend before auth so static assets don't require credentials
   const distPath = path.join(__dirname, '../../frontend/dist');

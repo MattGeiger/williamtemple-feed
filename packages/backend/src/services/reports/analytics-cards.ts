@@ -1687,7 +1687,7 @@ const OTHER_SOURCES_LABEL = 'Other Community sources';
 /**
  * Donation History From Legacy Data.
  *
- * Legacy data only — internal William Temple House records, discontinued June
+ * Legacy data only — internal organization records, discontinued June
  * 2023. The provenance is on the card because a legacy pound and a current
  * pound are not the same observation, and a report that gets forwarded loses
  * the tab heading that said so on screen.
@@ -1717,7 +1717,7 @@ export const LEGACY_DONATION_HISTORY: AnalyticsCard = {
       series: [{ name: 'Received Pounds', values }],
       categoryColumn: 'source',
       note:
-        'Legacy data only, based on internal William Temple House records. Record discontinued June 2023.' +
+        'Legacy data only, based on internal organization records. Record discontinued June 2023.' +
         (folded.length > 0 ? ` ${folded.length} smaller sources folded into "${OTHER_SOURCES_LABEL}".` : ''),
     };
   },

@@ -8,12 +8,9 @@
 /**
  * `TokenMap` → the formats FEED's three colour systems consume.
  *
- * `serializeHslTriplets` is the v1.7.0 app serializer. It emits bare `H S% L%`
- * because `index.css` authors tokens that way and consumes them through
- * `hsl(var(--token))` — including `hsl(var(--background) / 0.4)` in the
- * app-shell atmosphere, which reads the raw triplet and would break on an
- * `oklch()` value. `serializeOklch` is the v1.7.5 replacement, written now so
- * the migration is a call-site swap rather than a rewrite.
+ * `serializeOklch` is the active app serializer. `serializeHslTriplets` remains
+ * available as a compatibility boundary for older artifacts and for measuring
+ * the perceptual fidelity of the OKLCH migration.
  */
 
 import { oklchToHex, oklchToHsl } from './color';
@@ -26,13 +23,13 @@ const round = (value: number, places: number) => {
   return Math.round(value * factor) / factor;
 };
 
-/** `222 50% 5%` — the shape `index.css` authors today. */
+/** `222 50% 5%` — the legacy bare-triplet shape. */
 export const hslTriplet = (color: Parameters<typeof oklchToHsl>[0]): string => {
   const { h, s, l } = oklchToHsl(color);
   return `${round(h, 1)} ${round(s, 1)}% ${round(l, 1)}%`;
 };
 
-/** `oklch(0.145 0.021 263)` — the v1.7.5 shape. */
+/** `oklch(0.145 0.021 263)` — the active v1.7.5 shape. */
 export const oklchLiteral = ({ l, c, h }: { l: number; c: number; h: number }): string =>
   `oklch(${round(l, 4)} ${round(c, 4)} ${round(h, 1)})`;
 
@@ -79,11 +76,11 @@ const buildCss = (theme: TokenMap, format: Formatter): string => {
   return `${blocks.join('\n\n')}\n`;
 };
 
-/** v1.7.0 app stylesheet. */
+/** Legacy HSL stylesheet retained for compatibility and fidelity tests. */
 export const serializeHslTriplets = (theme: TokenMap): string =>
   buildCss(theme, hslTriplet);
 
-/** v1.7.5 app stylesheet — same token map, different literal. */
+/** Active v1.7.5 app stylesheet. */
 export const serializeOklch = (theme: TokenMap): string => buildCss(theme, oklchLiteral);
 
 /**

@@ -21,7 +21,7 @@
 }
 
 /*
-  `inline` is load-bearing. It makes Tailwind paste `hsl(var(--border))` into
+  `inline` is load-bearing. It makes Tailwind paste `var(--border)` into
   each utility instead of emitting `--color-border` on `:root`. That keeps the
   v3 behaviour where a *nested* element can retheme the app by overriding the
   raw token — which `.print-theme` and `.shopping-list-print-page` both rely on.
@@ -29,48 +29,48 @@
   without becoming self-referential declarations.
 */
 @theme inline {
-  --color-border: hsl(var(--border));
-  --color-input: hsl(var(--input));
-  --color-ring: hsl(var(--ring));
-  --color-background: hsl(var(--background));
-  --color-foreground: hsl(var(--foreground));
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
 
-  --color-primary: hsl(var(--primary));
-  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
 
-  --color-secondary: hsl(var(--secondary));
-  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
 
-  --color-destructive: hsl(var(--destructive));
-  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
 
-  --color-muted: hsl(var(--muted));
-  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
 
-  --color-accent: hsl(var(--accent));
-  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
 
-  --color-popover: hsl(var(--popover));
-  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
 
-  --color-card: hsl(var(--card));
-  --color-card-foreground: hsl(var(--card-foreground));
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
 
-  --color-chart-primary: hsl(var(--chart-primary));
-  --color-chart-success: hsl(var(--chart-success));
-  --color-chart-warning: hsl(var(--chart-warning));
-  --color-chart-danger: hsl(var(--chart-danger));
-  --color-chart-info: hsl(var(--chart-info));
-  --color-chart-muted: hsl(var(--chart-muted));
+  --color-chart-primary: var(--chart-primary);
+  --color-chart-success: var(--chart-success);
+  --color-chart-warning: var(--chart-warning);
+  --color-chart-danger: var(--chart-danger);
+  --color-chart-info: var(--chart-info);
+  --color-chart-muted: var(--chart-muted);
 
-  --color-sidebar: hsl(var(--sidebar-background));
-  --color-sidebar-foreground: hsl(var(--sidebar-foreground));
-  --color-sidebar-primary: hsl(var(--sidebar-primary));
-  --color-sidebar-primary-foreground: hsl(var(--sidebar-primary-foreground));
-  --color-sidebar-accent: hsl(var(--sidebar-accent));
-  --color-sidebar-accent-foreground: hsl(var(--sidebar-accent-foreground));
-  --color-sidebar-border: hsl(var(--sidebar-border));
-  --color-sidebar-ring: hsl(var(--sidebar-ring));
+  --color-sidebar: var(--sidebar-background);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
 
   /* Point the shadow scale at the themeable tokens defined in `:root` /
      `.dark` / `.print-theme` below, exactly as the v3 config did. */
@@ -118,38 +118,38 @@
 @layer base {
   :root {
     /* Status Flag Colors */
-    --status-success-bg: 142 76% 97%;
-    --status-success-border: 142 71% 45%;
-    --status-success-text: 142 71% 30%;
-    --status-warning-bg: 38 100% 92%;
-    --status-warning-border: 38 92% 50%;
-    --status-warning-text: 38 100% 50%;
-    --status-danger-bg: 0 84% 97%;
-    --status-danger-border: 0 84% 60%;
-    --status-danger-text: 0 84% 30%;
-    --status-neutral-bg: 220 14% 96%;
-    --status-neutral-border: 220 14% 60%;
-    --status-neutral-text: 220 14% 40%;
+    --status-success-bg: hsl(142 76% 97%);
+    --status-success-border: hsl(142 71% 45%);
+    --status-success-text: hsl(142 71% 30%);
+    --status-warning-bg: hsl(38 100% 92%);
+    --status-warning-border: hsl(38 92% 50%);
+    --status-warning-text: hsl(38 100% 50%);
+    --status-danger-bg: hsl(0 84% 97%);
+    --status-danger-border: hsl(0 84% 60%);
+    --status-danger-text: hsl(0 84% 30%);
+    --status-neutral-bg: hsl(220 14% 96%);
+    --status-neutral-border: hsl(220 14% 60%);
+    --status-neutral-text: hsl(220 14% 40%);
 
     /* Chart Colors */
     --chart-primary: var(--primary);
-    --chart-success: 142 71% 45%;
-    --chart-warning: 38 92% 50%;
-    --chart-danger: 0 84% 60%;
+    --chart-success: hsl(142 71% 45%);
+    --chart-warning: hsl(38 92% 50%);
+    --chart-danger: hsl(0 84% 60%);
     --chart-info: var(--primary);
 
     /* Service Provider Colors */
-    --service-openai: 1, 0%, 0%;
-    --service-anthropic: 16, 56%, 60%;
-    --service-google: 219, 69%, 54%;
-    --service-azure: 212, 65%, 67%;
+    --service-openai: hsl(1 0% 0%);
+    --service-anthropic: hsl(16 56% 60%);
+    --service-google: hsl(219 69% 54%);
+    --service-azure: hsl(212 65% 67%);
     --chart-muted: var(--muted);
     --chart-background: var(--muted);
     --color-items: var(--primary);
     --color-categoryLabel: var(--background);
     --color-success: var(--chart-success);
-    --color-pending: 217 91% 60%;
-    --color-time: 217 91% 60%;
+    --color-pending: hsl(217 91% 60%);
+    --color-time: hsl(217 91% 60%);
     --color-label: var(--background);
     --color-success-fill: hsl(142, 71%, 45%);
     --color-pending-fill: hsl(217, 91%, 60%);
@@ -160,52 +160,53 @@
     --color-clearance: hsl(3, 87%, 63%);
     --color-outOfStock: hsl(0, 0%, 50%);  /* Updated to medium gray */
 
-    --background: 211 100% 100%;
-    --foreground: 211 5% 10%;
-    --card: 211 50% 99%;
-    --card-foreground: 211 5% 15%;
-    --popover: 211 100% 99%;
-    --popover-foreground: 211 100% 10%;
-    --primary: 211 60% 40%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 240 4.8% 95.9%;
-    --secondary-foreground: 240 5.9% 10%;
-    --muted: 173 30% 95%;
-    --muted-foreground: 211 5% 40%;
-    --accent: 173 30% 90%;
-    --accent-foreground: 211 5% 15%;
-    --destructive: 0 100% 50%;
-    --destructive-foreground: 211 5% 99%;
-    --border: 211 30% 82%;
-    --input: 211 30% 50%;
-    --ring: 211 61.2% 39.4%;
+    /* Authored fallback matches the compiled WTH Tailwind-derived theme. */
+    --background: oklch(1 0 89.9);
+    --foreground: oklch(0.213 0.004 264.5);
+    --card: oklch(0.991 0.003 264.5);
+    --card-foreground: oklch(0.267 0.005 248);
+    --popover: oklch(0.99 0.005 258.3);
+    --popover-foreground: oklch(0.211 0.061 250.7);
+    --primary: oklch(0.497 0.118 252.6);
+    --primary-foreground: oklch(1 0 89.9);
+    --secondary: oklch(0.967 0.001 286.4);
+    --secondary-foreground: oklch(0.21 0.006 285.9);
+    --muted: oklch(0.967 0.009 188.1);
+    --muted-foreground: oklch(0.508 0.01 248);
+    --accent: oklch(0.934 0.016 187.3);
+    --accent-foreground: oklch(0.267 0.005 248);
+    --destructive: hsl(0 100% 50%);
+    --destructive-foreground: hsl(211 5% 99%);
+    --border: oklch(0.854 0.025 248.1);
+    --input: oklch(0.582 0.075 251.1);
+    --ring: oklch(0.491 0.119 253);
     --radius: 1.3rem;
-    --sidebar-background: 211 100% 99%;
-    --sidebar-foreground: 211 5% 10%;
-    --sidebar-primary: 211 61.2% 39.4%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 177 45% 90%;
-    --sidebar-accent-foreground: 211 5% 15%;
-    --sidebar-border: 211 30% 82%;
-    --sidebar-ring: 211 61.2% 39.4%;
+    --sidebar-background: oklch(0.99 0.005 258.3);
+    --sidebar-foreground: oklch(0.213 0.004 264.5);
+    --sidebar-primary: oklch(0.491 0.119 253);
+    --sidebar-primary-foreground: oklch(1 0 89.9);
+    --sidebar-accent: oklch(0.941 0.024 193.6);
+    --sidebar-accent-foreground: oklch(0.267 0.005 248);
+    --sidebar-border: oklch(0.854 0.025 248.1);
+    --sidebar-ring: oklch(0.491 0.119 253);
 
     /* FEED app shell atmosphere */
-    --feed-shell-base-start: hsl(211 58% 98%);
-    --feed-shell-base-mid: hsl(184 38% 96%);
-    --feed-shell-base-end: hsl(211 34% 93%);
-    --feed-shell-glow-primary: hsl(211 60% 40% / 0.09);
-    --feed-shell-glow-secondary: hsl(173 45% 48% / 0.08);
-    --feed-shell-haze: hsl(49 100% 65% / 0.05);
-    --feed-shell-veil: hsl(0 0% 100% / 0.42);
-    --feed-shell-panel-start: hsl(var(--card) / 0.88);
-    --feed-shell-panel-end: hsl(184 30% 94% / 0.76);
-    --feed-shell-header-start: hsl(var(--background) / 0.40);
-    --feed-shell-header-end: hsl(var(--background) / 0.32);
-    --feed-shell-card-start: hsl(var(--card) / 0.94);
-    --feed-shell-card-end: hsl(184 24% 93% / 0.84);
-    --feed-shell-panel-border: hsl(var(--border) / 0.72);
-    --feed-shell-header-border: hsl(var(--border) / 0.58);
-    --feed-shell-surface-shadow: 0 24px 60px -44px hsl(211 50% 20% / 0.34);
+    --feed-shell-base-start: var(--background);
+    --feed-shell-base-mid: color-mix(in oklch, var(--accent) 30%, var(--background));
+    --feed-shell-base-end: color-mix(in oklch, var(--primary) 8%, var(--background));
+    --feed-shell-glow-primary: color-mix(in oklch, var(--primary) 9%, transparent);
+    --feed-shell-glow-secondary: color-mix(in oklch, var(--accent-foreground) 8%, transparent);
+    --feed-shell-haze: color-mix(in oklch, var(--sidebar-primary) 5%, transparent);
+    --feed-shell-veil: color-mix(in oklch, var(--background) 42%, transparent);
+    --feed-shell-panel-start: color-mix(in oklch, var(--card) 88%, transparent);
+    --feed-shell-panel-end: color-mix(in oklch, var(--card) 76%, transparent);
+    --feed-shell-header-start: color-mix(in oklch, var(--background) 40%, transparent);
+    --feed-shell-header-end: color-mix(in oklch, var(--background) 32%, transparent);
+    --feed-shell-card-start: color-mix(in oklch, var(--card) 94%, transparent);
+    --feed-shell-card-end: color-mix(in oklch, var(--card) 84%, transparent);
+    --feed-shell-panel-border: color-mix(in oklch, var(--border) 72%, transparent);
+    --feed-shell-header-border: color-mix(in oklch, var(--border) 58%, transparent);
+    --feed-shell-surface-shadow: 0 24px 60px -44px color-mix(in oklch, var(--foreground) 34%, transparent);
     --feed-motion-duration-fast: 160ms;
     --feed-motion-duration-medium: 220ms;
     --feed-motion-ease-standard: cubic-bezier(0.22, 1, 0.36, 1);
@@ -228,15 +229,15 @@
     --shadow-realistic-lg: var(--shadow-lg);
 
     /* Card surface gradient (subtle, perceptible only). */
-    --feed-card-gradient: linear-gradient(180deg, hsl(var(--card)) 0%, hsl(var(--card) / 0.94) 100%);
-    --feed-card-gradient-primary: linear-gradient(180deg, hsl(var(--primary) / 0.04) 0%, hsl(var(--card)) 100%);
+    --feed-card-gradient: linear-gradient(180deg, var(--card) 0%, color-mix(in oklch, var(--card) 94%, transparent) 100%);
+    --feed-card-gradient-primary: linear-gradient(180deg, color-mix(in oklch, var(--primary) 4%, transparent) 0%, var(--card) 100%);
 
     /* Prism-style universal card-gradient tokens (color-mix).
        Applied to every [data-slot="card"] (see @layer components).
        Light: stronger primary tint (10%) at top, brighter highlight (92% card / 8% white)
        at bottom, so the differential is perceptible on white surfaces. */
-    --card-gradient-start: color-mix(in srgb, hsl(var(--primary)) 10%, hsl(var(--card)));
-    --card-gradient-end:   color-mix(in srgb, hsl(var(--card)) 92%, white);
+    --card-gradient-start: color-mix(in srgb, var(--primary) 10%, var(--card));
+    --card-gradient-end:   color-mix(in srgb, var(--card) 92%, white);
 
     /* Short-name motion aliases used by new visual rules. */
     --feed-motion-fast: 160ms;
@@ -252,38 +253,38 @@
 
   .dark {
     /* Status Flag Colors */
-    --status-success-bg: 142 71% 20%;
-    --status-success-border: 142.1 80% 36%;
-    --status-success-text: 142 71% 90%;
-    --status-warning-bg: 38 80% 8%;
-    --status-warning-border: 24.6 95% 53.1%;
-    --status-warning-text: 38 100% 50%;
-    --status-danger-bg: 0 84% 20%;
-    --status-danger-border: 0 72.2% 50.6%;
-    --status-danger-text: 0 84% 90%;
-    --status-neutral-bg: 220 14% 20%;
-    --status-neutral-border: 215 20.2% 65.1%;
-    --status-neutral-text: 220 14% 90%;
+    --status-success-bg: hsl(142 71% 20%);
+    --status-success-border: hsl(142.1 80% 36%);
+    --status-success-text: hsl(142 71% 90%);
+    --status-warning-bg: hsl(38 80% 8%);
+    --status-warning-border: hsl(24.6 95% 53.1%);
+    --status-warning-text: hsl(38 100% 50%);
+    --status-danger-bg: hsl(0 84% 20%);
+    --status-danger-border: hsl(0 72.2% 50.6%);
+    --status-danger-text: hsl(0 84% 90%);
+    --status-neutral-bg: hsl(220 14% 20%);
+    --status-neutral-border: hsl(215 20.2% 65.1%);
+    --status-neutral-text: hsl(220 14% 90%);
 
     /* Chart Colors */
     --chart-primary: var(--primary);
-    --chart-success: 142 71% 50%;
-    --chart-warning: 38 92% 55%;
-    --chart-danger: 0 84% 65%;
+    --chart-success: hsl(142 71% 50%);
+    --chart-warning: hsl(38 92% 55%);
+    --chart-danger: hsl(0 84% 65%);
     --chart-info: var(--primary);
 
     /* Service Provider Colors */
-    --service-openai: 1, 0%, 100%;
-    --service-anthropic: 16, 56%, 60%;
-    --service-google: 219, 69%, 54%;
-    --service-azure: 212, 65%, 67%;
+    --service-openai: hsl(1 0% 100%);
+    --service-anthropic: hsl(16 56% 60%);
+    --service-google: hsl(219 69% 54%);
+    --service-azure: hsl(212 65% 67%);
     --chart-muted: var(--muted);
     --chart-background: var(--muted);
     --color-items: var(--primary);
     --color-categoryLabel: var(--background);
     --color-success: var(--chart-success);
-    --color-pending: 217 91% 65%;
-    --color-time: 217 91% 65%;
+    --color-pending: hsl(217 91% 65%);
+    --color-time: hsl(217 91% 65%);
     --color-label: var(--background);
     --color-success-fill: hsl(142, 71%, 50%);
     --color-pending-fill: hsl(217, 91%, 65%);
@@ -294,45 +295,45 @@
     --color-clearance: hsl(3, 87%, 55%);
     --color-outOfStock: hsl(0, 0%, 50%);  /* Updated to medium gray */
 
-    --background: 222 50% 0%;
-    --foreground: 222 5% 100%;
-    --card: 222 50% 10%;
-    --card-foreground: 222 5% 100%;
-    --popover: 222 50% 5%;
-    --popover-foreground: 222 5% 100%;
-    --primary: 49 100% 65%;
-    --primary-foreground: 211 60% 40%;
-    --secondary: 240 3.7% 15.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 222 25% 15%;
-    --muted-foreground: 222 5% 65%;
-    --accent: 222 25% 15%;
-    --accent-foreground: 222 5% 95%;
-    --destructive: 0 100% 50%;
-    --destructive-foreground: 222 5% 100%;
-    --border: 222 30% 50%;
-    --input: 222 30% 50%;
-    --ring: 222 10.9% 18%;
+    --background: oklch(0 0 0);
+    --foreground: oklch(1 0 89.9);
+    --card: oklch(0.195 0.038 266.8);
+    --card-foreground: oklch(1 0 89.9);
+    --popover: oklch(0.145 0.021 263.2);
+    --popover-foreground: oklch(1 0 89.9);
+    --primary: oklch(0.904 0.161 96);
+    --primary-foreground: oklch(0.497 0.118 252.6);
+    --secondary: oklch(0.274 0.005 286);
+    --secondary-foreground: oklch(0.985 0 89.9);
+    --muted: oklch(0.254 0.028 269.2);
+    --muted-foreground: oklch(0.718 0.009 264.5);
+    --accent: oklch(0.254 0.028 269.2);
+    --accent-foreground: oklch(0.961 0.001 286.4);
+    --destructive: hsl(0 100% 50%);
+    --destructive-foreground: hsl(222 5% 100%);
+    --border: oklch(0.55 0.089 266);
+    --input: oklch(0.55 0.089 266);
+    --ring: oklch(0.293 0.013 267.1);
     --radius: 1.3rem;
-    --sidebar-background: 222 50% 10%;
-    --sidebar-foreground: 222 5% 100%;
-    --sidebar-primary: 222 10.9% 18%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 222 80% 20%;
-    --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 222 50% 30%;
-    --sidebar-ring: 222 10.9% 18%;
+    --sidebar-background: oklch(0.195 0.038 266.8);
+    --sidebar-foreground: oklch(1 0 89.9);
+    --sidebar-primary: oklch(0.293 0.013 267.1);
+    --sidebar-primary-foreground: oklch(1 0 89.9);
+    --sidebar-accent: oklch(0.279 0.107 263.3);
+    --sidebar-accent-foreground: oklch(1 0 89.9);
+    --sidebar-border: oklch(0.372 0.097 264.7);
+    --sidebar-ring: oklch(0.293 0.013 267.1);
 
     /* FEED app shell atmosphere */
-    --feed-shell-base-start: hsl(222 44% 5%);
-    --feed-shell-base-mid: hsl(218 36% 9%);
-    --feed-shell-base-end: hsl(211 34% 13%);
-    --feed-shell-glow-primary: hsl(49 100% 65% / 0.12);
-    --feed-shell-glow-secondary: hsl(173 44% 48% / 0.1);
-    --feed-shell-haze: hsl(211 60% 40% / 0.1);
-    --feed-shell-veil: hsl(222 32% 4% / 0.26);
-    --feed-shell-panel-start: hsl(var(--card) / 0.82);
-    --feed-shell-panel-end: hsl(218 30% 12% / 0.7);
+    --feed-shell-base-start: var(--background);
+    --feed-shell-base-mid: color-mix(in oklch, var(--secondary) 30%, var(--background));
+    --feed-shell-base-end: color-mix(in oklch, var(--primary) 9%, var(--background));
+    --feed-shell-glow-primary: color-mix(in oklch, var(--primary) 12%, transparent);
+    --feed-shell-glow-secondary: color-mix(in oklch, var(--accent-foreground) 10%, transparent);
+    --feed-shell-haze: color-mix(in oklch, var(--accent) 10%, transparent);
+    --feed-shell-veil: color-mix(in oklch, var(--background) 26%, transparent);
+    --feed-shell-panel-start: color-mix(in oklch, var(--card) 82%, transparent);
+    --feed-shell-panel-end: color-mix(in oklch, var(--card) 70%, transparent);
     /* Not the panel tokens. Those are sized for near-solid surfaces (0.82 /
        0.70), and composited over the header's own 0.4 background they left the
        bar about 89% opaque — the frosted blur was applied and buried, so the
@@ -340,51 +341,46 @@
        it looked frosted. Dark needs a little more body than light to keep the
        breadcrumb legible over bright content, but it has to stay translucent
        enough for the blur to show. */
-    --feed-shell-header-start: hsl(var(--background) / 0.55);
-    --feed-shell-header-end: hsl(var(--background) / 0.45);
-    --feed-shell-card-start: hsl(var(--card) / 0.88);
-    --feed-shell-card-end: hsl(218 28% 12% / 0.78);
-    --feed-shell-panel-border: hsl(var(--border) / 0.78);
+    --feed-shell-header-start: color-mix(in oklch, var(--background) 55%, transparent);
+    --feed-shell-header-end: color-mix(in oklch, var(--background) 45%, transparent);
+    --feed-shell-card-start: color-mix(in oklch, var(--card) 88%, transparent);
+    --feed-shell-card-end: color-mix(in oklch, var(--card) 78%, transparent);
+    --feed-shell-panel-border: color-mix(in oklch, var(--border) 78%, transparent);
     --feed-shell-header-border: var(--feed-shell-panel-border);
-    --feed-shell-surface-shadow: 0 28px 72px -52px hsl(222 90% 3% / 0.86);
+    --feed-shell-surface-shadow: 0 28px 72px -52px color-mix(in oklch, var(--background) 86%, transparent);
 
-    /* Shadow scale — dark mode. Color = saturated blue-purple (Lotto pattern).
-       High chroma (0.16) at L=0.746 gives real glow against deep navy.
-       Geometry preserved: x 1px, y 3.5px, blur 10.5px, spread 0.5px. */
-    --shadow-color: oklch(0.746 0.16 232.661);
-    --shadow-2xs: 1px 3.5px 10.5px 0.5px oklch(0.746 0.16 232.661 / 0.20);
-    --shadow-xs:  1px 3.5px 10.5px 0.5px oklch(0.746 0.16 232.661 / 0.22);
-    --shadow-sm:  1px 3.5px 10.5px 0.5px oklch(0.746 0.16 232.661 / 0.35), 1px 1px 2px -0.5px oklch(0.746 0.16 232.661 / 0.40);
-    --shadow:     1px 3.5px 10.5px 0.5px oklch(0.746 0.16 232.661 / 0.40), 1px 1px 2px -0.5px oklch(0.746 0.16 232.661 / 0.45);
-    --shadow-md:  1px 3.5px 14px   0.5px oklch(0.746 0.16 232.661 / 0.45), 1px 2px 4px -0.5px oklch(0.746 0.16 232.661 / 0.50);
-    --shadow-lg:  1px 3.5px 20px   1px   oklch(0.746 0.16 232.661 / 0.55), 1px 4px 6px -0.5px oklch(0.746 0.16 232.661 / 0.55);
-    --shadow-xl:  1px 3.5px 28px   2px   oklch(0.746 0.16 232.661 / 0.60), 1px 8px 10px -0.5px oklch(0.746 0.16 232.661 / 0.55);
-    --shadow-2xl: 1px 3.5px 40px   3px   oklch(0.746 0.16 232.661 / 0.75);
+    /* Dark shadows keep the established geometry but take their chroma from
+       the active brand rather than a hard-coded blue-purple glow. */
+    --shadow-color: var(--primary);
+    --shadow-2xs: 1px 3.5px 10.5px 0.5px color-mix(in oklch, var(--primary) 20%, transparent);
+    --shadow-xs:  1px 3.5px 10.5px 0.5px color-mix(in oklch, var(--primary) 22%, transparent);
+    --shadow-sm:  1px 3.5px 10.5px 0.5px color-mix(in oklch, var(--primary) 35%, transparent), 1px 1px 2px -0.5px color-mix(in oklch, var(--primary) 40%, transparent);
+    --shadow:     1px 3.5px 10.5px 0.5px color-mix(in oklch, var(--primary) 40%, transparent), 1px 1px 2px -0.5px color-mix(in oklch, var(--primary) 45%, transparent);
+    --shadow-md:  1px 3.5px 14px   0.5px color-mix(in oklch, var(--primary) 45%, transparent), 1px 2px 4px -0.5px color-mix(in oklch, var(--primary) 50%, transparent);
+    --shadow-lg:  1px 3.5px 20px   1px   color-mix(in oklch, var(--primary) 55%, transparent), 1px 4px 6px -0.5px color-mix(in oklch, var(--primary) 55%, transparent);
+    --shadow-xl:  1px 3.5px 28px   2px   color-mix(in oklch, var(--primary) 60%, transparent), 1px 8px 10px -0.5px color-mix(in oklch, var(--primary) 55%, transparent);
+    --shadow-2xl: 1px 3.5px 40px   3px   color-mix(in oklch, var(--primary) 75%, transparent);
 
     --shadow-realistic-sm: var(--shadow-sm);
     --shadow-realistic:    var(--shadow-lg);
     --shadow-realistic-lg: var(--shadow-xl);
 
-    /* Card gradients — Lotto pattern: visible lightness + chroma differential.
-       Default: cool blue (L 0.20 → 0.24). Primary tint: emerald-leaning. */
-    --feed-card-gradient: linear-gradient(135deg, oklch(0.22 0.025 250) 0%, oklch(0.26 0.045 250) 100%);
-    --feed-card-gradient-primary: linear-gradient(135deg, oklch(0.22 0.035 220) 0%, oklch(0.27 0.06 220) 100%);
+    /* Card gradients follow the active semantic surface and accent roles. */
+    --feed-card-gradient: linear-gradient(135deg, var(--card) 0%, color-mix(in oklch, var(--secondary) 28%, var(--card)) 100%);
+    --feed-card-gradient-primary: linear-gradient(135deg, var(--card) 0%, color-mix(in oklch, var(--primary) 14%, var(--card)) 100%);
 
     /* Prism-style universal card-gradient tokens (dark). */
-    --card-gradient-start: color-mix(in srgb, hsl(var(--primary)) 9%, hsl(var(--card)));
-    --card-gradient-end:   color-mix(in srgb, hsl(var(--card)) 92%, black);
+    --card-gradient-start: color-mix(in srgb, var(--primary) 9%, var(--card));
+    --card-gradient-end:   color-mix(in srgb, var(--card) 92%, black);
 
-    /* Atmospheric body backdrop — Temple PDX "shell" pattern.
-       Top layer (painted first / on top): two cool radial glows + a soft mid haze.
-       Bottom layer: a 138deg navy → mid → lighter-blue base. A subtle bottom
-       veil deepens the lower edge. Gives shadows a brighter surface to fall onto. */
-    --feed-shell-base-start:    hsl(221 44% 9%);
-    --feed-shell-base-mid:      hsl(224 30% 17%);
-    --feed-shell-base-end:      hsl(229 24% 20%);
-    --feed-shell-glow-primary:  hsl(219 66% 58% / 0.20);
-    --feed-shell-glow-secondary:hsl(229 38% 56% / 0.16);
-    --feed-shell-haze:          hsl(223 18% 72% / 0.06);
-    --feed-shell-veil:          hsl(225 20% 7% / 0.20);
+    /* Atmospheric body backdrop, derived from the active brand. */
+    --feed-shell-base-start: var(--background);
+    --feed-shell-base-mid: color-mix(in oklch, var(--secondary) 30%, var(--background));
+    --feed-shell-base-end: color-mix(in oklch, var(--primary) 9%, var(--background));
+    --feed-shell-glow-primary: color-mix(in oklch, var(--primary) 12%, transparent);
+    --feed-shell-glow-secondary: color-mix(in oklch, var(--accent-foreground) 10%, transparent);
+    --feed-shell-haze: color-mix(in oklch, var(--accent) 10%, transparent);
+    --feed-shell-veil: color-mix(in oklch, var(--background) 26%, transparent);
     --feed-app-backdrop:
       linear-gradient(180deg, transparent 0%, var(--feed-shell-veil) 100%),
       radial-gradient(144% 112% at 16% 86%, var(--feed-shell-glow-primary)   0%, transparent 62%),
@@ -395,15 +391,15 @@
 
   .print-theme {
     /* Print-specific theme overrides */
-    --background: 0 0% 100%;
-    --foreground: 0 0% 0%;
-    --card: 0 0% 99%;
-    --card-foreground: 0 0% 10%;
-    --muted: 0 0% 95%;
-    --muted-foreground: 0 0% 40%;
-    --border: 0 0% 82%;
-    --primary: 211 60% 40%;
-    --primary-foreground: 0 0% 100%;
+    --background: hsl(0 0% 100%);
+    --foreground: hsl(0 0% 0%);
+    --card: hsl(0 0% 99%);
+    --card-foreground: hsl(0 0% 10%);
+    --muted: hsl(0 0% 95%);
+    --muted-foreground: hsl(0 0% 40%);
+    --border: hsl(0 0% 82%);
+    --primary: hsl(211 60% 40%);
+    --primary-foreground: hsl(0 0% 100%);
     --feed-shell-base-start: hsl(0 0% 100%);
     --feed-shell-base-mid: hsl(0 0% 100%);
     --feed-shell-base-end: hsl(0 0% 100%);
@@ -422,18 +418,18 @@
     --feed-shell-surface-shadow: none;
 
     /* Status Flag Colors - Light Mode */
-    --status-success-bg: 142 76% 97%;
-    --status-success-border: 142 71% 45%;
-    --status-success-text: 142 71% 30%;
-    --status-warning-bg: 38 100% 92%;
-    --status-warning-border: 38 92% 50%;
-    --status-warning-text: 38 100% 50%;
-    --status-danger-bg: 0 84% 97%;
-    --status-danger-border: 0 84% 60%;
-    --status-danger-text: 0 84% 30%;
-    --status-neutral-bg: 220 14% 96%;
-    --status-neutral-border: 220 14% 60%;
-    --status-neutral-text: 220 14% 40%;
+    --status-success-bg: hsl(142 76% 97%);
+    --status-success-border: hsl(142 71% 45%);
+    --status-success-text: hsl(142 71% 30%);
+    --status-warning-bg: hsl(38 100% 92%);
+    --status-warning-border: hsl(38 92% 50%);
+    --status-warning-text: hsl(38 100% 50%);
+    --status-danger-bg: hsl(0 84% 97%);
+    --status-danger-border: hsl(0 84% 60%);
+    --status-danger-text: hsl(0 84% 30%);
+    --status-neutral-bg: hsl(220 14% 96%);
+    --status-neutral-border: hsl(220 14% 60%);
+    --status-neutral-text: hsl(220 14% 40%);
 
     /* Print must never carry app shadows or gradients. */
     --shadow-2xs: 0 0 #0000;
@@ -916,7 +912,7 @@
 
   .feed-shell-header-panel {
     border-color: var(--feed-shell-header-border);
-    background-color: hsl(var(--background) / 0.4);
+    background-color: color-mix(in oklch, var(--background) 40%, transparent);
     background-image: linear-gradient(180deg, var(--feed-shell-header-start), var(--feed-shell-header-end));
     box-shadow: var(--feed-shell-surface-shadow);
     backdrop-filter: blur(14px) saturate(1.5);
@@ -925,7 +921,7 @@
 
   .feed-shell-sidebar [data-sidebar="sidebar"] {
     border-color: var(--feed-shell-panel-border);
-    background-color: hsl(var(--sidebar-background) / 0.82);
+    background-color: color-mix(in oklch, var(--sidebar-background) 82%, transparent);
     background-image: linear-gradient(180deg, var(--feed-shell-panel-start), var(--feed-shell-panel-end));
     box-shadow: var(--feed-shell-surface-shadow);
     backdrop-filter: blur(16px);
@@ -948,7 +944,7 @@
 
   [data-feed-card-interactive="true"]:is(:hover, :focus-within) {
     transform: translateY(-1px);
-    box-shadow: 0 22px 54px -42px hsl(var(--primary) / 0.55);
+    box-shadow: 0 22px 54px -42px color-mix(in oklch, var(--primary) 55%, transparent);
   }
 
   .print-theme .feed-shell-backdrop,
@@ -996,15 +992,15 @@
   }
 
   .shopping-list-print-page {
-    --background: 0 0% 100%;
-    --foreground: 224 71% 4%;
-    --card: 0 0% 100%;
-    --card-foreground: 224 71% 4%;
-    --muted: 220 14% 96%;
-    --muted-foreground: 220 9% 46%;
-    --border: 220 13% 69%;
-    --primary: 211 60% 40%;
-    --primary-foreground: 0 0% 100%;
+    --background: hsl(0 0% 100%);
+    --foreground: hsl(224 71% 4%);
+    --card: hsl(0 0% 100%);
+    --card-foreground: hsl(224 71% 4%);
+    --muted: hsl(220 14% 96%);
+    --muted-foreground: hsl(220 9% 46%);
+    --border: hsl(220 13% 69%);
+    --primary: hsl(211 60% 40%);
+    --primary-foreground: hsl(0 0% 100%);
     background: #ffffff;
     color: #111827;
     font-family: 'Noto Sans', 'Noto Sans Symbols', 'Noto Sans Symbols 2', 'Noto Naskh Arabic', 'Noto Sans Hebrew', Arial, Helvetica, sans-serif;
@@ -1012,15 +1008,15 @@
 
   /* Recharts Tooltip Dark Mode Support */
   .recharts-tooltip-wrapper .recharts-tooltip-label {
-    color: hsl(var(--popover-foreground)) !important;
+    color: var(--popover-foreground) !important;
   }
 
   .recharts-tooltip-wrapper .recharts-tooltip-item-name {
-    color: hsl(var(--muted-foreground)) !important;
+    color: var(--muted-foreground) !important;
   }
 
   .recharts-tooltip-wrapper .recharts-tooltip-item-value {
-    color: hsl(var(--popover-foreground)) !important;
+    color: var(--popover-foreground) !important;
   }
 
   /* Table Layout and Text Truncation */

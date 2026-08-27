@@ -180,27 +180,6 @@ export const CONTRAST_PAIRS: ReadonlyArray<{
   { foreground: 'sidebar-border', background: 'sidebar-background', kind: 'decorative' },
 ];
 
-/**
- * Not yet derived: the app-shell atmosphere (`--feed-shell-*`).
- *
- * Eleven of those tokens already read `hsl(var(--background))` or
- * `hsl(var(--card))` and so follow a brand for free. Eight are hardcoded hues —
- * the base gradient stops, the two glows, the haze and the veil — and they are
- * gradients rather than flat colours, so they need a serializer of their own
- * rather than a stop-map entry. Phase 1 work; until then a rebranded deployment
- * keeps FEED's blue backdrop behind correctly rebranded content.
- */
-export const UNDERIVED_SHELL_TOKENS = [
-  'feed-shell-base-start',
-  'feed-shell-base-mid',
-  'feed-shell-base-end',
-  'feed-shell-glow-primary',
-  'feed-shell-glow-secondary',
-  'feed-shell-haze',
-  'feed-shell-veil',
-  'feed-shell-panel-end',
-] as const;
-
 export const CONTRAST_FLOOR = { text: 4.5, ui: 3, decorative: 1.3 } as const;
 
 /**

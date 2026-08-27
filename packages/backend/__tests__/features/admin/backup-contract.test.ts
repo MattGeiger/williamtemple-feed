@@ -152,10 +152,10 @@ describe('sanitized backup table contract', () => {
     }
   });
 
-  it('has bumped the contract version for roster and LOTTO sync provenance', () => {
+  it('has bumped the contract version for portable organization branding', () => {
     // Readers key on this, so a shape change that does not bump it is a silent
     // incompatibility.
-    expect(TABLE_CONTRACT_VERSION).toBe(11);
+    expect(TABLE_CONTRACT_VERSION).toBe(12);
   });
 
   it('keeps prepared Service imports outside the portable organization snapshot', () => {
@@ -211,6 +211,8 @@ describe('sanitized backup table contract', () => {
       'ProcurementImport',
       'ServiceEncounterRevision',
       'OperatingHoursRevision',
+      'BrandConfiguration',
+      'BrandAsset',
       'User',
       'LottoQueueSyncRun',
       'LottoQueueSessionRevision',

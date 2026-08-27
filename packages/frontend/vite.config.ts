@@ -17,6 +17,11 @@ export default defineConfig(({ mode }) => {
         "@": path.resolve(__dirname, "./src"),
       },
     },
+    server: {
+      proxy: {
+        '/api': 'http://localhost:3001',
+      },
+    },
     // Vite options tailored for production mode
     ...(mode === 'production' && {
       build: {

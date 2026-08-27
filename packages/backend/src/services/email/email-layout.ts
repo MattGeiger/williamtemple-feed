@@ -57,6 +57,24 @@ export const BRAND = {
   card: '#FFFFFF',
 } as const;
 
+export type EmailLayoutBrand = {
+  organizationName: string;
+  appName: string;
+  tagline: string;
+  organizationWebsite: string;
+  logoUrl: string;
+  colors: typeof BRAND | Record<keyof typeof BRAND, string>;
+};
+
+export const DEFAULT_EMAIL_BRAND: EmailLayoutBrand = {
+  organizationName: 'William Temple House',
+  appName: 'FEED',
+  tagline: 'Food Equity & Efficient Delivery',
+  organizationWebsite: 'https://www.williamtemple.org/',
+  logoUrl: '',
+  colors: BRAND,
+};
+
 const FONT_STACK =
   "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif";
 
@@ -83,10 +101,10 @@ export const escapeHtml = (value: string): string =>
     .replace(/'/g, '&#39;');
 
 /** A branded call-to-action. Table-based, because Outlook ignores padding on `a`. */
-export const button = (href: string, label: string): string => `
+export const button = (href: string, label: string, brand: EmailLayoutBrand = DEFAULT_EMAIL_BRAND): string => `
   <table cellpadding="0" cellspacing="0" border="0" style="margin: 0 auto;">
     <tr>
-      <td align="center" bgcolor="${BRAND.blue}" style="border-radius: 6px;">
+      <td align="center" bgcolor="${brand.colors.blue}" style="border-radius: 6px;">
         <a href="${href}" style="display: inline-block; padding: 14px 32px; font-family: ${FONT_STACK}; font-size: 16px; font-weight: 600; color: #FFFFFF; text-decoration: none; border-radius: 6px;">
           ${label}
         </a>
@@ -113,7 +131,10 @@ type LayoutOptions = {
  * Wraps content in the branded shell: logo, wordmark, accent rule, card, and
  * the standing footer.
  */
-export const renderEmail = ({ title, preheader, content, security }: LayoutOptions): string => `<!DOCTYPE html>
+export const renderEmail = ({ title, preheader, content, security }: LayoutOptions, brand: EmailLayoutBrand = DEFAULT_EMAIL_BRAND): string => {
+  const palette = brand.colors;
+  const resolvedLogoUrl = brand.logoUrl || logoUrl();
+  return `<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="utf-8">
@@ -122,16 +143,16 @@ export const renderEmail = ({ title, preheader, content, security }: LayoutOptio
     <meta name="supported-color-schemes" content="light">
     <title>${escapeHtml(title)}</title>
   </head>
-  <body style="margin: 0; padding: 0; background-color: ${BRAND.page}; font-family: ${FONT_STACK};">
+  <body style="margin: 0; padding: 0; background-color: ${palette.page}; font-family: ${FONT_STACK};">
     <!-- Preheader: shown in the inbox list, never on the page. -->
     <div style="display: none; max-height: 0; overflow: hidden; opacity: 0; color: transparent; height: 0; width: 0;">
       ${escapeHtml(preheader)}
     </div>
 
-    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: ${BRAND.page}; padding: 32px 12px;">
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: ${palette.page}; padding: 32px 12px;">
       <tr>
         <td align="center">
-          <table width="600" cellpadding="0" cellspacing="0" border="0" style="width: 100%; max-width: 600px; background-color: ${BRAND.card}; border-radius: 10px; overflow: hidden; border: 1px solid ${BRAND.hairline};">
+          <table width="600" cellpadding="0" cellspacing="0" border="0" style="width: 100%; max-width: 600px; background-color: ${palette.card}; border-radius: 10px; overflow: hidden; border: 1px solid ${palette.hairline};">
 
             <!--
               Header sits on an explicit white background. The logo is full
@@ -141,10 +162,10 @@ export const renderEmail = ({ title, preheader, content, security }: LayoutOptio
             -->
             <tr>
               <td align="center" bgcolor="#FFFFFF" style="padding: 32px 40px 20px 40px; background-color: #FFFFFF;">
-                <img src="${logoUrl()}" width="260" alt="William Temple House"
+                <img src="${resolvedLogoUrl}" width="260" alt="${escapeHtml(brand.organizationName)}"
                      style="width: 260px; max-width: 100%; height: auto; display: block; border: 0;">
-                <p style="margin: 16px 0 0 0; font-size: 12px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: ${BRAND.blue};">
-                  FEED &middot; Food Equity &amp; Efficient Delivery
+                <p style="margin: 16px 0 0 0; font-size: 12px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: ${palette.blue};">
+                  ${escapeHtml(brand.appName)} &middot; ${escapeHtml(brand.tagline)}
                 </p>
               </td>
             </tr>
@@ -154,33 +175,32 @@ export const renderEmail = ({ title, preheader, content, security }: LayoutOptio
               <td style="padding: 0 40px;">
                 <table width="100%" cellpadding="0" cellspacing="0" border="0">
                   <tr>
-                    <td bgcolor="${BRAND.blue}" height="3" style="background-color: ${BRAND.blue}; font-size: 0; line-height: 0;">&nbsp;</td>
-                    <td bgcolor="${BRAND.gold}" height="3" width="72" style="background-color: ${BRAND.gold}; font-size: 0; line-height: 0;">&nbsp;</td>
+                    <td bgcolor="${palette.blue}" height="3" style="background-color: ${palette.blue}; font-size: 0; line-height: 0;">&nbsp;</td>
+                    <td bgcolor="${palette.gold}" height="3" width="72" style="background-color: ${palette.gold}; font-size: 0; line-height: 0;">&nbsp;</td>
                   </tr>
                 </table>
               </td>
             </tr>
 
             <tr>
-              <td style="padding: 32px 40px 8px 40px; font-family: ${FONT_STACK}; color: ${BRAND.body};">
+              <td style="padding: 32px 40px 8px 40px; font-family: ${FONT_STACK}; color: ${palette.body};">
                 ${content}
               </td>
             </tr>
 
             <tr>
               <td style="padding: 24px 40px 32px 40px;">
-                <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-top: 1px solid ${BRAND.hairline};">
+                <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-top: 1px solid ${palette.hairline};">
                   <tr>
-                    <td style="padding-top: 20px; font-family: ${FONT_STACK}; font-size: 13px; line-height: 20px; color: ${BRAND.muted};">
+                    <td style="padding-top: 20px; font-family: ${FONT_STACK}; font-size: 13px; line-height: 20px; color: ${palette.muted};">
                       <p style="margin: 0 0 10px 0;">${security}</p>
                       <p style="margin: 0 0 10px 0;">
-                        FEED will never ask you for a password, and will never ask you to
+                        ${escapeHtml(brand.appName)} will never ask you for a password, and will never ask you to
                         reply to this message with a code.
                       </p>
                       <p style="margin: 0;">
-                        Sent by <strong style="color: ${BRAND.body};">William Temple House</strong> &middot;
-                        Portland, Oregon &middot;
-                        <a href="https://feed.williamtemple.app" style="color: ${BRAND.blue}; text-decoration: none;">feed.williamtemple.app</a>
+                        Sent by <strong style="color: ${palette.body};">${escapeHtml(brand.organizationName)}</strong> &middot;
+                        <a href="${escapeHtml(brand.organizationWebsite)}" style="color: ${palette.blue}; text-decoration: none;">${escapeHtml(brand.organizationWebsite)}</a>
                       </p>
                     </td>
                   </tr>
@@ -193,11 +213,12 @@ export const renderEmail = ({ title, preheader, content, security }: LayoutOptio
     </table>
   </body>
 </html>`;
+};
 
 /** Heading style shared by every message body. */
-export const heading = (text: string): string =>
-  `<h1 style="margin: 0 0 16px 0; font-family: ${FONT_STACK}; font-size: 22px; line-height: 30px; font-weight: 600; color: ${BRAND.ink};">${text}</h1>`;
+export const heading = (text: string, brand: EmailLayoutBrand = DEFAULT_EMAIL_BRAND): string =>
+  `<h1 style="margin: 0 0 16px 0; font-family: ${FONT_STACK}; font-size: 22px; line-height: 30px; font-weight: 600; color: ${brand.colors.ink};">${text}</h1>`;
 
 /** Body paragraph. */
-export const paragraph = (html: string, extra = ''): string =>
-  `<p style="margin: 0 0 16px 0; font-family: ${FONT_STACK}; font-size: 16px; line-height: 25px; color: ${BRAND.body};${extra}">${html}</p>`;
+export const paragraph = (html: string, extra = '', brand: EmailLayoutBrand = DEFAULT_EMAIL_BRAND): string =>
+  `<p style="margin: 0 0 16px 0; font-family: ${FONT_STACK}; font-size: 16px; line-height: 25px; color: ${brand.colors.body};${extra}">${html}</p>`;

@@ -8,6 +8,8 @@
 import { NextFunction, Request, Response, Router } from 'express';
 import prisma from '../db';
 import { version } from '../../package.json';
+import { resolveBrand } from '../services/brand-config';
+import { getDeploymentSettings } from '../services/deployment-settings';
 
 const router = Router();
 
@@ -106,6 +108,22 @@ router.options('/inventory.json', (_req: Request, res: Response) => {
 
 router.get('/inventory.json', async (_req: Request, res: Response, next: NextFunction) => {
   try {
+    // Read the deployment capability, not the appearance. Whether this feed is
+    // published is an operational decision an administrator owns in Data
+    // Management; it must stay answerable while FEED runs its built-in identity,
+    // which has no stored appearance row to carry a flag.
+    const { publicInventoryEnabled } = await getDeploymentSettings();
+    // Identity for the payload still comes from the brand; only the decision to
+    // publish at all moved out of it.
+    const brand = await resolveBrand();
+    if (!publicInventoryEnabled) {
+      return res.status(404).json({
+        error: {
+          message: 'This organization does not publish a public inventory feed.',
+          code: 'PUBLIC_INVENTORY_DISABLED',
+        },
+      });
+    }
     const enabledLanguages = await prisma.language.findMany({
       where: { isEnabled: true },
       orderBy: { sortOrder: 'asc' },
@@ -225,6 +243,10 @@ router.get('/inventory.json', async (_req: Request, res: Response, next: NextFun
     res.json({
       generatedAt: new Date().toISOString(),
       version,
+      organization: {
+        name: brand.config.identity.organizationName,
+        appName: brand.config.identity.appName,
+      },
       languages: enabledLanguageNames,
       categories: publicCategories,
       totals: {

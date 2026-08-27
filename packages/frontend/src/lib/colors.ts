@@ -157,6 +157,23 @@ export const CARBON_CATEGORICAL_ORDER: readonly CarbonFamily[] = [
   'green', 'yellow', 'cyan', 'red', 'warmGray',
 ];
 
+let runtimeCategoricalOrder: readonly CarbonFamily[] = CARBON_CATEGORICAL_ORDER;
+
+/** Apply the server-proven brand rotation without changing Carbon's hue-hopping order. */
+export function setCarbonCategoricalOrder(order: readonly string[]): void {
+  const known = new Set(CARBON_CATEGORICAL_ORDER);
+  if (order.length !== CARBON_CATEGORICAL_ORDER.length || order.some((family) => !known.has(family as CarbonFamily))) {
+    runtimeCategoricalOrder = CARBON_CATEGORICAL_ORDER;
+    return;
+  }
+  runtimeCategoricalOrder = order as readonly CarbonFamily[];
+}
+
+/** Current server-proven order for charts that need to filter family roles. */
+export function carbonCategoricalFamilies(): readonly CarbonFamily[] {
+  return runtimeCategoricalOrder;
+}
+
 export function getCarbonChartColor(
   family: CarbonFamily,
   grade: CarbonGrade = 'primary',
@@ -181,7 +198,7 @@ export function carbonTheme(
  * grade, second cycle the secondary grade (20 distinct colors total).
  */
 export function carbonCategoricalTheme(index: number): Record<ColorScheme, string> {
-  const families = CARBON_CATEGORICAL_ORDER;
+  const families = runtimeCategoricalOrder;
   const family = families[index % families.length];
   const grade: CarbonGrade =
     Math.floor(index / families.length) % 2 === 0 ? 'primary' : 'secondary';
@@ -199,14 +216,14 @@ export const chartConfigPresets = {
     },
     label: {
       theme: {
-        light: 'hsl(var(--background))',
-        dark: 'hsl(var(--background))'
+        light: 'var(--background)',
+        dark: 'var(--background)'
       }
     },
     categoryLabel: {
       theme: {
-        light: 'hsl(var(--background))',
-        dark: 'hsl(var(--background))'
+        light: 'var(--background)',
+        dark: 'var(--background)'
       }
     }
   } satisfies ChartConfig,

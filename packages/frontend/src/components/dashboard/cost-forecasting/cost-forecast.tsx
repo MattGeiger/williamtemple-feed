@@ -71,10 +71,10 @@ function formatNumber(value: number, isToken: boolean = false): string {
 
 function getServiceColorClass(serviceType: ServiceProvider): string {
   const serviceColorMap = {
-    'OpenAI': 'bg-[hsl(var(--service-openai))]',
-    'Anthropic': 'bg-[hsl(var(--service-anthropic))]',
-    'Google': 'bg-[hsl(var(--service-google))]',
-    'Azure': 'bg-[hsl(var(--service-azure))]'
+    'OpenAI': 'bg-[var(--service-openai)]',
+    'Anthropic': 'bg-[var(--service-anthropic)]',
+    'Google': 'bg-[var(--service-google)]',
+    'Azure': 'bg-[var(--service-azure)]'
   };
   return serviceColorMap[serviceType] || 'bg-primary';
 }
@@ -130,7 +130,7 @@ function transformConfigurationDataForComparison(
       averageResponseTime,
       successRate: config.successRate,
       operationsCount: config.requestsPerDay.current,
-      color: specs?.color || 'hsl(var(--primary))'
+      color: specs?.color || 'var(--primary)'
     };
   });
 }
@@ -174,15 +174,15 @@ function ConfigurationComparisonChart({
                   return [value, name];
                 }}
                 contentStyle={{
-                  backgroundColor: 'hsl(var(--popover))',
-                  borderColor: 'hsl(var(--border))',
-                  color: 'hsl(var(--popover-foreground))'
+                  backgroundColor: 'var(--popover)',
+                  borderColor: 'var(--border)',
+                  color: 'var(--popover-foreground)'
                 }}
                 labelStyle={{
-                  color: 'hsl(var(--popover-foreground))'
+                  color: 'var(--popover-foreground)'
                 }}
                 itemStyle={{
-                  color: 'hsl(var(--popover-foreground))'
+                  color: 'var(--popover-foreground)'
                 }}
               />
               <Bar isAnimationActive={!prefersReducedMotion()} dataKey="cost" radius={[4, 4, 0, 0]} />
@@ -607,8 +607,8 @@ export function CostForecast() {
                 <AreaChart data={chartData} margin={{ left: 20 }}>
                   <defs>
                     <linearGradient id="colorUpper" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0.1}/>
+                      <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="var(--primary)" stopOpacity={0.1}/>
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" />
@@ -634,15 +634,15 @@ export function CostForecast() {
                       return order[item.dataKey as keyof typeof order] ?? 999;
                     }}
                     contentStyle={{
-                      backgroundColor: 'hsl(var(--popover))',
-                      borderColor: 'hsl(var(--border))',
-                      color: 'hsl(var(--popover-foreground))'
+                      backgroundColor: 'var(--popover)',
+                      borderColor: 'var(--border)',
+                      color: 'var(--popover-foreground)'
                     }}
                     labelStyle={{
-                      color: 'hsl(var(--popover-foreground))'
+                      color: 'var(--popover-foreground)'
                     }}
                     itemStyle={{
-                      color: 'hsl(var(--popover-foreground))'
+                      color: 'var(--popover-foreground)'
                     }}
                   />
                   <Area isAnimationActive={!prefersReducedMotion()}
@@ -656,7 +656,7 @@ export function CostForecast() {
                     type="monotone"
                     dataKey="projected"
                     stackId="2"
-                    stroke="hsl(var(--primary))"
+                    stroke="var(--primary)"
                     fill="none"
                   />
                   <Area isAnimationActive={!prefersReducedMotion()}

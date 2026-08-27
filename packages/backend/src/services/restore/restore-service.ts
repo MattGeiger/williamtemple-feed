@@ -169,7 +169,13 @@ export class RestoreService {
     exit?: (code: number) => void;
   }): Promise<RestoreOutcome> {
     const { data, units } = options;
-    const tables = tablesFor(units);
+    // Older artifact readers deliberately leave tables that did not exist in
+    // that contract absent. Preserve those destination tables instead of
+    // treating absence as an empty section and deleting newer organization
+    // data. A current artifact always includes every table, including explicit
+    // empty arrays, so current-format restores retain replace-not-merge
+    // semantics.
+    const tables = tablesFor(units).filter(table => table in data);
     const rowsWritten: Record<string, number> = {};
 
     const { snapshotPath } = await buildAndSwap(

@@ -39,22 +39,22 @@ const successConfig = {
   success: {
     label: "Success",
     theme: {
-      light: 'hsl(var(--chart-success))',
-      dark: 'hsl(var(--chart-success))'
+      light: 'var(--chart-success)',
+      dark: 'var(--chart-success)'
     }
   },
   pending: {
     label: "Pending",
     theme: {
-      light: 'hsl(var(--chart-warning))',
-      dark: 'hsl(var(--chart-warning))'
+      light: 'var(--chart-warning)',
+      dark: 'var(--chart-warning)'
     }
   },
   failed: {
     label: "Failed",
     theme: {
-      light: 'hsl(var(--chart-danger))',
-      dark: 'hsl(var(--chart-danger))'
+      light: 'var(--chart-danger)',
+      dark: 'var(--chart-danger)'
     }
   }
 } satisfies ChartConfig
@@ -63,14 +63,14 @@ const responseConfig = {
   time: {
     label: "Response Time",
     theme: {
-      light: 'hsl(var(--color-time))',
-      dark: 'hsl(var(--color-time))'
+      light: 'var(--color-time)',
+      dark: 'var(--color-time)'
     }
   },
   label: {
     theme: {
-      light: 'hsl(var(--color-label))',
-      dark: 'hsl(var(--color-label))'
+      light: 'var(--color-label)',
+      dark: 'var(--color-label)'
     }
   },
 } satisfies ChartConfig
@@ -350,19 +350,19 @@ export function TranslationMetrics() {
                 dataKey="success"
                 stackId="a"
                 cornerRadius={5}
-                fill="hsl(var(--chart-success))"
+                fill="var(--chart-success)"
                 className="stroke-transparent stroke-2"
               />
               <RadialBar isAnimationActive={!prefersReducedMotion()}
                 dataKey="pending"
-                fill="hsl(var(--chart-warning))"
+                fill="var(--chart-warning)"
                 stackId="a"
                 cornerRadius={5}
                 className="stroke-transparent stroke-2"
               />
               <RadialBar isAnimationActive={!prefersReducedMotion()}
                 dataKey="failed"
-                fill="hsl(var(--chart-danger))"
+                fill="var(--chart-danger)"
                 stackId="a"
                 cornerRadius={5}
                 className="stroke-transparent stroke-2"

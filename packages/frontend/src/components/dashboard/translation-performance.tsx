@@ -173,13 +173,13 @@ const TIME_RANGE_LABELS: Record<string, string> = {
 // Service-specific color configuration
 const getServiceColor = (serviceType: ServiceProvider | 'all') => {
   const serviceColors = {
-    'OpenAI': 'hsl(var(--service-openai))',
-    'Anthropic': 'hsl(var(--service-anthropic))',
-    'Google': 'hsl(var(--service-google))',
-    'Azure': 'hsl(var(--service-azure))',
-    'all': 'hsl(var(--primary))'
+    'OpenAI': 'var(--service-openai)',
+    'Anthropic': 'var(--service-anthropic)',
+    'Google': 'var(--service-google)',
+    'Azure': 'var(--service-azure)',
+    'all': 'var(--primary)'
   };
-  return serviceColors[serviceType] || 'hsl(var(--primary))';
+  return serviceColors[serviceType] || 'var(--primary)';
 };
 
 const chartConfig = {

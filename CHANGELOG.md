@@ -5,6 +5,77 @@ All notable changes to FEED are documented here. This project adheres to
 
 ## [Unreleased]
 
+### Changed
+
+- **William Temple House keeps its hand-tuned appearance.** The compiled default
+  now ships the exact tuned token values rather than a derived approximation,
+  and the runtime stylesheet is deliberately empty until an appearance is
+  configured. Derivation exists to get a new agency close from a logo, not to
+  restate an identity someone already tuned by eye.
+- **Publishing the inventory feed moved out of the Appearance wizard.** It is a
+  data-sharing decision rather than brand identity, so it now lives in Data
+  Management under Published Data, owned by administrators, and remains
+  changeable while FEED runs its built-in appearance. The wizard is six steps.
+
+### Fixed
+
+- **Appearance errors say what happened and what to do.** A deployment whose
+  appearance tables are missing now reads as a setup step with a named remedy
+  instead of a raw database message; the underlying detail goes to the server
+  log. Saving and uploading report the same way rather than a generic failure.
+- **The one-time sign-in code boxes have a solid fill**, matching every other
+  field in FEED. The primitive was missed when the other form controls were
+  corrected.
+- **A new appearance starts with a neutral placeholder logo** rather than
+  another organization's mark.
+
+
+## [1.7.5-beta.1] — 2026-08-27
+
+### Added
+
+- **Administrators can align FEED with another food-pantry organization without
+  rebuilding the app.** Settings → Appearance now includes a seven-step
+  organization customization workflow for identity, logos and app mark,
+  accessible brand colors, staff sign-in copy, public-inventory capability,
+  and terminology. Configurations can be saved as drafts, previewed for one
+  browser session, activated organization-wide, reverted, and deleted.
+- **Brand configuration and normalized image assets are portable data.** The
+  database stores the validated configuration, inert PNG image records, and
+  generated 64/192/512 app-mark sizes; sanitized backup contract 12 carries
+  both tables. Older artifacts preserve destination brand records when those
+  tables are absent.
+- **A St. Johns Food Share proof configuration ships beside the William Temple
+  House default.** It provides a real second color story and terminology set
+  while using a generic, replaceable template mark rather than borrowed art.
+
+### Changed
+
+- **Identity and color now resolve at runtime.** A public, cache-revalidated,
+  render-blocking stylesheet supplies light, dark, and unstamped system-theme
+  tokens before React mounts. Invalid or unavailable configuration fails closed
+  to the compiled William Temple House default.
+- **FEED's theme boundary is OKLCH-native.** Tailwind utilities consume complete
+  color values directly, alpha sites use color mixing, and the authored
+  fallback is the same measured Tailwind-derived token map the server emits.
+  Protected inventory/status colors and analytic counting nouns remain outside
+  brand control.
+- **Reports, authentication email, public inventory, and shopping-list PDF
+  metadata follow the active organization.** Server-authored report SVGs use a
+  request-local print palette so simultaneous exports cannot leak colors into
+  one another.
+- **Organization vocabulary is configurable at the display layer.** Explicit
+  singular/plural pantry and client terms plus a department name feed a shared
+  placeholder phrase book. Turning terminology off returns to FEED defaults
+  without deleting the saved words. Household, visit, and person-served retain
+  their fixed analytic definitions.
+
+### Fixed
+
+- **Restoring an older portable backup no longer empties newer destination-only
+  tables.** Restore now distinguishes a table absent from the artifact from a
+  table deliberately included with zero rows.
+
 ## [1.6.5] — 2026-08-26
 
 ### Added

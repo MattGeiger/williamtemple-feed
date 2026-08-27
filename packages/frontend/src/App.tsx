@@ -39,6 +39,7 @@ import { TokenUsageMetrics } from './components/dashboard/token-usage'
 import { useTokenMetrics } from './hooks/dashboard/useTokenMetrics'
 import { ThemeProvider } from './components/theme-provider'
 import { AuthProvider } from './contexts/AuthContext'
+import { BrandProvider, useBrand } from './contexts/BrandContext'
 import { ProtectedRoute } from './components/protected-route'
 import { AdminRoute } from './components/admin-route'
 import { AdminPage as AdminWorkspace } from './components/admin'
@@ -150,6 +151,7 @@ function HomePage() {
 }
 
 function HomePageInner() {
+  const brand = useBrand();
   // React Query 5 Native Refetch Pattern - Dashboard invalidation
   const queryClient = useQueryClient();
   
@@ -176,16 +178,16 @@ function HomePageInner() {
           <CardHeader className="pb-1">
             <div className="flex justify-center mb-1">
               <img 
-                src={wthLogo} 
-                alt="William Temple House Logo" 
+                src={brand.logo.lightSrc || wthLogo}
+                alt={`${brand.identity.organizationName} Logo`}
                 className="h-20 object-contain"
               />
             </div>
             <CardTitle className="text-center text-xl">
-              FEED System
+              {brand.identity.appName} System
             </CardTitle>
             <CardDescription className="text-center text-muted-foreground">
-              Food Equity & Efficient Delivery
+              {brand.identity.tagline}
             </CardDescription>
           </CardHeader>
         </Card>
@@ -431,6 +433,7 @@ function App() {
     <MotionConfig reducedMotion="user">
       <QueryClientProvider client={queryClient}>
         <ThemeProvider>
+          <BrandProvider>
           <AuthProvider>
             <Router>
               <>
@@ -477,6 +480,7 @@ function App() {
               </>
             </Router>
           </AuthProvider>
+          </BrandProvider>
         </ThemeProvider>
         {import.meta.env.VITE_RQ_DEVTOOLS === 'true' && <ReactQueryDevtools initialIsOpen={false} />}
       </QueryClientProvider>

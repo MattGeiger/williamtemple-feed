@@ -18,16 +18,18 @@ import { Mail, KeyRound } from "@/components/ui/icons";
 import { MagicLinkTab } from "./magic-link-tab";
 import { OTPTab } from "./otp-tab";
 import { AuthAttribution } from "./auth-attribution";
+import { useBrand } from '@/contexts/BrandContext';
 
 export function LoginPage() {
+  const brand = useBrand();
   const [activeTab, setActiveTab] = useState<"magic" | "otp">("magic");
 
   return (
     <Card className="w-full max-w-lg">
       <CardHeader>
-        <CardTitle className="text-2xl">Sign in to FEED System</CardTitle>
+        <CardTitle className="text-2xl">{brand.staff.signInTitle}</CardTitle>
         <CardDescription>
-          Staff access — use your @williamtemple.org email
+          {brand.staff.emailGuidance}
         </CardDescription>
       </CardHeader>
 

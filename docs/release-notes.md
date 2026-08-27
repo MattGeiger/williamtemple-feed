@@ -2,6 +2,35 @@
 
 ## Unreleased
 
+## Version 1.7.5-beta.1 — 2026-08-27
+
+*Beta — organization customization and the completed brand-alignment roadmap.*
+
+**FEED can now adopt another food pantry's identity without a rebuild.** An
+administrator can open Settings → Appearance and work through organization
+name and copy, logos, app mark, accessible colors, sign-in language, public
+inventory availability, and local pantry/client terminology. A configuration
+can stay a draft, be previewed only in the current browser session, or become
+the shared appearance every staff member sees. Returning to the built-in
+William Temple House presentation takes one action and does not delete drafts.
+
+**The system carries the identity beyond the app shell.** Authentication email,
+analytics and operational PDFs, report manifests, public inventory, and
+shopping-list PDF metadata now use the active organization. Print remains a
+light paper theme even when the person generating it uses dark mode.
+
+**Terminology changes presentation, never facts.** An organization may say food
+share instead of food pantry, neighbor instead of client, and use its own
+department name. Household, visit, and person served remain fixed because those
+words identify distinct analytic counts.
+
+**The color engine is now OKLCH-native.** FEED derives a complete accessible
+light/dark token set from a small color story and rotates the existing Carbon
+chart palette toward the brand rather than inventing unverified chart colors.
+Inventory statuses retain the same green, amber, red, and gray meanings under
+every brand. The database-backed configuration and normalized image assets are
+included in portable backups.
+
 ## Version 1.6.5 — 2026-08-26
 
 *Everything since 1.6.0, plus a consistency pass over the controls staff touch

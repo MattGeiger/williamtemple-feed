@@ -9,8 +9,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { operationalReportsService } from '@/services/operational-reports';
 import { OperationalAnalyticsResult } from '@/types/operational-reports';
+import { useTerminology } from '@/contexts/TerminologyContext';
 
 export function DashboardOperationalCards() {
+  const terminology = useTerminology();
   const [data, setData] = React.useState<OperationalAnalyticsResult | null>(null);
 
   React.useEffect(() => {
@@ -35,7 +37,7 @@ export function DashboardOperationalCards() {
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-semibold">{data.summary.unavailableNow}</p>
-            <p className="text-xs text-muted-foreground">Not currently offered to clients</p>
+            <p className="text-xs text-muted-foreground">{terminology.format('Not currently offered to {clients}')}</p>
           </CardContent>
         </Card>
       </Link>

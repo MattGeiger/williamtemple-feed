@@ -236,7 +236,7 @@ function MethodRow({
         className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
         style={color
           ? { backgroundColor: `color-mix(in srgb, ${color} 20%, transparent)` }
-          : { backgroundColor: 'hsl(var(--muted))' }}
+          : { backgroundColor: 'var(--muted)' }}
       >
         <Icon
           className="h-5 w-5"
@@ -441,7 +441,7 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
 
   const methodChartConfig = React.useMemo(() => ({
     ...methodConfig,
-    [TOTAL_KEY]: { label: 'All households served', color: 'hsl(var(--muted-foreground))' },
+    [TOTAL_KEY]: { label: 'All households served', color: 'var(--muted-foreground)' },
   }) satisfies ChartConfig, [methodConfig]);
 
   const spansYears = coverage.startDate.slice(0, 4) !== coverage.endDate.slice(0, 4);
@@ -817,9 +817,9 @@ export function ServiceAnalyticsWorkspace({ analytics }: { analytics: ServiceAna
                   <ChartLegend content={<ChartLegendContent />} />
                   {cutoverDate && <ReferenceLine
                     x={cutoverDate}
-                    stroke="hsl(var(--muted-foreground))"
+                    stroke="var(--muted-foreground)"
                     strokeDasharray="4 4"
-                    label={{ value: cutoverLabel, position: 'insideTopRight', fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                    label={{ value: cutoverLabel, position: 'insideTopRight', fontSize: 11, fill: 'var(--muted-foreground)' }}
                   />}
                   {timelineKeys.map((key) => (
                     <Line

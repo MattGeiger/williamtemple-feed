@@ -12,8 +12,10 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/components/ui/use-toast";
 import config from "@/config/config";
+import { useBrand } from '@/contexts/BrandContext';
 
 export function MagicLinkTab() {
+  const brand = useBrand();
   const apiBase =
     ((import.meta.env.VITE_API_BASE_URL as string | undefined) || config.api.baseUrl).replace(/\/$/, '');
   const [email, setEmail] = useState("");
@@ -69,7 +71,7 @@ export function MagicLinkTab() {
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          placeholder="you@williamtemple.org"
+          placeholder={brand.staff.emailPlaceholder}
           className="bg-white dark:bg-slate-950"
           required
           disabled={isLoading}
