@@ -34,7 +34,7 @@
  *     family for a whole role by best aggregate fit.
  */
 
-import { perceptualDistance, type Oklch } from './color';
+import { hueDifference, perceptualDistance, type Oklch } from './color';
 import { TAILWIND_PALETTE, isNeutralFamily, type TailwindEntry } from './palettes';
 
 export type SnapRole = 'chromatic' | 'neutral';
@@ -157,3 +157,62 @@ export const entryToOklch = (entry: TailwindEntry): Oklch => ({
   c: entry.c,
   h: entry.h,
 });
+
+/**
+ * Hue and lightness window where a chromatic family reads as brown.
+ *
+ * Not a chroma problem — `amber` keeps 73% of its chroma from stop 500 to 800.
+ * It is that `amber-800` sits at hue 46 and lightness 47%, and dark orange *is*
+ * brown. No nudge inside the warm band escapes it, which is why the escape is a
+ * different family rather than a different stop.
+ */
+const MUD_HUE_RANGE = [30, 105] as const;
+const MUD_LIGHTNESS_CEILING = 0.55;
+
+export const isMuddy = (entry: TailwindEntry): boolean =>
+  entry.c >= 0.05 &&
+  entry.l < MUD_LIGHTNESS_CEILING &&
+  entry.h >= MUD_HUE_RANGE[0] &&
+  entry.h <= MUD_HUE_RANGE[1];
+
+/**
+ * A substitute family for a warm brand whose dark surface would go muddy.
+ *
+ * Rotating toward green rather than toward red: red at this depth lands on the
+ * clearance band, and a hover surface that reads as a danger tint is worse than
+ * one that reads as deep olive. The operator can override by promoting a
+ * different colour to the accent rank, which is the better fix when the brand
+ * actually has a second colour.
+ */
+export const mudEscapeFamily = (family: string): string => {
+  const anchor = TAILWIND_PALETTE.find(
+    (entry) => entry.family === family && entry.stop === 500
+  );
+  if (!anchor) return family;
+
+  const targetHue = (anchor.h + 60) % 360;
+  const candidates = [
+    ...new Set(
+      TAILWIND_PALETTE.filter((entry) => !isNeutralFamily(entry.family)).map(
+        (entry) => entry.family
+      )
+    ),
+  ]
+    .map((candidate) => {
+      const at500 = TAILWIND_PALETTE.find(
+        (entry) => entry.family === candidate && entry.stop === 500
+      )!;
+      const at800 = TAILWIND_PALETTE.find(
+        (entry) => entry.family === candidate && entry.stop === 800
+      )!;
+      return {
+        family: candidate,
+        distance: Math.abs(hueDifference(targetHue, at500.h)),
+        muddy: isMuddy(at800),
+      };
+    })
+    .filter((candidate) => !candidate.muddy)
+    .sort((a, b) => a.distance - b.distance);
+
+  return candidates[0]?.family ?? family;
+};
