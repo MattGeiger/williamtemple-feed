@@ -89,10 +89,6 @@ const ACCEPTED_DIVERGENCES: Record<string, string> = {
     'FEED hand-picks WTH blue as the text on the gold primary. The derived value ' +
     'is near-black, which is higher contrast and brand-neutral. Restoring the ' +
     'exact pairing is an Advanced-tier override (plan, D9).',
-  'dark --accent':
-    'FEED\'s --accent is internally inconsistent — teal-tinted in light, neutral ' +
-    'in dark, neither matching the brand. The derived value carries the brand hue ' +
-    'into hover and selected surfaces, which is the point of the token.',
   // The next three are FEED's untuned sidebar defaults. All three carry the
   // identical value `222 10.9% 18%` that `--ring` does — the one measuring
   // 1.50:1 — which is the signature of copied placeholders rather than chosen
@@ -107,11 +103,6 @@ const ACCEPTED_DIVERGENCES: Record<string, string> = {
     'own fill.',
   'dark --sidebar-ring':
     'Same untuned placeholder as --ring and --sidebar-primary.',
-  'dark --sidebar-accent':
-    'FEED hand-tunes the selected nav item to a saturated dark blue — the ' +
-    'light-mode brand hue — while the derived theme uses the dark accent ' +
-    'family, as every other accent-role token in the dark scope does. A ' +
-    'deliberate consistency choice over FEED\'s hand-tuned exception.',
   'dark --ring':
     'FEED\'s dark focus ring measures 1.50:1 against the page — below the WCAG ' +
     '1.4.11 floor for focus indicators. The derived ring clears 3:1. This ' +

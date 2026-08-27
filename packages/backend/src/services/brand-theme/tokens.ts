@@ -62,7 +62,7 @@ export type ThemeScope = (typeof THEME_SCOPES)[number];
  * Which pool a token draws from. Accent-role tokens carry the brand hue;
  * surface-role tokens carry the neutral ramp.
  */
-export type TokenRole = 'accent' | 'neutral';
+export type TokenRole = 'accent' | 'accentSecondary' | 'neutral';
 
 type StopRule = {
   role: TokenRole;
@@ -89,12 +89,27 @@ export const STOP_MAP: Record<BrandToken, StopRule> = {
   'popover-foreground':  { role: 'neutral', light: 950, dark: 50 },
   primary:               { role: 'accent', light: 800, dark: 300 },
   'primary-foreground':  { role: 'neutral', light: 'white', dark: 950 },
-  secondary:             { role: 'neutral', light: 100, dark: 800 },
+  // `secondary` is a control surface and `muted` is a background that recedes,
+  // so they must not resolve to the same value — at a shared stop they came out
+  // byte-identical and `bg-secondary` was indistinguishable from `bg-muted`.
+  secondary:             { role: 'neutral', light: 200, dark: 700 },
   'secondary-foreground':{ role: 'neutral', light: 900, dark: 100 },
   muted:                 { role: 'neutral', light: 100, dark: 800 },
+  // Muting exists to lower something in the hierarchy, so a quieter value here
+  // would be the intent rather than a shortfall — but the palette's granularity
+  // does not offer one. Measured across all 153 themes: 600/400 clears the floor
+  // at 6.26 and 5.56, and the next step down (600/500) drops dark muted text to
+  // 3.03:1. There is no stop between. `text-muted-foreground` carries real body
+  // copy in FEED — card descriptions, table detail, footnotes — and WCAG 1.4.3
+  // has no exemption for text that is meant to be quiet, so this stays at the
+  // passing pair. Genuinely quieter muted text is an Advanced-tier override.
   'muted-foreground':    { role: 'neutral', light: 600, dark: 400 },
-  accent:                { role: 'accent', light: 100, dark: 800 },
-  'accent-foreground':   { role: 'accent', light: 900, dark: 100 },
+  // The hover/selected surface takes the brand's *second* colour, not a darkened
+  // primary. A brand with two colours (WTH is blue and gold; Pepsi is red and
+  // blue) gets its own pairing; a single-colour brand falls back to the neutral
+  // ramp, which is what FEED does by hand today.
+  accent:                { role: 'accentSecondary', light: 100, dark: 800 },
+  'accent-foreground':   { role: 'accentSecondary', light: 900, dark: 100 },
   border:                { role: 'neutral', light: 300, dark: 700 },
   input:                 { role: 'neutral', light: 300, dark: 700 },
   // 700, not 600: yellow is the lightest chromatic family, and `yellow-600`
@@ -110,8 +125,8 @@ export const STOP_MAP: Record<BrandToken, StopRule> = {
   'sidebar-foreground':        { role: 'neutral', light: 900, dark: 100 },
   'sidebar-primary':           { role: 'accent', light: 800, dark: 300 },
   'sidebar-primary-foreground':{ role: 'neutral', light: 'white', dark: 950 },
-  'sidebar-accent':            { role: 'accent', light: 100, dark: 800 },
-  'sidebar-accent-foreground': { role: 'accent', light: 900, dark: 100 },
+  'sidebar-accent':            { role: 'accentSecondary', light: 100, dark: 800 },
+  'sidebar-accent-foreground': { role: 'accentSecondary', light: 900, dark: 100 },
   'sidebar-border':            { role: 'neutral', light: 300, dark: 700 },
   'sidebar-ring':              { role: 'accent', light: 700, dark: 400 },
 };

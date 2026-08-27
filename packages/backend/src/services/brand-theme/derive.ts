@@ -16,7 +16,15 @@
  */
 
 import type { Oklch } from './color';
-import { entryToOklch, paletteEntry, snap, type SnapCandidate } from './snap';
+import { proposeColorStory, type ColorStory } from './color-story';
+import {
+  entryToOklch,
+  isMuddy,
+  mudEscapeFamily,
+  paletteEntry,
+  snap,
+  type SnapCandidate,
+} from './snap';
 import {
   BRAND_TOKENS,
   STOP_MAP,
@@ -51,10 +59,27 @@ export type BrandInput = {
   accentDarkFamily?: string;
   /** Overrides the snapped neutral family. */
   neutralFamily?: string;
+  /**
+   * The brand's colours in rank order, most important first — normally the
+   * output of logo extraction. When present it supersedes `accent`/`neutral`:
+   * rank 1 becomes the primary, rank 2 the accent surface, the rest ambience.
+   */
+  hierarchy?: readonly Oklch[];
 };
 
 export type ResolvedFamilies = {
   accentFamily: string;
+  /**
+   * Family for the hover/selected surface. The brand's second colour where it
+   * has one; otherwise the neutral ramp, so a single-colour brand does not get
+   * a muddy darkened primary smeared across every hover state.
+   */
+  accentSecondaryFamily: string;
+  /** True when `accentSecondaryFamily` names a neutral ramp. */
+  accentSecondaryIsNeutral: boolean;
+  /** Set when the secondary family was moved off a muddy warm hue. */
+  mudEscapedFrom: string | null;
+  story: ColorStory | null;
   /** Equals `accentFamily` unless the brand supplies a separate dark accent. */
   accentDarkFamily: string;
   neutralFamily: string;
@@ -84,18 +109,42 @@ const neutralTargetFor = (input: BrandInput): Oklch =>
   input.neutral ?? { l: 0.5, c: 0.02, h: input.accent.h };
 
 export const resolveFamilies = (input: BrandInput): ResolvedFamilies => {
-  const accentSnap = snap(input.accent, 'chromatic');
+  const story = input.hierarchy ? proposeColorStory(input.hierarchy) : null;
+  const accentSource = story?.primary ?? input.accent;
+  const accentSnap = snap(accentSource, 'chromatic');
   const accentDarkSnap = input.accentDark ? snap(input.accentDark, 'chromatic') : null;
   const neutralTarget = neutralTargetFor(input);
   const neutralSnap = snap(neutralTarget, 'neutral');
 
   const accentFamily = input.accentFamily ?? accentSnap.entry.family;
+  const neutralFamily = input.neutralFamily ?? neutralSnap.entry.family;
+
+  // The accent surface prefers the brand's second colour. Without one it falls
+  // back to the neutral ramp rather than to a darkened primary — which is what
+  // produced `amber-800`, a brown, across every dark-mode hover state.
+  const secondary = story?.accent ? snap(story.accent, 'chromatic') : null;
+  let accentSecondaryFamily = secondary?.entry.family ?? neutralFamily;
+  let accentSecondaryIsNeutral = secondary === null;
+  let mudEscapedFrom: string | null = null;
+
+  if (secondary && isMuddy(paletteEntry(accentSecondaryFamily, 800))) {
+    const escaped = mudEscapeFamily(accentSecondaryFamily);
+    if (escaped !== accentSecondaryFamily) {
+      mudEscapedFrom = accentSecondaryFamily;
+      accentSecondaryFamily = escaped;
+    }
+    accentSecondaryIsNeutral = false;
+  }
 
   return {
     accentFamily,
     accentDarkFamily:
       input.accentDarkFamily ?? accentDarkSnap?.entry.family ?? accentFamily,
-    neutralFamily: input.neutralFamily ?? neutralSnap.entry.family,
+    accentSecondaryFamily,
+    accentSecondaryIsNeutral,
+    mudEscapedFrom,
+    story,
+    neutralFamily,
     accentSnap,
     accentDarkSnap,
     neutralSnap: input.neutral ? neutralSnap : null,
@@ -113,7 +162,14 @@ const colorFor = (
 
   const accentFamily =
     scope === 'dark' ? families.accentDarkFamily : families.accentFamily;
-  const family = rule.role === 'accent' ? accentFamily : families.neutralFamily;
+
+  const family =
+    rule.role === 'accent'
+      ? accentFamily
+      : rule.role === 'accentSecondary'
+        ? families.accentSecondaryFamily
+        : families.neutralFamily;
+
   return entryToOklch(paletteEntry(family, stop));
 };
 
@@ -144,6 +200,12 @@ export const deriveFromFamilies = (
   const families: ResolvedFamilies = {
     accentFamily,
     accentDarkFamily: accentFamily,
+    // The exhaustive proof walks single-colour brands, which is the stricter
+    // case: the accent surface falls back to the neutral ramp.
+    accentSecondaryFamily: neutralFamily,
+    accentSecondaryIsNeutral: true,
+    mudEscapedFrom: null,
+    story: null,
     neutralFamily,
     accentSnap: { entry: paletteEntry(accentFamily, 500), distance: 0 },
     accentDarkSnap: null,
