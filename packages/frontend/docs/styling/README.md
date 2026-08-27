@@ -12,6 +12,7 @@ This document outlines the styling system used in the FEED application.
 - [Responsive Design](#responsive-design)
 - [Dark Mode](#dark-mode)
 - [Best Practices](#best-practices)
+  - [Form Control Fill](#form-control-fill)
 
 ## Overview
 
@@ -425,6 +426,31 @@ The fixed backdrop is owned by `RootLayout`, and reusable surface treatments are
 ```
 
 Use these treatments for dashboard/status/configuration cards where subtle elevation helps scanning. Do not apply them to dense data tables, dialogs nested inside other cards, or Shopping List Builder printable surfaces. Print and PDF preview areas must remain flat and theme-independent.
+
+### Form Control Fill
+
+**Every text-entry and select control carries a solid fill.** `Input`,
+`Textarea`, and `SelectTrigger` default to `bg-background` in
+`src/components/ui/`. They previously defaulted to `bg-transparent`, which let
+whatever sat behind them — the app-shell atmosphere gradient, a `Card`, a
+tinted panel — show through, so the same filter field read as a different
+colour on every page and had almost no edge contrast against the shell.
+
+The fill is a **primitive default, not a call-site class.** Do not write
+`bg-background` on an `<Input>`, `<Textarea>`, or `<SelectTrigger>` — it is
+already there, and a redundant override is one more place the standard can
+drift. Two such overrides existed (Operating Hours time inputs, the shared date
+range control) and were removed when the default landed.
+
+Deviations are deliberate and rare. `bg-muted` marks a field that is populated
+but not editable (AI Configuration's Service and API Key review steps). Do not
+introduce a transparent form control; if a surface makes the standard fill look
+wrong, fix the surface.
+
+Reference appearance: the `Columns` dropdown trigger in any
+`EnhancedDataTable` feature bar, and the Operating Hours time inputs in
+Settings. A filter or search field sitting beside the `Columns` button should be
+indistinguishable from it in fill.
 
 ### Consistent Color Usage
 

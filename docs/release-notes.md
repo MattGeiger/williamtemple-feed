@@ -2,6 +2,33 @@
 
 ## Unreleased
 
+## Version 1.6.5 — 2026-08-26
+
+*Everything since 1.6.0, plus a consistency pass over the controls staff touch
+most.*
+
+**Filter and search fields are solid now.** Every filter box, search field, and
+dropdown used to be transparent, so each one took the colour of whatever sat
+behind it — the page background on one screen, a card on another, a dialog on a
+third. The same control looked different on every page and had almost no edge
+against the background. They now carry their own fill and match the `Columns`
+button beside them. This covers Category, Food Item, Language, Translation and
+Reports Management, the Service Log, Shopping Lists, Document Translator, AI
+Configuration, Settings, Data Management, Help, and the Analytics detail tables.
+
+**LOTTO queue work from 1.6.0 continues.** Service Analytics gained daily
+queue-volume and call-milestone charts, Queue Timing became Queue Statistics
+with initial-batch and per-day ticket figures, and portable backups now carry
+the staff roster and LOTTO synchronization provenance. Data Management
+summarizes current SIMC visits, Link2Feed visits, and LOTTO queue sessions
+beside procurement coverage.
+
+**Fixes.** Call Milestones tooltips follow the chart's visible line order. A
+rolling deployment where the frontend is newer than the backend no longer
+crashes the Service lens. LOTTO closeouts backed by Postgres no longer fail the
+contract check on their clock format. Identical page-load failures now raise one
+toast instead of several.
+
 ## Version 1.6.0 — production acceptance pending
 
 **LOTTO queue operations now reach Service Analytics without becoming service

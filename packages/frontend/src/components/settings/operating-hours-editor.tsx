@@ -167,7 +167,7 @@ export function OperatingHoursEditor({
                       value={day.openTime}
                       onChange={(event) => updateDay(value, { openTime: event.target.value })}
                       disabled={disabled}
-                      className="h-9 bg-background"
+                      className="h-9"
                     />
                   </div>
                   <div className="space-y-1">
@@ -180,7 +180,7 @@ export function OperatingHoursEditor({
                       value={day.closeTime}
                       onChange={(event) => updateDay(value, { closeTime: event.target.value })}
                       disabled={disabled}
-                      className="h-9 bg-background"
+                      className="h-9"
                     />
                   </div>
                 </>

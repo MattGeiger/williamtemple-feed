@@ -212,7 +212,7 @@ export function DateRangeControl({ value, onChange }: DateRangeControlProps) {
                     aria-invalid={draftText.from !== '' && !validDate(draftText.from)}
                     onChange={(event) => handleTextChange('from', event.target.value)}
                     onBlur={() => handleTextBlur('from')}
-                    className="h-8 bg-background px-2 py-0.5 text-sm"
+                    className="h-8 px-2 py-0.5 text-sm"
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -225,7 +225,7 @@ export function DateRangeControl({ value, onChange }: DateRangeControlProps) {
                     aria-invalid={draftText.to !== '' && !validDate(draftText.to)}
                     onChange={(event) => handleTextChange('to', event.target.value)}
                     onBlur={() => handleTextBlur('to')}
-                    className="h-8 bg-background px-2 py-0.5 text-sm"
+                    className="h-8 px-2 py-0.5 text-sm"
                   />
                 </div>
               </div>

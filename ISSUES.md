@@ -38,6 +38,39 @@ Everything else in this file. The application is shippable today.
 
 ## Open Issues
 
+### #79 — Filter, search, and dropdown controls were transparent to the background
+**Priority**: Low · **Status**: Fixed in 1.6.5; production acceptance pending
+**Bucket**: Layout / form controls
+
+Staff review of 1.6.0 listed the same defect on thirteen screens: the filter or
+search field, and several `Select` triggers, had no fill of their own. Reported
+against Category, Food Item, Language, Translation and Reports Management, the
+Service Log (pantry status, the three metric sections, and Service Metrics),
+Shopping Lists, Document Translator, AI Configuration, Settings (timezone),
+Data Management, Help, and five Analytics cards.
+
+One cause, not thirteen. `Input`, `Textarea`, and `SelectTrigger` in
+`src/components/ui/` all shipped `bg-transparent`, so every one of these
+controls painted whatever sat behind it — the app-shell atmosphere gradient on
+a bare page, a `Card` inside a section, a dialog surface in a modal. The same
+filter field therefore read as a different colour on each screen and had almost
+no edge contrast against the shell.
+
+Fixed at the three primitives rather than the call sites: they now default to
+`bg-background`, which is what the two controls staff nominated as correct
+already used — the `Columns` dropdown trigger (`Button variant="outline"`) and
+the Operating Hours time inputs. Two call sites carried a redundant
+`bg-background` override (Operating Hours, the shared date range control) and
+were removed so the default is the only place the fill is declared. Standard
+written up under "Form Control Fill" in
+`packages/frontend/docs/styling/README.md`.
+
+Note on the reported values: the sampled `oklch(0.9912 0 74)` /
+`oklch(0.080 0.025 265)` are not `--background`, which resolves to pure white
+and pure black. They are closest to `--popover` / `--card`, which suggests the
+dark sample came from an open dropdown *panel* rather than its trigger. The
+in-project reference controls were treated as authoritative, per the report.
+
 ### #78 — Header banner lost its frosted glass in dark mode
 **Priority**: Low · **Status**: Fixed; deployed 2026-08-20 in 1.5.0
 **Bucket**: Layout / shell surfaces
