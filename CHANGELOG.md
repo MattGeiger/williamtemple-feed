@@ -5,6 +5,8 @@ All notable changes to FEED are documented here. This project adheres to
 
 ## [Unreleased]
 
+## [1.6.5] — 2026-08-26
+
 ### Added
 
 - **Service Analytics now includes daily LOTTO queue-volume and call-milestone
@@ -36,6 +38,16 @@ All notable changes to FEED are documented here. This project adheres to
   LOTTO synchronization remains in its own operational card, and the production
   pairing runbook now documents high-entropy token generation and Vercel's
   sensitive-variable setup.
+- **Filter, search, and dropdown controls are now solid rather than
+  transparent.** `Input`, `Textarea`, and `SelectTrigger` fill with the
+  background surface instead of letting the app-shell gradient, a card, or a
+  panel show through, so a filter field now matches the `Columns` button beside
+  it. This reaches every filter and search field in the app — Category, Food
+  Item, Language, Translation, Shopping List, Document Translator, AI
+  Configuration, Reports and Data Management, Help, Service Metrics, and the
+  Analytics detail tables — along with the Service Log pantry-status and metric
+  fields, the Settings timezone picker, and the Procurement channel and product
+  search controls.
 
 ### Fixed
 
