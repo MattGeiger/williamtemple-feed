@@ -220,7 +220,11 @@ const palette = POOL
 writeFileSync(
   '../frontend/src/styles/tailwind-ab-candidates.json',
   JSON.stringify(
-    { generatedAt: new Date().toISOString(), palette, rows: calibration },
+    // `overrides` ships so the calibration panel can seed itself from what is
+    // actually in force. Without it the panel started every session from the
+    // automatic picks, and exporting then silently dropped any override made in
+    // an earlier sitting.
+    { generatedAt: new Date().toISOString(), overrides: OVERRIDES, palette, rows: calibration },
     null,
     2,
   ),

@@ -32,7 +32,7 @@ html[data-palette="tailwind"] {
   --primary-foreground: var(--color-white); /* 0.000 · alt: olive-50 0.012, mist-50 0.013, taupe-50 0.014 */
   --secondary: var(--color-zinc-100); /* 0.000 · alt: gray-100 0.002, mist-100 0.005, neutral-100 0.003 */
   --secondary-foreground: var(--color-zinc-900); /* 0.000 · alt: mist-900 0.011, mauve-900 0.015, taupe-900 0.014 */
-  --muted: var(--color-teal-50); /* 0.018 · alt: emerald-50 0.018, cyan-50 0.020, sky-50 0.014 */
+  --muted: var(--color-mist-100); /* hand-picked mist-100 */
   --muted-foreground: var(--color-gray-500); /* 0.046 · alt: zinc-500 0.045, slate-500 0.059, mist-500 0.054 */
   --accent: var(--color-teal-100); /* 0.040 · alt: cyan-100 0.037, sky-100 0.026, mist-200 0.015 */
   --accent-foreground: var(--color-zinc-800); /* 0.008 · alt: mist-800 0.011, stone-800 0.012, neutral-800 0.005 */
@@ -98,7 +98,7 @@ html[data-palette="tailwind"].dark {
   --primary-foreground: var(--color-sky-700); /* 0.027 · alt: sky-800 0.059, sky-600 0.103, blue-800 0.114 */
   --secondary: var(--color-zinc-800); /* 0.001 · alt: mist-800 0.010, stone-800 0.011, neutral-800 0.007 */
   --secondary-foreground: var(--color-zinc-50); /* 0.000 · alt: neutral-50 0.000, mauve-50 0.000, stone-50 0.001 */
-  --muted: var(--color-gray-800); /* 0.025 · alt: slate-800 0.029, gray-900 0.044, slate-900 0.048 */
+  --muted: var(--color-slate-800); /* hand-picked slate-800 */
   --muted-foreground: var(--color-gray-400); /* 0.017 · alt: zinc-400 0.015, mist-400 0.012, mauve-400 0.018 */
   --accent: var(--color-gray-800); /* 0.025 · alt: slate-800 0.029, gray-900 0.044, slate-900 0.048 */
   --accent-foreground: var(--color-mauve-100); /* 0.003 · alt: taupe-100 0.002, mist-100 0.003, zinc-100 0.006 */

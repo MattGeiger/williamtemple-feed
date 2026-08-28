@@ -52,8 +52,22 @@ type Row = {
 
 type PaletteEntry = { name: string; hex: string };
 
-const DATA = candidates as { palette: PaletteEntry[]; rows: Row[] };
+const DATA = candidates as {
+  overrides: Record<string, string>;
+  palette: PaletteEntry[];
+  rows: Row[];
+};
 const ROWS = DATA.rows;
+/**
+ * Overrides currently in force, as the generator last wrote them.
+ *
+ * The panel seeds from these rather than from the automatic picks. It used to
+ * start every session from auto, so a choice made in an earlier sitting was not
+ * shown as chosen — and because export writes only what differs from auto, the
+ * next export silently dropped it. Seeding here makes the panel honest about
+ * current state and makes export cumulative.
+ */
+const FILE_OVERRIDES = DATA.overrides ?? {};
 const PALETTE = DATA.palette;
 const PALETTE_BY_NAME = new Map(PALETTE.map((entry) => [entry.name, entry]));
 const DATALIST_ID = 'palette-calibration-names';
@@ -177,7 +191,7 @@ function CustomEntry({
 
 export function PaletteCalibration() {
   const [open, setOpen] = React.useState(false);
-  const [picks, setPicks] = React.useState<Record<string, string>>({});
+  const [picks, setPicks] = React.useState<Record<string, string>>(FILE_OVERRIDES);
   const [filter, setFilter] = React.useState('');
   const [onlyChanged, setOnlyChanged] = React.useState(false);
   const [sort, setSort] = React.useState<SortMode>('order');
@@ -185,9 +199,11 @@ export function PaletteCalibration() {
   React.useEffect(() => {
     try {
       const saved = sessionStorage.getItem(STORAGE_KEY);
-      if (saved) setPicks(JSON.parse(saved));
+      // An in-progress session layers over what is on disk, rather than
+      // replacing it, so a partly-finished sitting never discards committed work.
+      if (saved) setPicks({ ...FILE_OVERRIDES, ...JSON.parse(saved) });
     } catch {
-      /* private browsing — start clean */
+      /* private browsing — the file overrides still stand */
     }
   }, []);
 
@@ -314,7 +330,13 @@ export function PaletteCalibration() {
             >
               Changed {changed > 0 ? `(${changed})` : ''}
             </Button>
-            <Button variant="outline" size="sm" onClick={() => setPicks({})} disabled={changed === 0}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPicks(FILE_OVERRIDES)}
+              disabled={changed === 0}
+              title="Discard this session's changes and return to the committed overrides"
+            >
               <RotateCcw className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
               Reset
             </Button>

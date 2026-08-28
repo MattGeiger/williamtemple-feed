@@ -1,5 +1,10 @@
 {
-  "generatedAt": "2026-08-28T03:39:17.897Z",
+  "generatedAt": "2026-08-28T17:13:18.007Z",
+  "overrides": {
+    "light --sidebar-accent": "sky-100",
+    "light --muted": "mist-100",
+    "dark --muted": "slate-800"
+  },
   "palette": [
     {
       "name": "amber-100",
@@ -2754,8 +2759,8 @@
       "token": "muted",
       "alpha": null,
       "authoredHex": "#eef6f5",
-      "chosen": "teal-50",
-      "overridden": false,
+      "chosen": "mist-100",
+      "overridden": true,
       "candidates": [
         {
           "name": "teal-50",
@@ -6766,8 +6771,8 @@
       "token": "muted",
       "alpha": null,
       "authoredHex": "#1d2230",
-      "chosen": "gray-800",
-      "overridden": false,
+      "chosen": "slate-800",
+      "overridden": true,
       "candidates": [
         {
           "name": "gray-800",
