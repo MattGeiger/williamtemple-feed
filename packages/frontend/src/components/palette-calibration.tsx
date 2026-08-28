@@ -28,9 +28,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
+import {
   Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle,
 } from '@/components/ui/sheet';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { hexToOklch } from '@/lib/brand-color';
 import { cn } from '@/lib/utils';
 import candidates from '@/styles/tailwind-ab-candidates.json';
 
@@ -53,6 +57,60 @@ const ROWS = DATA.rows;
 const PALETTE = DATA.palette;
 const PALETTE_BY_NAME = new Map(PALETTE.map((entry) => [entry.name, entry]));
 const DATALIST_ID = 'palette-calibration-names';
+
+/**
+ * Perceptual distance between two hex colours, as plain Euclidean distance in
+ * OKLab — the same measure the generator reports.
+ *
+ * Computed here rather than only read from the candidate list so a hand-entered
+ * pick, which by definition is not in that list, still sorts and reports a real
+ * figure instead of dropping out of the ordering.
+ */
+const driftBetween = (a: string, b: string): number => {
+  const left = hexToOklch(a);
+  const right = hexToOklch(b);
+  if (!left || !right) return Number.NaN;
+  const toLab = ({ l, c, h }: { l: number; c: number; h: number }) => {
+    const rad = (h * Math.PI) / 180;
+    return [l, c * Math.cos(rad), c * Math.sin(rad)] as const;
+  };
+  const [al, aa, ab] = toLab(left);
+  const [bl, ba, bb] = toLab(right);
+  return Math.hypot(al - bl, aa - ba, ab - bb);
+};
+
+export type SortMode = 'order' | 'drift-desc' | 'drift-asc';
+
+/**
+ * Order rows by how far the active pick sits from the authored colour.
+ *
+ * Pure and exported so the ordering is verifiable without driving a Radix
+ * Select. A row whose drift cannot be computed sorts last in both directions
+ * rather than NaN-poisoning the comparison — `NaN` compares false against
+ * everything, which silently leaves an array in arbitrary order.
+ */
+export const sortByDrift = <T,>(
+  rows: readonly T[],
+  mode: SortMode,
+  driftOf: (row: T) => number,
+): T[] => {
+  if (mode === 'order') return [...rows];
+  const dir = mode === 'drift-desc' ? -1 : 1;
+  return [...rows].sort((a, b) => {
+    const da = driftOf(a);
+    const db = driftOf(b);
+    if (Number.isNaN(da) && Number.isNaN(db)) return 0;
+    if (Number.isNaN(da)) return 1;
+    if (Number.isNaN(db)) return -1;
+    return (da - db) * dir;
+  });
+};
+
+const SORT_LABEL: Record<SortMode, string> = {
+  order: 'Source order',
+  'drift-desc': 'Deviation: high to low',
+  'drift-asc': 'Deviation: low to high',
+};
 const STORAGE_KEY = 'feed.paletteCalibration';
 const STYLE_ID = 'palette-calibration-overrides';
 
@@ -122,6 +180,7 @@ export function PaletteCalibration() {
   const [picks, setPicks] = React.useState<Record<string, string>>({});
   const [filter, setFilter] = React.useState('');
   const [onlyChanged, setOnlyChanged] = React.useState(false);
+  const [sort, setSort] = React.useState<SortMode>('order');
 
   React.useEffect(() => {
     try {
@@ -164,14 +223,24 @@ export function PaletteCalibration() {
     }
   }, [picks]);
 
+  /** Drift of whatever is currently selected, listed candidate or hand-entered. */
+  const activeDrift = React.useCallback((row: Row) => {
+    const active = picks[row.key] ?? row.chosen;
+    const listed = row.candidates.find(c => c.name === active);
+    if (listed) return listed.drift;
+    const entry = PALETTE_BY_NAME.get(active);
+    return entry ? driftBetween(row.authoredHex, entry.hex) : Number.NaN;
+  }, [picks]);
+
   const visible = React.useMemo(() => {
     const q = filter.trim().toLowerCase();
-    return ROWS.filter(r => {
+    const rows = ROWS.filter(r => {
       if (onlyChanged && !picks[r.key]) return false;
       if (!q) return true;
       return r.key.toLowerCase().includes(q) || r.chosen.toLowerCase().includes(q);
     });
-  }, [filter, onlyChanged, picks]);
+    return sortByDrift(rows, sort, activeDrift);
+  }, [filter, onlyChanged, picks, sort, activeDrift]);
 
   const exportJson = () => {
     // Only meaningful deviations are worth recording; a pick equal to the
@@ -228,6 +297,16 @@ export function PaletteCalibration() {
               placeholder="Filter tokens…"
               className="h-8 flex-1"
             />
+            <Select value={sort} onValueChange={(value) => setSort(value as SortMode)}>
+              <SelectTrigger className="h-8 w-[190px]" aria-label="Sort tokens">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {(Object.keys(SORT_LABEL) as SortMode[]).map((mode) => (
+                  <SelectItem key={mode} value={mode}>{SORT_LABEL[mode]}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Button
               variant={onlyChanged ? 'default' : 'outline'}
               size="sm"
@@ -331,8 +410,12 @@ export function PaletteCalibration() {
                         if (listed) {
                           return `${' · drift '}${listed.drift}${listed.auto ? ' · auto' : ''}`;
                         }
-                        // Hand-entered and outside the suggested slate.
-                        return ' · custom';
+                        // Hand-entered and outside the suggested slate: still
+                        // report a real figure rather than an opaque label.
+                        const d = activeDrift(row);
+                        return Number.isNaN(d)
+                          ? ' · custom'
+                          : ` · drift ${d.toFixed(4)} · custom`;
                       })()}
                     </p>
                   </div>
