@@ -211,9 +211,19 @@ ${dark}
 }
 `, 'utf8');
 
+// The complete palette, so the calibration panel can validate a hand-typed
+// entry and preview it without guessing which names exist.
+const palette = POOL
+  .map(e => ({ name: nameOf(e), hex: oklchToHex({ l: e.l, c: e.c, h: e.h }) }))
+  .sort((a, b) => a.name.localeCompare(b.name));
+
 writeFileSync(
   '../frontend/src/styles/tailwind-ab-candidates.json',
-  JSON.stringify({ generatedAt: new Date().toISOString(), rows: calibration }, null, 2),
+  JSON.stringify(
+    { generatedAt: new Date().toISOString(), palette, rows: calibration },
+    null,
+    2,
+  ),
   'utf8',
 );
 
