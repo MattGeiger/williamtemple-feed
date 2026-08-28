@@ -1,11 +1,19 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 Matt Geiger
 //
-// TEMPORARY. Generates the A/B comparison sheet for evaluating a move of the
-// built-in appearance onto Tailwind v4 palette references. Delete this script
-// and src/styles/tailwind-ab.css once the comparison is decided.
+// Generates the candidate slate the palette calibration panel reads.
 //
-//   npx ts-node --transpile-only scripts/generate-tailwind-ab.ts
+// It began as an A/B generator, emitting a whole alternative stylesheet so the
+// migrated appearance could be compared against the authored one. That
+// comparison is settled -- index.css now holds the palette references -- so the
+// stylesheet is gone and only the candidates remain, which is what calibration
+// actually needs.
+//
+// Values in index.css are now `var(--color-*)` references rather than literals,
+// so resolving a reference back to its colour is the normal path, not an edge
+// case: without it this reads 69 of 204 tokens and silently loses the rest.
+//
+//   npx ts-node --transpile-only scripts/generate-palette-candidates.ts
 
 import { readFileSync, writeFileSync } from 'node:fs';
 import {
@@ -150,7 +158,9 @@ const block = (scope: 'light' | 'dark') => {
 // older comma-separated form. Matching only the former skipped six tokens
 // without reporting anything, which is the worst way for a migration to be
 // incomplete.
-const COLOR = /(oklch\(\s*[\d.]+%?\s+[\d.]+\s+[\d.]+\s*(?:\/\s*[\d.]+\s*)?\)|hsl\(\s*[\d.]+\s*[, ]\s*[\d.]+%\s*[, ]\s*[\d.]+%\s*(?:\/\s*[\d.]+\s*)?\))/g;
+const PALETTE_REF = /var\(--color-([A-Za-z0-9-]+)\)/g;
+
+const COLOR = /(var\(--color-[A-Za-z0-9-]+\)|oklch\(\s*[\d.]+%?\s+[\d.]+\s+[\d.]+\s*(?:\/\s*[\d.]+\s*)?\)|hsl\(\s*[\d.]+\s*[, ]\s*[\d.]+%\s*[, ]\s*[\d.]+%\s*(?:\/\s*[\d.]+\s*)?\))/g;
 
 const drifts: Array<{ token: string; scope: string; d: number; to: string }> = [];
 
@@ -184,10 +194,16 @@ const convert = (scope: 'light' | 'dark') => {
       index += 1;
       let col: Oklch | null = null;
       let alpha = '';
-      let m = lit.match(/^oklch\(\s*([\d.]+)(%?)\s+([\d.]+)\s+([\d.]+)\s*(?:\/\s*([\d.]+)\s*)?\)$/);
+      const ref = lit.match(/^var\(--color-([A-Za-z0-9-]+)\)$/);
+      if (ref) {
+        const entry = [...TAILWIND_PALETTE, ...TAILWIND_EXTREMES]
+          .find(e => (e.stop === 0 ? e.family : `${e.family}-${e.stop}`) === ref[1]);
+        if (entry) { col = { l: entry.l, c: entry.c, h: entry.h }; alpha = ''; }
+      }
+      let m = col ? null : lit.match(/^oklch\(\s*([\d.]+)(%?)\s+([\d.]+)\s+([\d.]+)\s*(?:\/\s*([\d.]+)\s*)?\)$/);
       // Tailwind writes lightness as a percentage; index.css writes 0..1.
       if (m) { col = { l: m[2] ? +m[1] / 100 : +m[1], c:+m[3], h:+m[4] }; alpha = m[5] ?? ''; }
-      else {
+      else if (!col) {
         m = lit.match(/^hsl\(\s*([\d.]+)\s*[, ]\s*([\d.]+)%\s*[, ]\s*([\d.]+)%\s*(?:\/\s*([\d.]+)\s*)?\)$/);
         if (m) { col = hslToOklch(+m[1], +m[2], +m[3]); alpha = m[4] ?? ''; }
       }
@@ -220,23 +236,8 @@ const convert = (scope: 'light' | 'dark') => {
   return lines.join('\n');
 };
 
-const light = convert('light');
-const dark = convert('dark');
-
-writeFileSync('../frontend/src/styles/tailwind-ab.css', `/* GENERATED — temporary A/B sheet, not part of the appearance.
-   Every colour literal in the built-in appearance snapped to its nearest
-   Tailwind v4 palette entry. Alpha is preserved with color-mix; gradient and
-   shadow geometry is untouched; third-party --service-* colours are excluded.
-   Regenerate: packages/backend $ npx ts-node --transpile-only scripts/generate-tailwind-ab.ts */
-
-html[data-palette="tailwind"] {
-${light}
-}
-
-html[data-palette="tailwind"].dark {
-${dark}
-}
-`, 'utf8');
+convert('light');
+convert('dark');
 
 // The complete palette, so the calibration panel can validate a hand-typed
 // entry and preview it without guessing which names exist.
@@ -247,10 +248,6 @@ const palette = POOL
 writeFileSync(
   '../frontend/src/styles/tailwind-ab-candidates.json',
   JSON.stringify(
-    // `overrides` ships so the calibration panel can seed itself from what is
-    // actually in force. Without it the panel started every session from the
-    // automatic picks, and exporting then silently dropped any override made in
-    // an earlier sitting.
     { generatedAt: new Date().toISOString(), overrides: OVERRIDES, palette, rows: calibration },
     null,
     2,

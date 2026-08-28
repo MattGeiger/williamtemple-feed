@@ -8,31 +8,27 @@
 /**
  * TEMPORARY — the single dev-only entry point for the Tailwind palette work.
  *
- * Everything the evaluation needs hangs off this module: the generated A/B
- * stylesheet, the candidate data, and both header controls. `RootLayout` reaches
- * it through a lazy import guarded by `import.meta.env.DEV`, which Vite folds to
- * `false` in a production build, so the whole subtree — including the ~8 KB
- * stylesheet and the 288-entry candidate JSON — is dropped from the bundle
- * rather than merely hidden at runtime.
+ * `RootLayout` reaches it through a lazy import guarded by `import.meta.env.DEV`,
+ * which Vite folds to `false` in a production build, so the whole subtree —
+ * including the 288-entry candidate JSON — is dropped from the bundle rather
+ * than merely hidden at runtime.
+ *
+ * The A/B switcher that used to live here is gone: index.css now holds the
+ * palette references, so toggling compared the migrated appearance against
+ * itself.
  *
  * A plain `if (!import.meta.env.DEV) return null` inside each component was not
  * enough: it hides the interface while the imports still ship.
  *
- * Delete this file, palette-ab-switcher.tsx, palette-calibration.tsx,
- * src/styles/tailwind-ab*.{css,json}, the lazy mount in root-layout.tsx, and
- * packages/backend/scripts/generate-tailwind-ab.ts together.
+ * Delete this file, palette-calibration.tsx,
+ * src/styles/tailwind-ab-candidates.json, the lazy mount in root-layout.tsx,
+ * and packages/backend/scripts/generate-palette-candidates.ts together.
  */
 
-import '@/styles/tailwind-ab.css';
-
-import { PaletteAbSwitcher } from '@/components/palette-ab-switcher';
 import { PaletteCalibration } from '@/components/palette-calibration';
 
 export default function PaletteDevTools() {
   return (
-    <>
-      <PaletteCalibration />
-      <PaletteAbSwitcher />
-    </>
+    <PaletteCalibration />
   );
 }
