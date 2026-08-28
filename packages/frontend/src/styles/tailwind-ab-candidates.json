@@ -1,11 +1,6 @@
 {
-  "generatedAt": "2026-08-28T18:53:05.154Z",
-  "overrides": {
-    "light --sidebar-accent": "sky-100",
-    "light --muted": "mist-100",
-    "dark --muted": "slate-800",
-    "dark --sidebar-accent": "blue-900"
-  },
+  "generatedAt": "2026-08-28T19:03:02.087Z",
+  "picks": {},
   "declarations": {
     "light": {
       "status-success-bg": "var(--color-green-50)",
@@ -2952,7 +2947,7 @@
       "alpha": null,
       "authoredHex": "#f1f3f3",
       "chosen": "mist-100",
-      "overridden": true,
+      "overridden": false,
       "candidates": [
         {
           "name": "mist-100",
@@ -3601,7 +3596,7 @@
       "alpha": null,
       "authoredHex": "#dff2fe",
       "chosen": "sky-100",
-      "overridden": true,
+      "overridden": false,
       "candidates": [
         {
           "name": "sky-100",
@@ -6905,7 +6900,7 @@
       "alpha": null,
       "authoredHex": "#1d293d",
       "chosen": "slate-800",
-      "overridden": true,
+      "overridden": false,
       "candidates": [
         {
           "name": "slate-800",
@@ -7552,56 +7547,56 @@
       "scope": "dark",
       "token": "sidebar-accent",
       "alpha": null,
-      "authoredHex": "#162456",
+      "authoredHex": "#1c398e",
       "chosen": "blue-900",
-      "overridden": true,
+      "overridden": false,
       "candidates": [
         {
-          "name": "blue-950",
-          "hex": "#162456",
+          "name": "blue-900",
+          "hex": "#1c398e",
           "drift": 0,
           "auto": true
         },
         {
-          "name": "indigo-950",
-          "hex": "#1e1a4d",
-          "drift": 0.0327,
+          "name": "indigo-900",
+          "hex": "#312c85",
+          "drift": 0.0389,
           "auto": false
         },
         {
-          "name": "sky-950",
-          "hex": "#052f4a",
-          "drift": 0.043,
+          "name": "indigo-800",
+          "hex": "#372aac",
+          "drift": 0.063,
           "auto": false
         },
         {
-          "name": "slate-800",
-          "hex": "#1d293d",
-          "drift": 0.0508,
+          "name": "blue-800",
+          "hex": "#193cb8",
+          "drift": 0.0695,
           "auto": false
         },
         {
-          "name": "gray-800",
-          "hex": "#1e2939",
-          "drift": 0.0591,
+          "name": "sky-900",
+          "hex": "#024a70",
+          "drift": 0.0753,
           "auto": false
         },
         {
-          "name": "cyan-950",
-          "hex": "#053345",
-          "drift": 0.0617,
+          "name": "sky-800",
+          "hex": "#00598a",
+          "drift": 0.0913,
           "auto": false
         },
         {
-          "name": "violet-950",
-          "hex": "#2f0d68",
-          "drift": 0.0676,
+          "name": "violet-900",
+          "hex": "#4d179a",
+          "drift": 0.0917,
           "auto": false
         },
         {
-          "name": "mauve-800",
-          "hex": "#2a212c",
-          "drift": 0.0809,
+          "name": "cyan-900",
+          "hex": "#104e64",
+          "drift": 0.1025,
           "auto": false
         }
       ]

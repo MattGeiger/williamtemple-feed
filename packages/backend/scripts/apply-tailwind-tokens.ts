@@ -17,6 +17,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 
 const CSS = '../frontend/src/index.css';
 const CANDIDATES = '../frontend/src/styles/tailwind-ab-candidates.json';
+const PICKS = 'scripts/palette-picks.json';
 const dryRun = process.argv.includes('--dry-run');
 
 /**
@@ -69,4 +70,16 @@ for (let i = 0; i < lines.length; i += 1) {
 console.log(`${dryRun ? 'Would rewrite' : 'Rewrote'} ${applied} declarations.`);
 for (const c of changes) console.log(c);
 if (applied > 0 && changes.length === 6) console.log('  …');
-if (!dryRun) writeFileSync(CSS, lines.join('\n'), 'utf8');
+
+if (!dryRun) {
+  writeFileSync(CSS, lines.join('\n'), 'utf8');
+  // Consume the picks. Once written they are simply what index.css says, and
+  // leaving them behind is what produced a calibration panel reporting a
+  // permanent unresettable change: the generator reads index.css, so an applied
+  // pick and the automatic match become the same value.
+  const pending = JSON.parse(readFileSync(PICKS, 'utf8')) as Record<string, string>;
+  if (Object.keys(pending).length > 0) {
+    writeFileSync(PICKS, '{}\n', 'utf8');
+    console.log(`Consumed ${Object.keys(pending).length} pick(s); regenerate candidates next.`);
+  }
+}

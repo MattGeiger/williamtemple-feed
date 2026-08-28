@@ -66,8 +66,20 @@ const HUE_WEIGHT = 4;
 const CHROMA_LOSS_WEIGHT = 2;
 const POOL = [...TAILWIND_PALETTE, ...TAILWIND_EXTREMES];
 
-/** Hand-picked choices that override the automatic match. */
-const OVERRIDES: Record<string, string> = require('./tailwind-ab-overrides.json');
+/**
+ * Pending picks, waiting to be written into index.css by apply-tailwind-tokens.
+ *
+ * This file used to hold permanent "overrides" against the automatic match, and
+ * that stopped meaning anything once the migration landed: index.css now holds
+ * palette references, so the generator reads its own previous output and the
+ * nearest match to `mist-100` is `mist-100`. Every override collapsed into the
+ * default it was supposed to differ from, leaving a count that could never be
+ * reset.
+ *
+ * Picks are therefore transient. Applying consumes them and empties this file,
+ * because once written they are simply what index.css says.
+ */
+const PICKS: Record<string, string> = require('./palette-picks.json');
 
 const selectionScore = (source: Oklch, target: Oklch): number => {
   const base = perceptualDistance(source, target);
@@ -95,7 +107,7 @@ const snapTo = (col: Oklch, key: string) => {
     .map(e => ({ e, s: selectionScore(col, { l: e.l, c: e.c, h: e.h }) }))
     .sort((a, b) => a.s - b.s);
 
-  const override = OVERRIDES[key];
+  const override = PICKS[key];
   const chosen = override
     ? ranked.find(r => nameOf(r.e) === override)
     : ranked[0];
@@ -273,7 +285,7 @@ const palette = POOL
 writeFileSync(
   '../frontend/src/styles/tailwind-ab-candidates.json',
   JSON.stringify(
-    { generatedAt: new Date().toISOString(), overrides: OVERRIDES, declarations, palette, rows: calibration },
+    { generatedAt: new Date().toISOString(), picks: PICKS, declarations, palette, rows: calibration },
     null,
     2,
   ),
@@ -284,7 +296,7 @@ drifts.sort((a, b) => b.d - a.d);
 console.log(`tokens converted : ${drifts.length}`);
 console.log(`deliberately skipped: ${skipped.length}`);
 for (const entry of skipped) console.log(`  ${entry}`);
-console.log(`hand overrides   : ${Object.keys(OVERRIDES).length}`);
+console.log(`pending picks    : ${Object.keys(PICKS).length}`);
 console.log(`drift > 0.05     : ${drifts.filter(d => d.d > 0.05).length}`);
 console.log('\nlargest drifts:');
 drifts.slice(0, 8).forEach(d => console.log(`  ${d.d.toFixed(4)}  ${d.scope} --${d.token} -> ${d.to}`));

@@ -53,21 +53,19 @@ type Row = {
 type PaletteEntry = { name: string; hex: string };
 
 const DATA = candidates as {
-  overrides: Record<string, string>;
+  picks: Record<string, string>;
   palette: PaletteEntry[];
   rows: Row[];
 };
 const ROWS = DATA.rows;
 /**
- * Overrides currently in force, as the generator last wrote them.
+ * Picks written but not yet applied to index.css.
  *
- * The panel seeds from these rather than from the automatic picks. It used to
- * start every session from auto, so a choice made in an earlier sitting was not
- * shown as chosen — and because export writes only what differs from auto, the
- * next export silently dropped it. Seeding here makes the panel honest about
- * current state and makes export cumulative.
+ * Normally empty: applying consumes them. Seeding from here means a session
+ * interrupted between export and apply resumes where it left off rather than
+ * appearing to have lost the work.
  */
-const FILE_OVERRIDES = DATA.overrides ?? {};
+const PENDING_PICKS = DATA.picks ?? {};
 const PALETTE = DATA.palette;
 const PALETTE_BY_NAME = new Map(PALETTE.map((entry) => [entry.name, entry]));
 const DATALIST_ID = 'palette-calibration-names';
@@ -191,7 +189,7 @@ function CustomEntry({
 
 export function PaletteCalibration() {
   const [open, setOpen] = React.useState(false);
-  const [picks, setPicks] = React.useState<Record<string, string>>(FILE_OVERRIDES);
+  const [picks, setPicks] = React.useState<Record<string, string>>(PENDING_PICKS);
   const [filter, setFilter] = React.useState('');
   const [onlyChanged, setOnlyChanged] = React.useState(false);
   const [sort, setSort] = React.useState<SortMode>('order');
@@ -201,7 +199,7 @@ export function PaletteCalibration() {
       const saved = sessionStorage.getItem(STORAGE_KEY);
       // An in-progress session layers over what is on disk, rather than
       // replacing it, so a partly-finished sitting never discards committed work.
-      if (saved) setPicks({ ...FILE_OVERRIDES, ...JSON.parse(saved) });
+      if (saved) setPicks({ ...PENDING_PICKS, ...JSON.parse(saved) });
     } catch {
       /* private browsing — the file overrides still stand */
     }
@@ -270,25 +268,17 @@ export function PaletteCalibration() {
   }, [filter, onlyChanged, picks, sort, activeDrift]);
 
   const exportJson = () => {
-    // Compare against the *automatic* match, not against `row.chosen`.
-    //
-    // `chosen` is the generator's final answer, which already has any committed
-    // override folded into it. Comparing with it meant a seeded override looked
-    // identical to the default and was dropped on export — so a second
-    // calibration sitting exported only its own new picks and silently discarded
-    // every earlier one. The `auto` candidate is the true baseline.
+    // What index.css does not already say. Applying consumes these.
     const out: Record<string, string> = {};
     for (const [key, name] of Object.entries(picks)) {
       const row = ROWS.find(r => r.key === key);
-      if (!row) continue;
-      const auto = row.candidates.find(c => c.auto)?.name ?? row.chosen;
-      if (auto !== name) out[key] = name;
+      if (row && row.chosen !== name) out[key] = name;
     }
     const blob = new Blob([JSON.stringify(out, null, 2) + '\n'], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'tailwind-ab-overrides.json';
+    a.download = 'palette-picks.json';
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -296,24 +286,15 @@ export function PaletteCalibration() {
   if (!import.meta.env.DEV) return null;
 
   /**
-   * Two different counts, deliberately.
+   * A change is a pick that differs from what index.css currently says.
    *
-   * `sessionChanges` is what this sitting altered relative to the committed
-   * state, which is what Reset undoes. `overrideCount` is everything that
-   * differs from the automatic match, which is what Export writes. Driving both
-   * buttons off the session count meant that with overrides committed and
-   * nothing yet touched, Export sat disabled while having four entries to
-   * write — so the current state could not be re-exported.
+   * There is one count again. While overrides were permanent there were two
+   * baselines — the committed value and the automatic match — and after the
+   * migration those became the same thing, so the second count could only ever
+   * report a difference that no longer existed.
    */
-  const baselineFor = (row: Row) => row.candidates.find((c) => c.auto)?.name ?? row.chosen;
-  const sessionChanges = Object.entries(picks)
+  const changed = Object.entries(picks)
     .filter(([k, v]) => ROWS.find((r) => r.key === k)?.chosen !== v).length;
-  const overrideCount = Object.entries(picks)
-    .filter(([k, v]) => {
-      const row = ROWS.find((r) => r.key === k);
-      return row ? baselineFor(row) !== v : false;
-    }).length;
-  const changed = overrideCount;
 
   return (
     <>
@@ -369,14 +350,14 @@ export function PaletteCalibration() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setPicks(FILE_OVERRIDES)}
-              disabled={sessionChanges === 0}
-              title="Discard this session's changes and return to the committed overrides"
+              onClick={() => setPicks(PENDING_PICKS)}
+              disabled={changed === 0}
+              title="Discard these picks and return to what index.css says"
             >
               <RotateCcw className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
               Reset
             </Button>
-            <Button size="sm" onClick={exportJson} disabled={overrideCount === 0}>
+            <Button size="sm" onClick={exportJson} disabled={changed === 0}>
               <Download className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
               Export
             </Button>
