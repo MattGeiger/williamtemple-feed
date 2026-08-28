@@ -5,6 +5,32 @@ All notable changes to FEED are documented here. This project adheres to
 
 ## [Unreleased]
 
+## [1.7.5-beta.3]
+
+### Changed
+
+- **The built-in appearance is now expressed in Tailwind v4 palette
+  references.** 133 declarations moved from authored colour literals to
+  `var(--color-*)`, using the values reviewed through the calibration panel;
+  average movement is below perceptual threshold. Semantic token names are
+  unchanged — they remain the surface a saved appearance overrides — and 26
+  tokens stay authored because they are protected operational colours or
+  another organization's brand. Print styles are untouched, since printed
+  output must not follow the app theme.
+- **The built-in logo is vector, with a real dark variant.** Every logo slot
+  previously pointed at one raster lockup drawn for a light background. Email
+  keeps a raster deliberately: several mail clients will not render SVG.
+- **The appearance A/B switch is gone**, having compared the migrated
+  appearance against itself once the migration landed. Palette calibration
+  remains, and now previews directly against the shipped appearance.
+
+### Fixed
+
+- **Palette calibration no longer loses earlier choices.** It started each
+  session from the automatic matches rather than from the choices already
+  saved, so exporting after a second sitting silently dropped the first.
+
+
 ## [1.7.5-beta.2] — 2026-08-28
 
 ### Changed
