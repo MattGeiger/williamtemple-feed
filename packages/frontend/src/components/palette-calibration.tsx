@@ -1,0 +1,264 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Matt Geiger
+//
+// FEED — Food Equity & Efficient Delivery. Application code licensed
+// under AGPL-3.0-or-later; see LICENSE. William Temple House branding is
+// not covered by this license; see TRADEMARKS.md.
+
+/**
+ * TEMPORARY — interactive calibration for the Tailwind palette evaluation.
+ *
+ * Each row is one colour literal from the built-in appearance: the authored
+ * value, then the nearest palette entries. Choosing one applies it to the live
+ * page immediately, so a candidate is judged against real UI rather than a
+ * swatch. Export writes the choices in the exact shape
+ * `packages/backend/scripts/tailwind-ab-overrides.json` expects.
+ *
+ * A side sheet rather than a centred dialog on purpose: the page has to stay
+ * visible to judge a colour against it.
+ *
+ * Delete with the rest of the A/B scaffolding — see palette-ab-switcher.tsx.
+ */
+
+import * as React from 'react';
+import { Check, Download, RotateCcw, SlidersHorizontal } from 'lucide-react';
+
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle,
+} from '@/components/ui/sheet';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { cn } from '@/lib/utils';
+import candidates from '@/styles/tailwind-ab-candidates.json';
+
+type Candidate = { name: string; hex: string; drift: number; auto: boolean };
+type Row = {
+  key: string;
+  scope: 'light' | 'dark';
+  token: string;
+  alpha: number | null;
+  authoredHex: string;
+  chosen: string;
+  overridden: boolean;
+  candidates: Candidate[];
+};
+
+const ROWS = (candidates as { rows: Row[] }).rows;
+const STORAGE_KEY = 'feed.paletteCalibration';
+const STYLE_ID = 'palette-calibration-overrides';
+
+/** `light --feed-shell-haze#1` -> the token name the CSS declaration uses. */
+const tokenOf = (key: string) => key.replace(/^(light|dark) --/, '').replace(/#\d+$/, '');
+
+export function PaletteCalibration() {
+  const [open, setOpen] = React.useState(false);
+  const [picks, setPicks] = React.useState<Record<string, string>>({});
+  const [filter, setFilter] = React.useState('');
+  const [onlyChanged, setOnlyChanged] = React.useState(false);
+
+  React.useEffect(() => {
+    try {
+      const saved = sessionStorage.getItem(STORAGE_KEY);
+      if (saved) setPicks(JSON.parse(saved));
+    } catch {
+      /* private browsing — start clean */
+    }
+  }, []);
+
+  // Apply picks as a stylesheet layered over the generated A/B sheet. Only rows
+  // whose token has a single literal can be overridden live; a gradient or
+  // shadow needs its whole value rebuilt, so those stay auto and are marked.
+  React.useEffect(() => {
+    let el = document.getElementById(STYLE_ID) as HTMLStyleElement | null;
+    if (!el) {
+      el = document.createElement('style');
+      el.id = STYLE_ID;
+      document.head.appendChild(el);
+    }
+    const byScope: Record<'light' | 'dark', string[]> = { light: [], dark: [] };
+    for (const [key, name] of Object.entries(picks)) {
+      if (/#\d+$/.test(key)) continue;
+      const row = ROWS.find(r => r.key === key);
+      if (!row) continue;
+      const value = row.alpha === null
+        ? `var(--color-${name})`
+        : `color-mix(in oklch, var(--color-${name}) ${(row.alpha * 100).toFixed(1)}%, transparent)`;
+      byScope[row.scope].push(`  --${tokenOf(key)}: ${value};`);
+    }
+    el.textContent = [
+      byScope.light.length ? `html[data-palette="tailwind"] {\n${byScope.light.join('\n')}\n}` : '',
+      byScope.dark.length ? `html[data-palette="tailwind"].dark {\n${byScope.dark.join('\n')}\n}` : '',
+    ].filter(Boolean).join('\n\n');
+
+    try {
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(picks));
+    } catch {
+      /* not worth surfacing */
+    }
+  }, [picks]);
+
+  const visible = React.useMemo(() => {
+    const q = filter.trim().toLowerCase();
+    return ROWS.filter(r => {
+      if (onlyChanged && !picks[r.key]) return false;
+      if (!q) return true;
+      return r.key.toLowerCase().includes(q) || r.chosen.toLowerCase().includes(q);
+    });
+  }, [filter, onlyChanged, picks]);
+
+  const exportJson = () => {
+    // Only meaningful deviations are worth recording; a pick equal to the
+    // automatic choice is noise in the overrides file.
+    const out: Record<string, string> = {};
+    for (const [key, name] of Object.entries(picks)) {
+      const row = ROWS.find(r => r.key === key);
+      if (row && row.chosen !== name) out[key] = name;
+    }
+    const blob = new Blob([JSON.stringify(out, null, 2) + '\n'], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'tailwind-ab-overrides.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  if (!import.meta.env.DEV) return null;
+
+  const changed = Object.entries(picks).filter(([k, v]) => ROWS.find(r => r.key === k)?.chosen !== v).length;
+
+  return (
+    <>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setOpen(true)}
+            aria-label="Open palette calibration"
+            className={cn(changed > 0 && 'text-primary')}
+          >
+            <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>Palette calibration{changed > 0 ? ` (${changed} changed)` : ''}</TooltipContent>
+      </Tooltip>
+
+      <Sheet open={open} onOpenChange={setOpen}>
+        <SheetContent side="right" className="flex w-full flex-col gap-4 sm:max-w-xl">
+          <SheetHeader className="space-y-1">
+            <SheetTitle>Palette calibration</SheetTitle>
+            <SheetDescription>
+              Pick the Tailwind entry for each authored colour. Choices apply to the page
+              immediately — turn the beaker on to see them. Export writes the overrides file.
+            </SheetDescription>
+          </SheetHeader>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <Input
+              value={filter}
+              onChange={(event) => setFilter(event.target.value)}
+              placeholder="Filter tokens…"
+              className="h-8 flex-1"
+            />
+            <Button
+              variant={onlyChanged ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setOnlyChanged((v) => !v)}
+            >
+              Changed {changed > 0 ? `(${changed})` : ''}
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setPicks({})} disabled={changed === 0}>
+              <RotateCcw className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
+              Reset
+            </Button>
+            <Button size="sm" onClick={exportJson} disabled={changed === 0}>
+              <Download className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
+              Export
+            </Button>
+          </div>
+
+          <ScrollArea className="h-[calc(100vh-14rem)] pr-3">
+            <div className="space-y-4">
+              {visible.map((row) => {
+                const active = picks[row.key] ?? row.chosen;
+                const multi = /#\d+$/.test(row.key);
+                return (
+                  <div key={row.key} className="space-y-2 rounded-lg border p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="truncate font-mono text-xs">{row.key}</p>
+                        <p className="text-xs text-muted-foreground">
+                          authored {row.authoredHex}
+                          {row.alpha !== null && ` · alpha ${row.alpha}`}
+                        </p>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-2">
+                        <Badge variant="outline" className="text-[10px]">{row.scope}</Badge>
+                        {multi && (
+                          <Badge variant="secondary" className="text-[10px]">auto only</Badge>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span
+                        className="h-8 w-8 shrink-0 rounded border"
+                        style={{ background: row.authoredHex }}
+                        title={`authored ${row.authoredHex}`}
+                        aria-hidden="true"
+                      />
+                      <span className="text-muted-foreground" aria-hidden="true">→</span>
+                      {row.candidates.map((candidate) => {
+                        const selected = candidate.name === active;
+                        return (
+                          <button
+                            key={candidate.name}
+                            type="button"
+                            disabled={multi}
+                            onClick={() => setPicks((p) => ({ ...p, [row.key]: candidate.name }))}
+                            aria-pressed={selected}
+                            title={`${candidate.name} — drift ${candidate.drift}`}
+                            className={cn(
+                              'relative h-8 w-8 rounded border transition-all',
+                              selected ? 'ring-2 ring-primary ring-offset-1' : 'hover:scale-110',
+                              multi && 'cursor-not-allowed opacity-50',
+                            )}
+                            style={{ background: candidate.hex }}
+                          >
+                            {selected && (
+                              <Check
+                                className="absolute inset-0 m-auto h-4 w-4 drop-shadow"
+                                style={{ color: candidate.drift > 0.5 ? '#fff' : '#000' }}
+                                aria-hidden="true"
+                              />
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <p className="font-mono text-[11px] text-muted-foreground">
+                      {active}
+                      {' · drift '}
+                      {row.candidates.find(c => c.name === active)?.drift ?? '—'}
+                      {row.candidates.find(c => c.name === active)?.auto && ' · auto'}
+                    </p>
+                  </div>
+                );
+              })}
+              {visible.length === 0 && (
+                <p className="py-8 text-center text-sm text-muted-foreground">
+                  No tokens match that filter.
+                </p>
+              )}
+            </div>
+          </ScrollArea>
+        </SheetContent>
+      </Sheet>
+    </>
+  );
+}

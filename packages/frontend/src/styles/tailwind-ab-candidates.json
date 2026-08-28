@@ -1,0 +1,8265 @@
+{
+  "generatedAt": "2026-08-28T03:28:19.089Z",
+  "rows": [
+    {
+      "key": "light --status-success-bg",
+      "scope": "light",
+      "token": "status-success-bg",
+      "alpha": null,
+      "authoredHex": "#f2fdf6",
+      "chosen": "green-50",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "green-50",
+          "hex": "#f0fdf4",
+          "drift": 0.0038,
+          "auto": true
+        },
+        {
+          "name": "teal-50",
+          "hex": "#f0fdfa",
+          "drift": 0.0057,
+          "auto": false
+        },
+        {
+          "name": "emerald-50",
+          "hex": "#ecfdf5",
+          "drift": 0.0083,
+          "auto": false
+        },
+        {
+          "name": "cyan-50",
+          "hex": "#ecfeff",
+          "drift": 0.0129,
+          "auto": false
+        },
+        {
+          "name": "mist-50",
+          "hex": "#f9fbfb",
+          "drift": 0.0136,
+          "auto": false
+        },
+        {
+          "name": "olive-50",
+          "hex": "#fbfbf9",
+          "drift": 0.0137,
+          "auto": false
+        },
+        {
+          "name": "stone-50",
+          "hex": "#fafaf9",
+          "drift": 0.0142,
+          "auto": false
+        },
+        {
+          "name": "zinc-50",
+          "hex": "#fafafa",
+          "drift": 0.0148,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "light --status-success-border",
+      "scope": "light",
+      "token": "status-success-border",
+      "alpha": null,
+      "authoredHex": "#21c45d",
+      "chosen": "green-500",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "green-500",
+          "hex": "#00c950",
+          "drift": 0.0273,
+          "auto": true
+        },
+        {
+          "name": "emerald-500",
+          "hex": "#00bc7d",
+          "drift": 0.052,
+          "auto": false
+        },
+        {
+          "name": "emerald-400",
+          "hex": "#00d492",
+          "drift": 0.0648,
+          "auto": false
+        },
+        {
+          "name": "green-400",
+          "hex": "#05df72",
+          "drift": 0.0746,
+          "auto": false
+        },
+        {
+          "name": "green-600",
+          "hex": "#00a63e",
+          "drift": 0.0929,
+          "auto": false
+        },
+        {
+          "name": "lime-500",
+          "hex": "#7ccf00",
+          "drift": 0.0934,
+          "auto": false
+        },
+        {
+          "name": "lime-600",
+          "hex": "#5ea500",
+          "drift": 0.0944,
+          "auto": false
+        },
+        {
+          "name": "teal-500",
+          "hex": "#00bba7",
+          "drift": 0.1077,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "light --status-success-text",
+      "scope": "light",
+      "token": "status-success-text",
+      "alpha": null,
+      "authoredHex": "#16833e",
+      "chosen": "green-700",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "green-700",
+          "hex": "#008236",
+          "drift": 0.0168,
+          "auto": true
+        },
+        {
+          "name": "emerald-700",
+          "hex": "#007a55",
+          "drift": 0.0501,
+          "auto": false
+        },
+        {
+          "name": "lime-700",
+          "hex": "#497d00",
+          "drift": 0.0503,
+          "auto": false
+        },
+        {
+          "name": "emerald-600",
+          "hex": "#009966",
+          "drift": 0.0686,
+          "auto": false
+        },
+        {
+          "name": "teal-700",
+          "hex": "#00786f",
+          "drift": 0.0885,
+          "auto": false
+        },
+        {
+          "name": "green-800",
+          "hex": "#016630",
+          "drift": 0.0906,
+          "auto": false
+        },
+        {
+          "name": "lime-800",
+          "hex": "#3c6300",
+          "drift": 0.0951,
+          "auto": false
+        },
+        {
+          "name": "teal-600",
+          "hex": "#009689",
+          "drift": 0.1023,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "light --status-warning-bg",
+      "scope": "light",
+      "token": "status-warning-bg",
+      "alpha": null,
+      "authoredHex": "#fff0d6",
+      "chosen": "orange-100",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "orange-100",
+          "hex": "#ffedd4",
+          "drift": 0.0075,
+          "auto": true
+        },
+        {
+          "name": "amber-100",
+          "hex": "#fef3c6",
+          "drift": 0.0243,
+          "auto": false
+        },
+        {
+          "name": "orange-50",
+          "hex": "#fff7ed",
+          "drift": 0.0296,
+          "auto": false
+        },
+        {
+          "name": "yellow-50",
+          "hex": "#fefce8",
+          "drift": 0.0313,
+          "auto": false
+        },
+        {
+          "name": "amber-50",
+          "hex": "#fffbeb",
+          "drift": 0.0318,
+          "auto": false
+        },
+        {
+          "name": "olive-100",
+          "hex": "#f4f4f0",
+          "drift": 0.0338,
+          "auto": false
+        },
+        {
+          "name": "lime-50",
+          "hex": "#f7fee7",
+          "drift": 0.0352,
+          "auto": false
+        },
+        {
+          "name": "red-50",
+          "hex": "#fef2f2",
+          "drift": 0.0358,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "light --status-warning-border",
+      "scope": "light",
+      "token": "status-warning-border",
+      "alpha": null,
+      "authoredHex": "#f59f0a",
+      "chosen": "amber-500",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "amber-500",
+          "hex": "#fe9a00",
+          "drift": 0.0235,
+          "auto": true
+        },
+        {
+          "name": "orange-400",
+          "hex": "#ff8904",
+          "drift": 0.0523,
+          "auto": false
+        },
+        {
+          "name": "yellow-500",
+          "hex": "#f0b100",
+          "drift": 0.0562,
+          "auto": false
+        },
+        {
+          "name": "amber-400",
+          "hex": "#ffb900",
+          "drift": 0.0755,
+          "auto": false
+        },
+        {
+          "name": "orange-300",
+          "hex": "#ffb86a",
+          "drift": 0.0769,
+          "auto": false
+        },
+        {
+          "name": "yellow-600",
+          "hex": "#d08700",
+          "drift": 0.0906,
+          "auto": false
+        },
+        {
+          "name": "orange-500",
+          "hex": "#ff6900",
+          "drift": 0.1105,
+          "auto": false
+        },
+        {
+          "name": "yellow-400",
+          "hex": "#fdc700",
+          "drift": 0.111,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "light --status-warning-text",
+      "scope": "light",
+      "token": "status-warning-text",
+      "alpha": null,
+      "authoredHex": "#ffa200",
+      "chosen": "amber-500",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "amber-500",
+          "hex": "#fe9a00",
+          "drift": 0.0249,
+          "auto": true
+        },
+        {
+          "name": "yellow-500",
+          "hex": "#f0b100",
+          "drift": 0.0543,
+          "auto": false
+        },
+        {
+          "name": "orange-400",
+          "hex": "#ff8904",
+          "drift": 0.0565,
+          "auto": false
+        },
+        {
+          "name": "amber-400",
+          "hex": "#ffb900",
+          "drift": 0.0652,
+          "auto": false
+        },
+        {
+          "name": "orange-300",
+          "hex": "#ffb86a",
+          "drift": 0.0664,
+          "auto": false
+        },
+        {
+          "name": "yellow-400",
+          "hex": "#fdc700",
+          "drift": 0.1013,
+          "auto": false
+        },
+        {
+          "name": "yellow-600",
+          "hex": "#d08700",
+          "drift": 0.1086,
+          "auto": false
+        },
+        {
+          "name": "amber-300",
+          "hex": "#ffd230",
+          "drift": 0.1131,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "light --status-danger-bg",
+      "scope": "light",
+      "token": "status-danger-bg",
+      "alpha": null,
+      "authoredHex": "#fef1f1",
+      "chosen": "rose-50",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "rose-50",
+          "hex": "#fff1f2",
+          "drift": 0.0017,
+          "auto": true
+        },
+        {
+          "name": "red-50",
+          "hex": "#fef2f2",
+          "drift": 0.0029,
+          "auto": false
+        },
+        {
+          "name": "pink-50",
+          "hex": "#fdf2f8",
+          "drift": 0.0087,
+          "auto": false
+        },
+        {
+          "name": "neutral-100",
+          "hex": "#f5f5f5",
+          "drift": 0.0141,
+          "auto": false
+        },
+        {
+          "name": "zinc-100",
+          "hex": "#f4f4f5",
+          "drift": 0.0142,
+          "auto": false
+        },
+        {
+          "name": "stone-100",
+          "hex": "#f5f5f4",
+          "drift": 0.0142,
+          "auto": false
+        },
+        {
+          "name": "taupe-100",
+          "hex": "#f3f1f1",
+          "drift": 0.0146,
+          "auto": false
+        },
+        {
+          "name": "mauve-100",
+          "hex": "#f3f1f3",
+          "drift": 0.015,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "light --status-danger-border",
+      "scope": "light",
+      "token": "status-danger-border",
+      "alpha": null,
+      "authoredHex": "#ef4343",
+      "chosen": "red-500",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "red-500",
+          "hex": "#fb2c36",
+          "drift": 0.0282,
+          "auto": true
+        },
+        {
+          "name": "rose-500",
+          "hex": "#ff2056",
+          "drift": 0.0522,
+          "auto": false
+        },
+        {
+          "name": "orange-600",
+          "hex": "#f54900",
+          "drift": 0.0611,
+          "auto": false
+        },
+        {
+          "name": "red-600",
+          "hex": "#e7000b",
+          "drift": 0.0694,
+          "auto": false
+        },
+        {
+          "name": "red-400",
+          "hex": "#ff6467",
+          "drift": 0.0714,
+          "auto": false
+        },
+        {
+          "name": "rose-600",
+          "hex": "#ec003f",
+          "drift": 0.0736,
+          "auto": false
+        },
+        {
+          "name": "rose-400",
+          "hex": "#ff637e",
+          "drift": 0.0883,
+          "auto": false
+        },
+        {
+          "name": "orange-700",
+          "hex": "#ca3500",
+          "drift": 0.0955,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "light --status-danger-text",
+      "scope": "light",
+      "token": "status-danger-text",
+      "alpha": null,
+      "authoredHex": "#8d0c0c",
+      "chosen": "red-800",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "red-800",
+          "hex": "#9f0712",
+          "drift": 0.0384,
+          "auto": true
+        },
+        {
+          "name": "red-900",
+          "hex": "#82181a",
+          "drift": 0.0243,
+          "auto": false
+        },
+        {
+          "name": "orange-900",
+          "hex": "#7e2a0c",
+          "drift": 0.0444,
+          "auto": false
+        },
+        {
+          "name": "rose-900",
+          "hex": "#8b0836",
+          "drift": 0.0497,
+          "auto": false
+        },
+        {
+          "name": "amber-900",
+          "hex": "#7b3306",
+          "drift": 0.0634,
+          "auto": false
+        },
+        {
+          "name": "orange-800",
+          "hex": "#9f2d00",
+          "drift": 0.0654,
+          "auto": false
+        },
+        {
+          "name": "rose-800",
+          "hex": "#a50036",
+          "drift": 0.0689,
+          "auto": false
+        },
+        {
+          "name": "pink-900",
+          "hex": "#861043",
+          "drift": 0.0701,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "light --status-neutral-bg",
+      "scope": "light",
+      "token": "status-neutral-bg",
+      "alpha": null,
+      "authoredHex": "#f3f4f6",
+      "chosen": "gray-100",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "gray-100",
+          "hex": "#f3f4f6",
+          "drift": 0.0001,
+          "auto": true
+        },
+        {
+          "name": "zinc-100",
+          "hex": "#f4f4f5",
+          "drift": 0.002,
+          "auto": false
+        },
+        {
+          "name": "neutral-100",
+          "hex": "#f5f5f5",
+          "drift": 0.0042,
+          "auto": false
+        },
+        {
+          "name": "slate-100",
+          "hex": "#f1f5f9",
+          "drift": 0.0044,
+          "auto": false
+        },
+        {
+          "name": "mist-100",
+          "hex": "#f1f3f3",
+          "drift": 0.0048,
+          "auto": false
+        },
+        {
+          "name": "stone-100",
+          "hex": "#f5f5f4",
+          "drift": 0.0049,
+          "auto": false
+        },
+        {
+          "name": "mauve-100",
+          "hex": "#f3f1f3",
+          "drift": 0.0076,
+          "auto": false
+        },
+        {
+          "name": "olive-100",
+          "hex": "#f4f4f0",
+          "drift": 0.0078,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "light --status-neutral-border",
+      "scope": "light",
+      "token": "status-neutral-border",
+      "alpha": null,
+      "authoredHex": "#8b94a7",
+      "chosen": "slate-400",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "slate-400",
+          "hex": "#90a1b9",
+          "drift": 0.04,
+          "auto": true
+        },
+        {
+          "name": "gray-400",
+          "hex": "#99a1af",
+          "drift": 0.0422,
+          "auto": false
+        },
+        {
+          "name": "zinc-400",
+          "hex": "#9f9fa9",
+          "drift": 0.0428,
+          "auto": false
+        },
+        {
+          "name": "neutral-400",
+          "hex": "#a1a1a1",
+          "drift": 0.052,
+          "auto": false
+        },
+        {
+          "name": "mauve-400",
+          "hex": "#a89ea9",
+          "drift": 0.0521,
+          "auto": false
+        },
+        {
+          "name": "stone-400",
+          "hex": "#a6a09b",
+          "drift": 0.0584,
+          "auto": false
+        },
+        {
+          "name": "mist-400",
+          "hex": "#9ca8ab",
+          "drift": 0.0621,
+          "auto": false
+        },
+        {
+          "name": "taupe-400",
+          "hex": "#aba09c",
+          "drift": 0.0636,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "light --status-neutral-text",
+      "scope": "light",
+      "token": "status-neutral-text",
+      "alpha": null,
+      "authoredHex": "#586174",
+      "chosen": "slate-600",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "slate-600",
+          "hex": "#45556c",
+          "drift": 0.0475,
+          "auto": true
+        },
+        {
+          "name": "gray-600",
+          "hex": "#4a5565",
+          "drift": 0.0463,
+          "auto": false
+        },
+        {
+          "name": "mist-600",
+          "hex": "#4b585b",
+          "drift": 0.0493,
+          "auto": false
+        },
+        {
+          "name": "zinc-600",
+          "hex": "#52525c",
+          "drift": 0.053,
+          "auto": false
+        },
+        {
+          "name": "gray-500",
+          "hex": "#6a7282",
+          "drift": 0.0593,
+          "auto": false
+        },
+        {
+          "name": "mauve-500",
+          "hex": "#79697b",
+          "drift": 0.0593,
+          "auto": false
+        },
+        {
+          "name": "olive-600",
+          "hex": "#5b5b4b",
+          "drift": 0.0621,
+          "auto": false
+        },
+        {
+          "name": "neutral-600",
+          "hex": "#525252",
+          "drift": 0.0622,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "light --chart-success",
+      "scope": "light",
+      "token": "chart-success",
+      "alpha": null,
+      "authoredHex": "#21c45d",
+      "chosen": "green-500",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "green-500",
+          "hex": "#00c950",
+          "drift": 0.0273,
+          "auto": true
+        },
+        {
+          "name": "emerald-500",
+          "hex": "#00bc7d",
+          "drift": 0.052,
+          "auto": false
+        },
+        {
+          "name": "emerald-400",
+          "hex": "#00d492",
+          "drift": 0.0648,
+          "auto": false
+        },
+        {
+          "name": "green-400",
+          "hex": "#05df72",
+          "drift": 0.0746,
+          "auto": false
+        },
+        {
+          "name": "green-600",
+          "hex": "#00a63e",
+          "drift": 0.0929,
+          "auto": false
+        },
+        {
+          "name": "lime-500",
+          "hex": "#7ccf00",
+          "drift": 0.0934,
+          "auto": false
+        },
+        {
+          "name": "lime-600",
+          "hex": "#5ea500",
+          "drift": 0.0944,
+          "auto": false
+        },
+        {
+          "name": "teal-500",
+          "hex": "#00bba7",
+          "drift": 0.1077,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "light --chart-warning",
+      "scope": "light",
+      "token": "chart-warning",
+      "alpha": null,
+      "authoredHex": "#f59f0a",
+      "chosen": "amber-500",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "amber-500",
+          "hex": "#fe9a00",
+          "drift": 0.0235,
+          "auto": true
+        },
+        {
+          "name": "orange-400",
+          "hex": "#ff8904",
+          "drift": 0.0523,
+          "auto": false
+        },
+        {
+          "name": "yellow-500",
+          "hex": "#f0b100",
+          "drift": 0.0562,
+          "auto": false
+        },
+        {
+          "name": "amber-400",
+          "hex": "#ffb900",
+          "drift": 0.0755,
+          "auto": false
+        },
+        {
+          "name": "orange-300",
+          "hex": "#ffb86a",
+          "drift": 0.0769,
+          "auto": false
+        },
+        {
+          "name": "yellow-600",
+          "hex": "#d08700",
+          "drift": 0.0906,
+          "auto": false
+        },
+        {
+          "name": "orange-500",
+          "hex": "#ff6900",
+          "drift": 0.1105,
+          "auto": false
+        },
+        {
+          "name": "yellow-400",
+          "hex": "#fdc700",
+          "drift": 0.111,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "light --chart-danger",
+      "scope": "light",
+      "token": "chart-danger",
+      "alpha": null,
+      "authoredHex": "#ef4343",
+      "chosen": "red-500",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "red-500",
+          "hex": "#fb2c36",
+          "drift": 0.0282,
+          "auto": true
+        },
+        {
+          "name": "rose-500",
+          "hex": "#ff2056",
+          "drift": 0.0522,
+          "auto": false
+        },
+        {
+          "name": "orange-600",
+          "hex": "#f54900",
+          "drift": 0.0611,
+          "auto": false
+        },
+        {
+          "name": "red-600",
+          "hex": "#e7000b",
+          "drift": 0.0694,
+          "auto": false
+        },
+        {
+          "name": "red-400",
+          "hex": "#ff6467",
+          "drift": 0.0714,
+          "auto": false
+        },
+        {
+          "name": "rose-600",
+          "hex": "#ec003f",
+          "drift": 0.0736,
+          "auto": false
+        },
+        {
+          "name": "rose-400",
+          "hex": "#ff637e",
+          "drift": 0.0883,
+          "auto": false
+        },
+        {
+          "name": "orange-700",
+          "hex": "#ca3500",
+          "drift": 0.0955,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "light --color-pending",
+      "scope": "light",
+      "token": "color-pending",
+      "alpha": null,
+      "authoredHex": "#3c83f6",
+      "chosen": "blue-500",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "blue-500",
+          "hex": "#2b7fff",
+          "drift": 0.0275,
+          "auto": true
+        },
+        {
+          "name": "sky-600",
+          "hex": "#0084d1",
+          "drift": 0.0709,
+          "auto": false
+        },
+        {
+          "name": "indigo-400",
+          "hex": "#7c86ff",
+          "drift": 0.073,
+          "auto": false
+        },
+        {
+          "name": "blue-400",
+          "hex": "#51a2ff",
+          "drift": 0.0857,
+          "auto": false
+        },
+        {
+          "name": "indigo-500",
+          "hex": "#615fff",
+          "drift": 0.0882,
+          "auto": false
+        },
+        {
+          "name": "sky-500",
+          "hex": "#00a6f4",
+          "drift": 0.0927,
+          "auto": false
+        },
+        {
+          "name": "blue-600",
+          "hex": "#155dfc",
+          "drift": 0.0993,
+          "auto": false
+        },
+        {
+          "name": "cyan-600",
+          "hex": "#0092b8",
+          "drift": 0.1179,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "light --color-time",
+      "scope": "light",
+      "token": "color-time",
+      "alpha": null,
+      "authoredHex": "#3c83f6",
+      "chosen": "blue-500",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "blue-500",
+          "hex": "#2b7fff",
+          "drift": 0.0275,
+          "auto": true
+        },
+        {
+          "name": "sky-600",
+          "hex": "#0084d1",
+          "drift": 0.0709,
+          "auto": false
+        },
+        {
+          "name": "indigo-400",
+          "hex": "#7c86ff",
+          "drift": 0.073,
+          "auto": false
+        },
+        {
+          "name": "blue-400",
+          "hex": "#51a2ff",
+          "drift": 0.0857,
+          "auto": false
+        },
+        {
+          "name": "indigo-500",
+          "hex": "#615fff",
+          "drift": 0.0882,
+          "auto": false
+        },
+        {
+          "name": "sky-500",
+          "hex": "#00a6f4",
+          "drift": 0.0927,
+          "auto": false
+        },
+        {
+          "name": "blue-600",
+          "hex": "#155dfc",
+          "drift": 0.0993,
+          "auto": false
+        },
+        {
+          "name": "cyan-600",
+          "hex": "#0092b8",
+          "drift": 0.1179,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "light --background",
+      "scope": "light",
+      "token": "background",
+      "alpha": null,
+      "authoredHex": "#ffffff",
+      "chosen": "white",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "white",
+          "hex": "#ffffff",
+          "drift": 0,
+          "auto": true
+        },
+        {
+          "name": "olive-50",
+          "hex": "#fbfbf9",
+          "drift": 0.0124,
+          "auto": false
+        },
+        {
+          "name": "mist-50",
+          "hex": "#f9fbfb",
+          "drift": 0.0132,
+          "auto": false
+        },
+        {
+          "name": "taupe-50",
+          "hex": "#fbfaf9",
+          "drift": 0.0141,
+          "auto": false
+        },
+        {
+          "name": "zinc-50",
+          "hex": "#fafafa",
+          "drift": 0.015,
+          "auto": false
+        },
+        {
+          "name": "neutral-50",
+          "hex": "#fafafa",
+          "drift": 0.015,
+          "auto": false
+        },
+        {
+          "name": "mauve-50",
+          "hex": "#fafafa",
+          "drift": 0.015,
+          "auto": false
+        },
+        {
+          "name": "stone-50",
+          "hex": "#fafaf9",
+          "drift": 0.015,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "light --foreground",
+      "scope": "light",
+      "token": "foreground",
+      "alpha": null,
+      "authoredHex": "#18191b",
+      "chosen": "zinc-900",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "zinc-900",
+          "hex": "#18181b",
+          "drift": 0.004,
+          "auto": true
+        },
+        {
+          "name": "mist-900",
+          "hex": "#161b1d",
+          "drift": 0.0075,
+          "auto": false
+        },
+        {
+          "name": "neutral-900",
+          "hex": "#171717",
+          "drift": 0.0089,
+          "auto": false
+        },
+        {
+          "name": "stone-900",
+          "hex": "#1c1917",
+          "drift": 0.0102,
+          "auto": false
+        },
+        {
+          "name": "taupe-900",
+          "hex": "#1d1816",
+          "drift": 0.0123,
+          "auto": false
+        },
+        {
+          "name": "mauve-900",
+          "hex": "#1d161e",
+          "drift": 0.0172,
+          "auto": false
+        },
+        {
+          "name": "olive-900",
+          "hex": "#1d1d16",
+          "drift": 0.0225,
+          "auto": false
+        },
+        {
+          "name": "gray-900",
+          "hex": "#101828",
+          "drift": 0.0301,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "light --card",
+      "scope": "light",
+      "token": "card",
+      "alpha": null,
+      "authoredHex": "#fbfcfe",
+      "chosen": "slate-50",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "slate-50",
+          "hex": "#f8fafc",
+          "drift": 0.0071,
+          "auto": true
+        },
+        {
+          "name": "mist-50",
+          "hex": "#f9fbfb",
+          "drift": 0.0049,
+          "auto": false
+        },
+        {
+          "name": "gray-50",
+          "hex": "#f9fafb",
+          "drift": 0.0061,
+          "auto": false
+        },
+        {
+          "name": "olive-50",
+          "hex": "#fbfbf9",
+          "drift": 0.0066,
+          "auto": false
+        },
+        {
+          "name": "zinc-50",
+          "hex": "#fafafa",
+          "drift": 0.0067,
+          "auto": false
+        },
+        {
+          "name": "neutral-50",
+          "hex": "#fafafa",
+          "drift": 0.0067,
+          "auto": false
+        },
+        {
+          "name": "mauve-50",
+          "hex": "#fafafa",
+          "drift": 0.0067,
+          "auto": false
+        },
+        {
+          "name": "taupe-50",
+          "hex": "#fbfaf9",
+          "drift": 0.007,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "light --card-foreground",
+      "scope": "light",
+      "token": "card-foreground",
+      "alpha": null,
+      "authoredHex": "#242628",
+      "chosen": "zinc-800",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "zinc-800",
+          "hex": "#27272a",
+          "drift": 0.0079,
+          "auto": true
+        },
+        {
+          "name": "neutral-800",
+          "hex": "#262626",
+          "drift": 0.0054,
+          "auto": false
+        },
+        {
+          "name": "mist-800",
+          "hex": "#22292b",
+          "drift": 0.0108,
+          "auto": false
+        },
+        {
+          "name": "stone-800",
+          "hex": "#292524",
+          "drift": 0.0115,
+          "auto": false
+        },
+        {
+          "name": "taupe-800",
+          "hex": "#2b2422",
+          "drift": 0.0155,
+          "auto": false
+        },
+        {
+          "name": "mauve-800",
+          "hex": "#2a212c",
+          "drift": 0.0233,
+          "auto": false
+        },
+        {
+          "name": "olive-800",
+          "hex": "#2b2b22",
+          "drift": 0.0277,
+          "auto": false
+        },
+        {
+          "name": "gray-800",
+          "hex": "#1e2939",
+          "drift": 0.0301,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "light --popover",
+      "scope": "light",
+      "token": "popover",
+      "alpha": null,
+      "authoredHex": "#fafcff",
+      "chosen": "slate-50",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "slate-50",
+          "hex": "#f8fafc",
+          "drift": 0.0064,
+          "auto": true
+        },
+        {
+          "name": "mist-50",
+          "hex": "#f9fbfb",
+          "drift": 0.0053,
+          "auto": false
+        },
+        {
+          "name": "gray-50",
+          "hex": "#f9fafb",
+          "drift": 0.0059,
+          "auto": false
+        },
+        {
+          "name": "zinc-50",
+          "hex": "#fafafa",
+          "drift": 0.0071,
+          "auto": false
+        },
+        {
+          "name": "neutral-50",
+          "hex": "#fafafa",
+          "drift": 0.0071,
+          "auto": false
+        },
+        {
+          "name": "mauve-50",
+          "hex": "#fafafa",
+          "drift": 0.0071,
+          "auto": false
+        },
+        {
+          "name": "stone-50",
+          "hex": "#fafaf9",
+          "drift": 0.0077,
+          "auto": false
+        },
+        {
+          "name": "olive-50",
+          "hex": "#fbfbf9",
+          "drift": 0.008,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "light --popover-foreground",
+      "scope": "light",
+      "token": "popover-foreground",
+      "alpha": null,
+      "authoredHex": "#001933",
+      "chosen": "slate-900",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "slate-900",
+          "hex": "#0f172b",
+          "drift": 0.0234,
+          "auto": true
+        },
+        {
+          "name": "gray-900",
+          "hex": "#101828",
+          "drift": 0.0292,
+          "auto": false
+        },
+        {
+          "name": "mist-900",
+          "hex": "#161b1d",
+          "drift": 0.0544,
+          "auto": false
+        },
+        {
+          "name": "zinc-900",
+          "hex": "#18181b",
+          "drift": 0.0562,
+          "auto": false
+        },
+        {
+          "name": "mauve-900",
+          "hex": "#1d161e",
+          "drift": 0.0578,
+          "auto": false
+        },
+        {
+          "name": "neutral-900",
+          "hex": "#171717",
+          "drift": 0.0613,
+          "auto": false
+        },
+        {
+          "name": "indigo-950",
+          "hex": "#1e1a4d",
+          "drift": 0.067,
+          "auto": false
+        },
+        {
+          "name": "stone-900",
+          "hex": "#1c1917",
+          "drift": 0.067,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "light --primary",
+      "scope": "light",
+      "token": "primary",
+      "alpha": null,
+      "authoredHex": "#2964a3",
+      "chosen": "sky-700",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "sky-700",
+          "hex": "#0069a8",
+          "drift": 0.027,
+          "auto": true
+        },
+        {
+          "name": "sky-800",
+          "hex": "#00598a",
+          "drift": 0.0594,
+          "auto": false
+        },
+        {
+          "name": "cyan-700",
+          "hex": "#007595",
+          "drift": 0.0625,
+          "auto": false
+        },
+        {
+          "name": "cyan-800",
+          "hex": "#005f78",
+          "drift": 0.0755,
+          "auto": false
+        },
+        {
+          "name": "slate-600",
+          "hex": "#45556c",
+          "drift": 0.0909,
+          "auto": false
+        },
+        {
+          "name": "slate-500",
+          "hex": "#62748e",
+          "drift": 0.092,
+          "auto": false
+        },
+        {
+          "name": "gray-600",
+          "hex": "#4a5565",
+          "drift": 0.1018,
+          "auto": false
+        },
+        {
+          "name": "sky-600",
+          "hex": "#0084d1",
+          "drift": 0.1026,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "light --primary-foreground",
+      "scope": "light",
+      "token": "primary-foreground",
+      "alpha": null,
+      "authoredHex": "#ffffff",
+      "chosen": "white",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "white",
+          "hex": "#ffffff",
+          "drift": 0,
+          "auto": true
+        },
+        {
+          "name": "olive-50",
+          "hex": "#fbfbf9",
+          "drift": 0.0124,
+          "auto": false
+        },
+        {
+          "name": "mist-50",
+          "hex": "#f9fbfb",
+          "drift": 0.0132,
+          "auto": false
+        },
+        {
+          "name": "taupe-50",
+          "hex": "#fbfaf9",
+          "drift": 0.0141,
+          "auto": false
+        },
+        {
+          "name": "zinc-50",
+          "hex": "#fafafa",
+          "drift": 0.015,
+          "auto": false
+        },
+        {
+          "name": "neutral-50",
+          "hex": "#fafafa",
+          "drift": 0.015,
+          "auto": false
+        },
+        {
+          "name": "mauve-50",
+          "hex": "#fafafa",
+          "drift": 0.015,
+          "auto": false
+        },
+        {
+          "name": "stone-50",
+          "hex": "#fafaf9",
+          "drift": 0.015,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "light --secondary",
+      "scope": "light",
+      "token": "secondary",
+      "alpha": null,
+      "authoredHex": "#f4f4f5",
+      "chosen": "zinc-100",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "zinc-100",
+          "hex": "#f4f4f5",
+          "drift": 0,
+          "auto": true
+        },
+        {
+          "name": "gray-100",
+          "hex": "#f3f4f6",
+          "drift": 0.0021,
+          "auto": false
+        },
+        {
+          "name": "neutral-100",
+          "hex": "#f5f5f5",
+          "drift": 0.0032,
+          "auto": false
+        },
+        {
+          "name": "stone-100",
+          "hex": "#f5f5f4",
+          "drift": 0.0036,
+          "auto": false
+        },
+        {
+          "name": "mist-100",
+          "hex": "#f1f3f3",
+          "drift": 0.0046,
+          "auto": false
+        },
+        {
+          "name": "olive-100",
+          "hex": "#f4f4f0",
+          "drift": 0.0061,
+          "auto": false
+        },
+        {
+          "name": "slate-100",
+          "hex": "#f1f5f9",
+          "drift": 0.0063,
+          "auto": false
+        },
+        {
+          "name": "taupe-100",
+          "hex": "#f3f1f1",
+          "drift": 0.0074,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "light --secondary-foreground",
+      "scope": "light",
+      "token": "secondary-foreground",
+      "alpha": null,
+      "authoredHex": "#18181b",
+      "chosen": "zinc-900",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "zinc-900",
+          "hex": "#18181b",
+          "drift": 0,
+          "auto": true
+        },
+        {
+          "name": "neutral-900",
+          "hex": "#171717",
+          "drift": 0.0078,
+          "auto": false
+        },
+        {
+          "name": "mist-900",
+          "hex": "#161b1d",
+          "drift": 0.0109,
+          "auto": false
+        },
+        {
+          "name": "stone-900",
+          "hex": "#1c1917",
+          "drift": 0.0124,
+          "auto": false
+        },
+        {
+          "name": "taupe-900",
+          "hex": "#1d1816",
+          "drift": 0.0135,
+          "auto": false
+        },
+        {
+          "name": "mauve-900",
+          "hex": "#1d161e",
+          "drift": 0.0147,
+          "auto": false
+        },
+        {
+          "name": "olive-900",
+          "hex": "#1d1d16",
+          "drift": 0.0262,
+          "auto": false
+        },
+        {
+          "name": "gray-900",
+          "hex": "#101828",
+          "drift": 0.0285,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "light --muted",
+      "scope": "light",
+      "token": "muted",
+      "alpha": null,
+      "authoredHex": "#eef6f5",
+      "chosen": "teal-50",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "teal-50",
+          "hex": "#f0fdfa",
+          "drift": 0.0178,
+          "auto": true
+        },
+        {
+          "name": "mist-100",
+          "hex": "#f1f3f3",
+          "drift": 0.0081,
+          "auto": false
+        },
+        {
+          "name": "slate-100",
+          "hex": "#f1f5f9",
+          "drift": 0.0082,
+          "auto": false
+        },
+        {
+          "name": "gray-100",
+          "hex": "#f3f4f6",
+          "drift": 0.0088,
+          "auto": false
+        },
+        {
+          "name": "zinc-100",
+          "hex": "#f4f4f5",
+          "drift": 0.0092,
+          "auto": false
+        },
+        {
+          "name": "stone-100",
+          "hex": "#f5f5f4",
+          "drift": 0.0094,
+          "auto": false
+        },
+        {
+          "name": "neutral-100",
+          "hex": "#f5f5f5",
+          "drift": 0.0095,
+          "auto": false
+        },
+        {
+          "name": "olive-100",
+          "hex": "#f4f4f0",
+          "drift": 0.0097,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "light --muted-foreground",
+      "scope": "light",
+      "token": "muted-foreground",
+      "alpha": null,
+      "authoredHex": "#61666b",
+      "chosen": "gray-500",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "gray-500",
+          "hex": "#6a7282",
+          "drift": 0.0465,
+          "auto": true
+        },
+        {
+          "name": "zinc-500",
+          "hex": "#71717b",
+          "drift": 0.0452,
+          "auto": false
+        },
+        {
+          "name": "mauve-500",
+          "hex": "#79697b",
+          "drift": 0.0472,
+          "auto": false
+        },
+        {
+          "name": "neutral-500",
+          "hex": "#737373",
+          "drift": 0.049,
+          "auto": false
+        },
+        {
+          "name": "taupe-500",
+          "hex": "#7c6d67",
+          "drift": 0.0494,
+          "auto": false
+        },
+        {
+          "name": "stone-500",
+          "hex": "#79716b",
+          "drift": 0.0505,
+          "auto": false
+        },
+        {
+          "name": "olive-600",
+          "hex": "#5b5b4b",
+          "drift": 0.0536,
+          "auto": false
+        },
+        {
+          "name": "mist-500",
+          "hex": "#67787c",
+          "drift": 0.0538,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "light --accent",
+      "scope": "light",
+      "token": "accent",
+      "alpha": null,
+      "authoredHex": "#deedeb",
+      "chosen": "teal-100",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "teal-100",
+          "hex": "#cbfbf1",
+          "drift": 0.04,
+          "auto": true
+        },
+        {
+          "name": "mist-200",
+          "hex": "#e3e7e8",
+          "drift": 0.0148,
+          "auto": false
+        },
+        {
+          "name": "olive-200",
+          "hex": "#e8e8e3",
+          "drift": 0.0169,
+          "auto": false
+        },
+        {
+          "name": "gray-200",
+          "hex": "#e5e7eb",
+          "drift": 0.0169,
+          "auto": false
+        },
+        {
+          "name": "slate-200",
+          "hex": "#e2e8f0",
+          "drift": 0.0172,
+          "auto": false
+        },
+        {
+          "name": "neutral-200",
+          "hex": "#e5e5e5",
+          "drift": 0.02,
+          "auto": false
+        },
+        {
+          "name": "stone-200",
+          "hex": "#e7e5e4",
+          "drift": 0.0214,
+          "auto": false
+        },
+        {
+          "name": "zinc-200",
+          "hex": "#e4e4e7",
+          "drift": 0.0221,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "light --accent-foreground",
+      "scope": "light",
+      "token": "accent-foreground",
+      "alpha": null,
+      "authoredHex": "#242628",
+      "chosen": "zinc-800",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "zinc-800",
+          "hex": "#27272a",
+          "drift": 0.0079,
+          "auto": true
+        },
+        {
+          "name": "neutral-800",
+          "hex": "#262626",
+          "drift": 0.0054,
+          "auto": false
+        },
+        {
+          "name": "mist-800",
+          "hex": "#22292b",
+          "drift": 0.0108,
+          "auto": false
+        },
+        {
+          "name": "stone-800",
+          "hex": "#292524",
+          "drift": 0.0115,
+          "auto": false
+        },
+        {
+          "name": "taupe-800",
+          "hex": "#2b2422",
+          "drift": 0.0155,
+          "auto": false
+        },
+        {
+          "name": "mauve-800",
+          "hex": "#2a212c",
+          "drift": 0.0233,
+          "auto": false
+        },
+        {
+          "name": "olive-800",
+          "hex": "#2b2b22",
+          "drift": 0.0277,
+          "auto": false
+        },
+        {
+          "name": "gray-800",
+          "hex": "#1e2939",
+          "drift": 0.0301,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "light --destructive",
+      "scope": "light",
+      "token": "destructive",
+      "alpha": null,
+      "authoredHex": "#ff0000",
+      "chosen": "red-600",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "red-600",
+          "hex": "#e7000b",
+          "drift": 0.0532,
+          "auto": true
+        },
+        {
+          "name": "red-500",
+          "hex": "#fb2c36",
+          "drift": 0.0282,
+          "auto": false
+        },
+        {
+          "name": "rose-500",
+          "hex": "#ff2056",
+          "drift": 0.0598,
+          "auto": false
+        },
+        {
+          "name": "orange-600",
+          "hex": "#f54900",
+          "drift": 0.0636,
+          "auto": false
+        },
+        {
+          "name": "rose-600",
+          "hex": "#ec003f",
+          "drift": 0.0668,
+          "auto": false
+        },
+        {
+          "name": "orange-700",
+          "hex": "#ca3500",
+          "drift": 0.1041,
+          "auto": false
+        },
+        {
+          "name": "red-400",
+          "hex": "#ff6467",
+          "drift": 0.1047,
+          "auto": false
+        },
+        {
+          "name": "orange-500",
+          "hex": "#ff6900",
+          "drift": 0.1163,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "light --destructive-foreground",
+      "scope": "light",
+      "token": "destructive-foreground",
+      "alpha": null,
+      "authoredHex": "#fcfcfd",
+      "chosen": "mist-50",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "mist-50",
+          "hex": "#f9fbfb",
+          "drift": 0.005,
+          "auto": true
+        },
+        {
+          "name": "olive-50",
+          "hex": "#fbfbf9",
+          "drift": 0.0055,
+          "auto": false
+        },
+        {
+          "name": "taupe-50",
+          "hex": "#fbfaf9",
+          "drift": 0.0062,
+          "auto": false
+        },
+        {
+          "name": "gray-50",
+          "hex": "#f9fafb",
+          "drift": 0.0065,
+          "auto": false
+        },
+        {
+          "name": "zinc-50",
+          "hex": "#fafafa",
+          "drift": 0.0065,
+          "auto": false
+        },
+        {
+          "name": "neutral-50",
+          "hex": "#fafafa",
+          "drift": 0.0065,
+          "auto": false
+        },
+        {
+          "name": "mauve-50",
+          "hex": "#fafafa",
+          "drift": 0.0065,
+          "auto": false
+        },
+        {
+          "name": "stone-50",
+          "hex": "#fafaf9",
+          "drift": 0.0068,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "light --border",
+      "scope": "light",
+      "token": "border",
+      "alpha": null,
+      "authoredHex": "#c3d1df",
+      "chosen": "slate-300",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "slate-300",
+          "hex": "#cad5e2",
+          "drift": 0.0154,
+          "auto": true
+        },
+        {
+          "name": "gray-300",
+          "hex": "#d1d5dc",
+          "drift": 0.0236,
+          "auto": false
+        },
+        {
+          "name": "mist-300",
+          "hex": "#d0d6d8",
+          "drift": 0.0263,
+          "auto": false
+        },
+        {
+          "name": "zinc-300",
+          "hex": "#d4d4d8",
+          "drift": 0.0267,
+          "auto": false
+        },
+        {
+          "name": "mauve-300",
+          "hex": "#d7d0d7",
+          "drift": 0.0276,
+          "auto": false
+        },
+        {
+          "name": "neutral-300",
+          "hex": "#d4d4d4",
+          "drift": 0.0297,
+          "auto": false
+        },
+        {
+          "name": "stone-300",
+          "hex": "#d6d3d1",
+          "drift": 0.0335,
+          "auto": false
+        },
+        {
+          "name": "taupe-300",
+          "hex": "#d8d2d0",
+          "drift": 0.0343,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "light --input",
+      "scope": "light",
+      "token": "input",
+      "alpha": null,
+      "authoredHex": "#597ea6",
+      "chosen": "sky-600",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "sky-600",
+          "hex": "#0084d1",
+          "drift": 0.085,
+          "auto": true
+        },
+        {
+          "name": "slate-500",
+          "hex": "#62748e",
+          "drift": 0.0408,
+          "auto": false
+        },
+        {
+          "name": "gray-500",
+          "hex": "#6a7282",
+          "drift": 0.0581,
+          "auto": false
+        },
+        {
+          "name": "mist-500",
+          "hex": "#67787c",
+          "drift": 0.0637,
+          "auto": false
+        },
+        {
+          "name": "zinc-500",
+          "hex": "#71717b",
+          "drift": 0.0694,
+          "auto": false
+        },
+        {
+          "name": "cyan-600",
+          "hex": "#0092b8",
+          "drift": 0.0759,
+          "auto": false
+        },
+        {
+          "name": "neutral-500",
+          "hex": "#737373",
+          "drift": 0.0794,
+          "auto": false
+        },
+        {
+          "name": "cyan-700",
+          "hex": "#007595",
+          "drift": 0.0811,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "light --ring",
+      "scope": "light",
+      "token": "ring",
+      "alpha": null,
+      "authoredHex": "#2762a2",
+      "chosen": "sky-700",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "sky-700",
+          "hex": "#0069a8",
+          "drift": 0.0285,
+          "auto": true
+        },
+        {
+          "name": "sky-800",
+          "hex": "#00598a",
+          "drift": 0.0546,
+          "auto": false
+        },
+        {
+          "name": "cyan-700",
+          "hex": "#007595",
+          "drift": 0.066,
+          "auto": false
+        },
+        {
+          "name": "cyan-800",
+          "hex": "#005f78",
+          "drift": 0.073,
+          "auto": false
+        },
+        {
+          "name": "slate-600",
+          "hex": "#45556c",
+          "drift": 0.0885,
+          "auto": false
+        },
+        {
+          "name": "slate-500",
+          "hex": "#62748e",
+          "drift": 0.0966,
+          "auto": false
+        },
+        {
+          "name": "gray-600",
+          "hex": "#4a5565",
+          "drift": 0.0998,
+          "auto": false
+        },
+        {
+          "name": "sky-900",
+          "hex": "#024a70",
+          "drift": 0.1064,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "light --sidebar-background",
+      "scope": "light",
+      "token": "sidebar-background",
+      "alpha": null,
+      "authoredHex": "#fafcff",
+      "chosen": "slate-50",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "slate-50",
+          "hex": "#f8fafc",
+          "drift": 0.0064,
+          "auto": true
+        },
+        {
+          "name": "mist-50",
+          "hex": "#f9fbfb",
+          "drift": 0.0053,
+          "auto": false
+        },
+        {
+          "name": "gray-50",
+          "hex": "#f9fafb",
+          "drift": 0.0059,
+          "auto": false
+        },
+        {
+          "name": "zinc-50",
+          "hex": "#fafafa",
+          "drift": 0.0071,
+          "auto": false
+        },
+        {
+          "name": "neutral-50",
+          "hex": "#fafafa",
+          "drift": 0.0071,
+          "auto": false
+        },
+        {
+          "name": "mauve-50",
+          "hex": "#fafafa",
+          "drift": 0.0071,
+          "auto": false
+        },
+        {
+          "name": "stone-50",
+          "hex": "#fafaf9",
+          "drift": 0.0077,
+          "auto": false
+        },
+        {
+          "name": "olive-50",
+          "hex": "#fbfbf9",
+          "drift": 0.008,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "light --sidebar-foreground",
+      "scope": "light",
+      "token": "sidebar-foreground",
+      "alpha": null,
+      "authoredHex": "#18191b",
+      "chosen": "zinc-900",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "zinc-900",
+          "hex": "#18181b",
+          "drift": 0.004,
+          "auto": true
+        },
+        {
+          "name": "mist-900",
+          "hex": "#161b1d",
+          "drift": 0.0075,
+          "auto": false
+        },
+        {
+          "name": "neutral-900",
+          "hex": "#171717",
+          "drift": 0.0089,
+          "auto": false
+        },
+        {
+          "name": "stone-900",
+          "hex": "#1c1917",
+          "drift": 0.0102,
+          "auto": false
+        },
+        {
+          "name": "taupe-900",
+          "hex": "#1d1816",
+          "drift": 0.0123,
+          "auto": false
+        },
+        {
+          "name": "mauve-900",
+          "hex": "#1d161e",
+          "drift": 0.0172,
+          "auto": false
+        },
+        {
+          "name": "olive-900",
+          "hex": "#1d1d16",
+          "drift": 0.0225,
+          "auto": false
+        },
+        {
+          "name": "gray-900",
+          "hex": "#101828",
+          "drift": 0.0301,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "light --sidebar-primary",
+      "scope": "light",
+      "token": "sidebar-primary",
+      "alpha": null,
+      "authoredHex": "#2762a2",
+      "chosen": "sky-700",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "sky-700",
+          "hex": "#0069a8",
+          "drift": 0.0285,
+          "auto": true
+        },
+        {
+          "name": "sky-800",
+          "hex": "#00598a",
+          "drift": 0.0546,
+          "auto": false
+        },
+        {
+          "name": "cyan-700",
+          "hex": "#007595",
+          "drift": 0.066,
+          "auto": false
+        },
+        {
+          "name": "cyan-800",
+          "hex": "#005f78",
+          "drift": 0.073,
+          "auto": false
+        },
+        {
+          "name": "slate-600",
+          "hex": "#45556c",
+          "drift": 0.0885,
+          "auto": false
+        },
+        {
+          "name": "slate-500",
+          "hex": "#62748e",
+          "drift": 0.0966,
+          "auto": false
+        },
+        {
+          "name": "gray-600",
+          "hex": "#4a5565",
+          "drift": 0.0998,
+          "auto": false
+        },
+        {
+          "name": "sky-900",
+          "hex": "#024a70",
+          "drift": 0.1064,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "light --sidebar-primary-foreground",
+      "scope": "light",
+      "token": "sidebar-primary-foreground",
+      "alpha": null,
+      "authoredHex": "#ffffff",
+      "chosen": "white",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "white",
+          "hex": "#ffffff",
+          "drift": 0,
+          "auto": true
+        },
+        {
+          "name": "olive-50",
+          "hex": "#fbfbf9",
+          "drift": 0.0124,
+          "auto": false
+        },
+        {
+          "name": "mist-50",
+          "hex": "#f9fbfb",
+          "drift": 0.0132,
+          "auto": false
+        },
+        {
+          "name": "taupe-50",
+          "hex": "#fbfaf9",
+          "drift": 0.0141,
+          "auto": false
+        },
+        {
+          "name": "zinc-50",
+          "hex": "#fafafa",
+          "drift": 0.015,
+          "auto": false
+        },
+        {
+          "name": "neutral-50",
+          "hex": "#fafafa",
+          "drift": 0.015,
+          "auto": false
+        },
+        {
+          "name": "mauve-50",
+          "hex": "#fafafa",
+          "drift": 0.015,
+          "auto": false
+        },
+        {
+          "name": "stone-50",
+          "hex": "#fafaf9",
+          "drift": 0.015,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "light --sidebar-accent",
+      "scope": "light",
+      "token": "sidebar-accent",
+      "alpha": null,
+      "authoredHex": "#daf1f0",
+      "chosen": "sky-100",
+      "overridden": true,
+      "candidates": [
+        {
+          "name": "cyan-100",
+          "hex": "#cefafe",
+          "drift": 0.0264,
+          "auto": true
+        },
+        {
+          "name": "sky-100",
+          "hex": "#dff2fe",
+          "drift": 0.021,
+          "auto": false
+        },
+        {
+          "name": "slate-200",
+          "hex": "#e2e8f0",
+          "drift": 0.0244,
+          "auto": false
+        },
+        {
+          "name": "mist-200",
+          "hex": "#e3e7e8",
+          "drift": 0.0251,
+          "auto": false
+        },
+        {
+          "name": "gray-200",
+          "hex": "#e5e7eb",
+          "drift": 0.0262,
+          "auto": false
+        },
+        {
+          "name": "olive-200",
+          "hex": "#e8e8e3",
+          "drift": 0.027,
+          "auto": false
+        },
+        {
+          "name": "teal-100",
+          "hex": "#cbfbf1",
+          "drift": 0.0306,
+          "auto": false
+        },
+        {
+          "name": "neutral-200",
+          "hex": "#e5e5e5",
+          "drift": 0.0306,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "light --sidebar-accent-foreground",
+      "scope": "light",
+      "token": "sidebar-accent-foreground",
+      "alpha": null,
+      "authoredHex": "#242628",
+      "chosen": "zinc-800",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "zinc-800",
+          "hex": "#27272a",
+          "drift": 0.0079,
+          "auto": true
+        },
+        {
+          "name": "neutral-800",
+          "hex": "#262626",
+          "drift": 0.0054,
+          "auto": false
+        },
+        {
+          "name": "mist-800",
+          "hex": "#22292b",
+          "drift": 0.0108,
+          "auto": false
+        },
+        {
+          "name": "stone-800",
+          "hex": "#292524",
+          "drift": 0.0115,
+          "auto": false
+        },
+        {
+          "name": "taupe-800",
+          "hex": "#2b2422",
+          "drift": 0.0155,
+          "auto": false
+        },
+        {
+          "name": "mauve-800",
+          "hex": "#2a212c",
+          "drift": 0.0233,
+          "auto": false
+        },
+        {
+          "name": "olive-800",
+          "hex": "#2b2b22",
+          "drift": 0.0277,
+          "auto": false
+        },
+        {
+          "name": "gray-800",
+          "hex": "#1e2939",
+          "drift": 0.0301,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "light --sidebar-border",
+      "scope": "light",
+      "token": "sidebar-border",
+      "alpha": null,
+      "authoredHex": "#c3d1df",
+      "chosen": "slate-300",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "slate-300",
+          "hex": "#cad5e2",
+          "drift": 0.0154,
+          "auto": true
+        },
+        {
+          "name": "gray-300",
+          "hex": "#d1d5dc",
+          "drift": 0.0236,
+          "auto": false
+        },
+        {
+          "name": "mist-300",
+          "hex": "#d0d6d8",
+          "drift": 0.0263,
+          "auto": false
+        },
+        {
+          "name": "zinc-300",
+          "hex": "#d4d4d8",
+          "drift": 0.0267,
+          "auto": false
+        },
+        {
+          "name": "mauve-300",
+          "hex": "#d7d0d7",
+          "drift": 0.0276,
+          "auto": false
+        },
+        {
+          "name": "neutral-300",
+          "hex": "#d4d4d4",
+          "drift": 0.0297,
+          "auto": false
+        },
+        {
+          "name": "stone-300",
+          "hex": "#d6d3d1",
+          "drift": 0.0335,
+          "auto": false
+        },
+        {
+          "name": "taupe-300",
+          "hex": "#d8d2d0",
+          "drift": 0.0343,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "light --sidebar-ring",
+      "scope": "light",
+      "token": "sidebar-ring",
+      "alpha": null,
+      "authoredHex": "#2762a2",
+      "chosen": "sky-700",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "sky-700",
+          "hex": "#0069a8",
+          "drift": 0.0285,
+          "auto": true
+        },
+        {
+          "name": "sky-800",
+          "hex": "#00598a",
+          "drift": 0.0546,
+          "auto": false
+        },
+        {
+          "name": "cyan-700",
+          "hex": "#007595",
+          "drift": 0.066,
+          "auto": false
+        },
+        {
+          "name": "cyan-800",
+          "hex": "#005f78",
+          "drift": 0.073,
+          "auto": false
+        },
+        {
+          "name": "slate-600",
+          "hex": "#45556c",
+          "drift": 0.0885,
+          "auto": false
+        },
+        {
+          "name": "slate-500",
+          "hex": "#62748e",
+          "drift": 0.0966,
+          "auto": false
+        },
+        {
+          "name": "gray-600",
+          "hex": "#4a5565",
+          "drift": 0.0998,
+          "auto": false
+        },
+        {
+          "name": "sky-900",
+          "hex": "#024a70",
+          "drift": 0.1064,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "light --feed-shell-base-start",
+      "scope": "light",
+      "token": "feed-shell-base-start",
+      "alpha": null,
+      "authoredHex": "#f7fafd",
+      "chosen": "slate-50",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "slate-50",
+          "hex": "#f8fafc",
+          "drift": 0.0021,
+          "auto": true
+        },
+        {
+          "name": "gray-50",
+          "hex": "#f9fafb",
+          "drift": 0.0034,
+          "auto": false
+        },
+        {
+          "name": "zinc-50",
+          "hex": "#fafafa",
+          "drift": 0.0053,
+          "auto": false
+        },
+        {
+          "name": "neutral-50",
+          "hex": "#fafafa",
+          "drift": 0.0053,
+          "auto": false
+        },
+        {
+          "name": "mauve-50",
+          "hex": "#fafafa",
+          "drift": 0.0053,
+          "auto": false
+        },
+        {
+          "name": "mist-50",
+          "hex": "#f9fbfb",
+          "drift": 0.0053,
+          "auto": false
+        },
+        {
+          "name": "stone-50",
+          "hex": "#fafaf9",
+          "drift": 0.0061,
+          "auto": false
+        },
+        {
+          "name": "taupe-50",
+          "hex": "#fbfaf9",
+          "drift": 0.0075,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "light --feed-shell-base-mid",
+      "scope": "light",
+      "token": "feed-shell-base-mid",
+      "alpha": null,
+      "authoredHex": "#f1f8f9",
+      "chosen": "sky-50",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "sky-50",
+          "hex": "#f0f9ff",
+          "drift": 0.008,
+          "auto": true
+        },
+        {
+          "name": "slate-100",
+          "hex": "#f1f5f9",
+          "drift": 0.008,
+          "auto": false
+        },
+        {
+          "name": "neutral-100",
+          "hex": "#f5f5f5",
+          "drift": 0.0086,
+          "auto": false
+        },
+        {
+          "name": "stone-100",
+          "hex": "#f5f5f4",
+          "drift": 0.0088,
+          "auto": false
+        },
+        {
+          "name": "gray-100",
+          "hex": "#f3f4f6",
+          "drift": 0.0096,
+          "auto": false
+        },
+        {
+          "name": "zinc-100",
+          "hex": "#f4f4f5",
+          "drift": 0.0103,
+          "auto": false
+        },
+        {
+          "name": "blue-50",
+          "hex": "#eff6ff",
+          "drift": 0.0113,
+          "auto": false
+        },
+        {
+          "name": "slate-50",
+          "hex": "#f8fafc",
+          "drift": 0.0113,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "light --feed-shell-base-end",
+      "scope": "light",
+      "token": "feed-shell-base-end",
+      "alpha": null,
+      "authoredHex": "#e7edf3",
+      "chosen": "slate-200",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "slate-200",
+          "hex": "#e2e8f0",
+          "drift": 0.0146,
+          "auto": true
+        },
+        {
+          "name": "gray-200",
+          "hex": "#e5e7eb",
+          "drift": 0.0161,
+          "auto": false
+        },
+        {
+          "name": "sky-100",
+          "hex": "#dff2fe",
+          "drift": 0.0177,
+          "auto": false
+        },
+        {
+          "name": "mist-200",
+          "hex": "#e3e7e8",
+          "drift": 0.0195,
+          "auto": false
+        },
+        {
+          "name": "mauve-100",
+          "hex": "#f3f1f3",
+          "drift": 0.0196,
+          "auto": false
+        },
+        {
+          "name": "taupe-100",
+          "hex": "#f3f1f1",
+          "drift": 0.0204,
+          "auto": false
+        },
+        {
+          "name": "indigo-50",
+          "hex": "#eef2ff",
+          "drift": 0.021,
+          "auto": false
+        },
+        {
+          "name": "olive-200",
+          "hex": "#e8e8e3",
+          "drift": 0.0211,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "light --feed-shell-glow-primary",
+      "scope": "light",
+      "token": "feed-shell-glow-primary",
+      "alpha": 0.09,
+      "authoredHex": "#2964a3",
+      "chosen": "sky-700",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "sky-700",
+          "hex": "#0069a8",
+          "drift": 0.0271,
+          "auto": true
+        },
+        {
+          "name": "sky-800",
+          "hex": "#00598a",
+          "drift": 0.0591,
+          "auto": false
+        },
+        {
+          "name": "cyan-700",
+          "hex": "#007595",
+          "drift": 0.0626,
+          "auto": false
+        },
+        {
+          "name": "cyan-800",
+          "hex": "#005f78",
+          "drift": 0.0753,
+          "auto": false
+        },
+        {
+          "name": "slate-600",
+          "hex": "#45556c",
+          "drift": 0.0907,
+          "auto": false
+        },
+        {
+          "name": "slate-500",
+          "hex": "#62748e",
+          "drift": 0.0922,
+          "auto": false
+        },
+        {
+          "name": "gray-600",
+          "hex": "#4a5565",
+          "drift": 0.1016,
+          "auto": false
+        },
+        {
+          "name": "sky-600",
+          "hex": "#0084d1",
+          "drift": 0.1029,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "light --feed-shell-glow-secondary",
+      "scope": "light",
+      "token": "feed-shell-glow-secondary",
+      "alpha": 0.08,
+      "authoredHex": "#43b1a5",
+      "chosen": "teal-500",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "teal-500",
+          "hex": "#00bba7",
+          "drift": 0.0407,
+          "auto": true
+        },
+        {
+          "name": "cyan-500",
+          "hex": "#00b8db",
+          "drift": 0.078,
+          "auto": false
+        },
+        {
+          "name": "emerald-500",
+          "hex": "#00bc7d",
+          "drift": 0.0862,
+          "auto": false
+        },
+        {
+          "name": "mist-400",
+          "hex": "#9ca8ab",
+          "drift": 0.0933,
+          "auto": false
+        },
+        {
+          "name": "teal-600",
+          "hex": "#009689",
+          "drift": 0.0962,
+          "auto": false
+        },
+        {
+          "name": "slate-400",
+          "hex": "#90a1b9",
+          "drift": 0.0965,
+          "auto": false
+        },
+        {
+          "name": "teal-400",
+          "hex": "#00d5be",
+          "drift": 0.0972,
+          "auto": false
+        },
+        {
+          "name": "gray-400",
+          "hex": "#99a1af",
+          "drift": 0.0987,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "light --feed-shell-haze",
+      "scope": "light",
+      "token": "feed-shell-haze",
+      "alpha": 0.05,
+      "authoredHex": "#ffde4d",
+      "chosen": "yellow-300",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "yellow-300",
+          "hex": "#ffdf20",
+          "drift": 0.0222,
+          "auto": true
+        },
+        {
+          "name": "amber-300",
+          "hex": "#ffd230",
+          "drift": 0.0288,
+          "auto": false
+        },
+        {
+          "name": "amber-200",
+          "hex": "#fee685",
+          "drift": 0.0456,
+          "auto": false
+        },
+        {
+          "name": "yellow-200",
+          "hex": "#fff085",
+          "drift": 0.0541,
+          "auto": false
+        },
+        {
+          "name": "yellow-400",
+          "hex": "#fdc700",
+          "drift": 0.0654,
+          "auto": false
+        },
+        {
+          "name": "lime-200",
+          "hex": "#d8f999",
+          "drift": 0.0849,
+          "auto": false
+        },
+        {
+          "name": "amber-400",
+          "hex": "#ffb900",
+          "drift": 0.088,
+          "auto": false
+        },
+        {
+          "name": "orange-200",
+          "hex": "#ffd6a7",
+          "drift": 0.0977,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "light --feed-shell-veil",
+      "scope": "light",
+      "token": "feed-shell-veil",
+      "alpha": 0.42,
+      "authoredHex": "#ffffff",
+      "chosen": "white",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "white",
+          "hex": "#ffffff",
+          "drift": 0,
+          "auto": true
+        },
+        {
+          "name": "olive-50",
+          "hex": "#fbfbf9",
+          "drift": 0.0124,
+          "auto": false
+        },
+        {
+          "name": "mist-50",
+          "hex": "#f9fbfb",
+          "drift": 0.0132,
+          "auto": false
+        },
+        {
+          "name": "taupe-50",
+          "hex": "#fbfaf9",
+          "drift": 0.0141,
+          "auto": false
+        },
+        {
+          "name": "zinc-50",
+          "hex": "#fafafa",
+          "drift": 0.015,
+          "auto": false
+        },
+        {
+          "name": "neutral-50",
+          "hex": "#fafafa",
+          "drift": 0.015,
+          "auto": false
+        },
+        {
+          "name": "mauve-50",
+          "hex": "#fafafa",
+          "drift": 0.015,
+          "auto": false
+        },
+        {
+          "name": "stone-50",
+          "hex": "#fafaf9",
+          "drift": 0.015,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "light --feed-shell-panel-end",
+      "scope": "light",
+      "token": "feed-shell-panel-end",
+      "alpha": 0.76,
+      "authoredHex": "#ebf4f4",
+      "chosen": "mist-100",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "mist-100",
+          "hex": "#f1f3f3",
+          "drift": 0.008,
+          "auto": true
+        },
+        {
+          "name": "slate-100",
+          "hex": "#f1f5f9",
+          "drift": 0.0107,
+          "auto": false
+        },
+        {
+          "name": "gray-100",
+          "hex": "#f3f4f6",
+          "drift": 0.011,
+          "auto": false
+        },
+        {
+          "name": "taupe-100",
+          "hex": "#f3f1f1",
+          "drift": 0.0116,
+          "auto": false
+        },
+        {
+          "name": "zinc-100",
+          "hex": "#f4f4f5",
+          "drift": 0.0116,
+          "auto": false
+        },
+        {
+          "name": "mauve-100",
+          "hex": "#f3f1f3",
+          "drift": 0.0117,
+          "auto": false
+        },
+        {
+          "name": "olive-100",
+          "hex": "#f4f4f0",
+          "drift": 0.0122,
+          "auto": false
+        },
+        {
+          "name": "neutral-100",
+          "hex": "#f5f5f5",
+          "drift": 0.0135,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "light --feed-shell-card-end",
+      "scope": "light",
+      "token": "feed-shell-card-end",
+      "alpha": 0.84,
+      "authoredHex": "#e9f1f1",
+      "chosen": "mist-100",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "mist-100",
+          "hex": "#f1f3f3",
+          "drift": 0.0127,
+          "auto": true
+        },
+        {
+          "name": "taupe-100",
+          "hex": "#f3f1f1",
+          "drift": 0.0131,
+          "auto": false
+        },
+        {
+          "name": "mauve-100",
+          "hex": "#f3f1f3",
+          "drift": 0.0132,
+          "auto": false
+        },
+        {
+          "name": "gray-100",
+          "hex": "#f3f4f6",
+          "drift": 0.0168,
+          "auto": false
+        },
+        {
+          "name": "olive-100",
+          "hex": "#f4f4f0",
+          "drift": 0.0171,
+          "auto": false
+        },
+        {
+          "name": "zinc-100",
+          "hex": "#f4f4f5",
+          "drift": 0.0172,
+          "auto": false
+        },
+        {
+          "name": "slate-100",
+          "hex": "#f1f5f9",
+          "drift": 0.0173,
+          "auto": false
+        },
+        {
+          "name": "neutral-100",
+          "hex": "#f5f5f5",
+          "drift": 0.0198,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "light --feed-shell-surface-shadow",
+      "scope": "light",
+      "token": "feed-shell-surface-shadow",
+      "alpha": 0.34,
+      "authoredHex": "#1a324d",
+      "chosen": "sky-950",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "sky-950",
+          "hex": "#052f4a",
+          "drift": 0.023,
+          "auto": true
+        },
+        {
+          "name": "cyan-950",
+          "hex": "#053345",
+          "drift": 0.0246,
+          "auto": false
+        },
+        {
+          "name": "slate-800",
+          "hex": "#1d293d",
+          "drift": 0.0372,
+          "auto": false
+        },
+        {
+          "name": "gray-800",
+          "hex": "#1e2939",
+          "drift": 0.0418,
+          "auto": false
+        },
+        {
+          "name": "blue-950",
+          "hex": "#162456",
+          "drift": 0.0488,
+          "auto": false
+        },
+        {
+          "name": "mist-800",
+          "hex": "#22292b",
+          "drift": 0.0612,
+          "auto": false
+        },
+        {
+          "name": "slate-700",
+          "hex": "#314158",
+          "drift": 0.0619,
+          "auto": false
+        },
+        {
+          "name": "teal-950",
+          "hex": "#022f2e",
+          "drift": 0.0631,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "light --shadow-color",
+      "scope": "light",
+      "token": "shadow-color",
+      "alpha": null,
+      "authoredHex": "#000000",
+      "chosen": "black",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "black",
+          "hex": "#000000",
+          "drift": 0,
+          "auto": true
+        },
+        {
+          "name": "gray-950",
+          "hex": "#030712",
+          "drift": 0.133,
+          "auto": false
+        },
+        {
+          "name": "slate-950",
+          "hex": "#020618",
+          "drift": 0.1357,
+          "auto": false
+        },
+        {
+          "name": "zinc-950",
+          "hex": "#09090b",
+          "drift": 0.1411,
+          "auto": false
+        },
+        {
+          "name": "neutral-950",
+          "hex": "#0a0a0a",
+          "drift": 0.145,
+          "auto": false
+        },
+        {
+          "name": "mauve-950",
+          "hex": "#0c090c",
+          "drift": 0.1452,
+          "auto": false
+        },
+        {
+          "name": "stone-950",
+          "hex": "#0c0a09",
+          "drift": 0.1471,
+          "auto": false
+        },
+        {
+          "name": "taupe-950",
+          "hex": "#0c0a09",
+          "drift": 0.1471,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "light --shadow-2xs",
+      "scope": "light",
+      "token": "shadow-2xs",
+      "alpha": 0.1,
+      "authoredHex": "#000000",
+      "chosen": "black",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "black",
+          "hex": "#000000",
+          "drift": 0,
+          "auto": true
+        },
+        {
+          "name": "gray-950",
+          "hex": "#030712",
+          "drift": 0.133,
+          "auto": false
+        },
+        {
+          "name": "slate-950",
+          "hex": "#020618",
+          "drift": 0.1357,
+          "auto": false
+        },
+        {
+          "name": "zinc-950",
+          "hex": "#09090b",
+          "drift": 0.1411,
+          "auto": false
+        },
+        {
+          "name": "neutral-950",
+          "hex": "#0a0a0a",
+          "drift": 0.145,
+          "auto": false
+        },
+        {
+          "name": "mauve-950",
+          "hex": "#0c090c",
+          "drift": 0.1452,
+          "auto": false
+        },
+        {
+          "name": "stone-950",
+          "hex": "#0c0a09",
+          "drift": 0.1471,
+          "auto": false
+        },
+        {
+          "name": "taupe-950",
+          "hex": "#0c0a09",
+          "drift": 0.1471,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "light --shadow-xs",
+      "scope": "light",
+      "token": "shadow-xs",
+      "alpha": 0.1,
+      "authoredHex": "#000000",
+      "chosen": "black",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "black",
+          "hex": "#000000",
+          "drift": 0,
+          "auto": true
+        },
+        {
+          "name": "gray-950",
+          "hex": "#030712",
+          "drift": 0.133,
+          "auto": false
+        },
+        {
+          "name": "slate-950",
+          "hex": "#020618",
+          "drift": 0.1357,
+          "auto": false
+        },
+        {
+          "name": "zinc-950",
+          "hex": "#09090b",
+          "drift": 0.1411,
+          "auto": false
+        },
+        {
+          "name": "neutral-950",
+          "hex": "#0a0a0a",
+          "drift": 0.145,
+          "auto": false
+        },
+        {
+          "name": "mauve-950",
+          "hex": "#0c090c",
+          "drift": 0.1452,
+          "auto": false
+        },
+        {
+          "name": "stone-950",
+          "hex": "#0c0a09",
+          "drift": 0.1471,
+          "auto": false
+        },
+        {
+          "name": "taupe-950",
+          "hex": "#0c0a09",
+          "drift": 0.1471,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "light --shadow-sm",
+      "scope": "light",
+      "token": "shadow-sm",
+      "alpha": 0.2,
+      "authoredHex": "#000000",
+      "chosen": "black",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "black",
+          "hex": "#000000",
+          "drift": 0,
+          "auto": true
+        },
+        {
+          "name": "gray-950",
+          "hex": "#030712",
+          "drift": 0.133,
+          "auto": false
+        },
+        {
+          "name": "slate-950",
+          "hex": "#020618",
+          "drift": 0.1357,
+          "auto": false
+        },
+        {
+          "name": "zinc-950",
+          "hex": "#09090b",
+          "drift": 0.1411,
+          "auto": false
+        },
+        {
+          "name": "neutral-950",
+          "hex": "#0a0a0a",
+          "drift": 0.145,
+          "auto": false
+        },
+        {
+          "name": "mauve-950",
+          "hex": "#0c090c",
+          "drift": 0.1452,
+          "auto": false
+        },
+        {
+          "name": "stone-950",
+          "hex": "#0c0a09",
+          "drift": 0.1471,
+          "auto": false
+        },
+        {
+          "name": "taupe-950",
+          "hex": "#0c0a09",
+          "drift": 0.1471,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "light --shadow-sm#1",
+      "scope": "light",
+      "token": "shadow-sm",
+      "alpha": 0.2,
+      "authoredHex": "#000000",
+      "chosen": "black",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "black",
+          "hex": "#000000",
+          "drift": 0,
+          "auto": true
+        },
+        {
+          "name": "gray-950",
+          "hex": "#030712",
+          "drift": 0.133,
+          "auto": false
+        },
+        {
+          "name": "slate-950",
+          "hex": "#020618",
+          "drift": 0.1357,
+          "auto": false
+        },
+        {
+          "name": "zinc-950",
+          "hex": "#09090b",
+          "drift": 0.1411,
+          "auto": false
+        },
+        {
+          "name": "neutral-950",
+          "hex": "#0a0a0a",
+          "drift": 0.145,
+          "auto": false
+        },
+        {
+          "name": "mauve-950",
+          "hex": "#0c090c",
+          "drift": 0.1452,
+          "auto": false
+        },
+        {
+          "name": "stone-950",
+          "hex": "#0c0a09",
+          "drift": 0.1471,
+          "auto": false
+        },
+        {
+          "name": "taupe-950",
+          "hex": "#0c0a09",
+          "drift": 0.1471,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "light --shadow",
+      "scope": "light",
+      "token": "shadow",
+      "alpha": 0.2,
+      "authoredHex": "#000000",
+      "chosen": "black",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "black",
+          "hex": "#000000",
+          "drift": 0,
+          "auto": true
+        },
+        {
+          "name": "gray-950",
+          "hex": "#030712",
+          "drift": 0.133,
+          "auto": false
+        },
+        {
+          "name": "slate-950",
+          "hex": "#020618",
+          "drift": 0.1357,
+          "auto": false
+        },
+        {
+          "name": "zinc-950",
+          "hex": "#09090b",
+          "drift": 0.1411,
+          "auto": false
+        },
+        {
+          "name": "neutral-950",
+          "hex": "#0a0a0a",
+          "drift": 0.145,
+          "auto": false
+        },
+        {
+          "name": "mauve-950",
+          "hex": "#0c090c",
+          "drift": 0.1452,
+          "auto": false
+        },
+        {
+          "name": "stone-950",
+          "hex": "#0c0a09",
+          "drift": 0.1471,
+          "auto": false
+        },
+        {
+          "name": "taupe-950",
+          "hex": "#0c0a09",
+          "drift": 0.1471,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "light --shadow#1",
+      "scope": "light",
+      "token": "shadow",
+      "alpha": 0.2,
+      "authoredHex": "#000000",
+      "chosen": "black",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "black",
+          "hex": "#000000",
+          "drift": 0,
+          "auto": true
+        },
+        {
+          "name": "gray-950",
+          "hex": "#030712",
+          "drift": 0.133,
+          "auto": false
+        },
+        {
+          "name": "slate-950",
+          "hex": "#020618",
+          "drift": 0.1357,
+          "auto": false
+        },
+        {
+          "name": "zinc-950",
+          "hex": "#09090b",
+          "drift": 0.1411,
+          "auto": false
+        },
+        {
+          "name": "neutral-950",
+          "hex": "#0a0a0a",
+          "drift": 0.145,
+          "auto": false
+        },
+        {
+          "name": "mauve-950",
+          "hex": "#0c090c",
+          "drift": 0.1452,
+          "auto": false
+        },
+        {
+          "name": "stone-950",
+          "hex": "#0c0a09",
+          "drift": 0.1471,
+          "auto": false
+        },
+        {
+          "name": "taupe-950",
+          "hex": "#0c0a09",
+          "drift": 0.1471,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "light --shadow-md",
+      "scope": "light",
+      "token": "shadow-md",
+      "alpha": 0.2,
+      "authoredHex": "#000000",
+      "chosen": "black",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "black",
+          "hex": "#000000",
+          "drift": 0,
+          "auto": true
+        },
+        {
+          "name": "gray-950",
+          "hex": "#030712",
+          "drift": 0.133,
+          "auto": false
+        },
+        {
+          "name": "slate-950",
+          "hex": "#020618",
+          "drift": 0.1357,
+          "auto": false
+        },
+        {
+          "name": "zinc-950",
+          "hex": "#09090b",
+          "drift": 0.1411,
+          "auto": false
+        },
+        {
+          "name": "neutral-950",
+          "hex": "#0a0a0a",
+          "drift": 0.145,
+          "auto": false
+        },
+        {
+          "name": "mauve-950",
+          "hex": "#0c090c",
+          "drift": 0.1452,
+          "auto": false
+        },
+        {
+          "name": "stone-950",
+          "hex": "#0c0a09",
+          "drift": 0.1471,
+          "auto": false
+        },
+        {
+          "name": "taupe-950",
+          "hex": "#0c0a09",
+          "drift": 0.1471,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "light --shadow-md#1",
+      "scope": "light",
+      "token": "shadow-md",
+      "alpha": 0.2,
+      "authoredHex": "#000000",
+      "chosen": "black",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "black",
+          "hex": "#000000",
+          "drift": 0,
+          "auto": true
+        },
+        {
+          "name": "gray-950",
+          "hex": "#030712",
+          "drift": 0.133,
+          "auto": false
+        },
+        {
+          "name": "slate-950",
+          "hex": "#020618",
+          "drift": 0.1357,
+          "auto": false
+        },
+        {
+          "name": "zinc-950",
+          "hex": "#09090b",
+          "drift": 0.1411,
+          "auto": false
+        },
+        {
+          "name": "neutral-950",
+          "hex": "#0a0a0a",
+          "drift": 0.145,
+          "auto": false
+        },
+        {
+          "name": "mauve-950",
+          "hex": "#0c090c",
+          "drift": 0.1452,
+          "auto": false
+        },
+        {
+          "name": "stone-950",
+          "hex": "#0c0a09",
+          "drift": 0.1471,
+          "auto": false
+        },
+        {
+          "name": "taupe-950",
+          "hex": "#0c0a09",
+          "drift": 0.1471,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "light --shadow-lg",
+      "scope": "light",
+      "token": "shadow-lg",
+      "alpha": 0.2,
+      "authoredHex": "#000000",
+      "chosen": "black",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "black",
+          "hex": "#000000",
+          "drift": 0,
+          "auto": true
+        },
+        {
+          "name": "gray-950",
+          "hex": "#030712",
+          "drift": 0.133,
+          "auto": false
+        },
+        {
+          "name": "slate-950",
+          "hex": "#020618",
+          "drift": 0.1357,
+          "auto": false
+        },
+        {
+          "name": "zinc-950",
+          "hex": "#09090b",
+          "drift": 0.1411,
+          "auto": false
+        },
+        {
+          "name": "neutral-950",
+          "hex": "#0a0a0a",
+          "drift": 0.145,
+          "auto": false
+        },
+        {
+          "name": "mauve-950",
+          "hex": "#0c090c",
+          "drift": 0.1452,
+          "auto": false
+        },
+        {
+          "name": "stone-950",
+          "hex": "#0c0a09",
+          "drift": 0.1471,
+          "auto": false
+        },
+        {
+          "name": "taupe-950",
+          "hex": "#0c0a09",
+          "drift": 0.1471,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "light --shadow-lg#1",
+      "scope": "light",
+      "token": "shadow-lg",
+      "alpha": 0.2,
+      "authoredHex": "#000000",
+      "chosen": "black",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "black",
+          "hex": "#000000",
+          "drift": 0,
+          "auto": true
+        },
+        {
+          "name": "gray-950",
+          "hex": "#030712",
+          "drift": 0.133,
+          "auto": false
+        },
+        {
+          "name": "slate-950",
+          "hex": "#020618",
+          "drift": 0.1357,
+          "auto": false
+        },
+        {
+          "name": "zinc-950",
+          "hex": "#09090b",
+          "drift": 0.1411,
+          "auto": false
+        },
+        {
+          "name": "neutral-950",
+          "hex": "#0a0a0a",
+          "drift": 0.145,
+          "auto": false
+        },
+        {
+          "name": "mauve-950",
+          "hex": "#0c090c",
+          "drift": 0.1452,
+          "auto": false
+        },
+        {
+          "name": "stone-950",
+          "hex": "#0c0a09",
+          "drift": 0.1471,
+          "auto": false
+        },
+        {
+          "name": "taupe-950",
+          "hex": "#0c0a09",
+          "drift": 0.1471,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "light --shadow-xl",
+      "scope": "light",
+      "token": "shadow-xl",
+      "alpha": 0.2,
+      "authoredHex": "#000000",
+      "chosen": "black",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "black",
+          "hex": "#000000",
+          "drift": 0,
+          "auto": true
+        },
+        {
+          "name": "gray-950",
+          "hex": "#030712",
+          "drift": 0.133,
+          "auto": false
+        },
+        {
+          "name": "slate-950",
+          "hex": "#020618",
+          "drift": 0.1357,
+          "auto": false
+        },
+        {
+          "name": "zinc-950",
+          "hex": "#09090b",
+          "drift": 0.1411,
+          "auto": false
+        },
+        {
+          "name": "neutral-950",
+          "hex": "#0a0a0a",
+          "drift": 0.145,
+          "auto": false
+        },
+        {
+          "name": "mauve-950",
+          "hex": "#0c090c",
+          "drift": 0.1452,
+          "auto": false
+        },
+        {
+          "name": "stone-950",
+          "hex": "#0c0a09",
+          "drift": 0.1471,
+          "auto": false
+        },
+        {
+          "name": "taupe-950",
+          "hex": "#0c0a09",
+          "drift": 0.1471,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "light --shadow-xl#1",
+      "scope": "light",
+      "token": "shadow-xl",
+      "alpha": 0.2,
+      "authoredHex": "#000000",
+      "chosen": "black",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "black",
+          "hex": "#000000",
+          "drift": 0,
+          "auto": true
+        },
+        {
+          "name": "gray-950",
+          "hex": "#030712",
+          "drift": 0.133,
+          "auto": false
+        },
+        {
+          "name": "slate-950",
+          "hex": "#020618",
+          "drift": 0.1357,
+          "auto": false
+        },
+        {
+          "name": "zinc-950",
+          "hex": "#09090b",
+          "drift": 0.1411,
+          "auto": false
+        },
+        {
+          "name": "neutral-950",
+          "hex": "#0a0a0a",
+          "drift": 0.145,
+          "auto": false
+        },
+        {
+          "name": "mauve-950",
+          "hex": "#0c090c",
+          "drift": 0.1452,
+          "auto": false
+        },
+        {
+          "name": "stone-950",
+          "hex": "#0c0a09",
+          "drift": 0.1471,
+          "auto": false
+        },
+        {
+          "name": "taupe-950",
+          "hex": "#0c0a09",
+          "drift": 0.1471,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "light --shadow-2xl",
+      "scope": "light",
+      "token": "shadow-2xl",
+      "alpha": 0.5,
+      "authoredHex": "#000000",
+      "chosen": "black",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "black",
+          "hex": "#000000",
+          "drift": 0,
+          "auto": true
+        },
+        {
+          "name": "gray-950",
+          "hex": "#030712",
+          "drift": 0.133,
+          "auto": false
+        },
+        {
+          "name": "slate-950",
+          "hex": "#020618",
+          "drift": 0.1357,
+          "auto": false
+        },
+        {
+          "name": "zinc-950",
+          "hex": "#09090b",
+          "drift": 0.1411,
+          "auto": false
+        },
+        {
+          "name": "neutral-950",
+          "hex": "#0a0a0a",
+          "drift": 0.145,
+          "auto": false
+        },
+        {
+          "name": "mauve-950",
+          "hex": "#0c090c",
+          "drift": 0.1452,
+          "auto": false
+        },
+        {
+          "name": "stone-950",
+          "hex": "#0c0a09",
+          "drift": 0.1471,
+          "auto": false
+        },
+        {
+          "name": "taupe-950",
+          "hex": "#0c0a09",
+          "drift": 0.1471,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "dark --status-success-bg",
+      "scope": "dark",
+      "token": "status-success-bg",
+      "alpha": null,
+      "authoredHex": "#0f5729",
+      "chosen": "green-900",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "green-900",
+          "hex": "#0d542b",
+          "drift": 0.0123,
+          "auto": true
+        },
+        {
+          "name": "lime-900",
+          "hex": "#35530e",
+          "drift": 0.0339,
+          "auto": false
+        },
+        {
+          "name": "emerald-800",
+          "hex": "#006045",
+          "drift": 0.0414,
+          "auto": false
+        },
+        {
+          "name": "emerald-900",
+          "hex": "#004f3b",
+          "drift": 0.0451,
+          "auto": false
+        },
+        {
+          "name": "green-800",
+          "hex": "#016630",
+          "drift": 0.0487,
+          "auto": false
+        },
+        {
+          "name": "lime-800",
+          "hex": "#3c6300",
+          "drift": 0.0668,
+          "auto": false
+        },
+        {
+          "name": "teal-900",
+          "hex": "#0b4f4a",
+          "drift": 0.067,
+          "auto": false
+        },
+        {
+          "name": "teal-800",
+          "hex": "#005f5a",
+          "drift": 0.0713,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "dark --status-success-border",
+      "scope": "dark",
+      "token": "status-success-border",
+      "alpha": null,
+      "authoredHex": "#12a548",
+      "chosen": "green-600",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "green-600",
+          "hex": "#00a63e",
+          "drift": 0.0199,
+          "auto": true
+        },
+        {
+          "name": "emerald-600",
+          "hex": "#009966",
+          "drift": 0.0614,
+          "auto": false
+        },
+        {
+          "name": "lime-600",
+          "hex": "#5ea500",
+          "drift": 0.0631,
+          "auto": false
+        },
+        {
+          "name": "emerald-500",
+          "hex": "#00bc7d",
+          "drift": 0.0764,
+          "auto": false
+        },
+        {
+          "name": "green-500",
+          "hex": "#00c950",
+          "drift": 0.1014,
+          "auto": false
+        },
+        {
+          "name": "green-700",
+          "hex": "#008236",
+          "drift": 0.1069,
+          "auto": false
+        },
+        {
+          "name": "teal-600",
+          "hex": "#009689",
+          "drift": 0.1099,
+          "auto": false
+        },
+        {
+          "name": "lime-700",
+          "hex": "#497d00",
+          "drift": 0.1128,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "dark --status-success-text",
+      "scope": "dark",
+      "token": "status-success-text",
+      "alpha": null,
+      "authoredHex": "#d3f8e1",
+      "chosen": "emerald-100",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "emerald-100",
+          "hex": "#d0fae5",
+          "drift": 0.0063,
+          "auto": true
+        },
+        {
+          "name": "green-100",
+          "hex": "#dcfce7",
+          "drift": 0.0163,
+          "auto": false
+        },
+        {
+          "name": "teal-100",
+          "hex": "#cbfbf1",
+          "drift": 0.0209,
+          "auto": false
+        },
+        {
+          "name": "cyan-100",
+          "hex": "#cefafe",
+          "drift": 0.0377,
+          "auto": false
+        },
+        {
+          "name": "green-200",
+          "hex": "#b9f8cf",
+          "drift": 0.041,
+          "auto": false
+        },
+        {
+          "name": "emerald-50",
+          "hex": "#ecfdf5",
+          "drift": 0.0432,
+          "auto": false
+        },
+        {
+          "name": "lime-100",
+          "hex": "#ecfcca",
+          "drift": 0.0444,
+          "auto": false
+        },
+        {
+          "name": "green-50",
+          "hex": "#f0fdf4",
+          "drift": 0.0472,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "dark --status-warning-bg",
+      "scope": "dark",
+      "token": "status-warning-bg",
+      "alpha": null,
+      "authoredHex": "#251904",
+      "chosen": "yellow-950",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "yellow-950",
+          "hex": "#432004",
+          "drift": 0.0718,
+          "auto": true
+        },
+        {
+          "name": "olive-900",
+          "hex": "#1d1d16",
+          "drift": 0.029,
+          "auto": false
+        },
+        {
+          "name": "taupe-900",
+          "hex": "#1d1816",
+          "drift": 0.034,
+          "auto": false
+        },
+        {
+          "name": "stone-900",
+          "hex": "#1c1917",
+          "drift": 0.0349,
+          "auto": false
+        },
+        {
+          "name": "neutral-900",
+          "hex": "#171717",
+          "drift": 0.0436,
+          "auto": false
+        },
+        {
+          "name": "mist-900",
+          "hex": "#161b1d",
+          "drift": 0.0465,
+          "auto": false
+        },
+        {
+          "name": "zinc-900",
+          "hex": "#18181b",
+          "drift": 0.0469,
+          "auto": false
+        },
+        {
+          "name": "mauve-900",
+          "hex": "#1d161e",
+          "drift": 0.0524,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "dark --status-warning-border",
+      "scope": "dark",
+      "token": "status-warning-border",
+      "alpha": null,
+      "authoredHex": "#f97316",
+      "chosen": "orange-500",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "orange-500",
+          "hex": "#ff6900",
+          "drift": 0.0263,
+          "auto": true
+        },
+        {
+          "name": "amber-600",
+          "hex": "#e17100",
+          "drift": 0.0523,
+          "auto": false
+        },
+        {
+          "name": "orange-400",
+          "hex": "#ff8904",
+          "drift": 0.0526,
+          "auto": false
+        },
+        {
+          "name": "orange-600",
+          "hex": "#f54900",
+          "drift": 0.0724,
+          "auto": false
+        },
+        {
+          "name": "red-400",
+          "hex": "#ff6467",
+          "drift": 0.0831,
+          "auto": false
+        },
+        {
+          "name": "yellow-600",
+          "hex": "#d08700",
+          "drift": 0.0915,
+          "auto": false
+        },
+        {
+          "name": "amber-500",
+          "hex": "#fe9a00",
+          "drift": 0.0972,
+          "auto": false
+        },
+        {
+          "name": "rose-400",
+          "hex": "#ff637e",
+          "drift": 0.1123,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "dark --status-warning-text",
+      "scope": "dark",
+      "token": "status-warning-text",
+      "alpha": null,
+      "authoredHex": "#ffa200",
+      "chosen": "amber-500",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "amber-500",
+          "hex": "#fe9a00",
+          "drift": 0.0249,
+          "auto": true
+        },
+        {
+          "name": "yellow-500",
+          "hex": "#f0b100",
+          "drift": 0.0543,
+          "auto": false
+        },
+        {
+          "name": "orange-400",
+          "hex": "#ff8904",
+          "drift": 0.0565,
+          "auto": false
+        },
+        {
+          "name": "amber-400",
+          "hex": "#ffb900",
+          "drift": 0.0652,
+          "auto": false
+        },
+        {
+          "name": "orange-300",
+          "hex": "#ffb86a",
+          "drift": 0.0664,
+          "auto": false
+        },
+        {
+          "name": "yellow-400",
+          "hex": "#fdc700",
+          "drift": 0.1013,
+          "auto": false
+        },
+        {
+          "name": "yellow-600",
+          "hex": "#d08700",
+          "drift": 0.1086,
+          "auto": false
+        },
+        {
+          "name": "amber-300",
+          "hex": "#ffd230",
+          "drift": 0.1131,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "dark --status-danger-bg",
+      "scope": "dark",
+      "token": "status-danger-bg",
+      "alpha": null,
+      "authoredHex": "#5e0808",
+      "chosen": "red-900",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "red-900",
+          "hex": "#82181a",
+          "drift": 0.0899,
+          "auto": true
+        },
+        {
+          "name": "rose-950",
+          "hex": "#4d0218",
+          "drift": 0.0503,
+          "auto": false
+        },
+        {
+          "name": "pink-950",
+          "hex": "#510424",
+          "drift": 0.0537,
+          "auto": false
+        },
+        {
+          "name": "red-950",
+          "hex": "#460809",
+          "drift": 0.0574,
+          "auto": false
+        },
+        {
+          "name": "amber-950",
+          "hex": "#461901",
+          "drift": 0.0587,
+          "auto": false
+        },
+        {
+          "name": "orange-950",
+          "hex": "#441306",
+          "drift": 0.0597,
+          "auto": false
+        },
+        {
+          "name": "yellow-950",
+          "hex": "#432004",
+          "drift": 0.0692,
+          "auto": false
+        },
+        {
+          "name": "orange-900",
+          "hex": "#7e2a0c",
+          "drift": 0.1013,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "dark --status-danger-border",
+      "scope": "dark",
+      "token": "status-danger-border",
+      "alpha": null,
+      "authoredHex": "#dc2626",
+      "chosen": "red-600",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "red-600",
+          "hex": "#e7000b",
+          "drift": 0.0298,
+          "auto": true
+        },
+        {
+          "name": "orange-700",
+          "hex": "#ca3500",
+          "drift": 0.0505,
+          "auto": false
+        },
+        {
+          "name": "rose-600",
+          "hex": "#ec003f",
+          "drift": 0.0555,
+          "auto": false
+        },
+        {
+          "name": "red-500",
+          "hex": "#fb2c36",
+          "drift": 0.0642,
+          "auto": false
+        },
+        {
+          "name": "red-700",
+          "hex": "#c10007",
+          "drift": 0.0721,
+          "auto": false
+        },
+        {
+          "name": "rose-700",
+          "hex": "#c70036",
+          "drift": 0.0748,
+          "auto": false
+        },
+        {
+          "name": "rose-500",
+          "hex": "#ff2056",
+          "drift": 0.0864,
+          "auto": false
+        },
+        {
+          "name": "orange-600",
+          "hex": "#f54900",
+          "drift": 0.0869,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "dark --status-danger-text",
+      "scope": "dark",
+      "token": "status-danger-text",
+      "alpha": null,
+      "authoredHex": "#fbd0d0",
+      "chosen": "red-200",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "red-200",
+          "hex": "#ffc9c9",
+          "drift": 0.0164,
+          "auto": true
+        },
+        {
+          "name": "rose-200",
+          "hex": "#ffccd3",
+          "drift": 0.0123,
+          "auto": false
+        },
+        {
+          "name": "pink-200",
+          "hex": "#fccee8",
+          "drift": 0.0352,
+          "auto": false
+        },
+        {
+          "name": "red-100",
+          "hex": "#ffe2e2",
+          "drift": 0.0448,
+          "auto": false
+        },
+        {
+          "name": "taupe-300",
+          "hex": "#d8d2d0",
+          "drift": 0.0497,
+          "auto": false
+        },
+        {
+          "name": "rose-100",
+          "hex": "#ffe4e6",
+          "drift": 0.0503,
+          "auto": false
+        },
+        {
+          "name": "stone-300",
+          "hex": "#d6d3d1",
+          "drift": 0.0514,
+          "auto": false
+        },
+        {
+          "name": "mauve-300",
+          "hex": "#d7d0d7",
+          "drift": 0.0515,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "dark --status-neutral-bg",
+      "scope": "dark",
+      "token": "status-neutral-bg",
+      "alpha": null,
+      "authoredHex": "#2c313a",
+      "chosen": "gray-800",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "gray-800",
+          "hex": "#1e2939",
+          "drift": 0.0374,
+          "auto": true
+        },
+        {
+          "name": "mist-800",
+          "hex": "#22292b",
+          "drift": 0.0391,
+          "auto": false
+        },
+        {
+          "name": "zinc-800",
+          "hex": "#27272a",
+          "drift": 0.04,
+          "auto": false
+        },
+        {
+          "name": "slate-800",
+          "hex": "#1d293d",
+          "drift": 0.0405,
+          "auto": false
+        },
+        {
+          "name": "olive-800",
+          "hex": "#2b2b22",
+          "drift": 0.0419,
+          "auto": false
+        },
+        {
+          "name": "cyan-950",
+          "hex": "#053345",
+          "drift": 0.0434,
+          "auto": false
+        },
+        {
+          "name": "neutral-800",
+          "hex": "#262626",
+          "drift": 0.0465,
+          "auto": false
+        },
+        {
+          "name": "stone-800",
+          "hex": "#292524",
+          "drift": 0.0497,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "dark --status-neutral-border",
+      "scope": "dark",
+      "token": "status-neutral-border",
+      "alpha": null,
+      "authoredHex": "#94a3b8",
+      "chosen": "slate-400",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "slate-400",
+          "hex": "#90a1b9",
+          "drift": 0.0083,
+          "auto": true
+        },
+        {
+          "name": "gray-400",
+          "hex": "#99a1af",
+          "drift": 0.0138,
+          "auto": false
+        },
+        {
+          "name": "zinc-400",
+          "hex": "#9f9fa9",
+          "drift": 0.0239,
+          "auto": false
+        },
+        {
+          "name": "mist-400",
+          "hex": "#9ca8ab",
+          "drift": 0.0292,
+          "auto": false
+        },
+        {
+          "name": "mauve-400",
+          "hex": "#a89ea9",
+          "drift": 0.0325,
+          "auto": false
+        },
+        {
+          "name": "neutral-400",
+          "hex": "#a1a1a1",
+          "drift": 0.0352,
+          "auto": false
+        },
+        {
+          "name": "stone-400",
+          "hex": "#a6a09b",
+          "drift": 0.0446,
+          "auto": false
+        },
+        {
+          "name": "taupe-400",
+          "hex": "#aba09c",
+          "drift": 0.0473,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "dark --status-neutral-text",
+      "scope": "dark",
+      "token": "status-neutral-text",
+      "alpha": null,
+      "authoredHex": "#e2e4e9",
+      "chosen": "gray-200",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "gray-200",
+          "hex": "#e5e7eb",
+          "drift": 0.0093,
+          "auto": true
+        },
+        {
+          "name": "zinc-200",
+          "hex": "#e4e4e7",
+          "drift": 0.0037,
+          "auto": false
+        },
+        {
+          "name": "mauve-200",
+          "hex": "#e7e4e7",
+          "drift": 0.0069,
+          "auto": false
+        },
+        {
+          "name": "neutral-200",
+          "hex": "#e5e5e5",
+          "drift": 0.0078,
+          "auto": false
+        },
+        {
+          "name": "mist-200",
+          "hex": "#e3e7e8",
+          "drift": 0.0085,
+          "auto": false
+        },
+        {
+          "name": "stone-200",
+          "hex": "#e7e5e4",
+          "drift": 0.0105,
+          "auto": false
+        },
+        {
+          "name": "taupe-200",
+          "hex": "#e8e4e3",
+          "drift": 0.0113,
+          "auto": false
+        },
+        {
+          "name": "slate-200",
+          "hex": "#e2e8f0",
+          "drift": 0.012,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "dark --chart-success",
+      "scope": "dark",
+      "token": "chart-success",
+      "alpha": null,
+      "authoredHex": "#25da67",
+      "chosen": "green-400",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "green-400",
+          "hex": "#05df72",
+          "drift": 0.0154,
+          "auto": true
+        },
+        {
+          "name": "green-500",
+          "hex": "#00c950",
+          "drift": 0.0572,
+          "auto": false
+        },
+        {
+          "name": "emerald-400",
+          "hex": "#00d492",
+          "drift": 0.0582,
+          "auto": false
+        },
+        {
+          "name": "lime-500",
+          "hex": "#7ccf00",
+          "drift": 0.0757,
+          "auto": false
+        },
+        {
+          "name": "emerald-500",
+          "hex": "#00bc7d",
+          "drift": 0.1015,
+          "auto": false
+        },
+        {
+          "name": "emerald-300",
+          "hex": "#5ee9b5",
+          "drift": 0.1043,
+          "auto": false
+        },
+        {
+          "name": "lime-400",
+          "hex": "#9ae600",
+          "drift": 0.1047,
+          "auto": false
+        },
+        {
+          "name": "green-300",
+          "hex": "#7bf1a8",
+          "drift": 0.1102,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "dark --chart-warning",
+      "scope": "dark",
+      "token": "chart-warning",
+      "alpha": null,
+      "authoredHex": "#f6a823",
+      "chosen": "amber-500",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "amber-500",
+          "hex": "#fe9a00",
+          "drift": 0.0364,
+          "auto": true
+        },
+        {
+          "name": "yellow-500",
+          "hex": "#f0b100",
+          "drift": 0.0447,
+          "auto": false
+        },
+        {
+          "name": "amber-400",
+          "hex": "#ffb900",
+          "drift": 0.0591,
+          "auto": false
+        },
+        {
+          "name": "orange-300",
+          "hex": "#ffb86a",
+          "drift": 0.0607,
+          "auto": false
+        },
+        {
+          "name": "orange-400",
+          "hex": "#ff8904",
+          "drift": 0.0696,
+          "auto": false
+        },
+        {
+          "name": "yellow-400",
+          "hex": "#fdc700",
+          "drift": 0.0937,
+          "auto": false
+        },
+        {
+          "name": "amber-300",
+          "hex": "#ffd230",
+          "drift": 0.1044,
+          "auto": false
+        },
+        {
+          "name": "yellow-600",
+          "hex": "#d08700",
+          "drift": 0.1076,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "dark --chart-danger",
+      "scope": "dark",
+      "token": "chart-danger",
+      "alpha": null,
+      "authoredHex": "#f15b5b",
+      "chosen": "red-400",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "red-400",
+          "hex": "#ff6467",
+          "drift": 0.0367,
+          "auto": true
+        },
+        {
+          "name": "rose-400",
+          "hex": "#ff637e",
+          "drift": 0.0559,
+          "auto": false
+        },
+        {
+          "name": "red-500",
+          "hex": "#fb2c36",
+          "drift": 0.0607,
+          "auto": false
+        },
+        {
+          "name": "rose-500",
+          "hex": "#ff2056",
+          "drift": 0.0702,
+          "auto": false
+        },
+        {
+          "name": "orange-600",
+          "hex": "#f54900",
+          "drift": 0.0753,
+          "auto": false
+        },
+        {
+          "name": "orange-500",
+          "hex": "#ff6900",
+          "drift": 0.0948,
+          "auto": false
+        },
+        {
+          "name": "rose-600",
+          "hex": "#ec003f",
+          "drift": 0.1088,
+          "auto": false
+        },
+        {
+          "name": "amber-600",
+          "hex": "#e17100",
+          "drift": 0.109,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "dark --color-pending",
+      "scope": "dark",
+      "token": "color-pending",
+      "alpha": null,
+      "authoredHex": "#5593f7",
+      "chosen": "blue-400",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "blue-400",
+          "hex": "#51a2ff",
+          "drift": 0.0405,
+          "auto": true
+        },
+        {
+          "name": "indigo-400",
+          "hex": "#7c86ff",
+          "drift": 0.0558,
+          "auto": false
+        },
+        {
+          "name": "sky-500",
+          "hex": "#00a6f4",
+          "drift": 0.0661,
+          "auto": false
+        },
+        {
+          "name": "blue-500",
+          "hex": "#2b7fff",
+          "drift": 0.0693,
+          "auto": false
+        },
+        {
+          "name": "sky-600",
+          "hex": "#0084d1",
+          "drift": 0.0948,
+          "auto": false
+        },
+        {
+          "name": "sky-400",
+          "hex": "#00bcff",
+          "drift": 0.1073,
+          "auto": false
+        },
+        {
+          "name": "violet-400",
+          "hex": "#a684ff",
+          "drift": 0.108,
+          "auto": false
+        },
+        {
+          "name": "cyan-600",
+          "hex": "#0092b8",
+          "drift": 0.1162,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "dark --color-time",
+      "scope": "dark",
+      "token": "color-time",
+      "alpha": null,
+      "authoredHex": "#5593f7",
+      "chosen": "blue-400",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "blue-400",
+          "hex": "#51a2ff",
+          "drift": 0.0405,
+          "auto": true
+        },
+        {
+          "name": "indigo-400",
+          "hex": "#7c86ff",
+          "drift": 0.0558,
+          "auto": false
+        },
+        {
+          "name": "sky-500",
+          "hex": "#00a6f4",
+          "drift": 0.0661,
+          "auto": false
+        },
+        {
+          "name": "blue-500",
+          "hex": "#2b7fff",
+          "drift": 0.0693,
+          "auto": false
+        },
+        {
+          "name": "sky-600",
+          "hex": "#0084d1",
+          "drift": 0.0948,
+          "auto": false
+        },
+        {
+          "name": "sky-400",
+          "hex": "#00bcff",
+          "drift": 0.1073,
+          "auto": false
+        },
+        {
+          "name": "violet-400",
+          "hex": "#a684ff",
+          "drift": 0.108,
+          "auto": false
+        },
+        {
+          "name": "cyan-600",
+          "hex": "#0092b8",
+          "drift": 0.1162,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "dark --background",
+      "scope": "dark",
+      "token": "background",
+      "alpha": null,
+      "authoredHex": "#000000",
+      "chosen": "black",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "black",
+          "hex": "#000000",
+          "drift": 0,
+          "auto": true
+        },
+        {
+          "name": "gray-950",
+          "hex": "#030712",
+          "drift": 0.133,
+          "auto": false
+        },
+        {
+          "name": "slate-950",
+          "hex": "#020618",
+          "drift": 0.1357,
+          "auto": false
+        },
+        {
+          "name": "zinc-950",
+          "hex": "#09090b",
+          "drift": 0.1411,
+          "auto": false
+        },
+        {
+          "name": "neutral-950",
+          "hex": "#0a0a0a",
+          "drift": 0.145,
+          "auto": false
+        },
+        {
+          "name": "mauve-950",
+          "hex": "#0c090c",
+          "drift": 0.1452,
+          "auto": false
+        },
+        {
+          "name": "stone-950",
+          "hex": "#0c0a09",
+          "drift": 0.1471,
+          "auto": false
+        },
+        {
+          "name": "taupe-950",
+          "hex": "#0c0a09",
+          "drift": 0.1471,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "dark --foreground",
+      "scope": "dark",
+      "token": "foreground",
+      "alpha": null,
+      "authoredHex": "#ffffff",
+      "chosen": "white",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "white",
+          "hex": "#ffffff",
+          "drift": 0,
+          "auto": true
+        },
+        {
+          "name": "olive-50",
+          "hex": "#fbfbf9",
+          "drift": 0.0124,
+          "auto": false
+        },
+        {
+          "name": "mist-50",
+          "hex": "#f9fbfb",
+          "drift": 0.0132,
+          "auto": false
+        },
+        {
+          "name": "taupe-50",
+          "hex": "#fbfaf9",
+          "drift": 0.0141,
+          "auto": false
+        },
+        {
+          "name": "zinc-50",
+          "hex": "#fafafa",
+          "drift": 0.015,
+          "auto": false
+        },
+        {
+          "name": "neutral-50",
+          "hex": "#fafafa",
+          "drift": 0.015,
+          "auto": false
+        },
+        {
+          "name": "mauve-50",
+          "hex": "#fafafa",
+          "drift": 0.015,
+          "auto": false
+        },
+        {
+          "name": "stone-50",
+          "hex": "#fafaf9",
+          "drift": 0.015,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "dark --card",
+      "scope": "dark",
+      "token": "card",
+      "alpha": null,
+      "authoredHex": "#0d1426",
+      "chosen": "slate-900",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "slate-900",
+          "hex": "#0f172b",
+          "drift": 0.0136,
+          "auto": true
+        },
+        {
+          "name": "gray-900",
+          "hex": "#101828",
+          "drift": 0.0156,
+          "auto": false
+        },
+        {
+          "name": "mauve-900",
+          "hex": "#1d161e",
+          "drift": 0.0357,
+          "auto": false
+        },
+        {
+          "name": "zinc-900",
+          "hex": "#18181b",
+          "drift": 0.0357,
+          "auto": false
+        },
+        {
+          "name": "neutral-900",
+          "hex": "#171717",
+          "drift": 0.0393,
+          "auto": false
+        },
+        {
+          "name": "mist-900",
+          "hex": "#161b1d",
+          "drift": 0.0399,
+          "auto": false
+        },
+        {
+          "name": "stone-900",
+          "hex": "#1c1917",
+          "drift": 0.0481,
+          "auto": false
+        },
+        {
+          "name": "taupe-900",
+          "hex": "#1d1816",
+          "drift": 0.0488,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "dark --card-foreground",
+      "scope": "dark",
+      "token": "card-foreground",
+      "alpha": null,
+      "authoredHex": "#ffffff",
+      "chosen": "white",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "white",
+          "hex": "#ffffff",
+          "drift": 0,
+          "auto": true
+        },
+        {
+          "name": "olive-50",
+          "hex": "#fbfbf9",
+          "drift": 0.0124,
+          "auto": false
+        },
+        {
+          "name": "mist-50",
+          "hex": "#f9fbfb",
+          "drift": 0.0132,
+          "auto": false
+        },
+        {
+          "name": "taupe-50",
+          "hex": "#fbfaf9",
+          "drift": 0.0141,
+          "auto": false
+        },
+        {
+          "name": "zinc-50",
+          "hex": "#fafafa",
+          "drift": 0.015,
+          "auto": false
+        },
+        {
+          "name": "neutral-50",
+          "hex": "#fafafa",
+          "drift": 0.015,
+          "auto": false
+        },
+        {
+          "name": "mauve-50",
+          "hex": "#fafafa",
+          "drift": 0.015,
+          "auto": false
+        },
+        {
+          "name": "stone-50",
+          "hex": "#fafaf9",
+          "drift": 0.015,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "dark --popover",
+      "scope": "dark",
+      "token": "popover",
+      "alpha": null,
+      "authoredHex": "#060a13",
+      "chosen": "gray-950",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "gray-950",
+          "hex": "#030712",
+          "drift": 0.0166,
+          "auto": true
+        },
+        {
+          "name": "zinc-950",
+          "hex": "#09090b",
+          "drift": 0.017,
+          "auto": false
+        },
+        {
+          "name": "mist-950",
+          "hex": "#090b0c",
+          "drift": 0.0181,
+          "auto": false
+        },
+        {
+          "name": "mauve-950",
+          "hex": "#0c090c",
+          "drift": 0.0187,
+          "auto": false
+        },
+        {
+          "name": "neutral-950",
+          "hex": "#0a0a0a",
+          "drift": 0.021,
+          "auto": false
+        },
+        {
+          "name": "stone-950",
+          "hex": "#0c0a09",
+          "drift": 0.0245,
+          "auto": false
+        },
+        {
+          "name": "taupe-950",
+          "hex": "#0c0a09",
+          "drift": 0.0245,
+          "auto": false
+        },
+        {
+          "name": "slate-950",
+          "hex": "#020618",
+          "drift": 0.0264,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "dark --popover-foreground",
+      "scope": "dark",
+      "token": "popover-foreground",
+      "alpha": null,
+      "authoredHex": "#ffffff",
+      "chosen": "white",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "white",
+          "hex": "#ffffff",
+          "drift": 0,
+          "auto": true
+        },
+        {
+          "name": "olive-50",
+          "hex": "#fbfbf9",
+          "drift": 0.0124,
+          "auto": false
+        },
+        {
+          "name": "mist-50",
+          "hex": "#f9fbfb",
+          "drift": 0.0132,
+          "auto": false
+        },
+        {
+          "name": "taupe-50",
+          "hex": "#fbfaf9",
+          "drift": 0.0141,
+          "auto": false
+        },
+        {
+          "name": "zinc-50",
+          "hex": "#fafafa",
+          "drift": 0.015,
+          "auto": false
+        },
+        {
+          "name": "neutral-50",
+          "hex": "#fafafa",
+          "drift": 0.015,
+          "auto": false
+        },
+        {
+          "name": "mauve-50",
+          "hex": "#fafafa",
+          "drift": 0.015,
+          "auto": false
+        },
+        {
+          "name": "stone-50",
+          "hex": "#fafaf9",
+          "drift": 0.015,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "dark --primary",
+      "scope": "dark",
+      "token": "primary",
+      "alpha": null,
+      "authoredHex": "#ffde4d",
+      "chosen": "yellow-300",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "yellow-300",
+          "hex": "#ffdf20",
+          "drift": 0.0219,
+          "auto": true
+        },
+        {
+          "name": "amber-300",
+          "hex": "#ffd230",
+          "drift": 0.0291,
+          "auto": false
+        },
+        {
+          "name": "amber-200",
+          "hex": "#fee685",
+          "drift": 0.0456,
+          "auto": false
+        },
+        {
+          "name": "yellow-200",
+          "hex": "#fff085",
+          "drift": 0.0538,
+          "auto": false
+        },
+        {
+          "name": "yellow-400",
+          "hex": "#fdc700",
+          "drift": 0.0656,
+          "auto": false
+        },
+        {
+          "name": "lime-200",
+          "hex": "#d8f999",
+          "drift": 0.0849,
+          "auto": false
+        },
+        {
+          "name": "amber-400",
+          "hex": "#ffb900",
+          "drift": 0.0883,
+          "auto": false
+        },
+        {
+          "name": "orange-200",
+          "hex": "#ffd6a7",
+          "drift": 0.0979,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "dark --primary-foreground",
+      "scope": "dark",
+      "token": "primary-foreground",
+      "alpha": null,
+      "authoredHex": "#2964a3",
+      "chosen": "sky-700",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "sky-700",
+          "hex": "#0069a8",
+          "drift": 0.027,
+          "auto": true
+        },
+        {
+          "name": "sky-800",
+          "hex": "#00598a",
+          "drift": 0.0594,
+          "auto": false
+        },
+        {
+          "name": "cyan-700",
+          "hex": "#007595",
+          "drift": 0.0625,
+          "auto": false
+        },
+        {
+          "name": "cyan-800",
+          "hex": "#005f78",
+          "drift": 0.0755,
+          "auto": false
+        },
+        {
+          "name": "slate-600",
+          "hex": "#45556c",
+          "drift": 0.0909,
+          "auto": false
+        },
+        {
+          "name": "slate-500",
+          "hex": "#62748e",
+          "drift": 0.092,
+          "auto": false
+        },
+        {
+          "name": "gray-600",
+          "hex": "#4a5565",
+          "drift": 0.1018,
+          "auto": false
+        },
+        {
+          "name": "sky-600",
+          "hex": "#0084d1",
+          "drift": 0.1026,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "dark --secondary",
+      "scope": "dark",
+      "token": "secondary",
+      "alpha": null,
+      "authoredHex": "#27272a",
+      "chosen": "zinc-800",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "zinc-800",
+          "hex": "#27272a",
+          "drift": 0.001,
+          "auto": true
+        },
+        {
+          "name": "neutral-800",
+          "hex": "#262626",
+          "drift": 0.0071,
+          "auto": false
+        },
+        {
+          "name": "mist-800",
+          "hex": "#22292b",
+          "drift": 0.0104,
+          "auto": false
+        },
+        {
+          "name": "stone-800",
+          "hex": "#292524",
+          "drift": 0.0115,
+          "auto": false
+        },
+        {
+          "name": "taupe-800",
+          "hex": "#2b2422",
+          "drift": 0.0149,
+          "auto": false
+        },
+        {
+          "name": "mauve-800",
+          "hex": "#2a212c",
+          "drift": 0.0229,
+          "auto": false
+        },
+        {
+          "name": "olive-800",
+          "hex": "#2b2b22",
+          "drift": 0.0242,
+          "auto": false
+        },
+        {
+          "name": "gray-800",
+          "hex": "#1e2939",
+          "drift": 0.029,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "dark --secondary-foreground",
+      "scope": "dark",
+      "token": "secondary-foreground",
+      "alpha": null,
+      "authoredHex": "#fafafa",
+      "chosen": "zinc-50",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "zinc-50",
+          "hex": "#fafafa",
+          "drift": 0,
+          "auto": true
+        },
+        {
+          "name": "neutral-50",
+          "hex": "#fafafa",
+          "drift": 0,
+          "auto": false
+        },
+        {
+          "name": "mauve-50",
+          "hex": "#fafafa",
+          "drift": 0,
+          "auto": false
+        },
+        {
+          "name": "stone-50",
+          "hex": "#fafaf9",
+          "drift": 0.001,
+          "auto": false
+        },
+        {
+          "name": "gray-50",
+          "hex": "#f9fafb",
+          "drift": 0.002,
+          "auto": false
+        },
+        {
+          "name": "taupe-50",
+          "hex": "#fbfaf9",
+          "drift": 0.0022,
+          "auto": false
+        },
+        {
+          "name": "mist-50",
+          "hex": "#f9fbfb",
+          "drift": 0.0028,
+          "auto": false
+        },
+        {
+          "name": "slate-50",
+          "hex": "#f8fafc",
+          "drift": 0.0032,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "dark --muted",
+      "scope": "dark",
+      "token": "muted",
+      "alpha": null,
+      "authoredHex": "#1d2230",
+      "chosen": "gray-800",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "gray-800",
+          "hex": "#1e2939",
+          "drift": 0.0254,
+          "auto": true
+        },
+        {
+          "name": "mauve-800",
+          "hex": "#2a212c",
+          "drift": 0.0244,
+          "auto": false
+        },
+        {
+          "name": "slate-800",
+          "hex": "#1d293d",
+          "drift": 0.0287,
+          "auto": false
+        },
+        {
+          "name": "zinc-800",
+          "hex": "#27272a",
+          "drift": 0.03,
+          "auto": false
+        },
+        {
+          "name": "mist-800",
+          "hex": "#22292b",
+          "drift": 0.0311,
+          "auto": false
+        },
+        {
+          "name": "neutral-800",
+          "hex": "#262626",
+          "drift": 0.0318,
+          "auto": false
+        },
+        {
+          "name": "stone-800",
+          "hex": "#292524",
+          "drift": 0.0354,
+          "auto": false
+        },
+        {
+          "name": "taupe-800",
+          "hex": "#2b2422",
+          "drift": 0.0384,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "dark --muted-foreground",
+      "scope": "dark",
+      "token": "muted-foreground",
+      "alpha": null,
+      "authoredHex": "#a1a4aa",
+      "chosen": "gray-400",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "gray-400",
+          "hex": "#99a1af",
+          "drift": 0.017,
+          "auto": true
+        },
+        {
+          "name": "mist-400",
+          "hex": "#9ca8ab",
+          "drift": 0.0118,
+          "auto": false
+        },
+        {
+          "name": "neutral-400",
+          "hex": "#a1a1a1",
+          "drift": 0.0135,
+          "auto": false
+        },
+        {
+          "name": "zinc-400",
+          "hex": "#9f9fa9",
+          "drift": 0.015,
+          "auto": false
+        },
+        {
+          "name": "mauve-400",
+          "hex": "#a89ea9",
+          "drift": 0.0177,
+          "auto": false
+        },
+        {
+          "name": "stone-400",
+          "hex": "#a6a09b",
+          "drift": 0.0205,
+          "auto": false
+        },
+        {
+          "name": "taupe-400",
+          "hex": "#aba09c",
+          "drift": 0.0218,
+          "auto": false
+        },
+        {
+          "name": "slate-400",
+          "hex": "#90a1b9",
+          "drift": 0.0341,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "dark --accent",
+      "scope": "dark",
+      "token": "accent",
+      "alpha": null,
+      "authoredHex": "#1d2230",
+      "chosen": "gray-800",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "gray-800",
+          "hex": "#1e2939",
+          "drift": 0.0254,
+          "auto": true
+        },
+        {
+          "name": "mauve-800",
+          "hex": "#2a212c",
+          "drift": 0.0244,
+          "auto": false
+        },
+        {
+          "name": "slate-800",
+          "hex": "#1d293d",
+          "drift": 0.0287,
+          "auto": false
+        },
+        {
+          "name": "zinc-800",
+          "hex": "#27272a",
+          "drift": 0.03,
+          "auto": false
+        },
+        {
+          "name": "mist-800",
+          "hex": "#22292b",
+          "drift": 0.0311,
+          "auto": false
+        },
+        {
+          "name": "neutral-800",
+          "hex": "#262626",
+          "drift": 0.0318,
+          "auto": false
+        },
+        {
+          "name": "stone-800",
+          "hex": "#292524",
+          "drift": 0.0354,
+          "auto": false
+        },
+        {
+          "name": "taupe-800",
+          "hex": "#2b2422",
+          "drift": 0.0384,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "dark --accent-foreground",
+      "scope": "dark",
+      "token": "accent-foreground",
+      "alpha": null,
+      "authoredHex": "#f2f2f3",
+      "chosen": "mauve-100",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "mauve-100",
+          "hex": "#f3f1f3",
+          "drift": 0.0025,
+          "auto": true
+        },
+        {
+          "name": "taupe-100",
+          "hex": "#f3f1f1",
+          "drift": 0.0025,
+          "auto": false
+        },
+        {
+          "name": "mist-100",
+          "hex": "#f1f3f3",
+          "drift": 0.003,
+          "auto": false
+        },
+        {
+          "name": "zinc-100",
+          "hex": "#f4f4f5",
+          "drift": 0.006,
+          "auto": false
+        },
+        {
+          "name": "gray-100",
+          "hex": "#f3f4f6",
+          "drift": 0.0064,
+          "auto": false
+        },
+        {
+          "name": "olive-100",
+          "hex": "#f4f4f0",
+          "drift": 0.0078,
+          "auto": false
+        },
+        {
+          "name": "neutral-100",
+          "hex": "#f5f5f5",
+          "drift": 0.0091,
+          "auto": false
+        },
+        {
+          "name": "stone-100",
+          "hex": "#f5f5f4",
+          "drift": 0.0092,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "dark --destructive",
+      "scope": "dark",
+      "token": "destructive",
+      "alpha": null,
+      "authoredHex": "#ff0000",
+      "chosen": "red-600",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "red-600",
+          "hex": "#e7000b",
+          "drift": 0.0532,
+          "auto": true
+        },
+        {
+          "name": "red-500",
+          "hex": "#fb2c36",
+          "drift": 0.0282,
+          "auto": false
+        },
+        {
+          "name": "rose-500",
+          "hex": "#ff2056",
+          "drift": 0.0598,
+          "auto": false
+        },
+        {
+          "name": "orange-600",
+          "hex": "#f54900",
+          "drift": 0.0636,
+          "auto": false
+        },
+        {
+          "name": "rose-600",
+          "hex": "#ec003f",
+          "drift": 0.0668,
+          "auto": false
+        },
+        {
+          "name": "orange-700",
+          "hex": "#ca3500",
+          "drift": 0.1041,
+          "auto": false
+        },
+        {
+          "name": "red-400",
+          "hex": "#ff6467",
+          "drift": 0.1047,
+          "auto": false
+        },
+        {
+          "name": "orange-500",
+          "hex": "#ff6900",
+          "drift": 0.1163,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "dark --destructive-foreground",
+      "scope": "dark",
+      "token": "destructive-foreground",
+      "alpha": null,
+      "authoredHex": "#ffffff",
+      "chosen": "white",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "white",
+          "hex": "#ffffff",
+          "drift": 0,
+          "auto": true
+        },
+        {
+          "name": "olive-50",
+          "hex": "#fbfbf9",
+          "drift": 0.0124,
+          "auto": false
+        },
+        {
+          "name": "mist-50",
+          "hex": "#f9fbfb",
+          "drift": 0.0132,
+          "auto": false
+        },
+        {
+          "name": "taupe-50",
+          "hex": "#fbfaf9",
+          "drift": 0.0141,
+          "auto": false
+        },
+        {
+          "name": "zinc-50",
+          "hex": "#fafafa",
+          "drift": 0.015,
+          "auto": false
+        },
+        {
+          "name": "neutral-50",
+          "hex": "#fafafa",
+          "drift": 0.015,
+          "auto": false
+        },
+        {
+          "name": "mauve-50",
+          "hex": "#fafafa",
+          "drift": 0.015,
+          "auto": false
+        },
+        {
+          "name": "stone-50",
+          "hex": "#fafaf9",
+          "drift": 0.015,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "dark --border",
+      "scope": "dark",
+      "token": "border",
+      "alpha": null,
+      "authoredHex": "#5970a6",
+      "chosen": "sky-700",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "sky-700",
+          "hex": "#0069a8",
+          "drift": 0.0804,
+          "auto": true
+        },
+        {
+          "name": "slate-500",
+          "hex": "#62748e",
+          "drift": 0.0442,
+          "auto": false
+        },
+        {
+          "name": "gray-500",
+          "hex": "#6a7282",
+          "drift": 0.062,
+          "auto": false
+        },
+        {
+          "name": "zinc-500",
+          "hex": "#71717b",
+          "drift": 0.0742,
+          "auto": false
+        },
+        {
+          "name": "mauve-500",
+          "hex": "#79697b",
+          "drift": 0.0762,
+          "auto": false
+        },
+        {
+          "name": "cyan-700",
+          "hex": "#007595",
+          "drift": 0.0784,
+          "auto": false
+        },
+        {
+          "name": "mist-500",
+          "hex": "#67787c",
+          "drift": 0.0787,
+          "auto": false
+        },
+        {
+          "name": "neutral-500",
+          "hex": "#737373",
+          "drift": 0.0892,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "dark --input",
+      "scope": "dark",
+      "token": "input",
+      "alpha": null,
+      "authoredHex": "#5970a6",
+      "chosen": "sky-700",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "sky-700",
+          "hex": "#0069a8",
+          "drift": 0.0804,
+          "auto": true
+        },
+        {
+          "name": "slate-500",
+          "hex": "#62748e",
+          "drift": 0.0442,
+          "auto": false
+        },
+        {
+          "name": "gray-500",
+          "hex": "#6a7282",
+          "drift": 0.062,
+          "auto": false
+        },
+        {
+          "name": "zinc-500",
+          "hex": "#71717b",
+          "drift": 0.0742,
+          "auto": false
+        },
+        {
+          "name": "mauve-500",
+          "hex": "#79697b",
+          "drift": 0.0762,
+          "auto": false
+        },
+        {
+          "name": "cyan-700",
+          "hex": "#007595",
+          "drift": 0.0784,
+          "auto": false
+        },
+        {
+          "name": "mist-500",
+          "hex": "#67787c",
+          "drift": 0.0787,
+          "auto": false
+        },
+        {
+          "name": "neutral-500",
+          "hex": "#737373",
+          "drift": 0.0892,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "dark --ring",
+      "scope": "dark",
+      "token": "ring",
+      "alpha": null,
+      "authoredHex": "#292c33",
+      "chosen": "gray-800",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "gray-800",
+          "hex": "#1e2939",
+          "drift": 0.0253,
+          "auto": true
+        },
+        {
+          "name": "zinc-800",
+          "hex": "#27272a",
+          "drift": 0.0205,
+          "auto": false
+        },
+        {
+          "name": "mist-800",
+          "hex": "#22292b",
+          "drift": 0.0208,
+          "auto": false
+        },
+        {
+          "name": "neutral-800",
+          "hex": "#262626",
+          "drift": 0.0273,
+          "auto": false
+        },
+        {
+          "name": "olive-800",
+          "hex": "#2b2b22",
+          "drift": 0.0294,
+          "auto": false
+        },
+        {
+          "name": "stone-800",
+          "hex": "#292524",
+          "drift": 0.0309,
+          "auto": false
+        },
+        {
+          "name": "slate-800",
+          "hex": "#1d293d",
+          "drift": 0.0314,
+          "auto": false
+        },
+        {
+          "name": "taupe-800",
+          "hex": "#2b2422",
+          "drift": 0.0331,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "dark --sidebar-background",
+      "scope": "dark",
+      "token": "sidebar-background",
+      "alpha": null,
+      "authoredHex": "#0d1426",
+      "chosen": "slate-900",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "slate-900",
+          "hex": "#0f172b",
+          "drift": 0.0136,
+          "auto": true
+        },
+        {
+          "name": "gray-900",
+          "hex": "#101828",
+          "drift": 0.0156,
+          "auto": false
+        },
+        {
+          "name": "mauve-900",
+          "hex": "#1d161e",
+          "drift": 0.0357,
+          "auto": false
+        },
+        {
+          "name": "zinc-900",
+          "hex": "#18181b",
+          "drift": 0.0357,
+          "auto": false
+        },
+        {
+          "name": "neutral-900",
+          "hex": "#171717",
+          "drift": 0.0393,
+          "auto": false
+        },
+        {
+          "name": "mist-900",
+          "hex": "#161b1d",
+          "drift": 0.0399,
+          "auto": false
+        },
+        {
+          "name": "stone-900",
+          "hex": "#1c1917",
+          "drift": 0.0481,
+          "auto": false
+        },
+        {
+          "name": "taupe-900",
+          "hex": "#1d1816",
+          "drift": 0.0488,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "dark --sidebar-foreground",
+      "scope": "dark",
+      "token": "sidebar-foreground",
+      "alpha": null,
+      "authoredHex": "#ffffff",
+      "chosen": "white",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "white",
+          "hex": "#ffffff",
+          "drift": 0,
+          "auto": true
+        },
+        {
+          "name": "olive-50",
+          "hex": "#fbfbf9",
+          "drift": 0.0124,
+          "auto": false
+        },
+        {
+          "name": "mist-50",
+          "hex": "#f9fbfb",
+          "drift": 0.0132,
+          "auto": false
+        },
+        {
+          "name": "taupe-50",
+          "hex": "#fbfaf9",
+          "drift": 0.0141,
+          "auto": false
+        },
+        {
+          "name": "zinc-50",
+          "hex": "#fafafa",
+          "drift": 0.015,
+          "auto": false
+        },
+        {
+          "name": "neutral-50",
+          "hex": "#fafafa",
+          "drift": 0.015,
+          "auto": false
+        },
+        {
+          "name": "mauve-50",
+          "hex": "#fafafa",
+          "drift": 0.015,
+          "auto": false
+        },
+        {
+          "name": "stone-50",
+          "hex": "#fafaf9",
+          "drift": 0.015,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "dark --sidebar-primary",
+      "scope": "dark",
+      "token": "sidebar-primary",
+      "alpha": null,
+      "authoredHex": "#292c33",
+      "chosen": "gray-800",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "gray-800",
+          "hex": "#1e2939",
+          "drift": 0.0253,
+          "auto": true
+        },
+        {
+          "name": "zinc-800",
+          "hex": "#27272a",
+          "drift": 0.0205,
+          "auto": false
+        },
+        {
+          "name": "mist-800",
+          "hex": "#22292b",
+          "drift": 0.0208,
+          "auto": false
+        },
+        {
+          "name": "neutral-800",
+          "hex": "#262626",
+          "drift": 0.0273,
+          "auto": false
+        },
+        {
+          "name": "olive-800",
+          "hex": "#2b2b22",
+          "drift": 0.0294,
+          "auto": false
+        },
+        {
+          "name": "stone-800",
+          "hex": "#292524",
+          "drift": 0.0309,
+          "auto": false
+        },
+        {
+          "name": "slate-800",
+          "hex": "#1d293d",
+          "drift": 0.0314,
+          "auto": false
+        },
+        {
+          "name": "taupe-800",
+          "hex": "#2b2422",
+          "drift": 0.0331,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "dark --sidebar-primary-foreground",
+      "scope": "dark",
+      "token": "sidebar-primary-foreground",
+      "alpha": null,
+      "authoredHex": "#ffffff",
+      "chosen": "white",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "white",
+          "hex": "#ffffff",
+          "drift": 0,
+          "auto": true
+        },
+        {
+          "name": "olive-50",
+          "hex": "#fbfbf9",
+          "drift": 0.0124,
+          "auto": false
+        },
+        {
+          "name": "mist-50",
+          "hex": "#f9fbfb",
+          "drift": 0.0132,
+          "auto": false
+        },
+        {
+          "name": "taupe-50",
+          "hex": "#fbfaf9",
+          "drift": 0.0141,
+          "auto": false
+        },
+        {
+          "name": "zinc-50",
+          "hex": "#fafafa",
+          "drift": 0.015,
+          "auto": false
+        },
+        {
+          "name": "neutral-50",
+          "hex": "#fafafa",
+          "drift": 0.015,
+          "auto": false
+        },
+        {
+          "name": "mauve-50",
+          "hex": "#fafafa",
+          "drift": 0.015,
+          "auto": false
+        },
+        {
+          "name": "stone-50",
+          "hex": "#fafaf9",
+          "drift": 0.015,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "dark --sidebar-accent",
+      "scope": "dark",
+      "token": "sidebar-accent",
+      "alpha": null,
+      "authoredHex": "#0a235c",
+      "chosen": "blue-950",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "blue-950",
+          "hex": "#162456",
+          "drift": 0.0181,
+          "auto": true
+        },
+        {
+          "name": "indigo-950",
+          "hex": "#1e1a4d",
+          "drift": 0.0414,
+          "auto": false
+        },
+        {
+          "name": "sky-950",
+          "hex": "#052f4a",
+          "drift": 0.0524,
+          "auto": false
+        },
+        {
+          "name": "slate-800",
+          "hex": "#1d293d",
+          "drift": 0.0661,
+          "auto": false
+        },
+        {
+          "name": "violet-950",
+          "hex": "#2f0d68",
+          "drift": 0.0682,
+          "auto": false
+        },
+        {
+          "name": "cyan-950",
+          "hex": "#053345",
+          "drift": 0.0716,
+          "auto": false
+        },
+        {
+          "name": "gray-800",
+          "hex": "#1e2939",
+          "drift": 0.0743,
+          "auto": false
+        },
+        {
+          "name": "indigo-900",
+          "hex": "#312c85",
+          "drift": 0.0942,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "dark --sidebar-accent-foreground",
+      "scope": "dark",
+      "token": "sidebar-accent-foreground",
+      "alpha": null,
+      "authoredHex": "#ffffff",
+      "chosen": "white",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "white",
+          "hex": "#ffffff",
+          "drift": 0,
+          "auto": true
+        },
+        {
+          "name": "olive-50",
+          "hex": "#fbfbf9",
+          "drift": 0.0124,
+          "auto": false
+        },
+        {
+          "name": "mist-50",
+          "hex": "#f9fbfb",
+          "drift": 0.0132,
+          "auto": false
+        },
+        {
+          "name": "taupe-50",
+          "hex": "#fbfaf9",
+          "drift": 0.0141,
+          "auto": false
+        },
+        {
+          "name": "zinc-50",
+          "hex": "#fafafa",
+          "drift": 0.015,
+          "auto": false
+        },
+        {
+          "name": "neutral-50",
+          "hex": "#fafafa",
+          "drift": 0.015,
+          "auto": false
+        },
+        {
+          "name": "mauve-50",
+          "hex": "#fafafa",
+          "drift": 0.015,
+          "auto": false
+        },
+        {
+          "name": "stone-50",
+          "hex": "#fafaf9",
+          "drift": 0.015,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "dark --sidebar-border",
+      "scope": "dark",
+      "token": "sidebar-border",
+      "alpha": null,
+      "authoredHex": "#263d73",
+      "chosen": "blue-900",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "blue-900",
+          "hex": "#1c398e",
+          "drift": 0.0495,
+          "auto": true
+        },
+        {
+          "name": "sky-900",
+          "hex": "#024a70",
+          "drift": 0.0436,
+          "auto": false
+        },
+        {
+          "name": "slate-700",
+          "hex": "#314158",
+          "drift": 0.0537,
+          "auto": false
+        },
+        {
+          "name": "indigo-900",
+          "hex": "#312c85",
+          "drift": 0.0566,
+          "auto": false
+        },
+        {
+          "name": "gray-700",
+          "hex": "#364153",
+          "drift": 0.0632,
+          "auto": false
+        },
+        {
+          "name": "cyan-900",
+          "hex": "#104e64",
+          "drift": 0.0647,
+          "auto": false
+        },
+        {
+          "name": "sky-800",
+          "hex": "#00598a",
+          "drift": 0.0839,
+          "auto": false
+        },
+        {
+          "name": "zinc-700",
+          "hex": "#3f3f46",
+          "drift": 0.085,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "dark --sidebar-ring",
+      "scope": "dark",
+      "token": "sidebar-ring",
+      "alpha": null,
+      "authoredHex": "#292c33",
+      "chosen": "gray-800",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "gray-800",
+          "hex": "#1e2939",
+          "drift": 0.0253,
+          "auto": true
+        },
+        {
+          "name": "zinc-800",
+          "hex": "#27272a",
+          "drift": 0.0205,
+          "auto": false
+        },
+        {
+          "name": "mist-800",
+          "hex": "#22292b",
+          "drift": 0.0208,
+          "auto": false
+        },
+        {
+          "name": "neutral-800",
+          "hex": "#262626",
+          "drift": 0.0273,
+          "auto": false
+        },
+        {
+          "name": "olive-800",
+          "hex": "#2b2b22",
+          "drift": 0.0294,
+          "auto": false
+        },
+        {
+          "name": "stone-800",
+          "hex": "#292524",
+          "drift": 0.0309,
+          "auto": false
+        },
+        {
+          "name": "slate-800",
+          "hex": "#1d293d",
+          "drift": 0.0314,
+          "auto": false
+        },
+        {
+          "name": "taupe-800",
+          "hex": "#2b2422",
+          "drift": 0.0331,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "dark --feed-shell-base-start",
+      "scope": "dark",
+      "token": "feed-shell-base-start",
+      "alpha": null,
+      "authoredHex": "#0d1321",
+      "chosen": "gray-900",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "gray-900",
+          "hex": "#101828",
+          "drift": 0.0219,
+          "auto": true
+        },
+        {
+          "name": "slate-900",
+          "hex": "#0f172b",
+          "drift": 0.0229,
+          "auto": false
+        },
+        {
+          "name": "zinc-900",
+          "hex": "#18181b",
+          "drift": 0.0328,
+          "auto": false
+        },
+        {
+          "name": "neutral-900",
+          "hex": "#171717",
+          "drift": 0.0344,
+          "auto": false
+        },
+        {
+          "name": "mauve-900",
+          "hex": "#1d161e",
+          "drift": 0.0345,
+          "auto": false
+        },
+        {
+          "name": "mist-900",
+          "hex": "#161b1d",
+          "drift": 0.0386,
+          "auto": false
+        },
+        {
+          "name": "stone-900",
+          "hex": "#1c1917",
+          "drift": 0.045,
+          "auto": false
+        },
+        {
+          "name": "taupe-900",
+          "hex": "#1d1816",
+          "drift": 0.0452,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "dark --feed-shell-base-mid",
+      "scope": "dark",
+      "token": "feed-shell-base-mid",
+      "alpha": null,
+      "authoredHex": "#1e2538",
+      "chosen": "slate-800",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "slate-800",
+          "hex": "#1d293d",
+          "drift": 0.0137,
+          "auto": true
+        },
+        {
+          "name": "gray-800",
+          "hex": "#1e2939",
+          "drift": 0.0136,
+          "auto": false
+        },
+        {
+          "name": "mauve-800",
+          "hex": "#2a212c",
+          "drift": 0.0294,
+          "auto": false
+        },
+        {
+          "name": "zinc-800",
+          "hex": "#27272a",
+          "drift": 0.0322,
+          "auto": false
+        },
+        {
+          "name": "mist-800",
+          "hex": "#22292b",
+          "drift": 0.0324,
+          "auto": false
+        },
+        {
+          "name": "neutral-800",
+          "hex": "#262626",
+          "drift": 0.0371,
+          "auto": false
+        },
+        {
+          "name": "stone-800",
+          "hex": "#292524",
+          "drift": 0.0416,
+          "auto": false
+        },
+        {
+          "name": "sky-950",
+          "hex": "#052f4a",
+          "drift": 0.0444,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "dark --feed-shell-base-end",
+      "scope": "dark",
+      "token": "feed-shell-base-end",
+      "alpha": null,
+      "authoredHex": "#272b3f",
+      "chosen": "slate-800",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "slate-800",
+          "hex": "#1d293d",
+          "drift": 0.0191,
+          "auto": true
+        },
+        {
+          "name": "gray-800",
+          "hex": "#1e2939",
+          "drift": 0.0203,
+          "auto": false
+        },
+        {
+          "name": "zinc-800",
+          "hex": "#27272a",
+          "drift": 0.0372,
+          "auto": false
+        },
+        {
+          "name": "mist-800",
+          "hex": "#22292b",
+          "drift": 0.0379,
+          "auto": false
+        },
+        {
+          "name": "sky-950",
+          "hex": "#052f4a",
+          "drift": 0.0399,
+          "auto": false
+        },
+        {
+          "name": "cyan-950",
+          "hex": "#053345",
+          "drift": 0.0407,
+          "auto": false
+        },
+        {
+          "name": "mauve-800",
+          "hex": "#2a212c",
+          "drift": 0.041,
+          "auto": false
+        },
+        {
+          "name": "neutral-800",
+          "hex": "#262626",
+          "drift": 0.0449,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "dark --feed-shell-glow-primary",
+      "scope": "dark",
+      "token": "feed-shell-glow-primary",
+      "alpha": 0.2,
+      "authoredHex": "#4d7fdb",
+      "chosen": "blue-500",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "blue-500",
+          "hex": "#2b7fff",
+          "drift": 0.0661,
+          "auto": true
+        },
+        {
+          "name": "sky-600",
+          "hex": "#0084d1",
+          "drift": 0.056,
+          "auto": false
+        },
+        {
+          "name": "indigo-400",
+          "hex": "#7c86ff",
+          "drift": 0.0861,
+          "auto": false
+        },
+        {
+          "name": "cyan-600",
+          "hex": "#0092b8",
+          "drift": 0.0968,
+          "auto": false
+        },
+        {
+          "name": "indigo-500",
+          "hex": "#615fff",
+          "drift": 0.0994,
+          "auto": false
+        },
+        {
+          "name": "blue-400",
+          "hex": "#51a2ff",
+          "drift": 0.1034,
+          "auto": false
+        },
+        {
+          "name": "sky-500",
+          "hex": "#00a6f4",
+          "drift": 0.1049,
+          "auto": false
+        },
+        {
+          "name": "blue-600",
+          "hex": "#155dfc",
+          "drift": 0.1124,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "dark --feed-shell-glow-secondary",
+      "scope": "dark",
+      "token": "feed-shell-glow-secondary",
+      "alpha": 0.16,
+      "authoredHex": "#6474b9",
+      "chosen": "indigo-400",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "indigo-400",
+          "hex": "#7c86ff",
+          "drift": 0.1221,
+          "auto": true
+        },
+        {
+          "name": "slate-500",
+          "hex": "#62748e",
+          "drift": 0.0686,
+          "auto": false
+        },
+        {
+          "name": "gray-500",
+          "hex": "#6a7282",
+          "drift": 0.0853,
+          "auto": false
+        },
+        {
+          "name": "sky-600",
+          "hex": "#0084d1",
+          "drift": 0.0862,
+          "auto": false
+        },
+        {
+          "name": "zinc-500",
+          "hex": "#71717b",
+          "drift": 0.0957,
+          "auto": false
+        },
+        {
+          "name": "mauve-500",
+          "hex": "#79697b",
+          "drift": 0.0963,
+          "auto": false
+        },
+        {
+          "name": "mist-500",
+          "hex": "#67787c",
+          "drift": 0.1003,
+          "auto": false
+        },
+        {
+          "name": "sky-700",
+          "hex": "#0069a8",
+          "drift": 0.1019,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "dark --feed-shell-haze",
+      "scope": "dark",
+      "token": "feed-shell-haze",
+      "alpha": 0.06,
+      "authoredHex": "#abb2c4",
+      "chosen": "slate-400",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "slate-400",
+          "hex": "#90a1b9",
+          "drift": 0.0616,
+          "auto": true
+        },
+        {
+          "name": "mist-400",
+          "hex": "#9ca8ab",
+          "drift": 0.0463,
+          "auto": false
+        },
+        {
+          "name": "olive-400",
+          "hex": "#abab9c",
+          "drift": 0.0543,
+          "auto": false
+        },
+        {
+          "name": "gray-400",
+          "hex": "#99a1af",
+          "drift": 0.057,
+          "auto": false
+        },
+        {
+          "name": "mauve-400",
+          "hex": "#a89ea9",
+          "drift": 0.0572,
+          "auto": false
+        },
+        {
+          "name": "zinc-400",
+          "hex": "#9f9fa9",
+          "drift": 0.0602,
+          "auto": false
+        },
+        {
+          "name": "neutral-400",
+          "hex": "#a1a1a1",
+          "drift": 0.0619,
+          "auto": false
+        },
+        {
+          "name": "taupe-400",
+          "hex": "#aba09c",
+          "drift": 0.0625,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "dark --feed-shell-veil",
+      "scope": "dark",
+      "token": "feed-shell-veil",
+      "alpha": 0.2,
+      "authoredHex": "#0e1015",
+      "chosen": "gray-900",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "gray-900",
+          "hex": "#101828",
+          "drift": 0.0435,
+          "auto": true
+        },
+        {
+          "name": "olive-950",
+          "hex": "#0c0c09",
+          "drift": 0.0262,
+          "auto": false
+        },
+        {
+          "name": "mist-950",
+          "hex": "#090b0c",
+          "drift": 0.0265,
+          "auto": false
+        },
+        {
+          "name": "mauve-950",
+          "hex": "#0c090c",
+          "drift": 0.0298,
+          "auto": false
+        },
+        {
+          "name": "stone-950",
+          "hex": "#0c0a09",
+          "drift": 0.0298,
+          "auto": false
+        },
+        {
+          "name": "taupe-950",
+          "hex": "#0c0a09",
+          "drift": 0.0298,
+          "auto": false
+        },
+        {
+          "name": "neutral-950",
+          "hex": "#0a0a0a",
+          "drift": 0.0302,
+          "auto": false
+        },
+        {
+          "name": "zinc-950",
+          "hex": "#09090b",
+          "drift": 0.0328,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "dark --feed-shell-panel-end",
+      "scope": "dark",
+      "token": "feed-shell-panel-end",
+      "alpha": 0.7,
+      "authoredHex": "#151c28",
+      "chosen": "gray-900",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "gray-900",
+          "hex": "#101828",
+          "drift": 0.0176,
+          "auto": true
+        },
+        {
+          "name": "mist-900",
+          "hex": "#161b1d",
+          "drift": 0.0213,
+          "auto": false
+        },
+        {
+          "name": "slate-900",
+          "hex": "#0f172b",
+          "drift": 0.024,
+          "auto": false
+        },
+        {
+          "name": "zinc-900",
+          "hex": "#18181b",
+          "drift": 0.0256,
+          "auto": false
+        },
+        {
+          "name": "mauve-900",
+          "hex": "#1d161e",
+          "drift": 0.0271,
+          "auto": false
+        },
+        {
+          "name": "stone-900",
+          "hex": "#1c1917",
+          "drift": 0.0327,
+          "auto": false
+        },
+        {
+          "name": "neutral-900",
+          "hex": "#171717",
+          "drift": 0.0329,
+          "auto": false
+        },
+        {
+          "name": "taupe-900",
+          "hex": "#1d1816",
+          "drift": 0.0352,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "dark --feed-shell-card-end",
+      "scope": "dark",
+      "token": "feed-shell-card-end",
+      "alpha": 0.78,
+      "authoredHex": "#161c27",
+      "chosen": "gray-900",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "gray-900",
+          "hex": "#101828",
+          "drift": 0.019,
+          "auto": true
+        },
+        {
+          "name": "mist-900",
+          "hex": "#161b1d",
+          "drift": 0.0194,
+          "auto": false
+        },
+        {
+          "name": "zinc-900",
+          "hex": "#18181b",
+          "drift": 0.0239,
+          "auto": false
+        },
+        {
+          "name": "mauve-900",
+          "hex": "#1d161e",
+          "drift": 0.0255,
+          "auto": false
+        },
+        {
+          "name": "slate-900",
+          "hex": "#0f172b",
+          "drift": 0.0258,
+          "auto": false
+        },
+        {
+          "name": "stone-900",
+          "hex": "#1c1917",
+          "drift": 0.0305,
+          "auto": false
+        },
+        {
+          "name": "neutral-900",
+          "hex": "#171717",
+          "drift": 0.0312,
+          "auto": false
+        },
+        {
+          "name": "taupe-900",
+          "hex": "#1d1816",
+          "drift": 0.033,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "dark --feed-shell-surface-shadow",
+      "scope": "dark",
+      "token": "feed-shell-surface-shadow",
+      "alpha": 0.86,
+      "authoredHex": "#01050f",
+      "chosen": "gray-950",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "gray-950",
+          "hex": "#030712",
+          "drift": 0.0156,
+          "auto": true
+        },
+        {
+          "name": "slate-950",
+          "hex": "#020618",
+          "drift": 0.0203,
+          "auto": false
+        },
+        {
+          "name": "zinc-950",
+          "hex": "#09090b",
+          "drift": 0.036,
+          "auto": false
+        },
+        {
+          "name": "mauve-950",
+          "hex": "#0c090c",
+          "drift": 0.0407,
+          "auto": false
+        },
+        {
+          "name": "neutral-950",
+          "hex": "#0a0a0a",
+          "drift": 0.0418,
+          "auto": false
+        },
+        {
+          "name": "mist-950",
+          "hex": "#090b0c",
+          "drift": 0.0418,
+          "auto": false
+        },
+        {
+          "name": "stone-950",
+          "hex": "#0c0a09",
+          "drift": 0.0458,
+          "auto": false
+        },
+        {
+          "name": "taupe-950",
+          "hex": "#0c0a09",
+          "drift": 0.0458,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "dark --shadow-color",
+      "scope": "dark",
+      "token": "shadow-color",
+      "alpha": null,
+      "authoredHex": "#00bcff",
+      "chosen": "sky-400",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "sky-400",
+          "hex": "#00bcff",
+          "drift": 0,
+          "auto": true
+        },
+        {
+          "name": "cyan-500",
+          "hex": "#00b8db",
+          "drift": 0.0579,
+          "auto": false
+        },
+        {
+          "name": "sky-500",
+          "hex": "#00a6f4",
+          "drift": 0.0631,
+          "auto": false
+        },
+        {
+          "name": "cyan-400",
+          "hex": "#00d3f2",
+          "drift": 0.0721,
+          "auto": false
+        },
+        {
+          "name": "blue-400",
+          "hex": "#51a2ff",
+          "drift": 0.0733,
+          "auto": false
+        },
+        {
+          "name": "blue-300",
+          "hex": "#8ec5ff",
+          "drift": 0.0941,
+          "auto": false
+        },
+        {
+          "name": "sky-300",
+          "hex": "#74d4ff",
+          "drift": 0.0957,
+          "auto": false
+        },
+        {
+          "name": "indigo-300",
+          "hex": "#a3b3ff",
+          "drift": 0.1141,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "dark --shadow-2xs",
+      "scope": "dark",
+      "token": "shadow-2xs",
+      "alpha": 0.2,
+      "authoredHex": "#00bcff",
+      "chosen": "sky-400",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "sky-400",
+          "hex": "#00bcff",
+          "drift": 0,
+          "auto": true
+        },
+        {
+          "name": "cyan-500",
+          "hex": "#00b8db",
+          "drift": 0.0579,
+          "auto": false
+        },
+        {
+          "name": "sky-500",
+          "hex": "#00a6f4",
+          "drift": 0.0631,
+          "auto": false
+        },
+        {
+          "name": "cyan-400",
+          "hex": "#00d3f2",
+          "drift": 0.0721,
+          "auto": false
+        },
+        {
+          "name": "blue-400",
+          "hex": "#51a2ff",
+          "drift": 0.0733,
+          "auto": false
+        },
+        {
+          "name": "blue-300",
+          "hex": "#8ec5ff",
+          "drift": 0.0941,
+          "auto": false
+        },
+        {
+          "name": "sky-300",
+          "hex": "#74d4ff",
+          "drift": 0.0957,
+          "auto": false
+        },
+        {
+          "name": "indigo-300",
+          "hex": "#a3b3ff",
+          "drift": 0.1141,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "dark --shadow-xs",
+      "scope": "dark",
+      "token": "shadow-xs",
+      "alpha": 0.22,
+      "authoredHex": "#00bcff",
+      "chosen": "sky-400",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "sky-400",
+          "hex": "#00bcff",
+          "drift": 0,
+          "auto": true
+        },
+        {
+          "name": "cyan-500",
+          "hex": "#00b8db",
+          "drift": 0.0579,
+          "auto": false
+        },
+        {
+          "name": "sky-500",
+          "hex": "#00a6f4",
+          "drift": 0.0631,
+          "auto": false
+        },
+        {
+          "name": "cyan-400",
+          "hex": "#00d3f2",
+          "drift": 0.0721,
+          "auto": false
+        },
+        {
+          "name": "blue-400",
+          "hex": "#51a2ff",
+          "drift": 0.0733,
+          "auto": false
+        },
+        {
+          "name": "blue-300",
+          "hex": "#8ec5ff",
+          "drift": 0.0941,
+          "auto": false
+        },
+        {
+          "name": "sky-300",
+          "hex": "#74d4ff",
+          "drift": 0.0957,
+          "auto": false
+        },
+        {
+          "name": "indigo-300",
+          "hex": "#a3b3ff",
+          "drift": 0.1141,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "dark --shadow-sm",
+      "scope": "dark",
+      "token": "shadow-sm",
+      "alpha": 0.35,
+      "authoredHex": "#00bcff",
+      "chosen": "sky-400",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "sky-400",
+          "hex": "#00bcff",
+          "drift": 0,
+          "auto": true
+        },
+        {
+          "name": "cyan-500",
+          "hex": "#00b8db",
+          "drift": 0.0579,
+          "auto": false
+        },
+        {
+          "name": "sky-500",
+          "hex": "#00a6f4",
+          "drift": 0.0631,
+          "auto": false
+        },
+        {
+          "name": "cyan-400",
+          "hex": "#00d3f2",
+          "drift": 0.0721,
+          "auto": false
+        },
+        {
+          "name": "blue-400",
+          "hex": "#51a2ff",
+          "drift": 0.0733,
+          "auto": false
+        },
+        {
+          "name": "blue-300",
+          "hex": "#8ec5ff",
+          "drift": 0.0941,
+          "auto": false
+        },
+        {
+          "name": "sky-300",
+          "hex": "#74d4ff",
+          "drift": 0.0957,
+          "auto": false
+        },
+        {
+          "name": "indigo-300",
+          "hex": "#a3b3ff",
+          "drift": 0.1141,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "dark --shadow-sm#1",
+      "scope": "dark",
+      "token": "shadow-sm",
+      "alpha": 0.4,
+      "authoredHex": "#00bcff",
+      "chosen": "sky-400",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "sky-400",
+          "hex": "#00bcff",
+          "drift": 0,
+          "auto": true
+        },
+        {
+          "name": "cyan-500",
+          "hex": "#00b8db",
+          "drift": 0.0579,
+          "auto": false
+        },
+        {
+          "name": "sky-500",
+          "hex": "#00a6f4",
+          "drift": 0.0631,
+          "auto": false
+        },
+        {
+          "name": "cyan-400",
+          "hex": "#00d3f2",
+          "drift": 0.0721,
+          "auto": false
+        },
+        {
+          "name": "blue-400",
+          "hex": "#51a2ff",
+          "drift": 0.0733,
+          "auto": false
+        },
+        {
+          "name": "blue-300",
+          "hex": "#8ec5ff",
+          "drift": 0.0941,
+          "auto": false
+        },
+        {
+          "name": "sky-300",
+          "hex": "#74d4ff",
+          "drift": 0.0957,
+          "auto": false
+        },
+        {
+          "name": "indigo-300",
+          "hex": "#a3b3ff",
+          "drift": 0.1141,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "dark --shadow",
+      "scope": "dark",
+      "token": "shadow",
+      "alpha": 0.4,
+      "authoredHex": "#00bcff",
+      "chosen": "sky-400",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "sky-400",
+          "hex": "#00bcff",
+          "drift": 0,
+          "auto": true
+        },
+        {
+          "name": "cyan-500",
+          "hex": "#00b8db",
+          "drift": 0.0579,
+          "auto": false
+        },
+        {
+          "name": "sky-500",
+          "hex": "#00a6f4",
+          "drift": 0.0631,
+          "auto": false
+        },
+        {
+          "name": "cyan-400",
+          "hex": "#00d3f2",
+          "drift": 0.0721,
+          "auto": false
+        },
+        {
+          "name": "blue-400",
+          "hex": "#51a2ff",
+          "drift": 0.0733,
+          "auto": false
+        },
+        {
+          "name": "blue-300",
+          "hex": "#8ec5ff",
+          "drift": 0.0941,
+          "auto": false
+        },
+        {
+          "name": "sky-300",
+          "hex": "#74d4ff",
+          "drift": 0.0957,
+          "auto": false
+        },
+        {
+          "name": "indigo-300",
+          "hex": "#a3b3ff",
+          "drift": 0.1141,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "dark --shadow#1",
+      "scope": "dark",
+      "token": "shadow",
+      "alpha": 0.45,
+      "authoredHex": "#00bcff",
+      "chosen": "sky-400",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "sky-400",
+          "hex": "#00bcff",
+          "drift": 0,
+          "auto": true
+        },
+        {
+          "name": "cyan-500",
+          "hex": "#00b8db",
+          "drift": 0.0579,
+          "auto": false
+        },
+        {
+          "name": "sky-500",
+          "hex": "#00a6f4",
+          "drift": 0.0631,
+          "auto": false
+        },
+        {
+          "name": "cyan-400",
+          "hex": "#00d3f2",
+          "drift": 0.0721,
+          "auto": false
+        },
+        {
+          "name": "blue-400",
+          "hex": "#51a2ff",
+          "drift": 0.0733,
+          "auto": false
+        },
+        {
+          "name": "blue-300",
+          "hex": "#8ec5ff",
+          "drift": 0.0941,
+          "auto": false
+        },
+        {
+          "name": "sky-300",
+          "hex": "#74d4ff",
+          "drift": 0.0957,
+          "auto": false
+        },
+        {
+          "name": "indigo-300",
+          "hex": "#a3b3ff",
+          "drift": 0.1141,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "dark --shadow-md",
+      "scope": "dark",
+      "token": "shadow-md",
+      "alpha": 0.45,
+      "authoredHex": "#00bcff",
+      "chosen": "sky-400",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "sky-400",
+          "hex": "#00bcff",
+          "drift": 0,
+          "auto": true
+        },
+        {
+          "name": "cyan-500",
+          "hex": "#00b8db",
+          "drift": 0.0579,
+          "auto": false
+        },
+        {
+          "name": "sky-500",
+          "hex": "#00a6f4",
+          "drift": 0.0631,
+          "auto": false
+        },
+        {
+          "name": "cyan-400",
+          "hex": "#00d3f2",
+          "drift": 0.0721,
+          "auto": false
+        },
+        {
+          "name": "blue-400",
+          "hex": "#51a2ff",
+          "drift": 0.0733,
+          "auto": false
+        },
+        {
+          "name": "blue-300",
+          "hex": "#8ec5ff",
+          "drift": 0.0941,
+          "auto": false
+        },
+        {
+          "name": "sky-300",
+          "hex": "#74d4ff",
+          "drift": 0.0957,
+          "auto": false
+        },
+        {
+          "name": "indigo-300",
+          "hex": "#a3b3ff",
+          "drift": 0.1141,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "dark --shadow-md#1",
+      "scope": "dark",
+      "token": "shadow-md",
+      "alpha": 0.5,
+      "authoredHex": "#00bcff",
+      "chosen": "sky-400",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "sky-400",
+          "hex": "#00bcff",
+          "drift": 0,
+          "auto": true
+        },
+        {
+          "name": "cyan-500",
+          "hex": "#00b8db",
+          "drift": 0.0579,
+          "auto": false
+        },
+        {
+          "name": "sky-500",
+          "hex": "#00a6f4",
+          "drift": 0.0631,
+          "auto": false
+        },
+        {
+          "name": "cyan-400",
+          "hex": "#00d3f2",
+          "drift": 0.0721,
+          "auto": false
+        },
+        {
+          "name": "blue-400",
+          "hex": "#51a2ff",
+          "drift": 0.0733,
+          "auto": false
+        },
+        {
+          "name": "blue-300",
+          "hex": "#8ec5ff",
+          "drift": 0.0941,
+          "auto": false
+        },
+        {
+          "name": "sky-300",
+          "hex": "#74d4ff",
+          "drift": 0.0957,
+          "auto": false
+        },
+        {
+          "name": "indigo-300",
+          "hex": "#a3b3ff",
+          "drift": 0.1141,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "dark --shadow-lg",
+      "scope": "dark",
+      "token": "shadow-lg",
+      "alpha": 0.55,
+      "authoredHex": "#00bcff",
+      "chosen": "sky-400",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "sky-400",
+          "hex": "#00bcff",
+          "drift": 0,
+          "auto": true
+        },
+        {
+          "name": "cyan-500",
+          "hex": "#00b8db",
+          "drift": 0.0579,
+          "auto": false
+        },
+        {
+          "name": "sky-500",
+          "hex": "#00a6f4",
+          "drift": 0.0631,
+          "auto": false
+        },
+        {
+          "name": "cyan-400",
+          "hex": "#00d3f2",
+          "drift": 0.0721,
+          "auto": false
+        },
+        {
+          "name": "blue-400",
+          "hex": "#51a2ff",
+          "drift": 0.0733,
+          "auto": false
+        },
+        {
+          "name": "blue-300",
+          "hex": "#8ec5ff",
+          "drift": 0.0941,
+          "auto": false
+        },
+        {
+          "name": "sky-300",
+          "hex": "#74d4ff",
+          "drift": 0.0957,
+          "auto": false
+        },
+        {
+          "name": "indigo-300",
+          "hex": "#a3b3ff",
+          "drift": 0.1141,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "dark --shadow-lg#1",
+      "scope": "dark",
+      "token": "shadow-lg",
+      "alpha": 0.55,
+      "authoredHex": "#00bcff",
+      "chosen": "sky-400",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "sky-400",
+          "hex": "#00bcff",
+          "drift": 0,
+          "auto": true
+        },
+        {
+          "name": "cyan-500",
+          "hex": "#00b8db",
+          "drift": 0.0579,
+          "auto": false
+        },
+        {
+          "name": "sky-500",
+          "hex": "#00a6f4",
+          "drift": 0.0631,
+          "auto": false
+        },
+        {
+          "name": "cyan-400",
+          "hex": "#00d3f2",
+          "drift": 0.0721,
+          "auto": false
+        },
+        {
+          "name": "blue-400",
+          "hex": "#51a2ff",
+          "drift": 0.0733,
+          "auto": false
+        },
+        {
+          "name": "blue-300",
+          "hex": "#8ec5ff",
+          "drift": 0.0941,
+          "auto": false
+        },
+        {
+          "name": "sky-300",
+          "hex": "#74d4ff",
+          "drift": 0.0957,
+          "auto": false
+        },
+        {
+          "name": "indigo-300",
+          "hex": "#a3b3ff",
+          "drift": 0.1141,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "dark --shadow-xl",
+      "scope": "dark",
+      "token": "shadow-xl",
+      "alpha": 0.6,
+      "authoredHex": "#00bcff",
+      "chosen": "sky-400",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "sky-400",
+          "hex": "#00bcff",
+          "drift": 0,
+          "auto": true
+        },
+        {
+          "name": "cyan-500",
+          "hex": "#00b8db",
+          "drift": 0.0579,
+          "auto": false
+        },
+        {
+          "name": "sky-500",
+          "hex": "#00a6f4",
+          "drift": 0.0631,
+          "auto": false
+        },
+        {
+          "name": "cyan-400",
+          "hex": "#00d3f2",
+          "drift": 0.0721,
+          "auto": false
+        },
+        {
+          "name": "blue-400",
+          "hex": "#51a2ff",
+          "drift": 0.0733,
+          "auto": false
+        },
+        {
+          "name": "blue-300",
+          "hex": "#8ec5ff",
+          "drift": 0.0941,
+          "auto": false
+        },
+        {
+          "name": "sky-300",
+          "hex": "#74d4ff",
+          "drift": 0.0957,
+          "auto": false
+        },
+        {
+          "name": "indigo-300",
+          "hex": "#a3b3ff",
+          "drift": 0.1141,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "dark --shadow-xl#1",
+      "scope": "dark",
+      "token": "shadow-xl",
+      "alpha": 0.55,
+      "authoredHex": "#00bcff",
+      "chosen": "sky-400",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "sky-400",
+          "hex": "#00bcff",
+          "drift": 0,
+          "auto": true
+        },
+        {
+          "name": "cyan-500",
+          "hex": "#00b8db",
+          "drift": 0.0579,
+          "auto": false
+        },
+        {
+          "name": "sky-500",
+          "hex": "#00a6f4",
+          "drift": 0.0631,
+          "auto": false
+        },
+        {
+          "name": "cyan-400",
+          "hex": "#00d3f2",
+          "drift": 0.0721,
+          "auto": false
+        },
+        {
+          "name": "blue-400",
+          "hex": "#51a2ff",
+          "drift": 0.0733,
+          "auto": false
+        },
+        {
+          "name": "blue-300",
+          "hex": "#8ec5ff",
+          "drift": 0.0941,
+          "auto": false
+        },
+        {
+          "name": "sky-300",
+          "hex": "#74d4ff",
+          "drift": 0.0957,
+          "auto": false
+        },
+        {
+          "name": "indigo-300",
+          "hex": "#a3b3ff",
+          "drift": 0.1141,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "dark --shadow-2xl",
+      "scope": "dark",
+      "token": "shadow-2xl",
+      "alpha": 0.75,
+      "authoredHex": "#00bcff",
+      "chosen": "sky-400",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "sky-400",
+          "hex": "#00bcff",
+          "drift": 0,
+          "auto": true
+        },
+        {
+          "name": "cyan-500",
+          "hex": "#00b8db",
+          "drift": 0.0579,
+          "auto": false
+        },
+        {
+          "name": "sky-500",
+          "hex": "#00a6f4",
+          "drift": 0.0631,
+          "auto": false
+        },
+        {
+          "name": "cyan-400",
+          "hex": "#00d3f2",
+          "drift": 0.0721,
+          "auto": false
+        },
+        {
+          "name": "blue-400",
+          "hex": "#51a2ff",
+          "drift": 0.0733,
+          "auto": false
+        },
+        {
+          "name": "blue-300",
+          "hex": "#8ec5ff",
+          "drift": 0.0941,
+          "auto": false
+        },
+        {
+          "name": "sky-300",
+          "hex": "#74d4ff",
+          "drift": 0.0957,
+          "auto": false
+        },
+        {
+          "name": "indigo-300",
+          "hex": "#a3b3ff",
+          "drift": 0.1141,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "dark --feed-card-gradient",
+      "scope": "dark",
+      "token": "feed-card-gradient",
+      "alpha": null,
+      "authoredHex": "#121c26",
+      "chosen": "gray-900",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "gray-900",
+          "hex": "#101828",
+          "drift": 0.0154,
+          "auto": true
+        },
+        {
+          "name": "mist-900",
+          "hex": "#161b1d",
+          "drift": 0.0183,
+          "auto": false
+        },
+        {
+          "name": "slate-900",
+          "hex": "#0f172b",
+          "drift": 0.0226,
+          "auto": false
+        },
+        {
+          "name": "zinc-900",
+          "hex": "#18181b",
+          "drift": 0.0228,
+          "auto": false
+        },
+        {
+          "name": "mauve-900",
+          "hex": "#1d161e",
+          "drift": 0.0275,
+          "auto": false
+        },
+        {
+          "name": "neutral-900",
+          "hex": "#171717",
+          "drift": 0.0292,
+          "auto": false
+        },
+        {
+          "name": "stone-900",
+          "hex": "#1c1917",
+          "drift": 0.0311,
+          "auto": false
+        },
+        {
+          "name": "taupe-900",
+          "hex": "#1d1816",
+          "drift": 0.0338,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "dark --feed-card-gradient#1",
+      "scope": "dark",
+      "token": "feed-card-gradient",
+      "alpha": null,
+      "authoredHex": "#122539",
+      "chosen": "slate-800",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "slate-800",
+          "hex": "#1d293d",
+          "drift": 0.0208,
+          "auto": true
+        },
+        {
+          "name": "gray-800",
+          "hex": "#1e2939",
+          "drift": 0.0221,
+          "auto": false
+        },
+        {
+          "name": "mist-800",
+          "hex": "#22292b",
+          "drift": 0.0393,
+          "auto": false
+        },
+        {
+          "name": "sky-950",
+          "hex": "#052f4a",
+          "drift": 0.0397,
+          "auto": false
+        },
+        {
+          "name": "zinc-800",
+          "hex": "#27272a",
+          "drift": 0.0427,
+          "auto": false
+        },
+        {
+          "name": "mauve-800",
+          "hex": "#2a212c",
+          "drift": 0.0433,
+          "auto": false
+        },
+        {
+          "name": "neutral-800",
+          "hex": "#262626",
+          "drift": 0.0459,
+          "auto": false
+        },
+        {
+          "name": "cyan-950",
+          "hex": "#053345",
+          "drift": 0.0469,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "dark --feed-card-gradient-primary",
+      "scope": "dark",
+      "token": "feed-card-gradient-primary",
+      "alpha": null,
+      "authoredHex": "#041e26",
+      "chosen": "gray-900",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "gray-900",
+          "hex": "#101828",
+          "drift": 0.0281,
+          "auto": true
+        },
+        {
+          "name": "mist-900",
+          "hex": "#161b1d",
+          "drift": 0.0271,
+          "auto": false
+        },
+        {
+          "name": "slate-900",
+          "hex": "#0f172b",
+          "drift": 0.0329,
+          "auto": false
+        },
+        {
+          "name": "zinc-900",
+          "hex": "#18181b",
+          "drift": 0.0345,
+          "auto": false
+        },
+        {
+          "name": "neutral-900",
+          "hex": "#171717",
+          "drift": 0.0381,
+          "auto": false
+        },
+        {
+          "name": "stone-900",
+          "hex": "#1c1917",
+          "drift": 0.041,
+          "auto": false
+        },
+        {
+          "name": "olive-900",
+          "hex": "#1d1d16",
+          "drift": 0.0425,
+          "auto": false
+        },
+        {
+          "name": "mauve-900",
+          "hex": "#1d161e",
+          "drift": 0.0439,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "dark --feed-card-gradient-primary#1",
+      "scope": "dark",
+      "token": "feed-card-gradient-primary",
+      "alpha": null,
+      "authoredHex": "#002d3a",
+      "chosen": "cyan-950",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "cyan-950",
+          "hex": "#053345",
+          "drift": 0.0337,
+          "auto": true
+        },
+        {
+          "name": "teal-950",
+          "hex": "#022f2e",
+          "drift": 0.0295,
+          "auto": false
+        },
+        {
+          "name": "sky-950",
+          "hex": "#052f4a",
+          "drift": 0.0347,
+          "auto": false
+        },
+        {
+          "name": "gray-800",
+          "hex": "#1e2939",
+          "drift": 0.0398,
+          "auto": false
+        },
+        {
+          "name": "slate-800",
+          "hex": "#1d293d",
+          "drift": 0.0399,
+          "auto": false
+        },
+        {
+          "name": "emerald-950",
+          "hex": "#002c22",
+          "drift": 0.0461,
+          "auto": false
+        },
+        {
+          "name": "mist-800",
+          "hex": "#22292b",
+          "drift": 0.0493,
+          "auto": false
+        },
+        {
+          "name": "zinc-800",
+          "hex": "#27272a",
+          "drift": 0.058,
+          "auto": false
+        }
+      ]
+    }
+  ]
+}

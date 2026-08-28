@@ -11,6 +11,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import {
   hexToOklch,
   hueDifference,
+  oklchToHex,
   perceptualDistance,
   type Oklch,
 } from '../src/services/brand-theme/color';
@@ -88,7 +89,27 @@ const snapTo = (col: Oklch, key: string) => {
     .slice(0, 3)
     .map(r => `${nameOf(r.e)} ${perceptualDistance(col, { l: r.e.l, c: r.e.c, h: r.e.h }).toFixed(3)}`);
 
-  return { ref: `var(--color-${nameOf(e)})`, d: visible, name: nameOf(e), alternates, overridden: Boolean(override) };
+  // Wider slate for the calibration panel, auto-pick first then nearest by eye.
+  const autoName = nameOf(ranked[0].e);
+  const candidates = [
+    ranked[0],
+    ...ranked.slice(1).sort((a, b) =>
+      perceptualDistance(col, { l: a.e.l, c: a.e.c, h: a.e.h }) -
+      perceptualDistance(col, { l: b.e.l, c: b.e.c, h: b.e.h })),
+  ]
+    .filter((r, i, arr) => arr.findIndex(x => nameOf(x.e) === nameOf(r.e)) === i)
+    .slice(0, 8)
+    .map(r => ({
+      name: nameOf(r.e),
+      hex: oklchToHex({ l: r.e.l, c: r.e.c, h: r.e.h }),
+      drift: Number(perceptualDistance(col, { l: r.e.l, c: r.e.c, h: r.e.h }).toFixed(4)),
+      auto: nameOf(r.e) === autoName,
+    }));
+
+  return {
+    ref: `var(--color-${nameOf(e)})`, d: visible, name: nameOf(e), alternates,
+    overridden: Boolean(override), candidates, authoredHex: oklchToHex(col),
+  };
 };
 
 const block = (scope: 'light' | 'dark') => {
@@ -109,6 +130,18 @@ const block = (scope: 'light' | 'dark') => {
 const COLOR = /(oklch\(\s*[\d.]+\s+[\d.]+\s+[\d.]+\s*(?:\/\s*[\d.]+\s*)?\)|hsl\(\s*[\d.]+\s+[\d.]+%\s+[\d.]+%\s*(?:\/\s*[\d.]+\s*)?\))/g;
 
 const drifts: Array<{ token: string; scope: string; d: number; to: string }> = [];
+
+type CalibrationRow = {
+  key: string;
+  scope: 'light' | 'dark';
+  token: string;
+  alpha: number | null;
+  authoredHex: string;
+  chosen: string;
+  overridden: boolean;
+  candidates: Array<{ name: string; hex: string; drift: number; auto: boolean }>;
+};
+const calibration: CalibrationRow[] = [];
 
 const convert = (scope: 'light' | 'dark') => {
   const lines: string[] = [];
@@ -133,6 +166,16 @@ const convert = (scope: 'light' | 'dark') => {
       }
       if (!col) return lit;
       const s = snapTo(col, key);
+      calibration.push({
+        key,
+        scope,
+        token: name,
+        alpha: alpha ? Number(alpha) : null,
+        authoredHex: s.authoredHex,
+        chosen: s.name,
+        overridden: s.overridden,
+        candidates: s.candidates,
+      });
       if (s.d > maxD) { maxD = s.d; to = s.name; }
       if (!note) {
         note = s.overridden
@@ -167,6 +210,12 @@ html[data-palette="tailwind"].dark {
 ${dark}
 }
 `, 'utf8');
+
+writeFileSync(
+  '../frontend/src/styles/tailwind-ab-candidates.json',
+  JSON.stringify({ generatedAt: new Date().toISOString(), rows: calibration }, null, 2),
+  'utf8',
+);
 
 drifts.sort((a, b) => b.d - a.d);
 console.log(`tokens converted : ${drifts.length}`);
