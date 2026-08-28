@@ -35,7 +35,12 @@
  */
 
 import { hueDifference, perceptualDistance, type Oklch } from './color';
-import { TAILWIND_PALETTE, isNeutralFamily, type TailwindEntry } from './palettes';
+import {
+  TAILWIND_EXTREMES,
+  TAILWIND_PALETTE,
+  isNeutralFamily,
+  type TailwindEntry,
+} from './palettes';
 
 export type SnapRole = 'chromatic' | 'neutral';
 
@@ -58,10 +63,20 @@ export type SnapCandidate = {
   distance: number;
 };
 
+/**
+ * Snap targets for a role. Pure black and white join the neutral pool: they are
+ * achromatic, and without them a brand surface at either extreme resolved to a
+ * 950 or 50 neutral instead of the exact value Tailwind already provides. They
+ * stay out of the *family* lists — a single value is not a ramp, and
+ * `chooseFamily` needs one it can pick stops from.
+ */
 const poolFor = (role: SnapRole): readonly TailwindEntry[] =>
-  TAILWIND_PALETTE.filter((entry) =>
-    role === 'neutral' ? isNeutralFamily(entry.family) : !isNeutralFamily(entry.family)
-  );
+  role === 'neutral'
+    ? [
+        ...TAILWIND_PALETTE.filter((entry) => isNeutralFamily(entry.family)),
+        ...TAILWIND_EXTREMES,
+      ]
+    : TAILWIND_PALETTE.filter((entry) => !isNeutralFamily(entry.family));
 
 /**
  * Nearest palette entries to `target`, closest first.
@@ -117,7 +132,11 @@ export const chooseFamily = (
     throw new Error('chooseFamily requires at least one target colour.');
   }
 
-  const families = [...new Set(poolFor(role).map((entry) => entry.family))];
+  // Ramp families only: the extremes have a single value and no stops to choose.
+  const rampPool = TAILWIND_PALETTE.filter((entry) =>
+    role === 'neutral' ? isNeutralFamily(entry.family) : !isNeutralFamily(entry.family)
+  );
+  const families = [...new Set(rampPool.map((entry) => entry.family))];
   const scored = families
     .map((family) => {
       const ramp = TAILWIND_PALETTE.filter((entry) => entry.family === family);

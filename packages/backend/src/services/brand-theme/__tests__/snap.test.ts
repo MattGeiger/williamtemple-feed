@@ -76,6 +76,31 @@ describe('snapping brand colours to Tailwind', () => {
   });
 });
 
+describe('the palette extremes', () => {
+  it('snaps a pure black or white surface exactly, not to a 950 or 50 neutral', () => {
+    // Tailwind names these without a numeric stop, so the generator's
+    // family/stop pattern could not see them. While they were missing, William
+    // Temple House's true-black dark background resolved to slate-950.
+    expect(snap({ l: 0, c: 0, h: 0 }, 'neutral')).toMatchObject({
+      entry: { family: 'black' },
+      distance: 0,
+    });
+    expect(snap({ l: 1, c: 0, h: 0 }, 'neutral')).toMatchObject({
+      entry: { family: 'white' },
+      distance: 0,
+    });
+  });
+
+  it('never offers an extreme as a family, because it has no ramp', () => {
+    // `chooseFamily` picks a family and the stop map then indexes stops out of
+    // it. A single-value family would have no stop to resolve.
+    for (const role of ['neutral', 'chromatic'] as const) {
+      const chosen = chooseFamily([{ l: 0.02, c: 0, h: 0 }], role).family;
+      expect(['black', 'white']).not.toContain(chosen);
+    }
+  });
+});
+
 describe('choosing one family for a whole role', () => {
   it('picks slate for FEED\'s blue-leaning surfaces', () => {
     // The surface tokens index.css ships today, converted rather than

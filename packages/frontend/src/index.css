@@ -1,4 +1,8 @@
 @import 'tailwindcss' source(none);
+/* TEMPORARY: Tailwind palette A/B comparison sheet. Unlayered, so its
+   `html[data-palette="tailwind"]` rules beat the layered token blocks below
+   regardless of order. Toggled by PaletteAbSwitcher; delete both together. */
+@import './styles/tailwind-ab.css';
 
 @source '../index.html';
 @source '../src';

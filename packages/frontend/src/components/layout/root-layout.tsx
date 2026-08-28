@@ -14,6 +14,7 @@ import {
   SidebarProvider,
 } from '@/components/ui/sidebar';
 import { AlertButton } from '@/components/dashboard/alerts/alert-button';
+import { PaletteAbSwitcher } from '@/components/palette-ab-switcher';
 import { ThemeSwitcher } from '@/components/theme-switcher';
 
 // Match the storage key from sidebar.tsx
@@ -62,6 +63,8 @@ export function RootLayout({ children, breadcrumbs = [] }: RootLayoutProps) {
             breadcrumbs={breadcrumbs} 
             rightContent={
               <div className="flex items-center space-x-1">
+                {/* TEMPORARY: Tailwind palette A/B control (dev only). */}
+                <PaletteAbSwitcher />
                 <ThemeSwitcher />
                 <AlertButton />
               </div>
