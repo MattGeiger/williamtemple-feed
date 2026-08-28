@@ -11,7 +11,13 @@ import { TerminologyProvider } from './TerminologyContext';
 export type Oklch = { l: number; c: number; h: number };
 export type BrandAssetReference =
   | { kind: 'builtin'; src: string; width: number; height: number }
-  | { kind: 'database'; id: string; width: number; height: number };
+  | {
+      kind: 'database';
+      id: string;
+      width: number;
+      height: number;
+      mimeType?: 'image/png' | 'image/jpeg' | 'image/webp' | 'image/svg+xml';
+    };
 
 export type BrandConfigurationPayload = {
   schemaVersion: 1;

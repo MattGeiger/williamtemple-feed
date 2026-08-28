@@ -1,11 +1,19 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 Matt Geiger
 
-import * as crypto from 'crypto';
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import multer from 'multer';
-import sharp from 'sharp';
 import prisma from '../../db';
+import { auditActorFrom } from '../../middleware/auth/require-admin';
+import {
+  brandAssetResolutionWarnings,
+  checkBrandAssetStorage,
+  cleanupUnusedBrandAssets,
+  prepareBrandAsset,
+  storeBrandAsset,
+  storeSquareBrandDerivative,
+  type BrandAssetKind,
+} from '../../services/brand-assets';
 import {
   activateBrandConfiguration,
   brandAssetIds,
@@ -17,7 +25,6 @@ import {
 
 const router = Router();
 const MAX_BRAND_ASSET_BYTES = 4 * 1024 * 1024;
-const ALLOWED_BRAND_ASSET_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml']);
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_BRAND_ASSET_BYTES, files: 1 } });
 
 router.get('/', async (_req, res, next) => {
@@ -67,46 +74,37 @@ router.delete('/:id', async (req, res, next) => {
   } catch (error) { return next(error); }
 });
 
-const storePng = async (buffer: Buffer, filename: string, width?: number, height?: number) => {
-  const pipeline = sharp(buffer, { failOn: 'error', limitInputPixels: 40_000_000 }).rotate();
-  const transformed = width && height
-    ? pipeline.resize(width, height, { fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 0 } })
-    : pipeline;
-  const output = await transformed.png({ compressionLevel: 9 }).toBuffer({ resolveWithObject: true });
-  const id = crypto.randomUUID();
-  await prisma.brandAsset.create({
-    data: {
-      id,
-      filename: filename.replace(/[^a-zA-Z0-9._-]+/g, '-').slice(0, 160) || 'brand-image.png',
-      mimeType: 'image/png', width: output.info.width, height: output.info.height,
-      dataBase64: output.data.toString('base64'),
-    },
-  });
-  return { kind: 'database' as const, id, width: output.info.width, height: output.info.height };
-};
-
 router.post('/assets', upload.single('file'), async (req, res, next) => {
   try {
     if (!req.file) return res.status(400).json({ error: { message: 'Choose a PNG, JPEG, WebP, or SVG image to upload.', code: 'BRAND_ASSET_REQUIRED' } });
-    if (!ALLOWED_BRAND_ASSET_TYPES.has(req.file.mimetype)) {
-      return res.status(415).json({ error: { message: 'That file type is not supported. Upload a PNG, JPEG, WebP, or SVG image.', code: 'UNSUPPORTED_BRAND_ASSET_TYPE' } });
-    }
-    const kind = req.body?.kind;
+    const kind = req.body?.kind as BrandAssetKind;
     if (!['logo-light', 'logo-dark', 'square'].includes(kind)) return res.status(400).json({ error: { message: 'Choose which brand image this upload should replace.', code: 'INVALID_BRAND_ASSET_KIND' } });
-    const metadata = await sharp(req.file.buffer, { failOn: 'error', limitInputPixels: 40_000_000 }).metadata();
-    if (!metadata.width || !metadata.height) throw Object.assign(new Error('FEED could not read that image. Export it as PNG, JPEG, WebP, or SVG and try again.'), { statusCode: 400 });
-    if (kind === 'square' && Math.max(metadata.width, metadata.height) / Math.min(metadata.width, metadata.height) > 1.2) {
+    const prepared = await prepareBrandAsset(req.file.buffer);
+    if (kind === 'square' && Math.max(prepared.width, prepared.height) / Math.min(prepared.width, prepared.height) > 1.2) {
       throw Object.assign(new Error('The app mark needs to be square. Crop it to a square and upload it again.'), { statusCode: 400 });
     }
-    const asset = await storePng(req.file.buffer, req.file.originalname);
+    const asset = await storeBrandAsset(prepared, req.file.originalname);
     const derivatives = kind === 'square'
-      ? await Promise.all([64, 192, 512].map((size) => storePng(req.file!.buffer, `${size}-${req.file!.originalname}`, size, size)))
+      ? await Promise.all([64, 192, 512].map((size) => storeSquareBrandDerivative(prepared, req.file!.originalname, size)))
       : [];
-    return res.status(201).json({ asset, derivatives });
+    return res.status(201).json({ asset, derivatives, warnings: brandAssetResolutionWarnings(prepared, kind) });
   } catch (error) {
     if (error instanceof multer.MulterError && error.code === 'LIMIT_FILE_SIZE') return res.status(413).json({ error: { message: 'That image is larger than 4 MB. Export or compress a smaller copy and try again.', code: 'BRAND_ASSET_TOO_LARGE' } });
     return next(error);
   }
+});
+
+router.get('/assets/storage-check', async (_req, res, next) => {
+  try {
+    return res.json({ check: await checkBrandAssetStorage() });
+  } catch (error) { return next(error); }
+});
+
+router.delete('/assets/unused', async (req, res, next) => {
+  try {
+    const cleanup = await cleanupUnusedBrandAssets(auditActorFrom(req));
+    return res.json({ cleanup, check: await checkBrandAssetStorage() });
+  } catch (error) { return next(error); }
 });
 
 /**

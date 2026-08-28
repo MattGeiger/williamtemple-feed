@@ -60,6 +60,14 @@ describe('Appearance wizard', () => {
         chartColors: { light: ['#007d79', '#d02670', '#ba4e00', '#8a3ffc', '#0f62fe'], dark: ['#3ddbd9', '#ff7eb6', '#ff832b', '#be95ff', '#78a9ff'] },
       },
     });
+    mocks.upload.mockResolvedValue({
+      asset: {
+        kind: 'database', id: '4d9f2e0c-156e-4d45-ae6c-f5b324e04fe2',
+        width: 288, height: 87, mimeType: 'image/png',
+      },
+      derivatives: [],
+      warnings: ['This image is 288 × 87 px. For a crisp logo on high-density screens, use SVG or a PNG at least 576 × 160 px.'],
+    });
   });
 
   it('uses the required six-step order and offers draft or activation at review', async () => {
@@ -98,5 +106,28 @@ describe('Appearance wizard', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
     await waitFor(() => expect(mocks.save).toHaveBeenCalledWith('example-pantry', expect.objectContaining({ identity: expect.objectContaining({ organizationName: 'Example Pantry' }) }), false));
   });
-});
 
+  it('keeps a low-resolution raster warning visible after upload', async () => {
+    render(
+      <AppearanceWizard
+        open
+        onOpenChange={vi.fn()}
+        templates={[{ id: 'template-example', name: 'Start from Example', description: 'Complete example.', config }]}
+        onSaved={vi.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Start from Example/ }));
+    fireEvent.change(screen.getByLabelText('Configuration name'), { target: { value: 'example-pantry' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    expect(screen.getByRole('heading', { name: 'Logos & app mark' })).toBeVisible();
+
+    const file = new File(['small'], 'small-logo.png', { type: 'image/png' });
+    fireEvent.change(screen.getByLabelText('Light-mode logo'), { target: { files: [file] } });
+
+    await waitFor(() => expect(mocks.upload).toHaveBeenCalledWith('logo-light', file));
+    expect(await screen.findByText(/Current image: 288 × 87 px/i)).toBeVisible();
+    expect(screen.getByText(/PNG at least 576 × 160 px/i)).toBeVisible();
+  });
+});

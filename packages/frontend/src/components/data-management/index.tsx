@@ -67,6 +67,7 @@ import { DataShapingRules } from './data-shaping-rules';
 import { AddDataDialog } from './add-data/add-data-dialog';
 import { DeploymentCapabilitiesPanel } from './deployment-capabilities-panel';
 import { LottoQueuePanel } from './lotto-queue-panel';
+import { BrandAssetStoragePanel } from './brand-asset-storage-panel';
 import { formatDate, formatDateRange, formatDateTime } from '@/lib/formatting/date';
 
 const PageTitleDataManagementIcon = createPageTitleIcon(DatabaseIcon);
@@ -420,7 +421,7 @@ export function DataManagementWorkspace() {
 
   // One definition, rendered by whichever branch applies below. Duplicating
   // the JSX would double every future edit — and every type error in it.
-  const analyticsContent = (
+  const dataContent = (
     <>
     <DataCoverageStrip
       status={status}
@@ -429,6 +430,8 @@ export function DataManagementWorkspace() {
     />
 
     <DeploymentCapabilitiesPanel isAdministrator={isAdministrator} />
+
+    {isAdministrator ? <BrandAssetStoragePanel /> : null}
 
     <LottoQueuePanel isAdministrator={isAdministrator} />
 
@@ -503,19 +506,19 @@ export function DataManagementWorkspace() {
         icon={PageTitleDataManagementIcon}
       />
 
-      {/* Staff see only the Analytics content and no tab strip: a single tab
+      {/* Staff see only the Data content and no tab strip: a single tab
           is chrome without a choice. Administrators also get Database, whose
           actions the server gates independently of this rendering. */}
       {isAdministrator ? (
-        <Tabs defaultValue="analytics">
+        <Tabs defaultValue="data">
           <TabsList>
-            <TabsTrigger value="analytics">Analytics</TabsTrigger>
+            <TabsTrigger value="data">Data</TabsTrigger>
             <TabsTrigger value="database">Database</TabsTrigger>
           </TabsList>
 
           <TabsContents>
-            <TabsContent value="analytics" className="space-y-6 pt-4">
-              {analyticsContent}
+            <TabsContent value="data" className="space-y-6 pt-4">
+              {dataContent}
             </TabsContent>
 
             <TabsContent value="database" className="pt-4">
@@ -524,7 +527,7 @@ export function DataManagementWorkspace() {
           </TabsContents>
         </Tabs>
       ) : (
-        <div className="space-y-6">{analyticsContent}</div>
+        <div className="space-y-6">{dataContent}</div>
       )}
 
       <AddDataDialog

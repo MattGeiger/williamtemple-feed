@@ -22,8 +22,8 @@ import { CategoryProvider } from './contexts/CategoryContext'
 import { FoodItemProvider } from './contexts/FoodItemContext'
 import { Toaster } from './components/ui/toaster'
 import { RootLayout } from './components/layout'
-import wthLogo from './assets/WTH_Logo_Horizontal.png'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './components/ui/card'
+import { BrandLogo } from './components/brand-logo'
 import { TranslationManagement } from './components/translation-management'
 import { LanguageManagement } from './components/language-management'
 import { LanguageProvider } from './contexts/LanguageContext'
@@ -177,11 +177,7 @@ function HomePageInner() {
         <Card className="mx-auto w-full max-w-[1400px] bg-transparent bg-none border-0 shadow-none mb-4">
           <CardHeader className="pb-1">
             <div className="flex justify-center mb-1">
-              <img 
-                src={brand.logo.lightSrc || wthLogo}
-                alt={`${brand.identity.organizationName} Logo`}
-                className="h-20 object-contain"
-              />
+              <BrandLogo className="h-20 w-auto" />
             </div>
             <CardTitle className="text-center text-xl">
               {brand.identity.appName} System

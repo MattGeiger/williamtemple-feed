@@ -36,6 +36,12 @@ router.get('/assets/:id', async (req, res, next) => {
     const bytes = Buffer.from(asset.dataBase64, 'base64');
     const etag = `"${asset.id}-${bytes.length}"`;
     res.setHeader('Content-Type', asset.mimeType);
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    if (asset.mimeType === 'image/svg+xml') {
+      // The upload sanitizer is the primary boundary. This CSP keeps a stored
+      // SVG inert even if a future sanitizer regression misses active content.
+      res.setHeader('Content-Security-Policy', "default-src 'none'; style-src 'unsafe-inline'; sandbox");
+    }
     res.setHeader('Content-Length', String(bytes.length));
     res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
     res.setHeader('ETag', etag);

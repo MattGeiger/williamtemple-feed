@@ -28,6 +28,8 @@ export const brandAssetReferenceSchema = z.discriminatedUnion('kind', [
     id: z.string().uuid(),
     width: z.number().int().positive(),
     height: z.number().int().positive(),
+    // Optional so configurations saved before vector preservation remain valid.
+    mimeType: z.enum(['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml']).optional(),
   }),
 ]);
 
