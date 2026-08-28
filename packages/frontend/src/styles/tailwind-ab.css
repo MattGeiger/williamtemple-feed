@@ -17,11 +17,12 @@ html[data-palette="tailwind"] {
   --status-neutral-bg: var(--color-gray-100); /* 0.000 · alt: slate-100 0.004, zinc-100 0.002, mist-100 0.005 */
   --status-neutral-border: var(--color-slate-400); /* 0.040 · alt: gray-400 0.042, zinc-400 0.043, mauve-400 0.052 */
   --status-neutral-text: var(--color-slate-600); /* 0.047 · alt: gray-600 0.046, slate-500 0.064, gray-500 0.059 */
-  --chart-success: var(--color-green-500); /* 0.027 · alt: green-400 0.075, green-600 0.093, emerald-500 0.052 */
-  --chart-warning: var(--color-amber-500); /* 0.023 · alt: orange-400 0.052, yellow-500 0.056, yellow-600 0.091 */
-  --chart-danger: var(--color-red-500); /* 0.028 · alt: red-600 0.069, rose-500 0.052, rose-600 0.074 */
   --color-pending: var(--color-blue-500); /* 0.028 · alt: blue-600 0.099, blue-400 0.086, indigo-400 0.073 */
   --color-time: var(--color-blue-500); /* 0.028 · alt: blue-600 0.099, blue-400 0.086, indigo-400 0.073 */
+  --color-success-fill: var(--color-green-500); /* 0.027 · alt: green-400 0.075, green-600 0.093, emerald-500 0.052 */
+  --color-pending-fill: var(--color-blue-500); /* 0.028 · alt: blue-600 0.099, blue-400 0.086, indigo-400 0.073 */
+  --color-time-fill: var(--color-blue-500); /* 0.028 · alt: blue-600 0.099, blue-400 0.086, indigo-400 0.073 */
+  --color-items-fill: var(--color-blue-500); /* 0.028 · alt: blue-600 0.099, blue-400 0.086, indigo-400 0.073 */
   --background: var(--color-white); /* 0.000 · alt: olive-50 0.012, mist-50 0.013, taupe-50 0.014 */
   --foreground: var(--color-zinc-900); /* 0.004 · alt: mist-900 0.008, mauve-900 0.017, stone-900 0.010 */
   --card: var(--color-slate-50); /* 0.007 · alt: gray-50 0.006, mist-50 0.005, olive-50 0.007 */
@@ -36,8 +37,6 @@ html[data-palette="tailwind"] {
   --muted-foreground: var(--color-gray-500); /* 0.046 · alt: zinc-500 0.045, slate-500 0.059, mist-500 0.054 */
   --accent: var(--color-teal-100); /* 0.040 · alt: cyan-100 0.037, sky-100 0.026, mist-200 0.015 */
   --accent-foreground: var(--color-zinc-800); /* 0.008 · alt: mist-800 0.011, stone-800 0.012, neutral-800 0.005 */
-  --destructive: var(--color-red-600); /* 0.053 · alt: red-500 0.028, rose-600 0.067, rose-500 0.060 */
-  --destructive-foreground: var(--color-mist-50); /* 0.005 · alt: gray-50 0.006, slate-50 0.008, taupe-50 0.006 */
   --border: var(--color-slate-300); /* 0.015 · alt: blue-200 0.044, gray-300 0.024, indigo-200 0.047 */
   --input: var(--color-sky-600); /* 0.085 · alt: slate-500 0.041, sky-700 0.102, cyan-600 0.076 */
   --ring: var(--color-sky-700); /* 0.029 · alt: sky-800 0.055, sky-600 0.108, blue-800 0.110 */
@@ -83,11 +82,12 @@ html[data-palette="tailwind"].dark {
   --status-neutral-bg: var(--color-gray-800); /* 0.037 · alt: slate-800 0.041, cyan-950 0.043, sky-950 0.053 */
   --status-neutral-border: var(--color-slate-400); /* 0.008 · alt: gray-400 0.014, zinc-400 0.024, mist-400 0.029 */
   --status-neutral-text: var(--color-gray-200); /* 0.009 · alt: zinc-200 0.004, slate-200 0.012, mauve-200 0.007 */
-  --chart-success: var(--color-green-400); /* 0.015 · alt: green-500 0.057, lime-500 0.076, green-600 0.153 */
-  --chart-warning: var(--color-amber-500); /* 0.036 · alt: yellow-500 0.045, amber-400 0.059, yellow-600 0.108 */
-  --chart-danger: var(--color-red-400); /* 0.037 · alt: red-500 0.061, rose-400 0.056, rose-500 0.070 */
   --color-pending: var(--color-blue-400); /* 0.041 · alt: blue-500 0.069, indigo-400 0.056, sky-500 0.066 */
   --color-time: var(--color-blue-400); /* 0.041 · alt: blue-500 0.069, indigo-400 0.056, sky-500 0.066 */
+  --color-success-fill: var(--color-green-400); /* 0.015 · alt: green-500 0.057, lime-500 0.076, green-600 0.153 */
+  --color-pending-fill: var(--color-blue-400); /* 0.041 · alt: blue-500 0.069, indigo-400 0.056, sky-500 0.066 */
+  --color-time-fill: var(--color-blue-400); /* 0.041 · alt: blue-500 0.069, indigo-400 0.056, sky-500 0.066 */
+  --color-items-fill: var(--color-blue-400); /* 0.041 · alt: blue-500 0.069, indigo-400 0.056, sky-500 0.066 */
   --background: var(--color-black); /* 0.000 · alt: gray-950 0.133, slate-950 0.136, zinc-950 0.141 */
   --foreground: var(--color-white); /* 0.000 · alt: olive-50 0.012, mist-50 0.013, taupe-50 0.014 */
   --card: var(--color-slate-900); /* 0.014 · alt: gray-900 0.016, slate-950 0.066, slate-800 0.084 */
@@ -102,8 +102,6 @@ html[data-palette="tailwind"].dark {
   --muted-foreground: var(--color-gray-400); /* 0.017 · alt: zinc-400 0.015, mist-400 0.012, mauve-400 0.018 */
   --accent: var(--color-gray-800); /* 0.025 · alt: slate-800 0.029, gray-900 0.044, slate-900 0.048 */
   --accent-foreground: var(--color-mauve-100); /* 0.003 · alt: taupe-100 0.002, mist-100 0.003, zinc-100 0.006 */
-  --destructive: var(--color-red-600); /* 0.053 · alt: red-500 0.028, rose-600 0.067, rose-500 0.060 */
-  --destructive-foreground: var(--color-white); /* 0.000 · alt: olive-50 0.012, mist-50 0.013, taupe-50 0.014 */
   --border: var(--color-sky-700); /* 0.080 · alt: sky-600 0.093, slate-500 0.044, blue-500 0.146 */
   --input: var(--color-sky-700); /* 0.080 · alt: sky-600 0.093, slate-500 0.044, blue-500 0.146 */
   --ring: var(--color-gray-800); /* 0.025 · alt: slate-800 0.031, mist-800 0.021, zinc-800 0.020 */

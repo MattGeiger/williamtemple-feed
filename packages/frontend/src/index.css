@@ -118,18 +118,18 @@
 @layer base {
   :root {
     /* Status Flag Colors */
-    --status-success-bg: hsl(142 76% 97%);
-    --status-success-border: hsl(142 71% 45%);
-    --status-success-text: hsl(142 71% 30%);
-    --status-warning-bg: hsl(38 100% 92%);
-    --status-warning-border: hsl(38 92% 50%);
-    --status-warning-text: hsl(38 100% 50%);
-    --status-danger-bg: hsl(0 84% 97%);
-    --status-danger-border: hsl(0 84% 60%);
-    --status-danger-text: hsl(0 84% 30%);
-    --status-neutral-bg: hsl(220 14% 96%);
-    --status-neutral-border: hsl(220 14% 60%);
-    --status-neutral-text: hsl(220 14% 40%);
+    --status-success-bg: var(--color-green-50);
+    --status-success-border: var(--color-green-500);
+    --status-success-text: var(--color-green-700);
+    --status-warning-bg: var(--color-orange-100);
+    --status-warning-border: var(--color-amber-500);
+    --status-warning-text: var(--color-amber-500);
+    --status-danger-bg: var(--color-rose-50);
+    --status-danger-border: var(--color-red-500);
+    --status-danger-text: var(--color-red-800);
+    --status-neutral-bg: var(--color-gray-100);
+    --status-neutral-border: var(--color-slate-400);
+    --status-neutral-text: var(--color-slate-600);
 
     /* Chart Colors */
     --chart-primary: var(--primary);
@@ -148,80 +148,80 @@
     --color-items: var(--primary);
     --color-categoryLabel: var(--background);
     --color-success: var(--chart-success);
-    --color-pending: hsl(217 91% 60%);
-    --color-time: hsl(217 91% 60%);
+    --color-pending: var(--color-blue-500);
+    --color-time: var(--color-blue-500);
     --color-label: var(--background);
-    --color-success-fill: hsl(142, 71%, 45%);
-    --color-pending-fill: hsl(217, 91%, 60%);
-    --color-time-fill: hsl(217, 91%, 60%);
-    --color-items-fill: hsl(217, 91%, 60%);
+    --color-success-fill: var(--color-green-500);
+    --color-pending-fill: var(--color-blue-500);
+    --color-time-fill: var(--color-blue-500);
+    --color-items-fill: var(--color-blue-500);
     --color-inStock: hsl(141, 53%, 53%);
     --color-limited: hsl(39, 100%, 50%);
     --color-clearance: hsl(3, 87%, 63%);
     --color-outOfStock: hsl(0, 0%, 50%);  /* Updated to medium gray */
 
     /* Authored fallback matches the compiled WTH Tailwind-derived theme. */
-    --background: oklch(1 0 89.9);
-    --foreground: oklch(0.213 0.004 264.5);
-    --card: oklch(0.991 0.003 264.5);
-    --card-foreground: oklch(0.267 0.005 248);
-    --popover: oklch(0.99 0.005 258.3);
-    --popover-foreground: oklch(0.211 0.061 250.7);
-    --primary: oklch(0.497 0.118 252.6);
-    --primary-foreground: oklch(1 0 89.9);
-    --secondary: oklch(0.967 0.001 286.4);
-    --secondary-foreground: oklch(0.21 0.006 285.9);
-    --muted: oklch(0.967 0.009 188.1);
-    --muted-foreground: oklch(0.508 0.01 248);
-    --accent: oklch(0.934 0.016 187.3);
-    --accent-foreground: oklch(0.267 0.005 248);
+    --background: var(--color-white);
+    --foreground: var(--color-zinc-900);
+    --card: var(--color-slate-50);
+    --card-foreground: var(--color-zinc-800);
+    --popover: var(--color-slate-50);
+    --popover-foreground: var(--color-slate-900);
+    --primary: var(--color-sky-700);
+    --primary-foreground: var(--color-white);
+    --secondary: var(--color-zinc-100);
+    --secondary-foreground: var(--color-zinc-900);
+    --muted: var(--color-mist-100);
+    --muted-foreground: var(--color-gray-500);
+    --accent: var(--color-teal-100);
+    --accent-foreground: var(--color-zinc-800);
     --destructive: hsl(0 100% 50%);
     --destructive-foreground: hsl(211 5% 99%);
-    --border: oklch(0.854 0.025 248.1);
-    --input: oklch(0.582 0.075 251.1);
-    --ring: oklch(0.491 0.119 253);
+    --border: var(--color-slate-300);
+    --input: var(--color-sky-600);
+    --ring: var(--color-sky-700);
     --radius: 1.3rem;
-    --sidebar-background: oklch(0.99 0.005 258.3);
-    --sidebar-foreground: oklch(0.213 0.004 264.5);
-    --sidebar-primary: oklch(0.491 0.119 253);
-    --sidebar-primary-foreground: oklch(1 0 89.9);
-    --sidebar-accent: oklch(0.941 0.024 193.6);
-    --sidebar-accent-foreground: oklch(0.267 0.005 248);
-    --sidebar-border: oklch(0.854 0.025 248.1);
-    --sidebar-ring: oklch(0.491 0.119 253);
+    --sidebar-background: var(--color-slate-50);
+    --sidebar-foreground: var(--color-zinc-900);
+    --sidebar-primary: var(--color-sky-700);
+    --sidebar-primary-foreground: var(--color-white);
+    --sidebar-accent: var(--color-sky-100);
+    --sidebar-accent-foreground: var(--color-zinc-800);
+    --sidebar-border: var(--color-slate-300);
+    --sidebar-ring: var(--color-sky-700);
 
     /* FEED app shell atmosphere */
-    --feed-shell-base-start: hsl(211 58% 98%);
-    --feed-shell-base-mid: hsl(184 38% 96%);
-    --feed-shell-base-end: hsl(211 34% 93%);
-    --feed-shell-glow-primary: hsl(211 60% 40% / 0.09);
-    --feed-shell-glow-secondary: hsl(173 45% 48% / 0.08);
-    --feed-shell-haze: hsl(49 100% 65% / 0.05);
-    --feed-shell-veil: hsl(0 0% 100% / 0.42);
+    --feed-shell-base-start: var(--color-slate-50);
+    --feed-shell-base-mid: var(--color-sky-50);
+    --feed-shell-base-end: var(--color-slate-200);
+    --feed-shell-glow-primary: color-mix(in oklch, var(--color-sky-700) 9.0%, transparent);
+    --feed-shell-glow-secondary: color-mix(in oklch, var(--color-teal-500) 8.0%, transparent);
+    --feed-shell-haze: color-mix(in oklch, var(--color-yellow-300) 5.0%, transparent);
+    --feed-shell-veil: color-mix(in oklch, var(--color-white) 42.0%, transparent);
     --feed-shell-panel-start: color-mix(in oklch, var(--card) 88%, transparent);
-    --feed-shell-panel-end: hsl(184 30% 94% / 0.76);
+    --feed-shell-panel-end: color-mix(in oklch, var(--color-mist-100) 76.0%, transparent);
     --feed-shell-header-start: color-mix(in oklch, var(--background) 40%, transparent);
     --feed-shell-header-end: color-mix(in oklch, var(--background) 32%, transparent);
     --feed-shell-card-start: color-mix(in oklch, var(--card) 94%, transparent);
-    --feed-shell-card-end: hsl(184 24% 93% / 0.84);
+    --feed-shell-card-end: color-mix(in oklch, var(--color-mist-100) 84.0%, transparent);
     --feed-shell-panel-border: color-mix(in oklch, var(--border) 72%, transparent);
     --feed-shell-header-border: color-mix(in oklch, var(--border) 58%, transparent);
-    --feed-shell-surface-shadow: 0 24px 60px -44px hsl(211 50% 20% / 0.34);
+    --feed-shell-surface-shadow: 0 24px 60px -44px color-mix(in oklch, var(--color-sky-950) 34.0%, transparent);
     --feed-motion-duration-fast: 160ms;
     --feed-motion-duration-medium: 220ms;
     --feed-motion-ease-standard: cubic-bezier(0.22, 1, 0.36, 1);
 
     /* Shadow scale — light mode (pure-black, geometry: x 1px / y 3.5px / blur 7px / spread 0.5px).
        Tailwind's shadow-* utilities are remapped to these via the `@theme inline` block above. */
-    --shadow-color: hsl(0 0% 0%);
-    --shadow-2xs: 1px 3.5px 7px 0.5px hsl(0 0% 0% / 0.10);
-    --shadow-xs:  1px 3.5px 7px 0.5px hsl(0 0% 0% / 0.10);
-    --shadow-sm:  1px 3.5px 7px 0.5px hsl(0 0% 0% / 0.20), 1px 1px 2px -0.5px hsl(0 0% 0% / 0.20);
-    --shadow:     1px 3.5px 7px 0.5px hsl(0 0% 0% / 0.20), 1px 1px 2px -0.5px hsl(0 0% 0% / 0.20);
-    --shadow-md:  1px 3.5px 7px 0.5px hsl(0 0% 0% / 0.20), 1px 2px 4px -0.5px hsl(0 0% 0% / 0.20);
-    --shadow-lg:  1px 3.5px 7px 0.5px hsl(0 0% 0% / 0.20), 1px 4px 6px -0.5px hsl(0 0% 0% / 0.20);
-    --shadow-xl:  1px 3.5px 7px 0.5px hsl(0 0% 0% / 0.20), 1px 8px 10px -0.5px hsl(0 0% 0% / 0.20);
-    --shadow-2xl: 1px 3.5px 7px 0.5px hsl(0 0% 0% / 0.50);
+    --shadow-color: var(--color-black);
+    --shadow-2xs: 1px 3.5px 7px 0.5px color-mix(in oklch, var(--color-black) 10.0%, transparent);
+    --shadow-xs: 1px 3.5px 7px 0.5px color-mix(in oklch, var(--color-black) 10.0%, transparent);
+    --shadow-sm: 1px 3.5px 7px 0.5px color-mix(in oklch, var(--color-black) 20.0%, transparent), 1px 1px 2px -0.5px color-mix(in oklch, var(--color-black) 20.0%, transparent);
+    --shadow: 1px 3.5px 7px 0.5px color-mix(in oklch, var(--color-black) 20.0%, transparent), 1px 1px 2px -0.5px color-mix(in oklch, var(--color-black) 20.0%, transparent);
+    --shadow-md: 1px 3.5px 7px 0.5px color-mix(in oklch, var(--color-black) 20.0%, transparent), 1px 2px 4px -0.5px color-mix(in oklch, var(--color-black) 20.0%, transparent);
+    --shadow-lg: 1px 3.5px 7px 0.5px color-mix(in oklch, var(--color-black) 20.0%, transparent), 1px 4px 6px -0.5px color-mix(in oklch, var(--color-black) 20.0%, transparent);
+    --shadow-xl: 1px 3.5px 7px 0.5px color-mix(in oklch, var(--color-black) 20.0%, transparent), 1px 8px 10px -0.5px color-mix(in oklch, var(--color-black) 20.0%, transparent);
+    --shadow-2xl: 1px 3.5px 7px 0.5px color-mix(in oklch, var(--color-black) 50.0%, transparent);
 
     /* Legacy aliases — keep old `shadow-realistic*` utilities pointing to the new scale. */
     --shadow-realistic-sm: var(--shadow-sm);
@@ -253,18 +253,18 @@
 
   .dark {
     /* Status Flag Colors */
-    --status-success-bg: hsl(142 71% 20%);
-    --status-success-border: hsl(142.1 80% 36%);
-    --status-success-text: hsl(142 71% 90%);
-    --status-warning-bg: hsl(38 80% 8%);
-    --status-warning-border: hsl(24.6 95% 53.1%);
-    --status-warning-text: hsl(38 100% 50%);
-    --status-danger-bg: hsl(0 84% 20%);
-    --status-danger-border: hsl(0 72.2% 50.6%);
-    --status-danger-text: hsl(0 84% 90%);
-    --status-neutral-bg: hsl(220 14% 20%);
-    --status-neutral-border: hsl(215 20.2% 65.1%);
-    --status-neutral-text: hsl(220 14% 90%);
+    --status-success-bg: var(--color-green-900);
+    --status-success-border: var(--color-green-600);
+    --status-success-text: var(--color-emerald-100);
+    --status-warning-bg: var(--color-yellow-950);
+    --status-warning-border: var(--color-orange-500);
+    --status-warning-text: var(--color-amber-500);
+    --status-danger-bg: var(--color-red-900);
+    --status-danger-border: var(--color-red-600);
+    --status-danger-text: var(--color-red-200);
+    --status-neutral-bg: var(--color-gray-800);
+    --status-neutral-border: var(--color-slate-400);
+    --status-neutral-text: var(--color-gray-200);
 
     /* Chart Colors */
     --chart-primary: var(--primary);
@@ -283,57 +283,57 @@
     --color-items: var(--primary);
     --color-categoryLabel: var(--background);
     --color-success: var(--chart-success);
-    --color-pending: hsl(217 91% 65%);
-    --color-time: hsl(217 91% 65%);
+    --color-pending: var(--color-blue-400);
+    --color-time: var(--color-blue-400);
     --color-label: var(--background);
-    --color-success-fill: hsl(142, 71%, 50%);
-    --color-pending-fill: hsl(217, 91%, 65%);
-    --color-time-fill: hsl(217, 91%, 65%);
-    --color-items-fill: hsl(217, 91%, 65%);
+    --color-success-fill: var(--color-green-400);
+    --color-pending-fill: var(--color-blue-400);
+    --color-time-fill: var(--color-blue-400);
+    --color-items-fill: var(--color-blue-400);
     --color-inStock: hsl(141, 53%, 40%);
     --color-limited: hsl(39, 100%, 45%);
     --color-clearance: hsl(3, 87%, 55%);
     --color-outOfStock: hsl(0, 0%, 50%);  /* Updated to medium gray */
 
-    --background: oklch(0 0 0);
-    --foreground: oklch(1 0 89.9);
-    --card: oklch(0.195 0.038 266.8);
-    --card-foreground: oklch(1 0 89.9);
-    --popover: oklch(0.145 0.021 263.2);
-    --popover-foreground: oklch(1 0 89.9);
-    --primary: oklch(0.904 0.161 96);
-    --primary-foreground: oklch(0.497 0.118 252.6);
-    --secondary: oklch(0.274 0.005 286);
-    --secondary-foreground: oklch(0.985 0 89.9);
-    --muted: oklch(0.254 0.028 269.2);
-    --muted-foreground: oklch(0.718 0.009 264.5);
-    --accent: oklch(0.254 0.028 269.2);
-    --accent-foreground: oklch(0.961 0.001 286.4);
+    --background: var(--color-black);
+    --foreground: var(--color-white);
+    --card: var(--color-slate-900);
+    --card-foreground: var(--color-white);
+    --popover: var(--color-gray-950);
+    --popover-foreground: var(--color-white);
+    --primary: var(--color-yellow-300);
+    --primary-foreground: var(--color-sky-700);
+    --secondary: var(--color-zinc-800);
+    --secondary-foreground: var(--color-zinc-50);
+    --muted: var(--color-slate-800);
+    --muted-foreground: var(--color-gray-400);
+    --accent: var(--color-gray-800);
+    --accent-foreground: var(--color-mauve-100);
     --destructive: hsl(0 100% 50%);
     --destructive-foreground: hsl(222 5% 100%);
-    --border: oklch(0.55 0.089 266);
-    --input: oklch(0.55 0.089 266);
-    --ring: oklch(0.293 0.013 267.1);
+    --border: var(--color-sky-700);
+    --input: var(--color-sky-700);
+    --ring: var(--color-gray-800);
     --radius: 1.3rem;
-    --sidebar-background: oklch(0.195 0.038 266.8);
-    --sidebar-foreground: oklch(1 0 89.9);
-    --sidebar-primary: oklch(0.293 0.013 267.1);
-    --sidebar-primary-foreground: oklch(1 0 89.9);
-    --sidebar-accent: oklch(0.279 0.107 263.3);
-    --sidebar-accent-foreground: oklch(1 0 89.9);
-    --sidebar-border: oklch(0.372 0.097 264.7);
-    --sidebar-ring: oklch(0.293 0.013 267.1);
+    --sidebar-background: var(--color-slate-900);
+    --sidebar-foreground: var(--color-white);
+    --sidebar-primary: var(--color-gray-800);
+    --sidebar-primary-foreground: var(--color-white);
+    --sidebar-accent: var(--color-blue-950);
+    --sidebar-accent-foreground: var(--color-white);
+    --sidebar-border: var(--color-blue-900);
+    --sidebar-ring: var(--color-gray-800);
 
     /* FEED app shell atmosphere */
-    --feed-shell-base-start: hsl(221 44% 9%);
-    --feed-shell-base-mid: hsl(224 30% 17%);
-    --feed-shell-base-end: hsl(229 24% 20%);
-    --feed-shell-glow-primary: hsl(219 66% 58% / 0.20);
-    --feed-shell-glow-secondary: hsl(229 38% 56% / 0.16);
-    --feed-shell-haze: hsl(223 18% 72% / 0.06);
-    --feed-shell-veil: hsl(225 20% 7% / 0.20);
+    --feed-shell-base-start: var(--color-gray-900);
+    --feed-shell-base-mid: var(--color-slate-800);
+    --feed-shell-base-end: var(--color-slate-800);
+    --feed-shell-glow-primary: color-mix(in oklch, var(--color-blue-500) 20.0%, transparent);
+    --feed-shell-glow-secondary: color-mix(in oklch, var(--color-indigo-400) 16.0%, transparent);
+    --feed-shell-haze: color-mix(in oklch, var(--color-slate-400) 6.0%, transparent);
+    --feed-shell-veil: color-mix(in oklch, var(--color-gray-900) 20.0%, transparent);
     --feed-shell-panel-start: color-mix(in oklch, var(--card) 82%, transparent);
-    --feed-shell-panel-end: hsl(218 30% 12% / 0.7);
+    --feed-shell-panel-end: color-mix(in oklch, var(--color-gray-900) 70.0%, transparent);
     /* Not the panel tokens. Those are sized for near-solid surfaces (0.82 /
        0.70), and composited over the header's own 0.4 background they left the
        bar about 89% opaque — the frosted blur was applied and buried, so the
@@ -344,43 +344,43 @@
     --feed-shell-header-start: color-mix(in oklch, var(--background) 55%, transparent);
     --feed-shell-header-end: color-mix(in oklch, var(--background) 45%, transparent);
     --feed-shell-card-start: color-mix(in oklch, var(--card) 88%, transparent);
-    --feed-shell-card-end: hsl(218 28% 12% / 0.78);
+    --feed-shell-card-end: color-mix(in oklch, var(--color-gray-900) 78.0%, transparent);
     --feed-shell-panel-border: color-mix(in oklch, var(--border) 78%, transparent);
     --feed-shell-header-border: var(--feed-shell-panel-border);
-    --feed-shell-surface-shadow: 0 28px 72px -52px hsl(222 90% 3% / 0.86);
+    --feed-shell-surface-shadow: 0 28px 72px -52px color-mix(in oklch, var(--color-gray-950) 86.0%, transparent);
 
     /* Dark shadows keep the established geometry but take their chroma from
        the active brand rather than a hard-coded blue-purple glow. */
-    --shadow-color: oklch(0.746 0.16 232.661);
-    --shadow-2xs: 1px 3.5px 10.5px 0.5px oklch(0.746 0.16 232.661 / 0.20);
-    --shadow-xs: 1px 3.5px 10.5px 0.5px oklch(0.746 0.16 232.661 / 0.22);
-    --shadow-sm: 1px 3.5px 10.5px 0.5px oklch(0.746 0.16 232.661 / 0.35), 1px 1px 2px -0.5px oklch(0.746 0.16 232.661 / 0.40);
-    --shadow: 1px 3.5px 10.5px 0.5px oklch(0.746 0.16 232.661 / 0.40), 1px 1px 2px -0.5px oklch(0.746 0.16 232.661 / 0.45);
-    --shadow-md: 1px 3.5px 14px   0.5px oklch(0.746 0.16 232.661 / 0.45), 1px 2px 4px -0.5px oklch(0.746 0.16 232.661 / 0.50);
-    --shadow-lg: 1px 3.5px 20px   1px   oklch(0.746 0.16 232.661 / 0.55), 1px 4px 6px -0.5px oklch(0.746 0.16 232.661 / 0.55);
-    --shadow-xl: 1px 3.5px 28px   2px   oklch(0.746 0.16 232.661 / 0.60), 1px 8px 10px -0.5px oklch(0.746 0.16 232.661 / 0.55);
-    --shadow-2xl: 1px 3.5px 40px   3px   oklch(0.746 0.16 232.661 / 0.75);
+    --shadow-color: var(--color-sky-400);
+    --shadow-2xs: 1px 3.5px 10.5px 0.5px color-mix(in oklch, var(--color-sky-400) 20.0%, transparent);
+    --shadow-xs: 1px 3.5px 10.5px 0.5px color-mix(in oklch, var(--color-sky-400) 22.0%, transparent);
+    --shadow-sm: 1px 3.5px 10.5px 0.5px color-mix(in oklch, var(--color-sky-400) 35.0%, transparent), 1px 1px 2px -0.5px color-mix(in oklch, var(--color-sky-400) 40.0%, transparent);
+    --shadow: 1px 3.5px 10.5px 0.5px color-mix(in oklch, var(--color-sky-400) 40.0%, transparent), 1px 1px 2px -0.5px color-mix(in oklch, var(--color-sky-400) 45.0%, transparent);
+    --shadow-md: 1px 3.5px 14px   0.5px color-mix(in oklch, var(--color-sky-400) 45.0%, transparent), 1px 2px 4px -0.5px color-mix(in oklch, var(--color-sky-400) 50.0%, transparent);
+    --shadow-lg: 1px 3.5px 20px   1px   color-mix(in oklch, var(--color-sky-400) 55.0%, transparent), 1px 4px 6px -0.5px color-mix(in oklch, var(--color-sky-400) 55.0%, transparent);
+    --shadow-xl: 1px 3.5px 28px   2px   color-mix(in oklch, var(--color-sky-400) 60.0%, transparent), 1px 8px 10px -0.5px color-mix(in oklch, var(--color-sky-400) 55.0%, transparent);
+    --shadow-2xl: 1px 3.5px 40px   3px   color-mix(in oklch, var(--color-sky-400) 75.0%, transparent);
 
     --shadow-realistic-sm: var(--shadow-sm);
     --shadow-realistic:    var(--shadow-lg);
     --shadow-realistic-lg: var(--shadow-xl);
 
     /* Card gradients follow the active semantic surface and accent roles. */
-    --feed-card-gradient: linear-gradient(135deg, oklch(0.22 0.025 250) 0%, oklch(0.26 0.045 250) 100%);
-    --feed-card-gradient-primary: linear-gradient(135deg, oklch(0.22 0.035 220) 0%, oklch(0.27 0.06 220) 100%);
+    --feed-card-gradient: linear-gradient(135deg, var(--color-gray-900) 0%, var(--color-slate-800) 100%);
+    --feed-card-gradient-primary: linear-gradient(135deg, var(--color-gray-900) 0%, var(--color-cyan-950) 100%);
 
     /* Prism-style universal card-gradient tokens (dark). */
     --card-gradient-start: color-mix(in srgb, var(--primary) 9%, var(--card));
     --card-gradient-end:   color-mix(in srgb, var(--card) 92%, black);
 
     /* Atmospheric body backdrop, derived from the active brand. */
-    --feed-shell-base-start: hsl(221 44% 9%);
-    --feed-shell-base-mid: hsl(224 30% 17%);
-    --feed-shell-base-end: hsl(229 24% 20%);
-    --feed-shell-glow-primary: hsl(219 66% 58% / 0.20);
-    --feed-shell-glow-secondary: hsl(229 38% 56% / 0.16);
-    --feed-shell-haze: hsl(223 18% 72% / 0.06);
-    --feed-shell-veil: hsl(225 20% 7% / 0.20);
+    --feed-shell-base-start: var(--color-gray-900);
+    --feed-shell-base-mid: var(--color-slate-800);
+    --feed-shell-base-end: var(--color-slate-800);
+    --feed-shell-glow-primary: color-mix(in oklch, var(--color-blue-500) 20.0%, transparent);
+    --feed-shell-glow-secondary: color-mix(in oklch, var(--color-indigo-400) 16.0%, transparent);
+    --feed-shell-haze: color-mix(in oklch, var(--color-slate-400) 6.0%, transparent);
+    --feed-shell-veil: color-mix(in oklch, var(--color-gray-900) 20.0%, transparent);
     --feed-app-backdrop:
       linear-gradient(180deg, transparent 0%, var(--feed-shell-veil) 100%),
       radial-gradient(144% 112% at 16% 86%, var(--feed-shell-glow-primary)   0%, transparent 62%),

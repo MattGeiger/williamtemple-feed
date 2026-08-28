@@ -25,6 +25,7 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { hexToOklch, hslToOklch, parseHslTriplet, perceptualDistance, type Oklch } from '../color';
+import { TAILWIND_EXTREMES, TAILWIND_PALETTE } from '../palettes';
 import { deriveTheme } from '../derive';
 import { BRAND_TOKENS, type BrandToken, type ThemeScope } from '../tokens';
 
@@ -71,6 +72,27 @@ const shippedTokens = (): Record<ThemeScope, Partial<Record<BrandToken, string>>
   }
 
   return result;
+};
+
+/**
+ * Resolve a `var(--color-family-stop)` reference to the colour it names.
+ *
+ * `index.css` now expresses the built-in appearance as palette references
+ * rather than literals. Without this the gate parsed nothing, compared nothing,
+ * and passed — the same tautology it fell into once before, when the threshold
+ * was tightened while the file held the derivation's own output. The staleness
+ * check is what caught it both times.
+ */
+const PALETTE_BY_NAME = new Map(
+  [...TAILWIND_PALETTE, ...TAILWIND_EXTREMES].map((entry) => [
+    entry.stop === 0 ? entry.family : `${entry.family}-${entry.stop}`,
+    { l: entry.l, c: entry.c, h: entry.h } as Oklch,
+  ]),
+);
+
+const parsePaletteReference = (value: string): Oklch | null => {
+  const match = value.trim().match(/^var\(--color-([A-Za-z0-9-]+)\)$/);
+  return match ? PALETTE_BY_NAME.get(match[1]) ?? null : null;
 };
 
 const parseOklchLiteral = (value: string): Oklch | null => {
@@ -151,7 +173,9 @@ describe('Phase 0 fidelity gate — reproducing William Temple House', () => {
         const raw = shipped[scope][token];
         if (!raw) continue;
         const triplet = parseHslTriplet(raw);
-        const authored = parseOklchLiteral(raw) ?? (triplet ? hslToOklch(triplet) : null);
+        const authored = parsePaletteReference(raw)
+          ?? parseOklchLiteral(raw)
+          ?? (triplet ? hslToOklch(triplet) : null);
         // `var(--primary)` style aliases are not comparable values.
         if (!authored) continue;
 
