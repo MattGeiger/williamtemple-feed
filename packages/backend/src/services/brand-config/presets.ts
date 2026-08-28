@@ -20,8 +20,12 @@ export const WTH_BRAND_CONFIG: BrandConfig = {
     // lockup — which BrandContext then set as the browser tab icon, squashing
     // a 3.8:1 lockup into a square. The square slot needs a genuinely square
     // mark.
-    light: { kind: 'builtin', src: '/brand/wth-logo-email.png', width: 600, height: 157 },
-    dark: { kind: 'builtin', src: '/brand/wth-logo-email.png', width: 600, height: 157 },
+    // Vector, and a real dark variant. The raster email lockup served both
+    // themes before, so dark mode showed a logo drawn for a light background.
+    // The email layout still points at the PNG separately: mail clients render
+    // SVG inconsistently, so that one surface keeps a raster on purpose.
+    light: { kind: 'builtin', src: '/brand/wth-logo-horizontal-light.svg', width: 792, height: 206 },
+    dark: { kind: 'builtin', src: '/brand/wth-logo-horizontal-dark.svg', width: 792, height: 217 },
     // Lives in `public/` rather than `src/assets/` because Vite fingerprints
     // the latter, and this path is referenced at runtime and from email.
     square: { kind: 'builtin', src: '/brand/wth-icon-outline.svg', width: 527, height: 527 },

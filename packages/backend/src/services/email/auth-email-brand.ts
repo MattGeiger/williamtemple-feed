@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 Matt Geiger
 
+import prisma from '../../db';
 import { assetUrl, printBrand } from '../brand-config';
 
 export type EmailBrand = {
@@ -22,15 +23,46 @@ const absoluteUrl = (path: string) => {
 };
 
 /** Resolve email-safe light-scope literals from the same active brand input. */
+/**
+ * A raster URL for the email header, or null when the brand's logo is vector.
+ *
+ * Mail clients handle SVG badly — Gmail strips `<img src="*.svg">` outright and
+ * Outlook will not render it — so an email must not embed one however good it
+ * looks in the app. Returning null lets the caller fall back to the built-in
+ * raster lockup rather than shipping a broken image.
+ */
+const rasterLogoUrl = async (
+  reference: { kind: string; src?: string; id?: string },
+): Promise<string | null> => {
+  if (reference.kind === 'builtin') {
+    return reference.src && !/\.svgx?$/i.test(reference.src) ? reference.src : null;
+  }
+  if (reference.kind === 'database' && reference.id) {
+    try {
+      const asset = await prisma.brandAsset.findUnique({
+        where: { id: reference.id },
+        select: { mimeType: true },
+      });
+      if (!asset || asset.mimeType === 'image/svg+xml') return null;
+      return assetUrl(reference as never);
+    } catch {
+      return null;
+    }
+  }
+  return null;
+};
+
 export const resolveEmailBrand = async (): Promise<EmailBrand> => {
   const resolved = await printBrand();
   const { config, colors } = resolved;
+  const raster = await rasterLogoUrl(config.logo.light as never);
   return {
     organizationName: config.identity.organizationName,
     appName: config.identity.appName,
     tagline: config.identity.tagline,
     organizationWebsite: config.identity.organizationWebsite,
-    logoUrl: absoluteUrl(assetUrl(config.logo.light)),
+    // Empty string makes email-layout fall back to the built-in raster.
+    logoUrl: raster ? absoluteUrl(raster) : '',
     colors: {
       blue: colors.primary,
       blueTint: colors.muted,
