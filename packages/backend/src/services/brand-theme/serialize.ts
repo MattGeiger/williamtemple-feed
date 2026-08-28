@@ -49,6 +49,67 @@ const declarationsFor = (
     return `${indent}--${token}: ${format(tokens[token])};`;
   }).join('\n');
 
+
+/**
+ * Atmosphere, shadow and card-gradient tokens for a *configured* brand.
+ *
+ * `index.css` holds William Temple House's hand-tuned values for these — the
+ * gold haze in the light backdrop, the navy lift and blue shadow glow in dark —
+ * because they are as much a part of that identity as the semantic colours are,
+ * and a derived approximation reads as a different app. They are literals there,
+ * so they do not follow another agency's brand on their own.
+ *
+ * This block supplies the following versions, emitted only when an appearance
+ * is active. Each is a fixed expression over the semantic tokens rather than
+ * per-brand arithmetic, so it needs no input from the derivation: the runtime
+ * stylesheet overrides `--primary` and friends above, and these compose off
+ * whatever those became.
+ */
+const CONFIGURED_ATMOSPHERE = {
+  light: `  --feed-shell-base-start: var(--background);
+  --feed-shell-base-mid: color-mix(in oklch, var(--accent) 30%, var(--background));
+  --feed-shell-base-end: color-mix(in oklch, var(--primary) 8%, var(--background));
+  --feed-shell-glow-primary: color-mix(in oklch, var(--primary) 9%, transparent);
+  --feed-shell-glow-secondary: color-mix(in oklch, var(--accent-foreground) 8%, transparent);
+  --feed-shell-haze: color-mix(in oklch, var(--sidebar-primary) 5%, transparent);
+  --feed-shell-veil: color-mix(in oklch, var(--background) 42%, transparent);
+  --feed-shell-panel-end: color-mix(in oklch, var(--card) 76%, transparent);
+  --feed-shell-card-end: color-mix(in oklch, var(--card) 84%, transparent);
+  --feed-shell-surface-shadow: 0 24px 60px -44px color-mix(in oklch, var(--foreground) 34%, transparent);
+  --shadow-color: hsl(0 0% 0%);
+  --shadow-2xs: 1px 3.5px 7px 0.5px hsl(0 0% 0% / 0.10);
+  --shadow-xs: 1px 3.5px 7px 0.5px hsl(0 0% 0% / 0.10);
+  --shadow-sm: 1px 3.5px 7px 0.5px hsl(0 0% 0% / 0.20), 1px 1px 2px -0.5px hsl(0 0% 0% / 0.20);
+  --shadow: 1px 3.5px 7px 0.5px hsl(0 0% 0% / 0.20), 1px 1px 2px -0.5px hsl(0 0% 0% / 0.20);
+  --shadow-md: 1px 3.5px 7px 0.5px hsl(0 0% 0% / 0.20), 1px 2px 4px -0.5px hsl(0 0% 0% / 0.20);
+  --shadow-lg: 1px 3.5px 7px 0.5px hsl(0 0% 0% / 0.20), 1px 4px 6px -0.5px hsl(0 0% 0% / 0.20);
+  --shadow-xl: 1px 3.5px 7px 0.5px hsl(0 0% 0% / 0.20), 1px 8px 10px -0.5px hsl(0 0% 0% / 0.20);
+  --shadow-2xl: 1px 3.5px 7px 0.5px hsl(0 0% 0% / 0.50);
+  --feed-card-gradient: linear-gradient(180deg, var(--card) 0%, color-mix(in oklch, var(--card) 94%, transparent) 100%);
+  --feed-card-gradient-primary: linear-gradient(180deg, color-mix(in oklch, var(--primary) 4%, transparent) 0%, var(--card) 100%);`,
+  dark: `  --feed-shell-base-start: var(--background);
+  --feed-shell-base-mid: color-mix(in oklch, var(--secondary) 30%, var(--background));
+  --feed-shell-base-end: color-mix(in oklch, var(--primary) 9%, var(--background));
+  --feed-shell-glow-primary: color-mix(in oklch, var(--primary) 12%, transparent);
+  --feed-shell-glow-secondary: color-mix(in oklch, var(--accent-foreground) 10%, transparent);
+  --feed-shell-haze: color-mix(in oklch, var(--accent) 10%, transparent);
+  --feed-shell-veil: color-mix(in oklch, var(--background) 26%, transparent);
+  --feed-shell-panel-end: color-mix(in oklch, var(--card) 70%, transparent);
+  --feed-shell-card-end: color-mix(in oklch, var(--card) 78%, transparent);
+  --feed-shell-surface-shadow: 0 28px 72px -52px color-mix(in oklch, var(--background) 86%, transparent);
+  --shadow-color: var(--primary);
+  --shadow-2xs: 1px 3.5px 10.5px 0.5px color-mix(in oklch, var(--primary) 20%, transparent);
+  --shadow-xs: 1px 3.5px 10.5px 0.5px color-mix(in oklch, var(--primary) 22%, transparent);
+  --shadow-sm: 1px 3.5px 10.5px 0.5px color-mix(in oklch, var(--primary) 35%, transparent), 1px 1px 2px -0.5px color-mix(in oklch, var(--primary) 40%, transparent);
+  --shadow: 1px 3.5px 10.5px 0.5px color-mix(in oklch, var(--primary) 40%, transparent), 1px 1px 2px -0.5px color-mix(in oklch, var(--primary) 45%, transparent);
+  --shadow-md: 1px 3.5px 14px   0.5px color-mix(in oklch, var(--primary) 45%, transparent), 1px 2px 4px -0.5px color-mix(in oklch, var(--primary) 50%, transparent);
+  --shadow-lg: 1px 3.5px 20px   1px   color-mix(in oklch, var(--primary) 55%, transparent), 1px 4px 6px -0.5px color-mix(in oklch, var(--primary) 55%, transparent);
+  --shadow-xl: 1px 3.5px 28px   2px   color-mix(in oklch, var(--primary) 60%, transparent), 1px 8px 10px -0.5px color-mix(in oklch, var(--primary) 55%, transparent);
+  --shadow-2xl: 1px 3.5px 40px   3px   color-mix(in oklch, var(--primary) 75%, transparent);
+  --feed-card-gradient: linear-gradient(135deg, var(--card) 0%, color-mix(in oklch, var(--secondary) 28%, var(--card)) 100%);
+  --feed-card-gradient-primary: linear-gradient(135deg, var(--card) 0%, color-mix(in oklch, var(--primary) 14%, var(--card)) 100%);`,
+};
+
 const SCOPE_SELECTOR: Record<ThemeScope, string> = {
   // Mirrors the three-state model in docs/frontend-services/theme-control.md:
   // no stamp on the root element is the default, where only
@@ -60,7 +121,8 @@ const SCOPE_SELECTOR: Record<ThemeScope, string> = {
 const buildCss = (theme: TokenMap, format: Formatter): string => {
   const blocks = THEME_SCOPES.map(
     (scope) =>
-      `${SCOPE_SELECTOR[scope]} {\n${declarationsFor(theme[scope], format, '  ')}\n}`
+      `${SCOPE_SELECTOR[scope]} {\n${declarationsFor(theme[scope], format, '  ')}\n` +
+      `${CONFIGURED_ATMOSPHERE[scope]}\n}`
   );
 
   // The un-stamped dark case: `prefers-color-scheme: dark` with no `.light`
@@ -70,7 +132,7 @@ const buildCss = (theme: TokenMap, format: Formatter): string => {
       theme.dark,
       format,
       '    '
-    )}\n  }\n}`
+    )}\n${CONFIGURED_ATMOSPHERE.dark.replace(/^  /gm, '    ')}\n  }\n}`
   );
 
   return `${blocks.join('\n\n')}\n`;

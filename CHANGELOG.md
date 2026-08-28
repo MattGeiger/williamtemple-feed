@@ -28,6 +28,16 @@ All notable changes to FEED are documented here. This project adheres to
   corrected.
 - **A new appearance starts with a neutral placeholder logo** rather than
   another organization's mark.
+- **The browser tab icon is the outlined mark again.** The built-in appearance
+  named its wide wordmark lockup as the square icon, so the tab showed a
+  squashed copy of the full logo. Only a genuinely square mark can become the
+  tab icon now; a brand without one keeps the icon already in the page.
+- **The built-in appearance keeps its atmosphere.** The backdrop gradients,
+  glows, shadow colour, and card gradients were hand-tuned per theme — the gold
+  haze behind light mode, the navy lift and blue shadow glow behind dark — and
+  had been replaced with values derived from the brand colours. They are
+  restored, and the derived versions now apply only when an appearance is
+  configured.
 
 
 ## [1.7.5-beta.1] — 2026-08-27

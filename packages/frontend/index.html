@@ -2,7 +2,9 @@
 <html lang="en" class="light">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/src/assets/WTH_Logo_Centered_Black_Outline.svg" />
+    <!-- Stable public path, not src/assets: Vite fingerprints the latter, and
+         BrandContext replaces this href at runtime from the active square mark. -->
+    <link rel="icon" type="image/svg+xml" href="/brand/wth-icon-outline.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
