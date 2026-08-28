@@ -1,3 +1,5 @@
 {
-  "light --sidebar-accent": "sky-100"
+  "light --sidebar-accent": "sky-100",
+  "light --muted": "mist-100",
+  "dark --muted": "slate-800"
 }
