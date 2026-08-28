@@ -228,8 +228,12 @@ export function PaletteCalibration() {
       byScope[row.scope].push(`  --${tokenOf(key)}: ${value};`);
     }
     el.textContent = [
-      byScope.light.length ? `html[data-palette="tailwind"] {\n${byScope.light.join('\n')}\n}` : '',
-      byScope.dark.length ? `html[data-palette="tailwind"].dark {\n${byScope.dark.join('\n')}\n}` : '',
+      // Unlayered, so these beat index.css's tokens (which sit in @layer base)
+      // regardless of source order. There is no separate A/B scope any more:
+      // index.css holds the palette references, so a pick previews against the
+      // shipped appearance directly.
+      byScope.light.length ? `:root, .light {\n${byScope.light.join('\n')}\n}` : '',
+      byScope.dark.length ? `.dark {\n${byScope.dark.join('\n')}\n}` : '',
     ].filter(Boolean).join('\n\n');
 
     try {
@@ -301,8 +305,8 @@ export function PaletteCalibration() {
           <SheetHeader className="space-y-1">
             <SheetTitle>Palette calibration</SheetTitle>
             <SheetDescription>
-              Pick the Tailwind entry for each authored colour. Choices apply to the page
-              immediately — turn the beaker on to see them. Export writes the overrides file.
+              Pick the Tailwind entry for each token. Choices apply to the page
+              immediately. Export writes the overrides file.
             </SheetDescription>
           </SheetHeader>
 
