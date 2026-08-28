@@ -16,11 +16,27 @@ import {
   type Oklch,
 } from '../src/services/brand-theme/color';
 import { TAILWIND_EXTREMES, TAILWIND_PALETTE } from '../src/services/brand-theme/palettes';
+import { isProtectedToken } from '../src/services/brand-theme/tokens';
 
 const css = readFileSync('../frontend/src/index.css', 'utf8');
 
 /** Other companies' brand colours. Never re-expressed in our palette. */
 const EXCLUDE = /^service-/;
+
+/**
+ * Tokens this migration must not touch, and why each is skipped.
+ *
+ * The four inventory status flags were previously excluded only because the
+ * token pattern could not match camelCase and the colour pattern could not
+ * match comma-separated hsl(). That is protection by accident: fixing either
+ * regex — as this change does — would have started converting protected
+ * operational semiotics silently. The exclusion is now stated.
+ */
+const skipReason = (name: string): string | null => {
+  if (EXCLUDE.test(name)) return 'third-party brand colour';
+  if (isProtectedToken(name)) return 'protected operational semiotic';
+  return null;
+};
 
 /**
  * Matching runs across the *whole* palette rather than splitting neutral from
@@ -121,13 +137,20 @@ const block = (scope: 'light' | 'dark') => {
     if (pat.test(line)) { f = true; continue; }
     if (f && /^  \}/.test(line)) break;
     if (!f) continue;
-    const m = line.match(/^\s*--([a-z0-9-]+):\s*(.+?);\s*$/);
+    // Token names are not all kebab-case: --color-inStock, --color-outOfStock
+    // and --color-categoryLabel are camelCase, and a [a-z0-9-]+ pattern skipped
+    // them silently — including two of the four protected status flags.
+    const m = line.match(/^\s*--([A-Za-z0-9-]+):\s*(.+?);\s*$/);
     if (m && !seen.has(m[1])) { seen.add(m[1]); out.push([m[1], m[2].trim()]); }
   }
   return out;
 };
 
-const COLOR = /(oklch\(\s*[\d.]+\s+[\d.]+\s+[\d.]+\s*(?:\/\s*[\d.]+\s*)?\)|hsl\(\s*[\d.]+\s+[\d.]+%\s+[\d.]+%\s*(?:\/\s*[\d.]+\s*)?\))/g;
+// Both CSS colour syntaxes appear in index.css: modern space-separated and the
+// older comma-separated form. Matching only the former skipped six tokens
+// without reporting anything, which is the worst way for a migration to be
+// incomplete.
+const COLOR = /(oklch\(\s*[\d.]+%?\s+[\d.]+\s+[\d.]+\s*(?:\/\s*[\d.]+\s*)?\)|hsl\(\s*[\d.]+\s*[, ]\s*[\d.]+%\s*[, ]\s*[\d.]+%\s*(?:\/\s*[\d.]+\s*)?\))/g;
 
 const drifts: Array<{ token: string; scope: string; d: number; to: string }> = [];
 
@@ -142,11 +165,14 @@ type CalibrationRow = {
   candidates: Array<{ name: string; hex: string; drift: number; auto: boolean }>;
 };
 const calibration: CalibrationRow[] = [];
+/** Reported at the end, so nothing is left behind quietly. */
+const skipped: string[] = [];
 
 const convert = (scope: 'light' | 'dark') => {
   const lines: string[] = [];
   for (const [name, value] of block(scope)) {
-    if (EXCLUDE.test(name)) continue;
+    const skip = skipReason(name);
+    if (skip) { skipped.push(`${scope} --${name} (${skip})`); continue; }
     COLOR.lastIndex = 0;
     if (!COLOR.test(value)) continue;
     COLOR.lastIndex = 0;
@@ -158,10 +184,11 @@ const convert = (scope: 'light' | 'dark') => {
       index += 1;
       let col: Oklch | null = null;
       let alpha = '';
-      let m = lit.match(/^oklch\(\s*([\d.]+)\s+([\d.]+)\s+([\d.]+)\s*(?:\/\s*([\d.]+)\s*)?\)$/);
-      if (m) { col = { l:+m[1], c:+m[2], h:+m[3] }; alpha = m[4] ?? ''; }
+      let m = lit.match(/^oklch\(\s*([\d.]+)(%?)\s+([\d.]+)\s+([\d.]+)\s*(?:\/\s*([\d.]+)\s*)?\)$/);
+      // Tailwind writes lightness as a percentage; index.css writes 0..1.
+      if (m) { col = { l: m[2] ? +m[1] / 100 : +m[1], c:+m[3], h:+m[4] }; alpha = m[5] ?? ''; }
       else {
-        m = lit.match(/^hsl\(\s*([\d.]+)\s+([\d.]+)%\s+([\d.]+)%\s*(?:\/\s*([\d.]+)\s*)?\)$/);
+        m = lit.match(/^hsl\(\s*([\d.]+)\s*[, ]\s*([\d.]+)%\s*[, ]\s*([\d.]+)%\s*(?:\/\s*([\d.]+)\s*)?\)$/);
         if (m) { col = hslToOklch(+m[1], +m[2], +m[3]); alpha = m[4] ?? ''; }
       }
       if (!col) return lit;
@@ -233,6 +260,8 @@ writeFileSync(
 
 drifts.sort((a, b) => b.d - a.d);
 console.log(`tokens converted : ${drifts.length}`);
+console.log(`deliberately skipped: ${skipped.length}`);
+for (const entry of skipped) console.log(`  ${entry}`);
 console.log(`hand overrides   : ${Object.keys(OVERRIDES).length}`);
 console.log(`drift > 0.05     : ${drifts.filter(d => d.d > 0.05).length}`);
 console.log('\nlargest drifts:');

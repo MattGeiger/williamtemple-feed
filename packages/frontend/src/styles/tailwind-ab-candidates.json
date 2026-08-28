@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-28T17:13:18.007Z",
+  "generatedAt": "2026-08-28T17:36:31.646Z",
   "overrides": {
     "light --sidebar-accent": "sky-100",
     "light --muted": "mist-100",
@@ -1869,183 +1869,6 @@
       ]
     },
     {
-      "key": "light --chart-success",
-      "scope": "light",
-      "token": "chart-success",
-      "alpha": null,
-      "authoredHex": "#21c45d",
-      "chosen": "green-500",
-      "overridden": false,
-      "candidates": [
-        {
-          "name": "green-500",
-          "hex": "#00c950",
-          "drift": 0.0273,
-          "auto": true
-        },
-        {
-          "name": "emerald-500",
-          "hex": "#00bc7d",
-          "drift": 0.052,
-          "auto": false
-        },
-        {
-          "name": "emerald-400",
-          "hex": "#00d492",
-          "drift": 0.0648,
-          "auto": false
-        },
-        {
-          "name": "green-400",
-          "hex": "#05df72",
-          "drift": 0.0746,
-          "auto": false
-        },
-        {
-          "name": "green-600",
-          "hex": "#00a63e",
-          "drift": 0.0929,
-          "auto": false
-        },
-        {
-          "name": "lime-500",
-          "hex": "#7ccf00",
-          "drift": 0.0934,
-          "auto": false
-        },
-        {
-          "name": "lime-600",
-          "hex": "#5ea500",
-          "drift": 0.0944,
-          "auto": false
-        },
-        {
-          "name": "teal-500",
-          "hex": "#00bba7",
-          "drift": 0.1077,
-          "auto": false
-        }
-      ]
-    },
-    {
-      "key": "light --chart-warning",
-      "scope": "light",
-      "token": "chart-warning",
-      "alpha": null,
-      "authoredHex": "#f59f0a",
-      "chosen": "amber-500",
-      "overridden": false,
-      "candidates": [
-        {
-          "name": "amber-500",
-          "hex": "#fe9a00",
-          "drift": 0.0235,
-          "auto": true
-        },
-        {
-          "name": "orange-400",
-          "hex": "#ff8904",
-          "drift": 0.0523,
-          "auto": false
-        },
-        {
-          "name": "yellow-500",
-          "hex": "#f0b100",
-          "drift": 0.0562,
-          "auto": false
-        },
-        {
-          "name": "amber-400",
-          "hex": "#ffb900",
-          "drift": 0.0755,
-          "auto": false
-        },
-        {
-          "name": "orange-300",
-          "hex": "#ffb86a",
-          "drift": 0.0769,
-          "auto": false
-        },
-        {
-          "name": "yellow-600",
-          "hex": "#d08700",
-          "drift": 0.0906,
-          "auto": false
-        },
-        {
-          "name": "orange-500",
-          "hex": "#ff6900",
-          "drift": 0.1105,
-          "auto": false
-        },
-        {
-          "name": "yellow-400",
-          "hex": "#fdc700",
-          "drift": 0.111,
-          "auto": false
-        }
-      ]
-    },
-    {
-      "key": "light --chart-danger",
-      "scope": "light",
-      "token": "chart-danger",
-      "alpha": null,
-      "authoredHex": "#ef4343",
-      "chosen": "red-500",
-      "overridden": false,
-      "candidates": [
-        {
-          "name": "red-500",
-          "hex": "#fb2c36",
-          "drift": 0.0282,
-          "auto": true
-        },
-        {
-          "name": "rose-500",
-          "hex": "#ff2056",
-          "drift": 0.0522,
-          "auto": false
-        },
-        {
-          "name": "orange-600",
-          "hex": "#f54900",
-          "drift": 0.0611,
-          "auto": false
-        },
-        {
-          "name": "red-600",
-          "hex": "#e7000b",
-          "drift": 0.0694,
-          "auto": false
-        },
-        {
-          "name": "red-400",
-          "hex": "#ff6467",
-          "drift": 0.0714,
-          "auto": false
-        },
-        {
-          "name": "rose-600",
-          "hex": "#ec003f",
-          "drift": 0.0736,
-          "auto": false
-        },
-        {
-          "name": "rose-400",
-          "hex": "#ff637e",
-          "drift": 0.0883,
-          "auto": false
-        },
-        {
-          "name": "orange-700",
-          "hex": "#ca3500",
-          "drift": 0.0955,
-          "auto": false
-        }
-      ]
-    },
-    {
       "key": "light --color-pending",
       "scope": "light",
       "token": "color-pending",
@@ -2108,6 +1931,242 @@
       "key": "light --color-time",
       "scope": "light",
       "token": "color-time",
+      "alpha": null,
+      "authoredHex": "#3c83f6",
+      "chosen": "blue-500",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "blue-500",
+          "hex": "#2b7fff",
+          "drift": 0.0275,
+          "auto": true
+        },
+        {
+          "name": "sky-600",
+          "hex": "#0084d1",
+          "drift": 0.0709,
+          "auto": false
+        },
+        {
+          "name": "indigo-400",
+          "hex": "#7c86ff",
+          "drift": 0.073,
+          "auto": false
+        },
+        {
+          "name": "blue-400",
+          "hex": "#51a2ff",
+          "drift": 0.0857,
+          "auto": false
+        },
+        {
+          "name": "indigo-500",
+          "hex": "#615fff",
+          "drift": 0.0882,
+          "auto": false
+        },
+        {
+          "name": "sky-500",
+          "hex": "#00a6f4",
+          "drift": 0.0927,
+          "auto": false
+        },
+        {
+          "name": "blue-600",
+          "hex": "#155dfc",
+          "drift": 0.0993,
+          "auto": false
+        },
+        {
+          "name": "cyan-600",
+          "hex": "#0092b8",
+          "drift": 0.1179,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "light --color-success-fill",
+      "scope": "light",
+      "token": "color-success-fill",
+      "alpha": null,
+      "authoredHex": "#21c45d",
+      "chosen": "green-500",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "green-500",
+          "hex": "#00c950",
+          "drift": 0.0273,
+          "auto": true
+        },
+        {
+          "name": "emerald-500",
+          "hex": "#00bc7d",
+          "drift": 0.052,
+          "auto": false
+        },
+        {
+          "name": "emerald-400",
+          "hex": "#00d492",
+          "drift": 0.0648,
+          "auto": false
+        },
+        {
+          "name": "green-400",
+          "hex": "#05df72",
+          "drift": 0.0746,
+          "auto": false
+        },
+        {
+          "name": "green-600",
+          "hex": "#00a63e",
+          "drift": 0.0929,
+          "auto": false
+        },
+        {
+          "name": "lime-500",
+          "hex": "#7ccf00",
+          "drift": 0.0934,
+          "auto": false
+        },
+        {
+          "name": "lime-600",
+          "hex": "#5ea500",
+          "drift": 0.0944,
+          "auto": false
+        },
+        {
+          "name": "teal-500",
+          "hex": "#00bba7",
+          "drift": 0.1077,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "light --color-pending-fill",
+      "scope": "light",
+      "token": "color-pending-fill",
+      "alpha": null,
+      "authoredHex": "#3c83f6",
+      "chosen": "blue-500",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "blue-500",
+          "hex": "#2b7fff",
+          "drift": 0.0275,
+          "auto": true
+        },
+        {
+          "name": "sky-600",
+          "hex": "#0084d1",
+          "drift": 0.0709,
+          "auto": false
+        },
+        {
+          "name": "indigo-400",
+          "hex": "#7c86ff",
+          "drift": 0.073,
+          "auto": false
+        },
+        {
+          "name": "blue-400",
+          "hex": "#51a2ff",
+          "drift": 0.0857,
+          "auto": false
+        },
+        {
+          "name": "indigo-500",
+          "hex": "#615fff",
+          "drift": 0.0882,
+          "auto": false
+        },
+        {
+          "name": "sky-500",
+          "hex": "#00a6f4",
+          "drift": 0.0927,
+          "auto": false
+        },
+        {
+          "name": "blue-600",
+          "hex": "#155dfc",
+          "drift": 0.0993,
+          "auto": false
+        },
+        {
+          "name": "cyan-600",
+          "hex": "#0092b8",
+          "drift": 0.1179,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "light --color-time-fill",
+      "scope": "light",
+      "token": "color-time-fill",
+      "alpha": null,
+      "authoredHex": "#3c83f6",
+      "chosen": "blue-500",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "blue-500",
+          "hex": "#2b7fff",
+          "drift": 0.0275,
+          "auto": true
+        },
+        {
+          "name": "sky-600",
+          "hex": "#0084d1",
+          "drift": 0.0709,
+          "auto": false
+        },
+        {
+          "name": "indigo-400",
+          "hex": "#7c86ff",
+          "drift": 0.073,
+          "auto": false
+        },
+        {
+          "name": "blue-400",
+          "hex": "#51a2ff",
+          "drift": 0.0857,
+          "auto": false
+        },
+        {
+          "name": "indigo-500",
+          "hex": "#615fff",
+          "drift": 0.0882,
+          "auto": false
+        },
+        {
+          "name": "sky-500",
+          "hex": "#00a6f4",
+          "drift": 0.0927,
+          "auto": false
+        },
+        {
+          "name": "blue-600",
+          "hex": "#155dfc",
+          "drift": 0.0993,
+          "auto": false
+        },
+        {
+          "name": "cyan-600",
+          "hex": "#0092b8",
+          "drift": 0.1179,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "light --color-items-fill",
+      "scope": "light",
+      "token": "color-items-fill",
       "alpha": null,
       "authoredHex": "#3c83f6",
       "chosen": "blue-500",
@@ -2985,124 +3044,6 @@
           "name": "gray-800",
           "hex": "#1e2939",
           "drift": 0.0301,
-          "auto": false
-        }
-      ]
-    },
-    {
-      "key": "light --destructive",
-      "scope": "light",
-      "token": "destructive",
-      "alpha": null,
-      "authoredHex": "#ff0000",
-      "chosen": "red-600",
-      "overridden": false,
-      "candidates": [
-        {
-          "name": "red-600",
-          "hex": "#e7000b",
-          "drift": 0.0532,
-          "auto": true
-        },
-        {
-          "name": "red-500",
-          "hex": "#fb2c36",
-          "drift": 0.0282,
-          "auto": false
-        },
-        {
-          "name": "rose-500",
-          "hex": "#ff2056",
-          "drift": 0.0598,
-          "auto": false
-        },
-        {
-          "name": "orange-600",
-          "hex": "#f54900",
-          "drift": 0.0636,
-          "auto": false
-        },
-        {
-          "name": "rose-600",
-          "hex": "#ec003f",
-          "drift": 0.0668,
-          "auto": false
-        },
-        {
-          "name": "orange-700",
-          "hex": "#ca3500",
-          "drift": 0.1041,
-          "auto": false
-        },
-        {
-          "name": "red-400",
-          "hex": "#ff6467",
-          "drift": 0.1047,
-          "auto": false
-        },
-        {
-          "name": "orange-500",
-          "hex": "#ff6900",
-          "drift": 0.1163,
-          "auto": false
-        }
-      ]
-    },
-    {
-      "key": "light --destructive-foreground",
-      "scope": "light",
-      "token": "destructive-foreground",
-      "alpha": null,
-      "authoredHex": "#fcfcfd",
-      "chosen": "mist-50",
-      "overridden": false,
-      "candidates": [
-        {
-          "name": "mist-50",
-          "hex": "#f9fbfb",
-          "drift": 0.005,
-          "auto": true
-        },
-        {
-          "name": "olive-50",
-          "hex": "#fbfbf9",
-          "drift": 0.0055,
-          "auto": false
-        },
-        {
-          "name": "taupe-50",
-          "hex": "#fbfaf9",
-          "drift": 0.0062,
-          "auto": false
-        },
-        {
-          "name": "gray-50",
-          "hex": "#f9fafb",
-          "drift": 0.0065,
-          "auto": false
-        },
-        {
-          "name": "zinc-50",
-          "hex": "#fafafa",
-          "drift": 0.0065,
-          "auto": false
-        },
-        {
-          "name": "neutral-50",
-          "hex": "#fafafa",
-          "drift": 0.0065,
-          "auto": false
-        },
-        {
-          "name": "mauve-50",
-          "hex": "#fafafa",
-          "drift": 0.0065,
-          "auto": false
-        },
-        {
-          "name": "stone-50",
-          "hex": "#fafaf9",
-          "drift": 0.0068,
           "auto": false
         }
       ]
@@ -5881,183 +5822,6 @@
       ]
     },
     {
-      "key": "dark --chart-success",
-      "scope": "dark",
-      "token": "chart-success",
-      "alpha": null,
-      "authoredHex": "#25da67",
-      "chosen": "green-400",
-      "overridden": false,
-      "candidates": [
-        {
-          "name": "green-400",
-          "hex": "#05df72",
-          "drift": 0.0154,
-          "auto": true
-        },
-        {
-          "name": "green-500",
-          "hex": "#00c950",
-          "drift": 0.0572,
-          "auto": false
-        },
-        {
-          "name": "emerald-400",
-          "hex": "#00d492",
-          "drift": 0.0582,
-          "auto": false
-        },
-        {
-          "name": "lime-500",
-          "hex": "#7ccf00",
-          "drift": 0.0757,
-          "auto": false
-        },
-        {
-          "name": "emerald-500",
-          "hex": "#00bc7d",
-          "drift": 0.1015,
-          "auto": false
-        },
-        {
-          "name": "emerald-300",
-          "hex": "#5ee9b5",
-          "drift": 0.1043,
-          "auto": false
-        },
-        {
-          "name": "lime-400",
-          "hex": "#9ae600",
-          "drift": 0.1047,
-          "auto": false
-        },
-        {
-          "name": "green-300",
-          "hex": "#7bf1a8",
-          "drift": 0.1102,
-          "auto": false
-        }
-      ]
-    },
-    {
-      "key": "dark --chart-warning",
-      "scope": "dark",
-      "token": "chart-warning",
-      "alpha": null,
-      "authoredHex": "#f6a823",
-      "chosen": "amber-500",
-      "overridden": false,
-      "candidates": [
-        {
-          "name": "amber-500",
-          "hex": "#fe9a00",
-          "drift": 0.0364,
-          "auto": true
-        },
-        {
-          "name": "yellow-500",
-          "hex": "#f0b100",
-          "drift": 0.0447,
-          "auto": false
-        },
-        {
-          "name": "amber-400",
-          "hex": "#ffb900",
-          "drift": 0.0591,
-          "auto": false
-        },
-        {
-          "name": "orange-300",
-          "hex": "#ffb86a",
-          "drift": 0.0607,
-          "auto": false
-        },
-        {
-          "name": "orange-400",
-          "hex": "#ff8904",
-          "drift": 0.0696,
-          "auto": false
-        },
-        {
-          "name": "yellow-400",
-          "hex": "#fdc700",
-          "drift": 0.0937,
-          "auto": false
-        },
-        {
-          "name": "amber-300",
-          "hex": "#ffd230",
-          "drift": 0.1044,
-          "auto": false
-        },
-        {
-          "name": "yellow-600",
-          "hex": "#d08700",
-          "drift": 0.1076,
-          "auto": false
-        }
-      ]
-    },
-    {
-      "key": "dark --chart-danger",
-      "scope": "dark",
-      "token": "chart-danger",
-      "alpha": null,
-      "authoredHex": "#f15b5b",
-      "chosen": "red-400",
-      "overridden": false,
-      "candidates": [
-        {
-          "name": "red-400",
-          "hex": "#ff6467",
-          "drift": 0.0367,
-          "auto": true
-        },
-        {
-          "name": "rose-400",
-          "hex": "#ff637e",
-          "drift": 0.0559,
-          "auto": false
-        },
-        {
-          "name": "red-500",
-          "hex": "#fb2c36",
-          "drift": 0.0607,
-          "auto": false
-        },
-        {
-          "name": "rose-500",
-          "hex": "#ff2056",
-          "drift": 0.0702,
-          "auto": false
-        },
-        {
-          "name": "orange-600",
-          "hex": "#f54900",
-          "drift": 0.0753,
-          "auto": false
-        },
-        {
-          "name": "orange-500",
-          "hex": "#ff6900",
-          "drift": 0.0948,
-          "auto": false
-        },
-        {
-          "name": "rose-600",
-          "hex": "#ec003f",
-          "drift": 0.1088,
-          "auto": false
-        },
-        {
-          "name": "amber-600",
-          "hex": "#e17100",
-          "drift": 0.109,
-          "auto": false
-        }
-      ]
-    },
-    {
       "key": "dark --color-pending",
       "scope": "dark",
       "token": "color-pending",
@@ -6120,6 +5884,242 @@
       "key": "dark --color-time",
       "scope": "dark",
       "token": "color-time",
+      "alpha": null,
+      "authoredHex": "#5593f7",
+      "chosen": "blue-400",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "blue-400",
+          "hex": "#51a2ff",
+          "drift": 0.0405,
+          "auto": true
+        },
+        {
+          "name": "indigo-400",
+          "hex": "#7c86ff",
+          "drift": 0.0558,
+          "auto": false
+        },
+        {
+          "name": "sky-500",
+          "hex": "#00a6f4",
+          "drift": 0.0661,
+          "auto": false
+        },
+        {
+          "name": "blue-500",
+          "hex": "#2b7fff",
+          "drift": 0.0693,
+          "auto": false
+        },
+        {
+          "name": "sky-600",
+          "hex": "#0084d1",
+          "drift": 0.0948,
+          "auto": false
+        },
+        {
+          "name": "sky-400",
+          "hex": "#00bcff",
+          "drift": 0.1073,
+          "auto": false
+        },
+        {
+          "name": "violet-400",
+          "hex": "#a684ff",
+          "drift": 0.108,
+          "auto": false
+        },
+        {
+          "name": "cyan-600",
+          "hex": "#0092b8",
+          "drift": 0.1162,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "dark --color-success-fill",
+      "scope": "dark",
+      "token": "color-success-fill",
+      "alpha": null,
+      "authoredHex": "#25da67",
+      "chosen": "green-400",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "green-400",
+          "hex": "#05df72",
+          "drift": 0.0154,
+          "auto": true
+        },
+        {
+          "name": "green-500",
+          "hex": "#00c950",
+          "drift": 0.0572,
+          "auto": false
+        },
+        {
+          "name": "emerald-400",
+          "hex": "#00d492",
+          "drift": 0.0582,
+          "auto": false
+        },
+        {
+          "name": "lime-500",
+          "hex": "#7ccf00",
+          "drift": 0.0757,
+          "auto": false
+        },
+        {
+          "name": "emerald-500",
+          "hex": "#00bc7d",
+          "drift": 0.1015,
+          "auto": false
+        },
+        {
+          "name": "emerald-300",
+          "hex": "#5ee9b5",
+          "drift": 0.1043,
+          "auto": false
+        },
+        {
+          "name": "lime-400",
+          "hex": "#9ae600",
+          "drift": 0.1047,
+          "auto": false
+        },
+        {
+          "name": "green-300",
+          "hex": "#7bf1a8",
+          "drift": 0.1102,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "dark --color-pending-fill",
+      "scope": "dark",
+      "token": "color-pending-fill",
+      "alpha": null,
+      "authoredHex": "#5593f7",
+      "chosen": "blue-400",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "blue-400",
+          "hex": "#51a2ff",
+          "drift": 0.0405,
+          "auto": true
+        },
+        {
+          "name": "indigo-400",
+          "hex": "#7c86ff",
+          "drift": 0.0558,
+          "auto": false
+        },
+        {
+          "name": "sky-500",
+          "hex": "#00a6f4",
+          "drift": 0.0661,
+          "auto": false
+        },
+        {
+          "name": "blue-500",
+          "hex": "#2b7fff",
+          "drift": 0.0693,
+          "auto": false
+        },
+        {
+          "name": "sky-600",
+          "hex": "#0084d1",
+          "drift": 0.0948,
+          "auto": false
+        },
+        {
+          "name": "sky-400",
+          "hex": "#00bcff",
+          "drift": 0.1073,
+          "auto": false
+        },
+        {
+          "name": "violet-400",
+          "hex": "#a684ff",
+          "drift": 0.108,
+          "auto": false
+        },
+        {
+          "name": "cyan-600",
+          "hex": "#0092b8",
+          "drift": 0.1162,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "dark --color-time-fill",
+      "scope": "dark",
+      "token": "color-time-fill",
+      "alpha": null,
+      "authoredHex": "#5593f7",
+      "chosen": "blue-400",
+      "overridden": false,
+      "candidates": [
+        {
+          "name": "blue-400",
+          "hex": "#51a2ff",
+          "drift": 0.0405,
+          "auto": true
+        },
+        {
+          "name": "indigo-400",
+          "hex": "#7c86ff",
+          "drift": 0.0558,
+          "auto": false
+        },
+        {
+          "name": "sky-500",
+          "hex": "#00a6f4",
+          "drift": 0.0661,
+          "auto": false
+        },
+        {
+          "name": "blue-500",
+          "hex": "#2b7fff",
+          "drift": 0.0693,
+          "auto": false
+        },
+        {
+          "name": "sky-600",
+          "hex": "#0084d1",
+          "drift": 0.0948,
+          "auto": false
+        },
+        {
+          "name": "sky-400",
+          "hex": "#00bcff",
+          "drift": 0.1073,
+          "auto": false
+        },
+        {
+          "name": "violet-400",
+          "hex": "#a684ff",
+          "drift": 0.108,
+          "auto": false
+        },
+        {
+          "name": "cyan-600",
+          "hex": "#0092b8",
+          "drift": 0.1162,
+          "auto": false
+        }
+      ]
+    },
+    {
+      "key": "dark --color-items-fill",
+      "scope": "dark",
+      "token": "color-items-fill",
       "alpha": null,
       "authoredHex": "#5593f7",
       "chosen": "blue-400",
@@ -6997,124 +6997,6 @@
           "name": "stone-100",
           "hex": "#f5f5f4",
           "drift": 0.0092,
-          "auto": false
-        }
-      ]
-    },
-    {
-      "key": "dark --destructive",
-      "scope": "dark",
-      "token": "destructive",
-      "alpha": null,
-      "authoredHex": "#ff0000",
-      "chosen": "red-600",
-      "overridden": false,
-      "candidates": [
-        {
-          "name": "red-600",
-          "hex": "#e7000b",
-          "drift": 0.0532,
-          "auto": true
-        },
-        {
-          "name": "red-500",
-          "hex": "#fb2c36",
-          "drift": 0.0282,
-          "auto": false
-        },
-        {
-          "name": "rose-500",
-          "hex": "#ff2056",
-          "drift": 0.0598,
-          "auto": false
-        },
-        {
-          "name": "orange-600",
-          "hex": "#f54900",
-          "drift": 0.0636,
-          "auto": false
-        },
-        {
-          "name": "rose-600",
-          "hex": "#ec003f",
-          "drift": 0.0668,
-          "auto": false
-        },
-        {
-          "name": "orange-700",
-          "hex": "#ca3500",
-          "drift": 0.1041,
-          "auto": false
-        },
-        {
-          "name": "red-400",
-          "hex": "#ff6467",
-          "drift": 0.1047,
-          "auto": false
-        },
-        {
-          "name": "orange-500",
-          "hex": "#ff6900",
-          "drift": 0.1163,
-          "auto": false
-        }
-      ]
-    },
-    {
-      "key": "dark --destructive-foreground",
-      "scope": "dark",
-      "token": "destructive-foreground",
-      "alpha": null,
-      "authoredHex": "#ffffff",
-      "chosen": "white",
-      "overridden": false,
-      "candidates": [
-        {
-          "name": "white",
-          "hex": "#ffffff",
-          "drift": 0,
-          "auto": true
-        },
-        {
-          "name": "olive-50",
-          "hex": "#fbfbf9",
-          "drift": 0.0124,
-          "auto": false
-        },
-        {
-          "name": "mist-50",
-          "hex": "#f9fbfb",
-          "drift": 0.0132,
-          "auto": false
-        },
-        {
-          "name": "taupe-50",
-          "hex": "#fbfaf9",
-          "drift": 0.0141,
-          "auto": false
-        },
-        {
-          "name": "zinc-50",
-          "hex": "#fafafa",
-          "drift": 0.015,
-          "auto": false
-        },
-        {
-          "name": "neutral-50",
-          "hex": "#fafafa",
-          "drift": 0.015,
-          "auto": false
-        },
-        {
-          "name": "mauve-50",
-          "hex": "#fafafa",
-          "drift": 0.015,
-          "auto": false
-        },
-        {
-          "name": "stone-50",
-          "hex": "#fafaf9",
-          "drift": 0.015,
           "auto": false
         }
       ]
