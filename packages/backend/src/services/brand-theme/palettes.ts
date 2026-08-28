@@ -332,6 +332,23 @@ export const TAILWIND_PALETTE: readonly TailwindEntry[] = [
   { family: 'taupe', stop: 950, l: 0.147, c: 0.004, h: 49.3 },
 ];
 
+/**
+ * Tailwind's pure black and white, which it names without a numeric stop
+ * (`--color-black: #000`) and the family/stop pattern therefore cannot see.
+ *
+ * They are held apart from `TAILWIND_PALETTE` on purpose. As *snap targets*
+ * they matter — without them a brand whose surface is pure black resolved to a
+ * 950 neutral, which is how William Temple House's true-black dark mode drifted
+ * onto slate-950. As *families* they are meaningless: each is a single value
+ * rather than a ramp, so nothing can pick a stop from them, and including them
+ * in the family lists would corrupt the 153-theme space the contrast proof
+ * walks.
+ */
+export const TAILWIND_EXTREMES: readonly TailwindEntry[] = [
+  { family: 'black', stop: 0, l: 0, c: 0, h: 0 },
+  { family: 'white', stop: 0, l: 1, c: 0, h: 0 },
+];
+
 /** IBM Carbon categorical chart families, as the frontend declares them. */
 export type CarbonEntry = {
   family: string;
