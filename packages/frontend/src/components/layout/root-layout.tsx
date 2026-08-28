@@ -14,9 +14,12 @@ import {
   SidebarProvider,
 } from '@/components/ui/sidebar';
 import { AlertButton } from '@/components/dashboard/alerts/alert-button';
-import { PaletteAbSwitcher } from '@/components/palette-ab-switcher';
-import { PaletteCalibration } from '@/components/palette-calibration';
 import { ThemeSwitcher } from '@/components/theme-switcher';
+
+// Folded to `false` in production, so Rollup drops the dynamic import with it.
+const PaletteDevTools = import.meta.env.DEV
+  ? React.lazy(() => import('@/components/palette-dev-tools'))
+  : null;
 
 // Match the storage key from sidebar.tsx
 const SIDEBAR_STORAGE_KEY = "sidebar_state";
@@ -64,9 +67,14 @@ export function RootLayout({ children, breadcrumbs = [] }: RootLayoutProps) {
             breadcrumbs={breadcrumbs} 
             rightContent={
               <div className="flex items-center space-x-1">
-                {/* TEMPORARY: Tailwind palette A/B controls (dev only). */}
-                <PaletteCalibration />
-                <PaletteAbSwitcher />
+                {/* TEMPORARY: Tailwind palette A/B controls. Lazy behind the
+                    DEV flag so the stylesheet and candidate data leave the
+                    production bundle entirely, not just the interface. */}
+                {PaletteDevTools && (
+                  <React.Suspense fallback={null}>
+                    <PaletteDevTools />
+                  </React.Suspense>
+                )}
                 <ThemeSwitcher />
                 <AlertButton />
               </div>

@@ -46,12 +46,76 @@ type Row = {
   candidates: Candidate[];
 };
 
-const ROWS = (candidates as { rows: Row[] }).rows;
+type PaletteEntry = { name: string; hex: string };
+
+const DATA = candidates as { palette: PaletteEntry[]; rows: Row[] };
+const ROWS = DATA.rows;
+const PALETTE = DATA.palette;
+const PALETTE_BY_NAME = new Map(PALETTE.map((entry) => [entry.name, entry]));
+const DATALIST_ID = 'palette-calibration-names';
 const STORAGE_KEY = 'feed.paletteCalibration';
 const STYLE_ID = 'palette-calibration-overrides';
 
 /** `light --feed-shell-haze#1` -> the token name the CSS declaration uses. */
 const tokenOf = (key: string) => key.replace(/^(light|dark) --/, '').replace(/#\d+$/, '');
+
+/**
+ * Hand entry for a palette name the eight suggestions do not include.
+ *
+ * Validated against the full palette rather than accepted freehand: a typo
+ * would otherwise resolve to `var(--color-nonsense)`, which CSS silently drops,
+ * leaving the token at whatever it inherited and the operator wondering why
+ * their choice did nothing.
+ */
+function CustomEntry({
+  value,
+  onChoose,
+}: {
+  value: string;
+  onChoose: (name: string) => void;
+}) {
+  const [draft, setDraft] = React.useState('');
+  const trimmed = draft.trim();
+  const match = PALETTE_BY_NAME.get(trimmed);
+  const invalid = trimmed.length > 0 && !match;
+
+  const commit = () => {
+    if (match) {
+      onChoose(trimmed);
+      setDraft('');
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-2">
+      <Input
+        value={draft}
+        onChange={(event) => setDraft(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') {
+            event.preventDefault();
+            commit();
+          }
+        }}
+        list={DATALIST_ID}
+        spellCheck={false}
+        placeholder="Type a palette name, e.g. sky-100"
+        aria-label="Custom Tailwind palette value"
+        aria-invalid={invalid}
+        className={cn('h-8 flex-1 font-mono text-xs', invalid && 'border-destructive')}
+      />
+      <span
+        className="h-8 w-8 shrink-0 rounded border"
+        style={{ background: match?.hex ?? 'transparent' }}
+        title={match ? `${match.name} ${match.hex}` : 'no preview'}
+        aria-hidden="true"
+      />
+      <Button size="sm" variant="outline" onClick={commit} disabled={!match}>
+        Use
+      </Button>
+    </div>
+  );
+}
 
 export function PaletteCalibration() {
   const [open, setOpen] = React.useState(false);
@@ -212,7 +276,15 @@ export function PaletteCalibration() {
                         aria-hidden="true"
                       />
                       <span className="text-muted-foreground" aria-hidden="true">→</span>
-                      {row.candidates.map((candidate) => {
+                      {(PALETTE_BY_NAME.has(active) && !row.candidates.some(c => c.name === active)
+                        ? [{
+                            name: active,
+                            hex: PALETTE_BY_NAME.get(active)!.hex,
+                            drift: Number.NaN,
+                            auto: false,
+                          } as Candidate]
+                        : []
+                      ).concat(row.candidates).map((candidate) => {
                         const selected = candidate.name === active;
                         return (
                           <button
@@ -221,7 +293,11 @@ export function PaletteCalibration() {
                             disabled={multi}
                             onClick={() => setPicks((p) => ({ ...p, [row.key]: candidate.name }))}
                             aria-pressed={selected}
-                            title={`${candidate.name} — drift ${candidate.drift}`}
+                            title={
+                              Number.isNaN(candidate.drift)
+                                ? `${candidate.name} — hand-entered`
+                                : `${candidate.name} — drift ${candidate.drift}`
+                            }
                             className={cn(
                               'relative h-8 w-8 rounded border transition-all',
                               selected ? 'ring-2 ring-primary ring-offset-1' : 'hover:scale-110',
@@ -241,11 +317,23 @@ export function PaletteCalibration() {
                       })}
                     </div>
 
+                    {!multi && (
+                      <CustomEntry
+                        value={active}
+                        onChoose={(name) => setPicks((p) => ({ ...p, [row.key]: name }))}
+                      />
+                    )}
+
                     <p className="font-mono text-[11px] text-muted-foreground">
                       {active}
-                      {' · drift '}
-                      {row.candidates.find(c => c.name === active)?.drift ?? '—'}
-                      {row.candidates.find(c => c.name === active)?.auto && ' · auto'}
+                      {(() => {
+                        const listed = row.candidates.find(c => c.name === active);
+                        if (listed) {
+                          return `${' · drift '}${listed.drift}${listed.auto ? ' · auto' : ''}`;
+                        }
+                        // Hand-entered and outside the suggested slate.
+                        return ' · custom';
+                      })()}
                     </p>
                   </div>
                 );
@@ -257,6 +345,12 @@ export function PaletteCalibration() {
               )}
             </div>
           </ScrollArea>
+
+          <datalist id={DATALIST_ID}>
+            {PALETTE.map((entry) => (
+              <option key={entry.name} value={entry.name} />
+            ))}
+          </datalist>
         </SheetContent>
       </Sheet>
     </>
