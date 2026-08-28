@@ -56,6 +56,7 @@ export const AUDIT_ACTIONS = {
   // Reset discards data on purpose; restore recovers it. Separate actions so
   // the history never blurs the two.
   CLEAN_SLATE_APPLIED: 'CLEAN_SLATE_APPLIED',
+  BRAND_ASSETS_CLEANED: 'BRAND_ASSETS_CLEANED',
 } as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[keyof typeof AUDIT_ACTIONS];

@@ -23,6 +23,25 @@ export type BrandPreview = {
   chartColors: Record<'light' | 'dark', string[]>;
 };
 
+export type BrandAssetStorageCheck = {
+  totalCount: number;
+  referencedCount: number;
+  unusedCount: number;
+  unusedBytes: number;
+  protectedRecentCount: number;
+  eligibleUnusedCount: number;
+  eligibleUnusedBytes: number;
+  eligibleUnusedAssets: Array<{
+    id: string;
+    filename: string;
+    mimeType: string;
+    width: number;
+    height: number;
+    byteSize: number;
+    createdAt: string;
+  }>;
+};
+
 class BrandService extends BaseApiService {
   constructor() {
     super('/api');
@@ -59,6 +78,7 @@ class BrandService extends BaseApiService {
   async upload(kind: 'logo-light' | 'logo-dark' | 'square', file: File): Promise<{
     asset: BrandAssetReference;
     derivatives: BrandAssetReference[];
+    warnings: string[];
   }> {
     const form = new FormData();
     form.set('kind', kind);
@@ -66,7 +86,19 @@ class BrandService extends BaseApiService {
     return this.requestFormData<{
       asset: BrandAssetReference;
       derivatives: BrandAssetReference[];
+      warnings: string[];
     }>('/admin/brand/assets', form);
+  }
+
+  async checkAssetStorage() {
+    return this.request<{ check: BrandAssetStorageCheck }>('/admin/brand/assets/storage-check');
+  }
+
+  async cleanupUnusedAssets() {
+    return this.request<{
+      cleanup: { deletedCount: number; deletedBytes: number; protectedRecentCount: number };
+      check: BrandAssetStorageCheck;
+    }>('/admin/brand/assets/unused', { method: 'DELETE' });
   }
 }
 

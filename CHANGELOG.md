@@ -5,8 +5,20 @@ All notable changes to FEED are documented here. This project adheres to
 
 ## [Unreleased]
 
+## [1.7.5-beta.2] — 2026-08-28
+
 ### Changed
 
+- **Uploaded SVG brand logos remain vector artwork.** FEED now structurally
+  sanitizes SVG XML by removing scripts, event handlers, embedded media,
+  animation, and non-local references, then stores and serves the safe SVG with
+  a sandboxed Content Security Policy. PNG uploads are losslessly re-encoded at
+  their original pixel dimensions. Appearance warns when a raster image is too
+  small for a crisp high-density logo or app-mark slot.
+- **Data Management’s default administrator tab is now named Data.** It holds
+  imports, publishing controls, and a new Brand Asset Storage check. The check
+  finds uploaded images unused by every saved appearance and can remove assets
+  older than one hour; recent uploads stay protected for an open wizard.
 - **William Temple House keeps its hand-tuned appearance.** The compiled default
   now ships the exact tuned token values rather than a derived approximation,
   and the runtime stylesheet is deliberately empty until an appearance is
@@ -19,6 +31,13 @@ All notable changes to FEED are documented here. This project adheres to
 
 ### Fixed
 
+- **Dashboard and sign-in logos now follow the active light or dark theme.** A
+  shared renderer covers explicit light, explicit dark, and the unstamped
+  device-theme state, so the dark logo is no longer stored without a consumer.
+- **Wide uploaded logos no longer become low-resolution PNGs.** The upload route
+  previously rasterized every SVG at Sharp’s default intrinsic dimensions with
+  no output-density contract; a roughly 288×87 logo then blurred when enlarged
+  on a high-density Dashboard. Vector preservation removes that resolution cap.
 - **Appearance errors say what happened and what to do.** A deployment whose
   appearance tables are missing now reads as a setup step with a named remedy
   instead of a raw database message; the underlying detail goes to the server

@@ -1067,6 +1067,35 @@
   }
 }
 
+/* Theme-aware organization identity. The unstamped selectors are required:
+   FEED's theme contract supports following the device without a `.light` or
+   `.dark` class on the root element. */
+.brand-logo-light {
+  display: block;
+}
+
+.brand-logo-dark {
+  display: none;
+}
+
+.dark .brand-logo-light {
+  display: none;
+}
+
+.dark .brand-logo-dark {
+  display: block;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not(.light):not(.dark) .brand-logo-light {
+    display: none;
+  }
+
+  :root:not(.light):not(.dark) .brand-logo-dark {
+    display: block;
+  }
+}
+
 /* Reports selection mode (Reports initiative §3): eligible cards get a
    subtle staggered wiggle; selected cards stop moving and show a
    token-based ring + checkmark + order number. Reduced-motion users get

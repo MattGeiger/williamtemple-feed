@@ -220,6 +220,7 @@ function LogosStep({ draft, change, busy }: WizardStepProps) {
       }
       change({ config: replaceSection(draft.config, 'logo', logo) });
       messageService.success(kind === 'square' ? 'App mark uploaded and icon sizes generated.' : `${kind === 'logo-light' ? 'Light' : 'Dark'}-mode logo uploaded.`);
+      uploaded.warnings.forEach((warning) => messageService.warning(warning));
     } catch (error) {
       ErrorHandlerService.handleError(error, 'brandUploadAsset');
     } finally { setUploading(null); }
@@ -232,19 +233,39 @@ function LogosStep({ draft, change, busy }: WizardStepProps) {
       </div>
     );
   };
-  const input = (kind: 'logo-light' | 'logo-dark' | 'square', label: string) => (
-    <div className="space-y-1.5">
-      <Label htmlFor={`brand-${kind}`}>{label}</Label>
-      <Input id={`brand-${kind}`} type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" disabled={busy || uploading !== null} onChange={(event) => {
-        const file = event.currentTarget.files?.[0];
-        event.currentTarget.value = '';
-        if (file) void upload(kind, file);
-      }} />
-      {uploading === kind ? <p className="text-xs text-muted-foreground">Uploading and measuring…</p> : null}
-    </div>
-  );
+  const resolutionWarning = (kind: 'logo-light' | 'logo-dark' | 'square') => {
+    const reference = kind === 'logo-light'
+      ? draft.config.logo.light
+      : kind === 'logo-dark'
+        ? draft.config.logo.dark
+        : draft.config.logo.square;
+    if (!reference || reference.kind !== 'database' || reference.mimeType === 'image/svg+xml') return null;
+    const minimumWidth = kind === 'square' ? 512 : 576;
+    const minimumHeight = kind === 'square' ? 512 : 160;
+    if (reference.width >= minimumWidth && reference.height >= minimumHeight) return null;
+    return `Current image: ${reference.width} × ${reference.height} px. For a crisp ${kind === 'square' ? 'app mark' : 'logo'} on high-density screens, use SVG or a PNG at least ${minimumWidth} × ${minimumHeight} px.`;
+  };
+  const input = (kind: 'logo-light' | 'logo-dark' | 'square', label: string) => {
+    const warning = resolutionWarning(kind);
+    return (
+      <div className="space-y-1.5">
+        <Label htmlFor={`brand-${kind}`}>{label}</Label>
+        <Input id={`brand-${kind}`} type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" disabled={busy || uploading !== null} onChange={(event) => {
+          const file = event.currentTarget.files?.[0];
+          event.currentTarget.value = '';
+          if (file) void upload(kind, file);
+        }} />
+        {uploading === kind ? <p className="text-xs text-muted-foreground">Uploading and measuring…</p> : null}
+        {warning ? (
+          <p className="rounded-md border border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] px-2 py-1.5 text-xs text-[var(--status-warning-text)]" role="status">
+            {warning}
+          </p>
+        ) : null}
+      </div>
+    );
+  };
   return (
-    <StepWrapper icon={ImageIcon} title="Logos & app mark" description="Uploads are normalized to inert PNGs, measured automatically, and kept with database backups.">
+    <StepWrapper icon={ImageIcon} title="Logos & app mark" description="SVGs stay crisp at every size after unsafe content is removed. Raster images keep their original dimensions. All uploads stay with database backups.">
       <div className="flex flex-col gap-2 sm:flex-row">{slot('light')}{slot('dark')}</div>
       {input('logo-light', 'Light-mode logo')}
       {input('logo-dark', 'Dark-mode logo')}

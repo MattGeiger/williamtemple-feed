@@ -2,6 +2,28 @@
 
 ## Unreleased
 
+## Version 1.7.5-beta.2 — 2026-08-28
+
+*Beta — sharper, safer brand assets and a more complete appearance workflow.*
+
+**Uploaded logos now keep the quality of the source file.** Safe SVG artwork
+stays vector instead of being flattened into a small PNG, while scripts,
+external references, embedded media, and other active content are removed.
+PNG artwork keeps its original dimensions, and Appearance warns when a raster
+image is too small for a crisp high-density logo or app mark.
+
+**Branding follows the active light or dark theme everywhere.** Dashboard and
+sign-in surfaces now select the matching logo, including when FEED follows the
+device theme. The built-in William Temple House appearance also retains its
+hand-tuned colors, gradients, shadows, and outlined browser-tab mark.
+
+**Administrators can clean up abandoned brand uploads.** Data Management's
+Data tab now includes Brand Asset Storage, which identifies images unused by
+every saved appearance and removes eligible orphans while protecting recent
+uploads from an open Appearance wizard. Inventory publishing also moved to
+Data Management because it is a data-sharing decision rather than a branding
+choice.
+
 ## Version 1.7.5-beta.1 — 2026-08-27
 
 *Beta — organization customization and the completed brand-alignment roadmap.*

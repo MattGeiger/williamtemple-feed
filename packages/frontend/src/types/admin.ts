@@ -95,6 +95,7 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   // them distinct on purpose: restore recovers, reset discards.
   BACKUP_RESTORED: 'Backup restored',
   CLEAN_SLATE_APPLIED: 'Reset to clean slate',
+  BRAND_ASSETS_CLEANED: 'Unused brand assets cleaned',
 };
 
 export interface DatabaseSummary {

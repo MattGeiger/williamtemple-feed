@@ -2524,6 +2524,18 @@ flow in git history or older docs.
 ## Recently Resolved
 
 ### August 2026
+- **Appearance SVG logos were flattened to low-resolution PNGs and the dark
+  logo was never rendered** (Aug 28 2026): the upload route normalized every
+  source through Sharp without defining a density contract, so a wide SVG was
+  stored near its intrinsic 288×87 CSS size and blurred when enlarged on a
+  high-density Dashboard. The Dashboard also hard-coded `lightSrc`, leaving
+  `darkSrc` with no consumer. Safe SVGs now remain vector after structural
+  sanitization, PNGs retain their pixel dimensions with low-resolution
+  guidance, and the shared logo renderer selects light/dark artwork across all
+  three theme states. Real multipart route tests cover vector preservation,
+  hostile-node removal, raster dimensions, quality warnings, icon derivatives,
+  and SVG delivery headers. Data Management → Data now finds and removes
+  unreferenced brand assets older than a one-hour wizard-safety window.
 - **Service lens was not exportable, and a Service-only report crashed**
   (Aug 15 2026): the five Service cards shipped on screen with no entry in the
   report registry, so selecting one produced an archive that silently omitted

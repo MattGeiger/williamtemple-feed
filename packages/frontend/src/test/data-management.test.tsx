@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Matt Geiger
 
 import React from 'react';
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, test, vi } from 'vitest';
 
 import { DataManagementWorkspace } from '@/components/data-management';
@@ -128,6 +128,47 @@ vi.mock('@/services/service', () => ({
     resolveLottoSession: vi.fn(),
   },
 }));
+
+vi.mock('@/services/deployment-settings', () => ({
+  deploymentSettingsService: {
+    load: vi.fn(() => Promise.resolve({
+      publicInventoryEnabled: true,
+      updatedAt: '2026-08-28T12:00:00.000Z',
+      updatedBy: 'admin@williamtemple.org',
+    })),
+    update: vi.fn(),
+  },
+}));
+
+const brandServiceMocks = vi.hoisted(() => ({
+  checkAssetStorage: vi.fn(() => Promise.resolve({
+    check: {
+      totalCount: 18,
+      referencedCount: 12,
+      unusedCount: 6,
+      unusedBytes: 6144,
+      protectedRecentCount: 0,
+      eligibleUnusedCount: 6,
+      eligibleUnusedBytes: 6144,
+      eligibleUnusedAssets: [],
+    },
+  })),
+  cleanupUnusedAssets: vi.fn(() => Promise.resolve({
+    cleanup: { deletedCount: 6, deletedBytes: 6144, protectedRecentCount: 0 },
+    check: {
+      totalCount: 12,
+      referencedCount: 12,
+      unusedCount: 0,
+      unusedBytes: 0,
+      protectedRecentCount: 0,
+      eligibleUnusedCount: 0,
+      eligibleUnusedBytes: 0,
+      eligibleUnusedAssets: [],
+    },
+  })),
+}));
+
+vi.mock('@/services/brand', () => ({ brandService: brandServiceMocks }));
 
 const procurementHistory = (
   overrides: Partial<ImportHistoryRecord> & Pick<ImportHistoryRecord, 'id' | 'source'>,
@@ -299,14 +340,14 @@ describe('Data Management', () => {
 });
 
 describe('Database tab visibility by role', () => {
-  test('offers Analytics and Database to an administrator', async () => {
+  test('offers Data and Database to an administrator', async () => {
     render(<DataManagementWorkspace />);
 
-    expect(await screen.findByRole('tab', { name: 'Analytics' })).toBeVisible();
+    expect(await screen.findByRole('tab', { name: 'Data' })).toBeVisible();
     expect(screen.getByRole('tab', { name: 'Database' })).toBeVisible();
   });
 
-  test('shows staff the analytics content with no tab strip at all', async () => {
+  test('shows staff the Data content with no tab strip at all', async () => {
     authState.isAdministrator = false;
     try {
       render(<DataManagementWorkspace />);
@@ -321,6 +362,26 @@ describe('Database tab visibility by role', () => {
     } finally {
       authState.isAdministrator = true;
     }
+  });
+});
+
+describe('Brand asset storage utility', () => {
+  test('finds and cleans up unused database assets from the Data tab', async () => {
+    render(<DataManagementWorkspace />);
+
+    expect(await screen.findByText('Brand Asset Storage')).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Run Storage Check' }));
+
+    expect(await screen.findByText('Ready to clean up')).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Clean Up 6 Assets' })).toBeVisible();
+    expect(screen.getByText(/6 unused assets were found/i)).toBeVisible();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clean Up 6 Assets' }));
+    expect(await screen.findByRole('heading', { name: 'Remove unused brand assets?' })).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Remove unused assets' }));
+
+    expect(await screen.findByText('Every stored brand asset is referenced by a saved appearance.')).toBeVisible();
+    expect(brandServiceMocks.cleanupUnusedAssets).toHaveBeenCalledTimes(1);
   });
 });
 

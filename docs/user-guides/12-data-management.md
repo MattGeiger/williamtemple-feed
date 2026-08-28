@@ -158,12 +158,25 @@ FEED flags procurement data when the latest active receiving date is more than
 on recent trends. The reminder is a freshness prompt, not a score or criticism
 of staff work.
 
-## The Analytics And Database Tabs
+## The Data And Database Tabs
 
-**Analytics** opens by default and contains procurement coverage, freshness,
-data rules, Add Data, and the unified import history. **Database** appears for
+**Data** opens by default and contains procurement coverage, freshness, data
+rules, Add Data, publishing controls, and the unified import history. **Database** appears for
 administrators and contains the portable backup, restore, reset, and database
 summary tools.
+
+### Clean up unused brand images
+
+Administrators can use **Data → Brand Asset Storage → Run Storage Check** to
+find Appearance images that no saved configuration references. The check does
+not change anything. If unused assets are found, **Clean Up Assets** opens a
+confirmation before permanently removing them from the database.
+
+An upload made within the last hour is reported but protected from cleanup.
+This keeps an image safe while another administrator still has the Appearance
+wizard open. Active and draft appearances are checked together; an image used
+by either is never offered for cleanup. The cleanup is recorded in Admin →
+History.
 
 ## Download A Backup
 
