@@ -191,22 +191,22 @@
     --sidebar-ring: oklch(0.491 0.119 253);
 
     /* FEED app shell atmosphere */
-    --feed-shell-base-start: var(--background);
-    --feed-shell-base-mid: color-mix(in oklch, var(--accent) 30%, var(--background));
-    --feed-shell-base-end: color-mix(in oklch, var(--primary) 8%, var(--background));
-    --feed-shell-glow-primary: color-mix(in oklch, var(--primary) 9%, transparent);
-    --feed-shell-glow-secondary: color-mix(in oklch, var(--accent-foreground) 8%, transparent);
-    --feed-shell-haze: color-mix(in oklch, var(--sidebar-primary) 5%, transparent);
-    --feed-shell-veil: color-mix(in oklch, var(--background) 42%, transparent);
+    --feed-shell-base-start: hsl(211 58% 98%);
+    --feed-shell-base-mid: hsl(184 38% 96%);
+    --feed-shell-base-end: hsl(211 34% 93%);
+    --feed-shell-glow-primary: hsl(211 60% 40% / 0.09);
+    --feed-shell-glow-secondary: hsl(173 45% 48% / 0.08);
+    --feed-shell-haze: hsl(49 100% 65% / 0.05);
+    --feed-shell-veil: hsl(0 0% 100% / 0.42);
     --feed-shell-panel-start: color-mix(in oklch, var(--card) 88%, transparent);
-    --feed-shell-panel-end: color-mix(in oklch, var(--card) 76%, transparent);
+    --feed-shell-panel-end: hsl(184 30% 94% / 0.76);
     --feed-shell-header-start: color-mix(in oklch, var(--background) 40%, transparent);
     --feed-shell-header-end: color-mix(in oklch, var(--background) 32%, transparent);
     --feed-shell-card-start: color-mix(in oklch, var(--card) 94%, transparent);
-    --feed-shell-card-end: color-mix(in oklch, var(--card) 84%, transparent);
+    --feed-shell-card-end: hsl(184 24% 93% / 0.84);
     --feed-shell-panel-border: color-mix(in oklch, var(--border) 72%, transparent);
     --feed-shell-header-border: color-mix(in oklch, var(--border) 58%, transparent);
-    --feed-shell-surface-shadow: 0 24px 60px -44px color-mix(in oklch, var(--foreground) 34%, transparent);
+    --feed-shell-surface-shadow: 0 24px 60px -44px hsl(211 50% 20% / 0.34);
     --feed-motion-duration-fast: 160ms;
     --feed-motion-duration-medium: 220ms;
     --feed-motion-ease-standard: cubic-bezier(0.22, 1, 0.36, 1);
@@ -325,15 +325,15 @@
     --sidebar-ring: oklch(0.293 0.013 267.1);
 
     /* FEED app shell atmosphere */
-    --feed-shell-base-start: var(--background);
-    --feed-shell-base-mid: color-mix(in oklch, var(--secondary) 30%, var(--background));
-    --feed-shell-base-end: color-mix(in oklch, var(--primary) 9%, var(--background));
-    --feed-shell-glow-primary: color-mix(in oklch, var(--primary) 12%, transparent);
-    --feed-shell-glow-secondary: color-mix(in oklch, var(--accent-foreground) 10%, transparent);
-    --feed-shell-haze: color-mix(in oklch, var(--accent) 10%, transparent);
-    --feed-shell-veil: color-mix(in oklch, var(--background) 26%, transparent);
+    --feed-shell-base-start: hsl(221 44% 9%);
+    --feed-shell-base-mid: hsl(224 30% 17%);
+    --feed-shell-base-end: hsl(229 24% 20%);
+    --feed-shell-glow-primary: hsl(219 66% 58% / 0.20);
+    --feed-shell-glow-secondary: hsl(229 38% 56% / 0.16);
+    --feed-shell-haze: hsl(223 18% 72% / 0.06);
+    --feed-shell-veil: hsl(225 20% 7% / 0.20);
     --feed-shell-panel-start: color-mix(in oklch, var(--card) 82%, transparent);
-    --feed-shell-panel-end: color-mix(in oklch, var(--card) 70%, transparent);
+    --feed-shell-panel-end: hsl(218 30% 12% / 0.7);
     /* Not the panel tokens. Those are sized for near-solid surfaces (0.82 /
        0.70), and composited over the header's own 0.4 background they left the
        bar about 89% opaque — the frosted blur was applied and buried, so the
@@ -344,43 +344,43 @@
     --feed-shell-header-start: color-mix(in oklch, var(--background) 55%, transparent);
     --feed-shell-header-end: color-mix(in oklch, var(--background) 45%, transparent);
     --feed-shell-card-start: color-mix(in oklch, var(--card) 88%, transparent);
-    --feed-shell-card-end: color-mix(in oklch, var(--card) 78%, transparent);
+    --feed-shell-card-end: hsl(218 28% 12% / 0.78);
     --feed-shell-panel-border: color-mix(in oklch, var(--border) 78%, transparent);
     --feed-shell-header-border: var(--feed-shell-panel-border);
-    --feed-shell-surface-shadow: 0 28px 72px -52px color-mix(in oklch, var(--background) 86%, transparent);
+    --feed-shell-surface-shadow: 0 28px 72px -52px hsl(222 90% 3% / 0.86);
 
     /* Dark shadows keep the established geometry but take their chroma from
        the active brand rather than a hard-coded blue-purple glow. */
-    --shadow-color: var(--primary);
-    --shadow-2xs: 1px 3.5px 10.5px 0.5px color-mix(in oklch, var(--primary) 20%, transparent);
-    --shadow-xs:  1px 3.5px 10.5px 0.5px color-mix(in oklch, var(--primary) 22%, transparent);
-    --shadow-sm:  1px 3.5px 10.5px 0.5px color-mix(in oklch, var(--primary) 35%, transparent), 1px 1px 2px -0.5px color-mix(in oklch, var(--primary) 40%, transparent);
-    --shadow:     1px 3.5px 10.5px 0.5px color-mix(in oklch, var(--primary) 40%, transparent), 1px 1px 2px -0.5px color-mix(in oklch, var(--primary) 45%, transparent);
-    --shadow-md:  1px 3.5px 14px   0.5px color-mix(in oklch, var(--primary) 45%, transparent), 1px 2px 4px -0.5px color-mix(in oklch, var(--primary) 50%, transparent);
-    --shadow-lg:  1px 3.5px 20px   1px   color-mix(in oklch, var(--primary) 55%, transparent), 1px 4px 6px -0.5px color-mix(in oklch, var(--primary) 55%, transparent);
-    --shadow-xl:  1px 3.5px 28px   2px   color-mix(in oklch, var(--primary) 60%, transparent), 1px 8px 10px -0.5px color-mix(in oklch, var(--primary) 55%, transparent);
-    --shadow-2xl: 1px 3.5px 40px   3px   color-mix(in oklch, var(--primary) 75%, transparent);
+    --shadow-color: oklch(0.746 0.16 232.661);
+    --shadow-2xs: 1px 3.5px 10.5px 0.5px oklch(0.746 0.16 232.661 / 0.20);
+    --shadow-xs: 1px 3.5px 10.5px 0.5px oklch(0.746 0.16 232.661 / 0.22);
+    --shadow-sm: 1px 3.5px 10.5px 0.5px oklch(0.746 0.16 232.661 / 0.35), 1px 1px 2px -0.5px oklch(0.746 0.16 232.661 / 0.40);
+    --shadow: 1px 3.5px 10.5px 0.5px oklch(0.746 0.16 232.661 / 0.40), 1px 1px 2px -0.5px oklch(0.746 0.16 232.661 / 0.45);
+    --shadow-md: 1px 3.5px 14px   0.5px oklch(0.746 0.16 232.661 / 0.45), 1px 2px 4px -0.5px oklch(0.746 0.16 232.661 / 0.50);
+    --shadow-lg: 1px 3.5px 20px   1px   oklch(0.746 0.16 232.661 / 0.55), 1px 4px 6px -0.5px oklch(0.746 0.16 232.661 / 0.55);
+    --shadow-xl: 1px 3.5px 28px   2px   oklch(0.746 0.16 232.661 / 0.60), 1px 8px 10px -0.5px oklch(0.746 0.16 232.661 / 0.55);
+    --shadow-2xl: 1px 3.5px 40px   3px   oklch(0.746 0.16 232.661 / 0.75);
 
     --shadow-realistic-sm: var(--shadow-sm);
     --shadow-realistic:    var(--shadow-lg);
     --shadow-realistic-lg: var(--shadow-xl);
 
     /* Card gradients follow the active semantic surface and accent roles. */
-    --feed-card-gradient: linear-gradient(135deg, var(--card) 0%, color-mix(in oklch, var(--secondary) 28%, var(--card)) 100%);
-    --feed-card-gradient-primary: linear-gradient(135deg, var(--card) 0%, color-mix(in oklch, var(--primary) 14%, var(--card)) 100%);
+    --feed-card-gradient: linear-gradient(135deg, oklch(0.22 0.025 250) 0%, oklch(0.26 0.045 250) 100%);
+    --feed-card-gradient-primary: linear-gradient(135deg, oklch(0.22 0.035 220) 0%, oklch(0.27 0.06 220) 100%);
 
     /* Prism-style universal card-gradient tokens (dark). */
     --card-gradient-start: color-mix(in srgb, var(--primary) 9%, var(--card));
     --card-gradient-end:   color-mix(in srgb, var(--card) 92%, black);
 
     /* Atmospheric body backdrop, derived from the active brand. */
-    --feed-shell-base-start: var(--background);
-    --feed-shell-base-mid: color-mix(in oklch, var(--secondary) 30%, var(--background));
-    --feed-shell-base-end: color-mix(in oklch, var(--primary) 9%, var(--background));
-    --feed-shell-glow-primary: color-mix(in oklch, var(--primary) 12%, transparent);
-    --feed-shell-glow-secondary: color-mix(in oklch, var(--accent-foreground) 10%, transparent);
-    --feed-shell-haze: color-mix(in oklch, var(--accent) 10%, transparent);
-    --feed-shell-veil: color-mix(in oklch, var(--background) 26%, transparent);
+    --feed-shell-base-start: hsl(221 44% 9%);
+    --feed-shell-base-mid: hsl(224 30% 17%);
+    --feed-shell-base-end: hsl(229 24% 20%);
+    --feed-shell-glow-primary: hsl(219 66% 58% / 0.20);
+    --feed-shell-glow-secondary: hsl(229 38% 56% / 0.16);
+    --feed-shell-haze: hsl(223 18% 72% / 0.06);
+    --feed-shell-veil: hsl(225 20% 7% / 0.20);
     --feed-app-backdrop:
       linear-gradient(180deg, transparent 0%, var(--feed-shell-veil) 100%),
       radial-gradient(144% 112% at 16% 86%, var(--feed-shell-glow-primary)   0%, transparent 62%),

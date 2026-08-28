@@ -15,9 +15,16 @@ export const WTH_BRAND_CONFIG: BrandConfig = {
     organizationWebsite: 'https://www.williamtemple.org/',
   },
   logo: {
-    light: { kind: 'builtin', src: '/brand/wth-logo-email.png', width: 600, height: 600 },
-    dark: { kind: 'builtin', src: '/brand/wth-logo-email.png', width: 600, height: 600 },
-    square: { kind: 'builtin', src: '/brand/wth-logo-email.png', width: 600, height: 600 },
+    // Real dimensions. These were all declared 600x600 while the file is
+    // actually 600x157, and `square` pointed at the horizontal wordmark
+    // lockup — which BrandContext then set as the browser tab icon, squashing
+    // a 3.8:1 lockup into a square. The square slot needs a genuinely square
+    // mark.
+    light: { kind: 'builtin', src: '/brand/wth-logo-email.png', width: 600, height: 157 },
+    dark: { kind: 'builtin', src: '/brand/wth-logo-email.png', width: 600, height: 157 },
+    // Lives in `public/` rather than `src/assets/` because Vite fingerprints
+    // the latter, and this path is referenced at runtime and from email.
+    square: { kind: 'builtin', src: '/brand/wth-icon-outline.svg', width: 527, height: 527 },
   },
   colors: {
     accent: hexToOklch('#186090'),

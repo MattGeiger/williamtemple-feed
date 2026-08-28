@@ -162,8 +162,12 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
         setCarbonCategoricalOrder(next.chartOrder);
         setBrand(next);
         document.title = `${next.identity.appName} System`;
+        // Only a genuinely square mark may become the tab icon. Falling back to
+        // the main logo squashed a wide lockup into the favicon — the compiled
+        // default's was 3.8:1, and both bundled templates are ~3:1. A brand with
+        // no square mark keeps the icon already in the document instead.
         const icon = document.querySelector<HTMLLinkElement>('link[rel~="icon"]');
-        if (icon) icon.href = next.logo.squareSrc ?? next.logo.lightSrc;
+        if (icon && next.logo.squareSrc) icon.href = next.logo.squareSrc;
         try {
           const saved = sessionStorage.getItem('feed.brandPreview');
           if (saved) {
