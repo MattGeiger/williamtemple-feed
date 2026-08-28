@@ -16,22 +16,31 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 
 const CSS = '../frontend/src/index.css';
-const AB = '../frontend/src/styles/tailwind-ab.css';
+const CANDIDATES = '../frontend/src/styles/tailwind-ab-candidates.json';
 const dryRun = process.argv.includes('--dry-run');
 
-/** Converted declarations from the reviewed A/B sheet, per scope. */
+/**
+ * The chosen palette entry per token, from the generated candidate data.
+ *
+ * Read from the candidates rather than from a generated stylesheet: that sheet
+ * existed only to A/B the migration against the authored appearance, and went
+ * away once index.css held the references. The candidates are the durable
+ * record — each row carries the entry the generator settled on, overrides
+ * included.
+ *
+ * Rows keyed with a `#n` suffix address one literal inside a multi-value
+ * declaration (a gradient stop, a shadow's second colour). Rewriting those
+ * safely needs the whole declaration rebuilt, so they are left to the generator
+ * and skipped here.
+ */
 const converted = (): Record<'light' | 'dark', Map<string, string>> => {
-  const out = { light: new Map<string, string>(), dark: new Map<string, string>() };
-  let scope: 'light' | 'dark' | null = null;
-  for (const line of readFileSync(AB, 'utf8').split('\n')) {
-    if (line.includes('data-palette="tailwind"].dark {')) { scope = 'dark'; continue; }
-    if (line.includes('data-palette="tailwind"] {')) { scope = 'light'; continue; }
-    if (line.startsWith('}')) { scope = null; continue; }
-    if (!scope) continue;
-    const m = line.match(/^\s*--([A-Za-z0-9-]+):\s*(.+?);(?:\s*\/\*.*)?$/);
-    if (m && !out[scope].has(m[1])) out[scope].set(m[1], m[2].trim());
-  }
-  return out;
+  const data = JSON.parse(readFileSync(CANDIDATES, 'utf8')) as {
+    declarations: Record<'light' | 'dark', Record<string, string>>;
+  };
+  return {
+    light: new Map(Object.entries(data.declarations.light)),
+    dark: new Map(Object.entries(data.declarations.dark)),
+  };
 };
 
 const table = converted();

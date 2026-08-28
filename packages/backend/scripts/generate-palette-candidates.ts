@@ -160,7 +160,16 @@ const block = (scope: 'light' | 'dark') => {
 // incomplete.
 const PALETTE_REF = /var\(--color-([A-Za-z0-9-]+)\)/g;
 
-const COLOR = /(var\(--color-[A-Za-z0-9-]+\)|oklch\(\s*[\d.]+%?\s+[\d.]+\s+[\d.]+\s*(?:\/\s*[\d.]+\s*)?\)|hsl\(\s*[\d.]+\s*[, ]\s*[\d.]+%\s*[, ]\s*[\d.]+%\s*(?:\/\s*[\d.]+\s*)?\))/g;
+/**
+ * A colour occurrence, longest form first.
+ *
+ * The `color-mix(...)` wrapper must be matched as one unit and before the bare
+ * reference inside it. Matching the inner `var(--color-*)` on its own read the
+ * colour correctly but lost the percentage, so re-reading an already-migrated
+ * file reported alpha as absent — and re-applying would have silently flattened
+ * every translucent glow, veil and shadow to full opacity.
+ */
+const COLOR = /(color-mix\(in oklch,\s*var\(--color-[A-Za-z0-9-]+\)\s+[\d.]+%,\s*transparent\)|var\(--color-[A-Za-z0-9-]+\)|oklch\(\s*[\d.]+%?\s+[\d.]+\s+[\d.]+\s*(?:\/\s*[\d.]+\s*)?\)|hsl\(\s*[\d.]+\s*[, ]\s*[\d.]+%\s*[, ]\s*[\d.]+%\s*(?:\/\s*[\d.]+\s*)?\))/g;
 
 const drifts: Array<{ token: string; scope: string; d: number; to: string }> = [];
 
@@ -177,6 +186,14 @@ type CalibrationRow = {
 const calibration: CalibrationRow[] = [];
 /** Reported at the end, so nothing is left behind quietly. */
 const skipped: string[] = [];
+/**
+ * The full rewritten declaration per token, so applying does not have to
+ * reconstruct one. A shadow is `1px 3.5px 7px 0.5px <colour>` and a gradient is
+ * `linear-gradient(135deg, <a> 0%, <b> 100%)`; rebuilding from the colour alone
+ * drops the geometry, which is how a first attempt at re-applying would have
+ * flattened every shadow to a bare colour.
+ */
+const declarations: Record<'light' | 'dark', Record<string, string>> = { light: {}, dark: {} };
 
 const convert = (scope: 'light' | 'dark') => {
   const lines: string[] = [];
@@ -194,11 +211,18 @@ const convert = (scope: 'light' | 'dark') => {
       index += 1;
       let col: Oklch | null = null;
       let alpha = '';
-      const ref = lit.match(/^var\(--color-([A-Za-z0-9-]+)\)$/);
+      // Unwrap a color-mix first, keeping its percentage as the alpha.
+      const mixed = lit.match(
+        /^color-mix\(in oklch,\s*var\(--color-([A-Za-z0-9-]+)\)\s+([\d.]+)%,\s*transparent\)$/,
+      );
+      const ref = mixed ? [lit, mixed[1]] : lit.match(/^var\(--color-([A-Za-z0-9-]+)\)$/);
       if (ref) {
         const entry = [...TAILWIND_PALETTE, ...TAILWIND_EXTREMES]
           .find(e => (e.stop === 0 ? e.family : `${e.family}-${e.stop}`) === ref[1]);
-        if (entry) { col = { l: entry.l, c: entry.c, h: entry.h }; alpha = ''; }
+        if (entry) {
+          col = { l: entry.l, c: entry.c, h: entry.h };
+          alpha = mixed ? String(Number(mixed[2]) / 100) : '';
+        }
       }
       let m = col ? null : lit.match(/^oklch\(\s*([\d.]+)(%?)\s+([\d.]+)\s+([\d.]+)\s*(?:\/\s*([\d.]+)\s*)?\)$/);
       // Tailwind writes lightness as a percentage; index.css writes 0..1.
@@ -230,6 +254,7 @@ const convert = (scope: 'light' | 'dark') => {
         ? `color-mix(in oklch, ${s.ref} ${(parseFloat(alpha) * 100).toFixed(1)}%, transparent)`
         : s.ref;
     });
+    declarations[scope][name] = next;
     lines.push(`  --${name}: ${next};${note ? ` /* ${note} */` : ''}`);
     drifts.push({ token: name, scope, d: maxD, to });
   }
@@ -248,7 +273,7 @@ const palette = POOL
 writeFileSync(
   '../frontend/src/styles/tailwind-ab-candidates.json',
   JSON.stringify(
-    { generatedAt: new Date().toISOString(), overrides: OVERRIDES, palette, rows: calibration },
+    { generatedAt: new Date().toISOString(), overrides: OVERRIDES, declarations, palette, rows: calibration },
     null,
     2,
   ),

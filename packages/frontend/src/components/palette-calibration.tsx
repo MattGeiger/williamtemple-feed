@@ -228,12 +228,19 @@ export function PaletteCalibration() {
       byScope[row.scope].push(`  --${tokenOf(key)}: ${value};`);
     }
     el.textContent = [
-      // Unlayered, so these beat index.css's tokens (which sit in @layer base)
-      // regardless of source order. There is no separate A/B scope any more:
-      // index.css holds the palette references, so a pick previews against the
-      // shipped appearance directly.
-      byScope.light.length ? `:root, .light {\n${byScope.light.join('\n')}\n}` : '',
-      byScope.dark.length ? `.dark {\n${byScope.dark.join('\n')}\n}` : '',
+      // Mutually exclusive selectors, not `:root` and `.dark`.
+      //
+      // `:root` matches the html element whether or not `.dark` is stamped on
+      // it, and the two carry equal specificity, so a light pick with no dark
+      // counterpart bled straight through into dark mode — a sky-100 sidebar
+      // accent appearing over a dark sidebar. `html:not(.dark)` cannot match at
+      // the same time as `html.dark`, so a scope only ever applies to its own
+      // theme however few tokens it carries.
+      //
+      // Both stay unlayered, so they beat index.css's tokens in @layer base
+      // regardless of source order.
+      byScope.light.length ? `html:not(.dark) {\n${byScope.light.join('\n')}\n}` : '',
+      byScope.dark.length ? `html.dark {\n${byScope.dark.join('\n')}\n}` : '',
     ].filter(Boolean).join('\n\n');
 
     try {
@@ -263,12 +270,19 @@ export function PaletteCalibration() {
   }, [filter, onlyChanged, picks, sort, activeDrift]);
 
   const exportJson = () => {
-    // Only meaningful deviations are worth recording; a pick equal to the
-    // automatic choice is noise in the overrides file.
+    // Compare against the *automatic* match, not against `row.chosen`.
+    //
+    // `chosen` is the generator's final answer, which already has any committed
+    // override folded into it. Comparing with it meant a seeded override looked
+    // identical to the default and was dropped on export — so a second
+    // calibration sitting exported only its own new picks and silently discarded
+    // every earlier one. The `auto` candidate is the true baseline.
     const out: Record<string, string> = {};
     for (const [key, name] of Object.entries(picks)) {
       const row = ROWS.find(r => r.key === key);
-      if (row && row.chosen !== name) out[key] = name;
+      if (!row) continue;
+      const auto = row.candidates.find(c => c.auto)?.name ?? row.chosen;
+      if (auto !== name) out[key] = name;
     }
     const blob = new Blob([JSON.stringify(out, null, 2) + '\n'], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -281,7 +295,25 @@ export function PaletteCalibration() {
 
   if (!import.meta.env.DEV) return null;
 
-  const changed = Object.entries(picks).filter(([k, v]) => ROWS.find(r => r.key === k)?.chosen !== v).length;
+  /**
+   * Two different counts, deliberately.
+   *
+   * `sessionChanges` is what this sitting altered relative to the committed
+   * state, which is what Reset undoes. `overrideCount` is everything that
+   * differs from the automatic match, which is what Export writes. Driving both
+   * buttons off the session count meant that with overrides committed and
+   * nothing yet touched, Export sat disabled while having four entries to
+   * write — so the current state could not be re-exported.
+   */
+  const baselineFor = (row: Row) => row.candidates.find((c) => c.auto)?.name ?? row.chosen;
+  const sessionChanges = Object.entries(picks)
+    .filter(([k, v]) => ROWS.find((r) => r.key === k)?.chosen !== v).length;
+  const overrideCount = Object.entries(picks)
+    .filter(([k, v]) => {
+      const row = ROWS.find((r) => r.key === k);
+      return row ? baselineFor(row) !== v : false;
+    }).length;
+  const changed = overrideCount;
 
   return (
     <>
@@ -338,13 +370,13 @@ export function PaletteCalibration() {
               variant="outline"
               size="sm"
               onClick={() => setPicks(FILE_OVERRIDES)}
-              disabled={changed === 0}
+              disabled={sessionChanges === 0}
               title="Discard this session's changes and return to the committed overrides"
             >
               <RotateCcw className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
               Reset
             </Button>
-            <Button size="sm" onClick={exportJson} disabled={changed === 0}>
+            <Button size="sm" onClick={exportJson} disabled={overrideCount === 0}>
               <Download className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
               Export
             </Button>
