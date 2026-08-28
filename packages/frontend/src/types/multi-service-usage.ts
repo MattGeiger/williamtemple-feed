@@ -79,6 +79,11 @@ export interface ConfigurationUsageMetrics {
   totalCost: number;        // Total cost for this configuration
   promptTokens: number;     // Input tokens used
   completionTokens: number; // Output tokens used
+
+  // Cumulative request count, distinct from `requestsPerDay.current` above.
+  // That one is today's volume and drives the rate-limit gauges; this is the
+  // all-time figure the Usage Summary reports beside all-time cost and tokens.
+  totalRequests: number;
   
   // Performance Metrics
   successRate?: number | null;     // Success rate from usage records (0-1) or null if no data

@@ -296,7 +296,7 @@ function AggregatedMetricsView({ configurations, aggregatedMetrics, stats }: any
         </div>
         <div className="grid gap-1">
           <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">Total Cost Today</span>
+            <span className="text-sm text-muted-foreground">Total Cost To Date</span>
             <span className="font-medium">{formatCostWithCents(aggregatedMetrics.totalCost)}</span>
           </div>
           <div className="flex items-center justify-between">

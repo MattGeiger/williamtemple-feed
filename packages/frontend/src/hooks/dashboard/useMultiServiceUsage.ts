@@ -143,15 +143,23 @@ export function getAggregatedMetrics(data: MultiServiceUsageData | null) {
   const totalCost = data.configurations.reduce((sum, config) => sum + config.totalCost, 0);
   const totalTokens = data.configurations.reduce((sum, config) => 
     sum + config.promptTokens + config.completionTokens, 0);
-  const totalRequests = data.configurations.reduce((sum, config) => 
-    sum + config.requestsPerDay.current, 0);
-  
-  // Calculate weighted average success rate from configuration data
-  const averageSuccessRate = totalRequests > 0 
+  // All-time, matching totalCost and totalTokens above.
+  //
+  // This summed `requestsPerDay.current`, which is *today's* request volume, and
+  // the Usage Summary presented the result as "Total Requests" beside three
+  // genuinely cumulative figures. `requestsPerDay.current` still exists and is
+  // still correct for the rate-limit gauges that consume it; it was only ever
+  // the wrong input for a cumulative total.
+  const totalRequests = data.configurations.reduce((sum, config) =>
+    sum + (config.totalRequests ?? 0), 0);
+
+  // Weighted by the same all-time counts. Weighting an all-time success rate by
+  // today's volume let a handful of morning calls dominate the average.
+  const averageSuccessRate = totalRequests > 0
     ? data.configurations.reduce((weightedSum, config) => {
         // Use the success rate from backend data (defaults to 98.5% if not available)
         const configSuccessRate = config.successRate ?? 0.985;
-        return weightedSum + (configSuccessRate * config.requestsPerDay.current);
+        return weightedSum + (configSuccessRate * (config.totalRequests ?? 0));
       }, 0) / totalRequests
     : 0.985; // Default fallback
 

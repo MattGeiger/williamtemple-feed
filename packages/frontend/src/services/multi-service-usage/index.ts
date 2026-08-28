@@ -239,6 +239,7 @@ export class MultiServiceUsageService extends BaseApiService {
         totalCost: config.allTimeUsage.totalCost,
         promptTokens: config.allTimeUsage.promptTokens,
         completionTokens: config.allTimeUsage.completionTokens,
+        totalRequests: config.allTimeUsage.requestCount || 0,
         successRate: config.allTimeUsage.successRate,
         
         historicalData: this.buildHistoricalData(metrics.historicalUsage, config.serviceType)
