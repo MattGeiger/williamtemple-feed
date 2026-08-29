@@ -22,12 +22,29 @@ All notable changes to FEED are documented here. This project adheres to
   document by luminance, which preserves every contrast ratio exactly, and then
   replaces the series ramp — because luminance conversion is precisely what
   cannot separate colours that differed only in hue. The replacement varies
-  lightness across seven steps between L 0.20 and L 0.66; the lightest clears
-  3:1 against white and adjacent steps differ by 1.2x or more in contrast.
+  lightness across seven steps between L 0.20 and L 0.66, the lightest clearing
+  3:1 against white.
 
-  Verified at the byte level on a real export: the colour PDF carries eight
-  chromatic fills and the black-and-white one carries none, with the series
-  landing on the intended greys. The manifest names both files.
+  Those steps are handed out extremes-first rather than in lightness order. A
+  chart takes the first *n* entries, so shipping the ladder in order gave the
+  common two-series chart the two darkest neighbouring steps — 1.23x apart, the
+  ramp's worst possible pair, and unreadable once printed. Bisecting the ladder
+  gives that chart 5.82x instead, and a three-series chart 2.25x, while a
+  seven-series chart is no worse than before.
+
+  Verified at the byte level on a real export: the colour PDF carries nine
+  chromatic fills and the black-and-white one carries none, with the two series
+  landing on opposite ends of the ramp. The manifest names both files.
+
+### Fixed
+
+- **The caution note stayed amber in the black-and-white PDF.** Its colours were
+  literals in the document CSS rather than fields on the print theme, and only
+  the theme gets greyscaled, so a PDF that was meant to have no colour in it
+  shipped an amber box. The note is now `theme.note` and converts with
+  everything else. The check that catches this class of bug is decompressing the
+  PDF's content streams and asserting no fill operator has unequal components,
+  which is now how both variants are verified.
 
 ## [1.7.5-beta.4]
 

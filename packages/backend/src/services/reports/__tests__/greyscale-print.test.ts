@@ -28,6 +28,7 @@ const COLOUR_THEME: ReportPrintTheme = {
   background: '#ffffff',
   primary: '#3c6300',
   primarySoft: '#ecfccb',
+  note: { ink: '#8A5A00', background: '#FFF8E1', border: '#FFE9A8' },
 };
 
 describe('the black-and-white rendering', () => {
@@ -42,6 +43,9 @@ describe('the black-and-white rendering', () => {
       bw.background,
       bw.primary,
       bw.primarySoft,
+      bw.note.ink,
+      bw.note.background,
+      bw.note.border,
     ].filter(hex => !isGrey(hex));
     expect(offenders, `not grey: ${offenders.join(', ')}`).toEqual([]);
   });
@@ -73,10 +77,23 @@ describe('the black-and-white rendering', () => {
     }
   });
 
-  it('keeps adjacent series far enough apart to tell apart', () => {
-    const ratios = PRINT_GREYSCALE_SERIES.map(hex => contrastRatioHex(hex, '#ffffff'));
-    for (let i = 1; i < ratios.length; i += 1) {
-      expect(ratios[i - 1] / ratios[i], `steps ${i - 1}->${i}`).toBeGreaterThan(1.2);
+  it('spends the ladder widest-first, so small charts get the biggest gaps', () => {
+    // Charts take palette[0], palette[1], ... in order, so the ORDER of the ramp
+    // is what a two-series chart actually gets. Handing out the ladder in
+    // sequence gave such a chart the two darkest neighbouring steps: 1.23x
+    // apart, indistinguishable in print. Bisecting the ladder spends the
+    // extremes first and subdivides from there, so separation degrades
+    // gracefully as series are added instead of starting at its worst.
+    const worstGapAmong = (count: number) => {
+      const used = PRINT_GREYSCALE_SERIES.slice(0, count)
+        .map(hex => contrastRatioHex(hex, '#ffffff'))
+        .sort((a, b) => b - a);
+      return Math.min(...used.slice(1).map((ratio, i) => used[i] / ratio));
+    };
+    expect(worstGapAmong(2)).toBeGreaterThan(5);
+    expect(worstGapAmong(3)).toBeGreaterThan(2.2);
+    for (let count = 4; count <= PRINT_GREYSCALE_SERIES.length; count += 1) {
+      expect(worstGapAmong(count), `${count} series`).toBeGreaterThan(1.2);
     }
   });
 });

@@ -18,6 +18,15 @@ export interface ReportPrintTheme {
   background: string;
   primary: string;
   primarySoft: string;
+  /**
+   * The caution box printed above a card that carries a data-quality note.
+   *
+   * These were hardcoded amber in the document CSS, so the black-and-white
+   * rendering came out greyscale everywhere except one yellow panel per card —
+   * the one element the theme could not reach. Colour belongs to the theme so
+   * that converting the theme converts the document.
+   */
+  note: { ink: string; background: string; border: string };
 }
 
 export const DEFAULT_REPORT_PRINT_THEME: ReportPrintTheme = {
@@ -28,6 +37,7 @@ export const DEFAULT_REPORT_PRINT_THEME: ReportPrintTheme = {
   background: '#FFFFFF',
   primary: '#2964A3',
   primarySoft: '#EEF3F8',
+  note: { ink: '#8A5A00', background: '#FFF8E1', border: '#FFE9A8' },
 };
 
 const reportPrintTheme = new AsyncLocalStorage<ReportPrintTheme>();
@@ -62,4 +72,9 @@ export const greyscalePrintTheme = (theme: ReportPrintTheme): ReportPrintTheme =
   background: greyscaleOf(theme.background),
   primary: greyscaleOf(theme.primary),
   primarySoft: greyscaleOf(theme.primarySoft),
+  note: {
+    ink: greyscaleOf(theme.note.ink),
+    background: greyscaleOf(theme.note.background),
+    border: greyscaleOf(theme.note.border),
+  },
 });
