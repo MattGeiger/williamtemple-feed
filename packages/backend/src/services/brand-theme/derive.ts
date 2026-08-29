@@ -22,7 +22,7 @@ import {
   isMuddy,
   mudEscapeFamily,
   paletteEntry,
-  snap,
+  snap, roleFor,
   type SnapCandidate,
 } from './snap';
 import {
@@ -111,8 +111,11 @@ const neutralTargetFor = (input: BrandInput): Oklch =>
 export const resolveFamilies = (input: BrandInput): ResolvedFamilies => {
   const story = input.hierarchy ? proposeColorStory(input.hierarchy) : null;
   const accentSource = story?.primary ?? input.accent;
-  const accentSnap = snap(accentSource, 'chromatic');
-  const accentDarkSnap = input.accentDark ? snap(input.accentDark, 'chromatic') : null;
+  // Pool chosen by the colour, not the slot: a grayscale brand keeps its grey.
+  const accentSnap = snap(accentSource, roleFor(accentSource, 'chromatic'));
+  const accentDarkSnap = input.accentDark
+    ? snap(input.accentDark, roleFor(input.accentDark, 'chromatic'))
+    : null;
   const neutralTarget = neutralTargetFor(input);
   const neutralSnap = snap(neutralTarget, 'neutral');
 
@@ -122,7 +125,9 @@ export const resolveFamilies = (input: BrandInput): ResolvedFamilies => {
   // The accent surface prefers the brand's second colour. Without one it falls
   // back to the neutral ramp rather than to a darkened primary — which is what
   // produced `amber-800`, a brown, across every dark-mode hover state.
-  const secondary = story?.accent ? snap(story.accent, 'chromatic') : null;
+  const secondary = story?.accent
+    ? snap(story.accent, roleFor(story.accent, 'chromatic'))
+    : null;
   let accentSecondaryFamily = secondary?.entry.family ?? neutralFamily;
   let accentSecondaryIsNeutral = secondary === null;
   let mudEscapedFrom: string | null = null;
