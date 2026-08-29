@@ -24,11 +24,11 @@ export const WTH_BRAND_CONFIG: BrandConfig = {
     // themes before, so dark mode showed a logo drawn for a light background.
     // The email layout still points at the PNG separately: mail clients render
     // SVG inconsistently, so that one surface keeps a raster on purpose.
-    light: { kind: 'builtin', src: '/brand/wth-logo-horizontal-light.svg', width: 792, height: 206 },
-    dark: { kind: 'builtin', src: '/brand/wth-logo-horizontal-dark.svg', width: 792, height: 217 },
+    light: { kind: 'builtin', src: '/brand/wth-logo-horizontal-light.svg', width: 800, height: 300 },
+    dark: { kind: 'builtin', src: '/brand/wth-logo-horizontal-dark.svg', width: 800, height: 300 },
     // Lives in `public/` rather than `src/assets/` because Vite fingerprints
     // the latter, and this path is referenced at runtime and from email.
-    square: { kind: 'builtin', src: '/brand/wth-icon-outline.svg', width: 527, height: 527 },
+    square: { kind: 'builtin', src: '/brand/wth-app-mark.svg', width: 512, height: 512 },
     presentation: 'transparent',
   },
   colors: {
