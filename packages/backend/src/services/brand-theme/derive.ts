@@ -22,7 +22,7 @@ import {
   isMuddy,
   mudEscapeFamily,
   paletteEntry,
-  snap, roleFor,
+  snap, harmonisedNeutralFamily, roleFor,
   type SnapCandidate,
 } from './snap';
 import {
@@ -120,7 +120,12 @@ export const resolveFamilies = (input: BrandInput): ResolvedFamilies => {
   const neutralSnap = snap(neutralTarget, 'neutral');
 
   const accentFamily = input.accentFamily ?? accentSnap.entry.family;
-  const neutralFamily = input.neutralFamily ?? neutralSnap.entry.family;
+  // A brand that supplied plain greys gets a grey that agrees with its own
+  // hue, rather than the one ramp at chroma zero. An explicit choice, and a
+  // brand with no hue at all, are both left alone.
+  const neutralFamily =
+    input.neutralFamily ??
+    harmonisedNeutralFamily(neutralSnap.entry.family, accentSource);
 
   // The accent surface prefers the brand's second colour. Without one it falls
   // back to the neutral ramp rather than to a darkened primary — which is what
