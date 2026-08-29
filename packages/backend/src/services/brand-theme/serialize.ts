@@ -111,8 +111,28 @@ const CONFIGURED_ATMOSPHERE = {
   --feed-card-gradient: linear-gradient(180deg, var(--card) 0%, color-mix(in oklab, var(--card) 94%, transparent) 100%);
   --feed-card-gradient-primary: linear-gradient(180deg, color-mix(in oklab, var(--primary) 4%, transparent) 0%, var(--card) 100%);`,
   dark: `  --feed-shell-base-start: var(--background);
-  --feed-shell-base-mid: color-mix(in oklch, var(--secondary) 30%, var(--background));
-  --feed-shell-base-end: color-mix(in oklch, var(--primary) 9%, var(--background));
+  /*
+   * The dominant stop carries the brand, not a neutral.
+   *
+   * This mixed \`--secondary\` at 30%, and \`--secondary\` in dark is a stop off
+   * the *neutral* ramp — chroma 0.013 to 0.034 whatever the brand. So the
+   * dominant half of the wash was brand-independent grey and the faint 9% tail
+   * was the only colour in it: the gradient read as one saturated hue meeting
+   * one neutral, and changing the brand's colours did nothing to it.
+   *
+   * \`--primary\` is always the brand's own hue, so it leads. \`--accent\` closes,
+   * which gives a two-hue wash when the brand supplies a second chromatic
+   * colour and a monochromatic fade when it supplies one — both are coherent,
+   * and neither invents a hue the brand did not choose. A grayscale brand
+   * fades grey to grey, correctly.
+   *
+   * Mixed in oklab rather than oklch on purpose: the far operand here is
+   * \`--background\`, a near-neutral whose hue is essentially arbitrary, and
+   * interpolating toward it in a polar space drags the brand hue toward that
+   * arbitrary value.
+   */
+  --feed-shell-base-mid: color-mix(in oklab, var(--primary) 16%, var(--background));
+  --feed-shell-base-end: color-mix(in oklab, var(--accent) 22%, var(--background));
   --feed-shell-glow-primary: color-mix(in oklab, var(--primary) 12%, transparent);
   --feed-shell-glow-secondary: color-mix(in oklab, var(--accent-foreground) 10%, transparent);
   --feed-shell-haze: color-mix(in oklab, var(--accent) 10%, transparent);
