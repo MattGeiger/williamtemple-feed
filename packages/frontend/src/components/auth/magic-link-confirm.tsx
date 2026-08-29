@@ -17,6 +17,8 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import config from '@/config/config';
+import { BrandLogo } from '@/components/brand-logo';
+import { useBrand } from '@/contexts/BrandContext';
 
 /**
  * The human half of the magic-link flow.
@@ -31,6 +33,7 @@ import config from '@/config/config';
  * decoration — do not "improve" this by removing it.
  */
 export function MagicLinkConfirmPage() {
+  const brand = useBrand();
   const [params] = useSearchParams();
   const email = params.get('email') ?? '';
   const token = params.get('token') ?? '';
@@ -72,7 +75,8 @@ export function MagicLinkConfirmPage() {
 
   if (!email || !token) {
     return (
-      <div className="flex min-h-screen items-center justify-center p-6">
+      <div className="flex min-h-screen flex-col items-center justify-center gap-8 p-6">
+        <BrandLogo className="h-auto w-64" />
         <Card className="w-full max-w-md">
           <CardHeader>
             <CardTitle>That link is incomplete</CardTitle>
@@ -91,10 +95,11 @@ export function MagicLinkConfirmPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center p-6">
+    <div className="flex min-h-screen flex-col items-center justify-center gap-8 p-6">
+      <BrandLogo className="h-auto w-64" />
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle>Sign in to FEED</CardTitle>
+          <CardTitle>Sign in to {brand.identity.appName}</CardTitle>
           <CardDescription>
             Confirm that you want to sign in as {email}.
           </CardDescription>
