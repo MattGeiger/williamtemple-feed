@@ -92,9 +92,9 @@ const CONFIGURED_ATMOSPHERE = {
   light: `  --feed-shell-base-start: var(--background);
   --feed-shell-base-mid: color-mix(in oklab, var(--ambient) 22%, var(--background));
   --feed-shell-base-end: color-mix(in oklab, var(--ambient) 10%, var(--background));
-  --feed-shell-glow-primary: color-mix(in oklab, var(--primary) 9%, transparent);
-  --feed-shell-glow-secondary: color-mix(in oklab, var(--accent-foreground) 8%, transparent);
-  --feed-shell-haze: color-mix(in oklab, var(--sidebar-primary) 5%, transparent);
+  --feed-shell-glow-primary: color-mix(in oklab, var(--ambient) 9%, transparent);
+  --feed-shell-glow-secondary: color-mix(in oklab, var(--ambient) 6%, transparent);
+  --feed-shell-haze: color-mix(in oklab, var(--ambient) 4%, transparent);
   --feed-shell-veil: color-mix(in oklab, var(--background) 42%, transparent);
   --feed-shell-panel-end: color-mix(in oklab, var(--card) 76%, transparent);
   --feed-shell-card-end: color-mix(in oklab, var(--card) 84%, transparent);
@@ -143,9 +143,9 @@ const CONFIGURED_ATMOSPHERE = {
    */
   --feed-shell-base-mid: color-mix(in oklab, var(--ambient) 12%, var(--background));
   --feed-shell-base-end: color-mix(in oklab, var(--ambient) 22%, var(--background));
-  --feed-shell-glow-primary: color-mix(in oklab, var(--primary) 12%, transparent);
-  --feed-shell-glow-secondary: color-mix(in oklab, var(--accent-foreground) 10%, transparent);
-  --feed-shell-haze: color-mix(in oklab, var(--accent) 10%, transparent);
+  --feed-shell-glow-primary: color-mix(in oklab, var(--ambient) 12%, transparent);
+  --feed-shell-glow-secondary: color-mix(in oklab, var(--ambient) 8%, transparent);
+  --feed-shell-haze: color-mix(in oklab, var(--ambient) 5%, transparent);
   --feed-shell-veil: color-mix(in oklab, var(--background) 26%, transparent);
   --feed-shell-panel-end: color-mix(in oklab, var(--card) 70%, transparent);
   --feed-shell-card-end: color-mix(in oklab, var(--card) 78%, transparent);
