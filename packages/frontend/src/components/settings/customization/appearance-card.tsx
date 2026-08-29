@@ -23,10 +23,6 @@ const TEMPLATE_DETAILS: Record<string, { name: string; description: string }> = 
     name: 'Start from William Temple House',
     description: 'Blue, teal, and gold with the current FEED identity.',
   },
-  'template-st-johns-food-share': {
-    name: 'Start from St. Johns Food Share',
-    description: 'Teal, off-white, and charcoal with a generic replaceable template mark.',
-  },
 };
 
 type Confirmation =

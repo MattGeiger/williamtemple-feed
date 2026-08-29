@@ -59,6 +59,22 @@ export const ensureBrandTemplates = async (): Promise<void> => {
       update: { payload: template.payload, isTemplate: true, isActive: false },
     });
   }
+
+  // Templates are compiled in, so the code is the whole truth about which ones
+  // exist. Upserting alone only ever adds: a template dropped from
+  // `BRAND_TEMPLATES` stayed in the database and kept appearing in the wizard,
+  // which is how a retired starting point outlives its removal.
+  //
+  // Only templates are swept. An appearance somebody *built* from a template is
+  // an ordinary saved row with `isTemplate` false, and is untouched — as is an
+  // active one, which nothing here has any business deleting.
+  await prisma.brandConfiguration.deleteMany({
+    where: {
+      isTemplate: true,
+      isActive: false,
+      id: { notIn: BRAND_TEMPLATES.map((template) => template.id) },
+    },
+  });
 };
 
 /**
@@ -312,4 +328,4 @@ export const deactivateBrandConfiguration = async () =>
 
 export { parseBrandConfig } from './config-schema';
 export type { BrandConfig, BrandAssetReference } from './config-schema';
-export { BRAND_TEMPLATES, WTH_BRAND_CONFIG, ST_JOHNS_BRAND_CONFIG } from './presets';
+export { BRAND_TEMPLATES, FEED_TAGLINE, WTH_BRAND_CONFIG } from './presets';

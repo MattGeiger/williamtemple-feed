@@ -28,8 +28,8 @@ const config: BrandConfigurationPayload = {
     organizationWebsite: 'https://example.org/',
   },
   logo: {
-    light: { kind: 'builtin', src: '/brand/st-johns-template-mark.svg', width: 640, height: 220 },
-    dark: { kind: 'builtin', src: '/brand/st-johns-template-mark.svg', width: 640, height: 220 },
+    light: { kind: 'builtin', src: '/brand/placeholder-mark.svg', width: 640, height: 220 },
+    dark: { kind: 'builtin', src: '/brand/placeholder-mark.svg', width: 640, height: 220 },
   },
   colors: {
     accent: { l: 0.6, c: 0.15, h: 160 },

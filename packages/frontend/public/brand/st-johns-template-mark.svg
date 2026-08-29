@@ -1,9 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 220" role="img" aria-labelledby="title description">
-  <title id="title">St. Johns Food Share template mark</title>
-  <desc id="description">A generic FEED template mark to replace with organization-owned artwork.</desc>
-  <rect width="640" height="220" rx="28" fill="#f6f4ee"/>
-  <circle cx="108" cy="110" r="68" fill="#33a478"/>
-  <path d="M68 113c24-7 51-2 80 15v23c-28-16-55-22-80-15zm0-42c25 5 51 20 80 45v-32c-27-22-54-34-80-36z" fill="#fff"/>
-  <text x="202" y="103" fill="#2d2d2d" font-family="Arial, sans-serif" font-size="43" font-weight="700">St. Johns</text>
-  <text x="202" y="151" fill="#2d2d2d" font-family="Arial, sans-serif" font-size="38">Food Share</text>
-</svg>
