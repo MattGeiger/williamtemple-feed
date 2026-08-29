@@ -65,9 +65,10 @@ describe('the black-and-white rendering', () => {
     // to one value, so the ramp replaces them rather than transforming them.
     const converted = new Set(bw.palette);
     expect(converted.size).toBe(bw.palette.length);
-    expect(bw.palette).toEqual(
-      COLOUR_THEME.palette.map((_, i) => PRINT_GREYSCALE_SERIES[i % PRINT_GREYSCALE_SERIES.length])
-    );
+    // The ramp itself, at the ramp's length — not the colour palette's. Keeping
+    // the colour length wrapped the last entry onto a duplicate of the first,
+    // and left it solid, because texture starts where the palette array ends.
+    expect(bw.palette).toEqual([...PRINT_GREYSCALE_SERIES]);
   });
 
   it('keeps every series readable against paper', () => {
@@ -91,7 +92,7 @@ describe('the black-and-white rendering', () => {
       return Math.min(...used.slice(1).map((ratio, i) => used[i] / ratio));
     };
     expect(worstGapAmong(2)).toBeGreaterThan(5);
-    expect(worstGapAmong(3)).toBeGreaterThan(2.2);
+    expect(worstGapAmong(3)).toBeGreaterThan(2.1);
     for (let count = 4; count <= PRINT_GREYSCALE_SERIES.length; count += 1) {
       expect(worstGapAmong(count), `${count} series`).toBeGreaterThan(1.2);
     }

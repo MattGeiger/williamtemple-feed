@@ -25,12 +25,19 @@ All notable changes to FEED are documented here. This project adheres to
   lightness across seven steps between L 0.20 and L 0.66, the lightest clearing
   3:1 against white.
 
+  The ramp is six steps, not seven. Both ends are pinned by something real — the
+  light end by the 3:1 that WCAG 1.4.11 asks of a meaningful graphic, the dark
+  end by the ink — and while a seventh fits between them arithmetically, it sits
+  1.23x from its neighbour, which is about what a mono printer resolves. Six is
+  the honest count; the range past it is bought with texture rather than with a
+  step nobody can see.
+
   Those steps are handed out extremes-first rather than in lightness order. A
   chart takes the first *n* entries, so shipping the ladder in order gave the
-  common two-series chart the two darkest neighbouring steps — 1.23x apart, the
-  ramp's worst possible pair, and unreadable once printed. Bisecting the ladder
-  gives that chart 5.82x instead, and a three-series chart 2.25x, while a
-  seven-series chart is no worse than before.
+  common two-series chart the two darkest neighbouring steps — the ramp's worst
+  possible pair, and unreadable once printed. Bisecting gives that chart 5.82x
+  instead, and a three-series chart 2.15x, while a six-series chart is no worse
+  than before.
 
   Verified at the byte level on a real export: the colour PDF carries nine
   chromatic fills and the black-and-white one carries none, with the two series
@@ -41,10 +48,15 @@ All notable changes to FEED are documented here. This project adheres to
   Legacy Donations Over Time printed as seven greys and five exact duplicates,
   with the legend naming both members of each pair. An eighth grey is not the
   answer — the steps are already about as close as a mono printer resolves — so
-  series eight onward now reuse the same greys carrying a texture, hatched and
-  then cross-hatched.
+  series seven onward now reuse the same greys carrying a texture.
 
-  Solid greys are still spent first: a chart of seven or fewer series never
+  The textures vary by structure rather than by angle — rules, diagonals, dots,
+  a grid, a checker — and are drawn to roughly equal coverage. A hatch and a
+  cross-hatch, which is what this started as, are one family at two densities:
+  they read as more and less of the same thing, which is a magnitude, and
+  magnitude is the one thing a categorical series must not imply.
+
+  Solid greys are still spent first: a chart of six or fewer series never
   shows a pattern, and the colour rendering never shows one at all. Texture is
   noise, and it is worth paying only where grey has run out of steps and colour
   has not. The hatch is cut in the paper colour, so a textured series also
@@ -52,6 +64,41 @@ All notable changes to FEED are documented here. This project adheres to
   than filled, a 2-unit stroke being too thin to hold a pattern.
 
 ### Fixed
+
+- **Line charts were unreadable in black and white.** The greyscale work treated
+  a line as a small bar and gave it the fill ramp. A filled bar is a slab of
+  grey a centimetre across, where six levels separate cleanly; a series line is
+  a two-unit stroke crossing other strokes over a gridded plot, where it is
+  about three. Ten cards were affected — Service Over Time, Queue Volume, Call
+  Milestones, Seasonal Inbound Weight, Operational Pressure and the rest — and
+  no amount of reordering would have fixed it, because the ramp was the wrong
+  ramp.
+
+  Lines now take a three-level ramp and get the rest of their separation from
+  dashing, which is the channel a stroke has and an area does not. Three levels
+  against four dash styles is twelve distinguishable lines, which covers the
+  longest line card in the report; the worst pair among the levels is 2.15x
+  against 1.30x before. Lighter levels are stroked slightly heavier so the three
+  carry equal visual weight. Dashing starts at the fourth series rather than
+  waiting for the greys to run out, since waiting means six unreadable lines
+  first.
+
+  A line chart's legend is now drawn from the same source — a short dashed rule
+  rather than a filled square. A filled swatch beside a dashed line names the
+  right series with the wrong appearance, which is worse than no legend.
+
+- **Stacked bars printed a total and not its parts.** Demographics Questions
+  Response Rate showed how many households were asked and nothing about how many
+  answered, which is the question the card exists to answer; on screen that
+  split is a tooltip away, and print has no hover. Each segment now carries its
+  own value when the text fits inside it, in ink or paper according to what the
+  fill behind it carries.
+
+- **The seventh grey was a silent duplicate.** `greyscalePrintTheme` mapped over
+  the colour palette and kept *its* length, so the last entry wrapped onto a
+  copy of the first — and because texture begins where the palette array ends,
+  the copy came out solid rather than textured. The greyscale palette is now the
+  ramp itself, at the ramp's own length.
 
 - **The caution note stayed amber in the black-and-white PDF.** Its colours were
   literals in the document CSS rather than fields on the print theme, and only

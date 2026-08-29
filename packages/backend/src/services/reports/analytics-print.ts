@@ -20,6 +20,8 @@
 
 import type { Series } from './condense';
 
+import { PRINT_GREYSCALE_STROKES } from '../brand-theme/charts';
+import { contrastRatioHex } from '../brand-theme/color';
 import { boundaryRingsFor, placesFor } from './basemap';
 import { currentReportPrintTheme } from './print-theme';
 
@@ -32,33 +34,59 @@ const grid = () => currentReportPrintTheme().grid;
  *
  * Solid greys first, texture only once they run out.
  *
- * The greyscale ramp is seven steps. Past that it used to wrap, so the twelve
- * series on `procurement-legacy-donations-over-time` printed as seven greys and
- * five exact duplicates — two series the same shade with no way to tell which
- * was which. Adding an eighth grey does not help: the steps are already 1.23x
- * apart at the close end, which is about what a mono printer resolves.
+ * The greyscale ramp is six steps — the light end is capped by WCAG 1.4.11's
+ * 3:1 and the dark end by the ink, and six is what fits between them at a
+ * spacing a photocopier still resolves. Past that it used to wrap, so the
+ * twelve series on `procurement-legacy-donations-over-time` printed as a set of
+ * greys and a set of exact duplicates.
  *
- * So the ramp is spent as-is for the first seven series, and thereafter the
- * same seven greys come back carrying a texture. Texture is genuinely noisier
- * than a flat fill, which is the reason it is the extension and not the scheme:
- * a chart of seven or fewer series never sees one.
+ * The textures vary by **structure**, not by angle. A first pass used a hatch
+ * and a cross-hatch, which is one family at two densities: they read as "more
+ * hatched" and "less hatched", which is a magnitude, and magnitude is the one
+ * thing a categorical series must not imply. Dots, rules, diagonals, a grid and
+ * a checker are different *kinds* of mark, and are told apart at a glance and
+ * at a distance in a way that two hatch angles are not.
+ *
+ * They are also drawn to roughly equal coverage, for the same reason. A dense
+ * texture next to a sparse one reads as heavier, inventing a ranking among
+ * categories that have none.
  *
  * The lines are cut in the paper colour rather than drawn in a darker grey, so
- * a textured series reads lighter than the solid one it shares a step with —
- * separation from two directions instead of one.
+ * a textured series reads slightly lighter than the solid one it shares a step
+ * with — separation from two directions instead of one.
  */
 
 /** Tile side, in user units. Small enough to read inside a 2-unit bar. */
 const TEXTURE_TILE = 4;
 
+/**
+ * Index 0 is solid — no pattern element, the grey is used directly.
+ *
+ * The rest are hand-written because the alternative was worse, not because no
+ * library exists. `textures` and `svg-patterns` both carry a good catalogue,
+ * and both write into a d3 selection or a virtual-dom tree; this renderer
+ * builds SVG as strings in a process with no DOM, deliberately, so either one
+ * costs a DOM shim in the report path to deliver what is ultimately a dozen
+ * `<path d>` values. Both were last published in 2022 and `svg-patterns` pulls
+ * `virtual-dom`, unmaintained since 2016. Taking the geometry and leaving the
+ * rendering layer is the smaller and more durable dependency.
+ */
 const TEXTURES: readonly ((paper: string) => string)[] = [
-  // 0 is solid: no pattern element, the grey is used directly.
   () => '',
-  paper =>
-    `<path d="M-1,1 l2,-2 M0,4 l4,-4 M3,5 l2,-2" stroke="${paper}" stroke-width="1.1" fill="none"/>`,
-  paper =>
-    `<path d="M-1,1 l2,-2 M0,4 l4,-4 M3,5 l2,-2 M-1,3 l2,2 M0,0 l4,4 M3,-1 l2,2"` +
-    ` stroke="${paper}" stroke-width="1" fill="none"/>`,
+  // Rules: horizontal.
+  paper => `<path d="M0,1 h4 M0,3 h4" stroke="${paper}" stroke-width="1" fill="none"/>`,
+  // Diagonal, one way.
+  paper => `<path d="M-1,1 l2,-2 M0,4 l4,-4 M3,5 l2,-2" stroke="${paper}" stroke-width="1.1" fill="none"/>`,
+  // Dots: paper punched out of the grey.
+  paper => `<circle cx="1" cy="1" r="0.85" fill="${paper}"/><circle cx="3" cy="3" r="0.85" fill="${paper}"/>`,
+  // Rules: vertical.
+  paper => `<path d="M1,0 v4 M3,0 v4" stroke="${paper}" stroke-width="1" fill="none"/>`,
+  // Diagonal, the other way.
+  paper => `<path d="M-1,3 l2,2 M0,0 l4,4 M3,-1 l2,2" stroke="${paper}" stroke-width="1.1" fill="none"/>`,
+  // Grid.
+  paper => `<path d="M0,2 h4 M2,0 v4" stroke="${paper}" stroke-width="0.9" fill="none"/>`,
+  // Checker.
+  paper => `<path d="M0,0 h2 v2 h-2 z M2,2 h2 v2 h-2 z" fill="${paper}"/>`,
 ];
 
 /** Which grey and which texture series `si` gets. */
@@ -76,13 +104,29 @@ const textureIndexFor = (si: number) => {
  * Deterministic, and deliberately so.
  *
  * A page holds many card SVGs inline and each carries its own `<defs>`, so two
- * charts that both reach series eight emit the same id twice. A counter would
+ * charts that both reach series seven emit the same id twice. A counter would
  * avoid the duplicate but make the output differ run to run; instead the id is
  * a pure function of what it defines, so a collision resolves to an identical
  * pattern and renders correctly either way.
  */
 const textureId = (texture: number, grey: string) =>
   `feed-tx-${texture}-${grey.replace('#', '')}`;
+
+/**
+ * Text colour for a label sitting *on* series `si`.
+ *
+ * Ink or paper, whichever the fill carries better. Measured against the solid
+ * grey behind a texture rather than the texture itself: a patterned fill is
+ * part grey and part paper, so its effective luminance is somewhere between,
+ * and choosing against the grey is the conservative end of that range.
+ */
+export function seriesLabelInk(si: number): string {
+  const theme = currentReportPrintTheme();
+  const behind = textureIndexFor(si).grey;
+  return contrastRatioHex(theme.background, behind) >= contrastRatioHex(theme.ink, behind)
+    ? theme.background
+    : theme.ink;
+}
 
 /** Fill for series `si`: a grey, or a reference to a textured version of it. */
 export function seriesFill(si: number): string {
@@ -91,7 +135,7 @@ export function seriesFill(si: number): string {
 }
 
 /**
- * The `<defs>` a chart of `count` series needs. Empty for seven or fewer.
+ * The `<defs>` a chart of `count` series needs. Empty while the greys hold.
  *
  * Every SVG that draws series must include this, the legend included — a
  * legend swatch that does not carry the same texture as its bars is worse than
@@ -116,16 +160,49 @@ export function seriesDefs(count: number): string {
   return seen.size === 0 ? '' : `<defs>${[...seen.values()].join('')}</defs>`;
 }
 
-/**
- * Dash for series `si` on a line chart.
+/* ---------- series lines ----------
  *
- * Lines get the same treatment by a different mechanism: a one-unit stroke is
- * too thin to hold a fill pattern, and a dashed line is the oldest and quietest
- * way to say "a different series" on paper.
+ * A line is not a small bar, and treating it as one is what made every line
+ * card in the export hard to read.
+ *
+ * A filled bar is a slab of grey a centimetre across, where six levels separate
+ * cleanly. A series line is a two-unit stroke crossing other strokes over a
+ * gridded plot, and there it is about three. Handing a five-series line chart
+ * five fill greys gave it two pairs a reader cannot separate, and no amount of
+ * reordering fixes that, because the ramp was the wrong ramp.
+ *
+ * So lines take a three-level ramp and get the rest of their separation from
+ * dashing — the channel a stroke has and an area does not, and the oldest
+ * convention in printed technical drawing. Three greys against four dash
+ * styles is twelve distinguishable lines, which covers the longest line card
+ * in the report.
+ *
+ * Lighter greys are drawn slightly heavier so the levels carry equal visual
+ * weight; a 2-unit stroke at 3:1 and a 2-unit stroke at 18:1 do not.
  */
-export function seriesDash(si: number): string {
-  const { texture } = textureIndexFor(si);
-  return texture === 0 ? '' : ` stroke-dasharray="${['', '5 3', '1.5 2.5'][texture]}"`;
+
+const STROKE_DASHES: readonly string[] = ['', '6 3', '1.5 2.5', '7 2.5 1.5 2.5'];
+
+export interface SeriesLineStyle {
+  stroke: string;
+  /** Ready to interpolate into an element, `` ` `` included, or empty. */
+  dash: string;
+  width: number;
+}
+
+export function seriesLineStyle(si: number): SeriesLineStyle {
+  const theme = currentReportPrintTheme();
+  if (!theme.seriesPatterns) {
+    return { stroke: palette()[si % palette().length], dash: '', width: 2 };
+  }
+  const levels = PRINT_GREYSCALE_STROKES;
+  const level = si % levels.length;
+  const dash = STROKE_DASHES[Math.floor(si / levels.length) % STROKE_DASHES.length];
+  return {
+    stroke: levels[level],
+    dash: dash ? ` stroke-dasharray="${dash}"` : '',
+    width: [2, 2.2, 2.5][level] ?? 2,
+  };
 }
 
 const esc = (s: string) => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -323,16 +400,36 @@ export function stackedBarSvg(
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" font-family="Helvetica, Arial, sans-serif">${seriesDefs(series.length)}${ticks}${bars}</svg>`;
 }
 
-/** Legend drawn into the SVG, so it cannot be lost the way an HTML one is. */
-export function legendSvg(names: string[], width = 900): string {
+/**
+ * Legend drawn into the SVG, so it cannot be lost the way an HTML one is.
+ *
+ * `variant` must match the mark the legend is explaining. A line chart
+ * separates its series by stroke level and dash; a filled chart separates them
+ * by grey and texture, from a different and longer ramp. A swatch drawn from
+ * the wrong one names the right series with the wrong appearance, which is
+ * worse than no legend — it asserts a correspondence that is not there.
+ */
+export function legendSvg(
+  names: string[],
+  width = 900,
+  variant: 'fill' | 'line' = 'fill'
+): string {
   const items = names.map((n, i) => {
     const x = (i % 4) * (width / 4);
     const y = Math.floor(i / 4) * 18 + 12;
-    return `<rect x="${x}" y="${y - 8}" width="10" height="10" rx="2" fill="${seriesFill(i)}"/>` +
-      `<text x="${x + 15}" y="${y + 1}" font-size="11" fill="${ink()}">${esc(n)}</text>`;
+    const swatch = variant === 'line'
+      ? (() => {
+          const style = seriesLineStyle(i);
+          return `<line x1="${x}" y1="${y - 3}" x2="${x + 12}" y2="${y - 3}" stroke="${style.stroke}"` +
+            ` stroke-width="${style.width}" stroke-linecap="round"${style.dash}/>`;
+        })()
+      : `<rect x="${x}" y="${y - 8}" width="10" height="10" rx="2" fill="${seriesFill(i)}"/>`;
+    return swatch +
+      `<text x="${x + 17}" y="${y + 1}" font-size="11" fill="${ink()}">${esc(n)}</text>`;
   }).join('');
   const rows = Math.ceil(names.length / 4);
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${rows * 18 + 6}" font-family="Helvetica, Arial, sans-serif">${seriesDefs(names.length)}${items}</svg>`;
+  const defs = variant === 'line' ? '' : seriesDefs(names.length);
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${rows * 18 + 6}" font-family="Helvetica, Arial, sans-serif">${defs}${items}</svg>`;
 }
 
 /**
@@ -386,8 +483,7 @@ export function lineChartSvg(
   }).join('');
 
   const lines = series.map((s, si) => {
-    const stroke = palette()[si % palette().length];
-    const dash = seriesDash(si);
+    const { stroke, dash, width: strokeW } = seriesLineStyle(si);
     const runs: number[][] = [];
     s.values.forEach((_, index) => {
       if (s.defined?.[index] === false) return;
@@ -406,7 +502,7 @@ export function lineChartSvg(
           : '';
       const mark = run.length === 1
         ? `<circle cx="${x(run[0]).toFixed(1)}" cy="${y(s.values[run[0]]).toFixed(1)}" r="2.5" fill="${stroke}"/>`
-        : `<polyline points="${points}" fill="none" stroke="${stroke}" stroke-width="2" stroke-linejoin="round"${dash}/>`;
+        : `<polyline points="${points}" fill="none" stroke="${stroke}" stroke-width="${strokeW}" stroke-linejoin="round" stroke-linecap="round"${dash}/>`;
       return area + mark;
     }).join('');
   }).join('');
@@ -446,7 +542,7 @@ export function lineChartSvg(
         return positions.map(candidate => {
           const pointX = x(candidate.index);
           const pointY = candidate.desiredY;
-          const color = palette()[candidate.si % palette().length];
+          const color = seriesLineStyle(candidate.si).stroke;
           return `<line x1="${pointX.toFixed(1)}" y1="${pointY.toFixed(1)}" x2="${(pointX + 5).toFixed(1)}" y2="${candidate.labelY.toFixed(1)}" stroke="${color}" stroke-width="1"/>` +
             `<text data-end-label="${escAttribute(candidate.series.name)}" x="${(pointX + 8).toFixed(1)}" y="${(candidate.labelY + 4).toFixed(1)}" font-size="10" font-weight="700" fill="${color}">${esc((options.formatValue ?? COUNT)(candidate.series.values[candidate.index]))}</text>`;
         }).join('');
@@ -491,8 +587,17 @@ export function stackedHBarSvg(
       if (v <= 0) return '';
       const w = (v / max) * chartW;
       const rect = `<rect x="${x.toFixed(1)}" y="${y + 4}" width="${w.toFixed(1)}" height="${rowH - 12}" fill="${seriesFill(si)}"/>`;
+      // The row total alone does not say how it split, and on screen that is
+      // what the tooltip is for. Print has no hover, so each part is written
+      // into its own segment when it fits — and simply left out when it does
+      // not, rather than spilling over a neighbour it does not belong to.
+      const text = formatValue(v);
+      const label = textWidth(text, 9) + 8 <= w
+        ? `<text x="${(x + w / 2).toFixed(1)}" y="${y + rowH / 2 + 3.5}" font-size="9"` +
+          ` text-anchor="middle" fill="${seriesLabelInk(si)}">${esc(text)}</text>`
+        : '';
       x += w;
-      return rect;
+      return rect + label;
     }).join('');
     return `<text x="0" y="${y + rowH / 2 + 4}" font-size="11" fill="${ink()}">${esc(truncateToWidth(label, labelMaxW, 11))}</text>` +
       segments +

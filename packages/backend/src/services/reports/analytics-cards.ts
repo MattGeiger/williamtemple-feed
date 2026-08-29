@@ -720,7 +720,7 @@ export const SEASONAL_INBOUND_WEIGHT: AnalyticsCard = {
   // Lines, not stacked bars: stacking years would sum unrelated periods into a
   // total the screen never shows and nobody asked for.
   print: data =>
-    lineChartSvg(data.categories, data.series) + legendSvg(data.series.map(s => s.name)),
+    lineChartSvg(data.categories, data.series) + legendSvg(data.series.map(s => s.name), 900, 'line'),
 };
 
 
@@ -1253,7 +1253,7 @@ export const AVAILABLE_ASSORTMENT_OVER_TIME: AnalyticsCard = {
   },
   print: data =>
     lineChartSvg(data.categories, data.series, 900, 300, true) +
-    legendSvg(data.series.map(s => s.name)),
+    legendSvg(data.series.map(s => s.name), 900, 'line'),
 };
 
 
@@ -1448,7 +1448,7 @@ export const OPERATIONAL_PRESSURE: AnalyticsCard = {
       endLabels: true,
       formatValue: COUNT,
     }) +
-    legendSvg(data.series.map(s => s.name)),
+    legendSvg(data.series.map(s => s.name), 900, 'line'),
 };
 
 
@@ -1672,7 +1672,7 @@ export const FRESH_ALLIANCE_DONATIONS_OVER_TIME: AnalyticsCard = {
   },
   print: data =>
     lineChartSvg(data.categories, data.series, 900, 300) +
-    legendSvg(data.series.map(s => s.name)),
+    legendSvg(data.series.map(s => s.name), 900, 'line'),
 };
 
 
@@ -1803,7 +1803,7 @@ export const LEGACY_DONATIONS_OVER_TIME: AnalyticsCard = {
   },
   print: data =>
     lineChartSvg(data.categories, data.series, 900, 300) +
-    legendSvg(data.series.map(s => s.name)),
+    legendSvg(data.series.map(s => s.name), 900, 'line'),
 };
 
 
@@ -1870,7 +1870,7 @@ export const PROCUREMENT_SPEND_OVER_TIME: AnalyticsCard = {
     };
   },
   print: data => lineChartSvg(data.categories, data.series, 900, 280, false, { formatValue: DOLLARS })
-    + legendSvg(data.series.map(s => s.name)),
+    + legendSvg(data.series.map(s => s.name), 900, 'line'),
 };
 
 /* ---------------------------------------------------------------- service */
@@ -2063,7 +2063,7 @@ export const SERVICE_OVER_TIME: AnalyticsCard = {
   },
   print: data =>
     lineChartSvg(data.categories, data.series, 900, 280, false, { formatValue: COUNT }) +
-    legendSvg(data.series.map(s => s.name)),
+    legendSvg(data.series.map(s => s.name), 900, 'line'),
 };
 
 export const SERVICE_QUEUE_TIMING: AnalyticsCard = {
@@ -2164,7 +2164,7 @@ export const SERVICE_QUEUE_VOLUME: AnalyticsCard = {
   },
   print: data =>
     lineChartSvg(data.categories, data.series, 900, 280, false, { formatValue: COUNT })
-    + legendSvg(data.series.map((series) => series.name)),
+    + legendSvg(data.series.map((series) => series.name), 900, 'line'),
 };
 
 export const SERVICE_QUEUE_CALL_MILESTONES: AnalyticsCard = {
@@ -2193,7 +2193,7 @@ export const SERVICE_QUEUE_CALL_MILESTONES: AnalyticsCard = {
     lineChartSvg(data.categories, data.series, 900, 280, false, {
       domain: localClockDomain(data.series),
       formatAxisValue: localClockLabel,
-    }) + legendSvg(data.series.map((series) => series.name)),
+    }) + legendSvg(data.series.map((series) => series.name), 900, 'line'),
 };
 
 export const SERVICE_SEASONAL_HOUSEHOLDS: AnalyticsCard = {
@@ -2239,7 +2239,7 @@ export const SERVICE_SEASONAL_HOUSEHOLDS: AnalyticsCard = {
   },
   print: data =>
     lineChartSvg(data.categories, data.series, 900, 280, false, { formatValue: COUNT }) +
-    legendSvg(data.series.map(s => s.name)),
+    legendSvg(data.series.map(s => s.name), 900, 'line'),
 };
 
 export const SERVICE_METHOD_MIX: AnalyticsCard = {
@@ -2280,7 +2280,7 @@ export const SERVICE_METHOD_MIX: AnalyticsCard = {
   },
   print: data =>
     lineChartSvg(data.categories, data.series, 900, 280, false, { formatValue: COUNT }) +
-    legendSvg(data.series.map(s => s.name)),
+    legendSvg(data.series.map(s => s.name), 900, 'line'),
 };
 
 export const SERVICE_HOUSEHOLD_SIZE: AnalyticsCard = {
