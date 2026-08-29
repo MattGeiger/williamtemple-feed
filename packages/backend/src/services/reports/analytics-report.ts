@@ -10,7 +10,12 @@ import JSZip from 'jszip';
 import { renderHtmlToPdf } from '../pdf/chromium';
 import { printBrand } from '../brand-config';
 import { cardCsv, getAnalyticsCard, type CardData, type CsvGrain } from './analytics-cards';
-import { greyscalePrintTheme, withReportPrintTheme, type ReportPrintTheme } from './print-theme';
+import {
+  DEFAULT_REPORT_PRINT_THEME,
+  greyscalePrintTheme,
+  withReportPrintTheme,
+  type ReportPrintTheme,
+} from './print-theme';
 
 /**
  * Assembles a selection of Analytics cards into one downloadable archive.
@@ -118,7 +123,8 @@ const documentHtml = (
           border:1px solid ${theme.grid}; border-radius:8px; padding:14px 16px; }
   .card h2 { font-size:13px; margin:0 0 6px 0; color:${theme.primary};
              text-transform:uppercase; letter-spacing:.06em; }
-  .note { font-size:10px; color:#8A5A00; background:#FFF8E1; border:1px solid #FFE9A8;
+  .note { font-size:10px; color:${theme.note.ink}; background:${theme.note.background};
+          border:1px solid ${theme.note.border};
           border-radius:4px; padding:5px 8px; margin:0 0 10px 0; }
   svg { max-width:100%; height:auto; display:block; }
 </style></head><body>
@@ -192,6 +198,7 @@ export async function buildAnalyticsReport(
     background: brand.colors.background,
     primary: brand.colors.primary,
     primarySoft: brand.colors.accent,
+    note: DEFAULT_REPORT_PRINT_THEME.note,
   };
   const ids = request.cardIds.slice(0, MAX_CARDS);
   const unknownCardIds: string[] = [];

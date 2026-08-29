@@ -101,7 +101,34 @@ export const seriesColor = (
  * at 3.11:1, and adjacent steps differ by 1.23–1.39x in contrast, which is a
  * visible difference in grey.
  */
-export const PRINT_GREYSCALE_SERIES: readonly string[] = Array.from(
-  { length: 7 },
-  (_, index) => oklchToHex({ l: 0.2 + (0.66 - 0.2) * (index / 6), c: 0, h: 0 })
+/**
+ * The ladder itself: seven greys spaced evenly in perceptual lightness between
+ * L 0.20 and L 0.66. The lightest clears 3:1 against white, which WCAG 1.4.11
+ * asks of a meaningful non-text graphic.
+ */
+const GREYSCALE_LADDER = Array.from({ length: 7 }, (_, index) =>
+  oklchToHex({ l: 0.2 + (0.66 - 0.2) * (index / 6), c: 0, h: 0 })
+);
+
+/**
+ * Presentation order: ends first, then the middle, then the gaps.
+ *
+ * Charts take `palette[seriesIndex]`, so the order decides what a two-series
+ * chart gets — and shipping the ladder in ascending order gave it the two
+ * darkest neighbours. A stacked bar of "answered" against "not answered" came
+ * out as two near-identical blacks, separated by a contrast ratio of 1.23.
+ *
+ * Bisecting instead means the first two series are the ends of the ladder and
+ * every later one lands in the largest remaining gap, so separation degrades
+ * gracefully as series are added rather than starting at its worst:
+ *
+ *   2 series  5.82x   3 series  2.24x   4 series  1.36x   5+  1.23x
+ *
+ * Most report charts carry two or three series, which is where the difference
+ * between 5.82 and 1.23 decides whether the chart can be read at all.
+ */
+const BISECTED = [0, 6, 3, 5, 1, 4, 2];
+
+export const PRINT_GREYSCALE_SERIES: readonly string[] = BISECTED.map(
+  index => GREYSCALE_LADDER[index]
 );

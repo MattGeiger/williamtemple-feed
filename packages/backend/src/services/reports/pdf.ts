@@ -25,7 +25,8 @@ import { printBrand } from '../brand-config';
 import { TabResults } from '../inventory-analytics';
 import { ReportCardDefinition } from './card-registry';
 import type { DashboardSnapshot } from './dashboard';
-import { currentReportPrintTheme, withReportPrintTheme, type ReportPrintTheme } from './print-theme';
+import {
+  DEFAULT_REPORT_PRINT_THEME, currentReportPrintTheme, withReportPrintTheme, type ReportPrintTheme } from './print-theme';
 
 // ---- shared print formatting (mirrors the frontend display helpers) --------
 
@@ -554,6 +555,7 @@ export async function renderReportPdfHtml(
     grid: brand.colors.border,
     background: brand.colors.background,
     primary: brand.colors.primary,
+    note: DEFAULT_REPORT_PRINT_THEME.note,
     primarySoft: brand.colors.accent,
   };
   const context: RenderContext = {

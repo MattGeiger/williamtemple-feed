@@ -148,6 +148,32 @@ lightness between L 0.20 and L 0.66:
 The lightest step clears 3:1 (WCAG 1.4.11 for meaningful graphics) and adjacent
 steps differ by 1.23–1.39x in contrast, which is a visible difference in grey.
 
+**The order the ladder is handed out matters more than the ladder.** Charts take
+`palette[0]`, `palette[1]`, and so on in sequence, so a two-series chart gets
+whatever the first two entries are. Shipping the ladder in lightness order gave
+that chart steps 1 and 2 — the two darkest *neighbours*, 1.23x apart, which is
+the ramp's worst possible pair and was unreadable in print. The fix is to spend
+the extremes first and subdivide from there, a bisection order:
+
+    [0, 6, 3, 5, 1, 4, 2]
+
+Separation then degrades gracefully instead of starting at its worst. Measured
+as the smallest contrast gap between any two series a chart of *n* bars gets:
+
+| series | worst pair | before (sequential) |
+| ------ | ---------- | ------------------- |
+| 2      | 5.82x      | 1.23x               |
+| 3      | 2.25x      | 1.23x               |
+| 4      | 1.36x      | 1.23x               |
+| 5–7    | 1.23x      | 1.23x               |
+
+Two- and three-series charts are the common case and are now unmistakable; a
+seven-series chart is no worse than it was.
+
+Past seven series the ramp wraps and repeats greys, which is a real limitation
+and the reason to extend the range with fills rather than more grey steps —
+solid greys first, patterns only once the greys run out.
+
 One trap worth recording. `card.print` reads the print theme from an
 async-local scope and bakes the series colours into the SVG it returns, so
 rendering the cards once and handing the same SVG strings to both variants
@@ -156,3 +182,12 @@ Carbon. The charts must be drawn once per variant; only the card *data* is
 computed once, because it does not depend on colour. This was caught by
 inspecting the PDF's own colour operators rather than by looking at the file,
 and `greyscale-print.test.ts` now holds the theme half of it.
+
+A second trap, same shape: any colour written as a literal in the document CSS
+rather than read from the theme cannot be greyscaled, because
+`greyscalePrintTheme` only transforms the theme. The caution-note box shipped
+amber (`#FFF8E1` on `#8A5A00`) hardcoded in `analytics-report.ts`, so it stayed
+amber in a PDF that was supposed to have no colour in it. It is now
+`theme.note`, and the check that catches this class of bug is to decompress the
+PDF's content streams and assert that **no** `rg` operator has unequal
+components — not to read the CSS.
