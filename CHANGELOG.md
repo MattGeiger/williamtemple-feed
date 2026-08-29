@@ -36,6 +36,21 @@ All notable changes to FEED are documented here. This project adheres to
   chromatic fills and the black-and-white one carries none, with the two series
   landing on opposite ends of the ramp. The manifest names both files.
 
+- **Charts with more than seven series stay readable in black and white.** The
+  greyscale ramp is seven steps, and past that it wrapped: the twelve series on
+  Legacy Donations Over Time printed as seven greys and five exact duplicates,
+  with the legend naming both members of each pair. An eighth grey is not the
+  answer — the steps are already about as close as a mono printer resolves — so
+  series eight onward now reuse the same greys carrying a texture, hatched and
+  then cross-hatched.
+
+  Solid greys are still spent first: a chart of seven or fewer series never
+  shows a pattern, and the colour rendering never shows one at all. Texture is
+  noise, and it is worth paying only where grey has run out of steps and colour
+  has not. The hatch is cut in the paper colour, so a textured series also
+  reads lighter than the solid one sharing its step. Lines are dashed rather
+  than filled, a 2-unit stroke being too thin to hold a pattern.
+
 ### Fixed
 
 - **The caution note stayed amber in the black-and-white PDF.** Its colours were
