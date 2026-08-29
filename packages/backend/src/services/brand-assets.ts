@@ -148,7 +148,13 @@ export const prepareBrandAsset = async (buffer: Buffer): Promise<PreparedBrandAs
   try {
     if (looksLikeSvg(buffer)) {
       const data = sanitizeBrandSvg(buffer);
-      const metadata = await sharp(data, { failOn: 'error', limitInputPixels: 40_000_000 }).metadata();
+      // No pixel limit here, deliberately. Reading an SVG's dimensions does not
+      // decode anything — the limit would only reject a large *artboard*, which
+      // says nothing about cost. A vector's real expense is rasterisation, and
+      // that is bounded by the output size in `rasterDensityFor`, not by the
+      // coordinate system it was drawn in. The upload size cap and the
+      // sanitiser remain the guards on the source itself.
+      const metadata = await sharp(data, { failOn: 'error', limitInputPixels: false }).metadata();
       if (!metadata.width || !metadata.height) {
         throw badAsset('FEED could not determine that SVG logo’s dimensions. Add a viewBox or width and height, then try again.');
       }
@@ -199,13 +205,117 @@ export const storeBrandAsset = async (prepared: PreparedBrandAsset, filename: st
   };
 };
 
+/**
+ * Density that renders a vector at the size we actually need.
+ *
+ * `density` is DPI relative to the SVG's OWN coordinate system, not to the
+ * output. A fixed 300 therefore scales the viewBox by 300/72 ≈ 4.17×, so cost
+ * depended on whatever coordinate system the designer happened to export
+ * rather than on the size being produced. A 5120px viewBox — an ordinary
+ * Illustrator artboard — rasterised to 21,333px per side, or 455 million
+ * pixels against sharp's 40 million limit, and threw `Input image exceeds
+ * pixel limit` before any resize could shrink it. Every SVG app mark with a
+ * viewBox above ~1518px failed to upload, and since that is a plain sharp
+ * error rather than a `badAsset` it surfaced as the generic 500.
+ *
+ * Deriving the density from the target keeps the supersampling that made 300
+ * attractive — the render is still twice the output before it is filtered down
+ * — while making the raster exactly as large as it needs to be. The bounds are
+ * only for degenerate viewBoxes; in the normal case the rendered size is the
+ * target, whatever the artboard.
+ */
+const VECTOR_SUPERSAMPLE = 2;
+
+const rasterDensityFor = (prepared: PreparedBrandAsset, size: number): number => {
+  const intrinsic = Math.max(prepared.width, prepared.height);
+  if (!Number.isFinite(intrinsic) || intrinsic <= 0) return 72;
+  return Math.min(2400, Math.max(0.01, (72 * size * VECTOR_SUPERSAMPLE) / intrinsic));
+};
+
+/**
+ * Guess whether a logo needs a dark plate behind it in light mode.
+ *
+ * The tell is a mark drawn for placing over photography: a transparent ground
+ * with light artwork on it. On FEED's light surface that artwork is close to
+ * invisible, and the person uploading it usually cannot see the problem
+ * because their source file is being previewed on a dark canvas.
+ *
+ * Measured on the actual pixels rather than guessed from the file: rasterise
+ * small, then ask what fraction of the image is transparent and how light the
+ * artwork that remains is. Both conditions must hold. A light mark on an opaque
+ * light background is a different problem and not one a plate fixes, and a dark
+ * mark on a transparent ground is exactly what the light surface wants.
+ *
+ * This is a suggestion, never a decision — it is returned with the upload for
+ * the wizard to offer, and the person can always say otherwise.
+ */
+export type LogoPresentationHint = {
+  suggested: 'transparent' | 'dark-surface';
+  transparentFraction: number;
+  artworkLightness: number;
+  reason: string;
+};
+
+const TRANSPARENT_ALPHA = 32;   // out of 255; anti-aliased edges are not "ground"
+const MOSTLY_TRANSPARENT = 0.2; // a fifth of the frame with nothing in it
+const LIGHT_ARTWORK = 0.62;     // mean relative luminance of what is drawn
+
+export const describeLogoPresentation = async (
+  prepared: PreparedBrandAsset,
+): Promise<LogoPresentationHint> => {
+  const density = prepared.isVector ? rasterDensityFor(prepared, 96) : undefined;
+  const { data, info } = await sharp(prepared.data, {
+    ...(density === undefined ? {} : { density }),
+    failOn: 'error',
+    limitInputPixels: 40_000_000,
+  })
+    .resize(96, 96, { fit: 'inside', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+
+  let transparent = 0;
+  let drawn = 0;
+  let luminance = 0;
+  for (let i = 0; i < data.length; i += info.channels) {
+    const alpha = data[i + 3];
+    if (alpha < TRANSPARENT_ALPHA) {
+      transparent += 1;
+      continue;
+    }
+    drawn += 1;
+    // Rec. 709 relative luminance, which tracks perceived lightness far better
+    // than a flat channel average on saturated brand colours.
+    luminance += (0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2]) / 255;
+  }
+
+  const total = transparent + drawn;
+  const transparentFraction = total ? transparent / total : 0;
+  const artworkLightness = drawn ? luminance / drawn : 0;
+  const needsPlate =
+    transparentFraction >= MOSTLY_TRANSPARENT && artworkLightness >= LIGHT_ARTWORK;
+
+  return {
+    suggested: needsPlate ? 'dark-surface' : 'transparent',
+    transparentFraction,
+    artworkLightness,
+    reason: needsPlate
+      ? `This mark is ${Math.round(transparentFraction * 100)}% transparent and what is drawn is light, so it would nearly disappear on a light page. FEED can give it a dark plate.`
+      : 'This mark reads on a light page, so it is placed directly on the background.',
+  };
+};
+
 export const storeSquareBrandDerivative = async (
   prepared: PreparedBrandAsset,
   filename: string,
   size: number,
 ) => {
   const input = prepared.isVector
-    ? sharp(prepared.data, { density: 300, failOn: 'error', limitInputPixels: 40_000_000 })
+    ? sharp(prepared.data, {
+        density: rasterDensityFor(prepared, size),
+        failOn: 'error',
+        limitInputPixels: 40_000_000,
+      })
     : sharp(prepared.data, { failOn: 'error', limitInputPixels: 40_000_000 });
   const output = await input
     .resize(size, size, { fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 0 } })
