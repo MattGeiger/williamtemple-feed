@@ -213,6 +213,30 @@ export const previewBrandConfiguration = (payload: unknown) => {
    */
   const hierarchy = parsed.config.colors.hierarchy.map((color) => {
     const candidate = snap(color, 'chromatic');
+    /**
+     * A short list of alternatives near the same colour, one per family.
+     *
+     * Extracting from a logo lands somewhere arbitrary in colour space, and the
+     * single nearest stop is rarely the only reasonable answer. Offering the
+     * neighbouring families turns an open-ended choice into a small set of
+     * defensible ones, which is faster to decide and cannot land outside the
+     * palette.
+     */
+    const seenFamily = new Set<string>();
+    const nearby = snapCandidates(color, 'chromatic', 200)
+      .filter(({ entry }) => {
+        if (seenFamily.has(entry.family)) return false;
+        seenFamily.add(entry.family);
+        return true;
+      })
+      .slice(0, 6)
+      .map(({ entry, distance }) => ({
+        name: `${entry.family}-${entry.stop}`,
+        family: entry.family,
+        stop: entry.stop,
+        color: oklchToHex(entry),
+        distance,
+      }));
     return {
       family: candidate.entry.family,
       stop: candidate.entry.stop,
@@ -220,6 +244,7 @@ export const previewBrandConfiguration = (payload: unknown) => {
       color: oklchToHex(candidate.entry),
       requestedColor: oklchToHex(color),
       distance: candidate.distance,
+      nearby,
     };
   });
   return {

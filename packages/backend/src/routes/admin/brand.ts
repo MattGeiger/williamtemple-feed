@@ -3,6 +3,9 @@
 
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import multer from 'multer';
+
+import { oklchToHex } from '../../services/brand-theme/color';
+import { TAILWIND_PALETTE, isNeutralFamily } from '../../services/brand-theme/palettes';
 import prisma from '../../db';
 import { auditActorFrom } from '../../middleware/auth/require-admin';
 import {
@@ -34,6 +37,26 @@ router.get('/', async (_req, res, next) => {
     const configurations = await prisma.brandConfiguration.findMany({ orderBy: [{ isTemplate: 'desc' }, { updatedAt: 'desc' }] });
     return res.json({ configurations, activeId: configurations.find((row) => row.isActive)?.id ?? null });
   } catch (error) { return next(error); }
+});
+
+/**
+ * The palette the appearance wizard is allowed to choose from.
+ *
+ * Served rather than duplicated in the frontend so `palettes.ts` stays the one
+ * definition of what a brand colour may be. It never changes at runtime, so it
+ * is safe to cache hard.
+ */
+router.get('/palette', (_req, res) => {
+  res.setHeader('Cache-Control', 'public, max-age=86400, immutable');
+  return res.json({
+    palette: TAILWIND_PALETTE.map((entry) => ({
+      name: `${entry.family}-${entry.stop}`,
+      family: entry.family,
+      stop: entry.stop,
+      color: oklchToHex(entry),
+      neutral: isNeutralFamily(entry.family),
+    })),
+  });
 });
 
 router.post('/preview', async (req, res, next) => {
