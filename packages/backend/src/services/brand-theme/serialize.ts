@@ -29,9 +29,32 @@ export const hslTriplet = (color: Parameters<typeof oklchToHsl>[0]): string => {
   return `${round(h, 1)} ${round(s, 1)}% ${round(l, 1)}%`;
 };
 
-/** `oklch(0.145 0.021 263)` — the active v1.7.5 shape. */
+/**
+ * `oklch(14.5% 0.021 263)` — the active v1.7.5 shape.
+ *
+ * Lightness is emitted as a PERCENTAGE, and this is load bearing. Safari 15.4
+ * — the engine on the iPad mini 4, which is on the iPadOS 15 security branch —
+ * parses `oklch(44.8% 0.119 151.3)` and rejects `oklch(0.448 0.119 151.3)`.
+ * Same colour, same channel values, only the notation differs; the bare-number
+ * lightness form landed later. Measured on-device:
+ *
+ *   CSS.supports('color', 'oklch(44.8% 0.119 151.3)')  ->  true
+ *   CSS.supports('color', 'oklch(0.448 0.119 151.3)')  ->  false
+ *
+ * An unsupported value is dropped at computed-value time, so with the number
+ * form every runtime brand token fell back to `rgba(0, 0, 0, 0)`: cards,
+ * popovers and modal surfaces lost their fill and `--border` collapsed to
+ * `currentColor`. The compiled default was never affected, because Tailwind
+ * authors percentages and `index.css` passes through the build. Runtime brand
+ * CSS is injected straight into <head> via /api/brand/theme.css and reaches no
+ * build step, so it has to be legacy-safe at emit time.
+ *
+ * Percentage lightness is equally valid in the current spec (44.8% === 0.448),
+ * so one form serves every engine and no `@supports` layer is needed. Do not
+ * "simplify" this back to a bare number.
+ */
 export const oklchLiteral = ({ l, c, h }: { l: number; c: number; h: number }): string =>
-  `oklch(${round(l, 4)} ${round(c, 4)} ${round(h, 1)})`;
+  `oklch(${round(l * 100, 2)}% ${round(c, 4)} ${round(h, 1)})`;
 
 type Formatter = (color: { l: number; c: number; h: number }) => string;
 

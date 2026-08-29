@@ -55,10 +55,35 @@ describe('the legacy HSL stylesheet serializer', () => {
 describe('the v1.7.5 serializer', () => {
   it('emits oklch() from the same token map, unchanged', () => {
     const css = serializeOklch(theme);
-    expect(css).toMatch(/--background:\s*oklch\([\d.]+ [\d.]+ [\d.-]+\);/);
+    expect(css).toMatch(/--background:\s*oklch\([\d.]+% [\d.]+ [\d.-]+\);/);
     // Same structure, same tokens — only the literal differs.
     for (const token of BRAND_TOKENS) {
       expect(css).toContain(`--${token}:`);
+    }
+  });
+
+  // Safari 15.4 (iPad mini 4, iPadOS 15 branch) parses percentage lightness and
+  // rejects the bare-number form, dropping every token to rgba(0, 0, 0, 0).
+  // Runtime brand CSS is injected straight into <head> and reaches no build
+  // step, so the emitted literal is the only place this can be got right.
+  it('never emits a bare-number lightness, which Safari 15.4 discards', () => {
+    const css = serializeOklch(theme);
+    const bareNumberLightness = /oklch\(\s*[\d.]+\s+/g;
+    expect(css.match(bareNumberLightness)).toBeNull();
+    expect(css).toContain('oklch(');
+  });
+
+  it('keeps percentage lightness numerically equal to the token map', () => {
+    const css = serializeOklch(theme);
+    for (const [token, value] of Object.entries(theme)) {
+      const hit = new RegExp(`--${token}:\\s*oklch\\(([\\d.]+)%`).exec(css);
+      if (!hit) continue;
+      // 44.8% is the same colour as 0.448 — the conversion must be exact to
+      // the emitted precision, not merely close.
+      expect(Number(hit[1]) / 100).toBeCloseTo(
+        Number((value as { l: number }).l.toFixed(4)),
+        3
+      );
     }
   });
 });
