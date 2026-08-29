@@ -39,6 +39,108 @@ function getTransitionOrigin(trigger?: HTMLElement | null) {
   }
 }
 
+/**
+ * The circular reveal without the View Transitions API.
+ *
+ * `document.startViewTransition` is absent on Safari 15.4 — the engine on the
+ * iPad mini 4 — so the theme change there was correct but instantaneous. This
+ * reproduces the same sweep using only `transform` and `opacity`, which every
+ * engine FEED runs on animates on the compositor.
+ *
+ * The API's whole job is snapshotting the old frame for us; without it we have
+ * to hold that frame ourselves. So: cover the screen in the OUTGOING
+ * background, flip the theme underneath where it cannot be seen, then grow a
+ * disc of the INCOMING background from the trigger. The disc is read after the
+ * flip rather than predicted, which keeps this independent of which theme is
+ * arriving — "system" resolves to whatever it resolves to.
+ *
+ * Scaling a border-radius disc is used rather than animating `clip-path`,
+ * which older WebKit will not interpolate.
+ */
+let fallbackRunning = false
+
+function runFallbackReveal(
+  origin: { x: number; y: number },
+  endRadius: number,
+  update: () => void
+) {
+  const read = (el: Element | null) =>
+    el ? getComputedStyle(el).backgroundColor : ""
+
+  // Only a genuinely zero ALPHA disqualifies a colour. Sniffing for a trailing
+  // ", 0)" instead would also reject `rgb(0, 0, 0)` — and FEED's dark theme
+  // background is true black, so the disc would have been painted white on
+  // every switch into dark and flashed before it was removed.
+  const opaque = (c: string) => {
+    if (!c || c === "transparent") return false
+    const fn = /^rgba?\(([^)]+)\)$/.exec(c)
+    if (!fn) return true // oklch(), color(), lab(): a painted colour
+    const parts = fn[1].split(/[,/]/).map((part) => part.trim())
+    return parts.length < 4 || parseFloat(parts[3]) !== 0
+  }
+
+  const outgoing =
+    [read(document.body), read(document.documentElement)].find(opaque) ?? "#fff"
+
+  const layer = (color: string) => {
+    const el = document.createElement("div")
+    el.style.cssText =
+      "position:fixed;pointer-events:none;margin:0;padding:0;" +
+      "will-change:transform,opacity;"
+    el.style.background = color
+    document.body.appendChild(el)
+    return el
+  }
+
+  // Holds the outgoing frame so the class flip underneath is never visible.
+  const hold = layer(outgoing)
+  hold.style.inset = "0"
+  hold.style.zIndex = "2147483646"
+
+  flushSync(update)
+
+  const incoming =
+    [read(document.body), read(document.documentElement)].find(opaque) ?? "#fff"
+
+  const size = endRadius * 2
+  const disc = layer(incoming)
+  disc.style.left = `${origin.x - endRadius}px`
+  disc.style.top = `${origin.y - endRadius}px`
+  disc.style.width = `${size}px`
+  disc.style.height = `${size}px`
+  disc.style.borderRadius = "50%"
+  disc.style.zIndex = "2147483647"
+  disc.style.transform = "scale(0)"
+
+  const cleanup = () => {
+    hold.remove()
+    disc.remove()
+    fallbackRunning = false
+  }
+
+  const sweep = disc.animate(
+    { transform: ["scale(0)", "scale(1)"] },
+    // Matches the View Transitions path's easing; shorter, because this sweep
+    // carries a flat colour rather than a snapshot of the outgoing UI and so
+    // has less to look at while it travels.
+    { duration: 700, easing: "cubic-bezier(0.64, 0, 0.36, 1)", fill: "forwards" }
+  )
+
+  sweep.finished
+    .then(() => {
+      // The disc now matches the real background exactly, so dropping the hold
+      // reveals nothing; fading the disc lets the incoming UI arrive rather
+      // than snap.
+      hold.remove()
+      const settle = disc.animate(
+        { opacity: [1, 0] },
+        { duration: 260, easing: "ease-out", fill: "forwards" }
+      )
+      return settle.finished
+    })
+    .then(cleanup, cleanup)
+}
+
 export async function runThemeTransition({
   trigger,
   update,
@@ -52,7 +154,7 @@ export async function runThemeTransition({
     "startViewTransition" in document &&
     typeof document.startViewTransition === "function"
 
-  if (!supportsViewTransition || prefersReducedMotion()) {
+  if (prefersReducedMotion()) {
     flushSync(update)
     return
   }
@@ -63,6 +165,21 @@ export async function runThemeTransition({
   const maxX = Math.max(origin.x, width - origin.x)
   const maxY = Math.max(origin.y, height - origin.y)
   const endRadius = Math.hypot(maxX, maxY)
+
+  if (!supportsViewTransition) {
+    if (fallbackRunning || typeof document.body?.animate !== "function") {
+      flushSync(update)
+      return
+    }
+    fallbackRunning = true
+    try {
+      runFallbackReveal(origin, endRadius, update)
+    } catch {
+      fallbackRunning = false
+      flushSync(update)
+    }
+    return
+  }
 
   // The reveal is expressed in PERCENTAGES, not pixels, and this is load
   // bearing.
