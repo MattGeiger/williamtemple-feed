@@ -17,11 +17,43 @@ import {
   previewBrandConfiguration,
   publicBrandPayload,
 } from '../../../src/services/brand-config';
-import {
-  ST_JOHNS_BRAND_CONFIG,
-  WTH_BRAND_CONFIG,
-} from '../../../src/services/brand-config/presets';
+import { WTH_BRAND_CONFIG } from '../../../src/services/brand-config/presets';
 import { parseBrandConfig } from '../../../src/services/brand-config/config-schema';
+
+/**
+ * A second brand, invented here rather than shipped.
+ *
+ * These cases prove that derivation and preview work for a brand that is not
+ * the compiled default — the point of a white-label product. They used to
+ * borrow a bundled St. Johns Food Share template for that, which made a real
+ * agency's identity load-bearing for the test suite and meant retiring the
+ * template broke unrelated proofs. A fixture that names nobody is the right
+ * shape: what matters is that the configuration differs from WTH, not whose it
+ * is.
+ */
+const OTHER_BRAND_CONFIG = {
+  ...WTH_BRAND_CONFIG,
+  identity: {
+    ...WTH_BRAND_CONFIG.identity,
+    organizationName: 'Example Food Pantry',
+    appName: 'FEED',
+    organizationWebsite: 'https://example.org/',
+  },
+  logo: {
+    ...WTH_BRAND_CONFIG.logo,
+    light: { kind: 'builtin' as const, src: '/brand/placeholder-mark.svg', width: 640, height: 220 },
+    dark: { kind: 'builtin' as const, src: '/brand/placeholder-mark.svg', width: 640, height: 220 },
+  },
+  colors: {
+    accent: { l: 0.55, c: 0.12, h: 163 },
+    neutral: { l: 0.3, c: 0.01, h: 90 },
+    hierarchy: [
+      { l: 0.55, c: 0.12, h: 163 },
+      { l: 0.3, c: 0.01, h: 90 },
+      { l: 0.95, c: 0.01, h: 90 },
+    ],
+  },
+};
 
 describe('organization brand configuration', () => {
   beforeEach(() => {
@@ -29,22 +61,22 @@ describe('organization brand configuration', () => {
     mockPrisma.brandConfiguration.findFirst.mockResolvedValue(null);
   });
 
-  it('ships two complete brand-swap proof configurations', () => {
+  it('accepts both the shipped default and a brand that is not it', () => {
     expect(parseBrandConfig(WTH_BRAND_CONFIG).ok).toBe(true);
-    expect(parseBrandConfig(ST_JOHNS_BRAND_CONFIG).ok).toBe(true);
-    expect(ST_JOHNS_BRAND_CONFIG.logo.light).not.toEqual(WTH_BRAND_CONFIG.logo.light);
-    expect(ST_JOHNS_BRAND_CONFIG.identity.organizationName).not.toBe(
+    expect(parseBrandConfig(OTHER_BRAND_CONFIG).ok).toBe(true);
+    expect(OTHER_BRAND_CONFIG.logo.light).not.toEqual(WTH_BRAND_CONFIG.logo.light);
+    expect(OTHER_BRAND_CONFIG.identity.organizationName).not.toBe(
       WTH_BRAND_CONFIG.identity.organizationName
     );
   });
 
   it('derives both scopes, unique family alternates, and chart colors without persisting tokens', () => {
-    const preview = previewBrandConfiguration(ST_JOHNS_BRAND_CONFIG);
+    const preview = previewBrandConfiguration(OTHER_BRAND_CONFIG);
     expect(Object.keys(preview.tokens.light).length).toBeGreaterThan(20);
     expect(Object.keys(preview.tokens.dark)).toEqual(Object.keys(preview.tokens.light));
     expect(new Set(preview.alternates.map((item) => item.family)).size).toBe(3);
     expect(preview.chartColors.light).toHaveLength(5);
-    expect(ST_JOHNS_BRAND_CONFIG).not.toHaveProperty('tokens');
+    expect(OTHER_BRAND_CONFIG).not.toHaveProperty('tokens');
   });
 
   it('fails closed to the compiled identity when the active row is invalid', async () => {
