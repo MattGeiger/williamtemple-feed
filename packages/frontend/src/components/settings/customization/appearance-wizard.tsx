@@ -574,7 +574,12 @@ function ColorsStep({ draft, change, busy }: WizardStepProps) {
             Automatic uses the family nearest your first color — {preview.families.accent}. Override
             it only when the nearest match is not the family your brand actually uses.
           </p>
-          {preview.families.mudEscapedFrom ? <p className="text-xs text-muted-foreground">The dark accent surface moves away from muddy {preview.families.mudEscapedFrom} while preserving the color hierarchy.</p> : null}
+          {preview.families.mudEscapedFrom ? (
+            <p className="text-xs text-muted-foreground">
+              {preview.families.mudEscapedFrom} has no usable dark surface — it goes brown at that
+              depth — so hover and active states use {preview.families.secondary} instead.
+            </p>
+          ) : null}
         </div>
       ) : null}
       <ThemePreview preview={preview} />
