@@ -157,7 +157,9 @@ function IdentityStep({ draft, change, busy }: WizardStepProps) {
   return (
     <StepWrapper icon={Building2} title="Organization identity" description="The names and copy used on the home page, browser title, sign-in, and About surface.">
       {([
-        ['organizationName', 'Organization name'], ['appName', 'App name'], ['tagline', 'Tagline'],
+        // No tagline. "Food Equity & Efficient Delivery" spells FEED — it is
+        // the product's name written out, not copy an agency supplies.
+        ['organizationName', 'Organization name'], ['appName', 'App name'],
         ['organizationWebsite', 'Organization website'],
       ] as const).map(([key, label]) => (
         <div className="space-y-1.5" key={key}>
@@ -205,6 +207,7 @@ function IdentityStep({ draft, change, busy }: WizardStepProps) {
 
 function LogosStep({ draft, change, busy }: WizardStepProps) {
   const [uploading, setUploading] = React.useState<string | null>(null);
+  const fileInputs = React.useRef<Record<string, HTMLInputElement | null>>({});
   const upload = async (kind: 'logo-light' | 'logo-dark' | 'square', file: File) => {
     setUploading(kind);
     try {
@@ -307,18 +310,45 @@ function LogosStep({ draft, change, busy }: WizardStepProps) {
     return (
       <div className="space-y-1.5">
         <Label htmlFor={`brand-${kind}`}>{label}</Label>
-        <Input id={`brand-${kind}`} type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" disabled={busy || uploading !== null} onChange={(event) => {
-          const file = event.currentTarget.files?.[0];
-          event.currentTarget.value = '';
-          if (file) void upload(kind, file);
-        }} />
-        {uploading === kind ? (
-          <p className="text-xs text-muted-foreground">Uploading and measuring…</p>
-        ) : stored ? (
-          <p className="truncate font-mono text-xs text-muted-foreground" title={stored}>
-            {stored}
-          </p>
-        ) : null}
+        {/*
+          * A native file input renders its own "No file chosen" in shadow DOM,
+          * which cannot be changed — and it is always wrong here, because the
+          * control is cleared the moment the file is handed over so that
+          * re-picking the same file still fires `change`. Naming the file
+          * beneath it left two contradictory labels on screen. So the input is
+          * kept for behaviour and accessibility but visually replaced: a
+          * button opens it, and the slot states what is actually stored.
+          */}
+        <input
+          id={`brand-${kind}`}
+          ref={(node) => { fileInputs.current[kind] = node; }}
+          type="file"
+          className="sr-only"
+          accept="image/png,image/jpeg,image/webp,image/svg+xml"
+          disabled={busy || uploading !== null}
+          onChange={(event) => {
+            const file = event.currentTarget.files?.[0];
+            event.currentTarget.value = '';
+            if (file) void upload(kind, file);
+          }}
+        />
+        <div className="flex items-center gap-2 rounded-md border border-input bg-background px-2 py-1.5">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={busy || uploading !== null}
+            onClick={() => fileInputs.current[kind]?.click()}
+          >
+            Choose file
+          </Button>
+          <span
+            className={cn('truncate text-sm', stored ? 'font-mono' : 'text-muted-foreground')}
+            title={stored ?? undefined}
+          >
+            {uploading === kind ? 'Uploading…' : stored ?? 'No file chosen'}
+          </span>
+        </div>
         {warning ? (
           <p className="rounded-md border border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] px-2 py-1.5 text-xs text-[var(--status-warning-text)]" role="status">
             {warning}
@@ -532,7 +562,7 @@ type WizardStepProps = {
 const STEP_DEFINITIONS = [
   { id: 'start', description: 'Choose a starting point.', component: StartStep, valid: (draft: AppearanceDraft) => draft.id.length >= 2 && draft.startSource !== null },
   { id: 'identity', description: 'Set organization identity.', component: IdentityStep, valid: (draft: AppearanceDraft) => {
-    const identityComplete = Boolean(draft.config.identity.organizationName.trim() && draft.config.identity.appName.trim() && draft.config.identity.tagline.trim());
+    const identityComplete = Boolean(draft.config.identity.organizationName.trim() && draft.config.identity.appName.trim());
     const terminology = draft.config.terminology;
     const terminologyComplete = !terminology?.active || Boolean(
       terminology.pantrySingular.trim() && terminology.pantryPlural.trim()
