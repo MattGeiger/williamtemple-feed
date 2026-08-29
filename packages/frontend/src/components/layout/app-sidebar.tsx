@@ -118,11 +118,11 @@ export function AppSidebar() {
                   className={`
                     flex h-16 w-full items-center px-6
                     group-data-[collapsible=icon]:justify-center
-                    hover:bg-sidebar-accent hover:bg-opacity-50
+                    hover:bg-sidebar-accent hover:text-sidebar-accent-foreground
                     transition-all duration-200
                     focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
                     rounded-none
-                    ${isDashboardActive ? 'bg-sidebar-accent text-accent-foreground' : ''}
+                    ${isDashboardActive ? 'bg-sidebar-accent text-sidebar-accent-foreground' : ''}
                   `}
                   onClick={markDashboardNavigation}
                   aria-label={`Navigate to ${dashboardItem.title}`}
@@ -158,11 +158,11 @@ export function AppSidebar() {
               className={`
                 flex h-16 w-full items-center px-6
                 group-data-[collapsible=icon]:justify-center
-                hover:bg-sidebar-accent hover:bg-opacity-50
+                hover:bg-sidebar-accent hover:text-sidebar-accent-foreground
                 transition-all duration-200
                 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
                 rounded-none
-                ${isDashboardActive ? 'bg-sidebar-accent text-accent-foreground' : ''}
+                ${isDashboardActive ? 'bg-sidebar-accent text-sidebar-accent-foreground' : ''}
               `}
               onClick={markDashboardNavigation}
               aria-label={`Navigate to ${dashboardItem.title}`}
@@ -214,7 +214,7 @@ export function AppSidebar() {
                         asChild
                         className={`
                           focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
-                          ${isActive ? 'bg-sidebar-accent text-accent-foreground' : ''}
+                          ${isActive ? 'bg-sidebar-accent text-sidebar-accent-foreground' : ''}
                         `}
                       >
                         <AnimateIcon asChild animateOnHover animateOnTap>
@@ -225,7 +225,7 @@ export function AppSidebar() {
                             className="
                               flex items-center justify-center p-2
                               transition-all duration-200
-                              hover:bg-sidebar-accent hover:bg-opacity-50
+                              hover:bg-sidebar-accent hover:text-sidebar-accent-foreground
                               rounded-md
                             "
                             onClick={item.href === '/' ? markDashboardNavigation : undefined}
@@ -268,7 +268,7 @@ export function AppSidebar() {
                         asChild
                         className={`
                           focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
-                          ${isActive ? 'bg-sidebar-accent text-accent-foreground' : ''}
+                          ${isActive ? 'bg-sidebar-accent text-sidebar-accent-foreground' : ''}
                         `}
                       >
                         <AnimateIcon asChild animateOnHover animateOnTap>
@@ -279,7 +279,7 @@ export function AppSidebar() {
                             className="
                               flex items-center gap-2 px-2 py-1.5
                               transition-all duration-200
-                              hover:bg-sidebar-accent hover:bg-opacity-50
+                              hover:bg-sidebar-accent hover:text-sidebar-accent-foreground
                               rounded-md
                             "
                             onClick={item.href === '/' ? markDashboardNavigation : undefined}
@@ -325,7 +325,7 @@ export function AppSidebar() {
               className="
                 flex items-center gap-2 px-2 py-1.5
                 transition-all duration-200
-                hover:bg-sidebar-accent hover:bg-opacity-50
+                hover:bg-sidebar-accent hover:text-sidebar-accent-foreground
                 rounded-md text-sm
                 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
               "
@@ -348,7 +348,7 @@ export function AppSidebar() {
                   className="
                     flex items-center justify-center p-2
                     transition-all duration-200
-                    hover:bg-sidebar-accent hover:bg-opacity-50
+                    hover:bg-sidebar-accent hover:text-sidebar-accent-foreground
                     rounded-md
                     focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
                   "
