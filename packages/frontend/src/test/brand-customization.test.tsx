@@ -11,6 +11,9 @@ const mocks = vi.hoisted(() => ({
   save: vi.fn(),
   preview: vi.fn(),
   upload: vi.fn(),
+  // The colour step fetches the Tailwind palette on mount; every brand colour
+  // control is constrained to it, so there is no path that does not need it.
+  palette: vi.fn(),
 }));
 
 vi.mock('@/services/brand', () => ({
@@ -44,6 +47,10 @@ describe('Appearance wizard', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.save.mockResolvedValue({ configuration: { id: 'example-pantry' } });
+    mocks.palette.mockResolvedValue([
+      { name: 'emerald-600', family: 'emerald', stop: 600, color: '#059669', neutral: false },
+      { name: 'zinc-500', family: 'zinc', stop: 500, color: '#71717a', neutral: true },
+    ]);
     mocks.preview.mockResolvedValue({
       preview: {
         families: { accent: 'emerald', darkAccent: 'emerald', secondary: 'zinc', neutral: 'zinc', mudEscapedFrom: null },

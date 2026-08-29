@@ -1,0 +1,209 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Matt Geiger
+//
+// FEED — Food Equity & Efficient Delivery. Application code licensed
+// under AGPL-3.0-or-later; see LICENSE. William Temple House branding is
+// not covered by this license; see TRADEMARKS.md.
+
+import * as React from 'react';
+
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import type { PaletteEntry } from '@/services/brand';
+import { cn } from '@/lib/utils';
+
+type Nearby = { name: string; family: string; stop: number; color: string };
+
+type TailwindColorFieldProps = {
+  /** The stop currently in use, already snapped. */
+  value: string | null;
+  /** Neighbouring families at a similar colour, from the preview. */
+  nearby: Nearby[];
+  palette: PaletteEntry[];
+  onSelect: (entry: PaletteEntry) => void;
+  disabled?: boolean;
+  label: string;
+};
+
+const STOPS = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950];
+
+/**
+ * A brand colour control that can only produce a Tailwind stop.
+ *
+ * The wizard used a native `<input type="color">` and a hex field. Both are
+ * RGB instruments in a project whose theme is entirely Tailwind palette
+ * references, and both were lying about the outcome: whatever was picked got
+ * snapped to the nearest stop, so the value on screen was an input, not the
+ * colour in use.
+ *
+ * Constraint is the feature here, not a limitation. There are 288 stops, they
+ * are already contrast-checked as a set, and a logo-derived colour lands
+ * somewhere arbitrary between them. Offering the neighbouring families first
+ * turns an open-ended decision into a handful of defensible ones; the full
+ * grid is there when someone wants a different family entirely. No path
+ * through this control can produce a colour that is not in the palette.
+ */
+export function TailwindColorField({
+  value,
+  nearby,
+  palette,
+  onSelect,
+  disabled,
+  label,
+}: TailwindColorFieldProps) {
+  const [open, setOpen] = React.useState(false);
+  const [query, setQuery] = React.useState('');
+
+  const byName = React.useMemo(
+    () => new Map(palette.map((entry) => [entry.name, entry])),
+    [palette]
+  );
+  const families = React.useMemo(() => {
+    const seen: string[] = [];
+    for (const entry of palette) if (!seen.includes(entry.family)) seen.push(entry.family);
+    return seen;
+  }, [palette]);
+
+  const current = value ? byName.get(value) ?? null : null;
+  const matches = React.useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    if (!needle) return [];
+    return palette.filter((entry) => entry.name.includes(needle)).slice(0, 24);
+  }, [palette, query]);
+
+  const choose = (entry: PaletteEntry | undefined) => {
+    if (!entry) return;
+    onSelect(entry);
+    setOpen(false);
+    setQuery('');
+  };
+
+  return (
+    <div className="flex min-w-0 flex-1 items-center gap-2">
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            disabled={disabled}
+            aria-label={`${label} — choose a Tailwind color`}
+            className="flex min-w-0 items-center gap-2 rounded-md border border-input px-2 py-1.5 text-left disabled:opacity-50"
+          >
+            <span
+              aria-hidden
+              className="h-5 w-5 shrink-0 rounded border border-border"
+              style={{ background: current?.color ?? 'transparent' }}
+            />
+            <span className="truncate font-mono text-sm">{value ?? 'choose a color'}</span>
+          </button>
+        </PopoverTrigger>
+        <PopoverContent align="start" className="w-80 space-y-3">
+          {nearby.length > 0 ? (
+            <div className="space-y-1.5">
+              <Label className="text-xs">Closest to your logo color</Label>
+              <div className="flex flex-wrap gap-1.5">
+                {nearby.map((option) => (
+                  <button
+                    key={option.name}
+                    type="button"
+                    title={option.name}
+                    aria-label={option.name}
+                    onClick={() => choose(byName.get(option.name))}
+                    className={cn(
+                      'flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs',
+                      option.name === value ? 'border-ring ring-2 ring-ring' : 'border-input'
+                    )}
+                  >
+                    <span
+                      aria-hidden
+                      className="h-3.5 w-3.5 rounded-sm border border-border"
+                      style={{ background: option.color }}
+                    />
+                    <span className="font-mono">{option.name}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          <div className="space-y-1.5">
+            <Label htmlFor={`palette-search-${label}`} className="text-xs">
+              Search the palette
+            </Label>
+            <Input
+              id={`palette-search-${label}`}
+              value={query}
+              placeholder="emerald-600"
+              className="h-8 font-mono text-xs"
+              onChange={(event) => setQuery(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  event.preventDefault();
+                  choose(byName.get(query.trim().toLowerCase()) ?? matches[0]);
+                }
+              }}
+            />
+            {matches.length > 0 ? (
+              <div className="max-h-32 overflow-y-auto rounded-md border">
+                {matches.map((entry) => (
+                  <button
+                    key={entry.name}
+                    type="button"
+                    onClick={() => choose(entry)}
+                    className="flex w-full items-center gap-2 px-2 py-1 text-left text-xs hover:bg-accent"
+                  >
+                    <span
+                      aria-hidden
+                      className="h-3.5 w-3.5 rounded-sm border border-border"
+                      style={{ background: entry.color }}
+                    />
+                    <span className="font-mono">{entry.name}</span>
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-xs">Or pick a family and weight</Label>
+            <div className="max-h-48 overflow-y-auto pr-1">
+              {families.map((family) => (
+                <div key={family} className="mb-1 flex items-center gap-1">
+                  <span className="w-16 shrink-0 truncate text-[10px] text-muted-foreground">
+                    {family}
+                  </span>
+                  <div className="flex gap-0.5">
+                    {STOPS.map((stop) => {
+                      const entry = byName.get(`${family}-${stop}`);
+                      if (!entry) return null;
+                      return (
+                        <button
+                          key={stop}
+                          type="button"
+                          title={entry.name}
+                          aria-label={entry.name}
+                          onClick={() => choose(entry)}
+                          style={{ background: entry.color }}
+                          className={cn(
+                            'h-4 w-4 rounded-sm border',
+                            entry.name === value
+                              ? 'border-foreground ring-1 ring-foreground'
+                              : 'border-border/50'
+                          )}
+                        />
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+}

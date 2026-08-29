@@ -23,10 +23,11 @@ import {
   type BrandConfigurationPayload,
   type Oklch,
 } from '@/contexts/BrandContext';
-import { oklchToHex, hexToOklch } from '@/lib/brand-color';
+import { hexToOklch } from '@/lib/brand-color';
 import { cn } from '@/lib/utils';
 import { ErrorHandlerService } from '@/services/error/ErrorHandlerService';
-import { brandService, type BrandPreview } from '@/services/brand';
+import { TailwindColorField } from './tailwind-color-field';
+import { brandService, type BrandPreview, type PaletteEntry } from '@/services/brand';
 import { messageService } from '@/services/message';
 import { extractPaletteFromImage } from './palette-extract';
 
@@ -236,9 +237,27 @@ function LogosStep({ draft, change, busy }: WizardStepProps) {
   };
   const slot = (scope: 'light' | 'dark') => {
     const reference = draft.config.logo[scope];
+    // The plate is a light-mode device, so the preview only shows it on the
+    // light slot — which is also the only place the choice is legible. Seeing
+    // the two side by side is the point: a white mark on the light swatch is
+    // exactly the failure the plate exists to fix.
+    const plated = scope === 'light' && draft.config.logo.presentation === 'dark-surface';
+    const image = (
+      <img
+        src={resolveBrandAssetReference(reference)}
+        alt={`${scope} logo preview`}
+        className="max-h-14 max-w-full object-contain"
+      />
+    );
     return (
       <div className={cn('flex h-24 flex-1 items-center justify-center rounded-lg border p-3', scope === 'light' ? 'bg-white' : 'bg-slate-950')}>
-        <img src={resolveBrandAssetReference(reference)} alt={`${scope} logo preview`} className="max-h-14 max-w-full object-contain" />
+        {plated ? (
+          <span className="flex max-h-full max-w-full items-center justify-center rounded-xl bg-slate-900 px-3 py-2">
+            {image}
+          </span>
+        ) : (
+          image
+        )}
       </div>
     );
   };
@@ -342,6 +361,15 @@ function ColorsStep({ draft, change, busy }: WizardStepProps) {
   const [selected, setSelected] = React.useState(0);
   const [preview, setPreview] = React.useState<BrandPreview | null>(null);
   const [extracting, setExtracting] = React.useState(false);
+  // Immutable and shared by every row, so it is fetched once for the step.
+  const [palette, setPalette] = React.useState<PaletteEntry[]>([]);
+  React.useEffect(() => {
+    let cancelled = false;
+    brandService.palette()
+      .then((entries) => { if (!cancelled) setPalette(entries); })
+      .catch(() => { if (!cancelled) setPalette([]); });
+    return () => { cancelled = true; };
+  }, []);
   React.useEffect(() => {
     const timer = window.setTimeout(() => {
       brandService.preview(draft.config).then(({ preview: next }) => setPreview(next)).catch(() => setPreview(null));
@@ -353,8 +381,11 @@ function ColorsStep({ draft, change, busy }: WizardStepProps) {
       ...draft.config.colors, hierarchy, accent: hierarchy[0], accentFamily: undefined,
     }),
   });
-  const updateColor = (index: number, value: string) => {
-    const parsed = hexToOklch(value);
+  // Palette entries arrive as hex on the wire because that is what a swatch
+  // needs to paint; the draft still stores OKLCH, and the value round-trips
+  // through snapping unchanged because it is already a palette stop.
+  const chooseEntry = (index: number, entry: PaletteEntry) => {
+    const parsed = hexToOklch(entry.color);
     if (!parsed) return;
     const hierarchy = [...draft.config.colors.hierarchy];
     hierarchy[index] = parsed;
@@ -392,21 +423,14 @@ function ColorsStep({ draft, change, busy }: WizardStepProps) {
       <div className="space-y-2">
         {draft.config.colors.hierarchy.map((color, index) => (
           <div key={index} className={cn('flex items-center gap-2 rounded-lg border p-2', selected === index && 'ring-2 ring-ring')}>
-            <input aria-label={`Brand color ${index + 1}`} type="color" value={oklchToHex(color)} onChange={(event) => updateColor(index, event.target.value)} onFocus={() => setSelected(index)} disabled={busy} className="h-9 w-12 rounded-md border border-input bg-transparent p-1" />
-            {/*
-              * The Tailwind stop is the headline, because it is what FEED
-              * actually uses. The hex below it is only the value that was
-              * asked for — after snapping it is no longer the colour on
-              * screen, so showing it alone was reporting the wrong thing.
-              */}
-            <div className="flex min-w-0 flex-1 flex-col gap-1">
-              <span className="truncate font-mono text-sm" title={preview?.hierarchy?.[index]?.name}>
-                {preview?.hierarchy?.[index]?.name ?? '—'}
-              </span>
-              <Input key={oklchToHex(color)} aria-label={`Brand color ${index + 1} hex`} defaultValue={oklchToHex(color)} onFocus={() => setSelected(index)} onBlur={(event) => updateColor(index, event.target.value)} onKeyDown={(event) => {
-                if (event.key === 'Enter') updateColor(index, event.currentTarget.value);
-              }} className="h-7 font-mono text-xs text-muted-foreground" disabled={busy} />
-            </div>
+            <TailwindColorField
+              label={`Brand color ${index + 1}`}
+              value={preview?.hierarchy?.[index]?.name ?? null}
+              nearby={preview?.hierarchy?.[index]?.nearby ?? []}
+              palette={palette}
+              disabled={busy || palette.length === 0}
+              onSelect={(entry) => { setSelected(index); chooseEntry(index, entry); }}
+            />
             <Button type="button" variant="outline" size="sm" aria-label={`Move color ${index + 1} up`} onClick={() => move(index, -1)} disabled={busy || index === 0}>Up</Button>
             <Button type="button" variant="outline" size="sm" aria-label={`Move color ${index + 1} down`} onClick={() => move(index, 1)} disabled={busy || index === draft.config.colors.hierarchy.length - 1}>Down</Button>
             {draft.config.colors.hierarchy.length > 1 ? <Button type="button" variant="ghost" size="sm" onClick={() => { setHierarchy(draft.config.colors.hierarchy.filter((_, item) => item !== index)); setSelected(0); }} disabled={busy}>Remove</Button> : null}

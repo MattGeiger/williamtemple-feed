@@ -12,6 +12,14 @@ export type BrandConfigurationRow = {
   updatedAt: string;
 };
 
+export type PaletteEntry = {
+  name: string;
+  family: string;
+  stop: number;
+  color: string;
+  neutral: boolean;
+};
+
 export type BrandPreview = {
   families: {
     accent: string; darkAccent: string; secondary: string; neutral: string;
@@ -26,6 +34,8 @@ export type BrandPreview = {
     color: string;
     requestedColor: string;
     distance: number;
+    /** Neighbouring families at a similar colour, one stop each. */
+    nearby: { name: string; family: string; stop: number; color: string; distance: number }[];
   }[];
   tokens: Record<'light' | 'dark', Record<string, string>>;
   chartOrder: string[];
@@ -110,6 +120,12 @@ class BrandService extends BaseApiService {
         reason: string;
       } | null;
     }>('/admin/brand/assets', form);
+  }
+
+  /** The Tailwind stops a brand colour may be. Immutable; fetched once. */
+  async palette(): Promise<PaletteEntry[]> {
+    const { palette } = await this.request<{ palette: PaletteEntry[] }>('/admin/brand/palette');
+    return palette;
   }
 
   async checkAssetStorage() {
