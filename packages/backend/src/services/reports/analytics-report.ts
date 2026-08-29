@@ -10,7 +10,7 @@ import JSZip from 'jszip';
 import { renderHtmlToPdf } from '../pdf/chromium';
 import { printBrand } from '../brand-config';
 import { cardCsv, getAnalyticsCard, type CardData, type CsvGrain } from './analytics-cards';
-import { withReportPrintTheme, type ReportPrintTheme } from './print-theme';
+import { greyscalePrintTheme, withReportPrintTheme, type ReportPrintTheme } from './print-theme';
 
 /**
  * Assembles a selection of Analytics cards into one downloadable archive.
@@ -196,6 +196,7 @@ export async function buildAnalyticsReport(
   const ids = request.cardIds.slice(0, MAX_CARDS);
   const unknownCardIds: string[] = [];
   const resolved: { data: CardData; svg: string; id: string }[] = [];
+  const drawings: { data: CardData; draw: (variant: ReportPrintTheme) => string }[] = [];
 
   for (const id of ids) {
     const card = getAnalyticsCard(id);
@@ -213,7 +214,19 @@ export async function buildAnalyticsReport(
       continue;
     }
     const data = card.data(payload, request.cardOptions?.[id]);
+    /*
+     * The chart is drawn per rendering, not once here.
+     *
+     * `card.print` reads the print theme from an async-local scope and bakes
+     * the series colours into the SVG it returns. Rendering the cards once and
+     * handing the same SVG strings to both variants produced a "greyscale" PDF
+     * whose document chrome was grey and whose bars were still full Carbon —
+     * the exact failure the second rendering exists to prevent. The data is
+     * computed once because it does not depend on colour; only the drawing is
+     * repeated.
+     */
     resolved.push({ id, data, svg: withReportPrintTheme(theme, () => card.print(data)) });
+    drawings.push({ data, draw: (variant: ReportPrintTheme) => withReportPrintTheme(variant, () => card.print(data)) });
   }
 
   // Provenance is reported from whichever lens the report drew on.
@@ -229,17 +242,43 @@ export async function buildAnalyticsReport(
   }
 
   if (request.includePdf) {
-    const html = documentHtml(request.title, brand.config.identity.organizationName, meta, resolved, theme);
-    const pdf = await renderHtmlToPdf(html, {
-      width: '11in',
-      height: '8.5in',
-      margin: { top: '0in', right: '0in', bottom: '0in', left: '0in' },
-      displayHeaderFooter: true,
-      headerTemplate: '<span></span>',
-      footerTemplate: `<div style="width:100%;font-size:8px;font-family:Arial;color:#555;text-align:center;padding-bottom:8px;">
+    /*
+     * Two renderings of the same report; the reader chooses which to print.
+     *
+     * Carbon's categorical grades sit at equal luminance so no series dominates
+     * another — right on screen, and what makes the palette colour-vision safe.
+     * On paper it means the series are told apart by hue alone, so a mono
+     * printer or a photocopy collapses every bar to one grey and the legend
+     * becomes the only way to read the chart. Measured on a real export, all
+     * four series mapped to greyscale 111/255: a spread of zero.
+     *
+     * The colour rendering is untouched. The greyscale one converts the
+     * document by luminance, which preserves every contrast ratio exactly, then
+     * replaces the series ramp — because luminance conversion is precisely what
+     * cannot separate colours that differed only in hue.
+     */
+    const render = (variant: ReportPrintTheme) =>
+      renderHtmlToPdf(
+        documentHtml(
+          request.title,
+          brand.config.identity.organizationName,
+          meta,
+          drawings.map(entry => ({ data: entry.data, svg: entry.draw(variant) })),
+          variant
+        ),
+        {
+          width: '11in',
+          height: '8.5in',
+          margin: { top: '0in', right: '0in', bottom: '0in', left: '0in' },
+          displayHeaderFooter: true,
+          headerTemplate: '<span></span>',
+          footerTemplate: `<div style="width:100%;font-size:8px;font-family:Arial;color:#555;text-align:center;padding-bottom:8px;">
         ${escapeHtml(request.title)} — Page <span class="pageNumber"></span> of <span class="totalPages"></span></div>`,
-    });
-    zip.file(`${slug(request.title)}.pdf`, pdf);
+        }
+      );
+
+    zip.file(`${slug(request.title)}-color.pdf`, await render(theme));
+    zip.file(`${slug(request.title)}-bw.pdf`, await render(greyscalePrintTheme(theme)));
   }
 
   // Provenance travels with the data. A CSV separated from its range and
@@ -258,6 +297,11 @@ export async function buildAnalyticsReport(
         range: meta.range,
         filters: meta.filters ?? null,
         cards: resolved.map(c => ({ id: c.id, title: c.data.title, grain: c.data.grain ?? null, note: c.data.note })),
+        // Name what is in the archive, so someone reading the manifest knows a
+        // black-and-white rendering exists without unzipping to find out.
+        artifacts: request.includePdf
+          ? [`${slug(request.title)}-color.pdf`, `${slug(request.title)}-bw.pdf`]
+          : [],
         csvGrain: request.csvGrain,
         cardOptions: request.cardOptions ?? {},
         unknownCardIds,

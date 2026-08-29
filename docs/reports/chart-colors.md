@@ -99,9 +99,9 @@ This is inherent to Carbon and predates the white-label work; it is specific to
 the PDF path because that is the output that gets printed. Pantries print on
 whatever is in the office.
 
-### Planned: ship colour and greyscale together
+### Shipped in 1.7.5-beta.5: colour and greyscale together
 
-**Slated for the next beta.** An export packages two renderings of the same
+An export packages two renderings of the same
 report, and the reader chooses which to print.
 
 The colour version stays exactly as it is — Carbon, isoluminant, unchanged. The
@@ -121,4 +121,38 @@ Three alternatives were considered and rejected:
   for a rendering problem, and the report already direct-labels values.
 
 Two artifacts cost more bytes than one and are otherwise free: nothing about the
-colour output changes, so no screen reader of the report can regress.
+colour output changes, so no reader of the colour report can regress.
+
+### How it is built
+
+`greyscalePrintTheme` in `packages/backend/src/services/reports/print-theme.ts`
+converts every colour except the series with `greyscaleOf`, which returns the
+grey of identical relative luminance. Because luminance is preserved, contrast
+survives the conversion exactly — a heading that cleared 7.05:1 in colour clears
+7.00:1 in grey — so the greyscale rendering needs no separate contrast proof.
+
+The series ramp is replaced rather than converted, since converting is the thing
+that fails. `PRINT_GREYSCALE_SERIES` is seven steps spaced evenly in perceptual
+lightness between L 0.20 and L 0.66:
+
+| step | hex       | on white |
+| ---- | --------- | -------- |
+| 1    | `#161616` | 18.10:1  |
+| 2    | `#282828` | 14.74:1  |
+| 3    | `#3b3b3b` | 11.20:1  |
+| 4    | `#505050` | 8.06:1   |
+| 5    | `#656565` | 5.83:1   |
+| 6    | `#7b7b7b` | 4.23:1   |
+| 7    | `#929292` | 3.11:1   |
+
+The lightest step clears 3:1 (WCAG 1.4.11 for meaningful graphics) and adjacent
+steps differ by 1.23–1.39x in contrast, which is a visible difference in grey.
+
+One trap worth recording. `card.print` reads the print theme from an
+async-local scope and bakes the series colours into the SVG it returns, so
+rendering the cards once and handing the same SVG strings to both variants
+produces a "greyscale" PDF whose chrome is grey and whose bars are still full
+Carbon. The charts must be drawn once per variant; only the card *data* is
+computed once, because it does not depend on colour. This was caught by
+inspecting the PDF's own colour operators rather than by looking at the file,
+and `greyscale-print.test.ts` now holds the theme half of it.
