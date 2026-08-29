@@ -17,7 +17,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import config from '@/config/config';
-import { BrandLogo } from '@/components/brand-logo';
+import { AuthPageShell } from '@/components/auth/auth-page-shell';
 import { useBrand } from '@/contexts/BrandContext';
 
 /**
@@ -75,8 +75,7 @@ export function MagicLinkConfirmPage() {
 
   if (!email || !token) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-8 p-6">
-        <BrandLogo className="h-auto w-64" />
+      <AuthPageShell>
         <Card className="w-full max-w-md">
           <CardHeader>
             <CardTitle>That link is incomplete</CardTitle>
@@ -90,13 +89,12 @@ export function MagicLinkConfirmPage() {
             </Button>
           </CardContent>
         </Card>
-      </div>
+      </AuthPageShell>
     );
   }
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-8 p-6">
-      <BrandLogo className="h-auto w-64" />
+    <AuthPageShell>
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle>Sign in to {brand.identity.appName}</CardTitle>
@@ -132,7 +130,7 @@ export function MagicLinkConfirmPage() {
           </p>
         </CardContent>
       </Card>
-    </div>
+    </AuthPageShell>
   );
 }
 
