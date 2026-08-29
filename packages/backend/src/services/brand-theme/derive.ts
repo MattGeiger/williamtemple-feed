@@ -15,8 +15,9 @@
  * the v1.7.5 migration.
  */
 
-import type { Oklch } from './color';
+import { contrastRatio, oklchToRgb, type Oklch } from './color';
 import { proposeColorStory, type ColorStory } from './color-story';
+import type { TailwindEntry } from './palettes';
 import {
   entryToOklch,
   isMuddy,
@@ -79,6 +80,8 @@ export type ResolvedFamilies = {
   accentSecondaryIsNeutral: boolean;
   /** Set when the secondary family was moved off a muddy warm hue. */
   mudEscapedFrom: string | null;
+  /** Dark scope inverts the accent surface: light fill, dark text. */
+  accentSecondaryIsMuddyInDark: boolean;
   story: ColorStory | null;
   /** Equals `accentFamily` unless the brand supplies a separate dark accent. */
   accentDarkFamily: string;
@@ -136,32 +139,30 @@ export const resolveFamilies = (input: BrandInput): ResolvedFamilies => {
   let accentSecondaryFamily = secondary?.entry.family ?? neutralFamily;
   let accentSecondaryIsNeutral = secondary === null;
   let mudEscapedFrom: string | null = null;
+  let accentSecondaryIsMuddyInDark = false;
 
   if (secondary && isMuddy(paletteEntry(accentSecondaryFamily, 800))) {
     /*
-     * The brand's own main colour first, and only then a rotated hue.
+     * A muddy family keeps its colour; the surface inverts instead.
      *
-     * `mudEscapeFamily` rotates 60 degrees to get off a muddy dark stop, which
-     * is a large jump: a brand of sky and amber had its accent surface land on
-     * lime, so every hover and active state in the interface was green — a
-     * colour nowhere in the palette, arrived at silently. Amber-800 really is
-     * brown and really is unusable, so the escape has to happen; the problem is
-     * where it escapes to.
+     * The dark accent surface was pinned to stop 800, and amber-800 is brown.
+     * Two earlier attempts both accepted that pin and looked for another
+     * family to satisfy it: rotate 60 degrees off the hue (which handed a
+     * sky-and-amber brand a lime interface) or borrow the primary's family.
+     * Both discard the colour the brand actually chose.
      *
-     * Falling back to the main colour's family keeps the surface inside the
-     * two colours the brand actually chose. It is only skipped when the main
-     * colour is muddy at that depth too — an all-amber brand, say — and the
-     * rotation is then the last resort it was written to be.
+     * The pin is the wrong part. Only amber's *dark* stops are muddy —
+     * amber-300 is a clean gold, which is what the brand picked. So in dark
+     * mode the surface takes a light stop and the foreground flips to dark,
+     * exactly as light mode already does in reverse. Contrast improves rather
+     * than degrades: sky-950 on amber-300 measures 9.60:1 against the 6.36:1
+     * that amber-100 on amber-800 was managing.
+     *
+     * `mudEscapeFamily` is left in place for nothing to call yet — the
+     * inversion covers every muddy family in the palette — but the muddiness
+     * test it depends on is still the thing that triggers this.
      */
-    const fromPrimary =
-      accentFamily !== accentSecondaryFamily && !isMuddy(paletteEntry(accentFamily, 800))
-        ? accentFamily
-        : null;
-    const escaped = fromPrimary ?? mudEscapeFamily(accentSecondaryFamily);
-    if (escaped !== accentSecondaryFamily) {
-      mudEscapedFrom = accentSecondaryFamily;
-      accentSecondaryFamily = escaped;
-    }
+    accentSecondaryIsMuddyInDark = true;
     accentSecondaryIsNeutral = false;
   }
 
@@ -172,12 +173,37 @@ export const resolveFamilies = (input: BrandInput): ResolvedFamilies => {
     accentSecondaryFamily,
     accentSecondaryIsNeutral,
     mudEscapedFrom,
+    accentSecondaryIsMuddyInDark,
     story,
     neutralFamily,
     accentSnap,
     accentDarkSnap,
     neutralSnap: input.neutral ? neutralSnap : null,
   };
+};
+
+/** The light stop an inverted dark accent surface uses. */
+const INVERTED_ACCENT_SURFACE_STOP = 300;
+
+/**
+ * The darkest brand stop that stays readable on `surface`.
+ *
+ * Walks the candidate families deepest-first and takes the first that clears
+ * the WCAG 4.5:1 text floor, so the pair is chosen by measurement rather than
+ * asserted by a stop map. Families are tried in preference order — the brand's
+ * main colour before the accent's own — which is what produces chroma contrast
+ * rather than one hue at two depths. Pure black is the backstop; on a stop-300
+ * surface it always clears, so this cannot fail to return something readable.
+ */
+const readableOn = (surface: TailwindEntry, families: readonly string[]): TailwindEntry => {
+  const background = oklchToRgb(entryToOklch(surface));
+  for (const family of families) {
+    for (const stop of [950, 900, 800]) {
+      const candidate = paletteEntry(family, stop);
+      if (contrastRatio(oklchToRgb(entryToOklch(candidate)), background) >= 4.5) return candidate;
+    }
+  }
+  return paletteEntry('neutral', 950);
 };
 
 const colorFor = (
@@ -198,6 +224,21 @@ const colorFor = (
       : rule.role === 'accentSecondary'
         ? families.accentSecondaryFamily
         : families.neutralFamily;
+
+  /*
+   * The inverted accent surface, for a family with no usable dark stop.
+   *
+   * `accent` takes a light stop and `accent-foreground` takes a dark one —
+   * the light-mode relationship, applied in dark. The foreground is chosen by
+   * measured contrast rather than by a fixed stop, preferring the brand's main
+   * family so the pair carries chroma contrast (sky on gold) instead of
+   * restating the same hue at two depths.
+   */
+  if (rule.role === 'accentSecondary' && scope === 'dark' && families.accentSecondaryIsMuddyInDark) {
+    const surface = paletteEntry(family, INVERTED_ACCENT_SURFACE_STOP);
+    if (!token.endsWith('-foreground')) return entryToOklch(surface);
+    return entryToOklch(readableOn(surface, [families.accentFamily, family]));
+  }
 
   return entryToOklch(paletteEntry(family, stop));
 };
@@ -234,6 +275,7 @@ export const deriveFromFamilies = (
     accentSecondaryFamily: neutralFamily,
     accentSecondaryIsNeutral: true,
     mudEscapedFrom: null,
+    accentSecondaryIsMuddyInDark: false,
     story: null,
     neutralFamily,
     accentSnap: { entry: paletteEntry(accentFamily, 500), distance: 0 },
