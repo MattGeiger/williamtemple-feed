@@ -85,6 +85,19 @@ const scratchConfig = (): BrandConfigurationPayload => ({
   },
 });
 
+/**
+ * What each slot is for, in slot order. Mirrors `STORY_SLOTS` on the server;
+ * the wizard needs a name for a slot even before a colour is in it, which the
+ * derived label cannot give because there is nothing yet to derive from.
+ */
+const SLOT_LABELS = [
+  'Main colour — buttons, links, and selection',
+  'Accent — hover surfaces and secondary highlights',
+  'Background tint',
+  'Dark anchor — dark-mode surfaces',
+  'Light anchor — light-mode page surface',
+];
+
 const slugify = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 64);
 const replaceSection = <K extends keyof BrandConfigurationPayload>(
   config: BrandConfigurationPayload,
@@ -487,14 +500,6 @@ function ColorsStep({ draft, change, busy }: WizardStepProps) {
     setHierarchy(entries.slice(0, 5).map((entry) => entry.color));
     setSelected(0);
   };
-  const move = (index: number, direction: -1 | 1) => {
-    const target = index + direction;
-    if (target < 0 || target >= draft.config.colors.hierarchy.length) return;
-    const hierarchy = [...draft.config.colors.hierarchy];
-    [hierarchy[index], hierarchy[target]] = [hierarchy[target], hierarchy[index]];
-    setHierarchy(hierarchy);
-    setSelected(target);
-  };
   return (
     <StepWrapper icon={Palette} title="Brand color story" description="Rank the organization’s colors. FEED snaps them to a proven accessible palette and shows the closest families.">
       <div className="flex flex-wrap items-center gap-2">
@@ -526,20 +531,27 @@ function ColorsStep({ draft, change, busy }: WizardStepProps) {
                 * they are read from the same assignment the derivation acts
                 * on rather than guessed from the position.
                 */}
-              {preview?.hierarchy?.[index]?.roleLabel ? (
-                <span className="truncate text-xs text-muted-foreground" title={preview.hierarchy[index].roleLabel ?? undefined}>
-                  {preview.hierarchy[index].roleLabel}
-                </span>
-              ) : null}
+              <span className="truncate text-xs text-muted-foreground" title={preview?.hierarchy?.[index]?.roleLabel ?? undefined}>
+                {preview?.hierarchy?.[index]?.roleLabel ?? SLOT_LABELS[index] ?? ''}
+              </span>
               {preview?.hierarchy?.[index]?.roleWarning ? (
                 <span className="text-xs text-[var(--status-warning-text)]">
                   {preview.hierarchy[index].roleWarning}
                 </span>
               ) : null}
             </div>
-            <Button type="button" variant="outline" size="sm" aria-label={`Move color ${index + 1} up`} onClick={() => move(index, -1)} disabled={busy || index === 0}>Up</Button>
-            <Button type="button" variant="outline" size="sm" aria-label={`Move color ${index + 1} down`} onClick={() => move(index, 1)} disabled={busy || index === draft.config.colors.hierarchy.length - 1}>Down</Button>
-            {draft.config.colors.hierarchy.length > 1 ? <Button type="button" variant="ghost" size="sm" onClick={() => { setHierarchy(draft.config.colors.hierarchy.filter((_, item) => item !== index)); setSelected(0); }} disabled={busy}>Remove</Button> : null}
+            {/*
+              * No reordering. Each row is a slot with a fixed job, so there is
+              * no order to change — and the arrows that used to be here implied
+              * control they did not have, because the role followed the
+              * colour's kind rather than its position.
+              *
+              * Only the last slot can be dropped, so the remaining rows never
+              * shift and no colour silently changes job.
+              */}
+            {index === draft.config.colors.hierarchy.length - 1 && index > 0 ? (
+              <Button type="button" variant="ghost" size="sm" aria-label={`Clear ${SLOT_LABELS[index] ?? `color ${index + 1}`}`} onClick={() => { setHierarchy(draft.config.colors.hierarchy.slice(0, -1)); setSelected(0); }} disabled={busy}>Clear</Button>
+            ) : null}
           </div>
         ))}
       </div>

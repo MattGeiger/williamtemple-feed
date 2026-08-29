@@ -16,7 +16,10 @@ import { isMuddy, mudEscapeFamily, paletteEntry } from '../snap';
 /** William Temple House's logo reads blue → teal → gold, left to right. */
 const WTH_HIERARCHY = ['#186090', '#2AA198', '#FFE066'].map(hexToOklch);
 /** IBM-style: one chromatic and nothing else. */
-const MONOCHROME = ['#186090', '#2D2D2D'].map(hexToOklch);
+// One colour and nothing else. Under fixed slots a brand says "I have only a
+// main colour" by filling only the main slot — putting a charcoal in slot 2
+// means it *is* the accent, because slot 2 is the accent.
+const MONOCHROME = ['#186090'].map(hexToOklch);
 
 describe('ranking a brand into roles', () => {
   it('separates chromatics from light and dark neutrals', () => {
@@ -37,7 +40,22 @@ describe('ranking a brand into roles', () => {
     const story = proposeColorStory(MONOCHROME);
     expect(story.isMonochrome).toBe(true);
     expect(story.accent).toBeNull();
-    expect(story.surfaceDark).not.toBeNull();
+  });
+
+  it('gives a colour the job of the slot it is in, not of what it looks like', () => {
+    // The whole point of fixed slots. A charcoal in the accent slot is the
+    // accent; it does not get promoted to a surface anchor for being dark.
+    // Reordering the same two colours swaps their jobs, which the Up/Down
+    // arrows only appeared to do.
+    const [blue, charcoal] = ['#186090', '#2D2D2D'].map(hexToOklch);
+    const story = proposeColorStory([blue, charcoal]);
+    expect(story.assignments.map((entry) => entry.role)).toEqual(['primary', 'accent']);
+    expect(story.accent).toEqual(charcoal);
+    expect(story.surfaceDark).toBeNull();
+
+    const swapped = proposeColorStory([charcoal, blue]);
+    expect(swapped.primary).toEqual(charcoal);
+    expect(swapped.accent).toEqual(blue);
   });
 
   it('warns when a signalling colour lands in a stock-status hue band', () => {
