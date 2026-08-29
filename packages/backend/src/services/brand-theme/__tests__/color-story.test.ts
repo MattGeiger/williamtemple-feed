@@ -7,6 +7,7 @@
 
 import { describe, expect, it } from 'vitest';
 
+import { contrastRatio, oklchToRgb } from '../color';
 import { hexToOklch, oklchToHex } from '../color';
 import { classifyColor, proposeColorStory } from '../color-story';
 import { deriveTheme } from '../derive';
@@ -91,13 +92,23 @@ describe('the accent surface', () => {
     expect(derived.accentSecondaryFamily).toBe(derived.neutralFamily);
   });
 
-  it('never leaves a muddy dark accent surface', () => {
+  it('never leaves a muddy dark accent surface, and keeps the brand its colour', () => {
     // A warm-branded agency with two warm colours is the case that produced the
-    // original defect.
+    // original defect. The invariant is about the surface that ships, not the
+    // family: a muddy family is no longer swapped out, its dark surface is
+    // inverted to a light stop instead, so the agency keeps the colour it chose.
     const derived = deriveTheme({
       accent: hexToOklch('#FFE066'),
       hierarchy: ['#FFE066', '#E8A33D'].map(hexToOklch),
     });
-    expect(isMuddy(paletteEntry(derived.accentSecondaryFamily, 800))).toBe(false);
+    const surface = derived.tokens.dark.accent;
+    expect(isMuddy({ family: derived.accentSecondaryFamily, stop: 0, ...surface })).toBe(false);
+    // And the pair remains readable, measured rather than assumed.
+    expect(
+      contrastRatio(
+        oklchToRgb(derived.tokens.dark['accent-foreground']),
+        oklchToRgb(surface)
+      )
+    ).toBeGreaterThanOrEqual(4.5);
   });
 });
