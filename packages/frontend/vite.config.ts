@@ -18,6 +18,11 @@ export default defineConfig(({ mode }) => {
       },
     },
     server: {
+      // Bind every interface, not just `localhost`. Vite's default resolves to
+      // the IPv6 loopback only, so an iOS Simulator — which resolves
+      // `localhost` to IPv4 127.0.0.1 — is refused outright, as is any device
+      // on the LAN.
+      host: true,
       proxy: {
         '/api': 'http://localhost:3001',
       },
