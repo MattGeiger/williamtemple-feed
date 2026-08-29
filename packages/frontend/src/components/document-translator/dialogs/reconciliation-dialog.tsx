@@ -389,7 +389,7 @@ export function ReconciliationDialog({ open, onOpenChange, onComplete }: Reconci
                       </CardHeader>
                       <CardContent>
                         <div className="flex items-center gap-3">
-                          <div className="h-8 w-8 rounded-full bg-[color-mix(in_oklch,var(--status-success-bg)_40%,transparent)] flex items-center justify-center">
+                          <div className="h-8 w-8 rounded-full bg-[color-mix(in_oklab,var(--status-success-bg)_40%,transparent)] flex items-center justify-center">
                             <FileCheck className="h-5 w-5 text-[var(--status-success-border)]" />
                           </div>
                           <div>
@@ -445,7 +445,7 @@ export function ReconciliationDialog({ open, onOpenChange, onComplete }: Reconci
                             variant="outline"
                             size="sm"
                             onClick={handleClearQuarantine}
-                            className="text-[var(--status-warning-text)]! border-[var(--status-warning-border)]! bg-transparent! hover:bg-[color-mix(in_oklch,var(--status-warning-bg)_70%,transparent)]!"
+                            className="text-[var(--status-warning-text)]! border-[var(--status-warning-border)]! bg-transparent! hover:bg-[color-mix(in_oklab,var(--status-warning-bg)_70%,transparent)]!"
                           >
                             Clear All
                           </Button>
