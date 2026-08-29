@@ -504,14 +504,55 @@ function ColorsStep({ draft, change, busy }: WizardStepProps) {
       </div>
       {preview ? (
         <div className="space-y-2">
-          <Label>Closest accessible color families</Label>
-          <div className="flex flex-wrap gap-2">
+          {/*
+            * An override, and it has to be able to say "no override".
+            *
+            * This offered three families and nothing else: clicking one wrote
+            * `accentFamily` and only editing a colour ever cleared it, so the
+            * control was write-only and read as a required three-way choice —
+            * including on a grayscale brand, where being asked to pick a
+            * "color family" at all suggests the greys are not going to survive.
+            * The families offered do follow the colour now, so a grey brand is
+            * offered greys, but the shape of the control was still wrong.
+            *
+            * Automatic is the default and is selectable, the nearest families
+            * stay as quick picks because they are genuinely the useful ones,
+            * and every remaining family is reachable rather than 3 of 26.
+            */}
+          <Label htmlFor="brand-accent-family">Accent color family</Label>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant={draft.config.colors.accentFamily ? 'outline' : 'default'}
+              disabled={busy}
+              onClick={() => change({ config: replaceSection(draft.config, 'colors', { ...draft.config.colors, accentFamily: undefined }) })}
+            >
+              Automatic
+            </Button>
             {preview.alternates.map((alternate) => (
-              <Button key={alternate.family} type="button" variant={draft.config.colors.accentFamily === alternate.family || (!draft.config.colors.accentFamily && preview.families.accent === alternate.family) ? 'default' : 'outline'} size="sm" onClick={() => change({ config: replaceSection(draft.config, 'colors', { ...draft.config.colors, accentFamily: alternate.family }) })} disabled={busy}>
+              <Button key={alternate.family} type="button" variant={draft.config.colors.accentFamily === alternate.family ? 'default' : 'outline'} size="sm" onClick={() => change({ config: replaceSection(draft.config, 'colors', { ...draft.config.colors, accentFamily: alternate.family }) })} disabled={busy}>
                 <span className="mr-2 h-3 w-3 rounded-full border border-current" style={{ background: alternate.color }} />{alternate.family}
               </Button>
             ))}
+            <select
+              id="brand-accent-family"
+              aria-label="Accent color family"
+              className="h-8 rounded-md border border-input bg-background px-2 text-xs"
+              value={draft.config.colors.accentFamily ?? ''}
+              disabled={busy}
+              onChange={(event) => change({ config: replaceSection(draft.config, 'colors', { ...draft.config.colors, accentFamily: event.target.value || undefined }) })}
+            >
+              <option value="">Automatic ({preview.families.accent})</option>
+              {[...new Set(palette.map((entry) => entry.family))].map((family) => (
+                <option key={family} value={family}>{family}</option>
+              ))}
+            </select>
           </div>
+          <p className="text-xs text-muted-foreground">
+            Automatic uses the family nearest your first color — {preview.families.accent}. Override
+            it only when the nearest match is not the family your brand actually uses.
+          </p>
           {preview.families.mudEscapedFrom ? <p className="text-xs text-muted-foreground">The dark accent surface moves away from muddy {preview.families.mudEscapedFrom} while preserving the color hierarchy.</p> : null}
         </div>
       ) : null}
