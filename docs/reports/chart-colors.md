@@ -71,3 +71,54 @@ FEED card surface in both themes.
    `CARBON_CATEGORICAL_ORDER` to exclude the families you fixed in
    step 1.
 3. Don't rely on color alone — keep the legend and tooltip labels.
+
+## Print readiness: the palette is isoluminant
+
+Carbon's categorical grades are chosen to sit at roughly equal luminance, so no
+series visually dominates another. That is the right property on a screen and
+it is what makes the palette colour-vision safe. It has one consequence that
+only matters on paper.
+
+Measured on a real exported report — three procurement cards, actual data, a
+configured non-default brand:
+
+| series    | contrast on white | greyscale value |
+| --------- | ----------------- | --------------- |
+| `#007d79` | 4.99:1            | 111             |
+| `#ba4e00` | 5.03:1            | 111             |
+| `#8a3ffc` | 5.00:1            | 111             |
+| `#198038` | 5.02:1            | 111             |
+
+Every series is comfortably legible against paper. Adjacent series, however,
+differ by **1.00–1.01:1** — they are separated by hue alone. Converted to
+greyscale all four map to exactly **111/255**, a spread of zero. On a mono
+printer or a photocopy every bar becomes the same grey and the legend is the
+only remaining way to read the chart.
+
+This is inherent to Carbon and predates the white-label work; it is specific to
+the PDF path because that is the output that gets printed. Pantries print on
+whatever is in the office.
+
+### Planned: ship colour and greyscale together
+
+**Slated for the next beta.** An export packages two renderings of the same
+report, and the reader chooses which to print.
+
+The colour version stays exactly as it is — Carbon, isoluminant, unchanged. The
+greyscale version varies **lightness** across the series, because with no hue
+available lightness is the only channel left to carry the distinction.
+
+Three alternatives were considered and rejected:
+
+- **Patterns or hatching on bars.** Works regardless of colour, and adds visual
+  noise to every chart including the colour one, where there is no problem to
+  solve.
+- **Varying lightness in the colour version.** Lightness reads as rank, so it
+  would imply a hierarchy among series that do not have one. That objection is
+  exactly why it is the right choice in a greyscale-only rendering, where the
+  reader knows hue has been removed.
+- **Direct-labelling every series.** Adds text to a visualisation to compensate
+  for a rendering problem, and the report already direct-labels values.
+
+Two artifacts cost more bytes than one and are otherwise free: nothing about the
+colour output changes, so no screen reader of the report can regress.

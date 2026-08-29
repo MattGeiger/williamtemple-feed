@@ -5,6 +5,97 @@ All notable changes to FEED are documented here. This project adheres to
 
 ## [Unreleased]
 
+### Planned
+
+- **Reports export colour and greyscale renderings together.** Carbon's
+  categorical grades are isoluminant by design, so on paper the series separate
+  by hue alone: measured on a real export, all four map to greyscale 111/255, a
+  spread of zero. On a mono printer or a photocopy the bars become one grey and
+  the legend is the only way to read the chart. The colour rendering stays as it
+  is; the greyscale one varies lightness, which is the only channel left once
+  hue is gone. See `docs/reports/chart-colors.md`.
+
+## [1.7.5-beta.4]
+
+### Added
+
+- **Every ranked brand colour now does something.** `proposeColorStory`
+  assigned five roles and the wizard printed all five labels, while the
+  derivation read one field from it. Ranks 3 to 5 were computed, shown, and
+  consumed by nothing. The background tint and the surface anchors are now
+  real inputs: naming a third colour changes the page wash, and the anchors
+  choose the neutral ramp.
+- **One slot per role, and no reordering.** Roles were assigned by classifying
+  each colour, so the Up/Down arrows implied control they did not have — moving
+  a row often changed nothing while its label kept reporting the classifier's
+  verdict. Position is the role now, the arrows are gone, and only the last
+  slot can be cleared so nothing shifts underneath the operator.
+- **A brand may be grayscale.** The role pools excluded neutrals from the
+  accent by construction, so a colourless identity had its primary replaced by
+  whatever saturated family sat nearest. All 81 grayscale combinations pass the
+  same contrast proof as the 153 chromatic ones; the exhaustive walk now covers
+  234 themes.
+- **Logos can ask for a dark plate**, with FEED measuring the uploaded mark to
+  decide whether to offer one — a mostly transparent frame with light artwork
+  disappears on a light page, and the person uploading usually cannot see it
+  because their file is previewed on a dark canvas.
+- **Brand colours are chosen from the Tailwind palette directly.** The hex
+  field and the native colour picker are gone: both were RGB instruments
+  reporting an input rather than the colour actually in use, since every value
+  was snapped anyway.
+
+### Fixed
+
+- **Runtime brand themes were invisible on iPadOS 15.** The serializer emitted
+  a bare-number `oklch()` lightness, which Safari 15.4 rejects while accepting
+  the percentage form, so every token in every configured appearance fell back
+  to transparent. Percentage lightness is valid in the current spec too, so one
+  form serves every engine.
+- **Dark-mode shadows and glows rendered violet on iPadOS 15.** Alpha-only
+  `color-mix()` interpolated in oklch, whose missing-hue carry-over Safari 15.4
+  does not implement; measured 63.7 degrees off. All 95 such mixes now
+  interpolate in oklab, which has no hue channel to get wrong.
+- **SVG app marks above a ~1518px artboard could not be uploaded.** Rasterising
+  used a fixed 300 DPI relative to the SVG's own coordinate system, so an
+  ordinary Illustrator artboard exceeded the decoder's pixel limit before any
+  resize could shrink it.
+- **The background wash ignored the brand.** Its dominant stop mixed a token
+  off the neutral ramp, brand-independent whatever the colours, so changing
+  them did nothing.
+- **The accent leaked into the backdrop, twice.** A test now asserts against
+  the emitted stylesheet that the shell composes only from the ambient tint,
+  the page background, the card surface and the foreground.
+- **A muddy accent keeps its colour.** A family with no usable dark stop had
+  its hue rotated 60 degrees, which handed a sky-and-amber brand a lime
+  interface. The surface inverts instead — a light stop with a contrast-chosen
+  dark foreground, measured at 9.60:1 against the 6.36:1 it replaces.
+- **Surfaces take a grey that agrees with the brand.** An achromatic result is
+  now read as "grey, unspecified" and replaced by the tinted neutral nearest
+  the brand's hue.
+- **A template's pinned dark accent and neutral outlived the ranks they
+  contradicted**, locking dark mode to the template's identity while light mode
+  tracked the operator's colours.
+- **A pure black or white in the hierarchy blanked the colour story.** Extremes
+  have no ramp, so a family lookup against one threw and took the preview with
+  it.
+- **A neutral accent drifted to a saturated one.** Classification used a chroma
+  threshold that Tailwind's tinted greys sit above, so choosing slate produced
+  cyan. It now asks which palette entry is actually nearest.
+- **Sign-out, sign-in and the magic-link confirmation share one frame.** Two
+  carried no logo and one named the product in hard-coded text.
+- **The dev server binds every interface**, so a simulator or a device on the
+  network can reach it, and the API proxy degrades to an empty stylesheet
+  rather than failing the document when the backend is not running.
+
+### Changed
+
+- **The tagline is no longer editable.** "Food Equity & Efficient Delivery"
+  spells FEED; it is the product's name written out, not agency copy.
+- **One example appearance ships, not two.** The St. Johns Food Share template
+  is retired; FEED already carries one real pantry's identity as its compiled
+  default.
+- **The William Temple House artwork is updated** to current vector versions.
+
 ## [1.7.5-beta.3]
 
 ### Changed
