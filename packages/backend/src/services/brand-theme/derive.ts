@@ -138,7 +138,26 @@ export const resolveFamilies = (input: BrandInput): ResolvedFamilies => {
   let mudEscapedFrom: string | null = null;
 
   if (secondary && isMuddy(paletteEntry(accentSecondaryFamily, 800))) {
-    const escaped = mudEscapeFamily(accentSecondaryFamily);
+    /*
+     * The brand's own main colour first, and only then a rotated hue.
+     *
+     * `mudEscapeFamily` rotates 60 degrees to get off a muddy dark stop, which
+     * is a large jump: a brand of sky and amber had its accent surface land on
+     * lime, so every hover and active state in the interface was green — a
+     * colour nowhere in the palette, arrived at silently. Amber-800 really is
+     * brown and really is unusable, so the escape has to happen; the problem is
+     * where it escapes to.
+     *
+     * Falling back to the main colour's family keeps the surface inside the
+     * two colours the brand actually chose. It is only skipped when the main
+     * colour is muddy at that depth too — an all-amber brand, say — and the
+     * rotation is then the last resort it was written to be.
+     */
+    const fromPrimary =
+      accentFamily !== accentSecondaryFamily && !isMuddy(paletteEntry(accentFamily, 800))
+        ? accentFamily
+        : null;
+    const escaped = fromPrimary ?? mudEscapeFamily(accentSecondaryFamily);
     if (escaped !== accentSecondaryFamily) {
       mudEscapedFrom = accentSecondaryFamily;
       accentSecondaryFamily = escaped;
