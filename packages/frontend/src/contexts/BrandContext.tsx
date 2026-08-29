@@ -37,6 +37,8 @@ export type BrandConfigurationPayload = {
       size192: BrandAssetReference;
       size512: BrandAssetReference;
     };
+    /** How the light-mode mark sits on the page; see BrandLogo. */
+    presentation?: 'transparent' | 'dark-surface';
   };
   colors: {
     accent: Oklch;
@@ -67,6 +69,7 @@ export type PublicBrand = {
   logo: {
     lightSrc: string; darkSrc: string; squareSrc: string | null;
     lightWidth: number; lightHeight: number; darkWidth: number; darkHeight: number;
+    presentation: 'transparent' | 'dark-surface';
   };
   staff: BrandConfigurationPayload['staff'];
   capabilities: BrandConfigurationPayload['capabilities'];
@@ -85,6 +88,7 @@ const DEFAULT_BRAND: PublicBrand = {
   logo: {
     lightSrc: wthLogoHorizontal, darkSrc: wthLogoHorizontal, squareSrc: null,
     lightWidth: 1548, lightHeight: 486, darkWidth: 1548, darkHeight: 486,
+    presentation: 'transparent',
   },
   staff: {
     signInTitle: 'Sign in to FEED System',
@@ -226,6 +230,7 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
         lightHeight: candidate.config.logo.light.height,
         darkWidth: candidate.config.logo.dark.width,
         darkHeight: candidate.config.logo.dark.height,
+        presentation: candidate.config.logo.presentation ?? 'transparent',
       },
       staff: candidate.config.staff,
       capabilities: candidate.config.capabilities,

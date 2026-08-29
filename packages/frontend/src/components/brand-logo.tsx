@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 Matt Geiger
 
+import { cloneElement, type ReactNode } from 'react';
+
 import { useBrand } from '@/contexts/BrandContext';
 import { cn } from '@/lib/utils';
 
@@ -22,8 +24,25 @@ export function BrandLogo({ alt, className }: BrandLogoProps) {
   const label = alt ?? `${brand.identity.organizationName} Logo`;
   const imageClassName = cn('max-w-full object-contain', className);
 
+  /**
+   * Plenty of marks are drawn in white on a transparent ground, for placing
+   * over photography, and all but disappear on a light page. `dark-surface`
+   * gives those their own plate — in light mode only, because in dark mode the
+   * page is already the background the mark was drawn for.
+   */
+  const plate =
+    brand.logo.presentation === 'dark-surface' ? (
+      <span
+        data-logo-presentation="dark-surface"
+        className="inline-flex items-center justify-center rounded-xl bg-[var(--feed-logo-surface)] px-3 py-2 dark:bg-transparent dark:p-0"
+      />
+    ) : null;
+
+  const wrap = (content: ReactNode) =>
+    plate ? cloneElement(plate, {}, content) : content;
+
   if (brand.logo.lightSrc === brand.logo.darkSrc) {
-    return (
+    return wrap(
       <img
         src={brand.logo.lightSrc}
         alt={label}
@@ -34,7 +53,7 @@ export function BrandLogo({ alt, className }: BrandLogoProps) {
     );
   }
 
-  return (
+  return wrap(
     <>
       <img
         src={brand.logo.lightSrc}
