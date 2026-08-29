@@ -101,9 +101,26 @@ export function TailwindColorField({
             <span className="truncate font-mono text-sm">{value ?? 'choose a color'}</span>
           </button>
         </PopoverTrigger>
-        <PopoverContent align="start" className="w-80 space-y-3">
+        {/*
+          * The full grid is taller than a laptop viewport, so the popover has
+          * to be told it cannot simply be as tall as its content. Radix will
+          * flip it to whichever side has more room, but flipping an
+          * over-tall panel only moves which end gets cut off — the header
+          * scrolled off the top, or the last colour families off the bottom.
+          *
+          * `--radix-popover-content-available-height` is the space actually
+          * left on the chosen side. Capping to it and scrolling inside keeps
+          * the whole control reachable at any window height. The chooser rows
+          * stay pinned; only the family grid scrolls, so the search field and
+          * the suggested colours never leave the screen.
+          */}
+        <PopoverContent
+          align="start"
+          collisionPadding={12}
+          className="flex max-h-[var(--radix-popover-content-available-height)] w-80 flex-col gap-3 overflow-hidden"
+        >
           {nearby.length > 0 ? (
-            <div className="space-y-1.5">
+            <div className="shrink-0 space-y-1.5">
               <Label className="text-xs">Closest to your logo color</Label>
               <div className="flex flex-wrap gap-1.5">
                 {nearby.map((option) => (
@@ -130,7 +147,7 @@ export function TailwindColorField({
             </div>
           ) : null}
 
-          <div className="space-y-1.5">
+          <div className="shrink-0 space-y-1.5">
             <Label htmlFor={`palette-search-${label}`} className="text-xs">
               Search the palette
             </Label>
@@ -168,9 +185,9 @@ export function TailwindColorField({
             ) : null}
           </div>
 
-          <div className="space-y-1.5">
-            <Label className="text-xs">Or pick a family and weight</Label>
-            <div className="max-h-48 overflow-y-auto pr-1">
+          <div className="flex min-h-0 flex-1 flex-col space-y-1.5">
+            <Label className="shrink-0 text-xs">Or pick a family and weight</Label>
+            <div className="min-h-0 flex-1 overflow-y-auto pr-1">
               {families.map((family) => (
                 <div key={family} className="mb-1 flex items-center gap-1">
                   <span className="w-16 shrink-0 truncate text-[10px] text-muted-foreground">
