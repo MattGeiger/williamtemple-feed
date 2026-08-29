@@ -102,6 +102,30 @@ export type ColorStory = {
  * becomes the dark anchor and the first light neutral the light anchor; surplus
  * neutrals fall through to ambient.
  */
+/**
+ * Slot order, fixed. Position is the role.
+ *
+ * Roles used to be assigned by classifying each colour — the first chromatic
+ * became the primary, the first dark neutral the dark anchor, and so on — with
+ * the wizard offering Up/Down arrows to reorder the list. The two disagreed.
+ * Moving a row often changed nothing, because the role followed the colour's
+ * kind rather than its position, so the arrows implied control they did not
+ * have and the label appeared to ignore them.
+ *
+ * A slot per role removes the disagreement. Slot 1 is the main colour because
+ * it is slot 1, not because it happens to be the first saturated thing in the
+ * list. Nothing is inferred, so nothing can be inferred wrongly, and the label
+ * beside each row is a description of the slot rather than a verdict on the
+ * colour.
+ */
+export const STORY_SLOTS: readonly StoryRole[] = [
+  'primary',
+  'accent',
+  'ambient',
+  'surface-dark',
+  'surface-light',
+];
+
 export const proposeColorStory = (hierarchy: readonly Oklch[]): ColorStory => {
   const assignments: StoryAssignment[] = [];
   const ambient: Oklch[] = [];
@@ -109,38 +133,23 @@ export const proposeColorStory = (hierarchy: readonly Oklch[]): ColorStory => {
   let accent: Oklch | null = null;
   let surfaceDark: Oklch | null = null;
   let surfaceLight: Oklch | null = null;
-  let chromaticRank = 0;
 
-  for (const color of hierarchy.slice(0, 5)) {
-    const kind = classifyColor(color);
-    let role: StoryRole;
+  hierarchy.slice(0, STORY_SLOTS.length).forEach((color, index) => {
+    const role = STORY_SLOTS[index];
 
-    if (kind === 'dark-neutral' && !surfaceDark) {
-      role = 'surface-dark';
-      surfaceDark = color;
-    } else if (kind === 'light-neutral' && !surfaceLight) {
-      role = 'surface-light';
-      surfaceLight = color;
-    } else if (kind === 'chromatic' && chromaticRank === 0) {
-      role = 'primary';
-      primary = color;
-      chromaticRank += 1;
-    } else if (kind === 'chromatic' && chromaticRank === 1) {
-      role = 'accent';
-      accent = color;
-      chromaticRank += 1;
-    } else {
-      role = 'ambient';
-    }
+    if (role === 'primary') primary = color;
+    else if (role === 'accent') accent = color;
+    else if (role === 'surface-dark') surfaceDark = color;
+    else if (role === 'surface-light') surfaceLight = color;
+    else ambient.push(color);
 
-    if (role === 'ambient' && ambient.length < 3) ambient.push(color);
     assignments.push({
       color,
       role,
       label: ROLE_LABELS[role],
       warning: reservedBandWarning(color, role),
     });
-  }
+  });
 
   return {
     assignments,
@@ -150,6 +159,9 @@ export const proposeColorStory = (hierarchy: readonly Oklch[]): ColorStory => {
     surfaceDark,
     surfaceLight,
     warnings: assignments.flatMap((entry) => (entry.warning ? [entry.warning] : [])),
-    isMonochrome: chromaticRank <= 1,
+    // "One colour to work with" — the accent slot is empty or holds a grey,
+    // so there is no second hue to build a two-colour relationship from. Read
+    // off the slots now rather than counted while classifying.
+    isMonochrome: accent === null || classifyColor(accent) !== 'chromatic',
   };
 };
