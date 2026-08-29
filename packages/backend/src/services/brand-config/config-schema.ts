@@ -41,7 +41,16 @@ export const brandConfigSchema = z.object({
   identity: z.object({
     organizationName: cleanLine(120),
     appName: cleanLine(80),
-    tagline: cleanLine(160),
+    /**
+     * Retained so configurations saved before this still parse, and ignored.
+     *
+     * "Food Equity & Efficient Delivery" is not a strapline an agency writes —
+     * it spells FEED. Letting it be edited invited someone to replace the
+     * expansion of the product's own name with their own words, leaving the
+     * acronym meaningless. `FEED_TAGLINE` is served regardless of what a
+     * stored payload holds.
+     */
+    tagline: cleanLine(160).optional(),
     description: cleanLine(300),
     organizationWebsite: z.string().url().refine((value) => /^https?:\/\//.test(value), {
       message: 'Use an http(s) organization website.',

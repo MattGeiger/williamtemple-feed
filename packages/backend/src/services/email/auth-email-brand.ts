@@ -3,6 +3,7 @@
 
 import prisma from '../../db';
 import { assetUrl, printBrand } from '../brand-config';
+import { FEED_TAGLINE } from '../brand-config/presets';
 
 export type EmailBrand = {
   organizationName: string;
@@ -59,7 +60,7 @@ export const resolveEmailBrand = async (): Promise<EmailBrand> => {
   return {
     organizationName: config.identity.organizationName,
     appName: config.identity.appName,
-    tagline: config.identity.tagline,
+    tagline: FEED_TAGLINE,
     organizationWebsite: config.identity.organizationWebsite,
     // Empty string makes email-layout fall back to the built-in raster.
     logoUrl: raster ? absoluteUrl(raster) : '',

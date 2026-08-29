@@ -5,6 +5,12 @@ import { hexToOklch, hslToOklch } from '../brand-theme/color';
 import type { BrandConfig } from './config-schema';
 import { BRAND_CONFIG_SCHEMA_VERSION } from './config-schema';
 
+/**
+ * The expansion of FEED: Food Equity & Efficient Delivery. It is the product's
+ * name spelled out, not agency copy, so it is fixed rather than configurable.
+ */
+export const FEED_TAGLINE = 'Food Equity & Efficient Delivery';
+
 export const WTH_BRAND_CONFIG: BrandConfig = {
   schemaVersion: BRAND_CONFIG_SCHEMA_VERSION,
   identity: {

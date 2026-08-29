@@ -10,7 +10,7 @@ import { oklchToHex } from '../brand-theme/color';
 import { paletteCandidates, snapCandidates } from '../brand-theme/snap';
 import { BRAND_TOKENS } from '../brand-theme/tokens';
 import { parseBrandConfig, type BrandAssetReference, type BrandConfig } from './config-schema';
-import { BRAND_TEMPLATES, WTH_BRAND_CONFIG } from './presets';
+import { BRAND_TEMPLATES, FEED_TAGLINE, WTH_BRAND_CONFIG } from './presets';
 
 export type ResolvedBrand = {
   source: 'configured' | 'compiled-default';
@@ -115,7 +115,10 @@ export const publicBrandPayload = async () => {
     source: resolved.source,
     configId: resolved.configId,
     warning: resolved.warning,
-    identity: resolved.config.identity,
+    // The tagline spells FEED and is never agency copy, so it is served fixed
+    // rather than read from the payload — including payloads saved while it
+    // was still editable.
+    identity: { ...resolved.config.identity, tagline: FEED_TAGLINE },
     logo: {
       lightSrc: assetUrl(resolved.config.logo.light),
       darkSrc: assetUrl(resolved.config.logo.dark),
