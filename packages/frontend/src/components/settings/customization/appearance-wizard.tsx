@@ -242,11 +242,20 @@ function LogosStep({ draft, change, busy }: WizardStepProps) {
     // the two side by side is the point: a white mark on the light swatch is
     // exactly the failure the plate exists to fix.
     const plated = scope === 'light' && draft.config.logo.presentation === 'dark-surface';
+    // An SVG exported with only a `viewBox` has no intrinsic size. Inside the
+    // shrink-to-fit plate that collapses the image to nothing, leaving a bare
+    // dark pill — and stating width/height alone does not fix it, because the
+    // width attribute then sizes the box to the artboard while `max-h` caps
+    // only the height. Declaring the ratio and driving off a definite height
+    // is independent of whether the file carries dimensions at all.
     const image = (
       <img
         src={resolveBrandAssetReference(reference)}
         alt={`${scope} logo preview`}
-        className="max-h-14 max-w-full object-contain"
+        width={reference.width}
+        height={reference.height}
+        style={{ aspectRatio: `${reference.width} / ${reference.height}` }}
+        className="h-14 w-auto max-w-full object-contain"
       />
     );
     return (
