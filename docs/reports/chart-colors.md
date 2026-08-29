@@ -132,89 +132,148 @@ survives the conversion exactly — a heading that cleared 7.05:1 in colour clea
 7.00:1 in grey — so the greyscale rendering needs no separate contrast proof.
 
 The series ramp is replaced rather than converted, since converting is the thing
-that fails. `PRINT_GREYSCALE_SERIES` is seven steps spaced evenly in perceptual
+that fails. `PRINT_GREYSCALE_SERIES` is **six** steps spaced evenly in perceptual
 lightness between L 0.20 and L 0.66:
 
 | step | hex       | on white |
 | ---- | --------- | -------- |
 | 1    | `#161616` | 18.10:1  |
-| 2    | `#282828` | 14.74:1  |
-| 3    | `#3b3b3b` | 11.20:1  |
-| 4    | `#505050` | 8.06:1   |
-| 5    | `#656565` | 5.83:1   |
-| 6    | `#7b7b7b` | 4.23:1   |
-| 7    | `#929292` | 3.11:1   |
+| 2    | `#2c2c2c` | 13.97:1  |
+| 3    | `#434343` | 9.89:1   |
+| 4    | `#5c5c5c` | 6.69:1   |
+| 5    | `#777777` | 4.48:1   |
+| 6    | `#929292` | 3.11:1   |
 
-The lightest step clears 3:1 (WCAG 1.4.11 for meaningful graphics) and adjacent
-steps differ by 1.23–1.39x in contrast, which is a visible difference in grey.
+Six, not seven, and both ends are pinned by something real. The light end cannot
+pass L 0.66 without dropping under the 3:1 that WCAG 1.4.11 asks of a meaningful
+graphic; the dark end bottoms out against the ink. Seven steps fit between them
+arithmetically, at 1.23x apart — but that is about what a mono printer resolves,
+and less than a reader separates on a photocopy of a photocopy. Six is the
+honest count. The range past it is bought with texture, not with a seventh step
+nobody can see.
 
 **The order the ladder is handed out matters more than the ladder.** Charts take
 `palette[0]`, `palette[1]`, and so on in sequence, so a two-series chart gets
 whatever the first two entries are. Shipping the ladder in lightness order gave
-that chart steps 1 and 2 — the two darkest *neighbours*, 1.23x apart, which is
-the ramp's worst possible pair and was unreadable in print. The fix is to spend
-the extremes first and subdivide from there, a bisection order:
+that chart steps 1 and 2 — the two darkest *neighbours*, which is the ramp's
+worst possible pair and was unreadable in print. The fix is to spend the extremes
+first and subdivide from there, a bisection order:
 
-    [0, 6, 3, 5, 1, 4, 2]
+    [0, 5, 3, 2, 4, 1]
 
-Separation then degrades gracefully instead of starting at its worst. Measured
-as the smallest contrast gap between any two series a chart of *n* bars gets:
+Separation then degrades gracefully instead of starting at its worst. Measured as
+the smallest contrast gap between any two series a chart of *n* bars gets:
 
 | series | worst pair | before (sequential) |
 | ------ | ---------- | ------------------- |
-| 2      | 5.82x      | 1.23x               |
-| 3      | 2.25x      | 1.23x               |
-| 4      | 1.36x      | 1.23x               |
-| 5–7    | 1.23x      | 1.23x               |
+| 2      | 5.82x      | 1.30x               |
+| 3      | 2.15x      | 1.30x               |
+| 4      | 1.48x      | 1.30x               |
+| 5–6    | 1.30x      | 1.30x               |
 
 Two- and three-series charts are the common case and are now unmistakable; a
-seven-series chart is no worse than it was.
+six-series chart is no worse than it was. The order was picked by brute force
+over all 720 permutations, ranked on the worst pair at two series, then three,
+then four.
 
-### Past seven series: texture
+### Lines are not small bars
 
-Seven is the ramp's real ceiling. The steps are already 1.23x apart at the close
-end, which is about what a mono printer resolves, so an eighth step buys a
-distinction nobody can see. But `procurement-legacy-donations-over-time` carries
-**twelve** series, and the ramp wrapped: series 8 through 12 printed as exact
-copies of series 1 through 5, with a legend confidently naming both.
+A filled bar is a slab of grey a centimetre across. A series line is a two-unit
+stroke crossing other strokes over a gridded plot, and the two do not carry the
+same number of levels — six greys that separate cleanly as areas do not separate
+at all as thin lines. Every line card in the export read poorly even after the
+fill ramp was fixed, because the fix was for a different mark.
 
-The range is extended with texture instead, and only once the greys are gone:
+So `PRINT_GREYSCALE_STROKES` is a **three**-level ramp, and lines take the rest
+of their separation from dashing — the channel a stroke has and an area does
+not, and the oldest convention in printed technical drawing:
 
-| series | treatment                         |
-| ------ | --------------------------------- |
-| 1–7    | solid grey, no pattern at all     |
-| 8–14   | the same seven greys, hatched     |
-| 15–21  | the same seven greys, cross-hatch |
+| level | hex       | on white | dashes                                |
+| ----- | --------- | -------- | ------------------------------------- |
+| 1     | `#161616` | 18.10:1  | solid, `6 3`, `1.5 2.5`, `7 2.5 1.5 2.5` |
+| 2     | `#929292` | 3.11:1   | "                                     |
+| 3     | `#5c5c5c` | 6.69:1   | "                                     |
+
+Three levels against four dash styles is twelve distinguishable lines, which is
+exactly what the longest line card in the report needs. The worst pair among the
+three levels is 2.15x, against 1.30x if the fill ramp had been reused. Lighter
+levels are stroked slightly heavier (2, 2.2, 2.5) so the three carry equal
+visual weight; a 2-unit stroke at 3:1 and one at 18:1 do not.
+
+Dashing starts at the fourth series, not the seventh. Waiting for the greys to
+run out would mean six unreadable lines first, which is the whole defect.
+
+**A line chart's legend must be drawn from the same source.** `legendSvg` takes a
+`variant`, and the line cards pass `'line'`, which draws a short dashed rule
+instead of a filled square. A filled swatch beside a dashed line names the right
+series with the wrong appearance — worse than no legend, because it asserts a
+correspondence that is not there.
+
+### Past six series: texture
+
+`procurement-legacy-donations-over-time` carries **twelve** series, and the ramp
+wrapped: the last six printed as exact copies of the first six, with a legend
+confidently naming both. There is no seventh grey to add, so the range is
+extended with texture, and only once the greys are gone:
+
+| series | treatment                            |
+| ------ | ------------------------------------ |
+| 1–6    | solid grey, no pattern at all        |
+| 7–12   | the same six greys, textured         |
+| 13–18  | the same six greys, second texture   |
+
+The textures vary by **structure**, not by angle: horizontal rules, one
+diagonal, dots, vertical rules, the other diagonal, a grid, a checker. A first
+pass used a hatch and a cross-hatch, which is one family at two densities — they
+read as "more hatched" and "less hatched", which is a *magnitude*, and magnitude
+is the one thing a categorical series must not imply. They are also drawn to
+roughly equal coverage for the same reason: a dense texture beside a sparse one
+reads as heavier, inventing a ranking among categories that have none.
 
 Texture is noisier than a flat fill. That is exactly why it is the extension and
-not the scheme — a chart of seven or fewer series never sees one, and the colour
+not the scheme — a chart of six or fewer series never sees one, and the colour
 rendering never sees one at all, because hue has as many usable steps as a chart
-has series and would be paying the noise for nothing.
+has series and would be paying the noise for nothing. A bar that carries its own
+label is left flat regardless: in `hBarSvg` the row fill is decorative, and
+texturing something already named is noise with no information in it. Only the
+segments, which are decoded from a legend, take it.
 
-The hatch lines are cut in the paper colour rather than drawn in a darker grey,
-so a textured series reads *lighter* than the solid series it shares a step
-with. The pair is separated twice over, by texture and by apparent lightness.
+The texture lines are cut in the paper colour rather than drawn in a darker
+grey, so a textured series reads *lighter* than the solid series it shares a
+step with. The pair is separated twice over, by texture and by apparent
+lightness.
 
-Lines get the same idea by a different mechanism: a 2-unit stroke is too thin to
-hold a fill pattern, so `seriesDash` dashes them. A reader matching a hatched
-legend swatch to a dashed line is doing a small translation, but both read as
-"the marked one" against a solid twin of the same grey, and the grey still
-carries the primary identity.
+### Why the patterns are hand-written
 
-Two implementation points worth keeping:
+Not for want of looking. `textures` and `svg-patterns` both carry a good
+catalogue and were both evaluated:
 
-- **Every SVG that draws series carries its own `<defs>`, the legend included.**
-  A legend swatch that does not carry its bars' texture is worse than no legend,
-  because it asserts a correspondence that is not there.
-- **Pattern ids are a pure function of what they define** (`feed-tx-1-161616`),
-  not a counter. A page holds many card SVGs inline, so two charts that both
-  reach series eight emit the same id twice. A counter would avoid the duplicate
-  at the cost of output that differs run to run; identical definitions render
-  correctly under either resolution, so determinism is the better trade.
+| package        | why not                                                        |
+| -------------- | -------------------------------------------------------------- |
+| `textures`     | writes into a d3 selection — needs d3-selection and a DOM       |
+| `svg-patterns` | returns a virtual-dom tree; pulls `virtual-dom`, dead since 2016 |
+| `patternomaly` | canvas-based, for Chart.js — wrong renderer entirely            |
 
-A bar that carries its own label is left flat regardless — in `hBarSvg` the row
-fill is decorative, and texturing something already named is noise with no
-information in it. Only the segments, which are decoded from a legend, take it.
+This renderer builds SVG as strings in a process with no DOM, deliberately (see
+the header of `analytics-print.ts`). Either library therefore costs a DOM shim
+in the report path — the one path that must not break — to deliver what is
+ultimately a dozen `<path d>` values. All three were last published in 2022.
+Taking the geometry and leaving the rendering layer is the smaller and more
+durable dependency.
+
+### Stacked bars name their own parts
+
+`stackedHBarSvg` printed only the row total. On screen the split is a tooltip
+away; print has no hover, so the Demographics Questions Response Rate card
+showed a total with no way to see how much of it was answered — which is the
+entire question the card exists to answer.
+
+Each segment now carries its own value, centred, when the text fits inside it,
+and is simply left out when it does not rather than spilling over a neighbour it
+does not belong to. `seriesLabelInk` picks ink or paper by contrast against the
+grey *behind* a texture rather than the texture itself: a patterned fill is part
+grey and part paper, so its effective luminance is between the two, and choosing
+against the grey is the conservative end of that range.
 
 One trap worth recording. `card.print` reads the print theme from an
 async-local scope and bakes the series colours into the SVG it returns, so

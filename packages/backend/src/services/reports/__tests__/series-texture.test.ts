@@ -2,7 +2,9 @@
 // Copyright (C) 2026 Matt Geiger
 
 import { describe, expect, it } from 'vitest';
-import { legendSvg, stackedBarSvg } from '../analytics-print';
+import { legendSvg, lineChartSvg, seriesLineStyle, stackedBarSvg } from '../analytics-print';
+import { PRINT_GREYSCALE_STROKES } from '../../brand-theme/charts';
+import { contrastRatioHex } from '../../brand-theme/color';
 import {
   DEFAULT_REPORT_PRINT_THEME,
   greyscalePrintTheme,
@@ -31,7 +33,7 @@ const fillsOf = (svg: string) => [...svg.matchAll(/fill="([^"]+)"/g)].map(m => m
 
 describe('series texture', () => {
   it('spends every solid grey before reaching for a pattern', () => {
-    const svg = withReportPrintTheme(BW, () => stackedBarSvg(['a', 'b', 'c'], series(7)));
+    const svg = withReportPrintTheme(BW, () => stackedBarSvg(['a', 'b', 'c'], series(6)));
     expect(svg).not.toContain('<pattern');
     expect(fillsOf(svg).filter(f => f.startsWith('url('))).toEqual([]);
   });
@@ -42,8 +44,8 @@ describe('series texture', () => {
     // One bar per series in a single-category chart, plus the pattern tiles.
     const distinct = new Set(barFills);
     expect(distinct.size).toBeGreaterThanOrEqual(12);
-    // The five that used to duplicate now reference a pattern instead.
-    expect(barFills.filter(f => f.startsWith('url(')).length).toBe(5);
+    // Six solid greys, then six more of the same greys carrying a texture.
+    expect(barFills.filter(f => f.startsWith('url(')).length).toBe(6);
   });
 
   it('defines every pattern it references, in the same SVG', () => {
@@ -74,5 +76,63 @@ describe('series texture', () => {
     const svg = withReportPrintTheme(COLOUR, () => stackedBarSvg(['a'], series(12)));
     expect(svg).not.toContain('<pattern');
     expect(fillsOf(svg).filter(f => f.startsWith('url('))).toEqual([]);
+  });
+});
+
+describe('series lines', () => {
+  /**
+   * A line is not a small bar. Six fill greys separate cleanly as slabs and do
+   * not as two-unit strokes crossing each other over a gridded plot, which is
+   * why every line card printed poorly even after the fill ramp was fixed.
+   */
+  it('uses a shorter ramp than the fills, because a stroke carries less', () => {
+    expect(PRINT_GREYSCALE_STROKES.length).toBeLessThan(BW.palette.length);
+    // Presentation order, like the fills: the widest pair first, so a
+    // two-series line chart gets the ends. So compare every pair, not
+    // neighbours in the array.
+    const levels = PRINT_GREYSCALE_STROKES
+      .map(hex => contrastRatioHex(hex, '#ffffff'))
+      .sort((a, b) => b - a);
+    for (let i = 1; i < levels.length; i += 1) {
+      expect(levels[i - 1] / levels[i], `stroke levels ${i - 1}->${i}`).toBeGreaterThan(2);
+    }
+    for (const hex of PRINT_GREYSCALE_STROKES) {
+      expect(contrastRatioHex(hex, '#ffffff'), hex).toBeGreaterThanOrEqual(3);
+    }
+  });
+
+  it('dashes from the fourth series, not the seventh', () => {
+    // Three levels against four dash styles is twelve distinguishable lines,
+    // which covers the longest line card in the report. Reaching for the dash
+    // only after the greys run out would be six unreadable lines first.
+    const seen = withReportPrintTheme(BW, () =>
+      Array.from({ length: 12 }, (_, i) => seriesLineStyle(i))
+    );
+    const keys = seen.map(style => `${style.stroke}|${style.dash}`);
+    expect(new Set(keys).size).toBe(12);
+    expect(seen.slice(0, 3).every(style => style.dash === '')).toBe(true);
+    expect(seen[3].dash).not.toBe('');
+  });
+
+  it('leaves the colour rendering undashed', () => {
+    const styles = withReportPrintTheme(COLOUR, () =>
+      Array.from({ length: 12 }, (_, i) => seriesLineStyle(i))
+    );
+    expect(styles.every(style => style.dash === '')).toBe(true);
+  });
+
+  it('draws a legend for lines out of lines, not out of fills', () => {
+    // A filled swatch beside a dashed line names the right series with the
+    // wrong appearance, which is worse than leaving the legend off.
+    const names = ['a', 'b', 'c', 'd', 'e'];
+    const legend = withReportPrintTheme(BW, () => legendSvg(names, 900, 'line'));
+    expect(legend).not.toContain('<rect');
+    expect(legend).toContain('stroke-dasharray');
+    const chart = withReportPrintTheme(BW, () =>
+      lineChartSvg(['x', 'y'], names.map(n => ({ name: n, values: [1, 2] })))
+    );
+    const dashes = (svg: string) =>
+      [...svg.matchAll(/stroke-dasharray="([^"]+)"/g)].map(m => m[1]);
+    expect(new Set(dashes(legend))).toEqual(new Set(dashes(chart)));
   });
 });

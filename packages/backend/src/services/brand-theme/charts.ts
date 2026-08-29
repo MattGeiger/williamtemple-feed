@@ -106,8 +106,18 @@ export const seriesColor = (
  * L 0.20 and L 0.66. The lightest clears 3:1 against white, which WCAG 1.4.11
  * asks of a meaningful non-text graphic.
  */
-const GREYSCALE_LADDER = Array.from({ length: 7 }, (_, index) =>
-  oklchToHex({ l: 0.2 + (0.66 - 0.2) * (index / 6), c: 0, h: 0 })
+/**
+ * Six steps, not seven.
+ *
+ * The ends are fixed by two hard limits: the light end cannot pass L 0.66,
+ * where a fill drops under the 3:1 that WCAG 1.4.11 asks of a meaningful
+ * graphic, and the dark end bottoms out against the ink. Seven steps fit
+ * between them arithmetically at 1.23x apart, but that is around what a mono
+ * printer resolves and below what a reader reliably separates on a photocopy.
+ * Six is the honest count; the range past it is bought with texture instead.
+ */
+const GREYSCALE_LADDER = Array.from({ length: 6 }, (_, index) =>
+  oklchToHex({ l: 0.2 + (0.66 - 0.2) * (index / 5), c: 0, h: 0 })
 );
 
 /**
@@ -122,13 +132,29 @@ const GREYSCALE_LADDER = Array.from({ length: 7 }, (_, index) =>
  * every later one lands in the largest remaining gap, so separation degrades
  * gracefully as series are added rather than starting at its worst:
  *
- *   2 series  5.82x   3 series  2.24x   4 series  1.36x   5+  1.23x
+ *   2 series  5.82x   3 series  2.15x   4 series  1.48x   5+  1.30x
  *
  * Most report charts carry two or three series, which is where the difference
  * between 5.82 and 1.23 decides whether the chart can be read at all.
  */
-const BISECTED = [0, 6, 3, 5, 1, 4, 2];
+const BISECTED = [0, 5, 3, 2, 4, 1];
 
 export const PRINT_GREYSCALE_SERIES: readonly string[] = BISECTED.map(
+  index => GREYSCALE_LADDER[index]
+);
+
+/**
+ * A separate, much shorter ramp for lines.
+ *
+ * A filled bar is a slab of grey a centimetre across; a series line is a stroke
+ * two units wide. The same two greys that are comfortably distinct as areas are
+ * not distinct at all as thin strokes crossing each other over a gridded plot,
+ * which is why every line card in the export read poorly even after the fill
+ * ramp was fixed — the fix was for a different mark.
+ *
+ * Three levels is about what a stroke carries. The rest of the separation comes
+ * from dashing, which is the channel lines actually have and areas do not.
+ */
+export const PRINT_GREYSCALE_STROKES: readonly string[] = [0, 5, 3].map(
   index => GREYSCALE_LADDER[index]
 );

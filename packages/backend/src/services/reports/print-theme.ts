@@ -77,9 +77,11 @@ export const withReportPrintTheme = <T>(theme: ReportPrintTheme, render: () => T
  */
 export const greyscalePrintTheme = (theme: ReportPrintTheme): ReportPrintTheme => ({
   ...theme,
-  palette: theme.palette.map(
-    (_, index) => PRINT_GREYSCALE_SERIES[index % PRINT_GREYSCALE_SERIES.length]
-  ),
+  // The ramp's own length, not the colour palette's. Mapping over the colour
+  // palette kept its length — seven — so the seventh entry wrapped to a silent
+  // duplicate of the first, and `seriesFill` read the array length to decide
+  // when to start texturing, which meant the duplicate came out solid.
+  palette: [...PRINT_GREYSCALE_SERIES],
   ink: greyscaleOf(theme.ink),
   muted: greyscaleOf(theme.muted),
   grid: greyscaleOf(theme.grid),
