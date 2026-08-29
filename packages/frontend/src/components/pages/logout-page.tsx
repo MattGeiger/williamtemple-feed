@@ -11,7 +11,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { LogOut } from "@/components/ui/icons";
 import { Card, CardContent } from "@/components/ui/card";
 import { AuthAttribution } from "@/components/auth/auth-attribution";
-import { BrandLogo } from "@/components/brand-logo";
+import { AuthPageShell } from "@/components/auth/auth-page-shell";
 import { useBrand } from "@/contexts/BrandContext";
 
 export default function LogoutPage() {
@@ -46,10 +46,7 @@ export default function LogoutPage() {
   }
   
   return (
-    <div className="min-h-svh flex flex-col items-center justify-center gap-8 bg-linear-to-br from-gray-50 to-gray-100 dark:from-gray-950 dark:to-gray-900 p-4">
-      {/* Same treatment as the sign-in and magic-link surfaces: the mark sits
-          above the card, so the card no longer repeats the app's name. */}
-      <BrandLogo className="h-auto w-64" />
+    <AuthPageShell>
       <Card className="w-full max-w-md">
         <CardContent className="p-6">
           <div className="flex flex-col items-center gap-6 text-center">
@@ -58,7 +55,7 @@ export default function LogoutPage() {
             </div>
             
             <div className="space-y-2">
-              <h1 className="text-2xl font-bold">You've been logged out</h1>
+              <h2 className="text-2xl font-bold">You've been logged out</h2>
               <p className="text-muted-foreground">Thank you for using {brand.identity.appName}.</p>
             </div>
             
@@ -70,6 +67,6 @@ export default function LogoutPage() {
           </div>
         </CardContent>
       </Card>
-    </div>
+    </AuthPageShell>
   );
 }
