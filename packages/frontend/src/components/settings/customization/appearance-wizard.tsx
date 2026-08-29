@@ -443,7 +443,27 @@ function ColorsStep({ draft, change, busy }: WizardStepProps) {
   }, [draft.config]);
   const setHierarchy = (hierarchy: Oklch[]) => change({
     config: replaceSection(draft.config, 'colors', {
-      ...draft.config.colors, hierarchy, accent: hierarchy[0], accentFamily: undefined,
+      ...draft.config.colors,
+      hierarchy,
+      accent: hierarchy[0],
+      /*
+       * Editing the ranks makes the story the source of truth, so every pinned
+       * value from wherever the draft started has to go with it.
+       *
+       * Only `accentFamily` was cleared. A draft begun from the William Temple
+       * House template carried its `accentDark` (the gold) and its `neutral`
+       * forward through every subsequent edit — and `neutralTargetFor` returns
+       * an explicit `neutral` before it ever consults the surface anchors. So
+       * dark mode stayed locked to the template's identity and ranks 4 and 5
+       * did nothing, while light mode tracked the new colours. There is no
+       * control for either field in this wizard, so carrying them silently was
+       * never going to be visible to the person it was overriding.
+       */
+      accentFamily: undefined,
+      accentDark: undefined,
+      accentDarkFamily: undefined,
+      neutral: undefined,
+      neutralFamily: undefined,
     }),
   });
   // Palette entries arrive as hex on the wire because that is what a swatch

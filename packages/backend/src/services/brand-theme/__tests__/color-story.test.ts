@@ -154,3 +154,49 @@ describe('the ranks past the accent', () => {
     expect(warm.tokens.dark.background).not.toEqual(cool.tokens.dark.background);
   });
 });
+
+describe('regressions found in wizard testing', () => {
+  const at = (name: string) => {
+    const [family, stop] = [name.replace(/-\d+$/, ''), Number(name.match(/\d+$/)![0])];
+    const entry = paletteEntry(family, stop);
+    return { l: entry.l, c: entry.c, h: entry.h };
+  };
+
+  it('keeps a neutral accent on its own ramp', () => {
+    // slate-700 carries chroma 0.044, above the old 0.03 threshold, so it was
+    // treated as chromatic and snapped through a pool with no neutrals in it —
+    // choosing slate produced cyan.
+    for (const name of ['slate-700', 'zinc-600', 'stone-500'] as const) {
+      const derived = deriveTheme({
+        accent: at('lime-600'),
+        hierarchy: [at('lime-600'), at(name)],
+      });
+      expect(derived.accentSecondaryFamily).toBe(name.replace(/-\d+$/, ''));
+    }
+  });
+
+  it('survives a pure black or white in the hierarchy', () => {
+    // Extremes are single values with no ramp. Ranking one made `--ambient`
+    // resolve to `black-200`, which threw and blanked the whole colour story.
+    for (const extreme of [{ l: 0, c: 0, h: 0 }, { l: 1, c: 0, h: 0 }]) {
+      expect(() =>
+        deriveTheme({
+          accent: at('lime-600'),
+          hierarchy: [at('lime-600'), at('neutral-700'), extreme],
+        })
+      ).not.toThrow();
+    }
+  });
+
+  it('lets background-labelled ranks outrank the main colour for the wash', () => {
+    const primaryOnly = deriveTheme({ accent: at('lime-600'), hierarchy: [at('lime-600')] });
+    const withAnchor = deriveTheme({
+      accent: at('lime-600'),
+      hierarchy: [at('lime-600'), at('amber-300'), at('slate-900')],
+    });
+    // With nothing named for the background, the main colour tints it.
+    expect(primaryOnly.ambientFamily).toBe(primaryOnly.accentFamily);
+    // Name one, and it takes over rather than being recorded and ignored.
+    expect(withAnchor.ambientFamily).toBe('slate');
+  });
+});

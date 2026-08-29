@@ -23,6 +23,7 @@ import {
   isMuddy,
   mudEscapeFamily,
   paletteEntry,
+  rampFamily,
   snap, harmonisedNeutralFamily, roleFor,
   type SnapCandidate,
 } from './snap';
@@ -154,21 +155,24 @@ export const resolveFamilies = (input: BrandInput): ResolvedFamilies => {
 
   const accentFamily = input.accentFamily ?? accentSnap.entry.family;
   /*
-   * The first ambient rank, which is the brand's third colour once primary and
-   * accent are taken. It falls back to the accent family so the wash still has
-   * a brand hue when only one or two colours were given — the fallback is what
-   * shipped before, so a two-colour brand is unchanged.
+   * Every rank the wizard labels as background, in order of how directly it
+   * says "background tint": the ambient ranks first, then the surface anchors.
+   *
+   * The primary is the last resort, not the default. If an operator has named
+   * colours for the background, the background should be made of those — the
+   * main colour driving the wash is what happens when they have named none.
    */
-  const ambientSource = story?.ambient?.[0] ?? null;
+  const ambientSource =
+    story?.ambient?.[0] ?? story?.surfaceDark ?? story?.surfaceLight ?? null;
   const ambientFamily = ambientSource
-    ? snap(ambientSource, roleFor(ambientSource, 'chromatic')).entry.family
+    ? rampFamily(snap(ambientSource, roleFor(ambientSource, 'chromatic')).entry.family)
     : accentFamily;
   // A brand that supplied plain greys gets a grey that agrees with its own
   // hue, rather than the one ramp at chroma zero. An explicit choice, and a
   // brand with no hue at all, are both left alone.
   const neutralFamily =
     input.neutralFamily ??
-    harmonisedNeutralFamily(neutralSnap.entry.family, accentSource);
+    harmonisedNeutralFamily(rampFamily(neutralSnap.entry.family), accentSource);
 
   // The accent surface prefers the brand's second colour. Without one it falls
   // back to the neutral ramp rather than to a darkened primary — which is what
@@ -176,7 +180,7 @@ export const resolveFamilies = (input: BrandInput): ResolvedFamilies => {
   const secondary = story?.accent
     ? snap(story.accent, roleFor(story.accent, 'chromatic'))
     : null;
-  let accentSecondaryFamily = secondary?.entry.family ?? neutralFamily;
+  let accentSecondaryFamily = secondary ? rampFamily(secondary.entry.family) : neutralFamily;
   let accentSecondaryIsNeutral = secondary === null;
   let mudEscapedFrom: string | null = null;
   let accentSecondaryIsMuddyInDark = false;
