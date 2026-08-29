@@ -40,105 +40,48 @@ function getTransitionOrigin(trigger?: HTMLElement | null) {
 }
 
 /**
- * The circular reveal without the View Transitions API.
+ * The theme change on engines without the View Transitions API.
  *
  * `document.startViewTransition` is absent on Safari 15.4 — the engine on the
- * iPad mini 4 — so the theme change there was correct but instantaneous. This
- * reproduces the same sweep using only `transform` and `opacity`, which every
- * engine FEED runs on animates on the compositor.
+ * iPad mini 4 — so the change there was correct but instantaneous.
  *
- * The API's whole job is snapshotting the old frame for us; without it we have
- * to hold that frame ourselves. So: cover the screen in the OUTGOING
- * background, flip the theme underneath where it cannot be seen, then grow a
- * disc of the INCOMING background from the trigger. The disc is read after the
- * flip rather than predicted, which keeps this independent of which theme is
- * arriving — "system" resolves to whatever it resolves to.
+ * This is deliberately NOT the circular reveal. That effect needs the old and
+ * new frames on screen at once, which is precisely the thing the API provides
+ * and we cannot otherwise get: showing old content outside the circle and new
+ * content inside requires two simultaneous renderings of the page. An earlier
+ * attempt faked it by covering the viewport in the outgoing background colour
+ * and sweeping a disc of the incoming one across it. A flat colour is not a
+ * frame — it is a blank — so the entire dashboard vanished for the length of
+ * the sweep and returned at the end. Worse on a real screen than no animation.
  *
- * Scaling a border-radius disc is used rather than animating `clip-path`,
- * which older WebKit will not interpolate.
+ * A crossfade is honest about what is available. Every element stays visible
+ * and its colours interpolate in place, so the theme dissolves rather than
+ * snapping. Colour interpolation is not compositor-accelerated, which is why
+ * the property list is kept tight and the duration short — this has to stay
+ * cheap on an A8.
+ *
+ * The transition rule lives in `index.css` under `.theme-crossfade`; it is
+ * applied for the length of the change and then removed, so it never
+ * interferes with ordinary hover and focus transitions.
  */
-let fallbackRunning = false
+const CROSSFADE_CLASS = "theme-crossfade"
+const CROSSFADE_MS = 420
 
-function runFallbackReveal(
-  origin: { x: number; y: number },
-  endRadius: number,
-  update: () => void
-) {
-  const read = (el: Element | null) =>
-    el ? getComputedStyle(el).backgroundColor : ""
+let crossfadeTimer: number | undefined
 
-  // Only a genuinely zero ALPHA disqualifies a colour. Sniffing for a trailing
-  // ", 0)" instead would also reject `rgb(0, 0, 0)` — and FEED's dark theme
-  // background is true black, so the disc would have been painted white on
-  // every switch into dark and flashed before it was removed.
-  const opaque = (c: string) => {
-    if (!c || c === "transparent") return false
-    const fn = /^rgba?\(([^)]+)\)$/.exec(c)
-    if (!fn) return true // oklch(), color(), lab(): a painted colour
-    const parts = fn[1].split(/[,/]/).map((part) => part.trim())
-    return parts.length < 4 || parseFloat(parts[3]) !== 0
-  }
+function runFallbackCrossfade(update: () => void) {
+  const root = document.documentElement
+  root.classList.add(CROSSFADE_CLASS)
 
-  const outgoing =
-    [read(document.body), read(document.documentElement)].find(opaque) ?? "#fff"
-
-  const layer = (color: string) => {
-    const el = document.createElement("div")
-    el.style.cssText =
-      "position:fixed;pointer-events:none;margin:0;padding:0;" +
-      "will-change:transform,opacity;"
-    el.style.background = color
-    document.body.appendChild(el)
-    return el
-  }
-
-  // Holds the outgoing frame so the class flip underneath is never visible.
-  const hold = layer(outgoing)
-  hold.style.inset = "0"
-  hold.style.zIndex = "2147483646"
-
+  // Committed synchronously so the class is already in effect when the theme
+  // flips; otherwise the first paint lands on the new colours with nothing to
+  // interpolate from.
   flushSync(update)
 
-  const incoming =
-    [read(document.body), read(document.documentElement)].find(opaque) ?? "#fff"
-
-  const size = endRadius * 2
-  const disc = layer(incoming)
-  disc.style.left = `${origin.x - endRadius}px`
-  disc.style.top = `${origin.y - endRadius}px`
-  disc.style.width = `${size}px`
-  disc.style.height = `${size}px`
-  disc.style.borderRadius = "50%"
-  disc.style.zIndex = "2147483647"
-  disc.style.transform = "scale(0)"
-
-  const cleanup = () => {
-    hold.remove()
-    disc.remove()
-    fallbackRunning = false
-  }
-
-  const sweep = disc.animate(
-    { transform: ["scale(0)", "scale(1)"] },
-    // Matches the View Transitions path's easing; shorter, because this sweep
-    // carries a flat colour rather than a snapshot of the outgoing UI and so
-    // has less to look at while it travels.
-    { duration: 700, easing: "cubic-bezier(0.64, 0, 0.36, 1)", fill: "forwards" }
-  )
-
-  sweep.finished
-    .then(() => {
-      // The disc now matches the real background exactly, so dropping the hold
-      // reveals nothing; fading the disc lets the incoming UI arrive rather
-      // than snap.
-      hold.remove()
-      const settle = disc.animate(
-        { opacity: [1, 0] },
-        { duration: 260, easing: "ease-out", fill: "forwards" }
-      )
-      return settle.finished
-    })
-    .then(cleanup, cleanup)
+  window.clearTimeout(crossfadeTimer)
+  crossfadeTimer = window.setTimeout(() => {
+    root.classList.remove(CROSSFADE_CLASS)
+  }, CROSSFADE_MS + 60)
 }
 
 export async function runThemeTransition({
@@ -159,27 +102,17 @@ export async function runThemeTransition({
     return
   }
 
+  if (!supportsViewTransition) {
+    runFallbackCrossfade(update)
+    return
+  }
+
   const origin = getTransitionOrigin(trigger)
   const width = window.innerWidth
   const height = window.innerHeight
   const maxX = Math.max(origin.x, width - origin.x)
   const maxY = Math.max(origin.y, height - origin.y)
   const endRadius = Math.hypot(maxX, maxY)
-
-  if (!supportsViewTransition) {
-    if (fallbackRunning || typeof document.body?.animate !== "function") {
-      flushSync(update)
-      return
-    }
-    fallbackRunning = true
-    try {
-      runFallbackReveal(origin, endRadius, update)
-    } catch {
-      fallbackRunning = false
-      flushSync(update)
-    }
-    return
-  }
 
   // The reveal is expressed in PERCENTAGES, not pixels, and this is load
   // bearing.
