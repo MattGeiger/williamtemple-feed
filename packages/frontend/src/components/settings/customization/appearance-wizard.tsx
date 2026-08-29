@@ -261,7 +261,15 @@ function LogosStep({ draft, change, busy }: WizardStepProps) {
     return (
       <div className={cn('flex h-24 flex-1 items-center justify-center rounded-lg border p-3', scope === 'light' ? 'bg-white' : 'bg-slate-950')}>
         {plated ? (
-          <span className="flex max-h-full max-w-full items-center justify-center rounded-xl bg-slate-900 px-3 py-2">
+          // Same construction as BrandLogo: the plate is an out-of-flow
+          // backdrop, so the preview shows the mark exactly where it will sit
+          // rather than nudged by padding the real thing does not apply.
+          <span className="relative isolate inline-flex items-center justify-center">
+            <span
+              aria-hidden
+              style={{ inset: '-8px -12px', zIndex: -1 }}
+              className="pointer-events-none absolute rounded-xl bg-slate-900"
+            />
             {image}
           </span>
         ) : (
