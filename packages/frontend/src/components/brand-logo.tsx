@@ -48,6 +48,7 @@ export function BrandLogo({ alt, className }: BrandLogoProps) {
         alt={label}
         width={brand.logo.lightWidth}
         height={brand.logo.lightHeight}
+        style={{ aspectRatio: `${brand.logo.lightWidth} / ${brand.logo.lightHeight}` }}
         className={imageClassName}
       />
     );
@@ -60,6 +61,7 @@ export function BrandLogo({ alt, className }: BrandLogoProps) {
         alt={label}
         width={brand.logo.lightWidth}
         height={brand.logo.lightHeight}
+        style={{ aspectRatio: `${brand.logo.lightWidth} / ${brand.logo.lightHeight}` }}
         className={cn('brand-logo-light', imageClassName)}
       />
       <img
@@ -67,6 +69,7 @@ export function BrandLogo({ alt, className }: BrandLogoProps) {
         alt={label}
         width={brand.logo.darkWidth}
         height={brand.logo.darkHeight}
+        style={{ aspectRatio: `${brand.logo.darkWidth} / ${brand.logo.darkHeight}` }}
         className={cn('brand-logo-dark', imageClassName)}
       />
     </>
