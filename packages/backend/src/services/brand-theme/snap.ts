@@ -148,8 +148,24 @@ export const isAchromatic = (color: Oklch): boolean => color.c < ACHROMATIC_CHRO
  * grey. All 81 neutral-accent themes pass the same contrast proof as the 153
  * chromatic ones.
  */
-export const roleFor = (color: Oklch, role: SnapRole): SnapRole =>
-  role === 'neutral' ? 'neutral' : isAchromatic(color) ? 'neutral' : 'chromatic';
+export const roleFor = (color: Oklch, role: SnapRole): SnapRole => {
+  if (role === 'neutral') return 'neutral';
+  /*
+   * Classified by what the colour actually matches, not by a chroma cutoff.
+   *
+   * A flat threshold put the boundary in the wrong place: `slate-700` carries
+   * chroma 0.044, over the 0.03 line, so it was treated as chromatic and
+   * snapped through a pool with no neutrals in it — an operator who chose
+   * slate got cyan. Tailwind's tinted greys reach 0.046, well past where a
+   * threshold can separate them from faint chromatics.
+   *
+   * Asking which palette entry is nearest across the whole palette answers the
+   * question directly: if the closest thing to this colour is a grey, it is a
+   * grey.
+   */
+  const [nearest] = paletteCandidates(color, 1);
+  return nearest && isNeutralFamily(nearest.entry.family) ? 'neutral' : 'chromatic';
+};
 
 /**
  * The neutral ramp that harmonises with a brand hue.
@@ -217,11 +233,26 @@ export const harmonisedNeutralFamily = (
   return tinted.reduce((best, entry) => (distance(entry) < distance(best) ? entry : best)).family;
 };
 
+/**
+ * A family that actually has stops, for callers that index into a ramp.
+ *
+ * `poolFor('neutral')` includes pure black and white on purpose — a brand
+ * surface at either extreme should resolve to the exact value Tailwind
+ * provides rather than to a 950 or 50. But they are single values with no
+ * ramp, so any caller that then asks for `family-200` gets nothing: ranking a
+ * pure black as a third colour made `--ambient` resolve to `black-200` and
+ * threw, which surfaced as the whole colour story blanking out.
+ *
+ * They are achromatic, so `neutral` is the ramp that means the same thing.
+ */
+export const rampFamily = (family: string): string =>
+  TAILWIND_PALETTE.some((entry) => entry.family === family) ? family : 'neutral';
+
 export const paletteCandidates = (
   target: Oklch,
   limit = 3
 ): SnapCandidate[] =>
-  [...TAILWIND_PALETTE, ...TAILWIND_EXTREMES]
+  TAILWIND_PALETTE
     .map((entry) => ({
       entry,
       distance: perceptualDistance(
