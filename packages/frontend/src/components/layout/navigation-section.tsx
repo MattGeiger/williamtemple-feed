@@ -67,7 +67,7 @@ export function NavigationSection({ label, items }: NavigationSectionProps) {
                 className={`
                   group/item
                   focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
-                  ${isActive ? 'bg-sidebar-accent text-accent-foreground' : ''}
+                  ${isActive ? 'bg-sidebar-accent text-sidebar-accent-foreground' : ''}
                 `}
               >
                 <AnimateIcon asChild animateOnHover animateOnTap>
@@ -78,7 +78,7 @@ export function NavigationSection({ label, items }: NavigationSectionProps) {
                   className="
                     flex items-center gap-2 w-full px-2 py-1.5
                     transition-all duration-200 ease-in-out
-                    hover:bg-sidebar-accent hover:bg-opacity-50
+                    hover:bg-sidebar-accent hover:text-sidebar-accent-foreground
                     rounded-md
                     relative
                     group-data-[collapsible=icon]:justify-center

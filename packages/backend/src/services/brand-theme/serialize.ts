@@ -120,19 +120,28 @@ const CONFIGURED_ATMOSPHERE = {
    * was the only colour in it: the gradient read as one saturated hue meeting
    * one neutral, and changing the brand's colours did nothing to it.
    *
-   * \`--primary\` is always the brand's own hue, so it leads. \`--accent\` closes,
-   * which gives a two-hue wash when the brand supplies a second chromatic
-   * colour and a monochromatic fade when it supplies one — both are coherent,
-   * and neither invents a hue the brand did not choose. A grayscale brand
-   * fades grey to grey, correctly.
+   * The wash is monochromatic on \`--primary\`, deliberately, and does not
+   * blend in the second brand colour.
+   *
+   * Closing on \`--accent\` was tried and is wrong for two reasons. Two brand
+   * hues blended across one gradient average toward grey wherever they are
+   * near-complementary — a sky-and-amber brand produced a dark olive band
+   * across the middle of the page, because that is what blue and gold do. And
+   * it coupled the background to a token whose lightness is not fixed: an
+   * inverted accent surface is a bright stop, so the "faint tint" became a
+   * fifth of a vivid gold.
+   *
+   * A background wash wants one low-chroma hue with depth. The second colour
+   * earns its place on top of that, as buttons and active states, where it is
+   * adjacent to the first rather than mixed into it.
    *
    * Mixed in oklab rather than oklch on purpose: the far operand here is
    * \`--background\`, a near-neutral whose hue is essentially arbitrary, and
    * interpolating toward it in a polar space drags the brand hue toward that
    * arbitrary value.
    */
-  --feed-shell-base-mid: color-mix(in oklab, var(--primary) 16%, var(--background));
-  --feed-shell-base-end: color-mix(in oklab, var(--accent) 22%, var(--background));
+  --feed-shell-base-mid: color-mix(in oklab, var(--primary) 12%, var(--background));
+  --feed-shell-base-end: color-mix(in oklab, var(--primary) 22%, var(--background));
   --feed-shell-glow-primary: color-mix(in oklab, var(--primary) 12%, transparent);
   --feed-shell-glow-secondary: color-mix(in oklab, var(--accent-foreground) 10%, transparent);
   --feed-shell-haze: color-mix(in oklab, var(--accent) 10%, transparent);
