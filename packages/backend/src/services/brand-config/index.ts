@@ -7,7 +7,7 @@ import { deriveTheme, type BrandInput } from '../brand-theme/derive';
 import { serializeHslTriplets, serializeOklch, serializePrintHex } from '../brand-theme/serialize';
 import { brandAlignedCarbonOrder, seriesColor } from '../brand-theme/charts';
 import { oklchToHex } from '../brand-theme/color';
-import { snapCandidates } from '../brand-theme/snap';
+import { snap, snapCandidates } from '../brand-theme/snap';
 import { BRAND_TOKENS } from '../brand-theme/tokens';
 import { parseBrandConfig, type BrandAssetReference, type BrandConfig } from './config-schema';
 import { BRAND_TEMPLATES, WTH_BRAND_CONFIG } from './presets';
@@ -126,6 +126,7 @@ export const publicBrandPayload = async () => {
       lightHeight: resolved.config.logo.light.height,
       darkWidth: resolved.config.logo.dark.width,
       darkHeight: resolved.config.logo.dark.height,
+      presentation: resolved.config.logo.presentation ?? 'transparent',
     },
     staff: resolved.config.staff,
     capabilities: resolved.config.capabilities,
@@ -201,7 +202,28 @@ export const previewBrandConfiguration = (payload: unknown) => {
       Object.fromEntries(BRAND_TOKENS.map((token) => [token, oklchToHex(theme.tokens[scope][token])])),
     ])
   );
+  /**
+   * What each ranked colour actually becomes.
+   *
+   * The wizard showed the hex the person typed, which is the one value that is
+   * *not* true once the colour is snapped: FEED does not use it, it uses the
+   * nearest Tailwind stop. Naming the stop puts the colour story in the same
+   * vocabulary as the rest of the theme and shows the substitution instead of
+   * hiding it — the hex is kept alongside only so the swap stays inspectable.
+   */
+  const hierarchy = parsed.config.colors.hierarchy.map((color) => {
+    const candidate = snap(color, 'chromatic');
+    return {
+      family: candidate.entry.family,
+      stop: candidate.entry.stop,
+      name: `${candidate.entry.family}-${candidate.entry.stop}`,
+      color: oklchToHex(candidate.entry),
+      requestedColor: oklchToHex(color),
+      distance: candidate.distance,
+    };
+  });
   return {
+    hierarchy,
     families: {
       accent: theme.accentFamily,
       darkAccent: theme.accentDarkFamily,
