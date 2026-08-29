@@ -191,5 +191,21 @@ export const contrastRatio = (a: Rgb, b: Rgb): number => {
   return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
 };
 
+/**
+ * The grey of identical relative luminance.
+ *
+ * Used to render a report in black and white on purpose rather than leaving it
+ * to whatever a printer does. Because it preserves luminance exactly, every
+ * contrast ratio in the document survives the conversion unchanged — brand
+ * headings that cleared 7:1 in colour clear 7:1 in grey — so a greyscale
+ * rendering needs no separate contrast proof. What it cannot preserve is
+ * distinction between two colours that differ only in hue, which is precisely
+ * why a chart palette has to be replaced rather than converted.
+ */
+export const greyscaleOf = (hex: string): string => {
+  const channel = linearToSrgb(relativeLuminance(hexToRgb(hex)));
+  return rgbToHex({ r: channel, g: channel, b: channel });
+};
+
 export const contrastRatioHex = (a: string, b: string): number =>
   contrastRatio(hexToRgb(a), hexToRgb(b));

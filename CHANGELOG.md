@@ -5,15 +5,29 @@ All notable changes to FEED are documented here. This project adheres to
 
 ## [Unreleased]
 
-### Planned
+## [1.7.5-beta.5]
 
-- **Reports export colour and greyscale renderings together.** Carbon's
-  categorical grades are isoluminant by design, so on paper the series separate
-  by hue alone: measured on a real export, all four map to greyscale 111/255, a
-  spread of zero. On a mono printer or a photocopy the bars become one grey and
-  the legend is the only way to read the chart. The colour rendering stays as it
-  is; the greyscale one varies lightness, which is the only channel left once
-  hue is gone. See `docs/reports/chart-colors.md`.
+### Added
+
+- **Report archives contain a colour and a black-and-white PDF.** A report is a
+  document that gets printed, often on whatever is in the office, and Carbon's
+  categorical grades are isoluminant by design — the property that stops one
+  series dominating another on screen, and what makes the palette
+  colour-vision safe. On paper it meant the series were told apart by hue
+  alone: measured on a real export, all four mapped to greyscale 111/255, a
+  spread of zero, so a mono printer or a photocopy turned every bar the same
+  grey and the legend became the only way to read the chart.
+
+  The colour rendering is unchanged. The black-and-white one converts the
+  document by luminance, which preserves every contrast ratio exactly, and then
+  replaces the series ramp — because luminance conversion is precisely what
+  cannot separate colours that differed only in hue. The replacement varies
+  lightness across seven steps between L 0.20 and L 0.66; the lightest clears
+  3:1 against white and adjacent steps differ by 1.2x or more in contrast.
+
+  Verified at the byte level on a real export: the colour PDF carries eight
+  chromatic fills and the black-and-white one carries none, with the series
+  landing on the intended greys. The manifest names both files.
 
 ## [1.7.5-beta.4]
 

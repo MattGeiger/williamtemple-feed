@@ -23,7 +23,7 @@
  * separately-enforced separation floor.
  */
 
-import { hexToOklch, hueDifference } from './color';
+import { hexToOklch, hueDifference, oklchToHex } from './color';
 import { CARBON_CATEGORICAL_ORDER, CARBON_PALETTE } from './palettes';
 
 /**
@@ -80,3 +80,28 @@ export const seriesColor = (
   if (!entry) throw new Error(`Unknown Carbon family "${family}".`);
   return entry[grade][scheme];
 };
+
+/**
+ * The series ramp for a black-and-white report.
+ *
+ * Carbon's categorical grades sit at roughly equal luminance so that no series
+ * dominates another, which is right on screen and is what makes the palette
+ * colour-vision safe. On paper it means the series are separated by hue alone:
+ * measured on a real export, all four rendered series mapped to greyscale
+ * 111/255 — a spread of zero — so a mono printer or a photocopy turns every bar
+ * the same grey and the legend becomes the only way to read the chart.
+ *
+ * Lightness is the only channel left once hue is gone, so this varies it. The
+ * usual objection — that lightness reads as rank, implying a hierarchy the
+ * series do not have — is why the colour palette must NOT do this, and why it
+ * is fine here: the reader of a greyscale rendering knows hue has been removed.
+ *
+ * Spaced evenly in perceptual lightness between L 0.20 and L 0.66. Every step
+ * clears 3:1 against white (WCAG 1.4.11 for meaningful graphics), the lightest
+ * at 3.11:1, and adjacent steps differ by 1.23–1.39x in contrast, which is a
+ * visible difference in grey.
+ */
+export const PRINT_GREYSCALE_SERIES: readonly string[] = Array.from(
+  { length: 7 },
+  (_, index) => oklchToHex({ l: 0.2 + (0.66 - 0.2) * (index / 6), c: 0, h: 0 })
+);

@@ -1,3 +1,5 @@
+import { greyscaleOf } from '../brand-theme/color';
+import { PRINT_GREYSCALE_SERIES } from '../brand-theme/charts';
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 Matt Geiger
 
@@ -35,3 +37,29 @@ export const currentReportPrintTheme = (): ReportPrintTheme =>
 
 export const withReportPrintTheme = <T>(theme: ReportPrintTheme, render: () => T): T =>
   reportPrintTheme.run(theme, render);
+
+/**
+ * The same report, rendered for a printer with no colour in it.
+ *
+ * Everything except the series is converted by luminance, so the document keeps
+ * its contrast exactly — a brand heading that cleared 7:1 in colour clears 7:1
+ * in grey — and reads as a deliberate black-and-white rendering rather than an
+ * accident of the printer.
+ *
+ * The series ramp is replaced rather than converted, because converting is what
+ * fails: Carbon's grades are isoluminant, so luminance conversion maps every
+ * one of them to the same grey. `PRINT_GREYSCALE_SERIES` varies lightness
+ * instead, which is the only channel left once hue is gone.
+ */
+export const greyscalePrintTheme = (theme: ReportPrintTheme): ReportPrintTheme => ({
+  ...theme,
+  palette: theme.palette.map(
+    (_, index) => PRINT_GREYSCALE_SERIES[index % PRINT_GREYSCALE_SERIES.length]
+  ),
+  ink: greyscaleOf(theme.ink),
+  muted: greyscaleOf(theme.muted),
+  grid: greyscaleOf(theme.grid),
+  background: greyscaleOf(theme.background),
+  primary: greyscaleOf(theme.primary),
+  primarySoft: greyscaleOf(theme.primarySoft),
+});
