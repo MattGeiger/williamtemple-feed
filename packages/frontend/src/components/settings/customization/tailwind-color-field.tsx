@@ -35,6 +35,19 @@ const STOPS = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950];
 /**
  * A brand colour control that can only produce a Tailwind stop.
  *
+ * There is deliberately no long scrolling grid in here. An earlier version
+ * listed all 26 families as a 286-cell wall, which had to scroll — and a
+ * scroll region inside a popover that is portalled out of a Dialog does not
+ * respond to the wheel, because Radix Dialog locks background scrolling with
+ * `react-remove-scroll` and the portalled panel counts as background. Nothing
+ * short of re-parenting the portal or reaching into that lock fixes it.
+ *
+ * Choosing the family first and then its weight is both the way round the
+ * problem and the better interaction: it is how Tailwind is actually used, it
+ * is two small decisions instead of scanning a wall of swatches, and the
+ * family list is a native `<select>` whose menu the browser draws outside the
+ * page entirely — so the scroll lock cannot reach it.
+ *
  * The wizard used a native `<input type="color">` and a hex field. Both are
  * RGB instruments in a project whose theme is entirely Tailwind palette
  * references, and both were lying about the outcome: whatever was picked got
@@ -58,6 +71,10 @@ export function TailwindColorField({
 }: TailwindColorFieldProps) {
   const [open, setOpen] = React.useState(false);
   const [query, setQuery] = React.useState('');
+  const [family, setFamily] = React.useState(() => value?.replace(/-\d+$/, '') ?? 'emerald');
+  React.useEffect(() => {
+    if (value) setFamily(value.replace(/-\d+$/, ''));
+  }, [value]);
 
   const byName = React.useMemo(
     () => new Map(palette.map((entry) => [entry.name, entry])),
@@ -117,7 +134,7 @@ export function TailwindColorField({
         <PopoverContent
           align="start"
           collisionPadding={12}
-          className="flex max-h-[var(--radix-popover-content-available-height)] w-80 flex-col gap-3 overflow-hidden"
+          className="flex max-h-[var(--radix-popover-content-available-height)] w-80 flex-col gap-3 overflow-y-auto"
         >
           {nearby.length > 0 ? (
             <div className="shrink-0 space-y-1.5">
@@ -185,40 +202,49 @@ export function TailwindColorField({
             ) : null}
           </div>
 
-          <div className="flex min-h-0 flex-1 flex-col space-y-1.5">
-            <Label className="shrink-0 text-xs">Or pick a family and weight</Label>
-            <div className="min-h-0 flex-1 overflow-y-auto pr-1">
-              {families.map((family) => (
-                <div key={family} className="mb-1 flex items-center gap-1">
-                  <span className="w-16 shrink-0 truncate text-[10px] text-muted-foreground">
-                    {family}
-                  </span>
-                  <div className="flex gap-0.5">
-                    {STOPS.map((stop) => {
-                      const entry = byName.get(`${family}-${stop}`);
-                      if (!entry) return null;
-                      return (
-                        <button
-                          key={stop}
-                          type="button"
-                          title={entry.name}
-                          aria-label={entry.name}
-                          onClick={() => choose(entry)}
-                          style={{ background: entry.color }}
-                          className={cn(
-                            'h-4 w-4 rounded-sm border',
-                            entry.name === value
-                              ? 'border-foreground ring-1 ring-foreground'
-                              : 'border-border/50'
-                          )}
-                        />
-                      );
-                    })}
-                  </div>
-                </div>
+          <div className="shrink-0 space-y-1.5">
+            <Label htmlFor={`palette-family-${label}`} className="text-xs">
+              Or pick a family and weight
+            </Label>
+            <select
+              id={`palette-family-${label}`}
+              value={family}
+              onChange={(event) => setFamily(event.target.value)}
+              className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs"
+            >
+              {families.map((name) => (
+                <option key={name} value={name}>{name}</option>
+              ))}
+            </select>
+            <div className="flex gap-1">
+              {STOPS.map((stop) => {
+                const entry = byName.get(`${family}-${stop}`);
+                if (!entry) return <span key={stop} className="h-7 flex-1" />;
+                return (
+                  <button
+                    key={stop}
+                    type="button"
+                    title={entry.name}
+                    aria-label={entry.name}
+                    onClick={() => choose(entry)}
+                    style={{ background: entry.color }}
+                    className={cn(
+                      'h-7 flex-1 rounded-sm border',
+                      entry.name === value
+                        ? 'border-foreground ring-1 ring-foreground'
+                        : 'border-border/50'
+                    )}
+                  />
+                );
+              })}
+            </div>
+            <div className="flex gap-1 text-[9px] text-muted-foreground">
+              {STOPS.map((stop) => (
+                <span key={stop} className="flex-1 text-center">{stop}</span>
               ))}
             </div>
           </div>
+
         </PopoverContent>
       </Popover>
     </div>
