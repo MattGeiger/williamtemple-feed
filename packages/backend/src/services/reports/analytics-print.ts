@@ -28,6 +28,106 @@ const ink = () => currentReportPrintTheme().ink;
 const muted = () => currentReportPrintTheme().muted;
 const grid = () => currentReportPrintTheme().grid;
 
+/* ---------- series texture ----------
+ *
+ * Solid greys first, texture only once they run out.
+ *
+ * The greyscale ramp is seven steps. Past that it used to wrap, so the twelve
+ * series on `procurement-legacy-donations-over-time` printed as seven greys and
+ * five exact duplicates — two series the same shade with no way to tell which
+ * was which. Adding an eighth grey does not help: the steps are already 1.23x
+ * apart at the close end, which is about what a mono printer resolves.
+ *
+ * So the ramp is spent as-is for the first seven series, and thereafter the
+ * same seven greys come back carrying a texture. Texture is genuinely noisier
+ * than a flat fill, which is the reason it is the extension and not the scheme:
+ * a chart of seven or fewer series never sees one.
+ *
+ * The lines are cut in the paper colour rather than drawn in a darker grey, so
+ * a textured series reads lighter than the solid one it shares a step with —
+ * separation from two directions instead of one.
+ */
+
+/** Tile side, in user units. Small enough to read inside a 2-unit bar. */
+const TEXTURE_TILE = 4;
+
+const TEXTURES: readonly ((paper: string) => string)[] = [
+  // 0 is solid: no pattern element, the grey is used directly.
+  () => '',
+  paper =>
+    `<path d="M-1,1 l2,-2 M0,4 l4,-4 M3,5 l2,-2" stroke="${paper}" stroke-width="1.1" fill="none"/>`,
+  paper =>
+    `<path d="M-1,1 l2,-2 M0,4 l4,-4 M3,5 l2,-2 M-1,3 l2,2 M0,0 l4,4 M3,-1 l2,2"` +
+    ` stroke="${paper}" stroke-width="1" fill="none"/>`,
+];
+
+/** Which grey and which texture series `si` gets. */
+const textureIndexFor = (si: number) => {
+  const steps = palette().length;
+  return {
+    grey: palette()[si % steps],
+    texture: currentReportPrintTheme().seriesPatterns
+      ? Math.floor(si / steps) % TEXTURES.length
+      : 0,
+  };
+};
+
+/**
+ * Deterministic, and deliberately so.
+ *
+ * A page holds many card SVGs inline and each carries its own `<defs>`, so two
+ * charts that both reach series eight emit the same id twice. A counter would
+ * avoid the duplicate but make the output differ run to run; instead the id is
+ * a pure function of what it defines, so a collision resolves to an identical
+ * pattern and renders correctly either way.
+ */
+const textureId = (texture: number, grey: string) =>
+  `feed-tx-${texture}-${grey.replace('#', '')}`;
+
+/** Fill for series `si`: a grey, or a reference to a textured version of it. */
+export function seriesFill(si: number): string {
+  const { grey, texture } = textureIndexFor(si);
+  return texture === 0 ? grey : `url(#${textureId(texture, grey)})`;
+}
+
+/**
+ * The `<defs>` a chart of `count` series needs. Empty for seven or fewer.
+ *
+ * Every SVG that draws series must include this, the legend included — a
+ * legend swatch that does not carry the same texture as its bars is worse than
+ * no legend, because it asserts a match that is not there.
+ */
+export function seriesDefs(count: number): string {
+  const paper = currentReportPrintTheme().background;
+  const seen = new Map<string, string>();
+  for (let si = 0; si < count; si += 1) {
+    const { grey, texture } = textureIndexFor(si);
+    if (texture === 0) continue;
+    const id = textureId(texture, grey);
+    if (seen.has(id)) continue;
+    seen.set(
+      id,
+      `<pattern id="${id}" width="${TEXTURE_TILE}" height="${TEXTURE_TILE}" patternUnits="userSpaceOnUse">` +
+        `<rect width="${TEXTURE_TILE}" height="${TEXTURE_TILE}" fill="${grey}"/>` +
+        TEXTURES[texture](paper) +
+        `</pattern>`
+    );
+  }
+  return seen.size === 0 ? '' : `<defs>${[...seen.values()].join('')}</defs>`;
+}
+
+/**
+ * Dash for series `si` on a line chart.
+ *
+ * Lines get the same treatment by a different mechanism: a one-unit stroke is
+ * too thin to hold a fill pattern, and a dashed line is the oldest and quietest
+ * way to say "a different series" on paper.
+ */
+export function seriesDash(si: number): string {
+  const { texture } = textureIndexFor(si);
+  return texture === 0 ? '' : ` stroke-dasharray="${['', '5 3', '1.5 2.5'][texture]}"`;
+}
+
 const esc = (s: string) => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 const escAttribute = (s: string) => esc(s).replace(/"/g, '&quot;');
 const fmt = (n: number) => Math.round(n).toLocaleString('en-US');
@@ -156,8 +256,11 @@ export function hBarSvg(
   // a small gutter. Anything longer is cut rather than drawn over the bar.
   const labelMaxW = labelW - 10;
   const max = Math.max(1, ...rows.map(r => r.value));
-  const colors = palette();
-  const segmentColor = new Map(segmentNames.map((name, index) => [name, colors[index % colors.length]]));
+  // Segments are decoded from a legend, so they take texture past the seventh.
+  // A plain row bar carries its own label, which makes its fill decorative — it
+  // cycles the greys and stays flat, because texturing a bar that is already
+  // named adds noise and says nothing.
+  const segmentFill = new Map(segmentNames.map((name, index) => [name, seriesFill(index)]));
   const height = rows.length * rowH + pad * 2;
   const bars = rows.map((r, i) => {
     const y = pad + i * rowH;
@@ -167,16 +270,16 @@ export function hBarSvg(
     const rects = usableSegments.length > 0
       ? usableSegments.map((segment, segmentIndex) => {
           const segmentW = r.value > 0 ? (segment.value / r.value) * w : 0;
-          const rect = `<rect data-segment="${escAttribute(segment.name)}" x="${segmentX}" y="${y + 5}" width="${segmentW}" height="${rowH - 14}" fill="${segmentColor.get(segment.name) ?? colors[segmentIndex % colors.length]}"/>`;
+          const rect = `<rect data-segment="${escAttribute(segment.name)}" x="${segmentX}" y="${y + 5}" width="${segmentW}" height="${rowH - 14}" fill="${segmentFill.get(segment.name) ?? seriesFill(segmentIndex)}"/>`;
           segmentX += segmentW;
           return rect;
         }).join('')
-      : `<rect x="${labelW}" y="${y + 5}" width="${w}" height="${rowH - 14}" rx="2" fill="${colors[i % colors.length]}"/>`;
+      : `<rect x="${labelW}" y="${y + 5}" width="${w}" height="${rowH - 14}" rx="2" fill="${palette()[i % palette().length]}"/>`;
     return `<text x="0" y="${y + rowH / 2 + 4}" font-size="12" fill="${ink()}">${esc(truncateToWidth(r.label, labelMaxW, 12))}</text>` +
       rects +
       `<text x="${labelW + w + 8}" y="${y + rowH / 2 + 4}" font-size="11" fill="${muted()}">${esc(formatValue(r.value))}</text>`;
   }).join('');
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" font-family="Helvetica, Arial, sans-serif">${bars}</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" font-family="Helvetica, Arial, sans-serif">${seriesDefs(segmentNames.length)}${bars}</svg>`;
 }
 
 /** Stacked vertical bars over an ordered category axis. Used for time series. */
@@ -207,7 +310,7 @@ export function stackedBarSvg(
       const h = (v / max) * plotH;
       const y = padT + plotH - acc - h;
       acc += h;
-      return `<rect x="${x}" y="${y}" width="${barW}" height="${h}" fill="${palette()[si % palette().length]}"/>`;
+      return `<rect x="${x}" y="${y}" width="${barW}" height="${h}" fill="${seriesFill(si)}"/>`;
     }).join('');
     // Thin out labels so a long series stays readable on paper.
     const showLabel = categories.length <= 14 || i % Math.ceil(categories.length / 12) === 0;
@@ -217,7 +320,7 @@ export function stackedBarSvg(
     return segs + label;
   }).join('');
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" font-family="Helvetica, Arial, sans-serif">${ticks}${bars}</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" font-family="Helvetica, Arial, sans-serif">${seriesDefs(series.length)}${ticks}${bars}</svg>`;
 }
 
 /** Legend drawn into the SVG, so it cannot be lost the way an HTML one is. */
@@ -225,11 +328,11 @@ export function legendSvg(names: string[], width = 900): string {
   const items = names.map((n, i) => {
     const x = (i % 4) * (width / 4);
     const y = Math.floor(i / 4) * 18 + 12;
-    return `<rect x="${x}" y="${y - 8}" width="10" height="10" rx="2" fill="${palette()[i % palette().length]}"/>` +
+    return `<rect x="${x}" y="${y - 8}" width="10" height="10" rx="2" fill="${seriesFill(i)}"/>` +
       `<text x="${x + 15}" y="${y + 1}" font-size="11" fill="${ink()}">${esc(n)}</text>`;
   }).join('');
   const rows = Math.ceil(names.length / 4);
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${rows * 18 + 6}" font-family="Helvetica, Arial, sans-serif">${items}</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${rows * 18 + 6}" font-family="Helvetica, Arial, sans-serif">${seriesDefs(names.length)}${items}</svg>`;
 }
 
 /**
@@ -284,6 +387,7 @@ export function lineChartSvg(
 
   const lines = series.map((s, si) => {
     const stroke = palette()[si % palette().length];
+    const dash = seriesDash(si);
     const runs: number[][] = [];
     s.values.forEach((_, index) => {
       if (s.defined?.[index] === false) return;
@@ -302,7 +406,7 @@ export function lineChartSvg(
           : '';
       const mark = run.length === 1
         ? `<circle cx="${x(run[0]).toFixed(1)}" cy="${y(s.values[run[0]]).toFixed(1)}" r="2.5" fill="${stroke}"/>`
-        : `<polyline points="${points}" fill="none" stroke="${stroke}" stroke-width="2" stroke-linejoin="round"/>`;
+        : `<polyline points="${points}" fill="none" stroke="${stroke}" stroke-width="2" stroke-linejoin="round"${dash}/>`;
       return area + mark;
     }).join('');
   }).join('');
@@ -386,7 +490,7 @@ export function stackedHBarSvg(
       const v = s.values[i] ?? 0;
       if (v <= 0) return '';
       const w = (v / max) * chartW;
-      const rect = `<rect x="${x.toFixed(1)}" y="${y + 4}" width="${w.toFixed(1)}" height="${rowH - 12}" fill="${palette()[si % palette().length]}"/>`;
+      const rect = `<rect x="${x.toFixed(1)}" y="${y + 4}" width="${w.toFixed(1)}" height="${rowH - 12}" fill="${seriesFill(si)}"/>`;
       x += w;
       return rect;
     }).join('');
@@ -395,7 +499,7 @@ export function stackedHBarSvg(
       `<text x="${(x + 8).toFixed(1)}" y="${y + rowH / 2 + 4}" font-size="10" fill="${muted()}">${formatValue(totals[i])}</text>`;
   }).join('');
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" font-family="Helvetica, Arial, sans-serif">${rows}</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" font-family="Helvetica, Arial, sans-serif">${seriesDefs(series.length)}${rows}</svg>`;
 }
 
 /**
@@ -442,7 +546,7 @@ export function groupedHBarSvg(
       const value = options.formatValue
         ? `<text data-bar-value="${escAttribute(s.name)}" x="${(labelW + w + 5).toFixed(1)}" y="${y + groupH - 4}" font-size="10" fill="${muted()}">${esc(options.formatValue(v))}</text>`
         : '';
-      return `<rect x="${labelW}" y="${y}" width="${w.toFixed(1)}" height="${groupH - 3}" rx="1.5" fill="${palette()[si % palette().length]}"/>${value}`;
+      return `<rect x="${labelW}" y="${y}" width="${w.toFixed(1)}" height="${groupH - 3}" rx="1.5" fill="${seriesFill(si)}"/>${value}`;
     }).join('');
     return `<text x="0" y="${top + (rowH - 8) / 2 + 4}" font-size="11" fill="${ink()}">${esc(truncateToWidth(label, labelMaxW, 11))}</text>${bars}`;
   }).join('');
@@ -463,7 +567,7 @@ export function groupedHBarSvg(
       }).join('')
     : '';
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" font-family="Helvetica, Arial, sans-serif">${axis}${rows}</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" font-family="Helvetica, Arial, sans-serif">${seriesDefs(series.length)}${axis}${rows}</svg>`;
 }
 
 /**

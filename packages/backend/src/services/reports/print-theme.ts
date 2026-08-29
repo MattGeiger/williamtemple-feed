@@ -27,6 +27,20 @@ export interface ReportPrintTheme {
    * that converting the theme converts the document.
    */
   note: { ink: string; background: string; border: string };
+  /**
+   * Whether series past the end of the palette are distinguished by texture.
+   *
+   * Colour has as many usable hues as a chart has series. Grey does not: the
+   * ramp is seven steps before the gaps close below what a printer resolves,
+   * and one real card carries twelve series, so five of them came out as exact
+   * duplicates of the first five. Texture extends the range without inventing
+   * steps that cannot be told apart.
+   *
+   * Off for the colour rendering, which does not need it and reads worse for
+   * the noise. Solid greys are still spent first even here: a chart of seven
+   * or fewer series never sees a pattern.
+   */
+  seriesPatterns?: boolean;
 }
 
 export const DEFAULT_REPORT_PRINT_THEME: ReportPrintTheme = {
@@ -77,4 +91,5 @@ export const greyscalePrintTheme = (theme: ReportPrintTheme): ReportPrintTheme =
     background: greyscaleOf(theme.note.background),
     border: greyscaleOf(theme.note.border),
   },
+  seriesPatterns: true,
 });

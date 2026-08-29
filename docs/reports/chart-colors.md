@@ -170,9 +170,51 @@ as the smallest contrast gap between any two series a chart of *n* bars gets:
 Two- and three-series charts are the common case and are now unmistakable; a
 seven-series chart is no worse than it was.
 
-Past seven series the ramp wraps and repeats greys, which is a real limitation
-and the reason to extend the range with fills rather than more grey steps —
-solid greys first, patterns only once the greys run out.
+### Past seven series: texture
+
+Seven is the ramp's real ceiling. The steps are already 1.23x apart at the close
+end, which is about what a mono printer resolves, so an eighth step buys a
+distinction nobody can see. But `procurement-legacy-donations-over-time` carries
+**twelve** series, and the ramp wrapped: series 8 through 12 printed as exact
+copies of series 1 through 5, with a legend confidently naming both.
+
+The range is extended with texture instead, and only once the greys are gone:
+
+| series | treatment                         |
+| ------ | --------------------------------- |
+| 1–7    | solid grey, no pattern at all     |
+| 8–14   | the same seven greys, hatched     |
+| 15–21  | the same seven greys, cross-hatch |
+
+Texture is noisier than a flat fill. That is exactly why it is the extension and
+not the scheme — a chart of seven or fewer series never sees one, and the colour
+rendering never sees one at all, because hue has as many usable steps as a chart
+has series and would be paying the noise for nothing.
+
+The hatch lines are cut in the paper colour rather than drawn in a darker grey,
+so a textured series reads *lighter* than the solid series it shares a step
+with. The pair is separated twice over, by texture and by apparent lightness.
+
+Lines get the same idea by a different mechanism: a 2-unit stroke is too thin to
+hold a fill pattern, so `seriesDash` dashes them. A reader matching a hatched
+legend swatch to a dashed line is doing a small translation, but both read as
+"the marked one" against a solid twin of the same grey, and the grey still
+carries the primary identity.
+
+Two implementation points worth keeping:
+
+- **Every SVG that draws series carries its own `<defs>`, the legend included.**
+  A legend swatch that does not carry its bars' texture is worse than no legend,
+  because it asserts a correspondence that is not there.
+- **Pattern ids are a pure function of what they define** (`feed-tx-1-161616`),
+  not a counter. A page holds many card SVGs inline, so two charts that both
+  reach series eight emit the same id twice. A counter would avoid the duplicate
+  at the cost of output that differs run to run; identical definitions render
+  correctly under either resolution, so determinism is the better trade.
+
+A bar that carries its own label is left flat regardless — in `hBarSvg` the row
+fill is decorative, and texturing something already named is noise with no
+information in it. Only the segments, which are decoded from a legend, take it.
 
 One trap worth recording. `card.print` reads the print theme from an
 async-local scope and bakes the series colours into the SVG it returns, so
