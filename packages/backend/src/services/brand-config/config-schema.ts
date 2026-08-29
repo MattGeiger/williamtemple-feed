@@ -30,6 +30,9 @@ export const brandAssetReferenceSchema = z.discriminatedUnion('kind', [
     height: z.number().int().positive(),
     // Optional so configurations saved before vector preservation remain valid.
     mimeType: z.enum(['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml']).optional(),
+    // Likewise optional: shown in the wizard so an operator can see which file
+    // is in each slot. Already sanitised by `safeFilename` on the way in.
+    filename: z.string().max(160).optional(),
   }),
 ]);
 
