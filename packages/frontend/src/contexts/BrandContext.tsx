@@ -17,6 +17,8 @@ export type BrandAssetReference =
       width: number;
       height: number;
       mimeType?: 'image/png' | 'image/jpeg' | 'image/webp' | 'image/svg+xml';
+      /** The saved file's name, shown in the wizard's upload slots. */
+      filename?: string;
     };
 
 export type BrandConfigurationPayload = {

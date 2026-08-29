@@ -186,10 +186,11 @@ const safeFilename = (filename: string): string =>
 
 export const storeBrandAsset = async (prepared: PreparedBrandAsset, filename: string) => {
   const id = crypto.randomUUID();
+  const stored = safeFilename(filename);
   await prisma.brandAsset.create({
     data: {
       id,
-      filename: safeFilename(filename),
+      filename: stored,
       mimeType: prepared.mimeType,
       width: prepared.width,
       height: prepared.height,
@@ -199,6 +200,11 @@ export const storeBrandAsset = async (prepared: PreparedBrandAsset, filename: st
   return {
     kind: 'database' as const,
     id,
+    // Carried on the reference so the wizard can name the file that is
+    // actually saved. A native file input is cleared straight after upload so
+    // that re-picking the same file still fires `change`, which leaves it
+    // reading "No file chosen" no matter what was uploaded.
+    filename: stored,
     width: prepared.width,
     height: prepared.height,
     mimeType: prepared.mimeType,

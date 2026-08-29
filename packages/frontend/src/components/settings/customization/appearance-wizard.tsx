@@ -284,6 +284,18 @@ function LogosStep({ draft, change, busy }: WizardStepProps) {
   };
   const input = (kind: 'logo-light' | 'logo-dark' | 'square', label: string) => {
     const warning = resolutionWarning(kind);
+    // The native control is cleared the moment a file is handed over, so that
+    // re-picking the same file still fires `change` — otherwise a corrected
+    // re-upload would silently do nothing. That leaves it permanently reading
+    // "No file chosen", so the saved filename is shown alongside it. It is
+    // also the more truthful thing to display: what is stored, not what
+    // happens to be sitting in the input.
+    const reference = kind === 'logo-light'
+      ? draft.config.logo.light
+      : kind === 'logo-dark'
+        ? draft.config.logo.dark
+        : draft.config.logo.square;
+    const stored = reference && reference.kind === 'database' ? reference.filename : null;
     return (
       <div className="space-y-1.5">
         <Label htmlFor={`brand-${kind}`}>{label}</Label>
@@ -292,7 +304,13 @@ function LogosStep({ draft, change, busy }: WizardStepProps) {
           event.currentTarget.value = '';
           if (file) void upload(kind, file);
         }} />
-        {uploading === kind ? <p className="text-xs text-muted-foreground">Uploading and measuring…</p> : null}
+        {uploading === kind ? (
+          <p className="text-xs text-muted-foreground">Uploading and measuring…</p>
+        ) : stored ? (
+          <p className="truncate font-mono text-xs text-muted-foreground" title={stored}>
+            {stored}
+          </p>
+        ) : null}
         {warning ? (
           <p className="rounded-md border border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] px-2 py-1.5 text-xs text-[var(--status-warning-text)]" role="status">
             {warning}
