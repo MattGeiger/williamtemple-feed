@@ -18,6 +18,15 @@ export type BrandPreview = {
     mudEscapedFrom: string | null;
   };
   alternates: { family: string; stop: number; distance: number; color: string }[];
+  /** Each ranked brand colour and the Tailwind stop it snaps to. */
+  hierarchy: {
+    family: string;
+    stop: number;
+    name: string;
+    color: string;
+    requestedColor: string;
+    distance: number;
+  }[];
   tokens: Record<'light' | 'dark', Record<string, string>>;
   chartOrder: string[];
   chartColors: Record<'light' | 'dark', string[]>;
@@ -79,6 +88,13 @@ class BrandService extends BaseApiService {
     asset: BrandAssetReference;
     derivatives: BrandAssetReference[];
     warnings: string[];
+    /** Present only for `logo-light`; see describeLogoPresentation. */
+    presentation: {
+      suggested: 'transparent' | 'dark-surface';
+      transparentFraction: number;
+      artworkLightness: number;
+      reason: string;
+    } | null;
   }> {
     const form = new FormData();
     form.set('kind', kind);
@@ -87,6 +103,12 @@ class BrandService extends BaseApiService {
       asset: BrandAssetReference;
       derivatives: BrandAssetReference[];
       warnings: string[];
+      presentation: {
+        suggested: 'transparent' | 'dark-surface';
+        transparentFraction: number;
+        artworkLightness: number;
+        reason: string;
+      } | null;
     }>('/admin/brand/assets', form);
   }
 

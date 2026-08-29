@@ -209,7 +209,13 @@ function LogosStep({ draft, change, busy }: WizardStepProps) {
     try {
       const uploaded = await brandService.upload(kind, file);
       const logo = { ...draft.config.logo };
-      if (kind === 'logo-light') logo.light = uploaded.asset;
+      if (kind === 'logo-light') {
+        logo.light = uploaded.asset;
+        // The detector reports what it measured; adopting it here means the
+        // common case needs no decision, and the control below still lets
+        // someone override it either way.
+        if (uploaded.presentation) logo.presentation = uploaded.presentation.suggested;
+      }
       else if (kind === 'logo-dark') logo.dark = uploaded.asset;
       else {
         logo.square = uploaded.asset;
@@ -221,6 +227,9 @@ function LogosStep({ draft, change, busy }: WizardStepProps) {
       change({ config: replaceSection(draft.config, 'logo', logo) });
       messageService.success(kind === 'square' ? 'App mark uploaded and icon sizes generated.' : `${kind === 'logo-light' ? 'Light' : 'Dark'}-mode logo uploaded.`);
       uploaded.warnings.forEach((warning) => messageService.warning(warning));
+      if (uploaded.presentation?.suggested === 'dark-surface') {
+        messageService.info(uploaded.presentation.reason);
+      }
     } catch (error) {
       ErrorHandlerService.handleError(error, 'brandUploadAsset');
     } finally { setUploading(null); }
@@ -267,6 +276,31 @@ function LogosStep({ draft, change, busy }: WizardStepProps) {
   return (
     <StepWrapper icon={ImageIcon} title="Logos & app mark" description="SVGs stay crisp at every size after unsafe content is removed. Raster images keep their original dimensions. All uploads stay with database backups.">
       <div className="flex flex-col gap-2 sm:flex-row">{slot('light')}{slot('dark')}</div>
+      <div className="space-y-1.5 rounded-lg border p-3">
+        <Label htmlFor="brand-logo-presentation">Light-mode background</Label>
+        <select
+          id="brand-logo-presentation"
+          className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+          value={draft.config.logo.presentation ?? 'transparent'}
+          disabled={busy}
+          onChange={(event) =>
+            change({
+              config: replaceSection(draft.config, 'logo', {
+                ...draft.config.logo,
+                presentation: event.target.value as 'transparent' | 'dark-surface',
+              }),
+            })
+          }
+        >
+          <option value="transparent">Place directly on the page</option>
+          <option value="dark-surface">Give the logo a dark plate</option>
+        </select>
+        <p className="text-xs text-muted-foreground">
+          A logo drawn in white on a transparent background disappears on a light page. A
+          dark plate keeps it readable. Dark mode never uses the plate, because the page is
+          already dark. FEED checks the light logo when you upload it and picks for you.
+        </p>
+      </div>
       {input('logo-light', 'Light-mode logo')}
       {input('logo-dark', 'Dark-mode logo')}
       {input('square', 'Square app mark')}
@@ -359,9 +393,20 @@ function ColorsStep({ draft, change, busy }: WizardStepProps) {
         {draft.config.colors.hierarchy.map((color, index) => (
           <div key={index} className={cn('flex items-center gap-2 rounded-lg border p-2', selected === index && 'ring-2 ring-ring')}>
             <input aria-label={`Brand color ${index + 1}`} type="color" value={oklchToHex(color)} onChange={(event) => updateColor(index, event.target.value)} onFocus={() => setSelected(index)} disabled={busy} className="h-9 w-12 rounded-md border border-input bg-transparent p-1" />
-            <Input key={oklchToHex(color)} aria-label={`Brand color ${index + 1} hex`} defaultValue={oklchToHex(color)} onFocus={() => setSelected(index)} onBlur={(event) => updateColor(index, event.target.value)} onKeyDown={(event) => {
-              if (event.key === 'Enter') updateColor(index, event.currentTarget.value);
-            }} className="font-mono text-xs" disabled={busy} />
+            {/*
+              * The Tailwind stop is the headline, because it is what FEED
+              * actually uses. The hex below it is only the value that was
+              * asked for — after snapping it is no longer the colour on
+              * screen, so showing it alone was reporting the wrong thing.
+              */}
+            <div className="flex min-w-0 flex-1 flex-col gap-1">
+              <span className="truncate font-mono text-sm" title={preview?.hierarchy?.[index]?.name}>
+                {preview?.hierarchy?.[index]?.name ?? '—'}
+              </span>
+              <Input key={oklchToHex(color)} aria-label={`Brand color ${index + 1} hex`} defaultValue={oklchToHex(color)} onFocus={() => setSelected(index)} onBlur={(event) => updateColor(index, event.target.value)} onKeyDown={(event) => {
+                if (event.key === 'Enter') updateColor(index, event.currentTarget.value);
+              }} className="h-7 font-mono text-xs text-muted-foreground" disabled={busy} />
+            </div>
             <Button type="button" variant="outline" size="sm" aria-label={`Move color ${index + 1} up`} onClick={() => move(index, -1)} disabled={busy || index === 0}>Up</Button>
             <Button type="button" variant="outline" size="sm" aria-label={`Move color ${index + 1} down`} onClick={() => move(index, 1)} disabled={busy || index === draft.config.colors.hierarchy.length - 1}>Down</Button>
             {draft.config.colors.hierarchy.length > 1 ? <Button type="button" variant="ghost" size="sm" onClick={() => { setHierarchy(draft.config.colors.hierarchy.filter((_, item) => item !== index)); setSelected(0); }} disabled={busy}>Remove</Button> : null}
