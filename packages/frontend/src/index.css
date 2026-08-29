@@ -194,6 +194,8 @@
     --feed-shell-base-start: var(--color-slate-50);
     --feed-shell-base-mid: var(--color-sky-50);
     --feed-shell-base-end: var(--color-slate-200);
+    /* Plate behind a `dark-surface` logo — see BrandLogo. Light mode only. */
+    --feed-logo-surface: var(--color-slate-900);
     --feed-shell-glow-primary: color-mix(in oklab, var(--color-sky-700) 9.0%, transparent);
     --feed-shell-glow-secondary: color-mix(in oklab, var(--color-teal-500) 8.0%, transparent);
     --feed-shell-haze: color-mix(in oklab, var(--color-yellow-300) 5.0%, transparent);
@@ -328,6 +330,7 @@
     --feed-shell-base-start: var(--color-gray-900);
     --feed-shell-base-mid: var(--color-slate-800);
     --feed-shell-base-end: var(--color-slate-800);
+    --feed-logo-surface: transparent;
     --feed-shell-glow-primary: color-mix(in oklab, var(--color-blue-500) 20.0%, transparent);
     --feed-shell-glow-secondary: color-mix(in oklab, var(--color-indigo-400) 16.0%, transparent);
     --feed-shell-haze: color-mix(in oklab, var(--color-slate-400) 6.0%, transparent);

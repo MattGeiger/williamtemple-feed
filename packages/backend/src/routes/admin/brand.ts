@@ -9,6 +9,7 @@ import {
   brandAssetResolutionWarnings,
   checkBrandAssetStorage,
   cleanupUnusedBrandAssets,
+  describeLogoPresentation,
   prepareBrandAsset,
   storeBrandAsset,
   storeSquareBrandDerivative,
@@ -87,7 +88,15 @@ router.post('/assets', upload.single('file'), async (req, res, next) => {
     const derivatives = kind === 'square'
       ? await Promise.all([64, 192, 512].map((size) => storeSquareBrandDerivative(prepared, req.file!.originalname, size)))
       : [];
-    return res.status(201).json({ asset, derivatives, warnings: brandAssetResolutionWarnings(prepared, kind) });
+    // Only the light logo can be invisible against the page it lands on; the
+    // dark variant and the app mark are placed on surfaces we control.
+    const presentation = kind === 'logo-light' ? await describeLogoPresentation(prepared) : null;
+    return res.status(201).json({
+      asset,
+      derivatives,
+      warnings: brandAssetResolutionWarnings(prepared, kind),
+      presentation,
+    });
   } catch (error) {
     if (error instanceof multer.MulterError && error.code === 'LIMIT_FILE_SIZE') return res.status(413).json({ error: { message: 'That image is larger than 4 MB. Export or compress a smaller copy and try again.', code: 'BRAND_ASSET_TOO_LARGE' } });
     return next(error);

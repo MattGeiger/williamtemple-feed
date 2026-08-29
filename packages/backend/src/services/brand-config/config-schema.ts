@@ -53,6 +53,17 @@ export const brandConfigSchema = z.object({
       size192: brandAssetReferenceSchema,
       size512: brandAssetReferenceSchema,
     }).optional(),
+    /**
+     * How the light-mode logo has to sit on the page.
+     *
+     * Plenty of logos are drawn in white on a transparent ground, for placing
+     * over photography. Dropped straight onto FEED's light surface they vanish.
+     * `dark-surface` gives the mark its own dark plate in light mode; in dark
+     * mode the page is already dark, so the plate is dropped and the mark sits
+     * directly on the background. Matches LOTTO's `logo.presentation`, so a
+     * staff member who has set this there recognises it here.
+     */
+    presentation: z.enum(['transparent', 'dark-surface']).default('transparent'),
   }),
   colors: z.object({
     accent: oklchColorSchema,

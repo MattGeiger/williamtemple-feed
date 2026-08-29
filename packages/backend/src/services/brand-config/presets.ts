@@ -29,6 +29,7 @@ export const WTH_BRAND_CONFIG: BrandConfig = {
     // Lives in `public/` rather than `src/assets/` because Vite fingerprints
     // the latter, and this path is referenced at runtime and from email.
     square: { kind: 'builtin', src: '/brand/wth-icon-outline.svg', width: 527, height: 527 },
+    presentation: 'transparent',
   },
   colors: {
     accent: hexToOklch('#186090'),
@@ -71,6 +72,7 @@ export const ST_JOHNS_BRAND_CONFIG: BrandConfig = {
   logo: {
     light: { kind: 'builtin', src: '/brand/st-johns-template-mark.svg', width: 640, height: 220 },
     dark: { kind: 'builtin', src: '/brand/st-johns-template-mark.svg', width: 640, height: 220 },
+    presentation: 'transparent',
   },
   colors: {
     accent: hexToOklch('#33A478'),
