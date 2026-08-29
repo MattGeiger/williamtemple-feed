@@ -151,6 +151,72 @@ export const isAchromatic = (color: Oklch): boolean => color.c < ACHROMATIC_CHRO
 export const roleFor = (color: Oklch, role: SnapRole): SnapRole =>
   role === 'neutral' ? 'neutral' : isAchromatic(color) ? 'neutral' : 'chromatic';
 
+/**
+ * The neutral ramp that harmonises with a brand hue.
+ *
+ * Tailwind's `neutral` is the one ramp at chroma exactly 0, so a brand whose
+ * supplied greys are truly achromatic snaps to it — faithfully, and the result
+ * is a theme where every surface, border and muted label is dead grey while
+ * only three tokens carry the brand. It reads as desaturated because it is:
+ * surfaces are most of the pixels.
+ *
+ * The tinted ramps solve this. `slate` sits at hue 260 with chroma 0.041 and
+ * `gray` at 257 — imperceptible as colour in isolation, but across every
+ * surface they give the whole interface a cast that agrees with the brand.
+ * That is what the hand-tuned William Temple House theme does, and why it
+ * feels coloured where a derived one felt flat.
+ *
+ * So an achromatic result is treated as "grey, unspecified" rather than
+ * "grey, and definitely this one": if the brand has a hue, the nearest tinted
+ * ramp to that hue is used instead. A brand with no hue at all keeps `neutral`,
+ * because there is nothing to harmonise with and a grayscale identity should
+ * stay grayscale.
+ */
+/**
+ * Only `neutral` is replaced, and it may be replaced by any tinted ramp.
+ *
+ * A first attempt gated on chroma >= 0.02, which left just slate, gray and
+ * mauve as candidates — so an orange brand was handed mauve, a purple grey,
+ * as its "nearest hue", and a brand whose greys were genuinely stone-coloured
+ * had that overridden. Both were the pool being wrong, not the idea.
+ *
+ * Trigger on the one ramp that is exactly achromatic, and choose from every
+ * other neutral family. Their hues span the wheel — stone and taupe warm,
+ * olive green, mist cyan, slate and gray blue, mauve magenta — so every brand
+ * hue has a grey that agrees with it.
+ */
+const ACHROMATIC_RAMP_CHROMA = 0.003;
+
+export const harmonisedNeutralFamily = (
+  chosen: string,
+  brandHue: Oklch
+): string => {
+  const chosenEntry = TAILWIND_PALETTE.find(
+    (entry) => entry.family === chosen && entry.stop === 800
+  );
+  // No hue to harmonise with. A grayscale identity is pushed to the one
+  // genuinely achromatic ramp rather than left wherever the neutral snap
+  // landed — for plain greys that was `olive`, so "grayscale" came out faintly
+  // green. Grayscale should mean grey.
+  if (isAchromatic(brandHue)) return 'neutral';
+  // A ramp that already carries a tint is a real choice; leave it.
+  if (!chosenEntry || chosenEntry.c > ACHROMATIC_RAMP_CHROMA) return chosen;
+
+  const tinted = TAILWIND_PALETTE.filter(
+    (entry) =>
+      entry.stop === 800 &&
+      isNeutralFamily(entry.family) &&
+      entry.c > ACHROMATIC_RAMP_CHROMA
+  );
+  if (tinted.length === 0) return chosen;
+
+  // `hueDifference` is SIGNED, in (-180, 180]. Comparing it raw picks the most
+  // negative angle rather than the nearest hue, which put a blue brand on
+  // taupe. Distance is the absolute value.
+  const distance = (entry: { h: number }) => Math.abs(hueDifference(entry.h, brandHue.h));
+  return tinted.reduce((best, entry) => (distance(entry) < distance(best) ? entry : best)).family;
+};
+
 export const paletteCandidates = (
   target: Oklch,
   limit = 3
