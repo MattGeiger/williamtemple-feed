@@ -222,7 +222,7 @@ export function PaletteCalibration() {
       if (!row) continue;
       const value = row.alpha === null
         ? `var(--color-${name})`
-        : `color-mix(in oklch, var(--color-${name}) ${(row.alpha * 100).toFixed(1)}%, transparent)`;
+        : `color-mix(in oklab, var(--color-${name}) ${(row.alpha * 100).toFixed(1)}%, transparent)`;
       byScope[row.scope].push(`  --${tokenOf(key)}: ${value};`);
     }
     el.textContent = [

@@ -194,19 +194,19 @@
     --feed-shell-base-start: var(--color-slate-50);
     --feed-shell-base-mid: var(--color-sky-50);
     --feed-shell-base-end: var(--color-slate-200);
-    --feed-shell-glow-primary: color-mix(in oklch, var(--color-sky-700) 9.0%, transparent);
-    --feed-shell-glow-secondary: color-mix(in oklch, var(--color-teal-500) 8.0%, transparent);
-    --feed-shell-haze: color-mix(in oklch, var(--color-yellow-300) 5.0%, transparent);
-    --feed-shell-veil: color-mix(in oklch, var(--color-white) 42.0%, transparent);
-    --feed-shell-panel-start: color-mix(in oklch, var(--card) 88%, transparent);
-    --feed-shell-panel-end: color-mix(in oklch, var(--color-mist-100) 76.0%, transparent);
-    --feed-shell-header-start: color-mix(in oklch, var(--background) 40%, transparent);
-    --feed-shell-header-end: color-mix(in oklch, var(--background) 32%, transparent);
-    --feed-shell-card-start: color-mix(in oklch, var(--card) 94%, transparent);
-    --feed-shell-card-end: color-mix(in oklch, var(--color-mist-100) 84.0%, transparent);
-    --feed-shell-panel-border: color-mix(in oklch, var(--border) 72%, transparent);
-    --feed-shell-header-border: color-mix(in oklch, var(--border) 58%, transparent);
-    --feed-shell-surface-shadow: 0 24px 60px -44px color-mix(in oklch, var(--color-sky-950) 34.0%, transparent);
+    --feed-shell-glow-primary: color-mix(in oklab, var(--color-sky-700) 9.0%, transparent);
+    --feed-shell-glow-secondary: color-mix(in oklab, var(--color-teal-500) 8.0%, transparent);
+    --feed-shell-haze: color-mix(in oklab, var(--color-yellow-300) 5.0%, transparent);
+    --feed-shell-veil: color-mix(in oklab, var(--color-white) 42.0%, transparent);
+    --feed-shell-panel-start: color-mix(in oklab, var(--card) 88%, transparent);
+    --feed-shell-panel-end: color-mix(in oklab, var(--color-mist-100) 76.0%, transparent);
+    --feed-shell-header-start: color-mix(in oklab, var(--background) 40%, transparent);
+    --feed-shell-header-end: color-mix(in oklab, var(--background) 32%, transparent);
+    --feed-shell-card-start: color-mix(in oklab, var(--card) 94%, transparent);
+    --feed-shell-card-end: color-mix(in oklab, var(--color-mist-100) 84.0%, transparent);
+    --feed-shell-panel-border: color-mix(in oklab, var(--border) 72%, transparent);
+    --feed-shell-header-border: color-mix(in oklab, var(--border) 58%, transparent);
+    --feed-shell-surface-shadow: 0 24px 60px -44px color-mix(in oklab, var(--color-sky-950) 34.0%, transparent);
     --feed-motion-duration-fast: 160ms;
     --feed-motion-duration-medium: 220ms;
     --feed-motion-ease-standard: cubic-bezier(0.22, 1, 0.36, 1);
@@ -214,14 +214,14 @@
     /* Shadow scale — light mode (pure-black, geometry: x 1px / y 3.5px / blur 7px / spread 0.5px).
        Tailwind's shadow-* utilities are remapped to these via the `@theme inline` block above. */
     --shadow-color: var(--color-black);
-    --shadow-2xs: 1px 3.5px 7px 0.5px color-mix(in oklch, var(--color-black) 10.0%, transparent);
-    --shadow-xs: 1px 3.5px 7px 0.5px color-mix(in oklch, var(--color-black) 10.0%, transparent);
-    --shadow-sm: 1px 3.5px 7px 0.5px color-mix(in oklch, var(--color-black) 20.0%, transparent), 1px 1px 2px -0.5px color-mix(in oklch, var(--color-black) 20.0%, transparent);
-    --shadow: 1px 3.5px 7px 0.5px color-mix(in oklch, var(--color-black) 20.0%, transparent), 1px 1px 2px -0.5px color-mix(in oklch, var(--color-black) 20.0%, transparent);
-    --shadow-md: 1px 3.5px 7px 0.5px color-mix(in oklch, var(--color-black) 20.0%, transparent), 1px 2px 4px -0.5px color-mix(in oklch, var(--color-black) 20.0%, transparent);
-    --shadow-lg: 1px 3.5px 7px 0.5px color-mix(in oklch, var(--color-black) 20.0%, transparent), 1px 4px 6px -0.5px color-mix(in oklch, var(--color-black) 20.0%, transparent);
-    --shadow-xl: 1px 3.5px 7px 0.5px color-mix(in oklch, var(--color-black) 20.0%, transparent), 1px 8px 10px -0.5px color-mix(in oklch, var(--color-black) 20.0%, transparent);
-    --shadow-2xl: 1px 3.5px 7px 0.5px color-mix(in oklch, var(--color-black) 50.0%, transparent);
+    --shadow-2xs: 1px 3.5px 7px 0.5px color-mix(in oklab, var(--color-black) 10.0%, transparent);
+    --shadow-xs: 1px 3.5px 7px 0.5px color-mix(in oklab, var(--color-black) 10.0%, transparent);
+    --shadow-sm: 1px 3.5px 7px 0.5px color-mix(in oklab, var(--color-black) 20.0%, transparent), 1px 1px 2px -0.5px color-mix(in oklab, var(--color-black) 20.0%, transparent);
+    --shadow: 1px 3.5px 7px 0.5px color-mix(in oklab, var(--color-black) 20.0%, transparent), 1px 1px 2px -0.5px color-mix(in oklab, var(--color-black) 20.0%, transparent);
+    --shadow-md: 1px 3.5px 7px 0.5px color-mix(in oklab, var(--color-black) 20.0%, transparent), 1px 2px 4px -0.5px color-mix(in oklab, var(--color-black) 20.0%, transparent);
+    --shadow-lg: 1px 3.5px 7px 0.5px color-mix(in oklab, var(--color-black) 20.0%, transparent), 1px 4px 6px -0.5px color-mix(in oklab, var(--color-black) 20.0%, transparent);
+    --shadow-xl: 1px 3.5px 7px 0.5px color-mix(in oklab, var(--color-black) 20.0%, transparent), 1px 8px 10px -0.5px color-mix(in oklab, var(--color-black) 20.0%, transparent);
+    --shadow-2xl: 1px 3.5px 7px 0.5px color-mix(in oklab, var(--color-black) 50.0%, transparent);
 
     /* Legacy aliases — keep old `shadow-realistic*` utilities pointing to the new scale. */
     --shadow-realistic-sm: var(--shadow-sm);
@@ -229,8 +229,8 @@
     --shadow-realistic-lg: var(--shadow-lg);
 
     /* Card surface gradient (subtle, perceptible only). */
-    --feed-card-gradient: linear-gradient(180deg, var(--card) 0%, color-mix(in oklch, var(--card) 94%, transparent) 100%);
-    --feed-card-gradient-primary: linear-gradient(180deg, color-mix(in oklch, var(--primary) 4%, transparent) 0%, var(--card) 100%);
+    --feed-card-gradient: linear-gradient(180deg, var(--card) 0%, color-mix(in oklab, var(--card) 94%, transparent) 100%);
+    --feed-card-gradient-primary: linear-gradient(180deg, color-mix(in oklab, var(--primary) 4%, transparent) 0%, var(--card) 100%);
 
     /* Prism-style universal card-gradient tokens (color-mix).
        Applied to every [data-slot="card"] (see @layer components).
@@ -328,12 +328,12 @@
     --feed-shell-base-start: var(--color-gray-900);
     --feed-shell-base-mid: var(--color-slate-800);
     --feed-shell-base-end: var(--color-slate-800);
-    --feed-shell-glow-primary: color-mix(in oklch, var(--color-blue-500) 20.0%, transparent);
-    --feed-shell-glow-secondary: color-mix(in oklch, var(--color-indigo-400) 16.0%, transparent);
-    --feed-shell-haze: color-mix(in oklch, var(--color-slate-400) 6.0%, transparent);
-    --feed-shell-veil: color-mix(in oklch, var(--color-gray-900) 20.0%, transparent);
-    --feed-shell-panel-start: color-mix(in oklch, var(--card) 82%, transparent);
-    --feed-shell-panel-end: color-mix(in oklch, var(--color-gray-900) 70.0%, transparent);
+    --feed-shell-glow-primary: color-mix(in oklab, var(--color-blue-500) 20.0%, transparent);
+    --feed-shell-glow-secondary: color-mix(in oklab, var(--color-indigo-400) 16.0%, transparent);
+    --feed-shell-haze: color-mix(in oklab, var(--color-slate-400) 6.0%, transparent);
+    --feed-shell-veil: color-mix(in oklab, var(--color-gray-900) 20.0%, transparent);
+    --feed-shell-panel-start: color-mix(in oklab, var(--card) 82%, transparent);
+    --feed-shell-panel-end: color-mix(in oklab, var(--color-gray-900) 70.0%, transparent);
     /* Not the panel tokens. Those are sized for near-solid surfaces (0.82 /
        0.70), and composited over the header's own 0.4 background they left the
        bar about 89% opaque — the frosted blur was applied and buried, so the
@@ -341,25 +341,25 @@
        it looked frosted. Dark needs a little more body than light to keep the
        breadcrumb legible over bright content, but it has to stay translucent
        enough for the blur to show. */
-    --feed-shell-header-start: color-mix(in oklch, var(--background) 55%, transparent);
-    --feed-shell-header-end: color-mix(in oklch, var(--background) 45%, transparent);
-    --feed-shell-card-start: color-mix(in oklch, var(--card) 88%, transparent);
-    --feed-shell-card-end: color-mix(in oklch, var(--color-gray-900) 78.0%, transparent);
-    --feed-shell-panel-border: color-mix(in oklch, var(--border) 78%, transparent);
+    --feed-shell-header-start: color-mix(in oklab, var(--background) 55%, transparent);
+    --feed-shell-header-end: color-mix(in oklab, var(--background) 45%, transparent);
+    --feed-shell-card-start: color-mix(in oklab, var(--card) 88%, transparent);
+    --feed-shell-card-end: color-mix(in oklab, var(--color-gray-900) 78.0%, transparent);
+    --feed-shell-panel-border: color-mix(in oklab, var(--border) 78%, transparent);
     --feed-shell-header-border: var(--feed-shell-panel-border);
-    --feed-shell-surface-shadow: 0 28px 72px -52px color-mix(in oklch, var(--color-gray-950) 86.0%, transparent);
+    --feed-shell-surface-shadow: 0 28px 72px -52px color-mix(in oklab, var(--color-gray-950) 86.0%, transparent);
 
     /* Dark shadows keep the established geometry but take their chroma from
        the active brand rather than a hard-coded blue-purple glow. */
     --shadow-color: var(--color-sky-400);
-    --shadow-2xs: 1px 3.5px 10.5px 0.5px color-mix(in oklch, var(--color-sky-400) 20.0%, transparent);
-    --shadow-xs: 1px 3.5px 10.5px 0.5px color-mix(in oklch, var(--color-sky-400) 22.0%, transparent);
-    --shadow-sm: 1px 3.5px 10.5px 0.5px color-mix(in oklch, var(--color-sky-400) 35.0%, transparent), 1px 1px 2px -0.5px color-mix(in oklch, var(--color-sky-400) 40.0%, transparent);
-    --shadow: 1px 3.5px 10.5px 0.5px color-mix(in oklch, var(--color-sky-400) 40.0%, transparent), 1px 1px 2px -0.5px color-mix(in oklch, var(--color-sky-400) 45.0%, transparent);
-    --shadow-md: 1px 3.5px 14px   0.5px color-mix(in oklch, var(--color-sky-400) 45.0%, transparent), 1px 2px 4px -0.5px color-mix(in oklch, var(--color-sky-400) 50.0%, transparent);
-    --shadow-lg: 1px 3.5px 20px   1px   color-mix(in oklch, var(--color-sky-400) 55.0%, transparent), 1px 4px 6px -0.5px color-mix(in oklch, var(--color-sky-400) 55.0%, transparent);
-    --shadow-xl: 1px 3.5px 28px   2px   color-mix(in oklch, var(--color-sky-400) 60.0%, transparent), 1px 8px 10px -0.5px color-mix(in oklch, var(--color-sky-400) 55.0%, transparent);
-    --shadow-2xl: 1px 3.5px 40px   3px   color-mix(in oklch, var(--color-sky-400) 75.0%, transparent);
+    --shadow-2xs: 1px 3.5px 10.5px 0.5px color-mix(in oklab, var(--color-sky-400) 20.0%, transparent);
+    --shadow-xs: 1px 3.5px 10.5px 0.5px color-mix(in oklab, var(--color-sky-400) 22.0%, transparent);
+    --shadow-sm: 1px 3.5px 10.5px 0.5px color-mix(in oklab, var(--color-sky-400) 35.0%, transparent), 1px 1px 2px -0.5px color-mix(in oklab, var(--color-sky-400) 40.0%, transparent);
+    --shadow: 1px 3.5px 10.5px 0.5px color-mix(in oklab, var(--color-sky-400) 40.0%, transparent), 1px 1px 2px -0.5px color-mix(in oklab, var(--color-sky-400) 45.0%, transparent);
+    --shadow-md: 1px 3.5px 14px   0.5px color-mix(in oklab, var(--color-sky-400) 45.0%, transparent), 1px 2px 4px -0.5px color-mix(in oklab, var(--color-sky-400) 50.0%, transparent);
+    --shadow-lg: 1px 3.5px 20px   1px   color-mix(in oklab, var(--color-sky-400) 55.0%, transparent), 1px 4px 6px -0.5px color-mix(in oklab, var(--color-sky-400) 55.0%, transparent);
+    --shadow-xl: 1px 3.5px 28px   2px   color-mix(in oklab, var(--color-sky-400) 60.0%, transparent), 1px 8px 10px -0.5px color-mix(in oklab, var(--color-sky-400) 55.0%, transparent);
+    --shadow-2xl: 1px 3.5px 40px   3px   color-mix(in oklab, var(--color-sky-400) 75.0%, transparent);
 
     --shadow-realistic-sm: var(--shadow-sm);
     --shadow-realistic:    var(--shadow-lg);
@@ -377,10 +377,10 @@
     --feed-shell-base-start: var(--color-gray-900);
     --feed-shell-base-mid: var(--color-slate-800);
     --feed-shell-base-end: var(--color-slate-800);
-    --feed-shell-glow-primary: color-mix(in oklch, var(--color-blue-500) 20.0%, transparent);
-    --feed-shell-glow-secondary: color-mix(in oklch, var(--color-indigo-400) 16.0%, transparent);
-    --feed-shell-haze: color-mix(in oklch, var(--color-slate-400) 6.0%, transparent);
-    --feed-shell-veil: color-mix(in oklch, var(--color-gray-900) 20.0%, transparent);
+    --feed-shell-glow-primary: color-mix(in oklab, var(--color-blue-500) 20.0%, transparent);
+    --feed-shell-glow-secondary: color-mix(in oklab, var(--color-indigo-400) 16.0%, transparent);
+    --feed-shell-haze: color-mix(in oklab, var(--color-slate-400) 6.0%, transparent);
+    --feed-shell-veil: color-mix(in oklab, var(--color-gray-900) 20.0%, transparent);
     --feed-app-backdrop:
       linear-gradient(180deg, transparent 0%, var(--feed-shell-veil) 100%),
       radial-gradient(144% 112% at 16% 86%, var(--feed-shell-glow-primary)   0%, transparent 62%),
@@ -912,7 +912,7 @@
 
   .feed-shell-header-panel {
     border-color: var(--feed-shell-header-border);
-    background-color: color-mix(in oklch, var(--background) 40%, transparent);
+    background-color: color-mix(in oklab, var(--background) 40%, transparent);
     background-image: linear-gradient(180deg, var(--feed-shell-header-start), var(--feed-shell-header-end));
     box-shadow: var(--feed-shell-surface-shadow);
     backdrop-filter: blur(14px) saturate(1.5);
@@ -921,7 +921,7 @@
 
   .feed-shell-sidebar [data-sidebar="sidebar"] {
     border-color: var(--feed-shell-panel-border);
-    background-color: color-mix(in oklch, var(--sidebar-background) 82%, transparent);
+    background-color: color-mix(in oklab, var(--sidebar-background) 82%, transparent);
     background-image: linear-gradient(180deg, var(--feed-shell-panel-start), var(--feed-shell-panel-end));
     box-shadow: var(--feed-shell-surface-shadow);
     backdrop-filter: blur(16px);
@@ -944,7 +944,7 @@
 
   [data-feed-card-interactive="true"]:is(:hover, :focus-within) {
     transform: translateY(-1px);
-    box-shadow: 0 22px 54px -42px color-mix(in oklch, var(--primary) 55%, transparent);
+    box-shadow: 0 22px 54px -42px color-mix(in oklab, var(--primary) 55%, transparent);
   }
 
   .print-theme .feed-shell-backdrop,

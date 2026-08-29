@@ -502,7 +502,7 @@ export function EnhancedFindMissingDialog({
                       </CardHeader>
                       <CardContent>
                         <div className="flex items-center gap-3">
-                          <div className="h-8 w-8 rounded-full bg-[color-mix(in_oklch,var(--status-warning-bg)_40%,transparent)] flex items-center justify-center">
+                          <div className="h-8 w-8 rounded-full bg-[color-mix(in_oklab,var(--status-warning-bg)_40%,transparent)] flex items-center justify-center">
                             <Search className="h-5 w-5 text-[var(--status-warning-border)]" />
                           </div>
                           <div>
@@ -616,7 +616,7 @@ export function EnhancedFindMissingDialog({
                         </CardHeader>
                         <CardContent>
                           <div className="flex items-center gap-3">
-                            <div className="h-8 w-8 rounded-full bg-[color-mix(in_oklch,var(--status-warning-bg)_40%,transparent)] flex items-center justify-center">
+                            <div className="h-8 w-8 rounded-full bg-[color-mix(in_oklab,var(--status-warning-bg)_40%,transparent)] flex items-center justify-center">
                               <XCircle className="h-5 w-5 text-[var(--status-warning-border)]" />
                             </div>
                             <div>
@@ -720,7 +720,7 @@ export function EnhancedFindMissingDialog({
                         </CardHeader>
                         <CardContent>
                           <div className="flex items-center gap-3">
-                            <div className="h-8 w-8 rounded-full bg-[color-mix(in_oklch,var(--status-success-bg)_40%,transparent)] flex items-center justify-center">
+                            <div className="h-8 w-8 rounded-full bg-[color-mix(in_oklab,var(--status-success-bg)_40%,transparent)] flex items-center justify-center">
                               <CheckCircle className="h-5 w-5 text-[var(--status-success-border)]" />
                             </div>
                             <div>
