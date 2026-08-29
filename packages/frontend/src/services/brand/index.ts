@@ -36,6 +36,10 @@ export type BrandPreview = {
     distance: number;
     /** Neighbouring families at a similar colour, one stop each. */
     nearby: { name: string; family: string; stop: number; color: string; distance: number }[];
+    /** Which part of the theme this rank drives, from the colour story. */
+    role: 'primary' | 'accent' | 'ambient' | 'surface-dark' | 'surface-light' | null;
+    roleLabel: string | null;
+    roleWarning: string | null;
   }[];
   tokens: Record<'light' | 'dark', Record<string, string>>;
   chartOrder: string[];

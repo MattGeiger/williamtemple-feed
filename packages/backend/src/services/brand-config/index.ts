@@ -230,7 +230,12 @@ export const previewBrandConfiguration = (payload: unknown) => {
    * vocabulary as the rest of the theme and shows the substitution instead of
    * hiding it — the hex is kept alongside only so the swap stays inspectable.
    */
-  const hierarchy = parsed.config.colors.hierarchy.map((color) => {
+  // What each ranked colour was actually assigned to. `proposeColorStory`
+  // works this out and the derivation acts on it, but nothing ever told the
+  // person choosing the colours — so the ranking looked arbitrary and the
+  // results looked random. The roles are the explanation.
+  const assignments = theme.story?.assignments ?? [];
+  const hierarchy = parsed.config.colors.hierarchy.map((color, index) => {
     // The whole palette, not the chromatic pool: a colour story may name a
     // neutral, and snapping through the accent's pool replaced those.
     const [candidate] = paletteCandidates(color, 1);
@@ -266,6 +271,9 @@ export const previewBrandConfiguration = (payload: unknown) => {
       requestedColor: oklchToHex(color),
       distance: candidate.distance,
       nearby,
+      role: assignments[index]?.role ?? null,
+      roleLabel: assignments[index]?.label ?? null,
+      roleWarning: assignments[index]?.warning ?? null,
     };
   });
   return {

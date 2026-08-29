@@ -488,14 +488,35 @@ function ColorsStep({ draft, change, busy }: WizardStepProps) {
       <div className="space-y-2">
         {draft.config.colors.hierarchy.map((color, index) => (
           <div key={index} className={cn('flex items-center gap-2 rounded-lg border p-2', selected === index && 'ring-2 ring-ring')}>
-            <TailwindColorField
-              label={`Brand color ${index + 1}`}
-              value={preview?.hierarchy?.[index]?.name ?? null}
-              nearby={preview?.hierarchy?.[index]?.nearby ?? []}
-              palette={palette}
-              disabled={busy || palette.length === 0}
-              onSelect={(entry) => { setSelected(index); chooseEntry(index, entry); }}
-            />
+            <div className="flex min-w-0 flex-1 flex-col gap-1">
+              <TailwindColorField
+                label={`Brand color ${index + 1}`}
+                value={preview?.hierarchy?.[index]?.name ?? null}
+                nearby={preview?.hierarchy?.[index]?.nearby ?? []}
+                palette={palette}
+                disabled={busy || palette.length === 0}
+                onSelect={(entry) => { setSelected(index); chooseEntry(index, entry); }}
+              />
+              {/*
+                * What this rank actually drives. The order was doing real work
+                * — chromatics take primary then accent, the first dark neutral
+                * anchors dark surfaces, the first light one anchors light —
+                * and none of it was visible, so ranking looked arbitrary and
+                * the result looked random. The roles are the explanation, and
+                * they are read from the same assignment the derivation acts
+                * on rather than guessed from the position.
+                */}
+              {preview?.hierarchy?.[index]?.roleLabel ? (
+                <span className="truncate text-xs text-muted-foreground" title={preview.hierarchy[index].roleLabel ?? undefined}>
+                  {preview.hierarchy[index].roleLabel}
+                </span>
+              ) : null}
+              {preview?.hierarchy?.[index]?.roleWarning ? (
+                <span className="text-xs text-[var(--status-warning-text)]">
+                  {preview.hierarchy[index].roleWarning}
+                </span>
+              ) : null}
+            </div>
             <Button type="button" variant="outline" size="sm" aria-label={`Move color ${index + 1} up`} onClick={() => move(index, -1)} disabled={busy || index === 0}>Up</Button>
             <Button type="button" variant="outline" size="sm" aria-label={`Move color ${index + 1} down`} onClick={() => move(index, 1)} disabled={busy || index === draft.config.colors.hierarchy.length - 1}>Down</Button>
             {draft.config.colors.hierarchy.length > 1 ? <Button type="button" variant="ghost" size="sm" onClick={() => { setHierarchy(draft.config.colors.hierarchy.filter((_, item) => item !== index)); setSelected(0); }} disabled={busy}>Remove</Button> : null}
