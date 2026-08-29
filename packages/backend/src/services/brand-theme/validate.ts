@@ -114,9 +114,16 @@ export type ThemeCombination = {
   neutralFamily: string;
 };
 
-/** All 153 themes an operator can reach. */
+/**
+ * Every theme an operator can reach: 234.
+ *
+ * The accent may now be a neutral family, because a brand may genuinely have
+ * no colour in it — see `roleFor`. That adds the 81 grayscale combinations to
+ * the original 153, and they are proved here on exactly the same terms rather
+ * than assumed safe.
+ */
 export const allThemeCombinations = (): ThemeCombination[] =>
-  CHROMATIC_FAMILIES.flatMap((accentFamily) =>
+  [...CHROMATIC_FAMILIES, ...NEUTRAL_FAMILIES].flatMap((accentFamily) =>
     NEUTRAL_FAMILIES.map((neutralFamily) => ({ accentFamily, neutralFamily }))
   );
 

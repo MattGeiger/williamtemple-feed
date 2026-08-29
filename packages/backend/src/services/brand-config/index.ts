@@ -7,7 +7,7 @@ import { deriveTheme, type BrandInput } from '../brand-theme/derive';
 import { serializeHslTriplets, serializeOklch, serializePrintHex } from '../brand-theme/serialize';
 import { brandAlignedCarbonOrder, seriesColor } from '../brand-theme/charts';
 import { oklchToHex } from '../brand-theme/color';
-import { paletteCandidates, snapCandidates } from '../brand-theme/snap';
+import { paletteCandidates, roleFor, snapCandidates } from '../brand-theme/snap';
 import { BRAND_TOKENS } from '../brand-theme/tokens';
 import { parseBrandConfig, type BrandAssetReference, type BrandConfig } from './config-schema';
 import { BRAND_TEMPLATES, FEED_TAGLINE, WTH_BRAND_CONFIG } from './presets';

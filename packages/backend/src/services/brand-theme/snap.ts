@@ -121,6 +121,36 @@ export const snapCandidates = (
  * matches itself at distance zero whatever the weighting, which is the common
  * case now that the picker only emits palette entries.
  */
+/**
+ * Whether a colour is an actual colour, or a grey wearing a hue value.
+ *
+ * Below this chroma the hue is noise — every OKLCH neutral still carries some
+ * hue, but at 0.008 nobody perceives it as a colour. Tailwind's neutral ramps
+ * top out at 0.046 and its chromatic ramps start at 0.013, so the two overlap
+ * only among near-white tints; 0.03 separates every real brand colour we have
+ * seen from every neutral. William Temple House's blue is 0.120 and its gold
+ * 0.160; St. Johns' green is 0.121 against a near-black at 0.000 and an
+ * off-white at 0.008.
+ */
+export const ACHROMATIC_CHROMA = 0.03;
+
+export const isAchromatic = (color: Oklch): boolean => color.c < ACHROMATIC_CHROMA;
+
+/**
+ * The pool a brand colour should be matched against.
+ *
+ * Roles used to fix this: an accent searched chromatic ramps and a neutral
+ * searched neutral ones. That is right for a brand with a colour in it and
+ * wrong for a brand without one — a grayscale identity had its primary
+ * replaced by whatever saturated family happened to sit nearest, which is not
+ * a near miss but a different brand. Letting the colour's own chroma decide
+ * keeps every coloured brand exactly where it was and lets a grey one stay
+ * grey. All 81 neutral-accent themes pass the same contrast proof as the 153
+ * chromatic ones.
+ */
+export const roleFor = (color: Oklch, role: SnapRole): SnapRole =>
+  role === 'neutral' ? 'neutral' : isAchromatic(color) ? 'neutral' : 'chromatic';
+
 export const paletteCandidates = (
   target: Oklch,
   limit = 3
