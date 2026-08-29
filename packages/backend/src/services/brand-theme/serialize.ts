@@ -90,8 +90,8 @@ const declarationsFor = (
  */
 const CONFIGURED_ATMOSPHERE = {
   light: `  --feed-shell-base-start: var(--background);
-  --feed-shell-base-mid: color-mix(in oklch, var(--accent) 30%, var(--background));
-  --feed-shell-base-end: color-mix(in oklch, var(--primary) 8%, var(--background));
+  --feed-shell-base-mid: color-mix(in oklab, var(--ambient) 22%, var(--background));
+  --feed-shell-base-end: color-mix(in oklab, var(--ambient) 10%, var(--background));
   --feed-shell-glow-primary: color-mix(in oklab, var(--primary) 9%, transparent);
   --feed-shell-glow-secondary: color-mix(in oklab, var(--accent-foreground) 8%, transparent);
   --feed-shell-haze: color-mix(in oklab, var(--sidebar-primary) 5%, transparent);
@@ -120,8 +120,9 @@ const CONFIGURED_ATMOSPHERE = {
    * was the only colour in it: the gradient read as one saturated hue meeting
    * one neutral, and changing the brand's colours did nothing to it.
    *
-   * The wash is monochromatic on \`--primary\`, deliberately, and does not
-   * blend in the second brand colour.
+   * The wash is monochromatic on \`--ambient\` — the brand's third ranked
+   * colour, which the wizard labels "background tints only" — and does not
+   * blend in a second hue.
    *
    * Closing on \`--accent\` was tried and is wrong for two reasons. Two brand
    * hues blended across one gradient average toward grey wherever they are
@@ -140,8 +141,8 @@ const CONFIGURED_ATMOSPHERE = {
    * interpolating toward it in a polar space drags the brand hue toward that
    * arbitrary value.
    */
-  --feed-shell-base-mid: color-mix(in oklab, var(--primary) 12%, var(--background));
-  --feed-shell-base-end: color-mix(in oklab, var(--primary) 22%, var(--background));
+  --feed-shell-base-mid: color-mix(in oklab, var(--ambient) 12%, var(--background));
+  --feed-shell-base-end: color-mix(in oklab, var(--ambient) 22%, var(--background));
   --feed-shell-glow-primary: color-mix(in oklab, var(--primary) 12%, transparent);
   --feed-shell-glow-secondary: color-mix(in oklab, var(--accent-foreground) 10%, transparent);
   --feed-shell-haze: color-mix(in oklab, var(--accent) 10%, transparent);

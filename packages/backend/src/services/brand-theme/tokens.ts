@@ -21,6 +21,13 @@
 
 /** Every token a brand configuration may produce, per theme scope. */
 export const BRAND_TOKENS = [
+  /**
+   * The brand's background tint. Ranked colours past the accent are labelled
+   * "background tints only" in the wizard, and until now nothing consumed
+   * them — the shell wash reached for `--primary` and `--accent` instead,
+   * which is why a third and fourth colour changed nothing.
+   */
+  'ambient',
   'background',
   'foreground',
   'card',
@@ -62,7 +69,7 @@ export type ThemeScope = (typeof THEME_SCOPES)[number];
  * Which pool a token draws from. Accent-role tokens carry the brand hue;
  * surface-role tokens carry the neutral ramp.
  */
-export type TokenRole = 'accent' | 'accentSecondary' | 'neutral';
+export type TokenRole = 'accent' | 'accentSecondary' | 'ambient' | 'neutral';
 
 type StopRule = {
   role: TokenRole;
@@ -108,6 +115,10 @@ export const STOP_MAP: Record<BrandToken, StopRule> = {
   // primary. A brand with two colours (WTH is blue and gold; Pepsi is red and
   // blue) gets its own pairing; a single-colour brand falls back to the neutral
   // ramp, which is what FEED does by hand today.
+  // Decorative only — it tints backgrounds and is never a text surface, so it
+  // carries no contrast pair. Mid stops: deep enough to read as colour under a
+  // low-percentage mix, light enough not to fight the page in light mode.
+  ambient:               { role: 'ambient', light: 200, dark: 700 },
   accent:                { role: 'accentSecondary', light: 100, dark: 800 },
   'accent-foreground':   { role: 'accentSecondary', light: 900, dark: 100 },
   border:                { role: 'neutral', light: 300, dark: 700 },
