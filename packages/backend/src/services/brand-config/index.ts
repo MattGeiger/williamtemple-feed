@@ -7,7 +7,7 @@ import { deriveTheme, type BrandInput } from '../brand-theme/derive';
 import { serializeHslTriplets, serializeOklch, serializePrintHex } from '../brand-theme/serialize';
 import { brandAlignedCarbonOrder, seriesColor } from '../brand-theme/charts';
 import { oklchToHex } from '../brand-theme/color';
-import { snap, snapCandidates } from '../brand-theme/snap';
+import { paletteCandidates, snapCandidates } from '../brand-theme/snap';
 import { BRAND_TOKENS } from '../brand-theme/tokens';
 import { parseBrandConfig, type BrandAssetReference, type BrandConfig } from './config-schema';
 import { BRAND_TEMPLATES, WTH_BRAND_CONFIG } from './presets';
@@ -212,7 +212,9 @@ export const previewBrandConfiguration = (payload: unknown) => {
    * hiding it — the hex is kept alongside only so the swap stays inspectable.
    */
   const hierarchy = parsed.config.colors.hierarchy.map((color) => {
-    const candidate = snap(color, 'chromatic');
+    // The whole palette, not the chromatic pool: a colour story may name a
+    // neutral, and snapping through the accent's pool replaced those.
+    const [candidate] = paletteCandidates(color, 1);
     /**
      * A short list of alternatives near the same colour, one per family.
      *
@@ -223,7 +225,7 @@ export const previewBrandConfiguration = (payload: unknown) => {
      * palette.
      */
     const seenFamily = new Set<string>();
-    const nearby = snapCandidates(color, 'chromatic', 200)
+    const nearby = paletteCandidates(color, 400)
       .filter(({ entry }) => {
         if (seenFamily.has(entry.family)) return false;
         seenFamily.add(entry.family);

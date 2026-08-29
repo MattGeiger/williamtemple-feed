@@ -103,6 +103,40 @@ export const snapCandidates = (
     .sort((a, b) => a.distance - b.distance)
     .slice(0, limit);
 
+/**
+ * Nearest palette entries across the WHOLE palette, neutrals included.
+ *
+ * The role pools are deliberately exclusive: an accent has to carry chroma and
+ * a neutral has to lack it, so `chooseFamily` must not be offered the other
+ * kind. A brand's colour story is a different question. It is the ranked list
+ * of an organisation's actual colours, and those routinely include neutrals —
+ * St. Johns Food Share's own three are a green, a near-black and an off-white.
+ * Snapping that list through the chromatic pool silently replaced every
+ * neutral someone chose with a saturated colour, so the wizard could not
+ * represent the brand it was being pointed at.
+ *
+ * Chroma stays weighted here. Across a mixed pool that is what keeps a grey on
+ * a grey rather than matching it to a vivid colour of similar lightness, and it
+ * keeps a saturated colour off the neutral ramps. An exact palette entry
+ * matches itself at distance zero whatever the weighting, which is the common
+ * case now that the picker only emits palette entries.
+ */
+export const paletteCandidates = (
+  target: Oklch,
+  limit = 3
+): SnapCandidate[] =>
+  [...TAILWIND_PALETTE, ...TAILWIND_EXTREMES]
+    .map((entry) => ({
+      entry,
+      distance: perceptualDistance(
+        target,
+        { l: entry.l, c: entry.c, h: entry.h },
+        CHROMA_WEIGHT
+      ),
+    }))
+    .sort((a, b) => a.distance - b.distance)
+    .slice(0, limit);
+
 /** The single nearest palette entry to `target` within its role's pool. */
 export const snap = (target: Oklch, role: SnapRole): SnapCandidate => {
   const [best] = snapCandidates(target, role, 1);
