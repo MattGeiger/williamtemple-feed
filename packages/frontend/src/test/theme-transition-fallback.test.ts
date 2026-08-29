@@ -1,66 +1,77 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Copyright (C) 2026 Matt Geiger
 
-import { describe, expect, it, beforeEach, vi } from "vitest"
+import { describe, expect, it, beforeEach, afterEach, vi } from "vitest"
 import { runThemeTransition } from "@/lib/theme-transition"
 
 /**
- * Safari 15.4 — the engine on the iPad mini 4 — has no View Transitions API, so
- * the theme change there runs through `runFallbackReveal`. These cover the part
- * of that path that a browser cannot be relied on to reveal in review: which
- * colour the expanding disc is painted.
+ * Safari 15.4 — the engine on the iPad mini 4 — has no View Transitions API,
+ * so the theme change there runs through the crossfade path.
+ *
+ * The rule these lock is that nothing may be hidden while the theme changes.
+ * The first attempt at this fallback covered the viewport with an opaque layer
+ * to mask the flip, which blanked the whole dashboard mid-animation.
  */
-const animations: Array<{ el: HTMLElement; keyframes: unknown }> = []
-
-function stubAnimate() {
-  Element.prototype.animate = function (this: HTMLElement, keyframes: unknown) {
-    animations.push({ el: this, keyframes })
-    return {
-      finished: Promise.resolve(),
-      cancel: () => undefined,
-    } as unknown as Animation
-  } as typeof Element.prototype.animate
+function setReducedMotion(matches: boolean) {
+  window.matchMedia = ((q: string) =>
+    ({
+      matches,
+      media: q,
+      addEventListener() {},
+      removeEventListener() {},
+    }) as unknown as MediaQueryList) as typeof window.matchMedia
 }
 
 describe("theme transition without View Transitions", () => {
   beforeEach(() => {
-    animations.length = 0
-    document.body.innerHTML = ""
+    vi.useFakeTimers()
+    document.body.innerHTML = "<main id='content'>dashboard</main>"
     document.documentElement.className = ""
     // @ts-expect-error — exercising the engine that lacks it
     delete document.startViewTransition
-    stubAnimate()
-    window.matchMedia = ((q: string) =>
-      ({ matches: false, media: q, addEventListener() {}, removeEventListener() {} }) as unknown as MediaQueryList) as typeof window.matchMedia
+    setReducedMotion(false)
   })
 
-  it("paints the disc in the incoming background, not a white default", () => {
-    document.body.style.backgroundColor = "rgb(255, 255, 255)"
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it("never covers the page while the theme changes", () => {
+    const before = document.body.childElementCount
+
+    runThemeTransition({ update: () => document.documentElement.classList.add("dark") })
+
+    // No overlay may be introduced: the content must stay on screen and
+    // visible for the whole change.
+    expect(document.body.childElementCount).toBe(before)
+    expect(document.getElementById("content")).toBeTruthy()
+    expect(document.documentElement.classList.contains("dark")).toBe(true)
+  })
+
+  it("arms the crossfade before the theme flips, so there is something to interpolate from", () => {
+    let classAtFlip: string | undefined
     runThemeTransition({
       update: () => {
-        // FEED's dark background is true black. A zero-alpha sniff that keys on
-        // a trailing ", 0)" mistakes this for transparent and falls back to
-        // white, which flashes before the disc is removed.
-        document.body.style.backgroundColor = "rgb(0, 0, 0)"
+        classAtFlip = document.documentElement.className
+        document.documentElement.classList.add("dark")
       },
     })
-
-    const disc = animations.find((a) => a.el.style.borderRadius === "50%")
-    expect(disc, "an expanding disc should have been animated").toBeTruthy()
-    expect(disc!.el.style.backgroundColor).toBe("rgb(0, 0, 0)")
-    expect(disc!.el.style.backgroundColor).not.toBe("#fff")
+    expect(classAtFlip).toContain("theme-crossfade")
   })
 
-  it("still treats a genuinely transparent background as unusable", () => {
-    document.body.style.backgroundColor = "rgba(0, 0, 0, 0)"
-    document.documentElement.style.backgroundColor = "rgb(12, 20, 33)"
+  it("removes the crossfade class afterwards, leaving normal transitions alone", () => {
     runThemeTransition({ update: () => undefined })
+    expect(document.documentElement.classList.contains("theme-crossfade")).toBe(true)
 
-    const hold = animations.length ? document.body.firstElementChild : null
-    // The hold layer takes the first opaque colour it can find, which must be
-    // the html background rather than the transparent body.
-    expect((hold as HTMLElement | null)?.style.backgroundColor).not.toBe(
-      "rgba(0, 0, 0, 0)"
-    )
+    vi.advanceTimersByTime(1000)
+    expect(document.documentElement.classList.contains("theme-crossfade")).toBe(false)
+  })
+
+  it("changes the theme instantly under reduced motion", () => {
+    setReducedMotion(true)
+    runThemeTransition({ update: () => document.documentElement.classList.add("dark") })
+
+    expect(document.documentElement.classList.contains("theme-crossfade")).toBe(false)
+    expect(document.documentElement.classList.contains("dark")).toBe(true)
   })
 })

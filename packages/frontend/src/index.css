@@ -870,6 +870,43 @@
     animation: none;
     mix-blend-mode: normal;
   }
+
+  /*
+   * The theme change on engines without the View Transitions API — Safari 15.4
+   * on the iPad mini 4 among them. `runThemeTransition` adds this class for the
+   * length of the change and then removes it, so ordinary hover and focus
+   * transitions are untouched the rest of the time.
+   *
+   * The circular reveal cannot be reproduced here: it needs the old and new
+   * frames on screen together, which is exactly what the missing API provides.
+   * Interpolating the colours in place is the honest substitute — nothing
+   * disappears, the theme simply dissolves.
+   *
+   * The property list is deliberately short. Colour interpolation runs on the
+   * main thread, and this has to stay cheap on an A8 with a full dashboard on
+   * screen. `!important` is what lets one brief rule outrank the per-component
+   * transitions it overlaps with.
+   */
+  .theme-crossfade,
+  .theme-crossfade *,
+  .theme-crossfade *::before,
+  .theme-crossfade *::after {
+    transition:
+      background-color 420ms ease,
+      border-color 420ms ease,
+      color 420ms ease,
+      fill 420ms ease,
+      stroke 420ms ease !important;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .theme-crossfade,
+    .theme-crossfade *,
+    .theme-crossfade *::before,
+    .theme-crossfade *::after {
+      transition: none !important;
+    }
+  }
 }
 
 @layer components {
