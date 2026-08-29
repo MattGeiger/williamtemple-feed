@@ -112,3 +112,45 @@ describe('the accent surface', () => {
     ).toBeGreaterThanOrEqual(4.5);
   });
 });
+
+/**
+ * The ranked colours past the accent are labelled in the wizard as background
+ * tints and surface anchors. They were computed, displayed, and then read by
+ * nothing — the wash tinted from `--primary`/`--accent` and the neutral family
+ * came from a synthetic grey at the accent's hue, so ranking a third colour or
+ * a pair of anchors changed no output at all.
+ */
+describe('the ranks past the accent', () => {
+  const at = (name: string) => {
+    const [family, stop] = [name.replace(/-\d+$/, ''), Number(name.match(/\d+$/)![0])];
+    const entry = paletteEntry(family, stop);
+    return { l: entry.l, c: entry.c, h: entry.h };
+  };
+  const derive = (names: string[]) =>
+    deriveTheme({ accent: at(names[0]), hierarchy: names.map(at) });
+
+  it('lets rank 3 drive the background tint', () => {
+    const withoutAmbient = derive(['sky-700', 'amber-300']);
+    const withBlue = derive(['sky-700', 'amber-300', 'blue-700']);
+    const withRose = derive(['sky-700', 'amber-300', 'rose-500']);
+
+    expect(withBlue.ambientFamily).toBe('blue');
+    expect(withRose.ambientFamily).toBe('rose');
+    // Naming a third colour has to change the tint, not just be recorded.
+    expect(withBlue.tokens.dark.ambient).not.toEqual(withoutAmbient.tokens.dark.ambient);
+    expect(withRose.tokens.dark.ambient).not.toEqual(withBlue.tokens.dark.ambient);
+  });
+
+  it('falls back to the accent when no third colour is given', () => {
+    const two = derive(['sky-700', 'amber-300']);
+    expect(two.ambientFamily).toBe(two.accentFamily);
+  });
+
+  it('lets the surface anchors choose the neutral ramp', () => {
+    const cool = derive(['sky-700', 'amber-300', 'rose-500']);
+    const warm = derive(['sky-700', 'amber-300', 'rose-500', 'stone-900', 'stone-100']);
+    expect(warm.neutralFamily).not.toBe(cool.neutralFamily);
+    // And the surfaces that ramp produces actually move with it.
+    expect(warm.tokens.dark.background).not.toEqual(cool.tokens.dark.background);
+  });
+});

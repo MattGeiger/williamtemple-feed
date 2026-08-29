@@ -80,6 +80,8 @@ export type ResolvedFamilies = {
   accentSecondaryIsNeutral: boolean;
   /** Set when the secondary family was moved off a muddy warm hue. */
   mudEscapedFrom: string | null;
+  /** Family behind `--ambient`; the brand's third colour when it has one. */
+  ambientFamily: string;
   /** Dark scope inverts the accent surface: light fill, dark text. */
   accentSecondaryIsMuddyInDark: boolean;
   story: ColorStory | null;
@@ -108,8 +110,36 @@ const EXTREMES: Record<'white' | 'black', Oklch> = {
  * the neutral family that leans toward the brand, which is what a designer would
  * do by hand (FEED's blue surfaces sit on `slate`, not `zinc`).
  */
-const neutralTargetFor = (input: BrandInput): Oklch =>
-  input.neutral ?? { l: 0.5, c: 0.02, h: input.accent.h };
+const neutralTargetFor = (input: BrandInput, story: ColorStory | null): Oklch => {
+  if (input.neutral) return input.neutral;
+
+  /*
+   * The ranked surface anchors, which is what the wizard promises they are.
+   *
+   * `proposeColorStory` assigns the first dark neutral in the hierarchy to
+   * `surfaceDark` and the first light one to `surfaceLight`, labelled in the
+   * wizard as the dark- and light-mode surfaces. Nothing read them: the neutral
+   * family came from an explicit `neutral` colour or a synthetic grey at the
+   * accent's hue, so ranking a charcoal and an off-white changed nothing at
+   * all.
+   *
+   * Both anchors sit on one ramp at different depths, so it is their hue that
+   * selects the family. Whichever carries more chroma is the better evidence of
+   * that hue — a near-black at chroma 0.002 says almost nothing, an off-white
+   * at 0.03 says a good deal — so the stronger one leads and lightness is
+   * normalised out, since the ramp supplies its own.
+   */
+  const anchors = [story?.surfaceDark, story?.surfaceLight].filter(
+    (color): color is Oklch => Boolean(color)
+  );
+  const strongest = anchors.reduce<Oklch | null>(
+    (best, color) => (best === null || color.c > best.c ? color : best),
+    null
+  );
+  if (strongest && strongest.c > 0) return { l: 0.5, c: strongest.c, h: strongest.h };
+
+  return { l: 0.5, c: 0.02, h: input.accent.h };
+};
 
 export const resolveFamilies = (input: BrandInput): ResolvedFamilies => {
   const story = input.hierarchy ? proposeColorStory(input.hierarchy) : null;
@@ -119,10 +149,20 @@ export const resolveFamilies = (input: BrandInput): ResolvedFamilies => {
   const accentDarkSnap = input.accentDark
     ? snap(input.accentDark, roleFor(input.accentDark, 'chromatic'))
     : null;
-  const neutralTarget = neutralTargetFor(input);
+  const neutralTarget = neutralTargetFor(input, story);
   const neutralSnap = snap(neutralTarget, 'neutral');
 
   const accentFamily = input.accentFamily ?? accentSnap.entry.family;
+  /*
+   * The first ambient rank, which is the brand's third colour once primary and
+   * accent are taken. It falls back to the accent family so the wash still has
+   * a brand hue when only one or two colours were given — the fallback is what
+   * shipped before, so a two-colour brand is unchanged.
+   */
+  const ambientSource = story?.ambient?.[0] ?? null;
+  const ambientFamily = ambientSource
+    ? snap(ambientSource, roleFor(ambientSource, 'chromatic')).entry.family
+    : accentFamily;
   // A brand that supplied plain greys gets a grey that agrees with its own
   // hue, rather than the one ramp at chroma zero. An explicit choice, and a
   // brand with no hue at all, are both left alone.
@@ -173,6 +213,7 @@ export const resolveFamilies = (input: BrandInput): ResolvedFamilies => {
     accentSecondaryFamily,
     accentSecondaryIsNeutral,
     mudEscapedFrom,
+    ambientFamily,
     accentSecondaryIsMuddyInDark,
     story,
     neutralFamily,
@@ -223,7 +264,9 @@ const colorFor = (
       ? accentFamily
       : rule.role === 'accentSecondary'
         ? families.accentSecondaryFamily
-        : families.neutralFamily;
+        : rule.role === 'ambient'
+          ? families.ambientFamily
+          : families.neutralFamily;
 
   /*
    * The inverted accent surface, for a family with no usable dark stop.
@@ -275,6 +318,8 @@ export const deriveFromFamilies = (
     accentSecondaryFamily: neutralFamily,
     accentSecondaryIsNeutral: true,
     mudEscapedFrom: null,
+    // Single-colour brand: the wash tints with the accent, as it did before.
+    ambientFamily: accentFamily,
     accentSecondaryIsMuddyInDark: false,
     story: null,
     neutralFamily,
