@@ -5,7 +5,7 @@ All notable changes to FEED are documented here. This project adheres to
 
 ## [Unreleased]
 
-## [1.7.5-beta.5]
+## [1.7.5-beta.6]
 
 ### Added
 
