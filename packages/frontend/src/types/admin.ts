@@ -94,6 +94,7 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   // rendered as raw BACKUP_RESTORED and CLEAN_SLATE_APPLIED. The wording keeps
   // them distinct on purpose: restore recovers, reset discards.
   BACKUP_RESTORED: 'Backup restored',
+  BACKUP_RESTORE_FAILED: 'Backup restore failed',
   CLEAN_SLATE_APPLIED: 'Reset to clean slate',
   BRAND_ASSETS_CLEANED: 'Unused brand assets cleaned',
 };
@@ -215,6 +216,14 @@ export interface RestoreUnitInfo {
    * the same contract the restore reads.
    */
   clears: string[];
+  /**
+   * Associations this unit carries but cannot resolve on another instance, in
+   * plain language. Their parent rows are excluded from every artifact — an
+   * uploaded document is storage, not database — so the reference is blanked
+   * on insert rather than aborting the restore. The row survives; the link
+   * does not. Derived server-side from the same contract the restore reads.
+   */
+  blanks: string[];
 }
 
 /** What validation found in an uploaded file, before anything is replaced. */

@@ -2,8 +2,27 @@
 
 ## Decision
 
-FEED needs two different recovery artifacts. Calling both of them “database
-backup” would obscure a critical security distinction.
+**The in-app Backup is FEED's disaster-recovery artifact.** If the Pi is
+destroyed, the recovery path is: build a new one, deploy the Docker image onto
+a fresh FEED build, restore from a backup, resume operations. Everything the
+organization needs to work is carried, minus the secrets named below, which are
+re-established by hand.
+
+*Revised 2026-09-03.* This document previously split the job across two
+artifacts and assigned catastrophic recovery to the operator snapshot below.
+That was wrong in practice for two reasons. A byte-level snapshot must be taken
+by hand on the Pi, so the artifact that recovery depended on was the one nobody
+was routinely producing — a recovery plan resting on a step that is never
+rehearsed is a hypothesis. And a raw snapshot downloaded to a laptop is key
+material at rest, which is the exact risk the split existed to avoid. The
+sanitized artifact is the one that actually gets taken, and it is the safer of
+the two to hold. It therefore has to be sufficient.
+
+**Partial restore is retained and demoted.** Reverting one unit — "that import
+was wrong, put inventory back to Tuesday" — is a weekly need, and it is safe on
+the instance the backup came from, where ids line up by construction. It is a
+convenience layered on a self-sufficient artifact, not a second product with
+its own guarantees. Where the two ever conflict, catastrophic recovery wins.
 
 ### Operator disaster-recovery snapshot
 
@@ -11,7 +30,8 @@ A transactionally consistent SQLite snapshot is a byte-level recovery artifact.
 It necessarily contains authentication records, encryption-key records,
 encrypted API-key material, and other system configuration. It remains an
 operator-controlled Raspberry Pi/deployment workflow and must not be offered as
-a general browser download.
+a general browser download. It is a convenience for an operator already on the
+box, **not** the recovery plan.
 
 ### Sanitized portable backup
 
@@ -53,6 +73,34 @@ asked for:
   This puts staff email addresses in the artifact. They are largely
   public-facing already, and an address without a reachable inbox cannot pass
   OTP.
+
+**Rows referencing files the artifact does not carry.** Documents, generated
+PDFs and their kin stay out: an uploaded file is storage, not database, and
+FEED already handles a record whose file is missing
+(`services/storage/reconciliation.ts` Phase 1 reports exactly that). But two
+*included* tables hold foreign keys into that excluded set —
+`Translation.documentId` and `FormattingChoice.documentId` — and for two years
+nothing reconciled those two decisions. On the instance a backup came from the
+parent rows are still present and the references resolve; on a fresh one they
+do not exist, and the insert aborted the entire restore. Measured on a
+production snapshot: 112 of 2,319 translations carry a `documentId`.
+
+Such a reference is now **blanked on insert** when the destination cannot
+resolve it, and only then — restoring onto the source instance keeps every link
+that still works. The registry is `RESTORE_NULLED_REFERENCES`, the confirmation
+dialog states what is lost before the administrator accepts, and
+`restore-contract.test.ts` fails the build if a new foreign key of this shape
+appears without an entry.
+
+### The invariant
+
+> Every included table's foreign keys must be satisfiable from the artifact
+> alone.
+
+This is a property of the **backup contract**, not of the restore units. It is
+what makes an artifact a self-sufficient description of an organization rather
+than a diff against whatever the destination happens to hold, and it is the one
+sentence to check any future table against.
 
 Because it is selective, this artifact is not a raw SQLite snapshot. Restore
 must create and validate a compatible database, import the approved logical
@@ -105,6 +153,38 @@ under a `pending` import are also filtered out, including pending-only client
 identities; only activated or historical lifecycle data belongs in the portable
 organization snapshot. Beta.6
 artifacts declare version 1 and carry no `AIConfiguration` or Service tables.
+
+## Recovery runbook
+
+The artifact is necessary and not sufficient. These steps are the difference
+between having a backup and having recovered, and the order matters — the
+encryption key is established *before* the restore so it survives the swap
+(`EncryptionKey` is excluded from the artifact, so it is not among the tables
+the restore replaces, and the scratch database is a copy of the live one).
+
+1. Deploy onto fresh hardware. The roster is empty, which arms the
+   fresh-instance bootstrap: the first verified sign-in becomes Administrator.
+2. Sign in. You are now that administrator.
+3. Initialize encryption (Settings → the setup wizard, `POST /api/system/initialize`).
+4. Restore the artifact.
+5. **Re-grant your other administrators.** The artifact never carries roles —
+   no file may confer authority — so every other account returns as Staff.
+   Admin page, or `docker compose exec backend node dist/cli/admin.js grant
+   --email=… --confirm`.
+6. **Re-set the sign-in mode.** `AccessPolicy` is excluded for the same reason.
+7. **Enter AI provider keys.** Restored model configurations arrive without
+   their secret and therefore inactive; FEED refuses to activate one that has
+   no key. Open each, enter the key, then activate.
+8. Run a storage reconciliation. It will report the documents whose files did
+   not travel. That is expected, not a fault.
+
+What does not survive, by design: uploaded files, the administrator audit log,
+API keys, the encryption key, and the association between a translation and the
+document it was made from.
+
+**This runbook is only worth what its last rehearsal proved.** It should be
+executed end to end — a second Docker stack on a fresh volume is enough — by
+someone who did not write it.
 
 ## Restore safety contract
 

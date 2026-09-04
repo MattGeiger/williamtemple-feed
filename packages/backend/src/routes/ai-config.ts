@@ -116,6 +116,36 @@ const validatePromptValue = (value: string): boolean => {
 };
 
 // Validate API key format
+/**
+ * A model configuration cannot be active without a key to call the provider
+ * with.
+ *
+ * Until restore existed there was no way to create one: `POST /` requires an
+ * API key for `type: 'apikey'` and hard-codes `isActive: true`. A restored row
+ * breaks that assumption — the artifact deliberately carries the model,
+ * temperature, and limits an administrator configured, and deliberately does
+ * not carry the secret. Without this guard a single row action could switch
+ * such a row on, and the next translation would fail against a provider FEED
+ * has no credential for, which reads to staff as an outage rather than as
+ * unfinished setup.
+ *
+ * Derived from `encryptedApiKey`, never stored: a second column recording
+ * whether the first is null is a fact that can disagree with itself.
+ */
+const assertActivatable = (
+  configuration: { type: string; encryptedApiKey?: string | null; name: string },
+): void => {
+  if (configuration.type !== 'apikey' || configuration.encryptedApiKey) return;
+  const error = new Error(
+    `"${configuration.name}" has no API key yet, so it cannot be made active. `
+    + 'Open it, enter the key for this provider, and save — restored configurations '
+    + 'arrive without their keys because backups never carry secrets.'
+  ) as Error & { statusCode?: number; code?: string };
+  error.statusCode = 400;
+  error.code = 'AI_CONFIGURATION_NO_API_KEY';
+  throw error;
+};
+
 const validateApiKeyFormat = (apiKey: string): boolean => {
   if (typeof apiKey !== 'string' || apiKey.length === 0) {
     const error = new Error('API key is required') as Error & { statusCode?: number };
@@ -155,6 +185,27 @@ const validateThinkingLevel = (
   return thinkingLevel as (typeof VALID_THINKING_LEVELS)[number];
 };
 
+/**
+ * Adds the one fact about the key that a client legitimately needs: whether
+ * there is one. The ciphertext itself is never something a browser should be
+ * reasoning about.
+ */
+const withKeyPresence = <T extends { type: string; encryptedApiKey?: string | null }>(
+  configuration: T
+): Omit<T, 'encryptedApiKey' | 'salt'> & { hasApiKey: boolean } => {
+  // The ciphertext and its salt leave the server no further. They were being
+  // shipped to every browser that opened AI Configuration -- encrypted, so not
+  // a disclosure of the key itself, but there is no client-side use for either
+  // and an encrypted secret in a page's memory, cache or devtools is a secret
+  // moved somewhere it does not need to be. Nothing on the frontend read them.
+  const { encryptedApiKey, salt, ...safe } = configuration as T & { salt?: string | null };
+  void salt;
+  return {
+    ...safe,
+    hasApiKey: configuration.type !== 'apikey' || Boolean(encryptedApiKey),
+  } as Omit<T, 'encryptedApiKey' | 'salt'> & { hasApiKey: boolean };
+};
+
 // GET all configurations
 router.get('/', async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -162,7 +213,11 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
       where: { deletedAt: null },
       orderBy: { name: 'asc' }
     });
-    res.json({ configurations });
+    // `hasApiKey` is derived here rather than stored, and it is what the list
+    // renders a "No Key" state from. A restored configuration arrives without
+    // its secret by design, and that is a state the UI has to be able to show
+    // — otherwise the only way to discover it is a failed translation.
+    res.json({ configurations: configurations.map(withKeyPresence) });
   } catch (error) {
     next(error);
   }
@@ -193,7 +248,7 @@ router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
       throw error;
     }
 
-    res.json({ configuration });
+    res.json({ configuration: withKeyPresence(configuration) });
   } catch (error) {
     next(error);
   }
@@ -345,6 +400,16 @@ router.put('/:id', requireAdmin, async (req: Request, res: Response, next: NextF
     }
 
     if (updateFields.isActive !== undefined) {
+      // Checked against the row as it will be, not as it was: supplying a key
+      // and activating in the same request is the ordinary way to finish a
+      // restored configuration.
+      if (Boolean(updateFields.isActive)) {
+        assertActivatable({
+          type: existing.type,
+          name: existing.name,
+          encryptedApiKey: updateFields.apiKey ? 'pending' : existing.encryptedApiKey,
+        });
+      }
       updateData.isActive = Boolean(updateFields.isActive);
     }
 
@@ -437,7 +502,7 @@ router.put('/:id', requireAdmin, async (req: Request, res: Response, next: NextF
         });
       });
 
-      res.json({ configuration });
+      res.json({ configuration: withKeyPresence(configuration) });
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError) {
         if (error.code === 'P2002') {  // Unique constraint violation
@@ -491,6 +556,11 @@ router.put('/bulk', requireAdmin, async (req: Request, res: Response, next: Next
         }
 
         if (updates.isActive !== undefined) {
+          if (Boolean(updates.isActive)) {
+            // Every row, not the first: a bulk activation that silently
+            // skipped the keyless ones would be the same lie in aggregate.
+            existingConfigurations.forEach(assertActivatable);
+          }
           updateData.isActive = Boolean(updates.isActive);
         }
 
@@ -508,7 +578,7 @@ router.put('/bulk', requireAdmin, async (req: Request, res: Response, next: Next
         return await Promise.all(updatePromises);
       });
 
-      res.json({ configurations: updatedConfigurations });
+      res.json({ configurations: updatedConfigurations.map(withKeyPresence) });
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError) {
         if (error.code === 'P2002') {  // Unique constraint violation

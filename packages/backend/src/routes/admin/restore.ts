@@ -11,7 +11,7 @@ import multer from 'multer';
 import { auditActorFrom } from '../../middleware/auth/require-admin';
 import { AdminAuditService } from '../../services/auth/admin-audit-service';
 import { AUDIT_ACTIONS, AUDIT_TARGET_TYPES } from '../../services/auth/authorization';
-import { RESTORE_CLEARED_TABLES } from '../../services/backup/table-contract';
+import { RESTORE_CLEARED_TABLES, RESTORE_NULLED_REFERENCES } from '../../services/backup/table-contract';
 import { readArtifact } from '../../services/restore/artifact-reader';
 import { RestoreService } from '../../services/restore/restore-service';
 import { CleanSlateService } from '../../services/seed/clean-slate-service';
@@ -73,6 +73,15 @@ router.get('/units', (_req, res) => {
         Object.values(RESTORE_CLEARED_TABLES)
           .filter(rule => rule.references.some(parent => unit.tables.includes(parent)))
           .map(rule => rule.label),
+      )],
+      // Associations this unit cannot carry across instances, stated before
+      // the administrator accepts rather than discovered afterwards. Same
+      // contract the restore itself reads, so the warning cannot drift from
+      // the behaviour.
+      blanks: [...new Set(
+        Object.entries(RESTORE_NULLED_REFERENCES)
+          .filter(([table]) => unit.tables.includes(table))
+          .map(([, rule]) => rule.label),
       )],
     })),
   });
@@ -183,12 +192,33 @@ router.post('/', upload.single('file'), async (req, res, next) => {
       },
     });
 
-    const outcome = await RestoreService.run({
-      data: result.artifact.data,
-      units,
-      actor: actor.label,
-      reason: 'Restoring a backup',
-    });
+    let outcome;
+    try {
+      outcome = await RestoreService.run({
+        data: result.artifact.data,
+        units,
+        actor: actor.label,
+        reason: 'Restoring a backup',
+      });
+    } catch (error) {
+      // The entry above was written before the swap on purpose, so that it
+      // survives into the rebuilt file. That is also why it cannot be moved
+      // to after success: there would be nothing to write it into. When the
+      // restore fails the live database is untouched and still accepting
+      // writes, so the correction lands durably here.
+      await AdminAuditService.record({
+        actor,
+        action: AUDIT_ACTIONS.BACKUP_RESTORE_FAILED,
+        targetType: AUDIT_TARGET_TYPES.BACKUP,
+        targetLabel: result.summary.manifest.generatedAt,
+        detail: {
+          units,
+          checksum: result.summary.manifest.checksum,
+          reason: error instanceof Error ? error.message : 'Unknown failure',
+        },
+      }).catch(() => undefined);
+      throw error;
+    }
 
     res.json({
       success: true,

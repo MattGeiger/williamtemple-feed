@@ -53,6 +53,12 @@ export const AUDIT_ACTIONS = {
   // snapshot. The restored database will not contain it — the audit log is
   // carried across from the live file, so it does.
   BACKUP_RESTORED: 'BACKUP_RESTORED',
+  // The counterpart, and the reason the entry above cannot simply be moved
+  // after the swap. A restore that fails leaves the live database untouched,
+  // so an unqualified BACKUP_RESTORED would stand as a record of something
+  // that did not happen. This is appended in that case; the pair reads as
+  // "attempted, then failed" rather than as a silent lie. See ISSUES.md #81.
+  BACKUP_RESTORE_FAILED: 'BACKUP_RESTORE_FAILED',
   // Reset discards data on purpose; restore recovers it. Separate actions so
   // the history never blurs the two.
   CLEAN_SLATE_APPLIED: 'CLEAN_SLATE_APPLIED',

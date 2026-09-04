@@ -296,3 +296,61 @@ export const BACKUP_QUERY_ARGS: Partial<Record<IncludedTable, object>> = {
 export const TABLE_CONTRACT_VERSION = 12;
 
 export const ARTIFACT_KIND = 'feed-sanitized-backup';
+
+/**
+ * References that a restore deliberately blanks instead of resolving.
+ *
+ * A foreign key whose parent is excluded from every artifact cannot be
+ * satisfied by any selection — no unit contains the parent, so no `requires`
+ * edge can reach it. There are exactly two ways to handle that: carry the
+ * parent after all, or null the reference on insert. This registry is the
+ * second, and it is deliberately narrow.
+ *
+ * Both entries point at `Document`, and the reasoning is the same for each.
+ * The artifact carries no file payloads — an uploaded document is storage,
+ * not database — so a `Document` row restored onto a fresh instance would
+ * describe a file that is not there. FEED already has a name and a repair
+ * tool for that state (`services/storage/reconciliation.ts` Phase 1 reports
+ * database records whose files are missing), but a *dangling* reference is
+ * different: it aborts the whole restore. Measured on a production snapshot,
+ * 112 of 2,319 translations carry a `documentId`, so this is the ordinary
+ * case rather than an edge one.
+ *
+ * What is lost is the association between a translation and the document it
+ * came from. The document itself is already gone — the file was never in the
+ * artifact — so the association had nothing left to point at. The
+ * confirmation dialog states this in `label` before the administrator
+ * accepts, for the same reason RESTORE_CLEARED_TABLES does: a restore that
+ * quietly drops data teaches people not to trust it.
+ *
+ * A column must NOT be added here to make a restore pass if the parent
+ * *could* be carried. That case needs the parent in the artifact, not a
+ * blanked reference.
+ */
+export const RESTORE_NULLED_REFERENCES: Record<string, {
+  /** Columns on this table that are set to null when the parent is unavailable. */
+  readonly columns: readonly string[];
+  /** The excluded table these columns point at. */
+  readonly parent: string;
+  /** What the administrator loses, in the words the confirmation shows. */
+  readonly label: string;
+  readonly reason: string;
+}> = {
+  Translation: {
+    columns: ['documentId'],
+    parent: 'Document',
+    label: 'the link from each translation to the document it was made from',
+    reason:
+      'Document rows are excluded because the artifact carries no file payloads. A translation '
+      + 'restored onto a fresh instance has no document to point at, and the dangling reference '
+      + 'would abort the restore.',
+  },
+  FormattingChoice: {
+    columns: ['documentId'],
+    parent: 'Document',
+    label: 'the link from each saved formatting choice to its document',
+    reason:
+      'Same as Translation: the parent document is not carried, so the reference cannot resolve '
+      + 'on any instance that does not already hold that exact row.',
+  },
+};
