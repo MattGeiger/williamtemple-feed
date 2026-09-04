@@ -324,6 +324,14 @@ docker system prune -a
 
 ## Updating Application
 
+> **Both images, not just the backend.** Nginx runs in the *frontend* image, and
+> its `client_max_body_size` for `/api/admin/restore` is what allows a backup to
+> be uploaded at all. A deployment that rebuilds only the backend keeps an old
+> proxy config and rejects production-sized backups at 64 MB with a 413 that
+> never reaches the application. See ISSUES.md #83.
+
+
+
 **From Mac:**
 ```bash
 # Make code changes

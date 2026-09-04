@@ -7,6 +7,40 @@ All notable changes to FEED are documented here. This project adheres to
 
 ## [1.7.5-beta.7]
 
+### Fixed — recovery
+
+- **A production-sized backup could not be uploaded at all.** Nginx capped
+  request bodies at 64 MB while the restore route declares 256 MB, so a real
+  152 MB artifact was rejected before the backend saw a byte of it — disaster
+  recovery was impossible through the only interface that offers it. The same
+  two numbers had drifted once before, and the comment recording that drift
+  sits three lines above the value that drifted again. Restore now has its own
+  proxy block sized to match the application, with timeouts for an upload that
+  takes minutes on a Pi, and a test parses the config so the pair cannot
+  separate a third time. Neither drift was visible in development, where the
+  frontend talks to the backend with no proxy in between. **This fix ships in
+  the frontend image**: a deployment that reuses an older one still rejects
+  backups.
+
+- **Nobody became Administrator on a fresh instance.** FEED's authorization
+  design says the first verified sign-in on an empty instance becomes
+  Administrator; two documents carry that rule in a table, and no code
+  implemented it. Every first sign-in landed as Staff. On any instance that
+  already has staff this is invisible; on a newly built Pi it means the person
+  recovering from a disaster signs in, finds no Admin or Data navigation, and
+  cannot reach Restore at all — the way through was a container shell command
+  documented nowhere. Found by rehearsing disaster recovery on a fresh
+  container rather than by reasoning about it.
+
+  The bootstrap now exists, and fires only when the roster is empty **and** no
+  encryption key has been created — two independent signs that nobody has begun
+  setting the instance up. It grants inside a transaction so two simultaneous
+  first sign-ins cannot both win, and records the grant in the audit log.
+  Because a clean slate does not remove the encryption key, clearing the roster
+  on a configured instance no longer hands authority to the next arrival; the
+  operator CLI is the documented way back, and four places that said otherwise
+  now say this.
+
 ### Changed
 
 - **Backup is now FEED's disaster-recovery artifact**, in the documentation as

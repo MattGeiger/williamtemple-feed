@@ -86,8 +86,13 @@ export interface CleanSlateOptions {
    * Default false. Preserving it means an administrator resetting their own
    * instance does not lock themselves and their colleagues out of it.
    *
-   * Clearing it arms the fresh-instance bootstrap: the next verified sign-in
-   * becomes the administrator. That is coherent and sometimes exactly right —
+   * Clearing it arms the fresh-instance bootstrap ONLY on an instance that
+   * also has no encryption key, which a clean slate does not remove (see
+   * EXCLUDED_TABLES). On an instance that has been set up, clearing the roster
+   * leaves nobody able to grant authority through the app, and the operator
+   * CLI is the way back: `node dist/cli/admin.js grant --email=... --confirm`.
+   * That narrowing is deliberate — see verification-service.findOrCreateUser.
+   * Clearing the roster is coherent and sometimes exactly right —
    * handing a fresh instance to another agency — but it must be **chosen, not
    * discovered**, which is why it defaults off and the UI states what it does.
    */

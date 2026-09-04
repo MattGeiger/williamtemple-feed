@@ -67,9 +67,10 @@ public AGPL repo and is wrong for every other deployment).
 The fresh-instance rule survives for genuinely empty installs. Startup resolves
 three states:
 
-| `User` table | Administrators | Behaviour |
-| --- | --- | --- |
-| empty | — | Atomic fresh-instance bootstrap: first verified user becomes Administrator |
+| `User` table | Administrators | Encryption key | Behaviour |
+| --- | --- | --- | --- |
+| empty | — | absent | Atomic fresh-instance bootstrap: first verified user becomes Administrator |
+| empty | — | present | Never auto-assign; require the operator CLI (2026-09-04) |
 | populated | zero | Never auto-assign. Log loudly. Require the operator CLI |
 | populated | ≥ 1 | Normal operation |
 

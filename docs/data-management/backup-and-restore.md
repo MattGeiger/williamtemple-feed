@@ -162,9 +162,13 @@ encryption key is established *before* the restore so it survives the swap
 (`EncryptionKey` is excluded from the artifact, so it is not among the tables
 the restore replaces, and the scratch database is a copy of the live one).
 
-1. Deploy onto fresh hardware. The roster is empty, which arms the
-   fresh-instance bootstrap: the first verified sign-in becomes Administrator.
-2. Sign in. You are now that administrator.
+1. Deploy onto fresh hardware. The roster is empty and no encryption key
+   exists, which arms the fresh-instance bootstrap.
+2. **Sign in before anything else.** The first verified sign-in on an instance
+   with no roster *and* no encryption key becomes Administrator. Initializing
+   encryption first disarms that, and you would need the operator CLI
+   (`docker compose exec backend node dist/cli/admin.js grant --email=…
+   --confirm`) to get back in. The order of steps 2 and 3 is load-bearing.
 3. Initialize encryption (Settings → the setup wizard, `POST /api/system/initialize`).
 4. Restore the artifact.
 5. **Re-grant your other administrators.** The artifact never carries roles —

@@ -182,10 +182,19 @@ Preserve carries the live roster into the new database before the swap, so an
 administrator resetting their instance does not lock themselves and their
 colleagues out of it.
 
-Clear wipes it, which arms the fresh-instance bootstrap — the next verified
-sign-in becomes the administrator. That is coherent and sometimes what you want
-(handing a fresh instance to another agency), but it must be **chosen, not
-discovered**.
+Clear wipes it. Whether that arms the fresh-instance bootstrap depends on one
+more thing: since 2026-09-04 the bootstrap requires an empty roster **and** no
+encryption key, and a clean slate does not remove the key (it is in
+`EXCLUDED_TABLES`). So on an instance that has been set up, clearing the roster
+leaves nobody who can grant authority through the app, and the way back is the
+operator CLI:
+
+```bash
+docker compose exec backend node dist/cli/admin.js grant --email=… --confirm
+```
+
+Handing a genuinely fresh instance to another agency still works as intended.
+Either way it must be **chosen, not discovered**.
 
 ## Mechanism
 
