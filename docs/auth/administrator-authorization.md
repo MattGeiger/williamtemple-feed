@@ -67,9 +67,10 @@ permanently in a public repo, and wrong for every other deployment).
 
 Startup therefore resolves three states, not one:
 
-| `User` table | Administrators | Behaviour |
-| --- | --- | --- |
-| empty | — | Atomic fresh-instance bootstrap, as above |
+| `User` table | Administrators | Encryption key | Behaviour |
+| --- | --- | --- | --- |
+| empty | — | absent | Atomic fresh-instance bootstrap, as above |
+| empty | — | present | Never auto-assign; require the operator CLI |
 | populated | zero | Never auto-assign; require the operator CLI |
 | populated | ≥ 1 | Normal operation |
 

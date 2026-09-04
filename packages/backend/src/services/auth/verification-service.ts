@@ -9,7 +9,13 @@ import prisma from '../../db';
 import { TokenService } from './token-service';
 import { ResendService } from '../email/resend-service';
 import { AccessPolicyService } from './access-policy-service';
-import { AuthorizationError } from './authorization';
+import {
+  AUDIT_ACTIONS,
+  AUDIT_TARGET_TYPES,
+  AuthorizationError,
+  ROLES,
+} from './authorization';
+import { AdminAuditService } from './admin-audit-service';
 
 const MAGIC_LINK_EXPIRY = 10 * 60 * 1000; // 10 minutes
 const OTP_EXPIRY = 3 * 60 * 1000; // 3 minutes
@@ -305,12 +311,66 @@ export class VerificationService {
       );
     }
 
-    return await prisma.user.create({
-      data: {
-        email,
-        emailVerified: now,
-        lastLoginAt: now
+    // Fresh-instance bootstrap. Documented in two places
+    // (docs/auth/administrator-authorization.md and the admin-page
+    // implementation plan) as "empty User table -> first verified user becomes
+    // Administrator", designed, and never built: `create` set no role, so the
+    // schema default made every first user Staff. Nothing surfaced it, because
+    // a genuinely empty instance is only ever met once — and the one time it
+    // matters is disaster recovery, where the operator finds a Staff account
+    // and no way into Data Management. Found by rehearsing that recovery on a
+    // fresh container (ISSUES.md #82).
+    //
+    // The trigger is deliberately narrower than the design's: an empty roster
+    // AND no encryption key, so it can only fire on an install nobody has
+    // begun to set up. Granting authority to whoever signs in first is the
+    // most dangerous thing this codebase can do, and the same design document
+    // rejects it for a populated instance in as many words -- "a
+    // privilege-escalation race during pantry hours". Two independent signals
+    // of untouched-ness cost nothing and remove the single-signal failure.
+    //
+    // Counted and created in one transaction so two simultaneous first
+    // sign-ins cannot both win the grant.
+    const created = await prisma.$transaction(async (tx) => {
+      const [existingUsers, encryptionKeys] = await Promise.all([
+        tx.user.count(),
+        tx.encryptionKey.count(),
+      ]);
+      const untouched = existingUsers === 0 && encryptionKeys === 0;
+
+      const user = await tx.user.create({
+        data: {
+          email,
+          emailVerified: now,
+          lastLoginAt: now,
+          ...(untouched ? { role: ROLES.ADMINISTRATOR } : {}),
+        },
+      });
+
+      if (untouched) {
+        // An escalation with no trail is how a privilege becomes a mystery.
+        // The actor is the account being created, because there is nobody
+        // else on the instance to attribute it to.
+        await AdminAuditService.record({
+          actor: { userId: user.id, label: user.email },
+          action: AUDIT_ACTIONS.ROLE_GRANTED,
+          targetType: AUDIT_TARGET_TYPES.USER,
+          targetId: user.id,
+          targetLabel: user.email,
+          detail: { to: ROLES.ADMINISTRATOR, via: 'fresh-instance bootstrap' },
+        }, tx);
       }
+
+      return { user, untouched };
     });
+
+    if (created.untouched) {
+      console.warn(
+        `[auth] Fresh-instance bootstrap: ${email} is the first verified sign-in on an `
+        + 'empty instance with no encryption key, and has been granted Administrator.'
+      );
+    }
+
+    return created.user;
   }
 }

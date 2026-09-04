@@ -51,7 +51,7 @@ const router = Router();
  * size. Past this point the fix is streaming the parse rather than a bigger
  * number — see docs/data-management/beta-6-backup-restore-brief.md.
  */
-const MAX_ARTIFACT_BYTES = 256 * 1024 * 1024;
+export const MAX_ARTIFACT_BYTES = 256 * 1024 * 1024;
 
 const upload = multer({
   storage: multer.memoryStorage(),

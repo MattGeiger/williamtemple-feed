@@ -38,6 +38,104 @@ Everything else in this file. The application is shippable today.
 
 ## Open Issues
 
+### #83 — nginx rejected every production-sized backup, making recovery impossible
+**Priority**: High · **Status**: Fixed; verified in a Docker rehearsal
+**Bucket**: Deployment / disaster recovery
+
+Uploading a real 152 MB production artifact to Restore returned **413 Request
+Entity Too Large**. The request never reached the backend — zero log lines.
+
+`docker/nginx.conf` capped request bodies at **64m**; `MAX_ARTIFACT_BYTES` in
+`routes/admin/restore.ts` declares **256 MB**. A production backup falls
+between them, so no production-sized backup could be uploaded through the
+deployed stack at all. Disaster recovery — the one thing the artifact exists
+for — was impossible through the only interface that offers it.
+
+**This is the second time these two numbers have drifted.** The comment three
+lines above the 64m records the first: nginx at 16m against a 64 MB import
+ceiling, which cost a production import (#68), and ends "Change both together
+or neither." The 64m was correct for the import path; restore's 256 MB ceiling
+arrived later and nobody raised the proxy.
+
+**Why neither was caught.** The development frontend talks to the backend
+directly — there is no proxy in the path. nginx exists only in the deployed
+stack, so the mismatch is invisible everywhere except production and a Docker
+rehearsal. Both times, a person discovered it after it cost something.
+
+**Fixed** with a dedicated `location /api/admin/restore` at 256m, scoped rather
+than raising the general limit to suit the largest request in the application,
+plus 600s timeouts and `proxy_request_buffering off` for an upload that takes
+minutes on a Pi. Retried in the rehearsal: 413 became 200, and the full
+restore completed.
+
+**Covered by** `upload-limits.test.ts`, which parses `docker/nginx.conf` and
+asserts each location admits at least what the application declares. Verified
+to fail on the old value.
+
+**Deployment note:** this fix lives in the *frontend* image, because that is
+where nginx runs. A 1.7.5 deployment that reuses an older frontend image will
+still reject backups at 64 MB.
+
+**Lesson**: a limit enforced in one layer and declared in another is one
+number in two places. The first drift produced a comment; a comment is not a
+mechanism, and the same pair drifted again underneath it.
+
+### #82 — Nobody could become Administrator on a fresh instance
+**Priority**: High · **Status**: Fixed; container verification pending
+**Bucket**: Auth / disaster recovery
+
+Found by rehearsing disaster recovery on a fresh Docker stack, which is the
+only way it could have been found: the fault is invisible on any instance that
+already has a roster, and total on the one kind that does not.
+
+`docs/auth/administrator-authorization.md` and
+`docs/auth/admin-page-implementation-plan.md` both carry the same table —
+empty `User` table, first verified user becomes Administrator — and no code
+implemented it. `VerificationService.findOrCreateUser` created the row with no
+`role`, so the schema default made every first sign-in Staff. Across the whole
+backend only three paths ever assigned `ADMINISTRATOR`: the operator CLI, the
+roster route (which requires an existing administrator), and restore's
+re-grant of the person performing it. None can fire on an empty roster.
+
+The consequence is the recovery path itself. On a new Pi the operator signs
+in, lands as Staff, finds no Admin or Data navigation, and cannot reach
+Restore. The way through is `docker compose exec backend node dist/cli/admin.js
+grant --email=… --confirm` — shell access to a container, at the worst possible
+moment, documented nowhere in the runbook. The CLI itself reported the state
+accurately and nothing else did: *"Administrators who can sign in: 0 (this mode
+requires 1)."*
+
+**Fixed with a narrower trigger than the design specified.** The bootstrap
+requires an empty roster **and** no encryption key — two independent signals
+that nobody has begun setting the instance up. Granting authority to whoever
+arrives first is the most dangerous act available here, and the same design
+document rejects it for a populated instance in as many words ("a
+privilege-escalation race during pantry hours"); one signal is one failure away
+from being wrong. The count and the create run in one transaction, so two
+simultaneous first sign-ins cannot both win, and the grant writes a
+`ROLE_GRANTED` audit entry marked `via: 'fresh-instance bootstrap'`.
+
+**The narrowing changes clean slate.** `EncryptionKey` is excluded from what a
+clean slate clears, so clearing the roster on a configured instance no longer
+arms the bootstrap — the operator CLI is the way back. Four places claimed
+otherwise and now say this: `clean-slate-service.ts`, both auth state tables
+(now three-column, with the key as the third), `clean-slate-and-seed.md`, and
+the recovery runbook, where step order is now load-bearing for a second reason:
+sign in *before* initializing encryption, or the bootstrap is disarmed.
+
+**Covered by** `fresh-instance-bootstrap.test.ts`, four cases against freshly
+migrated databases, including the one the narrowing adds: an empty roster with
+an encryption key present hands out nothing.
+
+**Still open:** verification in the container. The rehearsal instance was
+granted Administrator via the CLI before this fix existed, so the running stack
+has never exercised it.
+
+**Lesson**: a documented behaviour with no test is a plan, not a feature. This
+one was specified twice, in tables, with the tradeoffs argued — and the gap
+between the table and the code survived every review because the only instance
+that can reveal it is one nobody keeps around.
+
 ### #81 — Restore could not restore: a backup would not load onto a fresh instance
 **Priority**: High · **Status**: Fixed; rehearsal pending
 **Bucket**: Data Management / backup and restore
