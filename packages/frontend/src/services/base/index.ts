@@ -72,6 +72,62 @@ export function parseContentDispositionFilename(
 }
 
 /**
+ * ASK-compliant message for an HTTP failure whose response body carried
+ * nothing a person can act on.
+ *
+ * Every FEED route answers a failure with `{ error: { message, code } }`
+ * (see `packages/backend/src/middleware/error-handler.ts`), so a non-JSON
+ * error body never comes from the application -- it comes from a layer in
+ * front of it. In production that layer is Cloudflare Tunnel and the Nginx
+ * container, and their bodies are full HTML error pages. Handing one of
+ * those back as `error.message` is what put a Cloudflare 502 page into the
+ * Translate & Download PDFs modal (ISSUES.md #80): several kilobytes of
+ * markup where a sentence belonged. The status code is the only usable
+ * signal such a response carries, so translate it here and drop the body.
+ */
+export function httpStatusMessage(status: number, statusText?: string): string {
+  // 502/503/504 through the tunnel, and Cloudflare's own 52x family, all
+  // mean the same thing to staff: the request never reached FEED, or FEED
+  // did not answer. Restarting is the common cause and it resolves itself.
+  if (status === 502 || status === 503 || status === 504 || (status >= 520 && status <= 527)) {
+    return `FEED's server did not respond (error ${status}). It may be restarting. `
+      + 'Wait a minute and try again, and tell an administrator if it keeps failing.';
+  }
+
+  switch (status) {
+    case 400:
+      return 'The server could not read that request. Refresh the page and try again.';
+    case 403:
+      return 'You do not have permission to do that. Ask a FEED administrator for access.';
+    case 404:
+      return 'That item was not found. Refresh the page to see what is there now.';
+    case 408:
+      return 'The request took too long and was cancelled. Try again.';
+    case 409:
+      return 'Someone else changed this while you were working. Refresh the page and try again.';
+    case 413:
+      return 'That upload is larger than the server accepts. Use a smaller file and try again.';
+    case 429:
+      return 'FEED is handling too many requests right now. Wait a minute and try again.';
+    case 500:
+      return 'FEED could not complete that request. Try again, and tell an administrator if it keeps failing.';
+    default:
+      break;
+  }
+
+  if (status >= 500) {
+    return `FEED's server could not complete that request (error ${status}). `
+      + 'Try again, and tell an administrator if it keeps failing.';
+  }
+
+  // Anything else in the 4xx range: the phrase is at least a hint, and it is
+  // a short header value rather than a document body.
+  return statusText
+    ? `The server rejected that request (${statusText}). Refresh the page and try again.`
+    : `The server rejected that request (error ${status}). Refresh the page and try again.`;
+}
+
+/**
  * Base class for all API services providing common functionality
  */
 export abstract class BaseApiService {
@@ -168,46 +224,15 @@ export abstract class BaseApiService {
   }
 
   /**
-   * Parses error response from the API with comprehensive error handling
+   * Message-only view of {@link parseErrorPayload}, for the handful of
+   * callers that own their own `fetch` and only need a string. Kept as a
+   * delegation so there is exactly one place deciding what a failed
+   * response is allowed to say to a user.
    * @param response - The fetch Response object
    * @returns Promise resolving to the error message
    */
   protected async parseErrorResponse(response: Response): Promise<string> {
-    try {
-      const contentType = response.headers.get('content-type');
-      
-      // Handle JSON responses
-      if (contentType && contentType.includes('application/json')) {
-        const errorData = await response.json();
-        
-        // Check for error field (backend standard)
-        if (errorData && errorData.error) {
-          // Handle string error messages directly
-          if (typeof errorData.error === 'string') {
-            return errorData.error;
-          }
-          // Handle nested error objects
-          if (errorData.error.message) {
-            return errorData.error.message;
-          }
-        }
-        
-        // Fallback to message field
-        if (errorData && errorData.message) {
-          return errorData.message;
-        }
-        
-        // Return status text if no error message found in JSON
-        return response.statusText || 'Unknown error';
-      } else {
-        // Handle non-JSON responses (text/html etc.)
-        const errorText = await response.text();
-        return errorText || response.statusText || 'Unknown error';
-      }
-    } catch (parseError) {
-      this.logError('Failed to parse error response', parseError);
-      return response.statusText || 'Unknown error';
-    }
+    return (await this.parseErrorPayload(response)).message;
   }
 
   /**
@@ -226,7 +251,7 @@ export abstract class BaseApiService {
         const errObj = errorData?.error;
         if (errObj && typeof errObj === 'object') {
           return {
-            message: errObj.message || response.statusText || 'Unknown error',
+            message: errObj.message || httpStatusMessage(response.status, response.statusText),
             code: typeof errObj.code === 'string' ? errObj.code : undefined,
             details: errObj,
           };
@@ -237,13 +262,20 @@ export abstract class BaseApiService {
         if (errorData && errorData.message) {
           return { message: errorData.message };
         }
-        return { message: response.statusText || 'Unknown error' };
+        return { message: httpStatusMessage(response.status, response.statusText) };
       }
+      // Not JSON, so not one of our routes -- it is a proxy or gateway error
+      // page. Read the body for the developer log only; the user gets a
+      // sentence derived from the status. See httpStatusMessage.
       const errorText = await response.text();
-      return { message: errorText || response.statusText || 'Unknown error' };
+      this.logError('Non-JSON error body discarded', {
+        status: response.status,
+        body: errorText.slice(0, 500),
+      });
+      return { message: httpStatusMessage(response.status, response.statusText) };
     } catch (parseError) {
       this.logError('Failed to parse error response', parseError);
-      return { message: response.statusText || 'Unknown error' };
+      return { message: httpStatusMessage(response.status, response.statusText) };
     }
   }
 

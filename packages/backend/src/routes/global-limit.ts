@@ -9,6 +9,7 @@ import { Router } from 'express';
 import { NextFunction, Request, Response } from 'express';
 import { rateLimiter } from '../middleware/rate-limiter';
 import prisma from '../db';
+import { SUPPORT_CONTACT_SENTENCE } from '../lib/support';
 
 const router = Router();
 
@@ -71,7 +72,7 @@ router.get('/', rateLimiter, async (req: Request, res: Response, next: NextFunct
       }
     });
   } catch (error) {
-    const txError = new TransactionError('We couldn\'t retrieve the current limit. Please try again or contact support at github.com/MattGeiger');
+    const txError = new TransactionError(`We couldn't retrieve the current limit. Please try again. ${SUPPORT_CONTACT_SENTENCE}`);
     next(txError);
   }
 });
@@ -118,7 +119,7 @@ router.put('/', rateLimiter, async (req: Request, res: Response, next: NextFunct
       }
     });
   } catch (error) {
-    const txError = new TransactionError('We couldn\'t save your changes to the limit. Please try again or contact support at github.com/MattGeiger');
+    const txError = new TransactionError(`We couldn't save your changes to the limit. Please try again. ${SUPPORT_CONTACT_SENTENCE}`);
     next(txError);
   }
 });

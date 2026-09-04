@@ -10,6 +10,7 @@ import { toast } from '@/components/ui/use-toast'
 import React from 'react'
 import type { MessageType, MessageOptions } from './types'
 import { computeMessageDuration, DEFAULT_TITLES, VARIANT_MAPPINGS } from './types'
+import { linkifyMessage } from './linkify'
 
 /**
  * How long an identical message is treated as the same event.
@@ -80,7 +81,11 @@ class MessageService {
 
     const handle = toast({
       title,
-      description: message,
+      // Rendered, not raw: a message that names a URL gets a clickable link.
+      // The de-duplication key and the length-aware duration above both stay
+      // on the plain string, so linking changes what is shown and nothing
+      // about how the toast behaves.
+      description: linkifyMessage(message),
       variant: VARIANT_MAPPINGS[type],
       duration: options?.persist ? null : duration,
       action: actionComponent
@@ -103,7 +108,7 @@ class MessageService {
       update: (message: string, newType?: MessageType) => {
         progressToast.update({
           title: DEFAULT_TITLES[newType || type],
-          description: message,
+          description: linkifyMessage(message),
           variant: VARIANT_MAPPINGS[newType || type]
         })
       },

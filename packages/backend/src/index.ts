@@ -19,6 +19,24 @@ import './services/translation-trigger';
 import { startDataImportStagingSweeper } from './services/data-import/staging-sweeper';
 import { failOrphanedDataImportJobs } from './services/data-import/background';
 
+// A crash used to leave nothing behind. Docker restarts the container
+// (`restart: unless-stopped`), so by the time anyone looks the process is
+// healthy again and the outage is invisible -- which is precisely what made a
+// restart worth ruling out while diagnosing ISSUES.md #80, and what cost time
+// there. Node's default for either of these is to print and exit; that exit is
+// deliberate here too (a process with a broken invariant should not keep
+// serving), but it now announces itself first so `docker logs` says which
+// request was in flight.
+process.on('unhandledRejection', (reason) => {
+  console.error('[Fatal] Unhandled promise rejection -- exiting', reason);
+  process.exit(1);
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('[Fatal] Uncaught exception -- exiting', err);
+  process.exit(1);
+});
+
 const initializeServices = async () => {
   try {
     await storageService.initialize();

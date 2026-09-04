@@ -23,8 +23,10 @@ import {
   untaggedHeaderHeight,
 } from '../lib/builder-typography';
 import {
+  classifyTranslationProviderError,
   lookupBuilderTranslations,
   translateBuilderStrings,
+  type TranslationProviderFailure,
 } from '../services/builder-translation';
 
 const pdfmake = require('pdfmake');
@@ -368,6 +370,8 @@ export interface ShoppingListBuilderTemplate {
 
 interface AppRouteError extends Error {
   statusCode?: number;
+  /** Machine-readable code echoed to the client as `error.code`. */
+  code?: string;
 }
 
 interface SaveBuilderComponentRequest {
@@ -403,9 +407,14 @@ pdfmake.setFonts({
   },
 });
 
-const createRouteError = (message: string, statusCode = 400): AppRouteError => {
+const createRouteError = (
+  message: string,
+  statusCode = 400,
+  code?: string,
+): AppRouteError => {
   const error = new Error(message) as AppRouteError;
   error.statusCode = statusCode;
+  if (code) error.code = code;
   return error;
 };
 
@@ -4298,6 +4307,66 @@ router.post('/translation-preflight', async (req: Request, res: Response, next: 
  * Body: { strings: string[], targetLanguage: string }
  * Response: { translations: Record<originalText, translatedText> }
  */
+/**
+ * User-facing copy for each way a translation provider can fail.
+ *
+ * Every entry answers **503, never 502**. Production is served through
+ * Cloudflare Tunnel, and Cloudflare replaces an origin 502 with its own
+ * branded "Bad gateway" HTML page -- so curated JSON behind a 502 never
+ * reached the browser, and the bulk-export modal printed Cloudflare's
+ * document instead (ISSUES.md #80). 503 passes through untouched.
+ *
+ * `exhausted` and `misconfigured` both say plainly that retrying will not
+ * help, because the failure they describe cannot resolve on its own. That
+ * sentence is the whole point of separating them from `busy`: staff were
+ * previously told to wait a minute for a depleted account, and would have
+ * been told the same for a model the API key cannot call.
+ */
+const TRANSLATION_PROVIDER_ERRORS: Record<
+  TranslationProviderFailure,
+  { code: string; message: (language: string) => string }
+> = {
+  exhausted: {
+    code: 'AI_TRANSLATION_QUOTA_EXHAUSTED',
+    message: (language) =>
+      `Translation into ${language} stopped because the AI provider says its quota or prepaid credits are used up. `
+      + 'Retrying will not clear this. An administrator needs to restore the provider account or key in AI Configuration.',
+  },
+  'not-configured': {
+    code: 'AI_TRANSLATION_NOT_CONFIGURED',
+    message: (language) =>
+      `FEED cannot translate into ${language} yet because no AI model is switched on. `
+      + 'An administrator needs to open AI Configuration and activate a model, entering its '
+      + 'API key first if this instance was restored from a backup.',
+  },
+  misconfigured: {
+    code: 'AI_TRANSLATION_MISCONFIGURED',
+    message: (language) =>
+      `Translation into ${language} stopped: the AI provider rejected FEED's API key or the model it is set to use. `
+      + 'Retrying will not help. An administrator needs to check the key and model in AI Configuration.',
+  },
+  busy: {
+    code: 'AI_TRANSLATION_BUSY',
+    message: (language) =>
+      `The translation service is busy right now (high demand for ${language}). `
+      + 'This is temporary -- wait about a minute, then click Generate again. No work was lost.',
+  },
+  unavailable: {
+    code: 'AI_TRANSLATION_UNAVAILABLE',
+    message: (language) =>
+      `We couldn't translate this list into ${language}. The AI translation service didn't respond. `
+      + 'Try again in a moment; if it keeps failing, check the AI provider settings in Translations.',
+  },
+};
+
+const buildTranslationProviderError = (
+  failure: TranslationProviderFailure,
+  targetLanguage: string,
+): AppRouteError => {
+  const { code, message } = TRANSLATION_PROVIDER_ERRORS[failure];
+  return createRouteError(message(targetLanguage), 503, code);
+};
+
 router.post('/translate-missing-strings', async (req: Request, res: Response, next: NextFunction) => {
   const targetLanguage = typeof req.body?.targetLanguage === 'string'
     ? req.body.targetLanguage.trim()
@@ -4317,28 +4386,8 @@ router.post('/translate-missing-strings', async (req: Request, res: Response, ne
     res.json({ translations });
   } catch (error) {
     if (error instanceof Error && !('statusCode' in error)) {
-      // The AI provider returns 503/UNAVAILABLE when the model is briefly
-      // overloaded ("high demand"). That is transient and self-resolving, so
-      // we tell the user exactly that and that retrying shortly will work --
-      // distinct from a hard provider outage / misconfiguration.
-      const status = (error as { status?: number }).status;
-      const haystack = `${error.message} ${(error as { status?: number | string }).status ?? ''}`.toLowerCase();
-      const isOverloaded = status === 503
-        || haystack.includes('unavailable')
-        || haystack.includes('high demand')
-        || haystack.includes('overloaded')
-        || haystack.includes('rate limit')
-        || haystack.includes('429');
-      const routeError = isOverloaded
-        ? createRouteError(
-            `The translation service is busy right now (high demand for ${targetLanguage}). This is temporary -- wait about a minute, then click Generate again. No work was lost.`,
-            503,
-          )
-        : createRouteError(
-            `We couldn't translate this list into ${targetLanguage}. The AI translation service didn't respond. Try again in a moment; if it keeps failing, check the AI provider settings in Translations.`,
-            502,
-          );
-      return next(routeError);
+      const failure = classifyTranslationProviderError(error);
+      return next(buildTranslationProviderError(failure, targetLanguage));
     }
     return next(error);
   }

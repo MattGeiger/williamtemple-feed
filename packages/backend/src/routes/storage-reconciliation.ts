@@ -7,6 +7,7 @@
 
 import express from 'express';
 import { storageReconciliationService } from '../services/storage/reconciliation';
+import { SUPPORT_CONTACT_SENTENCE } from '../lib/support';
 
 const router = express.Router();
 
@@ -34,7 +35,7 @@ router.post('/full-scan', async (req, res, next) => {
     });
   } catch (error) {
     console.error('Error in full storage reconciliation:', error);
-    const friendlyError = new Error('There was a problem verifying your storage files. Please try again later or contact support at github.com/MattGeiger');
+    const friendlyError = new Error(`There was a problem verifying your storage files. Please try again later. ${SUPPORT_CONTACT_SENTENCE}`);
     (friendlyError as any).statusCode = 500;
     next(friendlyError);
   }
@@ -78,7 +79,7 @@ router.post('/date-range', async (req, res, next) => {
     });
   } catch (error) {
     console.error('Error in date range storage reconciliation:', error);
-    const friendlyError = new Error('There was a problem verifying your files for the selected dates. Please try a smaller date range or contact support at github.com/MattGeiger');
+    const friendlyError = new Error(`There was a problem verifying your files for the selected dates. Please try a smaller date range. ${SUPPORT_CONTACT_SENTENCE}`);
     (friendlyError as any).statusCode = 500;
     next(friendlyError);
   }

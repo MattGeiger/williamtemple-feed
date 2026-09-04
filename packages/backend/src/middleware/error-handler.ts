@@ -7,24 +7,15 @@
 
 import { Request, Response, NextFunction } from 'express';
 import { Prisma } from '@prisma/client';
+import { SUPPORT_CONTACT_SENTENCE } from '../lib/support';
 
 export interface AppError extends Error {
   statusCode?: number;
   code?: string;
 }
 
-/**
- * Where a user should report a failure they cannot resolve themselves.
- * A tracked issue reaches whoever is maintaining FEED, which naming one
- * developer in the copy does not. Override with SUPPORT_ISSUES_URL if the
- * project moves.
- */
-const SUPPORT_ISSUES_URL =
-  process.env.SUPPORT_ISSUES_URL || 'https://github.com/MattGeiger/williamtemple-feed/issues';
-
 export const INTERNAL_FAILURE_MESSAGE =
-  'FEED could not complete that request. Please try again. If it keeps happening, ' +
-  `report it at ${SUPPORT_ISSUES_URL}.`;
+  `FEED could not complete that request. Please try again. ${SUPPORT_CONTACT_SENTENCE}`;
 
 /**
  * Type guard for Prisma errors
@@ -110,9 +101,17 @@ export const errorHandler = (
     }
     
     if (err.code === 'P2003') {
+      // P2003 is "foreign key constraint failed", which covers writes in both
+      // directions. This used to assert a deletion, and that assertion sent a
+      // restore investigation looking at delete ordering for two turns while
+      // the real failure was an INSERT of rows whose parent the destination
+      // did not have (ISSUES.md #81). Name the constraint, not a guess at
+      // which operation tripped it.
       return res.status(400).json({
         error: {
-          message: 'Cannot delete this item because it is referenced by other items.',
+          message:
+            'That change would break a link between records. If you are deleting something, '
+            + 'reassign or remove the items that point at it first.',
           timestamp,
           code: err.code
         }
@@ -141,8 +140,17 @@ export const errorHandler = (
   // can carry absolute server paths, query structure, and schema details.
   // Those are unhelpful to staff and should not leave the server, so they are
   // logged and replaced rather than forwarded.
+  //
+  // The signature of a deliberate message is the explicit statusCode, not the
+  // 4xx range. This gate used to stop at 499, which silently discarded every
+  // curated 5xx message in the app: the translate-missing-strings route names
+  // the language and says whether to retry, and staff were shown the generic
+  // internal-failure text instead (ISSUES.md #80). The same was true of the
+  // retired shopping-list PDF routes' 503s and the friendly 500s in
+  // quarantine, storage reconciliation, and global-limit. Accidental errors
+  // still carry no statusCode and are still withheld.
   const carriesUserFacingMessage =
-    typeof err.statusCode === 'number' && err.statusCode >= 400 && err.statusCode < 500;
+    typeof err.statusCode === 'number' && err.statusCode >= 400;
 
   let friendlyMessage = carriesUserFacingMessage ? message : INTERNAL_FAILURE_MESSAGE;
 

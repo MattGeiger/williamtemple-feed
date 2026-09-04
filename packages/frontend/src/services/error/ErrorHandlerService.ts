@@ -6,6 +6,7 @@
 // not covered by this license; see TRADEMARKS.md.
 
 import { messageService } from '@/services/message';
+import { SUPPORT_CONTACT_SENTENCE } from '@/lib/support';
 
 /**
  * Maps known error messages to more user-friendly, actionable messages.
@@ -135,9 +136,9 @@ const errorMessageMap: { [key: string]: string } = {
   'Please upload a smaller file': 'Please upload a smaller file. The maximum size allowed is 5MB.',
   'File size exceeds': 'Please upload a smaller file. The file exceeds the maximum size limit.',
   'maximum size allowed is 5MB': 'Please upload a smaller file. The maximum size allowed is 5MB.',
-  'Unable to save your file': 'Unable to save your file. Please try again or contact support at github.com/MattGeiger',
-  'Unable to process your document': 'Unable to process your document. Please try again later or contact support at github.com/MattGeiger',
-  'There was a problem uploading your document': 'There was a problem uploading your document. Please try again or contact support at github.com/MattGeiger',
+  'Unable to save your file': `Unable to save your file. Please try again. ${SUPPORT_CONTACT_SENTENCE}`,
+  'Unable to process your document': `Unable to process your document. Please try again later. ${SUPPORT_CONTACT_SENTENCE}`,
+  'There was a problem uploading your document': `There was a problem uploading your document. Please try again. ${SUPPORT_CONTACT_SENTENCE}`,
   // Document Management errors - Document Operations
   'Document with ID': 'The requested document could not be found. It may have been deleted or moved.',
   'not found': 'The requested item could not be found. It may have been deleted or moved.',
@@ -156,12 +157,12 @@ const errorMessageMap: { [key: string]: string } = {
   'Please use full language name instead of code': 'Please use the full language name instead of a language code.',
   'Please use full language names instead of codes': 'Please use full language names instead of language codes.',
   // Document Management errors - Storage and File System
-  'Error saving file': 'Unable to save the file to storage. Please try again or contact support at github.com/MattGeiger',
+  'Error saving file': `Unable to save the file to storage. Please try again. ${SUPPORT_CONTACT_SENTENCE}`,
   'Error getting file': 'Unable to retrieve the file from storage. The file may be missing or corrupted.',
-  'storage': 'Storage system error occurred. Please try again or contact support at github.com/MattGeiger',
-  'file system': 'File system error occurred. Please try again or contact support at github.com/MattGeiger',
-  'Failed to delete document file': 'Unable to delete the document file. Please try again or contact support at github.com/MattGeiger',
-  'Failed to delete translation file': 'Unable to delete the translation file. Please try again or contact support at github.com/MattGeiger',
+  'storage': `Storage system error occurred. Please try again. ${SUPPORT_CONTACT_SENTENCE}`,
+  'file system': `File system error occurred. Please try again. ${SUPPORT_CONTACT_SENTENCE}`,
+  'Failed to delete document file': `Unable to delete the document file. Please try again. ${SUPPORT_CONTACT_SENTENCE}`,
+  'Failed to delete translation file': `Unable to delete the translation file. Please try again. ${SUPPORT_CONTACT_SENTENCE}`,
   // Document Management errors - Download Operations
   'Document file not found': 'The document file could not be found. It may have been moved or deleted from storage.',
   'Translation file not found': 'The translation file could not be found. It may have been moved or deleted from storage.',
@@ -203,6 +204,21 @@ export class ErrorHandlerService {
    * @param context - An optional string providing context for the error.
    */
   public static handleError(error: unknown, context?: string): void {
+    console.error(`[${context || 'Global'}] API Error:`, error);
+    messageService.error(this.toUserMessage(error));
+  }
+
+  /**
+   * The ASK-compliant sentence for an error, without showing it.
+   *
+   * `handleError` raises a toast, but not every surface is a toast: the
+   * Translate & Download PDFs modal reports each language's outcome on its
+   * own row, and it read `error.message` directly. That bypassed every
+   * screen below and printed a whole Cloudflare 502 HTML page into the
+   * dialog (ISSUES.md #80). Anything rendering an error inline should come
+   * through here so one set of rules decides what a user is shown.
+   */
+  public static toUserMessage(error: unknown): string {
     let rawMessage = 'An unknown error occurred.';
     const errorLike = error as {
       code?: unknown;
@@ -248,8 +264,7 @@ export class ErrorHandlerService {
       userMessage = rawMessage;
     }
 
-    console.error(`[${context || 'Global'}] API Error:`, error);
-    messageService.error(userMessage);
+    return userMessage;
   }
 
   /**

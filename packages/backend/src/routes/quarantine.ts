@@ -10,6 +10,7 @@ import fs from 'fs';
 import * as fsPromises from 'fs/promises';
 import * as path from 'path';
 import { STORAGE_PATH } from '../config/env';
+import { SUPPORT_CONTACT_SENTENCE } from '../lib/support';
 
 const router = express.Router();
 const baseDir = path.resolve(process.cwd(), STORAGE_PATH);
@@ -122,7 +123,7 @@ router.get('/:type/:id', async (req, res, next) => {
     fileStream.pipe(res);
   } catch (error) {
     console.error('Error downloading quarantined file:', error);
-    const friendlyError = new Error('We encountered a problem downloading this file. Please try again or contact support at github.com/MattGeiger.');
+    const friendlyError = new Error(`We encountered a problem downloading this file. Please try again. ${SUPPORT_CONTACT_SENTENCE}`);
     (friendlyError as any).statusCode = 500;
     next(friendlyError);
   }
@@ -185,7 +186,7 @@ router.delete('/all', async (req, res, next) => {
     });
   } catch (error) {
     console.error('Error deleting all quarantined files:', error);
-    const friendlyError = new Error('We couldn\'t delete all quarantined files. Please try again later or contact support at github.com/MattGeiger.');
+    const friendlyError = new Error(`We couldn't delete all quarantined files. Please try again later. ${SUPPORT_CONTACT_SENTENCE}`);
     (friendlyError as any).statusCode = 500;
     next(friendlyError);
   }
@@ -225,7 +226,7 @@ router.delete('/:type/:id', async (req, res, next) => {
     });
   } catch (error) {
     console.error('Error deleting quarantined file:', error);
-    const friendlyError = new Error('We couldn\'t delete this file. Please try again or contact support at github.com/MattGeiger.');
+    const friendlyError = new Error(`We couldn't delete this file. Please try again. ${SUPPORT_CONTACT_SENTENCE}`);
     (friendlyError as any).statusCode = 500;
     next(friendlyError);
   }

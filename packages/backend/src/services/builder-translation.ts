@@ -62,6 +62,129 @@ const isTruncationError = (error: unknown): boolean => {
   return message.includes('max_tokens') || message.includes('truncated');
 };
 
+/**
+ * How a translation attempt failed, from the caller's point of view.
+ *
+ * The distinction that matters to a user is not which provider broke but
+ * whether retrying can possibly work. `busy` clears on its own in a minute;
+ * `exhausted` and `misconfigured` never clear until somebody pays a bill,
+ * changes a key, or picks a different model. Telling staff to "wait about a
+ * minute" for those two is worse than saying nothing -- they retry the whole
+ * nine-language export until they give up. See ISSUES.md #80.
+ *
+ * Provider status codes do not separate these cleanly on their own: Gemini
+ * reports depleted credits as the same 429 it uses for genuine rate limiting,
+ * and OpenAI reports both a revoked key and an ungranted model as plain 4xx.
+ * Hence the marker lists below, tested in a deliberate order.
+ */
+export type TranslationProviderFailure =
+  | 'busy'
+  | 'exhausted'
+  | 'misconfigured'
+  | 'not-configured'
+  | 'unavailable';
+
+/** Substrings every major provider uses when the account, not the model, is the problem. */
+const QUOTA_EXHAUSTED_MARKERS = [
+  'resource_exhausted',
+  'insufficient_quota',
+  'prepayment credits',
+  'credits are depleted',
+  'credit balance',
+  'billing',
+  'quota',
+];
+
+/**
+ * Substrings that mean the request was refused on its merits: the key is not
+ * valid, or the account cannot call the model FEED is configured to use.
+ * Observed on production while switching providers: OpenAI answers
+ * `403 Project 'proj_...' does not have access to model 'gpt-5-mini-...'`
+ * when the organization is unverified or the project's model allow-list
+ * excludes it.
+ */
+const MISCONFIGURED_MARKERS = [
+  'does not have access',
+  'model_not_found',
+  'invalid_api_key',
+  'incorrect api key',
+  'invalid authentication',
+  'permission_denied',
+  'unsupported_country',
+  'not authorized',
+];
+
+/**
+ * Substrings meaning FEED never reached a provider at all, because no AI model
+ * is switched on. Distinct from `misconfigured`, where a provider answered and
+ * refused: this is unfinished setup, and it is the ordinary state of a freshly
+ * restored instance, since a restored model configuration arrives without its
+ * key and therefore inactive.
+ */
+const NOT_CONFIGURED_MARKERS = [
+  'configuration required',
+  'no active configuration',
+  'not initialized',
+  'client not initialized',
+];
+
+/** Statuses that always mean configuration, never load. */
+const MISCONFIGURED_STATUSES = [401, 403, 404];
+
+/** Substrings that mean the model is momentarily busy and a retry will work. */
+const TRANSIENT_OVERLOAD_MARKERS = [
+  'unavailable',
+  'high demand',
+  'overloaded',
+  'rate limit',
+  '429',
+];
+
+/**
+ * Classify a raw provider error so the caller can pick honest copy. Matching
+ * is substring-based over the message and status because each provider words
+ * this differently and none of them expose a stable machine code for "you are
+ * out of money" or "this key cannot call that model".
+ *
+ * The order of the three tests is load-bearing:
+ *
+ * 1. "No provider at all" first, because that error carries no status and no
+ *    provider vocabulary, and would otherwise fall through every test below
+ *    to `unavailable` -- telling a freshly restored instance that the service
+ *    "didn't respond" when nothing was ever asked.
+ * 2. Quota next. An exhausted account reports the same 429 as genuine rate
+ *    limiting, and a billing-limit refusal can arrive as a 403 -- so money
+ *    wording wins over both the status and the overload markers.
+ * 3. Configuration by status or wording. A 401/403/404 is a refusal
+ *    on the merits; no amount of waiting changes it.
+ * 4. Overload last, so a bare `429` in the payload only means `busy` once the
+ *    account-level and configuration readings have been ruled out.
+ */
+export const classifyTranslationProviderError = (
+  error: unknown,
+): TranslationProviderFailure => {
+  const status = (error as { status?: number | string } | null)?.status;
+  const message = error instanceof Error ? error.message : String(error ?? '');
+  const haystack = `${message} ${status ?? ''}`.toLowerCase();
+
+  if (NOT_CONFIGURED_MARKERS.some((marker) => haystack.includes(marker))) {
+    return 'not-configured';
+  }
+  if (QUOTA_EXHAUSTED_MARKERS.some((marker) => haystack.includes(marker))) {
+    return 'exhausted';
+  }
+  if (
+    MISCONFIGURED_STATUSES.includes(Number(status))
+    || MISCONFIGURED_MARKERS.some((marker) => haystack.includes(marker))
+  ) {
+    return 'misconfigured';
+  }
+  if (status === 503 || TRANSIENT_OVERLOAD_MARKERS.some((marker) => haystack.includes(marker))) {
+    return 'busy';
+  }
+  return 'unavailable';
+};
+
 const translateBatchWithFallback = async (
   items: Array<{ id: string; text: string }>,
   translate: (

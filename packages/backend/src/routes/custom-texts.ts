@@ -9,6 +9,7 @@ import express from 'express';
 import { Prisma } from '@prisma/client';
 import prisma from '../db';
 import { validateMinLength } from '../utils/foodItemUtils';
+import { SUPPORT_CONTACT_SENTENCE } from '../lib/support';
 
 const router = express.Router();
 
@@ -76,7 +77,7 @@ router.post('/', async (req, res) => {
     res.status(201).json(newCustomText);
   } catch (error) {
     console.error('Error creating custom text:', error);
-    res.status(500).json({ error: 'We couldn\'t save your custom text. Please try again later or contact support at github.com/MattGeiger' });
+    res.status(500).json({ error: `We couldn't save your custom text. Please try again later. ${SUPPORT_CONTACT_SENTENCE}` });
   }
 });
 
@@ -123,7 +124,7 @@ router.put('/:id', async (req, res) => {
       return res.status(404).json({ error: 'The custom text you\'re trying to update could not be found. It may have been deleted.' });
     }
     
-    res.status(500).json({ error: 'We couldn\'t save your changes to this custom text. Please try again later or contact support at github.com/MattGeiger' });
+    res.status(500).json({ error: `We couldn't save your changes to this custom text. Please try again later. ${SUPPORT_CONTACT_SENTENCE}` });
   }
 });
 
@@ -145,7 +146,7 @@ router.delete('/:id', async (req, res) => {
       return res.status(404).json({ error: 'The custom text you\'re trying to delete could not be found. It may have been deleted already.' });
     }
     
-    res.status(500).json({ error: 'We couldn\'t delete this custom text. Please try again later or contact support at github.com/MattGeiger' });
+    res.status(500).json({ error: `We couldn't delete this custom text. Please try again later. ${SUPPORT_CONTACT_SENTENCE}` });
   }
 });
 

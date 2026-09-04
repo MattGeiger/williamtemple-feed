@@ -15,6 +15,7 @@ import { translationRecovery } from '../services/translation-recovery';
 import { DateRangeResolver } from '../utils/dateRangeResolver';
 import prisma from '../db';
 import { getCapabilities, isActionAllowed } from '../services/translation-action-policy';
+import { SUPPORT_CONTACT_SENTENCE } from '../lib/support';
 
 // Helper function to escape special characters in regex patterns
 function escapeRegExp(string: string) {
@@ -53,7 +54,7 @@ router.post('/recover-stuck', async (req, res) => {
   } catch (error) {
     console.error('Error recovering stuck translations:', error);
     res.status(500).json({ 
-      error: error instanceof Error ? error.message : 'We couldn\'t recover your pending translations. Please try again later or contact support at github.com/MattGeiger' 
+      error: error instanceof Error ? error.message : `We couldn't recover your pending translations. Please try again later. ${SUPPORT_CONTACT_SENTENCE}` 
     });
   }
 });
@@ -111,7 +112,7 @@ router.post('/find-missing', async (req, res) => {
   } catch (error) {
     console.error('Error finding missing translations:', error);
     res.status(500).json({ 
-      error: error instanceof Error ? error.message : 'We couldn\'t locate missing translations. Please try again later or contact support at github.com/MattGeiger' 
+      error: error instanceof Error ? error.message : `We couldn't locate missing translations. Please try again later. ${SUPPORT_CONTACT_SENTENCE}` 
     });
   }
 });
@@ -372,7 +373,7 @@ router.post('/', async (req, res) => {
     if (error instanceof Error) {
       res.status(500).json({ error: error.message });
     } else {
-      res.status(500).json({ error: 'We had trouble creating your translations. Please try again with smaller text or contact support at github.com/MattGeiger' });
+      res.status(500).json({ error: `We had trouble creating your translations. Please try again with smaller text. ${SUPPORT_CONTACT_SENTENCE}` });
     }
   }
 });
@@ -473,7 +474,7 @@ router.post('/:id/retry', async (req, res) => {
   } catch (error) {
     console.error('Error retrying translation:', error);
     res.status(500).json({ 
-      error: error instanceof Error ? error.message : 'We couldn\'t retry this translation. Please try again or contact support.'
+      error: error instanceof Error ? error.message : `We couldn't retry this translation. Please try again. ${SUPPORT_CONTACT_SENTENCE}`
     });
   }
 });
@@ -1158,7 +1159,7 @@ router.post('/bulk-delete', async (req, res) => {
     res.json(result);
   } catch (error) {
     console.error('Error bulk deleting translations:', error);
-    res.status(500).json({ error: 'We couldn\'t delete the selected translations. Please try again or contact support at github.com/MattGeiger' });
+    res.status(500).json({ error: `We couldn't delete the selected translations. Please try again. ${SUPPORT_CONTACT_SENTENCE}` });
   }
 });
 
@@ -1221,7 +1222,7 @@ router.put('/:id', async (req, res) => {
     res.json({ translation });
   } catch (error) {
     console.error('Error updating translation:', error);
-    res.status(500).json({ error: 'We couldn\'t save your changes to this translation. Please try again or contact support at github.com/MattGeiger' });
+    res.status(500).json({ error: `We couldn't save your changes to this translation. Please try again. ${SUPPORT_CONTACT_SENTENCE}` });
   }
 });
 

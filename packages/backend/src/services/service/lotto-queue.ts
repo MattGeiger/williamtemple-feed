@@ -282,13 +282,16 @@ export async function syncLottoQueue(actor: string | null) {
           409,
         );
       }
-      if (!response.ok) throw new LottoQueueError(`LOTTO returned HTTP ${response.status}.`, 'LOTTO_SYNC_SOURCE_ERROR', 502);
+      // 503, not 502: Cloudflare replaces an origin 502 with its own HTML
+      // error page, which would destroy this message before staff saw it.
+      // See ISSUES.md #80.
+      if (!response.ok) throw new LottoQueueError(`LOTTO returned HTTP ${response.status}.`, 'LOTTO_SYNC_SOURCE_ERROR', 503);
       const parsedEnvelope = envelopeSchema.safeParse(await response.json());
       if (!parsedEnvelope.success) {
         throw new LottoQueueError(
           'LOTTO returned an incompatible queue-summary contract. Confirm that LOTTO is v1.21.0 or later, then try again.',
           'LOTTO_SYNC_CONTRACT_ERROR',
-          502,
+          503,
         );
       }
       const envelope = parsedEnvelope.data;
