@@ -5,6 +5,174 @@ All notable changes to FEED are documented here. This project adheres to
 
 ## [Unreleased]
 
+## [1.7.5-beta.7]
+
+### Changed
+
+- **Backup is now FEED's disaster-recovery artifact**, in the documentation as
+  well as in fact. `docs/data-management/backup-and-restore.md` previously
+  assigned catastrophic recovery to a byte-level operator snapshot taken by
+  hand on the Pi — an artifact nobody routinely produces, and one that is key
+  material at rest once downloaded. The in-app backup is the one that gets
+  taken and the safer of the two to hold, so it has to be sufficient. Partial
+  restore is retained as a same-instance convenience rather than a second
+  product with its own guarantees. The document now carries the invariant every
+  future table is checked against, and a recovery runbook covering what does
+  not survive: uploaded files, the audit log, secrets, and role assignments,
+  which no artifact may confer.
+
+- **"Report it at…" is now a link you can click.** Error messages that ask a
+  user to report a problem carried the destination as plain text, so a staff
+  member on a Pi-served tablet had to retype a URL from a toast that dismisses
+  itself. Toast messages now render any URL they contain as a link that opens
+  in a new tab. The messages themselves are written from one shared sentence
+  per package rather than inline at each of the twenty-eight call sites, and
+  that sentence points at the project's issue tracker — twenty-six of those
+  messages had said "contact support at github.com/MattGeiger", which is both
+  unclickable and a personal profile rather than a tracked issue, and one named
+  no destination at all.
+
+  It also says, in five words, that posting there needs a free GitHub account.
+  The destination is not a contact form: a reader without an account can read
+  the issues and cannot open one, and finding that out after following the link
+  is worse than being told before leaving.
+
+### Fixed
+
+- **A backup would not restore onto a fresh instance — the one thing a backup
+  is for.** Restoring Inventory, or Languages, failed with a message about
+  being unable to delete a referenced item. Nothing failed on delete: rows were
+  being *inserted* whose parent records the destination did not have, and the
+  error text asserted a direction it could not know. Five faults sat behind it,
+  all from one cause — the restore unit graph was maintained by hand in
+  TypeScript while the real graph lives in the Prisma schema, and nothing
+  compared them. Translations pointed at system prompts that no unit brought
+  along; at uploaded documents that no backup can carry (112 of 2,319 rows on a
+  real production snapshot); Inventory declared a dependency on Languages that
+  no foreign key supported, which is why selecting Inventory alone failed;
+  tables were written in the backup file's listing order rather than in
+  dependency order; and the restore service trusted its caller to have worked
+  out the dependencies.
+
+  References that no artifact can satisfy — a translation's link to the
+  document it came from — are now blanked on insert rather than aborting the
+  restore, and only when the destination genuinely lacks the parent, so
+  restoring onto the instance a backup came from keeps every link that still
+  works. The confirmation dialog says what will be lost before you accept.
+
+  Two new tests hold this: one compares the unit graph against the schema and
+  fails the build on any drift, and one migrates an empty database and restores
+  into it — the case that had never been run, and that reproduced the
+  production failure on the first attempt.
+
+- **Encrypted API keys no longer leave the server.** `GET /api/ai-config`
+  returned `encryptedApiKey` and `salt` to every browser that opened AI
+  Configuration. Ciphertext rather than a disclosure of the key, and nothing on
+  the frontend read them — but an encrypted secret sitting in a page's memory,
+  cache, or devtools is a secret moved somewhere it has no reason to be. Every
+  configuration response now carries a derived `hasApiKey` instead, which is
+  the only fact about the key a client legitimately needs and what the "No Key"
+  state is rendered from.
+
+- **A failed restore no longer records itself as a success.** The
+  `BACKUP_RESTORED` audit entry is written before the swap on purpose, so it
+  survives into the rebuilt database — which is also why it cannot move to
+  after success. A failure now appends `BACKUP_RESTORE_FAILED` to the live
+  database, which the failed restore left untouched.
+
+- **An AI model configuration can no longer be switched on without an API
+  key.** Until restore existed, one could not be created without a key. A
+  restored configuration deliberately arrives without its secret, so a single
+  row action could activate a model FEED had no credential for — which reads to
+  staff as an outage rather than as unfinished setup. Restored model
+  configurations now arrive inactive, activation is refused server-side while
+  the key is missing (in bulk as well as singly), and the list shows the state.
+  Prompts are unaffected: they carry no credential.
+
+- **"No AI model is switched on" no longer reports as "the service didn't
+  respond."** A freshly restored instance has no active model by design, and
+  that produced the least useful message available: retry advice for something
+  nothing had asked. It is now its own outcome, naming what to do and why a
+  restored instance is in that state.
+
+- **Bulk "mark out of stock" on the Food Items page threw at runtime.**
+  `FoodItemList` used `OUT_OF_STOCK_FLAGS` in two callbacks without importing
+  it. Types are stripped without being checked during the build, so the bundle
+  shipped a free variable and the action failed with a `ReferenceError` for
+  anyone who used it. Found by the type-checker while clearing type debt, not
+  by a test — nothing exercised that path.
+
+- **A depleted AI provider account no longer reads as "try again in a
+  minute".** Gemini reports exhausted prepaid credits with the same HTTP 429 /
+  `RESOURCE_EXHAUSTED` as genuine rate limiting, and the translation route
+  matched on the number — so staff exporting nine languages were told nine
+  times that the service was "busy right now" and to wait, for a condition
+  that no amount of waiting resolves. Account-level wording is now classified
+  before the rate-limit markers, and four outcomes — quota exhausted, rejected
+  key or model, briefly overloaded, no response — each carry their own message
+  and error code. The two that cannot resolve on their own say so plainly and
+  name what an administrator has to change.
+
+- **A model the API key cannot call no longer reads as an outage.** Switching
+  the production account to OpenAI produced `403 Project 'proj_…' does not
+  have access to model 'gpt-5-mini-…'`, which the classifier would have
+  reported as "the AI translation service didn't respond. Try again in a
+  moment" — false hope for a refusal that no retry can clear. A 401, 403, or
+  404 from a provider, and key- or model-specific wording, is now reported as
+  a configuration problem that points at AI Configuration. The provider's
+  project and model identifiers stay in the server log rather than the toast.
+
+- **The server no longer discards the error messages it wrote for users.** The
+  global handler forwarded a route's own message only for a 4xx, so every
+  curated 5xx in the app was replaced with the generic "FEED could not
+  complete that request." An explicit status code is the signal that a human
+  wrote the message; the range is not. Errors that arrive without one — Prisma
+  faults, `TypeError`s, driver errors — are still withheld and logged. The
+  route tests that covered this had mounted a stub error middleware which
+  forwarded everything verbatim, so the defect passed in tests and shipped;
+  they now mount the real handler.
+
+- **No route answers 502 any more.** Production is served through Cloudflare
+  Tunnel, which replaces an origin 502 with its own branded HTML error page —
+  destroying the JSON body the route sent. The translation route's provider
+  failures now answer 503, which passes through untouched and is the honest
+  status: FEED is up, its translation dependency is not. The two LOTTO sync
+  errors that also answered 502 were moved for the same reason.
+
+- **A gateway error page can no longer be shown to a user as an error
+  message.** With the 502 above reaching the browser as Cloudflare's document,
+  the bulk-export modal printed each one in full — markup, Ray ID, and the
+  visitor's own IP — onto a dialog row sized for a sentence. Every FEED route
+  replies to a failure with JSON, so a non-JSON error body is by definition
+  from a proxy in front of the app and carries nothing a person can act on.
+  The shared API layer now discards such a body and derives an ASK-compliant
+  sentence from the status code instead. `ErrorHandlerService.toUserMessage`
+  makes the same screening available to surfaces that render an error inline
+  rather than as a toast — the Translate & Download PDFs modal now uses it,
+  and its failure reasons read in the destructive colour rather than muted
+  grey.
+
+- **The frontend's type-error backlog is down from 227 to 148**, cleared by
+  root cause rather than by a sweep. Two shared table components lost their
+  generic type parameter to `React.forwardRef`, which accounted for 40 errors
+  on its own and was the mechanism by which the count kept growing — every new
+  table copied the pattern and added three more. Three tables passed an
+  `initialState` prop the component does not accept and React was silently
+  ignoring. Thirteen more were names used without being imported or exported,
+  including the Food Items bug above, a setup wizard whose entire state was
+  untyped, a dead hook written against a data model that no longer exists, and
+  a dashboard service type describing a payload the server has never sent. The
+  ratchet baseline is updated; see docs/TSC-DEBT.md.
+
+- **A late Chromium request-interception reject can no longer take the API
+  down.** The PDF renderer discarded the promises from `request.continue()` /
+  `request.abort()`. Either rejects if the request was already handled or the
+  target closed during teardown, and an unhandled rejection is fatal to Node.
+  Both calls are now caught, and the backend logs `unhandledRejection` /
+  `uncaughtException` before exiting so a crash that Docker restarts away
+  leaves a `[Fatal]` line behind instead of nothing. Hardening, not the cause
+  of the above. See ISSUES.md #80.
+
 ## [1.7.5-beta.6]
 
 ### Added
