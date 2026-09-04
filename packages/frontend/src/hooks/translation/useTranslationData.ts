@@ -6,7 +6,7 @@
 // not covered by this license; see TRADEMARKS.md.
 
 import { useState, useEffect, useCallback } from 'react'
-import { Translation, BulkOperationResult } from '@/types/translation'
+import { Translation, BulkOperationResult, TranslationType } from '@/types/translation'
 import { TranslationService } from '@/services/translation'
 import { ErrorHandlerService } from '@/services/error/ErrorHandlerService'
 

@@ -1,10 +1,71 @@
 # TypeScript Type-Check Debt
 
 **Status:** Option C applied (2026-05-19); **Option D ratchet installed
-2026-07-31**. Current baseline: **227** (was 279; deleting the unused
-`CustomDocumentTable` on 2026-08-05 removed 44 in one file, and correcting the
-shared animated navigation/toolbar icon slot types removed another five on
-2026-08-11).
+2026-07-31**. Current baseline: **148** (was 227; see the 2026-09-02 update
+below. Earlier: 279 → 227 when the unused `CustomDocumentTable` was deleted on
+2026-08-05 and the shared animated navigation/toolbar icon slot types were
+corrected on 2026-08-11).
+
+## Update (2026-09-02 — 227 → 148 by root cause, not by sweep)
+
+Seventy-nine errors cleared in six edits, none of them a mechanical pass over
+the list. The backlog was never uniform; it was a handful of structural faults
+each multiplied across every file that touched them.
+
+**1. `forwardRef` erases generics — 40 errors.** `EnhancedDataTable` and
+`DataList` were both `React.forwardRef(function C<T>(…))`. `forwardRef` has no
+type parameter to thread `T` through, so each component's public type collapsed
+to its constraint (`unknown`, and `DataItem` respectively) and every caller
+passing real columns failed with `ColumnDef<Category>[]` not assignable to
+`ColumnDef<unknown>[]`. Both exports now restate the generic signature with a
+type-level cast; the runtime value is untouched.
+
+This was also the *growth mechanism* behind the 240 → 292 → 300 climb recorded
+below: every new table copied the pattern and contributed three more errors.
+Tables added from here contribute none.
+
+**2. A prop the component never had — 3 errors.** Three `data-table.tsx` files
+passed `initialState={{ pagination, columnVisibility }}` to `EnhancedDataTable`,
+which declares no such prop. React ignores unknown props, so the configuration
+had never applied; the component's own `defaultPageSize` and
+`mobileResponsiveColumnIds` were doing that work already. Removed. One
+intention did not survive: `document-translator` wanted `fileSize` hidden on
+mobile, which never happened and still does not — adding it to
+`mobileResponsiveColumnIds` would be a behaviour change, so it is left as a
+decision rather than folded into a type fix.
+
+**3. Thirteen name/export failures, one of them a shipped bug.**
+
+- `FoodItemList/index.tsx` used `OUT_OF_STOCK_FLAGS` at two call sites without
+  importing it. esbuild strips types without checking them, so the build stayed
+  green and the bundle shipped a free variable: bulk "mark out of stock" from
+  the Food Items list threw `ReferenceError` at runtime. **This is the argument
+  for the whole exercise** — the error class is invisible to the build and to
+  any test that does not exercise the path, and visible only to `tsc`.
+- `TranslationType` was referenced in four places across two files and imported
+  in neither.
+- `LegendBuilderComponent` likewise, in `ShoppingListBuilder.tsx`.
+- `SetupState` / `SetupStep` were imported from `ai-configuration/types` and had
+  never been exported from it — so the setup wizard's state was `any` and its
+  four `setupStep === '…'` comparisons were unchecked string equality. Declared
+  from the values both files use (14 errors, the whole `useSetupState` file).
+- `useEditForm.ts` had no consumers and was written against `FoodItem.status`
+  and `FoodItem.nutritionalFlags`, neither of which has existed since those
+  fields became `statusFlags` and `dietaryFlags`. Deleted, following the
+  `CustomDocumentTable` precedent (12 errors).
+- `useInventoryChartData` read `data.statusDistribution` against a service type
+  declaring `data.distribution`. The *hook* was right and
+  `InventoryDistributionResponse` was fiction — `InventoryAggregator` really
+  does return `statusDistribution` of `{ status, count, percentage, color }`.
+  The response type now matches the aggregator.
+
+**What is left (148).** TS2322 ×86, TS2339 ×24, TS2345 ×16. The largest
+remaining cluster is AI Configuration and `unified-config` — a consistent
+`number | null` vs `number | undefined` disagreement across the wizard's
+optional numeric fields — followed by the icon-variance classes (a lucide icon
+component where a `ComponentType<{}>` is expected) and framer-motion's
+`Transition` / `Variants`. All are one-decision-applied-many-times, the same
+shape as the two fixed here.
 
 ## Update (2026-07-31 — Option D applied, count now enforced)
 

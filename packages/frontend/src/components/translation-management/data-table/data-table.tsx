@@ -81,18 +81,6 @@ export function DataTable({
         onSelectionChange,
         bulkActions,
       }}
-      initialState={{
-        pagination: {
-          pageSize: 5,
-          pageIndex: 0
-        },
-        columnVisibility: {
-          language: !isMobile,
-          type: !isMobile,
-          lastUpdated: !isMobile,
-          status: true, // Keep status visible by default
-        },
-      }}
     />
   )
 }

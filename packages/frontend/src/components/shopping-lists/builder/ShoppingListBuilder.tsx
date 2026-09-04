@@ -169,6 +169,7 @@ import {
   HEADER_FOOTER_MIN_BODY,
   InventorySectionComponent,
   LanguageTagBuilderComponent,
+  LegendBuilderComponent,
   LineBuilderComponent,
   SavedBuilderComponent,
   SavedBuilderTemplate,

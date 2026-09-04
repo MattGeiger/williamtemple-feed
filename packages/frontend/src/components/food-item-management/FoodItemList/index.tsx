@@ -6,7 +6,7 @@
 // not covered by this license; see TRADEMARKS.md.
 
 import { useCallback, useMemo, useState, useRef } from "react"
-import { FoodItem, FoodItemSupply, FoodItemStatus } from "@/types/food-item"
+import { FoodItem, FoodItemSupply, FoodItemStatus, OUT_OF_STOCK_FLAGS } from "@/types/food-item"
 import { columns } from "../data-table/columns"
 import { DataList } from "@/components/shared/data-list/DataList"
 import { TooltipProvider } from "@/components/ui/tooltip"
