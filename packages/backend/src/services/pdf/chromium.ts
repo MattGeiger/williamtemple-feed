@@ -126,11 +126,18 @@ export async function renderHtmlToPdf(
   try {
     const page = await browser.newPage();
     await page.setRequestInterception(true);
+    // `continue()` / `abort()` reject when the request was already handled or
+    // the target went away mid-render, and nothing awaits this listener. An
+    // unhandled rejection is fatal to Node by default, so one late reject
+    // here takes the whole API down -- and it lands *after* the PDF response
+    // was sent, which makes the next request look like the culprit. Nothing
+    // downstream can act on these, so swallow them deliberately.
+    const ignoreLateInterception = () => {};
     page.on('request', (request) => {
       if (isAllowedPdfResourceUrl(request.url())) {
-        void request.continue();
+        request.continue().catch(ignoreLateInterception);
       } else {
-        void request.abort('blockedbyclient');
+        request.abort('blockedbyclient').catch(ignoreLateInterception);
       }
     });
     // Wait only for the DOM to parse, then explicitly wait for the CSS

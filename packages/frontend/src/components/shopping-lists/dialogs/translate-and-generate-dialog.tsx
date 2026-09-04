@@ -188,8 +188,13 @@ export function TranslateAndGenerateDialog({
       return true;
     } catch (error) {
       ErrorHandlerService.handleError(error, 'shoppingListBuilderBulkTranslateAndExport');
-      const message = error instanceof Error ? error.message : 'PDF generation failed.';
-      updateLanguageState(language, { status: 'failed', error: message });
+      // The row shows the reason inline, so it goes through the same screen
+      // the toast does. `error.message` raw is what printed a Cloudflare 502
+      // HTML page into this dialog in production (ISSUES.md #80).
+      updateLanguageState(language, {
+        status: 'failed',
+        error: ErrorHandlerService.toUserMessage(error),
+      });
       return false;
     }
   };
@@ -262,7 +267,9 @@ export function TranslateAndGenerateDialog({
         </div>
         <div className="min-w-0 flex-1">
           <div className="font-medium">{entry.language}</div>
-          <div className="text-xs text-muted-foreground">{labelByStatus[entry.status]}</div>
+          <div className={`text-xs ${entry.status === 'failed' ? 'text-destructive' : 'text-muted-foreground'}`}>
+            {labelByStatus[entry.status]}
+          </div>
         </div>
       </div>
     );

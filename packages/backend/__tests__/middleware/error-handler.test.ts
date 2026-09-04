@@ -46,6 +46,33 @@ describe('global error handler', () => {
     expect(body.error.message).not.toMatch(/undefined|weightHundredths/);
   });
 
+  // ISSUES.md #80. The gate used to stop at 499, so a route that had gone to
+  // the trouble of naming the language and saying whether retrying helps had
+  // its message thrown away and replaced with the generic text. An explicit
+  // statusCode is the author's signature; the range is not.
+  test('forwards a curated message on a 5xx the route chose deliberately', () => {
+    const providerError = new Error(
+      'The translation service is busy right now (high demand for Chinese). This is temporary '
+      + '-- wait about a minute, then click Generate again. No work was lost.'
+    ) as AppError;
+    providerError.statusCode = 503;
+    providerError.code = 'AI_TRANSLATION_BUSY';
+
+    const body = runHandler(providerError);
+
+    expect(body.error.message).toContain('high demand for Chinese');
+    expect(body.error.message).not.toBe(INTERNAL_FAILURE_MESSAGE);
+    expect(body.error.code).toBe('AI_TRANSLATION_BUSY');
+  });
+
+  test('a 5xx with no statusCode is still withheld', () => {
+    // The distinction that keeps the gate safe: nobody chose this status.
+    const body = runHandler(
+      new Error('connect ECONNREFUSED 127.0.0.1:5432 while querying Translation') as AppError
+    );
+    expect(body.error.message).toBe(INTERNAL_FAILURE_MESSAGE);
+  });
+
   test('still forwards a curated message the application wrote for the user', () => {
     const importError = new Error(
       'This file does not match either standardized OFB export. Choose a Completed Orders or Agency Pickups CSV from the OFB exporter and retry.'

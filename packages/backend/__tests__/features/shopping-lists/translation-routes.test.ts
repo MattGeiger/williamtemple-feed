@@ -119,9 +119,12 @@ describe('Shopping List Builder translation routes', () => {
 
     const { default: builderRouter } = await import('../../../src/routes/shopping-list-builder');
     app.use('/api/shopping-list-builder', builderRouter);
-    app.use((error: Error & { statusCode?: number }, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-      res.status(error.statusCode ?? 500).json({ error: { message: error.message } });
-    });
+    // The real global handler, not a stub. A stub that forwards every
+    // `error.message` verbatim is what let the withheld-5xx defect ship:
+    // these routes' curated 503 copy passed in tests and was replaced by
+    // the generic internal-failure text in production (ISSUES.md #80).
+    const { errorHandler } = await import('../../../src/middleware/error-handler');
+    app.use(errorHandler);
   });
 
   describe('POST /translation-preflight', () => {
@@ -341,15 +344,108 @@ describe('Shopping List Builder translation routes', () => {
         .expect(400);
     });
 
-    test('502 when the AI provider throws', async () => {
+    // ISSUES.md #80. Two rules hold for every provider failure here:
+    // the status is 503 (Cloudflare rewrites an origin 502 into its own HTML
+    // error page, which destroys the body), and the curated message actually
+    // reaches the client (the error handler used to withhold every 5xx
+    // message and substitute the generic internal-failure text).
+    const providerFailure = async (thrown: unknown) => {
       mockPrisma.translation.findMany.mockResolvedValue([]);
       mockPrisma.translation.upsert.mockResolvedValueOnce({ id: 1 });
-      mockTranslateTextBatch.mockRejectedValueOnce(new Error('provider down'));
+      mockTranslateTextBatch.mockRejectedValueOnce(thrown);
 
-      await request(app)
+      const response = await request(app)
         .post('/api/shopping-list-builder/translate-missing-strings')
         .send({ strings: ['Hello'], targetLanguage: 'Spanish' })
-        .expect(502);
+        .expect(503);
+      return response.body.error;
+    };
+
+    test('503 with a curated message when the AI provider does not respond', async () => {
+      const error = await providerFailure(new Error('provider down'));
+
+      expect(error.code).toBe('AI_TRANSLATION_UNAVAILABLE');
+      expect(error.message).toContain('Spanish');
+      expect(error.message).not.toContain('could not complete that request');
+    });
+
+    test('a briefly overloaded model tells the user to retry in a minute', async () => {
+      const overloaded = Object.assign(new Error('The model is overloaded. Please try again later.'), {
+        status: 503,
+      });
+      const error = await providerFailure(overloaded);
+
+      expect(error.code).toBe('AI_TRANSLATION_BUSY');
+      expect(error.message).toContain('busy right now');
+      expect(error.message).toContain('wait about a minute');
+    });
+
+    // The reported production failure. Gemini reports depleted prepayment
+    // credits as HTTP 429 / RESOURCE_EXHAUSTED -- the same status as genuine
+    // rate limiting -- and the old classifier saw "429" and told staff to
+    // wait a minute for a condition that no amount of waiting resolves.
+    test('depleted provider credits are not reported as temporary', async () => {
+      const exhausted = Object.assign(
+        new Error(
+          '{"error":{"code":429,"message":"Your prepayment credits are depleted. '
+            + 'Please go to AI Studio to manage your project and billing.",'
+            + '"status":"RESOURCE_EXHAUSTED"}}',
+        ),
+        { status: 429 },
+      );
+      const error = await providerFailure(exhausted);
+
+      expect(error.code).toBe('AI_TRANSLATION_QUOTA_EXHAUSTED');
+      expect(error.message).toMatch(/quota or prepaid credits/);
+      expect(error.message).toContain('administrator');
+      expect(error.message).not.toContain('wait about a minute');
+      // No provider URLs, JSON, or raw payload reaches the user.
+      expect(error.message).not.toContain('{');
+      expect(error.message).not.toContain('http');
+    });
+
+    // Observed while switching the production account from Gemini to OpenAI.
+    // A model the project has not been granted is a 403 on the merits: it
+    // reads as a service failure but no retry can clear it, and the fix is a
+    // different model or a different key, not patience.
+    test('a model the API key cannot call is reported as configuration', async () => {
+      const forbidden = Object.assign(
+        new Error(
+          "403 Project 'proj_D1SVivR2OD2RCM9V5UnAwpi1' does not have access to model "
+            + "'gpt-5-mini-2025-08-07'",
+        ),
+        { status: 403 },
+      );
+      const error = await providerFailure(forbidden);
+
+      expect(error.code).toBe('AI_TRANSLATION_MISCONFIGURED');
+      expect(error.message).toContain('AI Configuration');
+      expect(error.message).toContain('Retrying will not help');
+      expect(error.message).not.toContain('wait about a minute');
+      // The project id and model id are provider internals, not user copy.
+      expect(error.message).not.toContain('proj_');
+      expect(error.message).not.toContain('gpt-5');
+    });
+
+    test('an instance with no active AI model says so, and says what to do', async () => {
+      const error = await providerFailure(
+        new Error('AI configuration required. Please configure AI settings in Tools → AI Configuration.')
+      );
+
+      expect(error.code).toBe('AI_TRANSLATION_NOT_CONFIGURED');
+      expect(error.message).toContain('no AI model is switched on');
+      expect(error.message).toContain('restored from a backup');
+      expect(error.message).not.toContain("didn't respond");
+    });
+
+    test('a rejected API key is configuration, not an outage', async () => {
+      const badKey = Object.assign(
+        new Error('401 Incorrect API key provided. You can find your API key at ...'),
+        { status: 401 },
+      );
+      const error = await providerFailure(badKey);
+
+      expect(error.code).toBe('AI_TRANSLATION_MISCONFIGURED');
     });
   });
 

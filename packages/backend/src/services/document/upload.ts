@@ -9,6 +9,7 @@ import { PrismaClient } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import path from 'path';
 import { storageService } from '../storage';
+import { SUPPORT_CONTACT_SENTENCE } from '../../lib/support';
 
 interface UploadResult {
   id: number;
@@ -86,13 +87,13 @@ class DocumentUploadService {
       // Handle other errors with friendly messages
       const errorMsg = error instanceof Error ? error.message : 'An unknown error occurred';
       if (errorMsg.includes('storage') || errorMsg.includes('file system')) {
-        throw new Error('Unable to save your file. Please try again or contact support at github.com/MattGeiger');
+        throw new Error(`Unable to save your file. Please try again. ${SUPPORT_CONTACT_SENTENCE}`);
       } else if (errorMsg.includes('database') || errorMsg.includes('prisma')) {
-        throw new Error('Unable to process your document. Please try again later or contact support at github.com/MattGeiger');
+        throw new Error(`Unable to process your document. Please try again later. ${SUPPORT_CONTACT_SENTENCE}`);
       }
       
       // For unexpected errors, provide a helpful contact
-      throw new Error(`There was a problem uploading your document. Please try again or contact support at github.com/MattGeiger`);
+      throw new Error(`There was a problem uploading your document. Please try again. ${SUPPORT_CONTACT_SENTENCE}`);
      
     }
   }
