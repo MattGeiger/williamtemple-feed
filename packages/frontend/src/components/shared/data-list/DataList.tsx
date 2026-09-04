@@ -5,7 +5,7 @@
 // under AGPL-3.0-or-later; see LICENSE. William Temple House branding is
 // not covered by this license; see TRADEMARKS.md.
 
-import { useState, useRef, useImperativeHandle, forwardRef, type ComponentType } from "react"
+import React, { useState, useRef, useImperativeHandle, forwardRef, type ComponentType } from "react"
 import { ColumnDef } from "@tanstack/react-table"
 import { EnhancedDataTable } from "@/components/ui/enhanced-data-table"
 import type { LucideIcon } from "lucide-react";
@@ -57,7 +57,12 @@ interface DataListProps<T extends DataItem> {
   preservePageOnDataChange?: boolean
 }
 
-export const DataList = forwardRef(function DataList<T extends DataItem>({
+/** Imperative handle a page may use to clear the table's current selection. */
+export interface DataListHandle {
+  clearSelection: () => void
+}
+
+const DataListInner = forwardRef(function DataList<T extends DataItem>({
   title,
   description,
   items,
@@ -80,7 +85,7 @@ export const DataList = forwardRef(function DataList<T extends DataItem>({
   toolbarControls,
   toolbarIcon: Icon,
   preservePageOnDataChange = true
-}: DataListProps<T>, ref) {
+}: DataListProps<T>, ref: React.ForwardedRef<DataListHandle>) {
   const [isBulkActionLoading, setIsBulkActionLoading] = useState(false);
   const pendingUpdatesRef = useRef<Map<number, T>>(new Map());
   const tableRef = useRef<{ clearSelection?: () => void }>(null);
@@ -151,3 +156,14 @@ export const DataList = forwardRef(function DataList<T extends DataItem>({
     </div>
   )
 })
+
+/**
+ * Same `forwardRef` generic erasure as `EnhancedDataTable`, one layer up:
+ * without this, `T` collapses to the `DataItem` constraint and every page
+ * passing real columns fails with `ColumnDef<Category>[]` not being
+ * assignable to `ColumnDef<DataItem>[]`. Type-level only — the runtime value
+ * is the same component. See the note on `EnhancedDataTable`'s export.
+ */
+export const DataList = DataListInner as <T extends DataItem>(
+  props: DataListProps<T> & { ref?: React.Ref<DataListHandle> }
+) => React.ReactElement

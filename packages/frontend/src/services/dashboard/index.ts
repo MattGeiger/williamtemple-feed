@@ -58,22 +58,32 @@ export interface CategoryDistributionResponse {
   };
 }
 
+/**
+ * `GET /api/projections/inventory-distribution`.
+ *
+ * This described a payload the server has never sent. It declared
+ * `data.distribution` of `{ status, items, fill }` plus a `data.metadata`,
+ * while `InventoryAggregator.getInventoryDistribution` returns
+ * `statusDistribution` of `{ status, count, percentage, color }` and no
+ * nested metadata. `useInventoryChartData` reads the real shape and maps it
+ * to the chart's `{ status, items, fill }` — so the transform was right and
+ * the contract it was written against was fiction, which is the only reason
+ * the dashboard chart works.
+ *
+ * Corrected to the aggregator's actual return. The payload also carries
+ * `dietaryDistribution`, `limitDistribution` and `categoryBreakdown`; they
+ * are left undeclared because nothing on the client reads them, and guessing
+ * at their shape is what produced this in the first place.
+ */
 export interface InventoryDistributionResponse {
   data: {
-    distribution: Array<{
-      status: string;
-      items: number;
-      fill: string;
-    }>;
     totalItems: number;
-    metadata: {
-      statusFlags: Record<string, number>;
-      categoryBreakdown: Array<{
-        category: string;
-        inStock: number;
-        total: number;
-      }>;
-    };
+    statusDistribution: Array<{
+      status: string;
+      count: number;
+      percentage: number;
+      color: string;
+    }>;
   };
   metadata: {
     lastUpdated: string;

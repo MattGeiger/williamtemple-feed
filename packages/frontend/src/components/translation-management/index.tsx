@@ -5,7 +5,7 @@
 // under AGPL-3.0-or-later; see LICENSE. William Temple House branding is
 // not covered by this license; see TRADEMARKS.md.
 
-import { Translation } from "@/types/translation"
+import { Translation, TranslationType } from "@/types/translation"
 import { useTranslationData } from "@/hooks/translation/useTranslationData"
 import { useDialogState } from "@/hooks/dialog/useDialogState"
 import { useEnabledLanguages } from "@/hooks/language/useEnabledLanguages"

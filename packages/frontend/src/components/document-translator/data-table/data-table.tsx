@@ -46,17 +46,6 @@ export function DataTable({
       }}
       enableColumnVisibility={true}
       enableFiltering={true}
-      initialState={{
-        pagination: {
-          pageSize: 5,
-          pageIndex: 0
-        },
-        columnVisibility: {
-          type: !isMobile,
-          fileSize: !isMobile,
-          lastUpdated: !isMobile
-        }
-      }}
     />
   )
 }

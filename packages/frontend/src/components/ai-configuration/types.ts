@@ -50,3 +50,23 @@ export interface StatusMessage {
   type: 'success' | 'error' | 'info'
   message: string
 }
+
+/**
+ * The one-time initialization wizard's four screens, in order.
+ *
+ * `useSetupState` and `InitialSetupWizard` have always imported `SetupStep`
+ * and `SetupState` from this module, and this module has never exported them
+ * — the hook typechecked as `any` and the wizard's four `setupStep === '…'`
+ * comparisons were unchecked string equality. Declared here from the values
+ * both files actually use, so a fifth step or a renamed one is now a type
+ * error rather than a screen that silently never renders.
+ */
+export type SetupStep = 'welcome' | 'keygen' | 'validation' | 'complete'
+
+export interface SetupState {
+  setupStep: SetupStep
+  /** Base64 AES-GCM key, present only between generation and initialization. */
+  generatedKey: string | null
+  isInitializing: boolean
+  initializationError: string | null
+}

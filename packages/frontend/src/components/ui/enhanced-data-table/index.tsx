@@ -103,7 +103,12 @@ interface EnhancedDataTableProps<TData> {
   }) => void
 }
 
-export const EnhancedDataTable = React.forwardRef(function EnhancedDataTable<TData>({
+/** Imperative handle callers may reach for to clear the current selection. */
+export interface EnhancedDataTableHandle {
+  clearSelection?: () => void
+}
+
+const EnhancedDataTableInner = React.forwardRef(function EnhancedDataTable<TData>({
   columns,
   data,
   isLoading = false,
@@ -127,7 +132,7 @@ export const EnhancedDataTable = React.forwardRef(function EnhancedDataTable<TDa
   toolbarActions,
   toolbarControls,
   onViewStateChange,
-}: EnhancedDataTableProps<TData>, ref: React.ForwardedRef<{ clearSelection?: () => void }>) {
+}: EnhancedDataTableProps<TData>, ref: React.ForwardedRef<EnhancedDataTableHandle>) {
   const isMobile = useIsMobile()
   const responsiveColumnVisibility = React.useMemo(() => {
     const availableColumnIds = new Set(
@@ -399,3 +404,34 @@ export const EnhancedDataTable = React.forwardRef(function EnhancedDataTable<TDa
     </div>
   )
 })
+
+/**
+ * `React.forwardRef` is not generic-transparent: its type signature has no
+ * type parameter to thread `TData` through, so the component it returns is
+ * `ForwardRefExoticComponent<EnhancedDataTableProps<unknown> & …>` and every
+ * caller passing real columns fails with `ColumnDef<Category>[]` not being
+ * assignable to `ColumnDef<unknown>[]`.
+ *
+ * That single erasure accounted for 52 of the frontend's 227 type errors, and
+ * it was the mechanism by which the count kept *growing* — each new table
+ * copied the pattern and contributed three more (docs/TSC-DEBT.md records
+ * 240 → 292 → 300). Restating the public type restores what the
+ * implementation already does correctly. It is a type-level assertion only:
+ * the runtime value is the same component, and nothing about rendering,
+ * refs, or props changes.
+ *
+ * The prop is typed `React.Ref`, not `React.ForwardedRef`: the latter is what
+ * the render function receives (and admits only a mutable ref object), while
+ * a caller's `useRef<Handle>(null)` produces a `RefObject` that only `Ref`
+ * accepts.
+ *
+ * The cast is the standard remedy for generic `forwardRef` components. The
+ * alternative — dropping `forwardRef` and taking `ref` as an ordinary prop —
+ * would be the cleaner shape under React 19, but it changes the call
+ * signature at eighteen call sites for no behavioural gain.
+ */
+export const EnhancedDataTable = EnhancedDataTableInner as <TData>(
+  props: EnhancedDataTableProps<TData> & {
+    ref?: React.Ref<EnhancedDataTableHandle>
+  }
+) => React.ReactElement
