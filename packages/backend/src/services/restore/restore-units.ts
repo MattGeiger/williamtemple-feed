@@ -52,7 +52,13 @@ export const RESTORE_UNITS: readonly RestoreUnit[] = [
     label: 'Languages & translations',
     description: 'Enabled languages and the translation cache.',
     tables: ['Language', 'Translation'],
-    requires: [],
+    // `Translation.classificationPromptId` points at `SystemPrompt`, which
+    // lives in the configuration unit. Nothing declared that, so restoring
+    // translations onto an instance whose prompt ids differed aborted the
+    // whole operation. `Translation.documentId` reaches outside too, at a
+    // table no unit carries — that one is blanked on insert instead, see
+    // RESTORE_NULLED_REFERENCES.
+    requires: ['configuration'],
   },
   {
     id: 'inventory',
@@ -70,7 +76,19 @@ export const RESTORE_UNITS: readonly RestoreUnit[] = [
       'FoodItemInventoryEvent',
       'CategoryInventoryEvent',
     ],
-    requires: ['languages'],
+    // Nothing. Every foreign key in this unit points inside it, which makes
+    // Inventory the only unit that is closed on its own.
+    //
+    // This used to require `languages`, and that edge had no foreign key
+    // behind it: `CategoryTranslation.language` and
+    // `FoodItemTranslation.language` are TEXT columns holding a language
+    // *name*, and no table in the schema references `Language` at all. The
+    // edge encoded a reasonable worry — translated item names for a language
+    // the instance has not enabled — but it encoded it as a hard dependency,
+    // so selecting Inventory pulled in Languages, and Languages' own broken
+    // reference aborted a restore that Inventory alone completes cleanly.
+    // A semantic association of that kind belongs in the dialog copy.
+    requires: [],
   },
   {
     id: 'shoppingLists',

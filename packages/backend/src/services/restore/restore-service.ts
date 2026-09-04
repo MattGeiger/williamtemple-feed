@@ -11,12 +11,13 @@ import { dirname, join, resolve } from 'path';
 
 import prisma from '../../db';
 import { MaintenanceMode } from './maintenance-mode';
-import { RESTORE_CLEARED_TABLES } from '../backup/table-contract';
+import { RESTORE_CLEARED_TABLES, RESTORE_NULLED_REFERENCES } from '../backup/table-contract';
+import { dependencyOrder } from './dependency-order';
 import {
   mergeMonotonicLottoHistory,
   MONOTONIC_LOTTO_TABLES,
 } from './monotonic-lotto-history';
-import { tablesFor, type UnitId } from './restore-units';
+import { closeSelection, tablesFor, type UnitId } from './restore-units';
 import { ACCESS_STATES, ROLES, normalizeEmail } from '../auth/authorization';
 
 /**
@@ -72,7 +73,12 @@ import { ACCESS_STATES, ROLES, normalizeEmail } from '../auth/authorization';
 export const RESTART_EXIT_CODE = 75;
 
 /** Deleting children before parents; inserting parents before children. */
-const deletionOrder = (tables: string[]): string[] => [...tables].reverse();
+/**
+ * Children before parents. The reverse of the write order, which is derived
+ * from the foreign-key graph rather than from the contract's listing order —
+ * see `dependency-order.ts` for why that distinction cost a restore.
+ */
+const deletionOrder = (tables: string[]): string[] => [...dependencyOrder(tables)].reverse();
 
 export interface RestorePlan {
   units: UnitId[];
@@ -168,7 +174,14 @@ export class RestoreService {
     /** Injected in tests so the suite never calls process.exit. */
     exit?: (code: number) => void;
   }): Promise<RestoreOutcome> {
-    const { data, units } = options;
+    const { data } = options;
+    // Close the selection here rather than trusting the caller. The route
+    // already does it, which is exactly why nothing noticed that the service
+    // did not: given an unclosed set it silently restores a child without its
+    // parent and aborts on a foreign key, or worse, succeeds with a gap.
+    // Closing an already-closed selection is a no-op, so this costs nothing
+    // and removes a way to hold the API wrong.
+    const { units } = closeSelection(options.units);
     // Older artifact readers deliberately leave tables that did not exist in
     // that contract absent. Preserve those destination tables instead of
     // treating absence as an empty section and deleting newer organization
@@ -239,7 +252,56 @@ export class RestoreService {
           await delegateFor(scratch, table).deleteMany({});
         }
 
-        for (const table of tables) {
+        // Blank references the artifact cannot resolve. A foreign key whose
+        // parent is excluded from every backup has no unit to come from, so
+        // on a fresh instance the parent row simply is not there and the
+        // insert below would abort the restore -- the failure that makes
+        // disaster recovery, the one thing a backup is for, the one thing it
+        // could not do. See RESTORE_NULLED_REFERENCES.
+        //
+        // Only ids the destination genuinely lacks are blanked, not the
+        // column wholesale: restoring onto the instance the backup came from
+        // keeps every link that still resolves, which is the difference
+        // between undoing a mistake and quietly losing 112 associations.
+        for (const [table, rule] of Object.entries(RESTORE_NULLED_REFERENCES)) {
+          if (!tables.includes(table)) continue;
+          const rows = restoreData[table] as Record<string, unknown>[] | undefined;
+          if (!rows?.length) continue;
+
+          const parentIds = new Set(
+            (await delegateFor(scratch, rule.parent).findMany()).map(row => row.id)
+          );
+          restoreData[table] = rows.map(row => {
+            const unresolved = rule.columns.filter(
+              column => row[column] != null && !parentIds.has(row[column])
+            );
+            // Leave the row object alone unless it actually changes, so the
+            // caller's parsed artifact is never mutated underneath it.
+            return unresolved.length
+              ? { ...row, ...Object.fromEntries(unresolved.map(column => [column, null])) }
+              : row;
+          });
+        }
+
+        // A restored AI model configuration has no API key -- the artifact
+        // carries the administrator's settings and never the secret -- so it
+        // must not arrive switched on. The route guard refuses to activate a
+        // keyless configuration; this makes the data at rest agree with that
+        // rule instead of relying on nobody having written the row directly.
+        // Prompts are unaffected: they hold no credential, so their active
+        // state is meaningful and is restored as backed up.
+        const aiConfigurations = restoreData.AIConfiguration as
+          | Record<string, unknown>[]
+          | undefined;
+        if (tables.includes('AIConfiguration') && aiConfigurations?.length) {
+          restoreData.AIConfiguration = aiConfigurations.map(row =>
+            row.type === 'apikey' && !row.encryptedApiKey
+              ? { ...row, isActive: false }
+              : row
+          );
+        }
+
+        for (const table of dependencyOrder(tables)) {
           const rows = restoreData[table] ?? [];
           if (rows.length) {
             // createMany rather than a create per row: this is a bulk load into

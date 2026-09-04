@@ -110,6 +110,11 @@ export function RestoreDialog({ open, onOpenChange, onRestored }: RestoreDialogP
     [closure, units],
   );
 
+  const blankedLabels = React.useMemo(
+    () => [...new Set(units.filter(unit => closure.has(unit.id)).flatMap(unit => unit.blanks))],
+    [closure, units],
+  );
+
   const autoAdded = [...closure].filter(id => !selected.includes(id));
 
   const handleFile = async (chosen: File) => {
@@ -305,6 +310,16 @@ export function RestoreDialog({ open, onOpenChange, onRestored }: RestoreDialogP
               <p className="text-muted-foreground">
                 This also clears {clearedLabels.join(' and ')}, which refer to the records
                 being replaced and cannot be carried across.
+              </p>
+            )}
+            {/* Not a deletion: the rows arrive, without the association. The
+                parent they pointed at is an uploaded file, which no backup
+                carries, so on any instance but the one the backup came from
+                there is nothing left to point at. */}
+            {blankedLabels.length > 0 && (
+              <p className="text-muted-foreground">
+                Restored records keep their content but lose {blankedLabels.join(' and ')},
+                because backups do not carry uploaded files.
               </p>
             )}
             <p className="text-muted-foreground">

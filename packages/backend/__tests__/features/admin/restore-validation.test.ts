@@ -181,18 +181,39 @@ describe('restore artifact validation', () => {
 });
 
 describe('restore units are closed under foreign keys', () => {
-  it('pulls in languages when inventory is chosen', () => {
-    // FoodItemTranslation points at Language; restoring inventory without it
-    // would leave translations referencing languages that are not there.
+  it('leaves inventory independent', () => {
+    // This used to assert the opposite, on a premise that was never true:
+    // "FoodItemTranslation points at Language". It does not. Its only foreign
+    // key is to FoodItem, and `language` is a TEXT column holding a language
+    // *name* — no table in the schema references `Language` at all.
+    //
+    // The edge was a semantic worry (translated item names for a language the
+    // instance has not enabled) written as a hard dependency, and it cost a
+    // production restore: Inventory is the one unit whose every foreign key
+    // points inside itself, and requiring `languages` handed it that unit's
+    // unresolvable references. See restore-contract.test.ts.
     const { units, added } = closeSelection(['inventory']);
-    expect(units).toContain('languages');
-    expect(added).toEqual(['languages']);
+    expect(units).toEqual(['inventory']);
+    expect(added).toEqual([]);
   });
 
-  it('pulls in inventory and languages when shopping lists are chosen', () => {
-    // Section tables bind to categories and items.
-    const { units } = closeSelection(['shoppingLists']);
-    expect(units).toEqual(expect.arrayContaining(['shoppingLists', 'inventory', 'languages']));
+  it('pulls in inventory when shopping lists are chosen', () => {
+    // A real foreign key, unlike the one above: ShoppingListSection.categoryId
+    // points at Category. Languages no longer rides along, because nothing
+    // between those two units ever referenced anything.
+    const { units, added } = closeSelection(['shoppingLists']);
+    expect(units).toEqual(expect.arrayContaining(['shoppingLists', 'inventory']));
+    expect(units).not.toContain('languages');
+    expect(added).toEqual(['inventory']);
+  });
+
+  it('pulls in configuration when languages is chosen', () => {
+    // Translation.classificationPromptId points at SystemPrompt. This edge
+    // was missing, so a restore of translations onto an instance whose prompt
+    // ids differed aborted on a foreign key.
+    const { units, added } = closeSelection(['languages']);
+    expect(units).toEqual(expect.arrayContaining(['languages', 'configuration']));
+    expect(added).toEqual(['configuration']);
   });
 
   it('leaves procurement independent', () => {
@@ -219,7 +240,7 @@ describe('restore units are closed under foreign keys', () => {
   });
 
   it('reports nothing added when the user already chose the dependency', () => {
-    const { added } = closeSelection(['inventory', 'languages']);
+    const { added } = closeSelection(['languages', 'configuration']);
     expect(added).toEqual([]);
   });
 
