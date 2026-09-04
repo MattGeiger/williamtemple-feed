@@ -38,6 +38,205 @@ Everything else in this file. The application is shippable today.
 
 ## Open Issues
 
+### #81 — Restore could not restore: a backup would not load onto a fresh instance
+**Priority**: High · **Status**: Fixed; rehearsal pending
+**Bucket**: Data Management / backup and restore
+
+Selecting **Inventory** — or Inventory and Languages together — in Restore
+failed with *"Cannot delete this item because it is referenced by other
+items."* Nothing failed on delete. That message is the P2003 mapping, written
+for the delete direction; P2003 is "foreign key constraint failed" and covers
+inserts too, and it sent the investigation looking at deletion order while the
+real failure was an **insert**.
+
+Five faults, one root. The unit graph in `restore-units.ts` claims each unit is
+"closed under foreign keys". That claim was hand-written in TypeScript about a
+graph that lives in Prisma, and nothing compared the two.
+
+1. **`languages` was not closed.** `Translation.classificationPromptId` points
+   at `SystemPrompt` in the configuration unit; `requires` said `[]`.
+2. **`languages` could not be closed.** `Translation.documentId` points at
+   `Document`, excluded from every artifact because the backup carries no file
+   payloads. No `requires` edge can reach a table no unit contains. Measured on
+   a production snapshot, **112 of 2,319 translations carry a `documentId`**.
+   `FormattingChoice.documentId` is the same fault, latent.
+3. **`inventory requires languages` had no foreign key behind it.**
+   `CategoryTranslation.language` and `FoodItemTranslation.language` are TEXT
+   columns holding a language *name*; nothing in the schema references
+   `Language` at all. Inventory is the one unit whose every key points inside
+   itself — proven by round-tripping all seven tables against a copy of the
+   development database — and this edge handed it another unit's failures. It
+   is why selecting Inventory alone failed.
+4. **Write order came from the backup contract, not the dependency graph.**
+   `INCLUDED_TABLES` describes *what* the artifact carries; it was silently
+   doing a second job nobody checked. Within a unit the orders agreed; across
+   units they did not, so `Translation` was written before the `SystemPrompt`
+   it referenced. Now derived from `Prisma.dmmf` (`dependency-order.ts`), which
+   cannot drift from the schema.
+5. **`RestoreService.run` trusted its caller to have closed the selection.**
+   The route did, so nothing noticed the service did not. It closes its own
+   selection now.
+
+**Why it shipped.** Every reference column implicated is empty in development:
+1,602 translations, zero with a `documentId`. The feature was correct on the
+data it was built against, and the case it exists for — a different instance,
+where ids line up with nothing — was never run. A **full** restore, every unit
+selected, failed the same way; selectivity was never the cause.
+
+**Fixed:** the missing `requires` edge; the spurious one removed; unresolvable
+references to excluded tables blanked on insert via `RESTORE_NULLED_REFERENCES`
+(only ids the destination genuinely lacks, so a same-instance restore keeps
+every link that still resolves); dependency-ordered writes; self-closing
+selection; and the P2003 message no longer asserts a deletion.
+
+**Covered by** `restore-contract.test.ts`, which compares the unit graph against
+the schema and fails on any of the four declaration faults, and
+`restore-onto-empty.test.ts`, which migrates a temporary database and restores
+into it — the case nothing had ever exercised. It reproduced the production
+failure before the fixes and passes after.
+
+**Audit truthfulness resolved.** The `BACKUP_RESTORED` entry stays where it
+is — written before the swap so it survives into the rebuilt file, which is
+also why it cannot simply move after success: there would be nothing to write
+it into. A failed restore leaves the live database untouched and still
+accepting writes, so `BACKUP_RESTORE_FAILED` is appended there instead. The
+pair reads as attempted-then-failed rather than as a record of something that
+did not happen.
+
+**Runbook ordering proven.** `restore-preserves-secrets.test.ts` executes the
+sequence the runbook prescribes — establish an encryption key on a fresh
+instance, then restore — and asserts the key survives the swap, that a restored
+model configuration arrives switched off with no key, and that a restored
+prompt keeps its backed-up state. That ordering was previously justified by
+reading the code, which is the same kind of claim that produced this issue.
+
+**Still open:** the runbook has not been walked end to end on a real Docker
+stack. Only 1.1.x images exist locally, so that needs a current image build and
+a human at the keyboard: the first step — an empty roster arming the
+fresh-instance bootstrap so the first verified sign-in becomes Administrator —
+needs a real magic-link round trip and cannot be automated here.
+
+**Lesson**: an invariant asserted in prose and maintained by hand is a comment,
+not a contract. Both halves of this one drifted — an edge with no key behind it
+and two keys with no edge in front of them — and the test that compares them is
+thirty lines.
+
+### #80 — A Cloudflare 502 page was printed into the Translate & Download PDFs modal
+**Priority**: High · **Status**: Fixed; production acceptance pending
+**Bucket**: Frontend messaging / shopping lists / AI provider errors
+
+Reported against production 1.6.0. Staff picked nine languages in the saved
+template's **Translate & Download PDFs** modal. English downloaded, then all
+eight remaining rows read `Failed:` followed by the *entire* Cloudflare
+"502: Bad gateway" HTML document — doctype, IE conditional comments, Tailwind
+classes, the Ray ID, and the visitor's own IP address — repeated eight times
+inside a `sm:max-w-lg` dialog.
+
+Reproduced on localhost, which named the trigger and disproved the first
+theory in one run. **The origin never went down.** The AI provider (Gemini)
+answered every non-English translation with HTTP 429 / `RESOURCE_EXHAUSTED` —
+*"Your prepayment credits are depleted"* — and four separate defects turned
+that one recoverable fact into eight screens of markup. English was untouched
+because English skips the translation pipeline entirely.
+
+**A. The route answered 502, and Cloudflare ate the body.** The
+`translate-missing-strings` catch mapped a non-overloaded provider failure to
+**502** with curated JSON. Production is served through Cloudflare Tunnel, and
+Cloudflare replaces an origin 502 with its own branded page — which is why the
+page attributed the error to the Host (`cf-error-source` on the host block)
+while the origin was serving normally. The JSON never left the edge. Every
+branch now answers **503**, which Cloudflare passes through untouched and
+which is the honest status anyway: FEED is fine, its translation dependency is
+not. The two LOTTO sync errors that also answered 502 were moved for the same
+reason; no route in the app returns 502 now.
+
+**B. The global error handler withheld the message the route had written.**
+`carriesUserFacingMessage` required `statusCode >= 400 && < 500`, so every
+curated 5xx message in the app was discarded and replaced with
+`INTERNAL_FAILURE_MESSAGE`. That is what localhost showed: the route composed
+*"The translation service is busy right now (high demand for Chinese)…"* and
+the user was shown *"FEED could not complete that request."* eight times. The
+gate is now `statusCode >= 400` — an explicit status code is the author's
+signature; the range is not. Accidental errors (Prisma, `TypeError`, driver
+faults) still arrive with no `statusCode` and are still withheld. This also
+un-buried the curated 503s in `shopping-lists.ts` and the friendly 500s in
+`quarantine.ts`, `storage-reconciliation.ts`, and `global-limit.ts`.
+
+The route tests had mounted a *stub* error middleware that forwarded every
+`error.message` verbatim, so the curated copy passed in tests and vanished in
+production. `translation-routes.test.ts` now mounts the real `errorHandler`.
+
+**C. "Wait about a minute" was the wrong advice.** The classifier treated any
+payload containing `429` or `rate limit` as transient overload. Depleted
+prepaid credits report the *same* 429 as genuine rate limiting, so staff were
+told to wait and retry a condition that no amount of waiting resolves — nine
+languages at a time. `classifyTranslationProviderError`
+(`services/builder-translation.ts`) now tests account-level wording
+(`RESOURCE_EXHAUSTED`, `insufficient_quota`, credits, billing, quota) *before*
+the 429/overload markers, and returns `exhausted` | `misconfigured` | `busy` |
+`unavailable`. Each maps to its own message and error code
+(`AI_TRANSLATION_QUOTA_EXHAUSTED` / `_MISCONFIGURED` / `_BUSY` /
+`_UNAVAILABLE`) through one table in the route, so a fifth kind is an entry
+rather than another ternary. Both non-recoverable kinds say plainly that
+retrying will not help.
+
+`misconfigured` was added after the production account moved from Gemini to
+OpenAI and answered `403 Project 'proj_…' does not have access to model
+'gpt-5-mini-…'` — an organization-verification / project-allow-list refusal.
+Without it that 403 fell to `unavailable` and told staff the service "didn't
+respond" and to try again in a moment, which is the same false-hope failure as
+the credits case in a different costume. It now matches on 401/403/404 and on
+key/model wording, and points at AI Configuration. Ordering inside the
+classifier is load-bearing and tested directly in
+`__tests__/features/shopping-lists/translation-provider-errors.test.ts`: money
+wording wins over a 403 (a billing hard limit is not a wrong key), and a
+configuration status wins over a stray `429` in the payload.
+
+**D. The raw payload reached the user.** Independent of A–C: `BaseApiService`
+returned `await response.text()` as the error message for any non-JSON
+response. Every FEED route answers a failure with `{ error: { message, code } }`
+(`middleware/error-handler.ts`), so a non-JSON body cannot have come from the
+application — it came from Cloudflare or Nginx. `ErrorHandlerService` already
+screens exactly that shape (`isUserPresentableMessage` rejects `<!DOCTYPE`),
+so the *toast* was fine, but the modal renders each language's outcome on its
+own row and read `error.message` directly, walking past the screen.
+
+- `parseErrorPayload` now discards a non-JSON body (logging the first 500
+  bytes in development only) and derives the message from the status via a new
+  exported `httpStatusMessage`. `parseErrorResponse` — the message-only helper
+  the PDF/blob path uses — delegates to it, so one place decides what a failed
+  response may say.
+- `ErrorHandlerService.toUserMessage(error)` is now public: the ASK sentence
+  without the toast. Any surface rendering an error inline uses it; the modal
+  now does, in the destructive colour rather than muted grey.
+
+Covered by `src/test/gateway-error-messages.test.ts` (frontend, asserting
+against the actual reported Cloudflare page), the new 5xx cases in
+`__tests__/middleware/error-handler.test.ts`, and the three provider-failure
+cases in `__tests__/features/shopping-lists/translation-routes.test.ts`.
+
+**Correction to an earlier reading of this issue.** Before the localhost
+reproduction, the fast, uniform failures were read as the backend process
+dying and Docker restarting it. That was wrong — the origin answered every
+request. Two pieces of hardening were written under that theory and are kept
+because they are correct on their own terms, not because they were the cause:
+`services/pdf/chromium.ts` fired `void request.continue()` /
+`void request.abort()` whose rejections nothing caught (fatal to Node by
+default), and `index.ts` now logs `unhandledRejection` /
+`uncaughtException` before exiting so a crash leaves a trace instead of
+vanishing behind a restart.
+
+**Operational note, not a code defect**: the provider account itself is out of
+credits. No FEED change restores translation until that is topped up or the
+key is repointed.
+
+**Lesson**: three layers each degraded the same message, and each looked
+defensible alone — a status the CDN rewrites, a gate that trusted a numeric
+range over an explicit choice, and a classifier that matched on a number two
+different conditions share. The user saw the worst of all three. When a
+message crosses that many boundaries, test it end to end at the boundary that
+actually ships, not against a stub.
+
 ### #79 — Filter, search, and dropdown controls were transparent to the background
 **Priority**: Low · **Status**: Fixed in 1.6.5; production acceptance pending
 **Bucket**: Layout / form controls
