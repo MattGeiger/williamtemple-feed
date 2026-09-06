@@ -2,7 +2,79 @@
 
 ## Unreleased
 
-## Version 1.7.5-beta.2 — 2026-08-28
+## Version 1.7.5-rc.1 — 2026-09-05
+
+*Release candidate — everything since 1.6.0, which is what FEED has been
+running since August 24th.*
+
+**FEED can now wear another pantry's identity.** An administrator can open
+Settings → Appearance and set the organization's name and copy, its logos and
+app mark, its colours, the sign-in wording, whether the public inventory feed is
+published, and local terminology — food share instead of food pantry, neighbour
+instead of client. A configuration can stay a draft, be previewed in your own
+browser only, or become the appearance every staff member sees. Returning to
+the built-in William Temple House presentation takes one action and does not
+delete your drafts.
+
+The identity carries beyond the app: sign-in email, analytics and operational
+PDFs, report manifests, the public inventory, and shopping-list PDF details all
+use the active organization. Printed output stays on a light paper theme even
+when the person generating it is working in dark mode. Terminology changes
+wording only, never figures — household, visit, and person served keep their
+names because they identify distinct counts.
+
+**Colours are chosen for you, and checked.** FEED derives a full accessible
+light and dark palette from a short colour story rather than asking anyone to
+pick token by token, and it rotates the existing chart palette toward the brand
+instead of inventing chart colours nobody has checked. Inventory statuses keep
+the same green, amber, red and grey meanings under every brand. A brand with no
+colour in it — a grayscale identity — is supported and proved to the same
+contrast standard.
+
+**FEED works on the older iPads again.** Every configured appearance rendered
+with missing card, popover and dialog backgrounds on iPadOS 15, and dark-mode
+shadows came out violet. Both are fixed.
+
+**Reports print in black and white as well as colour.** Every report archive now
+contains two PDFs. The colour one is unchanged; the black-and-white one is built
+so the series are told apart by lightness and, past six series, by texture — so
+a report run off on a mono printer or photocopied is still readable. Line charts
+use dashes rather than greys, and legends match what the chart actually draws.
+Stacked bars now print each segment's own value, not just the total.
+
+**Backup is now genuinely the recovery artifact.** A backup would not restore
+onto a fresh instance — the one situation a backup exists for — and a real
+production-sized file could not even be uploaded, because the web server
+rejected it before FEED saw it. Both are fixed and rehearsed against a 152 MB
+copy of real production data. On a brand-new instance the first person to sign
+in now becomes an administrator, so whoever is recovering can actually reach
+Restore.
+
+Restoring is also safer to read: references a backup cannot carry are cleared
+rather than aborting the whole restore, the dialog says what will be lost before
+you accept, a restore that fails now records that it failed instead of recording
+success, and a restored AI model arrives switched off and cannot be switched on
+until its key is entered.
+
+**Error messages say what happened.** "Report it at…" is now a link you can tap
+rather than a web address to copy off a toast, and it points at the project's
+issue tracker while saying plainly that posting there needs a free GitHub
+account. A depleted AI provider account no longer reads as "try again in a
+minute", a model your key cannot call is named as a configuration problem
+instead of an outage, and a gateway error page can no longer be dumped into a
+dialog with a Ray ID and your own IP address in it.
+
+**Also in this candidate**, from 1.6.5, which never reached production: filter,
+search and dropdown fields are solid rather than transparent across the whole
+app; Service Analytics gained daily LOTTO queue-volume and call-milestone
+charts; Queue Timing became Queue Statistics; Data Management summarizes SIMC,
+Link2Feed and LOTTO alongside procurement; and identical page-load failures
+raise one toast instead of several.
+
+**After this update, reload the page once.** A tab left open from the previous
+version can mis-draw the Service screen until it is refreshed.
+
+## Version 1.7.5-beta.2 — 2026-08-28, not deployed
 
 *Beta — sharper, safer brand assets and a more complete appearance workflow.*
 
@@ -24,7 +96,7 @@ uploads from an open Appearance wizard. Inventory publishing also moved to
 Data Management because it is a data-sharing decision rather than a branding
 choice.
 
-## Version 1.7.5-beta.1 — 2026-08-27
+## Version 1.7.5-beta.1 — 2026-08-27, not deployed
 
 *Beta — organization customization and the completed brand-alignment roadmap.*
 
@@ -53,7 +125,7 @@ Inventory statuses retain the same green, amber, red, and gray meanings under
 every brand. The database-backed configuration and normalized image assets are
 included in portable backups.
 
-## Version 1.6.5 — 2026-08-26
+## Version 1.6.5 — 2026-08-26, not deployed
 
 *Everything since 1.6.0, plus a consistency pass over the controls staff touch
 most.*

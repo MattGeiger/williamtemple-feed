@@ -5,6 +5,56 @@ All notable changes to FEED are documented here. This project adheres to
 
 ## [Unreleased]
 
+## [1.7.5-rc.1] — 2026-09-05
+
+Release candidate. Consolidates 1.6.5 and 1.7.5-beta.1 through beta.7 into the
+first build proposed for production since 1.6.0, which has been serving since
+2026-08-24. Nothing new is implemented here: this is the version bump, the
+consolidated release notes, and the record of what was verified.
+
+### Verified for this candidate
+
+- **Both suites pass from a clean checkout** — backend 1,106 tests across 90
+  files (2 skipped, both `describe.skipIf` corpus gates whose fixtures are held
+  outside the repo), frontend 481 across 75.
+- **Backend `tsc --noEmit` reports zero errors.** The frontend's real
+  invocation — `tsc --project tsconfig.app.json`, not the bare run that checks
+  nothing — reports 148, unchanged against the ratchet baseline in
+  `docs/TSC-DEBT.md` and down from 227 in beta.7.
+- **Both production builds succeed.**
+- **Two migrations separate this from 1.6.0**, `add_brand_configuration` and
+  `add_deployment_settings`. Both are purely additive — `CREATE TABLE` plus one
+  singleton row — so the forward migration destroys nothing and 1.6.0's code
+  ignores the new tables if the images are rolled back. The migration count
+  goes 34 to 36, which is the fingerprint to check after deploying.
+- **Disaster recovery was rehearsed on 2026-09-04** against a 152 MB artifact
+  generated from a real production snapshot: 2,319 of 2,319 translations, 112
+  dangling document references blanked with their rows kept, zero
+  `foreign_key_check` violations, and the fresh-instance bootstrap granting
+  Administrator on first sign-in with the grant recorded in the audit log. See
+  ISSUES.md #81, #82, and #83.
+
+### Known before deploying
+
+- **The backup contract moves from version 10 to 12.** An artifact written by
+  this build declares 12, and `artifact-reader.ts` refuses anything newer than
+  the reader knows — so a backup taken after this deploy cannot be restored
+  onto a rolled-back 1.6.0. Take the pre-deploy backup on 1.6.0 and keep it;
+  that is the artifact a rollback would need.
+- **Restore has not been exercised through Cloudflare Tunnel.** The #83 fix
+  gives `/api/admin/restore` a 256 MB body limit and 600s timeouts, verified in
+  a local Docker rehearsal — which has no tunnel in the path. Restore is one
+  synchronous request that uploads the artifact, parses it, builds a scratch
+  database and swaps before responding, and `docker/nginx.conf` already records
+  that Cloudflare's edge returns 524 at roughly 100s regardless of origin
+  configuration. On a Pi that is likely to be exceeded. The expected failure is
+  a gateway page over a restore that in fact succeeded, rather than data loss,
+  but recovery through the deployed interface remains unproven end to end.
+- **A stale browser tab can blank the Service lens.** The tolerance for a
+  response without LOTTO queue timing shipped in 1.6.5 and therefore lives in
+  the *new* frontend; a cached 1.6.0 tab talking to the new backend does not
+  have it. Staff should hard-reload once after the deploy.
+
 ## [1.7.5-beta.7]
 
 ### Fixed — recovery
@@ -417,7 +467,7 @@ All notable changes to FEED are documented here. This project adheres to
   saved, so exporting after a second sitting silently dropped the first.
 
 
-## [1.7.5-beta.2] — 2026-08-28
+## [1.7.5-beta.2] — 2026-08-28, not deployed
 
 ### Changed
 
@@ -471,7 +521,7 @@ All notable changes to FEED are documented here. This project adheres to
   configured.
 
 
-## [1.7.5-beta.1] — 2026-08-27
+## [1.7.5-beta.1] — 2026-08-27, not deployed
 
 ### Added
 
@@ -517,7 +567,7 @@ All notable changes to FEED are documented here. This project adheres to
   tables.** Restore now distinguishes a table absent from the artifact from a
   table deliberately included with zero rows.
 
-## [1.6.5] — 2026-08-26
+## [1.6.5] — 2026-08-26, not deployed
 
 ### Added
 

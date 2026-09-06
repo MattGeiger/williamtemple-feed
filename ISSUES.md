@@ -1,8 +1,12 @@
 # FEED — Known Issues & Future Work
 
-**Last Updated**: August 14, 2026
-**Status**: v1.0.0 release prep in progress (see `docs/V1-RELEASE-PLAN.md`)
-**Production**: https://feed.williamtemple.app
+**Last Updated**: September 5, 2026
+**Status**: 1.7.5-rc.1 tagged and proposed for production
+**Production**: https://feed.williamtemple.app — currently serving **1.6.0**,
+deployed 2026-08-24. 1.6.5 and every 1.7.5 beta were authored but never
+deployed, so a dated heading in `CHANGELOG.md` or `docs/release-notes.md` marks
+when a version was *written*, not when it shipped; the ones that did not ship
+now say so.
 
 This file tracks open issues, planned work, and recently-resolved items
 during the v1.0.0 release-prep window. Detailed root-cause writeups for
@@ -81,7 +85,7 @@ number in two places. The first drift produced a comment; a comment is not a
 mechanism, and the same pair drifted again underneath it.
 
 ### #82 — Nobody could become Administrator on a fresh instance
-**Priority**: High · **Status**: Fixed; container verification pending
+**Priority**: High · **Status**: Fixed; **verified in a Docker rehearsal 2026-09-04**
 **Bucket**: Auth / disaster recovery
 
 Found by rehearsing disaster recovery on a fresh Docker stack, which is the
@@ -127,9 +131,9 @@ sign in *before* initializing encryption, or the bootstrap is disarmed.
 migrated databases, including the one the narrowing adds: an empty roster with
 an encryption key present hands out nothing.
 
-**Still open:** verification in the container. The rehearsal instance was
-granted Administrator via the CLI before this fix existed, so the running stack
-has never exercised it.
+**Verified.** The rehearsal stack was wiped to an empty volume and rebuilt on
+the fixed image. The first sign-in landed as Administrator, the audit log
+recorded `via: "fresh-instance bootstrap"`, and the loud log line fired.
 
 **Lesson**: a documented behaviour with no test is a plan, not a feature. This
 one was specified twice, in tables, with the tradeoffs argued — and the gap
@@ -137,7 +141,7 @@ between the table and the code survived every review because the only instance
 that can reveal it is one nobody keeps around.
 
 ### #81 — Restore could not restore: a backup would not load onto a fresh instance
-**Priority**: High · **Status**: Fixed; rehearsal pending
+**Priority**: High · **Status**: Fixed; **rehearsed against production data 2026-09-04**
 **Bucket**: Data Management / backup and restore
 
 Selecting **Inventory** — or Inventory and Languages together — in Restore
@@ -208,11 +212,18 @@ model configuration arrives switched off with no key, and that a restored
 prompt keeps its backed-up state. That ordering was previously justified by
 reading the code, which is the same kind of claim that produced this issue.
 
-**Still open:** the runbook has not been walked end to end on a real Docker
-stack. Only 1.1.x images exist locally, so that needs a current image build and
-a human at the keyboard: the first step — an empty roster arming the
-fresh-instance bootstrap so the first verified sign-in becomes Administrator —
-needs a real magic-link round trip and cannot be automated here.
+**Rehearsed 2026-09-04.** A 152 MB artifact generated from a real production
+snapshot — 112 translations carrying a `documentId`, two AI configurations, one
+of them active without a key — restored onto a container that held nothing.
+Result: 2,319 of 2,319 translations, all 112 dangling references blanked with
+their rows kept, 199 food items, 39,240 procurement lines, **zero
+`foreign_key_check` violations**, both AI configurations inactive without keys,
+seven users with one administrator, and the encryption key established
+beforehand surviving the swap. The run surfaced two further blockers, recorded
+as #82 and #83.
+
+**Still open:** re-running the rehearsal after 1.7.5 reaches the Pi, against a
+backup taken from the deployed instance rather than one generated locally.
 
 **Lesson**: an invariant asserted in prose and maintained by hand is a comment,
 not a contract. Both halves of this one drifted — an edge with no key behind it

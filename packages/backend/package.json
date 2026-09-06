@@ -1,6 +1,6 @@
 {
   "name": "backend",
-  "version": "1.7.5-beta.7",
+  "version": "1.7.5-rc.1",
   "main": "index.js",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
