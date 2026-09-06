@@ -1,12 +1,14 @@
 # FEED — Known Issues & Future Work
 
 **Last Updated**: September 5, 2026
-**Status**: 1.7.5-rc.1 tagged and proposed for production
-**Production**: https://feed.williamtemple.app — currently serving **1.6.0**,
-deployed 2026-08-24. 1.6.5 and every 1.7.5 beta were authored but never
-deployed, so a dated heading in `CHANGELOG.md` or `docs/release-notes.md` marks
-when a version was *written*, not when it shipped; the ones that did not ship
-now say so.
+**Status**: 1.7.5-rc.1 in production since 2026-09-05
+**Production**: https://feed.williamtemple.app — serving **1.7.5-rc.1**,
+deployed 2026-09-05 over 1.6.0 (which had run since 2026-08-24). Migration
+count 34 to 36; rollback artifact is `~/backups/feed/pre-175rc1.db` on the Pi,
+with the 1.6.0 images retained. 1.6.5 and every 1.7.5 beta were authored but
+never deployed, so a dated heading in `CHANGELOG.md` or `docs/release-notes.md`
+marks when a version was *written*, not when it shipped; headings now say which
+happened.
 
 This file tracks open issues, planned work, and recently-resolved items
 during the v1.0.0 release-prep window. Detailed root-cause writeups for
