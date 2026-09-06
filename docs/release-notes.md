@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-## Version 1.7.5-rc.1 — 2026-09-05
+## Version 1.7.5-rc.1 — 2026-09-05, in production
 
 *Release candidate — everything since 1.6.0, which is what FEED has been
 running since August 24th.*

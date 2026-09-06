@@ -5,7 +5,7 @@ All notable changes to FEED are documented here. This project adheres to
 
 ## [Unreleased]
 
-## [1.7.5-rc.1] — 2026-09-05
+## [1.7.5-rc.1] — 2026-09-05, deployed to production 2026-09-05
 
 Release candidate. Consolidates 1.6.5 and 1.7.5-beta.1 through beta.7 into the
 first build proposed for production since 1.6.0, which has been serving since
