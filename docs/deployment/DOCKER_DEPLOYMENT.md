@@ -28,7 +28,7 @@ docker buildx inspect --bootstrap
 
 **Mac (for build):**
 ```bash
-cd /Users/russbook/wth_app_clean
+cd /Users/russbook/Repos/williamtemple-feed
 cp packages/backend/.env.docker.example packages/backend/.env
 ```
 
@@ -42,7 +42,7 @@ If you prefer an explicit value, use `export VITE_API_BASE_URL="https://feed.wil
 ### 3. Build Multi-Architecture Images (Mac)
 
 ```bash
-cd /Users/russbook/wth_app_clean
+cd /Users/russbook/Repos/williamtemple-feed
 
 # Option A: Build and push to registry (recommended)
 export DOCKER_REGISTRY="yourusername"  # Docker Hub username (not email) or ghcr.io/username
@@ -71,12 +71,18 @@ docker buildx build --target frontend -t feed/frontend:latest --load .
 
 ### 4. Deploy to Raspberry Pi
 
+> **Access note.** This Pi is administered over a Raspberry Pi Connect
+> screen-share session, not SSH — direct SSH to it is known to drop. The `scp`
+> and `ssh` commands below describe the shape of each step; in practice they are
+> run by a person in that session, and files move by the screen-share tool's own
+> transfer rather than from the build Mac.
+
 **Transfer files to Pi:**
 ```bash
 # From Mac
-scp docker-compose.yml pi@feed-pi.local:~/feed/
-scp -r docker pi@feed-pi.local:~/feed/
-scp -r packages/backend/.env pi@feed-pi.local:~/feed/packages/backend/.env
+scp docker-compose.yml pi@feed-pi.local:~/apps/williamtemple-feed/
+scp -r docker pi@feed-pi.local:~/apps/williamtemple-feed/
+scp -r packages/backend/.env pi@feed-pi.local:~/apps/williamtemple-feed/packages/backend/.env
 ```
 
 **On Raspberry Pi:**
@@ -85,7 +91,7 @@ scp -r packages/backend/.env pi@feed-pi.local:~/feed/packages/backend/.env
 ssh pi@feed-pi.local
 
 # Navigate to deployment directory
-cd ~/feed
+cd ~/apps/williamtemple-feed
 
 # Create required directories
 mkdir -p data/backend data/storage logs/backend
@@ -96,7 +102,7 @@ mkdir -p data/backend data/storage logs/backend
 the step where a deploy can silently install the wrong build.
 
 ```bash
-# ~/feed/.env  (compose reads this automatically)
+# ~/apps/williamtemple-feed/.env  (compose reads this automatically)
 DOCKER_REGISTRY=yourusername
 VERSION=1.6.0
 CLOUDFLARE_TUNNEL_TOKEN=your-tunnel-token
@@ -206,14 +212,14 @@ Test before deploying to Pi:
 
 ```bash
 # Optional: local overrides to fix cookies on localhost
-cat > /Users/russbook/wth_app_clean/packages/backend/.env.local <<'EOF'
+cat > /Users/russbook/Repos/williamtemple-feed/packages/backend/.env.local <<'EOF'
 APP_URL="http://localhost:5173"
 COOKIE_DOMAIN=""
 EOF
 
 # Build + start backend + frontend (skip Cloudflare tunnel locally)
-docker compose -f /Users/russbook/wth_app_clean/docker-compose.yml \
-  -f /Users/russbook/wth_app_clean/docker-compose.local.yml \
+docker compose -f /Users/russbook/Repos/williamtemple-feed/docker-compose.yml \
+  -f /Users/russbook/Repos/williamtemple-feed/docker-compose.local.yml \
   up -d --build backend frontend
 
 # Check health
@@ -234,8 +240,8 @@ so TypeScript tooling is available without bloating the runtime image.
 
 **Mac (local overrides):**
 ```bash
-docker compose -f /Users/russbook/wth_app_clean/docker-compose.yml \
-  -f /Users/russbook/wth_app_clean/docker-compose.local.yml \
+docker compose -f /Users/russbook/Repos/williamtemple-feed/docker-compose.yml \
+  -f /Users/russbook/Repos/williamtemple-feed/docker-compose.local.yml \
   --profile seed run --rm seed
 ```
 
@@ -438,18 +444,18 @@ prefer restoring that backup over relying on an older image to cope.
 **Automated daily backup (add to Pi crontab):**
 ```bash
 # Create backup script
-cat > ~/feed/backup.sh << 'EOF'
+cat > ~/apps/williamtemple-feed/backup.sh << 'EOF'
 #!/bin/bash
 DATE=$(date +%Y%m%d_%H%M%S)
 BACKUP_DIR=~/backups/feed
 mkdir -p $BACKUP_DIR
 
 # Backup database
-docker compose -f ~/feed/docker-compose.yml exec -T backend \
+docker compose -f ~/apps/williamtemple-feed/docker-compose.yml exec -T backend \
   sqlite3 /app/data/production.db ".backup /app/data/backup_${DATE}.db"
 
 # Copy to host
-docker compose -f ~/feed/docker-compose.yml cp \
+docker compose -f ~/apps/williamtemple-feed/docker-compose.yml cp \
   backend:/app/data/backup_${DATE}.db ${BACKUP_DIR}/
 
 # Compress
@@ -461,10 +467,10 @@ find $BACKUP_DIR -name "backup_*.db.gz" -mtime +7 -delete
 echo "Backup completed: backup_${DATE}.db.gz"
 EOF
 
-chmod +x ~/feed/backup.sh
+chmod +x ~/apps/williamtemple-feed/backup.sh
 
 # Add to crontab (2 AM daily)
-(crontab -l 2>/dev/null; echo "0 2 * * * ~/feed/backup.sh >> ~/logs/feed/backup.log 2>&1") | crontab -
+(crontab -l 2>/dev/null; echo "0 2 * * * ~/apps/williamtemple-feed/backup.sh >> ~/logs/feed/backup.log 2>&1") | crontab -
 ```
 
 ## Troubleshooting
