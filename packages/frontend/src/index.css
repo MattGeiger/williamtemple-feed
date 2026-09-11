@@ -202,8 +202,25 @@
     --feed-shell-veil: color-mix(in oklab, var(--color-white) 42.0%, transparent);
     --feed-shell-panel-start: color-mix(in oklab, var(--card) 88%, transparent);
     --feed-shell-panel-end: color-mix(in oklab, var(--color-mist-100) 76.0%, transparent);
-    --feed-shell-header-start: color-mix(in oklab, var(--background) 40%, transparent);
-    --feed-shell-header-end: color-mix(in oklab, var(--background) 32%, transparent);
+    /*
+     * Light header tokens, raised 0.40/0.32 -> 0.55/0.45 to match the dark
+     * values #78 arrived at.
+     *
+     * #78 fixed the mirror image of this: dark aliased the *panel* gradient,
+     * composited to ~89% opaque, and the blur had nothing to show. Light was
+     * correct then and stayed at the original 0.40/0.32 -- the thinnest
+     * surface in the app, against the Analytics filter bar's single 0.80
+     * layer directly beneath it. Over a white card the difference is
+     * invisible, which is why this looked fine for so long; over dark card
+     * titles and chart bars the bar reads as flat transparency with content
+     * smearing through rather than as frosted glass.
+     *
+     * Verified in the browser rather than by eye: the computed gradient
+     * tracks these tokens exactly, so the blur was applied all along and only
+     * the body was missing.
+     */
+    --feed-shell-header-start: color-mix(in oklab, var(--background) 55%, transparent);
+    --feed-shell-header-end: color-mix(in oklab, var(--background) 45%, transparent);
     --feed-shell-card-start: color-mix(in oklab, var(--card) 94%, transparent);
     --feed-shell-card-end: color-mix(in oklab, var(--color-mist-100) 84.0%, transparent);
     --feed-shell-panel-border: color-mix(in oklab, var(--border) 72%, transparent);

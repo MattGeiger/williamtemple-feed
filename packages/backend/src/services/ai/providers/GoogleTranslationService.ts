@@ -5,7 +5,7 @@
 // under AGPL-3.0-or-later; see LICENSE. William Temple House branding is
 // not covered by this license; see TRADEMARKS.md.
 
-import { AITranslationService, TranslationRequest, TranslationResult, ClassificationRequest, ClassificationResult, BatchTranslationRequest, BatchTranslationResult, ServiceCapabilities, ServiceLimits } from '../base/AITranslationService';
+import { AITranslationService, TranslationRequest, TranslationResult, ClassificationRequest, ClassificationResult, BatchTranslationRequest, BatchTranslationResult, ServiceCapabilities, ServiceLimits, ProviderAccessResult } from '../base/AITranslationService';
 import { limitEnforcement } from '../../limits';
 import { estimateInputTokensAndCost, estimateOutputTokensAndCost } from '../../token';
 import { convertToPerTokenRate } from '../../token/calculation';
@@ -167,20 +167,31 @@ export class GoogleTranslationService extends AITranslationService {
     return targetLanguage;
   }
 
-  async validateApiKey(): Promise<boolean> {
+  /**
+   * Confirm the key and the configured model without paying for it.
+   *
+   * This used to send a real `generateContent` with `maxOutputTokens: 1`
+   * before every translation job: a billed request whose one-token cap is
+   * shared with thinking tokens on Gemini 3.x, and whose failure was then
+   * flattened to `false` (ISSUES.md #84). `models.get` answers both questions
+   * for free — a rejected key fails authentication, and a model this project
+   * cannot call fails by name. Google refuses `gemini-2.5-*` to new projects
+   * with `404 ... no longer available to new users`, which is a fact about
+   * the model and must not be reported as a bad key.
+   */
+  async checkAccess(): Promise<ProviderAccessResult> {
     try {
       const client = await this.getGoogleClient();
-      // Test with a minimal request
-      await client.models.generateContent({
-        model: this.getModel(),
-        contents: 'test',
-        config: { maxOutputTokens: 1 }
-      });
-      return true;
+      await client.models.get({ model: this.getModel() });
+      return { ok: true };
     } catch (error) {
-      console.error('Google AI API key validation failed:', error);
-      return false;
+      console.error('Google AI access check failed:', error);
+      return { ok: false, error };
     }
+  }
+
+  async validateApiKey(): Promise<boolean> {
+    return (await this.checkAccess()).ok;
   }
 
   getServiceCapabilities(): ServiceCapabilities {

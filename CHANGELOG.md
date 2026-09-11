@@ -5,6 +5,38 @@ All notable changes to FEED are documented here. This project adheres to
 
 ## [Unreleased]
 
+### Fixed
+
+- **A model the AI provider refuses no longer reports as an invalid API key.**
+  Every translation surface checked the key with a call that answered a bare
+  boolean, so a working key calling a model the account cannot use — Google now
+  refuses `gemini-2.5-*` to new projects, OpenAI refuses models outside a
+  project's allow-list — was reported to staff as "Invalid API key
+  configuration", and the provider's real answer reached only the server log.
+  The check now keeps the provider's error, classifies it through the reading
+  built for #80, names the model, and answers 503 with a machine-readable code
+  so the client can tell the five outcomes apart. Five call sites: creating,
+  retrying and bulk-retrying translations, starting a document translation, and
+  classifying document segments.
+
+- **The key check no longer costs money or output tokens.** Google and
+  Anthropic confirmed a key by generating content — a billed request before
+  every translation job, whose one-token cap is shared with thinking tokens on
+  current models. All three providers now use a free model lookup
+  (`models.get` / `models.retrieve`), which also distinguishes a rejected key
+  from a withdrawn model. OpenAI's check asked only whether the key worked;
+  it now asks about the model FEED is configured to use.
+
+- **An administrator is told when only they can clear it.** An account out of
+  credit or a rejected key/model raises one alert, throttled per kind, so a
+  nine-language export raises one alert rather than nine identical ones.
+
+- **The header banner is frosted glass again in light mode.** Light kept the
+  original 0.40/0.32 tokens — the thinnest surface in the app, against the
+  Analytics filter bar's 0.80 directly beneath it — so dark card titles and
+  chart bars smeared through the bar instead of being frosted. Raised to
+  0.55/0.45, matching the dark values #78 arrived at. See ISSUES.md #85.
+
 ### Documentation
 
 - **The AI model catalogue was audited against Google, OpenAI, and Anthropic
