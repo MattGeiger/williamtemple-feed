@@ -60,6 +60,15 @@ System prompts created here drive translation behavior for food items, categorie
 - OpenAI default model when selecting OpenAI: GPT-5 nano (`gpt-5-nano-2025-08-07`)
 - Anthropic default model when selecting Anthropic: Claude Haiku 4.5 (`claude-haiku-4-5-20251001`)
 
+> **2026-09-11:** two of these three defaults no longer work for new setups.
+> Google refuses `gemini-2.5-flash-lite` to new projects (404, reported to
+> staff as an invalid API key), and OpenAI shuts down `gpt-5-nano-2025-08-07`
+> on 2026-12-11. Proposed replacements: `gemini-3.5-flash-lite` and
+> `gpt-5.6-luna`. Claude Haiku 4.5 remains available, with retirement not
+> sooner than 2026-10-15. See
+> [`model-catalogue-refresh-2026-09.md`](model-catalogue-refresh-2026-09.md)
+> and ISSUES.md #84.
+
 **Pending**: The OpenAI default model is under review (GPT-5 mini vs GPT-5 nano vs GPT-4o mini). Any change will be documented here and in [`archive/ai-config/defaults-update-2025-12-26.md`](../archive/ai-config/defaults-update-2025-12-26.md).
 
 Implementation details:

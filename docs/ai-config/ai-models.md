@@ -1,5 +1,28 @@
 # AI Model Configuration Presets
 
+> **Out of date as of 2026-09-11 — read
+> [`model-catalogue-refresh-2026-09.md`](model-catalogue-refresh-2026-09.md)
+> first.** This page still describes what `model-specs.ts` contains, but most
+> of those presets are no longer usable:
+>
+> | Preset | Status | Replace with |
+> |---|---|---|
+> | `gemini-2.5-flash-lite` (default), `gemini-2.5-flash`, `gemini-2.5-pro` | Refused to new Google projects (404) | `gemini-3.5-flash-lite`, `gemini-3.6-flash`, `gemini-3.1-pro-preview` |
+> | `gemini-3-pro-preview` | Shut down 2026-03-09 | `gemini-3.1-pro-preview` |
+> | `gemini-3-flash-preview` | Deprecated | `gemini-3.6-flash` |
+> | `gpt-4.1-nano-2025-04-14`, `gpt-4o-2024-05-13` | Shutdown 2026-10-23 | `gpt-5.6-luna`, `gpt-5.6-sol` |
+> | `gpt-5-nano`, `gpt-5-mini`, `gpt-5` (2025-08-07) | Shutdown 2026-12-11 | `gpt-5.6-luna`, `gpt-5.6-terra`, `gpt-5.6-sol` |
+> | `gpt-4.1`, `gpt-4.1-mini`, `gpt-4o-mini` | Not in OpenAI's current list | Retire from presets |
+> | `claude-sonnet-4-5-20250929` | Retirement not sooner than 2026-09-29 | `claude-sonnet-5` |
+> | `claude-opus-4-5-20251101` | Retirement not sooner than 2026-11-24 | `claude-opus-5` |
+> | `claude-haiku-4-5-20251001` | Retirement not sooner than 2026-10-15 | Keep until a successor exists |
+>
+> Two claims below are also wrong. The Gemini `thinking_level` parameter was
+> never "VERIFIED": the installed `@google/genai` 1.11.0 drops it, so no thinking
+> level has ever reached Google. And the Claude "4.5" parameter handling does
+> not cover Claude 5, which rejects `temperature` and `top_p` outright.
+> ISSUES.md #84 tracks the fix.
+
 This document catalogs all pre-configured AI model specifications in the FEED application, mapped to the AIConfiguration database schema.
 
 ## Schema Template Reference
@@ -572,7 +595,7 @@ const response = await client.models.generateContent({
 });
 ```
 
-**SDK Parameter Name**: `thinking_level` (snake_case) - **VERIFIED** from official @google/genai SDK documentation
+**SDK Parameter Name**: ~~`thinking_level` (snake_case) - **VERIFIED** from official @google/genai SDK documentation~~ **Incorrect (2026-09-11):** the JS SDK field is `thinkingLevel`, and the installed `@google/genai` 1.11.0 forwards neither spelling, so this value has never reached the API. See ISSUES.md #84.
 **Parameter Structure**: Nested in `thinkingConfig` object (not top-level like temperature/topP)
 
 **Applied to**:

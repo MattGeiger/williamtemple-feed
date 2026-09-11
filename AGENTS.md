@@ -73,6 +73,11 @@ fixtures, because real exports carry PII and are never committed. The all-time
 review's verdict — and the 3,344 clients whose ids sit below the file's floor —
 is recorded on `link2feed_clients_v1` in `source-contracts.ts`.
 
+Read these before AI provider, model catalogue, or translation-cost work:
+
+- `docs/ai-config/model-catalogue-refresh-2026-09.md`
+- `docs/ai-config/translation-efficiency-and-local-models.md`
+
 Read these before external-data import, Data Management, backup/restore, or
 administrator-authority work:
 
@@ -338,7 +343,7 @@ Manual validation checklists should be short and task-specific. For shopping lis
 ## Local Development Environment
 
 The active working repo is `.`.
-(`.` is a **retired** old checkout kept warm
+(`../wth_app_clean` is a **retired** old checkout kept warm
 for operational reference only — do not edit or run it, and never `git
 push` from it.)
 
@@ -409,6 +414,47 @@ and avoid moving secrets onto the dev box.
 Discuss new dependencies before installing them unless the user has already approved the direction. Include tradeoffs and why the dependency fits the existing stack.
 
 Known dependency note: backend installs may surface an npm peer conflict involving `zod` v4 and the OpenAI package's optional `zod` v3 peer range. `--legacy-peer-deps` has been used for `pdfmake` after this conflict was identified as pre-existing. Do not normalize broad dependency churn without explicit reason.
+
+## AI Model Catalogue Maintenance
+
+**The AI model catalogue goes stale in months, and it fails quietly.** The
+2026-09-11 audit (ISSUES.md #84) found 15 of 16 selectable presets shut down,
+scheduled for shutdown, refused to new accounts, or superseded:
+
+- **Google** began refusing `gemini-2.5-*` to new projects while its own
+  documentation still listed them as stable, with no shutdown date. FEED's
+  default model was among them.
+- **OpenAI** deprecated the `gpt-5-*-2025-08-07` snapshots about ten months
+  after release — including production's model.
+- **Anthropic's** Claude Sonnet 4.5 and Opus 4.5 were superseded within months.
+
+None of this raised an error in FEED until a request failed, and the failure
+then read as an invalid API key. Treat the catalogue as maintained data, not
+finished code:
+
+- **Audit at every release boundary, and at least monthly.**
+  - Compare model ids and token limits with each provider's model-list API.
+  - Check prices and deprecation dates against each provider's pricing and
+    deprecation pages.
+  - Record the date of the check in the catalogue.
+- **Re-verify prices and dates on the day the catalogue is edited.** A stale
+  price never errors; it silently mis-projects the spend limits it feeds.
+- **Preview models churn in months** (Google's `gemini-3-pro-preview` lasted
+  under four). Offer one only with a Preview badge. Every audit checks whether
+  each preview has reached stable or been given a shutdown date.
+- **Model ids, prices, and language support live in one catalogue.** Until the
+  planned server-authoritative catalogue lands (#84), the two `model-specs.ts`
+  copies must change together. Never add a model id, price, or language list
+  anywhere else — the stale secondary lists #84 found are what that produces.
+- **Describe model constraints as catalogue capabilities**, not string tests on
+  model ids: sampling parameters, thinking or effort values, max-token field,
+  prefill, language coverage. The `-4-5-` check broke on the first dateless id.
+- **A model the provider refuses is not a bad key.** Classify the provider's
+  answer (`classifyTranslationProviderError`) and name the model. Never
+  collapse a provider failure into a boolean.
+- **Validate a new model cheaply.** Use one-sentence requests to prove the
+  model contract, plus $0 request-contract and recorded-fixture tests. Run
+  whole-feature checks (DOCX, PDF export) once, on a single inexpensive model.
 
 ## Database and Auth Changes
 

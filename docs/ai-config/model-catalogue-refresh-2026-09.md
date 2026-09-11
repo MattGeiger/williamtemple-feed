@@ -1,0 +1,753 @@
+# AI Model Catalogue Refresh — Discovery and Plan
+
+**Status**: Design in progress. No code changed. Not yet committed — held until
+the open decisions below are settled.
+**Tracks**: ISSUES.md #84 · roadmap v1.9.5 ("LLM catalogue and pricing audit")
+**Companion**: [`translation-efficiency-and-local-models.md`](translation-efficiency-and-local-models.md)
+— prompt size, thinking-token cost, caching, and a local TranslateGemma option.
+**Provider facts checked**: 2026-09-11, against each provider's own model,
+pricing, and deprecation pages (sources at the end). Prices and dates move;
+re-check them on the day the catalogue is edited and record that date in the
+catalogue itself.
+
+## What was reported
+
+Google no longer lets new projects call Gemini 2.5 Flash-Lite, FEED's default
+Google model. An administrator configured Gemini 3.5 Flash-Lite through the
+**Custom** model option with a valid API key, and translation still failed with
+*"Invalid API key configuration. Please check your AI settings."*
+
+Production context (from the administrator, 2026-09-11): production runs
+OpenAI **`gpt-5-mini`** as a fallback. Gemini 2.5 Flash-Lite requests began
+failing when Google moved the account from post-pay to prepay (the #80
+incident). `gpt-5-mini` gives similar translation quality but is slower and
+more expensive, and OpenAI shuts it down on **2026-12-11**.
+
+Also from the administrator: production has **nine enabled languages** of 59
+supported — English, Chinese, Spanish, Arabic, Russian, Vietnamese, Persian,
+Swahili, and Ukrainian. Confirmed from production's
+`GET /api/languages/enabled` on 2026-09-11; the stored name is `Persian`.
+Bosnian also appeared there, enabled for testing only, and has since been
+switched off. The
+production Raspberry Pi 5 has **4 GB** of RAM. Production's `gpt-5-mini`
+configuration runs at Thinking Level `minimal`, so its slowness belongs to the
+model, not to a setting.
+
+## Decisions so far
+
+| # | Decision | Date |
+|---|---|---|
+| D1 | Offer flagship models as presets, with a UI warning that they are expensive and may not translate better. | 2026-09-11 |
+| D2 | Default thinking to off, or the lowest level a model allows. Warn when a level above Medium is selected, because it raises the cost of every request. | 2026-09-11 |
+| D3 | Model-parameter constraints (e.g. no `temperature` / `top_p`) are enforced in both backend and UI, so a forbidden parameter can never reach a request. | 2026-09-11 |
+| D4 | Validation uses tiny requests (one sentence, a few strings), not whole-feature workflows. The earlier ~$220 test plan is withdrawn (see "Why the first estimate was wrong"). | 2026-09-11 |
+| D5 | No commits until the design decisions in this sweep are final. | 2026-09-11 |
+| D6 | A local model is a **fallback** only, never the primary provider. Staff choose it per blocked request (D12). **Shelved — see D16.** | 2026-09-11 |
+| D7 | The frontier cost warning covers four models: `gpt-6-astra`, `claude-fable-5-1`, `claude-opus-5`, `gpt-5.6-sol`. The rule that assigns `costTier: frontier`: output price of $20 per 1M tokens or more. | 2026-09-11 |
+| D8 | Google's mid tier is `gemini-3.8-flash`. It cannot turn thinking off, so its D2 default is `low`. | 2026-09-11 |
+| D9 | SDK plan approved: `@google/genai` → 2.22, `@anthropic-ai/sdk` → 0.125, `openai` → 6.49, one provider per commit; `openai` 7 only after Node 22+. | 2026-09-11 |
+| D10 | Node 20 → 24 approved as its own release, never combined with AI changes. | 2026-09-11 |
+| D11 | Chinese means Simplified — code `zh-CN`. | 2026-09-11 |
+| D12 | A blocking provider error offers **Use local AI model**. Choosing it opens a confirmation that the local model will take much longer; the request runs locally only after that. | 2026-09-11 |
+| D13 | The local path supports everything a cloud model does in FEED: single and batch translation, DOCX auto-format classification, administrator-edited prompts, style-boundary instructions, and every builder translation mode. | 2026-09-11 |
+| D14 | Local models are prototyped and validated on the development Mac (M5 Max, 128 GB). | 2026-09-11 |
+| D15 | Raise an administrator alert whenever a cloud provider reports `exhausted` (out of credit) or `misconfigured` (key or model rejected). Part of Phase 1, and independent of the local model. | 2026-09-11 |
+| D16 | **The local model is shelved.** Hosting it well means buying and configuring hardware, which makes it a project of its own. D12–D14 are kept as its design, along with the hybrid approach (TranslateGemma for plain translation plus a general model for everything else) and `AIConfiguration.role` to mark a local configuration. | 2026-09-11 |
+| D17 | The shelved local-model design must warn staff when a requested language is not offered locally, distinguishing languages TranslateGemma was evaluated on, languages only the general model handles, and languages neither supports. Details in the companion document. | 2026-09-11 |
+| D18 | Every catalogue entry records per-language coverage (`evaluated` / `supported` / `unsupported`). The Languages page and AI Configuration warn when an enabled language is not offered by the active model — at the moment of enabling it or choosing the model, not when a translation fails. | 2026-09-11 |
+| D19 | Claude Sonnet 4.5 and Opus 4.5 retire outright, with no hidden `legacy` entries. They were short-lived, and the Claude 5 models are expected to last. | 2026-09-11 |
+| D20 | Large bulk retries and long-document classification join the Phase 5 feature pass. If either returns a 524, those routes become the first consumers of a background-job table. | 2026-09-11 |
+| D21 | Catalogue maintenance is a standing rule in `AGENTS.md`: audit at every release boundary and at least monthly. | 2026-09-11 |
+| D22 | Consolidate into one **server-authoritative catalogue** (option A). | 2026-09-11 |
+| D23 | Release order agreed: (1) honest errors and administrator alerts; (2) Node 24; (3) catalogue, SDKs, and thinking defaults, before 2026-12-11. | 2026-09-11 |
+| D24 | OpenAI list confirmed. Older GPT-5.x models with no deprecation date (e.g. 5.4) are not offered: they cost more than `gpt-5.6-luna` for no benefit to FEED's work. | 2026-09-11 |
+| D25 | Anthropic list confirmed. Only the latest generation, plus Haiku 4.5. `claude-fable-5-1` is far more model than translation or classification needs, but it is offered with the frontier warning; administrators decide how to spend their budget. | 2026-09-11 |
+| D26 | `gemini-3.1-pro-preview` is offered with a **Preview badge** and validated like every other preset. When Google releases it as stable, administrators can reach the stable id through Custom until the catalogue audit adds it. | 2026-09-11 |
+| D27 | `gemini-3.6-flash` is offered alongside `gemini-3.8-flash`. Same price, but it can run at `minimal` thinking where 3.8 cannot go below `low`. Phase 0 still measures both on FEED-shaped requests, to say which suits translation better. | 2026-09-11 |
+| D28 | Long-running translation work gets a **translation-specific job table**, not a generic one, sharing code rather than a schema. Build it when a feature needs it — nothing does today unless the Phase 5 feature pass returns a 524. | 2026-09-11 |
+
+## Open decisions
+
+1. **Release order — agreed 2026-09-11 (D23):**
+   1. honest errors and administrator alerts (D15);
+   2. Node 24 (D10);
+   3. catalogue, SDKs, and thinking defaults, before 2026-12-11.
+
+   The local model is shelved (D16).
+
+Resolved 2026-09-11:
+- Claude Sonnet 4.5 and Opus 4.5 retire outright (D19).
+- Long-running translation work gets a translation-specific job table, built
+  when something needs it (D28).
+- Production's language row is `Persian`, so no enabled language is refused
+  today. The hand-kept provider language lists still move into the
+  catalogue.
+- The local-model questions are settled or recorded with its shelved design
+  (D16). It is offered only when a staff request fails, never for automatic
+  translations, and a local configuration is marked with
+  `AIConfiguration.role`.
+
+## Two findings, not one
+
+1. **The catalogue is out of date.** Of the 16 selectable presets, one has
+   already been shut down, five have announced shutdown dates between
+   2026-10-23 and 2026-12-11, and three more are refused to new Google
+   projects. None of the current flagship families from any provider are
+   listed.
+2. **FEED reports a model the provider refuses as a bad API key.** The routes
+   that start translation check the key first, and that check turns every
+   provider failure into `false`. So a key that works, calling a model the
+   account cannot use, is reported as an invalid key. That wrong message is
+   why this looked like a key problem rather than a model problem. The real
+   provider error is written only to the backend log.
+
+## Why the Custom model still failed
+
+The repository cannot say which of these it was — the provider's actual
+answer is only in the backend log, on the line beginning
+`Google AI API key validation failed:`. In order of likelihood:
+
+- **The key check is a real model call, and it may be rejected.**
+  `GoogleTranslationService.validateApiKey` sends `generateContent` with
+  `maxOutputTokens: 1` to the configured model. On Gemini 3.x the output limit
+  covers thinking tokens as well as text, so a one-token cap can come back
+  empty or be refused; anything but success reads as a bad key.
+- **The Google project is not yet enabled for the API, or has no prepaid
+  balance.** Both become "invalid key".
+- **Whitespace in the custom model id.** `AddAIModelDialog.tsx:90-91` saves
+  `customModel` untrimmed; `EditAIModelDialog.tsx:94-95` trims. A trailing
+  space in `gemini-3.5-flash-lite ` is a 404.
+- **An older configuration is still the one in use.** `AIServiceFactory`
+  uses the active configuration with the most recent `updatedAt`.
+
+## Catalogue status by provider (checked 2026-09-11)
+
+"FEED preset" means selectable in `model-specs.ts` today. Entries that are
+commented out in `model-specs.ts` are listed for completeness; staff cannot
+select them.
+
+### Google (Gemini API)
+
+| FEED preset | Provider status | Replace with |
+|---|---|---|
+| `gemini-2.5-flash-lite` (**FEED default**) | GA and priced, but answers **404 "no longer available to new users"** for new projects (developer-forum reports from July–August 2026, and this report). No shutdown date on the deprecations page. | `gemini-3.5-flash-lite` |
+| `gemini-2.5-flash` | Same refusal to new users reported | `gemini-3.8-flash` (D8) |
+| `gemini-2.5-pro` | Same refusal to new users reported | `gemini-3.1-pro-preview` (no GA Pro exists) |
+| `gemini-3-flash-preview` | Preview; deprecated, replacement named, no shutdown date | `gemini-3.8-flash` (Google names `3.6-flash`; FEED chose 3.8, D8) |
+| `gemini-3-pro-preview` | **Shut down 2026-03-09** — requests fail | `gemini-3.1-pro-preview` |
+
+Current text models (paid-tier list price per 1M tokens):
+
+| Model id | Stage | Input / output | Thinking levels (default) |
+|---|---|---|---|
+| `gemini-3.5-flash-lite` | Stable | $0.30 / $2.50 | minimal–high (**minimal**) |
+| `gemini-3.1-flash-lite` | Stable, **shutdown 2027-05-07** | $0.25 / $1.50 | — skip: already scheduled |
+| `gemini-3.6-flash` | Stable | $0.75 / $3.75 † | minimal–high (medium) |
+| `gemini-3.7-flash` | Stable | $0.75 / $3.75 † | low–high (medium), cannot be disabled |
+| `gemini-3.8-flash` | Stable, newest | $0.75 / $3.75 † | low–high (medium), cannot be disabled |
+| `gemini-3.5-flash` | Stable | $1.50 / $9.00 | minimal–high (medium) |
+| `gemini-3.1-pro-preview` | Preview | $2.00 / $12.00 (≤200k prompt) | low–high (high), cannot be disabled |
+
+† Google states these prices **double on 2027-01-01**. The Flash-Lite
+replacement costs 3× the input and 6.25× the output of 2.5 Flash-Lite; spend
+limits sized for 2.5 will trip sooner.
+
+Google also now says `temperature`, `topP`, and `topK` are no longer
+recommended on any Gemini 3.x model. FEED sends them.
+
+### OpenAI
+
+| FEED preset | Provider status | Replace with |
+|---|---|---|
+| `gpt-5-nano-2025-08-07` | Deprecated 2026-06-11, **shutdown 2026-12-11** | `gpt-5.6-luna` |
+| `gpt-5-mini-2025-08-07` (**production**) | Deprecated 2026-06-11, **shutdown 2026-12-11** | `gpt-5.6-terra` by tier; `gpt-5.6-luna` by price ($0.20 / $1.20 vs $0.25 / $2.00) |
+| `gpt-5-2025-08-07` | Deprecated 2026-06-11, **shutdown 2026-12-11** | `gpt-5.6-sol` |
+| `gpt-4.1-nano-2025-04-14` | Deprecated 2026-04-22, **shutdown 2026-10-23** | `gpt-5.6-luna` |
+| `gpt-4o-2024-05-13` | Deprecated 2026-04-22, **shutdown 2026-10-23** | `gpt-5.6-sol` |
+| `gpt-4.1-2025-04-14`, `gpt-4.1-mini-2025-04-14`, `gpt-4o-mini-2024-07-18` | No shutdown announced; no longer in OpenAI's current model list | Retire from presets |
+| *(commented out)* `o3-mini`, `o4-mini` | Shutdown 2026-10-23 | — |
+| *(commented out)* `o3` | Shutdown 2026-12-11 | — |
+
+Current models (per 1M tokens; 1.05M context, 128K output; Chat Completions
+and Responses both supported):
+
+| Model id | Positioning | Input / output |
+|---|---|---|
+| `gpt-5.6-luna` | Cost-sensitive | $0.20 / $1.20 |
+| `gpt-5.6-terra` | Balanced | $2.00 / $12.00 |
+| `gpt-5.6-sol` | Complex work | $4.00 / $20.00 |
+| `gpt-6-astra` | Frontier flagship (announced 2026-09-03) | $10.00 / $50.00 |
+
+GPT-5.6 reasoning effort accepts `none`, `low`, `medium` (default), `high`,
+`xhigh`, `max`. **`minimal` is not among them**, and it is FEED's default for
+`gpt-5-nano`. OpenAI's pricing page names the flagship `gpt-5.6-astra`, while
+its models page, announcement, and Bedrock card say `gpt-6-astra`. Confirm the
+id and its effort values with `models.list` and one probe before adding it.
+
+### Anthropic
+
+| FEED preset | Provider status | Replace with |
+|---|---|---|
+| `claude-haiku-4-5-20251001` | Active; retirement **not sooner than 2026-10-15** | Keep; still the only Haiku |
+| `claude-sonnet-4-5-20250929` | Active (legacy); retirement **not sooner than 2026-09-29** | `claude-sonnet-5` |
+| `claude-opus-4-5-20251101` | Active (legacy); retirement not sooner than 2026-11-24 | `claude-opus-5` |
+| *(commented out)* `claude-3-5-haiku-20241022`, `claude-3-7-sonnet-20250219` | Retired 2026-02-19 | — |
+| *(commented out)* `claude-sonnet-4-20250514`, `claude-opus-4-20250514` | Retired 2026-06-15 | — |
+
+Current models (per 1M tokens):
+
+| Model id | Input / output | Context / max output | Thinking |
+|---|---|---|---|
+| `claude-haiku-4-5-20251001` | $1 / $5 | 200K / 64K | Extended (off by default) |
+| `claude-sonnet-5` | $2 / $10 | 1M / 128K | Adaptive, **on by default** |
+| `claude-opus-5` | $5 / $25 | 1M / 128K | Adaptive, on by default |
+| `claude-fable-5-1` | $10 / $50 | 1M / 128K | Adaptive, always on |
+
+Breaking changes that apply to FEED on Claude Opus 4.7 and later (all Claude 5
+models):
+
+- `temperature`, `top_p`, `top_k` set to a non-default value return **400**.
+- Adaptive thinking is on by default. `max_tokens` covers thinking plus text,
+  and thinking tokens are billed as output. `effort` (default `high`) sets
+  the depth; `thinking: {type: "disabled"}` turns it off where the model
+  allows.
+- **Assistant-message prefill returns 400** (from Sonnet 4.6 on).
+- A new tokenizer counts roughly 30% more tokens for the same text.
+- Refusals arrive as HTTP 200 with `stop_reason: "refusal"`.
+
+## The catalogue after the refresh
+
+Twelve presets: eleven new, plus Claude Haiku 4.5 retained. Prices are per 1M
+tokens (input / output), as checked 2026-09-11. "Default thinking" is the
+lowest level each model allows, per D2; entries marked *verify* are confirmed
+in Phase 0.
+
+### Google — offered (4), retired (5)
+
+| Offered | Role | Price | Default thinking |
+|---|---|---|---|
+| `gemini-3.5-flash-lite` | **Default** | $0.30 / $2.50 | `minimal` |
+| `gemini-3.6-flash` | Mid tier, least thinking (D27) | $0.75 / $3.75, doubling 2027-01-01 | `minimal` |
+| `gemini-3.8-flash` | Mid tier, newest (D8) | $0.75 / $3.75, doubling 2027-01-01 | `low` (cannot be disabled) |
+| `gemini-3.1-pro-preview` | Top tier, **Preview badge** (D26) | $2.00 / $12.00 | `low` (cannot be disabled) |
+
+Retired: `gemini-2.5-flash-lite` (the old default), `gemini-2.5-flash`,
+`gemini-2.5-pro`, `gemini-3-flash-preview`, `gemini-3-pro-preview`.
+
+#### Google candidates considered (open decision 1)
+
+Google's stable text models on 2026-09-11. Prices are per 1M tokens; thinking
+ranges are from Google's thinking guide.
+
+| Model | Google's label | Price | Thinking | Lifecycle | Verdict |
+|---|---|---|---|---|---|
+| `gemini-3.5-flash-lite` | Fastest, most cost-effective 3.5 | $0.30 / $2.50 | minimal–high, default minimal | Named successor to 3.1 Flash-Lite | **Offer (default)** |
+| `gemini-3.8-flash` | Newest, most intelligent Flash | $0.75 / $3.75, doubling 2027-01-01 | low–high, cannot be disabled | Newest | **Offer** |
+| `gemini-3.6-flash` | Previous generation | $0.75 / $3.75, doubling 2027-01-01 | minimal–high, can be disabled | Google's named successor to 3 Flash Preview | **Offer (D27)** |
+| `gemini-3.7-flash` | Previous generation | $0.75 / $3.75, doubling 2027-01-01 | low–high, cannot be disabled | — | Skip: same price and thinking floor as 3.8, and older |
+| `gemini-3.5-flash` | "Legacy" | $1.50 / $9.00 | minimal–high | Labelled legacy | Skip: the priciest Flash, and nearest retirement |
+| `gemini-3.1-flash-lite` | "Frontier-class at a fraction of the cost" | $0.25 / $1.50 | not verified | **Shutdown 2027-05-07** | Skip: already scheduled to retire |
+| `gemini-3.1-pro-preview` (not on the stable list) | Preview | $2.00 / $12.00 | low–high, cannot be disabled | Preview | **Offer with Preview badge (D26)** |
+
+Reasoning:
+
+- **Previous-generation models are where Google withdraws access first.** This
+  sweep began because Google refused `gemini-2.5-*` to new projects while
+  still documenting them as stable, with no shutdown date. Offering 3.6 or 3.7
+  invites the same failure sooner than 3.8, and each extra preset adds seven
+  live validation requests, fixtures, and a monthly audit line.
+- **3.6 Flash is the one previous-generation model with a real advantage, and
+  it is offered (D27).** It can run at `minimal` thinking, while 3.8 cannot go
+  below `low` — and D2 wants the least thinking a model allows. At the same
+  list price, that makes 3.6 the cheaper and faster of the two for
+  high-volume translation, and 3.8 the stronger model where quality matters
+  more. Phase 0 still sends the same FEED-shaped requests to 3.8 at `low` and
+  3.6 at `minimal`, well under a cent, so the guidance in the model dialog
+  rests on measurement rather than on the labels Google gives them. Being a
+  previous-generation model, 3.6 is also the first Google preset the monthly
+  audit should expect to lose.
+- **"Most intelligent" is not "best translator."** Google pitches 3.8 at
+  software engineering and agents. The staff review of the lean prompt is also
+  where 3.8's translations get compared with 3.5 Flash-Lite's.
+- **Preview models churn in months.** Google's own record:
+  - `gemini-3-pro-preview`: launched 2025-11-18, shut down 2026-03-09.
+  - `gemini-3.1-flash-lite-preview`: 2026-03-03 to 2026-05-25.
+
+  Offering `gemini-3.1-pro-preview` is a maintenance question rather than a
+  cost question, unlike Fable 5.1 (D25). Options:
+  1. **Stable-only presets.** Drop it until a 3.x Pro reaches stable.
+     Administrators who want it can use Custom once Custom carries capability
+     profiles.
+  2. **Offer it with a Preview badge** and accept that it will need replacing
+     within months.
+
+  **Decided: option 2 (D26).** Offer it with a Preview badge, and validate it
+  like every other preset.
+
+  The churn risk is handled by the lifecycle machinery rather than by leaving
+  the model out:
+  - the badge sets expectations;
+  - the monthly audit (D21) notices when Google releases it as stable or
+    announces a shutdown;
+  - a saved configuration on it shows its shutdown date and replacement when
+    that time comes;
+  - until the catalogue adds the stable id, administrators reach it through
+    Custom with the preview entry's capability profile.
+
+### OpenAI — offered (4), retired (8)
+
+| Offered | Role | Price | Default thinking |
+|---|---|---|---|
+| `gpt-5.6-luna` | **Default** | $0.20 / $1.20 | `none` |
+| `gpt-5.6-terra` | Balanced | $2.00 / $12.00 | `none` |
+| `gpt-5.6-sol` | **Frontier warning** (D7) | $4.00 / $20.00 | `none` |
+| `gpt-6-astra` | **Frontier warning** (D7) | $10.00 / $50.00 | *verify* — and verify the id (`gpt-6-astra` vs `gpt-5.6-astra`) |
+
+Retired: `gpt-5-nano`, `gpt-5-mini` (**production's model**, shutdown
+2026-12-11), `gpt-5`, `gpt-4.1-nano`, `gpt-4.1-mini`, `gpt-4.1`,
+`gpt-4o-mini`, `gpt-4o-2024-05-13`.
+
+### Anthropic — offered (4), retired (2)
+
+| Offered | Role | Price | Default thinking |
+|---|---|---|---|
+| `claude-haiku-4-5-20251001` | **Default** (retained) | $1.00 / $5.00 | off |
+| `claude-sonnet-5` | Balanced | $2.00 / $10.00 | `disabled` |
+| `claude-opus-5` | **Frontier warning** (D7) | $5.00 / $25.00 | `disabled` — *verify* |
+| `claude-fable-5-1` | **Frontier warning** (D7) | $10.00 / $50.00 | always on; lowest effort — *verify* |
+
+Retired: `claude-sonnet-4-5-20250929`, `claude-opus-4-5-20251101` (D19).
+
+**Watch:** Haiku 4.5 is the only retained model with a retirement window
+(not sooner than 2026-10-15), and no Claude 5 Haiku exists yet. The next
+monthly audit (D21) should check whether a successor has appeared.
+
+### Deleted from the source as well
+
+Seven commented-out entries, all retired or scheduled:
+- OpenAI: `o3`, `o3-mini`, `o4-mini`
+- Anthropic: `claude-3-5-haiku`, `claude-3-7-sonnet`, `claude-sonnet-4`,
+  `claude-opus-4`
+
+## Counts
+
+**Retire: 15 of 16 selectable presets.** Only `claude-haiku-4-5-20251001`
+stays.
+
+| Why | Presets | Count |
+|---|---|---|
+| Already shut down | `gemini-3-pro-preview` | 1 |
+| Refused to new projects | `gemini-2.5-flash-lite`, `gemini-2.5-flash`, `gemini-2.5-pro` | 3 |
+| Shutdown date announced | `gpt-4.1-nano`, `gpt-4o-2024-05-13` (2026-10-23); `gpt-5-nano`, `gpt-5-mini`, `gpt-5` (2026-12-11) | 5 |
+| Deprecated, no date | `gemini-3-flash-preview` | 1 |
+| Dropped from provider's current list | `gpt-4.1`, `gpt-4.1-mini`, `gpt-4o-mini` | 3 |
+| Superseded; retirement window opens 2026-09-29 / 2026-11-24 | `claude-sonnet-4-5`, `claude-opus-4-5` (retired outright, D19) | 2 |
+
+Also delete the seven commented-out entries — every one is retired or
+scheduled.
+
+**Add: 11.** The catalogue goes from 16 presets to 12.
+
+| Provider | New presets | Count |
+|---|---|---|
+| Google | `gemini-3.5-flash-lite` (default), `gemini-3.6-flash`, `gemini-3.8-flash`, `gemini-3.1-pro-preview` (Preview) | 4 |
+| OpenAI | `gpt-5.6-luna` (default), `gpt-5.6-terra`, `gpt-5.6-sol` (frontier), `gpt-6-astra` (frontier) | 4 |
+| Anthropic | `claude-sonnet-5`, `claude-opus-5` (frontier), `claude-fable-5-1` (frontier) | 3 |
+
+The Anthropic default stays `claude-haiku-4-5-20251001`.
+
+## Defects the refresh must fix
+
+Each one blocks new models from working correctly, so they belong to this
+work, not a later cleanup.
+
+1. **Every provider failure is reported as an invalid key.** `validateApiKey`
+   returns a boolean and discards the error (`GoogleTranslationService.ts:170`,
+   `AnthropicTranslationService.ts:132`, `OpenAITranslationService.ts:204`).
+   `translations.ts:291/425/520` and `documents.ts:479/825` then say "Invalid
+   API key configuration". Google and Anthropic check the key by calling the
+   configured *model*, so a model refusal is indistinguishable from a bad key.
+   The #80 classifier (`classifyTranslationProviderError`) is not used on this
+   path.
+2. **Gemini thinking level has never reached Google.** FEED sends
+   `thinkingConfig: { thinking_level }`. The installed `@google/genai` 1.11.0
+   copies only `includeThoughts` and `thinkingBudget` out of `thinkingConfig`,
+   so the level is silently dropped. The JS field is `thinkingLevel`, added in
+   SDK 1.30.0.
+3. **Every Claude 5 translation will be refused — twice over.**
+   - Sampling: the Anthropic service always sends `temperature` (default 0.7)
+     and drops `top_p` only for ids containing `-4-5-`; dateless ids such as
+     `claude-sonnet-5` send both.
+   - Prefill: translation and batch translation send an assistant message
+     beginning `{` (`AnthropicTranslationService.ts:258`, `:460`) and prepend
+     `{` to the reply before parsing (`:285`). Prefill returns 400 on Sonnet
+     4.6 and later. Structured outputs (`output_config.format`) replace it.
+     Classification already uses tool use and is unaffected.
+4. **A Custom model gets no model-specific parameter handling.** Temperature,
+   top_p, `max_tokens` vs `max_completion_tokens`, reasoning effort, and
+   thinking level are all decided by looking up the exact model id. A Custom
+   GPT-5.6 model therefore sends `max_tokens`, `temperature: 0.7`, and `top_p`.
+5. **Temperature and top_p come from two places.** `AIConfiguration` carries
+   them, and so does every `SystemPrompt` row (the seeded "DOCX - Low Temp"
+   prompt sets 0.3), read through `PromptBuilder`. D3's enforcement must
+   therefore sit where the request is built, not in either form. The UI can
+   only hide the controls it owns.
+6. **A Custom model is unpriced unless the administrator types prices in.**
+   `applyModelSpecs` returns early for Custom, and `shared/validation.ts` does
+   not require costs. With no costs, recorded spend is zero and the daily and
+   monthly cost limits never trip.
+7. **The key check uses a one-token output limit, and on Google and Anthropic
+   it is a paid call** made before every translation job. On thinking-by-default
+   models the one-token cap is shared with reasoning. Behaviour unverified.
+8. **Parameter unions are too narrow.** `reasoningEffort` / `thinkingLevel`
+   allow `minimal | low | medium | high`; `modelFamily` allows
+   `gpt-4 | gpt-5 | o-series | legacy | gemini-3`; the backend
+   `VALID_THINKING_LEVELS` and the four-stop `ThinkingLevelStep` slider repeat
+   that set. GPT-5.6 needs `none`/`xhigh`/`max`, and Claude 5 needs `effort`
+   plus a thinking mode.
+9. **The Anthropic SDK's non-streaming guard caps `max_tokens`.** 0.57 throws
+   "Streaming is strongly recommended" once the expected duration passes ten
+   minutes. That is why FEED clamps Claude 4.5 output to 20,480 tokens, and
+   the clamp keys on `-4-5-`, so Claude 5 (128K output) is unclamped.
+10. **Saved configurations are never migrated.** `AIConfiguration.model` is a
+    free string. When a provider retires a model, the saved row fails with no
+    hint in the AI Configuration list.
+
+## Requests that can outrun Cloudflare
+
+Production sits behind Cloudflare, which answers **524** when the origin sends
+nothing for 125 seconds (current Cloudflare documentation; #67 observed
+roughly 100). Three translation paths wait for every provider call before
+responding:
+
+- **Bulk retry in Translation Management** (`routes/translations.ts`) awaits
+  `Promise.allSettled` over every selected translation.
+- **DOCX classification** (`routes/documents.ts:821`) awaits the whole
+  `classifySegmentsBatch`.
+- **Builder translate-missing-strings** awaits a language's batches.
+
+On today's models a large selection can already reach the ceiling. Slower
+reasoning models make it likelier, which D2's low-thinking defaults partly
+offset. DOCX *translation* is asynchronous, but its progress lives in an
+in-memory map (`services/docx/translation.ts`), so a container restart loses it.
+
+Not a blocker for this sweep. **Agreed (D20):** include a large bulk retry and a
+long document's classification in the Phase 5 feature pass on a frontier model. If either
+returns a 524, those routes become the first consumers of a background-job
+table (companion document).
+
+## Two sources of truth, plus stale copies
+
+The primary catalogue exists twice, identical in data today, with nothing
+enforcing it:
+
+- `packages/backend/src/services/ai/model-specs.ts` — parameter handling and
+  `buildOpenAIParameters`.
+- `packages/frontend/src/components/ai-configuration/model-specs.ts` —
+  dropdowns, prices, and the limits the dialog pre-fills.
+
+`palette-drift.test.ts` already cites this duplication as "the cautionary
+precedent". These secondary lists also name retired models:
+
+| Location | Contents |
+|---|---|
+| `frontend/src/types/multi-service-usage.ts:160-206` (`SERVICE_SPECIFICATIONS`) | `claude-3-*`, `gemini-1.5-*`, `gemini-pro`, `gpt-3.5-turbo` — used by cost forecasting |
+| `backend/src/services/ai/providers/GoogleTranslationService.ts:57-63` (`GOOGLE_MODEL_PRICING`) | `gemini-1.5`, `gemini-2.0-flash-exp` with prices that do not match the specs |
+| `backend/src/config/limits.ts`, `backend/src/config/limits/index.ts` | Token limits keyed by `gpt-4o-mini`, `gpt-4`, `gpt-3.5-turbo` |
+| `backend/src/config/translation.ts:34` | `DEFAULT_MODEL: 'gpt-4o-mini'` |
+| `backend/src/services/token/calculation.ts`, `routes/ai-config.ts:703` | Every model is tokenized as `gpt-4o-mini` |
+| `backend/scripts/fix-ai-config-token-limits.ts` | One-off script with retired ids |
+| `frontend/.../AddAIModelDialog.tsx:52` | Default model `gemini-2.5-flash-lite`; default `thinkingLevel: 'high'` |
+| `frontend/.../form/AIConfigurationForm.tsx:346` | Placeholder `gpt-4o-mini-2024-07-18` |
+
+### Consolidation options
+
+**A. Server-authoritative catalogue — approved 2026-09-11 (D22).** One backend module is the
+catalogue. `GET /api/ai-config/models` serves it, and a frontend service plus
+React Query hook replaces the frontend copy. Entries carry lifecycle metadata
+(`status`, `shutdownDate`, `replacement`, `verifiedAt`), a `costTier`, and the
+capabilities below. Secondary lists are deleted or derived from it.
+*For:* one list in one runtime, so the price the dialog shows is the price the
+limits enforce, and the UI's parameter gating (D3) reads the same capabilities
+the backend enforces. The list can badge saved models as deprecated or
+retired. Within existing patterns. LOTTO, which ports FEED's AI configuration,
+can copy one module.
+*Against:* the dialog gains a loading and error state, and frontend tests need
+a catalogue fixture.
+
+**B. Shared workspace package.** `packages/shared` is imported at build time by
+both apps.
+*For:* compile-time types, no network call.
+*Against:* no shared package exists; the established answer to duplication is
+a mirror plus a guard. It changes Vite aliases, both tsconfigs, and the Docker
+build context — a deployment change to discuss first.
+
+**C. Keep both files and add a drift-guard test** (as in
+`palette-drift.test.ts`).
+*For:* afternoon-sized and within pattern.
+*Against:* two edits per change, proves agreement not currency, and leaves the
+secondary lists alone.
+
+**D. Administrator-editable catalogue in the database.**
+*Against:* prices become data that backups carry and restores bring back
+stale; a mistyped price silently disables a spend limit. Rejected.
+
+## Catalogue entry shape (proposal)
+
+Capabilities replace the `modelFamily` string and the `-4-5-` test, so a new
+model is described rather than special-cased:
+
+- `id`, `displayName`, `provider`
+- `pricing`: input and output per 1M tokens, `verifiedAt`
+- `limits`: input tokens, output tokens, and the non-streaming output ceiling
+  FEED will use
+- `sampling`: `supported` | `temperature-or-top-p` | `unsupported`
+- `maxTokensField`: `max_tokens` | `max_completion_tokens`
+- `reasoning`: kind (`none` | `effort` | `thinking-level` | `adaptive` |
+  `extended`), allowed values, the lowest value (FEED's default per D2),
+  whether it can be turned off
+- `prefill`: `allowed` | `rejected`
+- `lifecycle`: `preview` | `active` | `legacy` | `deprecated` | `retired`,
+  `shutdownDate`, `replacement`. `preview` drives the Preview badge (D26).
+- `costTier`: `economy` | `standard` | `frontier` (drives the D1 warning;
+  `frontier` means an output price of $20 per 1M tokens or more, D7)
+- `languages`: the language names FEED may send, mapped to codes, each with a
+  coverage state (`evaluated` | `supported` | `unsupported`). This replaces
+  the hand-kept per-provider name lists that currently reject `Farsi`.
+  - **Decided (D18):** the same field lets the Languages page and AI
+    Configuration say when an enabled language is not offered by the active
+    model. Staff learn it when enabling the language or choosing the model,
+    not when a translation fails.
+  - The shelved local model's warning (D17) reads the same field.
+
+A Custom model picks a capability profile from an existing entry and must have
+prices before it can be switched on. This is also the path from a preview to
+its stable release (D26). An administrator enters the stable id with the
+preview entry's profile and the stable price, until the audit adds the stable
+model to the catalogue.
+
+## UI behaviour (D1–D3)
+
+- **Parameters step.** Temperature and Top-p render only when `sampling`
+  allows them. With `temperature-or-top-p`, choosing one clears the other.
+  Where a saved `SystemPrompt` carries a value the active model rejects, the
+  backend omits it; it never errors mid-job.
+- **Thinking step.** Lists only the model's allowed values (not a fixed
+  four-stop slider). Defaults to off, or the lowest allowed value. Selecting
+  a level above Medium shows a calm cost warning with no blocking.
+- **Model selection.** A `frontier` model shows the D1 warning when chosen,
+  and in the configuration list. A `preview` model shows a **Preview** badge
+  in both places. A `deprecated` or `retired` model shows its shutdown date and
+  replacement, in the dialog and as a list badge.
+- **Error copy.** A refused model says the model is unavailable to this
+  account and names it; a rejected key says the key was rejected. Both follow
+  ASK through the #80 classifier's codes.
+- **Language coverage (D18).** Two places warn, and neither blocks:
+  - **Languages page:** enabling a language the active model marks
+    `unsupported` shows a calm warning naming the model; `supported` without
+    evaluation shows a lighter note.
+  - **AI Configuration:** choosing a model lists any enabled language it does
+    not offer.
+
+  Server-side, a translation job skips an `unsupported` language with its own
+  message rather than a provider failure.
+
+## Testing
+
+### Why the first estimate was wrong
+
+The withdrawn ~$220 figure came from a guessed workload, never measured. It
+treated each model as if it had to run FEED's whole features (a DOCX document,
+nine-language PDF export, 40-string batches in every enabled language) at
+about 100K input and 400K output tokens per pass. It assumed reasoning output
+would dominate, then multiplied by four for three thinking levels plus a
+re-run. That tested FEED's own pipeline once per model, when the pipeline is
+the same whatever the model. Only the model contract — request shape, response
+shape, errors — varies by model, and a single sentence exercises it.
+
+Measured: FEED's default system prompts are 111–165 tokens (o200k tokenizer).
+A one-sentence translation request is about 200–250 input tokens and 15–20
+output tokens.
+
+### Coverage, by what the administrator asked for
+
+| Area | How it is proven | Cost |
+|---|---|---|
+| 1. Every AI operation works on every new model | Live smoke, per model (below) | Pennies |
+| 2. Accurate error messages | Recorded provider error bodies → classifier → exact copy; route tests with the real `errorHandler` (as in #80) | $0 |
+| 3. Pricing, names, modal content | Catalogue invariants + frontend dialog tests read from the catalogue; prices checked by hand against provider pages and stamped `verifiedAt` (no provider publishes prices through an API) | $0 |
+| 4. Parameter constraints | Request-contract tests for every catalogue entry × every operation; UI tests that the controls hide; one live probe per provider proving the provider really rejects the parameter | $0 (+ unbilled probe) |
+
+Also needed:
+
+| Area | How it is proven | Cost |
+|---|---|---|
+| 5. Usage and cost accounting | Recorded responses carry real usage fields — thinking tokens included (Gemini `thoughtsTokenCount`, OpenAI `reasoning_tokens`, Anthropic `output_tokens`); assert recorded cost = usage × catalogue price, and that a daily limit trips | $0 |
+| 6. New response shapes | Recorded fixtures: Claude thinking blocks ahead of text, `stop_reason: "refusal"`, output truncated at the token cap → a clear error rather than a JSON parse failure | $0 |
+| 7. Thinking defaults and warnings (D2) | Contract tests that the lowest level is what is sent when nothing is chosen; UI tests for the above-Medium and frontier warnings | $0 |
+| 8. Saved configurations on retired models | List badge and error copy tests; a migration note for production's `gpt-5-mini` before 2026-12-11 | $0 |
+| 9. Catalogue drift in future | Audit script comparing catalogue ids and limits with provider model-list APIs | Free calls |
+| 10. One real feature pass | DOCX translation and a Shopping List Builder PDF, rendered and inspected (required by `AGENTS.md`) — once, on the new default model only | Cents |
+| 11. Every enabled language passes every provider's gate | Contract test: production's nine language names × each provider's language check. It catches a name one list spells differently before staff do. | $0 |
+| 12. Every enabled language actually translates | One three-string batch per enabled target (eight), on each provider's default model only. Arabic and Persian also checked right-to-left in the rendered PDF. | ≈ $0.02 |
+| 13. Administrator alert (D15) | Recorded `exhausted` and `misconfigured` bodies each raise one alert through the existing alert service, alongside the staff-facing message. Other codes raise none. | $0 |
+| 14. Language coverage warnings (D18) | Catalogue invariant: every entry states coverage for every language FEED supports. UI tests: the Languages page warns on an `unsupported` language for the active model, and AI Configuration lists enabled languages a chosen model does not offer. Contract test: an `unsupported` language never reaches a provider request. | $0 |
+| 15. Lifecycle badges (D26) | UI tests: a `preview` entry shows the Preview badge in the model dialog and the configuration list; `deprecated` / `retired` show a shutdown date and replacement. Custom accepts a preview entry's capability profile for a stable id that is not yet in the catalogue. | $0 |
+| — | *Local model offer and parity tests (D12, D13) are shelved with D16; their design is kept in the companion document.* | — |
+
+### Live requests per new model: 7 (4 billable, 3 unbilled)
+
+| # | Request | Billable |
+|---|---|---|
+| 1 | `translateText` — one sentence to Spanish, default thinking | Yes |
+| 2 | `translateTextBatch` — three short strings including a duplicate, to Arabic (RTL, de-duplication, order) | Yes |
+| 3 | `classifySegmentsBatch` — three segments (the DOCX classification path; the single-segment `classifySegments` has no caller outside the legacy `services/openai.ts` wrapper, so it is covered by contract tests only) | Yes |
+| 4 | `translateText` at the highest level the UI allows — proves that value is accepted | Yes |
+| 5 | Availability check with a valid key (model lookup) | Expected unbilled |
+| 6 | Invalid key → FEED's "key rejected" message | Expected unbilled |
+| 7 | Model id the account cannot use → FEED's message names the model | Expected unbilled |
+
+Once per provider rather than per model: a raw probe sending a forbidden
+parameter (e.g. `temperature` to `claude-sonnet-5`) to confirm the 400.
+Quota-exhausted and rate-limit errors cannot be triggered cheaply and come
+from recorded fixtures. That rejected requests are unbilled is the expected
+provider behaviour; confirm it on the first run.
+
+The retained Haiku 4.5 also gets the full seven, because its request shape
+changes (prefill removal). So the total is 12 models, 48 billable requests and
+36 unbilled.
+
+### Cost
+
+Per billable request at no thinking: about 250 input and 60 output tokens.
+Request 4 allows up to 2,000 output tokens of reasoning.
+
+| Model | One full run (4 billable) |
+|---|---|
+| `gpt-6-astra`, `claude-fable-5-1` | ≈ $0.12 each |
+| `claude-opus-5` | ≈ $0.06 |
+| `gpt-5.6-sol` | ≈ $0.05 |
+| `claude-sonnet-5`, `gpt-5.6-terra`, `gemini-3.1-pro-preview` | ≈ $0.03 each |
+| `claude-haiku-4-5`, `gemini-3.6-flash`, `gemini-3.8-flash` | ≈ $0.01 each |
+| `gemini-3.5-flash-lite`, `gpt-5.6-luna` | < $0.01 each |
+| **All 12** | **≈ $0.52** |
+
+Budget **$5** for the sweep, covering a run per SDK upgrade and re-runs after
+fixes. Cap each test key at $5 with the provider (OpenAI project budget,
+Anthropic workspace spend limit; Google Cloud budgets only alert, so use a
+separate project with a small prepaid balance).
+
+### Test layers that cost nothing
+
+1. **Catalogue invariants.** Every entry has prices, `verifiedAt`, lifecycle,
+   capabilities, and `costTier`; every `replacement` resolves to an active
+   entry; each provider's default is `active` and not `frontier`.
+2. **Request contracts.** A table-driven test over every entry × operation,
+   with the SDK client mocked the way `OpenAITranslationService.thinking-level.test.ts`
+   already mocks it. It asserts the exact payload: no sampling parameters
+   where unsupported (including values arriving from a `SystemPrompt`), the
+   right max-tokens field, thinking in the right field with an allowed value,
+   no prefill where rejected, and output within the non-streaming ceiling.
+   Adding a catalogue entry adds its coverage automatically.
+3. **Response parsing from recorded fixtures.** The live smoke script's
+   `--record` mode saves one sanitised response per model and operation.
+   Replayed in CI, they cover thinking blocks, usage fields, refusals, and
+   truncation without a network call.
+4. **Error classification from recorded bodies.** Real 401 / 403 / 404 / 400 /
+   429-quota / 429-rate / 5xx payloads per provider, through the classifier
+   and the real error handler, asserting user copy and error code.
+5. **UI tests.** Parameters and Thinking steps render from the catalogue;
+   warnings appear at the right thresholds; Custom requires prices and a
+   capability profile; retired models are badged.
+6. **Live smoke script (opt-in, never CI).** Keys come from environment
+   variables. It runs the seven requests for chosen models and prints pass/fail,
+   latency, provider-reported usage, and the cost FEED would record. Frontier
+   models are skipped unless `--include-frontier` is passed, and the run aborts
+   past a spend ceiling.
+7. **Catalogue audit (free).** OpenAI `models.list` (ids), Anthropic's Models
+   API (ids, `max_input_tokens`, `max_tokens`, capabilities), and Gemini
+   `models.list` (ids, token limits, thinking support) compared with the
+   catalogue. Prices are the one field no API reports, which is why
+   `verifiedAt` exists.
+
+## SDK and runtime upgrades
+
+| SDK | Installed | Latest | What FEED needs from it | Breaking changes in between that touch FEED |
+|---|---|---|---|---|
+| `@google/genai` | 1.11.0 | 2.22.0 (1.x ends at 1.52.0) | `thinkingLevel` (from 1.30.0) — **required**; 1.11 strips it | 2.0.0 changed only the Interactions API (steps, SSE event names, `response_format`). FEED uses `models.generateContent`. Node ≥ 20 either way. |
+| `@anthropic-ai/sdk` | 0.57.0 | 0.125.0 | Typed `thinking` modes, `output_config.effort`, structured outputs to replace prefill, current model constants and non-streaming limits | Beta Files/Skills renames (0.122.0) and beta structured-output field move (0.72.0) — FEED uses neither. |
+| `openai` | 5.10.2 | 7.15.0 (6.x at 6.49.0) | Nothing strictly: Chat Completions passes unknown `reasoning_effort` values through, and FEED already casts `minimal` past the SDK's `low \| medium \| high` type | 6.0.0: Responses tool-output types only. 7.0.0: **requires Node 22.** |
+
+**Runtime:** the Docker images run `node:20-alpine`. Node 20 reached
+end-of-life on 2026-04-30, so production already runs an unsupported Node.
+Local development runs Node 24, and `AGENTS.md` records pdfmake working on 20
+and 24 (not 23).
+
+Approaches:
+
+1. **Minimum.** `@google/genai` → 1.52.0 only; cast new values past the other
+   two SDKs' types. Smallest diff, but prefill removal on Anthropic is then
+   hand-rolled against an SDK that does not know structured outputs, and the
+   stale non-streaming guard stays.
+2. **Current majors that run on Node 20.** `@google/genai` → 2.22.0,
+   `@anthropic-ai/sdk` → 0.125.0, `openai` → 6.49.0. Every feature the refresh
+   needs, no runtime change mixed in.
+3. **Everything latest.** Option 2 with `openai` → 7.15.0, which forces Node 22+
+   in the same change.
+
+**Approved 2026-09-11 (D9, D10): option 2, with the Node upgrade as its own
+release, never together.** The Node move (to 24, matching development) is an
+infrastructure change on the Pi. Verify it on its own with pdfmake, Chromium
+PDF export, Prisma, and the full suites, per the rule that one deploy should
+not carry two candidate causes. `openai` 7 follows once Node is on 22+.
+
+Order inside the sweep: one provider per commit — Anthropic, Google, then
+OpenAI. Each commit runs its contract tests and that provider's live smoke
+only (a few cents).
+
+## Implementation phases
+
+1. **Phase 0 — Reproduce (≈ $0.10).** Run the live smoke script against the
+   Custom `gemini-3.5-flash-lite` configuration and one model per provider.
+   Settles the reported failure, confirms `gpt-6-astra`'s id and effort
+   values, confirms rejected requests are unbilled, and records the first
+   fixtures.
+2. **Phase 1 — Honest errors.** Key check returns the provider's error through
+   the #80 classifier, and every translation and document route returns its
+   error code. Availability becomes a free model lookup. `exhausted` and
+   `misconfigured` raise an administrator alert (D15). Ships alone.
+3. **Phase 2 — One catalogue** (option A) with the entry shape above, request
+   building driven by capabilities, UI gating and warnings (D1–D3), and the $0
+   test layers.
+4. **Phase 3 — SDK upgrades**, one provider per commit.
+5. **Phase 4 — Catalogue contents**: retire 15, add 11, badge saved rows, delete
+   the secondary lists.
+6. **Phase 5 — Live validation** (seven requests × 12 models), one feature pass
+   on the new default, docs, release. Production moves off `gpt-5-mini` before
+   2026-12-11.
+7. **Phase 6 — Local model: shelved** (D16). What reviving it needs is listed
+   in the companion document.
+
+The Node 24 release (D10) sits outside these phases and ships on its own.
+
+## Sources
+
+- Google: [Models](https://ai.google.dev/gemini-api/docs/models),
+  [Pricing](https://ai.google.dev/gemini-api/docs/pricing),
+  [Deprecations](https://ai.google.dev/gemini-api/docs/deprecations),
+  [Thinking](https://ai.google.dev/gemini-api/docs/thinking),
+  [What's new in Gemini 3.5](https://ai.google.dev/gemini-api/docs/whats-new-gemini-3.5),
+  [Gemini 3.5 Flash-Lite](https://ai.google.dev/gemini-api/docs/models/gemini-3.5-flash-lite),
+  [Forum: 2.5 Flash-Lite unavailable to new users](https://discuss.ai.google.dev/t/gemini-2-5-flash-lite-unavailable-to-new-users-despite-being-documented-as-the-most-budget-friendly-2-5-model/177640),
+  [`js-genai` changelog](https://github.com/googleapis/js-genai/blob/main/CHANGELOG.md)
+- OpenAI: [Models](https://developers.openai.com/api/docs/models),
+  [Pricing](https://developers.openai.com/api/docs/pricing),
+  [Deprecations](https://developers.openai.com/api/docs/deprecations),
+  [GPT-5.6 Luna](https://developers.openai.com/api/docs/models/gpt-5.6-luna),
+  [GPT-6 Astra announcement](https://community.openai.com/t/introducing-gpt-6-astra-the-most-intelligent-and-aligned-model-in-the-world/1394703),
+  [`openai-node` v6.0.0](https://github.com/openai/openai-node/releases/tag/v6.0.0),
+  [v7.0.0](https://github.com/openai/openai-node/releases/tag/v7.0.0)
+- Anthropic: [Models overview](https://platform.claude.com/docs/en/about-claude/models/overview),
+  [Model deprecations](https://platform.claude.com/docs/en/about-claude/model-deprecations),
+  [Migrating to Claude Sonnet 5](https://platform.claude.com/docs/en/models/sonnet-5/migration-guide),
+  [TypeScript SDK changelog](https://github.com/anthropics/anthropic-sdk-typescript/blob/main/CHANGELOG.md)
