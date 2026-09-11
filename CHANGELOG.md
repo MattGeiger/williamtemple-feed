@@ -5,6 +5,44 @@ All notable changes to FEED are documented here. This project adheres to
 
 ## [Unreleased]
 
+### Documentation
+
+- **The AI model catalogue was audited against Google, OpenAI, and Anthropic
+  on 2026-09-11, and found out of date.** No code changed. Recorded:
+  - which presets are shut down, scheduled for shutdown, or refused to new
+    accounts, and what replaces each one;
+  - why a model the provider refuses reports to staff as "Invalid API key
+    configuration";
+  - that the Gemini thinking level has never reached Google;
+  - options for collapsing the duplicated catalogue into one source;
+  - a costed validation plan.
+
+  See `docs/ai-config/model-catalogue-refresh-2026-09.md` and ISSUES.md #84.
+  `ai-models.md`, `ai-configuration-overview.md`, `gpt5-model-support.md`,
+  `ai-thinking-parameters.md`, and roadmap v1.9.5 now carry dated notes
+  pointing there.
+
+- **Where translation requests spend tokens was measured, and a local
+  TranslateGemma option explored.**
+  `docs/ai-config/translation-efficiency-and-local-models.md` covers:
+  - reasoning tokens as the dominant avoidable cost;
+  - the paid key check before every job;
+  - prompt duplication, measured at 111–165 tokens per system prompt;
+  - why prompt caching cannot apply at FEED's prompt sizes;
+  - what running TranslateGemma through Ollama would require of FEED —
+    explored, then shelved as a project of its own, with the design kept.
+
+- **`AGENTS.md` paths now point at `/Users/russbook/Repos/`**, where the local
+  checkouts moved.
+
+- **`AGENTS.md` makes AI model catalogue maintenance a standing rule.**
+  Provider offerings shift in months: 15 of 16 presets had gone stale by
+  2026-09-11. The rule requires:
+  - an audit at every release boundary and at least monthly;
+  - prices and dates re-verified on the day of any edit;
+  - one catalogue as the only home for model ids, prices, and language support;
+  - constraints described as capabilities, not model-id string checks.
+
 ## [1.7.5-rc.1] — 2026-09-05, deployed to production 2026-09-05
 
 Release candidate. Consolidates 1.6.5 and 1.7.5-beta.1 through beta.7 into the

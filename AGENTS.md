@@ -73,6 +73,11 @@ fixtures, because real exports carry PII and are never committed. The all-time
 review's verdict — and the 3,344 clients whose ids sit below the file's floor —
 is recorded on `link2feed_clients_v1` in `source-contracts.ts`.
 
+Read these before AI provider, model catalogue, or translation-cost work:
+
+- `docs/ai-config/model-catalogue-refresh-2026-09.md`
+- `docs/ai-config/translation-efficiency-and-local-models.md`
+
 Read these before external-data import, Data Management, backup/restore, or
 administrator-authority work:
 
@@ -289,23 +294,23 @@ Use targeted validation first, then broaden based on risk.
 Common commands:
 
 ```bash
-cd /Users/russbook/williamtemple-feed/packages/frontend && npm run build
-cd /Users/russbook/williamtemple-feed/packages/frontend && npm test
-cd /Users/russbook/williamtemple-feed/packages/backend && npm run test:shopping-lists
-cd /Users/russbook/williamtemple-feed/packages/backend && npm test
+cd /Users/russbook/Repos/williamtemple-feed/packages/frontend && npm run build
+cd /Users/russbook/Repos/williamtemple-feed/packages/frontend && npm test
+cd /Users/russbook/Repos/williamtemple-feed/packages/backend && npm run test:shopping-lists
+cd /Users/russbook/Repos/williamtemple-feed/packages/backend && npm test
 ```
 
 When validating the Phase 1/reference pdfmake generator locally, use a Node runtime compatible with pdfmake/fontkit embedded TTF parsing. Node 20/24 have worked in this project; Node 23 has produced `Unknown font format` failures with embedded fonts. In the current macOS setup, this command has been used successfully:
 
 ```bash
-cd /Users/russbook/williamtemple-feed/packages/backend && PATH=/opt/homebrew/opt/node@24/bin:$PATH npm run test:shopping-lists
+cd /Users/russbook/Repos/williamtemple-feed/packages/backend && PATH=/opt/homebrew/opt/node@24/bin:$PATH npm run test:shopping-lists
 ```
 
 Development servers typically run as:
 
 ```bash
-cd /Users/russbook/williamtemple-feed/packages/backend && npm run dev
-cd /Users/russbook/williamtemple-feed/packages/frontend && npm run dev
+cd /Users/russbook/Repos/williamtemple-feed/packages/backend && npm run dev
+cd /Users/russbook/Repos/williamtemple-feed/packages/frontend && npm run dev
 ```
 
 Expected local ports in recent work:
@@ -313,7 +318,7 @@ Expected local ports in recent work:
 - Backend: `http://localhost:3001`
 - Frontend: `http://localhost:5173`
 
-**Port discipline:** The user's active dev server runs on port 5173, served from the root repo at `/Users/russbook/williamtemple-feed/packages/frontend/`. All file edits must target that path. Even when Claude Code opens a session inside a git worktree (e.g. `/Users/russbook/williamtemple-feed/.claude/worktrees/<name>/`), the user's browser still points at port 5173. Write files to the main repo path (`/Users/russbook/williamtemple-feed/packages/frontend/...`), not the worktree mirror. Never start a second Vite process on a different port — the user cannot see changes served on any port other than 5173, and the worktree's preview server (if one starts automatically) is invisible to the user's active browser session.
+**Port discipline:** The user's active dev server runs on port 5173, served from the root repo at `/Users/russbook/Repos/williamtemple-feed/packages/frontend/`. All file edits must target that path. Even when Claude Code opens a session inside a git worktree (e.g. `/Users/russbook/Repos/williamtemple-feed/.claude/worktrees/<name>/`), the user's browser still points at port 5173. Write files to the main repo path (`/Users/russbook/Repos/williamtemple-feed/packages/frontend/...`), not the worktree mirror. Never start a second Vite process on a different port — the user cannot see changes served on any port other than 5173, and the worktree's preview server (if one starts automatically) is invisible to the user's active browser session.
 
 **Authentication wall:** The application uses magic-link OTP authentication. There is no dev bypass. Frontend-only testing is never sufficient — the auth flow requires the backend to be running. When browser smoke testing reaches the login page, ask the user to complete authentication; do not attempt to bypass it or treat a login-screen screenshot as evidence that the change works. Once the user confirms they are authenticated, use the preview browser at port 5173 to observe the change in context.
 
@@ -337,8 +342,8 @@ Manual validation checklists should be short and task-specific. For shopping lis
 
 ## Local Development Environment
 
-The active working repo is `/Users/russbook/williamtemple-feed`.
-(`/Users/russbook/wth_app_clean` is a **retired** old checkout kept warm
+The active working repo is `/Users/russbook/Repos/williamtemple-feed`.
+(`/Users/russbook/Repos/wth_app_clean` is a **retired** old checkout kept warm
 for operational reference only — do not edit or run it, and never `git
 push` from it.)
 
@@ -409,6 +414,47 @@ and avoid moving secrets onto the dev box.
 Discuss new dependencies before installing them unless the user has already approved the direction. Include tradeoffs and why the dependency fits the existing stack.
 
 Known dependency note: backend installs may surface an npm peer conflict involving `zod` v4 and the OpenAI package's optional `zod` v3 peer range. `--legacy-peer-deps` has been used for `pdfmake` after this conflict was identified as pre-existing. Do not normalize broad dependency churn without explicit reason.
+
+## AI Model Catalogue Maintenance
+
+**The AI model catalogue goes stale in months, and it fails quietly.** The
+2026-09-11 audit (ISSUES.md #84) found 15 of 16 selectable presets shut down,
+scheduled for shutdown, refused to new accounts, or superseded:
+
+- **Google** began refusing `gemini-2.5-*` to new projects while its own
+  documentation still listed them as stable, with no shutdown date. FEED's
+  default model was among them.
+- **OpenAI** deprecated the `gpt-5-*-2025-08-07` snapshots about ten months
+  after release — including production's model.
+- **Anthropic's** Claude Sonnet 4.5 and Opus 4.5 were superseded within months.
+
+None of this raised an error in FEED until a request failed, and the failure
+then read as an invalid API key. Treat the catalogue as maintained data, not
+finished code:
+
+- **Audit at every release boundary, and at least monthly.**
+  - Compare model ids and token limits with each provider's model-list API.
+  - Check prices and deprecation dates against each provider's pricing and
+    deprecation pages.
+  - Record the date of the check in the catalogue.
+- **Re-verify prices and dates on the day the catalogue is edited.** A stale
+  price never errors; it silently mis-projects the spend limits it feeds.
+- **Preview models churn in months** (Google's `gemini-3-pro-preview` lasted
+  under four). Offer one only with a Preview badge. Every audit checks whether
+  each preview has reached stable or been given a shutdown date.
+- **Model ids, prices, and language support live in one catalogue.** Until the
+  planned server-authoritative catalogue lands (#84), the two `model-specs.ts`
+  copies must change together. Never add a model id, price, or language list
+  anywhere else — the stale secondary lists #84 found are what that produces.
+- **Describe model constraints as catalogue capabilities**, not string tests on
+  model ids: sampling parameters, thinking or effort values, max-token field,
+  prefill, language coverage. The `-4-5-` check broke on the first dateless id.
+- **A model the provider refuses is not a bad key.** Classify the provider's
+  answer (`classifyTranslationProviderError`) and name the model. Never
+  collapse a provider failure into a boolean.
+- **Validate a new model cheaply.** Use one-sentence requests to prove the
+  model contract, plus $0 request-contract and recorded-fixture tests. Run
+  whole-feature checks (DOCX, PDF export) once, on a single inexpensive model.
 
 ## Database and Auth Changes
 
@@ -816,7 +862,7 @@ Passdown messages should be concrete enough that a fresh agent can continue with
 - **`BridgedAnimatedIcon` only works for `animateOnTap`**: the bridge reads `active` from `AnimateIconContext` via a `useEffect`. This async chain works for pointer-down events but silently fails for `animate` (mount) and `animateOnHover` (mouse events) because of ordering races and the imperative-ref icon's extra `<div>` wrapper. If an icon needs all three triggers, convert it to a native animate-ui icon (using `useAnimateIconContext` and `motion.svg`) instead of wiring it through the bridge. The bridge is acceptable only for tap-only contexts. See `docs/motion/ICON_ANIMATIONS.md` for the full explanation.
 - **Check before installing any icon from the registry**: this project has animated icons in two locations — `src/components/animate-ui/icons/` (native, context-driven) and `src/components/ui/` (imperative-ref, self-animating). Before running any `npx shadcn@latest add` command for an icon, grep both directories first. If the icon exists in one location and you need it in the other context, create a parallel file — never overwrite the existing one. `npx shadcn@latest add … --overwrite` will silently destroy any file at the target path, including working icons used by unrelated parts of the UI (e.g., the sidebar). See `docs/motion/ICON_ANIMATIONS.md` — "Before Installing from the Registry" — for the full pre-install checklist and guidance on when each system applies.
 - **`animate={controls}` on `motion.svg` root causes silent animation failure**: if `controls.start()` is bound to the `motion.svg` element itself (rather than a child `motion.g` or `motion.path`), and any child variant objects are empty (`{}`), Framer Motion silently rejects or no-ops the animation Promise. `AnimateIcon`'s `startAnim` wraps this in `try/catch { return }`, so the error is completely swallowed — the icon looks fine at rest, hover triggers fire, but nothing moves. The fix is always to animate child elements: put `animate={controls}` on a `motion.g` wrapper inside the `motion.svg`, and remove any empty variant keys. See `docs/motion/ICON_ANIMATIONS.md` — "The `motion.svg` root animation silent failure trap" — for the corrected pattern.
-- **Port 5173 is the only valid test target**: all file edits must target the main repo at `/Users/russbook/williamtemple-feed/packages/frontend/`. Even when Claude Code opens a session in a git worktree, the user's browser points at port 5173, not the worktree's preview server. Never treat a worktree preview server screenshot as evidence of correctness. Frontend-only testing is never sufficient — the app requires the backend at port 3001 for authentication and all data. If the browser shows a login screen, ask the user to authenticate rather than attempting a bypass or concluding the change is untestable.
+- **Port 5173 is the only valid test target**: all file edits must target the main repo at `/Users/russbook/Repos/williamtemple-feed/packages/frontend/`. Even when Claude Code opens a session in a git worktree, the user's browser points at port 5173, not the worktree's preview server. Never treat a worktree preview server screenshot as evidence of correctness. Frontend-only testing is never sufficient — the app requires the backend at port 3001 for authentication and all data. If the browser shows a login screen, ask the user to authenticate rather than attempting a bypass or concluding the change is untestable.
 - **API response envelopes: unwrap consistently in the service layer.** Backend routes return *enveloped* objects — `{ foodItem }`, `{ foodItems }`, `{ template }`, `{ component }`, etc. Frontend services must unwrap to the inner value. A mismatch is a real bug source: `FoodItemService.updateFoodItem`/`createFoodItem` returned the raw `{ foodItem }` envelope (mistyped as `FoodItem`) while `getFoodItems` correctly returned `response.foodItems`; the malformed object (no `statusFlags`) was stored in state and crashed the next render with `Cannot read properties of undefined (reading 'isInStock')` — but only on *mutations* (initial load worked because GET unwrapped). When adding/editing any service method, mirror the unwrap the GET path uses, and confirm the returned object has the same shape the UI consumes.
 - **Keep the three version sources in sync on a release bump.** The in-app version tag is `APP_VERSION` = `packages/frontend/package.json` version (shown in the sidebar/login/logout); the backend `/api/health` reports `packages/backend/package.json` version; the deployed Docker image tag is the `VERSION` build arg (and the Pi's `.env`). They drift independently — bump all three together. (They were stuck at `0.99.0` in the UI while images shipped `1.0.x`.)
 - **DB migrations auto-apply on container start** via the backend Docker `CMD` (`prisma migrate deploy && node dist/index.js`). A new migration committed into the image runs automatically on the next Pi deploy — back up `production.db` first when a migration is destructive (e.g. a table rebuild), then build/push the image and `docker compose pull && up -d`.

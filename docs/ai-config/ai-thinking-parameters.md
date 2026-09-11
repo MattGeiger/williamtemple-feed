@@ -3,6 +3,17 @@
 **Status**: Phase 3 complete (backend integration)  
 **Last Updated**: December 29, 2025
 
+> **2026-09-11 — the Gemini half of Phase 3 never took effect.** FEED sends
+> `thinkingConfig: { thinking_level }`, but the installed `@google/genai`
+> 1.11.0 forwards only `includeThoughts` and `thinkingBudget` from
+> `thinkingConfig`. The level is silently dropped, and every Gemini 3 request
+> has run at Google's default. The JS SDK field is `thinkingLevel`, understood
+> by current SDK releases. The OpenAI `reasoning_effort` mapping is unaffected.
+> Supported levels also differ across Gemini 3.5–3.8, and some of those models
+> cannot disable thinking. See
+> [`model-catalogue-refresh-2026-09.md`](model-catalogue-refresh-2026-09.md)
+> and ISSUES.md #84.
+
 ## Problem Statement
 
 Currently, AI model thinking levels (used by Gemini 3 preview models and similar reasoning-capable models) are hard-coded in the model specification files. Users cannot configure thinking levels per AI configuration, limiting flexibility for different use cases.

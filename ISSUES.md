@@ -44,6 +44,110 @@ Everything else in this file. The application is shippable today.
 
 ## Open Issues
 
+### #84 — The AI model catalogue is out of date, and a refused model reports as an invalid API key
+**Priority**: High · **Status**: Open; discovery complete 2026-09-11, no code changed
+**Bucket**: AI configuration / translation providers
+
+Google no longer lets new projects call `gemini-2.5-flash-lite`, FEED's
+default Google model. An administrator configured `gemini-3.5-flash-lite`
+through **Custom** with a valid key, and translation still failed with
+*"Invalid API key configuration. Please check your AI settings."*
+
+**Two problems.** First, the catalogue is stale. Of 16 selectable presets,
+`gemini-3-pro-preview` was shut down on 2026-03-09. `gpt-4.1-nano` and
+`gpt-4o-2024-05-13` shut down on 2026-10-23, and all three
+`gpt-5-*-2025-08-07` snapshots on 2026-12-11 — production runs `gpt-5-mini`
+(#80). `claude-sonnet-4-5` may retire from 2026-09-29, and every `gemini-2.5-*`
+model is refused to new projects. No current family (Gemini 3.5–3.8,
+GPT-5.6 / GPT-6, Claude 5) is listed.
+
+Second, and the reason the report looked like a key problem:
+`validateApiKey` on all three providers returns a boolean and discards the
+error. The translation and document routes then say the key is invalid.
+Google and Anthropic check a key by calling the configured *model*, so a
+model the account cannot use reads exactly like a bad key. The #80 classifier
+already distinguishes these cases but is not used on this path. The provider's
+real answer exists only in the backend log.
+
+**Also found**, each one blocking new models from working correctly:
+
+- The Gemini thinking level has never been applied. `@google/genai` 1.11.0
+  drops `thinking_level`; the JS field is `thinkingLevel`.
+- Claude 5 rejects non-default `temperature` and `top_p` with a 400. FEED
+  always sends `temperature`, and drops `top_p` only for ids containing
+  `-4-5-`.
+- Custom models get no model-specific parameter handling. A Custom GPT-5.6
+  sends `max_tokens`, `temperature`, and `top_p`. They also have no prices
+  unless typed in, so their spend limits never trip.
+- Anthropic translation sends an assistant prefill of `{`, which Claude
+  Sonnet 4.6 and later reject with 400 — independently of the sampling
+  parameters.
+- `AddAIModelDialog` saves the custom model id untrimmed; the Edit dialog
+  trims it. It also defaults Thinking Level to `high`, which on GPT-5 models
+  becomes `reasoning_effort: high` for every new configuration. Production's
+  own `gpt-5-mini` runs at `minimal`.
+- The catalogue is duplicated between backend and frontend `model-specs.ts`,
+  and at least six secondary lists name retired models
+  (`SERVICE_SPECIFICATIONS`, `GOOGLE_MODEL_PRICING`, both `config/limits`
+  files, `config/translation.ts`, the token-limit fix-up script).
+
+**Plan**: retire 15 of 16 presets and add 11. Steps: reproduce against real
+keys, honest errors, one server-authoritative catalogue with lifecycle and
+capability metadata, SDK upgrades one provider at a time, then the new
+presets. Validation is seven small live requests per model (≈ $0.50 for all
+11) on top of $0 contract, fixture, and UI tests. Decisions and open questions:
+`docs/ai-config/model-catalogue-refresh-2026-09.md`; prompt efficiency and a
+local TranslateGemma option: `docs/ai-config/translation-efficiency-and-local-models.md`.
+
+**Decided 2026-09-11**:
+- Flagship models are offered with a cost warning on `gpt-6-astra`,
+  `claude-fable-5-1`, `claude-opus-5`, and `gpt-5.6-sol`.
+- Thinking defaults to off or the lowest level, with a warning above Medium.
+- Google's mid tier is `gemini-3.8-flash`.
+- The SDK upgrades are approved, with Node 24 as a separate release.
+- Chinese means Simplified (`zh-CN`).
+- Claude Sonnet 4.5 and Opus 4.5 retire outright.
+- Every catalogue entry records per-language coverage. The Languages page and
+  AI Configuration warn when an enabled language is not offered by the
+  active model.
+- Large bulk retries and long-document classification join the final feature
+  pass; a 524 on either moves those routes onto a background-job table.
+- Catalogue maintenance is now a standing rule in `AGENTS.md`.
+- Long-running translation work gets a translation-specific job table rather
+  than a generic one, built when a feature needs it.
+- One server-authoritative catalogue replaces the duplicated `model-specs.ts`
+  files and the stale secondary lists.
+- Release order: honest errors and administrator alerts, then Node 24, then
+  the catalogue and SDK update before 2026-12-11.
+- The OpenAI and Anthropic preset lists are confirmed, Fable 5.1 included.
+  Google offers `gemini-3.5-flash-lite` (default), `gemini-3.6-flash`,
+  `gemini-3.8-flash`, and `gemini-3.1-pro-preview` with a Preview badge.
+- An administrator alert fires whenever a cloud provider reports the account
+  out of credit or rejects the key or model.
+- **The local model is shelved.** Hosting it well needs new hardware and is a
+  project of its own. Its design is kept in the efficiency document: offered
+  only when a staff request fails, full parity with cloud models, a hybrid of
+  TranslateGemma plus a general model, `AIConfiguration.role`, and a
+  per-language warning when the local models do not offer a requested
+  language.
+
+**Checked 2026-09-11**: production's `GET /api/languages/enabled` returns
+`Persian`, so the Google and Anthropic name lists refuse none of the enabled
+languages. Nine languages are enabled; Bosnian, switched on briefly for
+testing, has been switched off. The hand-kept lists still move into the
+catalogue, with a test that every enabled language passes every provider.
+
+**Also found**: bulk retry in Translation Management and DOCX classification
+both wait for every provider call before responding. A large selection can
+therefore outlast Cloudflare's 125-second proxy timeout (a 524) on cloud models
+today. DOCX translation progress lives in an in-memory map and is lost on
+restart.
+
+**Lesson**: a check named for one thing (the key) that fails on another (the
+model) is a misleading error message waiting to happen. The #80 lesson —
+classify the provider's answer, don't guess from where you called it — was
+applied to one route and not to the check in front of every route.
+
 ### #83 — nginx rejected every production-sized backup, making recovery impossible
 **Priority**: High · **Status**: Fixed; verified in a Docker rehearsal
 **Bucket**: Deployment / disaster recovery

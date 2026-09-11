@@ -1,5 +1,13 @@
 # GPT-5 Model Support
 
+> **Historical, 2026-09-11.** OpenAI deprecated the `gpt-5-2025-08-07`,
+> `gpt-5-mini-2025-08-07`, and `gpt-5-nano-2025-08-07` snapshots on 2026-06-11
+> and shuts them down on **2026-12-11**. Replacements are `gpt-5.6-sol`,
+> `gpt-5.6-terra`, and `gpt-5.6-luna`. GPT-5.6 reasoning effort accepts `none`,
+> `low`, `medium`, `high`, `xhigh`, `max` — not `minimal`, FEED's default for
+> `gpt-5-nano`. See
+> [`model-catalogue-refresh-2026-09.md`](model-catalogue-refresh-2026-09.md).
+
 ## Overview
 Added support for OpenAI's GPT-5 reasoning models, which require different API parameters than GPT-4 models.
 
