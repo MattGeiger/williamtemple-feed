@@ -5,6 +5,12 @@ All notable changes to FEED are documented here. This project adheres to
 
 ## [Unreleased]
 
+## [1.7.5] — 2026-09-11, authored; not yet deployed
+
+Production has been serving 1.7.5-rc.1 since 2026-09-05. This is the stable
+version number for that build plus the two fixes below; the heading will say
+when it reached the Pi, as 1.6.5 and the betas before it taught us to record.
+
 ### Fixed
 
 - **A model the AI provider refuses no longer reports as an invalid API key.**
