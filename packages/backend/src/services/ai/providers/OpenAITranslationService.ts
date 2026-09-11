@@ -6,7 +6,7 @@
 // not covered by this license; see TRADEMARKS.md.
 
 import OpenAI from 'openai';
-import { AITranslationService, TranslationRequest, TranslationResult, ClassificationRequest, ClassificationResult, BatchTranslationRequest, BatchTranslationResult, ServiceCapabilities, ServiceLimits } from '../base/AITranslationService';
+import { AITranslationService, TranslationRequest, TranslationResult, ClassificationRequest, ClassificationResult, BatchTranslationRequest, BatchTranslationResult, ServiceCapabilities, ServiceLimits, ProviderAccessResult } from '../base/AITranslationService';
 import { limitEnforcement } from '../../limits';
 import { estimateInputTokensAndCost, estimateOutputTokensAndCost } from '../../token';
 import { convertToPerTokenRate } from '../../token/calculation';
@@ -201,16 +201,28 @@ export class OpenAITranslationService extends AITranslationService {
     return targetLanguage;
   }
 
-  async validateApiKey(): Promise<boolean> {
+  /**
+   * Confirm the key and the configured model, both unbilled.
+   *
+   * `models.list` only ever proved the key was accepted, so the condition
+   * production actually hit — `403 Project '…' does not have access to model
+   * 'gpt-5-mini-…'` (ISSUES.md #80) — passed this check and failed later, or
+   * was reported as a bad key (#84). `models.retrieve` asks about the model
+   * FEED is configured to use, which is the question worth asking.
+   */
+  async checkAccess(): Promise<ProviderAccessResult> {
     try {
       const openai = await this.getOpenAIClient();
-      // Test with a minimal request
-      await openai.models.list();
-      return true;
+      await openai.models.retrieve(this.getModel());
+      return { ok: true };
     } catch (error) {
-      console.error('OpenAI API key validation failed:', error);
-      return false;
+      console.error('OpenAI access check failed:', error);
+      return { ok: false, error };
     }
+  }
+
+  async validateApiKey(): Promise<boolean> {
+    return (await this.checkAccess()).ok;
   }
 
   getServiceCapabilities(): ServiceCapabilities {

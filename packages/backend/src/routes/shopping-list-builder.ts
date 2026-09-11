@@ -28,6 +28,7 @@ import {
   translateBuilderStrings,
   type TranslationProviderFailure,
 } from '../services/builder-translation';
+import { createRouteError, type AppRouteError } from '../lib/route-error';
 
 const pdfmake = require('pdfmake');
 
@@ -368,12 +369,6 @@ export interface ShoppingListBuilderTemplate {
   gridSize?: number;
 }
 
-interface AppRouteError extends Error {
-  statusCode?: number;
-  /** Machine-readable code echoed to the client as `error.code`. */
-  code?: string;
-}
-
 interface SaveBuilderComponentRequest {
   name?: unknown;
   component?: BuilderComponent;
@@ -406,17 +401,6 @@ pdfmake.setFonts({
     bolditalics: path.join(BUILDER_PDF_FONT_DIR, 'NotoSansSymbols2-Regular.ttf'),
   },
 });
-
-const createRouteError = (
-  message: string,
-  statusCode = 400,
-  code?: string,
-): AppRouteError => {
-  const error = new Error(message) as AppRouteError;
-  error.statusCode = statusCode;
-  if (code) error.code = code;
-  return error;
-};
 
 // Shopping List Builder content is part of the single org-wide shared data
 // environment (see ISSUES.md #31): templates and saved components are visible

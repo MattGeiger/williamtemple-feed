@@ -8,6 +8,7 @@
 
 import { Router } from 'express';
 import { AIServiceFactory } from '../services/ai/factory/AIServiceFactory';
+import { ensureProviderAccess } from '../services/ai/provider-access';
 import { alertService } from '../services/alerts';
 import { translationAuditor } from '../services/translation-auditor';
 
@@ -268,7 +269,7 @@ router.get('/', async (req, res) => {
  * POST /api/translations
  * Creates new translation entries
  */
-router.post('/', async (req, res) => {
+router.post('/', async (req, res, next) => {
   try {
     const { originalText, targetLanguages } = req.body;
 
@@ -280,22 +281,14 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Please select at least one language to translate your text into.' });
     }
 
-    // Early AI configuration and API key validation - prevent creating doomed translations
+    // Confirm the provider will answer before creating translations that are
+    // certain to fail. A refusal here says which of the possible failures it
+    // was, names the model, and carries a code — it is no longer reported as
+    // a bad API key whatever the provider actually said (ISSUES.md #84).
     try {
-      const service = await AIServiceFactory.createService();
-      console.log('Validating AI service API key before creating translations...');
-      const isValidApiKey = await service.validateApiKey();
-      if (!isValidApiKey) {
-        console.error('AI service API key validation failed for translations');
-        return res.status(400).json({
-          error: 'Invalid API key configuration. Please check your AI settings in Tools → AI Configuration and ensure the API key is correct.'
-        });
-      }
-      console.log('AI service API key validation successful for translations');
-    } catch (configError) {
-      return res.status(400).json({ 
-        error: configError instanceof Error ? configError.message : 'AI configuration required. Please configure AI settings in Tools → AI Configuration.' 
-      });
+      await ensureProviderAccess('these translations');
+    } catch (error) {
+      return next(error);
     }
 
     // First create all pending translations in a transaction
@@ -382,7 +375,7 @@ router.post('/', async (req, res) => {
  * POST /api/translations/:id/retry
  * Retries a failed translation
  */
-router.post('/:id/retry', async (req, res) => {
+router.post('/:id/retry', async (req, res, next) => {
   try {
     const id = parseInt(req.params.id);
     
@@ -407,27 +400,24 @@ router.post('/:id/retry', async (req, res) => {
       return res.status(404).json({ error: 'We couldn\'t find this translation. It may have been deleted or never existed.' });
     }
 
-    // Validate API key before attempting translation retry
+    // Confirm the provider will answer before retrying. When it will not, the
+    // row records why in the words staff will read, rather than asserting a
+    // bad API key for every kind of refusal (ISSUES.md #84).
     try {
-      const service = await AIServiceFactory.createService();
-      console.log('Validating AI service API key before translation retry...');
-      const isValidApiKey = await service.validateApiKey();
-      if (!isValidApiKey) {
-        console.error('AI service API key validation failed for translation retry');
-        const failedTranslation = await prisma.translation.update({
+      let service;
+      try {
+        service = await ensureProviderAccess('this translation');
+      } catch (accessError) {
+        const message = accessError instanceof Error
+          ? accessError.message
+          : 'The AI service could not be reached.';
+        await prisma.translation.update({
           where: { id },
-          data: { 
-            status: 'failed',
-            translatedText: 'Invalid API key configuration. Please check your AI settings.'
-          }
+          data: { status: 'failed', translatedText: message },
         });
-        return res.status(400).json({ 
-          error: 'Invalid API key configuration. Please check your AI settings in Tools → AI Configuration and ensure the API key is correct.',
-          translation: failedTranslation
-        });
+        return next(accessError);
       }
-      console.log('AI service API key validation successful for translation retry');
-      
+
       // Determine context based on translation type
       let context: 'food' | 'custom' | 'document' = 'custom';
       if (translation.type === 'Category' || translation.type === 'FoodItem') {
@@ -483,7 +473,7 @@ router.post('/:id/retry', async (req, res) => {
  * POST /api/translations/bulk-retry
  * Retries multiple translations
  */
-router.post('/bulk-retry', async (req, res) => {
+router.post('/bulk-retry', async (req, res, next) => {
   console.log('BULK RETRY ENDPOINT HIT - NEW LOG');
   try {
     const { ids } = req.body;
@@ -501,37 +491,19 @@ router.post('/bulk-retry', async (req, res) => {
       return res.status(404).json({ error: 'None of the selected translations could be found. They may have been deleted already.' });
     }
     
-    // Validate API key before bulk retry operations
+    // One check for the whole batch: if the provider will not answer, every
+    // row would fail the same way, and nine identical failures are one fact.
     try {
-      const service = await AIServiceFactory.createService();
-      console.log('Validating AI service API key before bulk translation retry...');
-      const isValidApiKey = await service.validateApiKey();
-      if (!isValidApiKey) {
-        console.error('AI service API key validation failed for bulk translation retry');
-        // Mark all translations as failed due to invalid API key
-        await prisma.translation.updateMany({
-          where: { id: { in: ids } },
-          data: { 
-            status: 'failed',
-            translatedText: 'Invalid API key configuration. Please check your AI settings.'
-          }
-        });
-        return res.status(400).json({
-          error: 'Invalid API key configuration. Please check your AI settings in Tools → AI Configuration and ensure the API key is correct.',
-          success: 0,
-          failed: ids.length,
-          errors: ['Invalid API key configuration']
-        });
-      }
-      console.log('AI service API key validation successful for bulk translation retry');
-    } catch (error) {
-      console.error('AI service validation error for bulk retry:', error);
-      return res.status(400).json({
-        error: error instanceof Error ? error.message : 'AI configuration required',
-        success: 0,
-        failed: ids.length,
-        errors: [error instanceof Error ? error.message : 'AI configuration required']
+      await ensureProviderAccess('these translations');
+    } catch (accessError) {
+      const message = accessError instanceof Error
+        ? accessError.message
+        : 'The AI service could not be reached.';
+      await prisma.translation.updateMany({
+        where: { id: { in: ids } },
+        data: { status: 'failed', translatedText: message },
       });
+      return next(accessError);
     }
 
     // Update all to pending status first

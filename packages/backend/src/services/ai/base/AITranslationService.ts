@@ -93,6 +93,22 @@ export interface ServiceLimits {
 }
 
 /**
+ * Whether this configuration can actually be used, and — when it cannot —
+ * the provider's own error, unflattened.
+ *
+ * `validateApiKey()` answers a boolean, which is why a model an account
+ * cannot call was indistinguishable from a rejected key and both were
+ * reported to staff as "Invalid API key configuration" (ISSUES.md #84).
+ * Keeping the error means the caller can classify it and say which of the two
+ * happened.
+ */
+export interface ProviderAccessResult {
+  ok: boolean;
+  /** The provider's raw error, for `classifyTranslationProviderError`. */
+  error?: unknown;
+}
+
+/**
  * Abstract base class for AI translation services
  * Defines the common interface that all AI service providers must implement
  */
@@ -118,6 +134,42 @@ export abstract class AITranslationService {
 
   // Service configuration and validation
   abstract validateApiKey(): Promise<boolean>;
+
+  /**
+   * The model id this configuration is set to use.
+   *
+   * Public because the message a person reads about a refused model has to
+   * name it — "the provider rejected … (gpt-5-mini-2025-08-07)" is actionable
+   * where "check your AI settings" is not.
+   */
+  getConfiguredModel(): string | null {
+    return this.config.model ?? null;
+  }
+
+  /**
+   * Check that the configured key and model can be used, keeping the
+   * provider's error when they cannot.
+   *
+   * Providers override this with a cheap, unbilled lookup of the configured
+   * model. The default below preserves old behaviour for any provider that
+   * has not been converted yet: it still answers, but with a generic error
+   * that classifies as `misconfigured`.
+   */
+  async checkAccess(): Promise<ProviderAccessResult> {
+    try {
+      const ok = await this.validateApiKey();
+      if (ok) return { ok: true };
+      return {
+        ok: false,
+        error: new Error(
+          `${this.serviceType} rejected the configured API key or model`
+            + `${this.getConfiguredModel() ? ` (${this.getConfiguredModel()})` : ''}.`,
+        ),
+      };
+    } catch (error) {
+      return { ok: false, error };
+    }
+  }
   abstract getServiceCapabilities(): ServiceCapabilities;
   abstract getServiceLimits(): ServiceLimits;
   

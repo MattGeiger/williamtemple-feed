@@ -13,6 +13,7 @@ import DocumentUploadService from '../services/document/upload';
 import { docxTranslationService } from '../services/docx';
 import { storageService } from '../services/storage';
 import { AIServiceFactory } from '../services/ai/factory/AIServiceFactory';
+import { ensureProviderAccess } from '../services/ai/provider-access';
 import FormattingChoiceService from '../services/formatting-choice';
 
 const router = express.Router();
@@ -468,23 +469,13 @@ router.post('/:id/translate', async (req, res, next) => {
       return res.status(400).json({ error: 'Document has no content' });
     }
     
-    // Early validation: Ensure AI service is configured and API key is valid before starting async translation
+    // Confirm the provider will answer before kicking off an asynchronous
+    // translation whose failure the user would otherwise discover minutes
+    // later, described as a bad API key (ISSUES.md #84).
     try {
-      const service = await AIServiceFactory.createService();
-      console.log('Validating AI service API key before starting translation...');
-      const isValidApiKey = await service.validateApiKey();
-      if (!isValidApiKey) {
-        console.error('AI service API key validation failed');
-        return res.status(400).json({
-          error: 'Invalid API key configuration. Please check your AI settings in Tools → AI Configuration and ensure the API key is correct.'
-        });
-      }
-      console.log('AI service API key validation successful');
+      await ensureProviderAccess('this document');
     } catch (error) {
-      console.error('AI service validation failed:', error);
-      return res.status(400).json({ 
-        error: error instanceof Error ? error.message : 'AI configuration required. Please configure AI settings in Tools → AI Configuration.' 
-      });
+      return next(error);
     }
     
     // Start the translation process asynchronously
@@ -817,15 +808,15 @@ router.post('/:id/classify-optimized', async (req, res, next) => {
     
     // Process AI classification for uncached segments (if any)
     if (segmentsToClassify.length > 0) {
-      // Create AI service and validate API key
-      const service = await AIServiceFactory.createService();
-      const isValidApiKey = await service.validateApiKey();
-      if (!isValidApiKey) {
-        return res.status(400).json({
-          error: 'Invalid API key configuration. Please check your AI settings in Tools → AI Configuration and ensure the API key is correct.'
-        });
+      // Create the AI service, or fail with the provider's actual reason.
+      let service;
+      try {
+        service = await ensureProviderAccess('this document');
+      } catch (accessError) {
+        return next(accessError);
       }
-      
+
+
       // Call AI classification service for uncached segments
       const result = await service.classifySegmentsBatch({ segments: segmentsToClassify });
       

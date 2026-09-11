@@ -6,7 +6,7 @@
 // not covered by this license; see TRADEMARKS.md.
 
 import Anthropic from '@anthropic-ai/sdk';
-import { AITranslationService, TranslationRequest, TranslationResult, ClassificationRequest, ClassificationResult, BatchTranslationRequest, BatchTranslationResult, ServiceCapabilities, ServiceLimits } from '../base/AITranslationService';
+import { AITranslationService, TranslationRequest, TranslationResult, ClassificationRequest, ClassificationResult, BatchTranslationRequest, BatchTranslationResult, ServiceCapabilities, ServiceLimits, ProviderAccessResult } from '../base/AITranslationService';
 import { limitEnforcement } from '../../limits';
 import { estimateInputTokensAndCost, estimateOutputTokensAndCost } from '../../token';
 import ApiUsageTracker from '../../token/usage-tracker';
@@ -129,20 +129,29 @@ export class AnthropicTranslationService extends AITranslationService {
     return targetLanguage;
   }
 
-  async validateApiKey(): Promise<boolean> {
+  /**
+   * Confirm the key and the configured model without paying for it.
+   *
+   * This used to send a real `messages.create` with `max_tokens: 1` before
+   * every translation job, and flatten any failure to `false` (ISSUES.md
+   * #84). `models.retrieve` is free and separates the two cases that matter:
+   * a rejected key fails authentication, while a retired model — Anthropic
+   * retires them on a published schedule — fails by name, which is what the
+   * message to staff needs to say.
+   */
+  async checkAccess(): Promise<ProviderAccessResult> {
     try {
       const anthropic = await this.getAnthropicClient();
-      // Test with a minimal request
-      await anthropic.messages.create({
-        model: this.getModel(),
-        max_tokens: 1,
-        messages: [{ role: "user", content: "test" }]
-      });
-      return true;
+      await anthropic.models.retrieve(this.getModel());
+      return { ok: true };
     } catch (error) {
-      console.error('Anthropic API key validation failed:', error);
-      return false;
+      console.error('Anthropic access check failed:', error);
+      return { ok: false, error };
     }
+  }
+
+  async validateApiKey(): Promise<boolean> {
+    return (await this.checkAccess()).ok;
   }
 
   getServiceCapabilities(): ServiceCapabilities {

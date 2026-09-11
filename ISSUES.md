@@ -44,8 +44,46 @@ Everything else in this file. The application is shippable today.
 
 ## Open Issues
 
+### #85 — The header banner lost its frosted glass in light mode
+**Priority**: Low · **Status**: Fixed; production acceptance pending
+**Bucket**: Layout / shell surfaces
+
+Reported against 1.7.5-rc.1 with a screenshot: the breadcrumb header read as
+flat transparency, with the card title beneath it smearing through the bar.
+The mirror image of #78, which fixed the same symptom in dark mode and
+recorded that "light mode was always right".
+
+It was right, and then it was the only surface left behind. #78 raised dark to
+0.55/0.45; light kept the original **0.40/0.32** — the thinnest surface in the
+app, sitting directly above the Analytics filter bar's single 0.80 layer. Over
+a white card the difference is invisible, which is why this survived so long.
+Over dark card titles and chart bars there is not enough body for the blur to
+register, so content reads as bleeding through rather than as frost.
+
+**Not a broken effect, and three wrong theories were discarded by measuring:**
+
+- `backdrop-filter: blur(14px) saturate(1.5)` computes on the panel, and no
+  ancestor establishes a containing block that would disable it. The only
+  opaque ancestor is `BODY`.
+- `SidebarInset`'s `bg-background dark:bg-transparent` looked like the culprit
+  — an opaque light-mode fill behind a translucent header — but `twMerge`
+  resolves it against `root-layout.tsx`'s own `bg-transparent`, so the inset is
+  transparent in both modes.
+- The runtime brand stylesheet was suspected of supplying the tokens; it is a
+  71-byte comment that declares nothing. `index.css` is authoritative.
+
+**Fixed** by raising the light tokens to 0.55/0.45 — parity with a value
+already reviewed for dark, rather than a new number invented for light.
+
+**Lesson**: an A/B screenshot with no repaint delay proves nothing. Three
+comparisons at 0.40, 0.60 and 0.72 looked identical and nearly sent this off
+after the wrong cause; setting the tokens to opaque red with a one-second wait
+turned the bar red and settled it. Choose a backdrop with contrast, too: white
+at 40% over a white card is indistinguishable from white at 72%.
+
 ### #84 — The AI model catalogue is out of date, and a refused model reports as an invalid API key
-**Priority**: High · **Status**: Open; discovery complete 2026-09-11, no code changed
+**Priority**: High · **Status**: Phase 1 (honest errors and alerts) delivered;
+catalogue contents, SDK upgrades and Node 24 still to come
 **Bucket**: AI configuration / translation providers
 
 Google no longer lets new projects call `gemini-2.5-flash-lite`, FEED's
