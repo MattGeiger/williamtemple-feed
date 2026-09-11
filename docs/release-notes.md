@@ -2,6 +2,28 @@
 
 ## Unreleased
 
+## Version 1.7.5 — 2026-09-11, not yet deployed
+
+*Everything in 1.7.5-rc.1, which has been running since September 5th, plus
+two fixes.*
+
+**When translation stops, FEED now says why.** If the AI provider refuses the
+model FEED is set to use, the message names that model and says an
+administrator needs to change it in AI Configuration. Providers do withdraw
+models, and some are no longer offered to newer accounts. Until now every kind
+of failure — including one where the API key was perfectly good — was reported
+as "Invalid API key configuration", which sent people looking for a problem
+that was not there. An account that has run out of credit, and a key or model
+the provider rejects, now also raise an alert for administrators: once, rather
+than once per language.
+
+**Checking the AI connection no longer spends your tokens.** FEED used to
+confirm the connection by asking the provider to write something before each
+translation job. It now asks about the model directly, which costs nothing.
+
+**The header bar is frosted glass again in light mode.** Page content scrolling
+underneath was showing through it rather than being softened behind it.
+
 ## Version 1.7.5-rc.1 — 2026-09-05, in production
 
 *Release candidate — everything since 1.6.0, which is what FEED has been
