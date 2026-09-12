@@ -303,8 +303,13 @@ export const CATALOGUE: readonly CatalogueEntry[] = [
     lifecycle: {
       status: 'deprecated',
       replacement: 'gemini-3.5-flash-lite',
-      // Measured on this instance's own key.
-      note: 'Google refuses this model to newer projects: 404 "no longer available to new users".',
+      // Measured with two keys from the same instance on 2026-09-11: an older
+      // project reaches this model normally, a newer one gets
+      // `404 ... no longer available to new users`. So the model is not gone;
+      // it is closed to newer projects. Whether *this* deployment can call it
+      // is a fact about its key, which is why entitlement is verified per
+      // configuration (D29) rather than declared here.
+      note: 'Closed to newer Google projects: they get 404 "no longer available to new users". Existing projects still work.',
     },
     costTier: 'economy',
     capabilities: {
