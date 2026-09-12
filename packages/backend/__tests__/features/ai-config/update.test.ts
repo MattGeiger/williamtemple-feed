@@ -2,6 +2,13 @@ import { describe, test, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
 import express from 'express';
 
+const verifyProviderEntitlement = vi.hoisted(() => vi.fn());
+
+vi.mock('../../../src/services/ai/provider-access', () => ({
+  verifyProviderEntitlement,
+  clearProviderAccessFailureCache: vi.fn(),
+}));
+
 const mockPrisma = {
   aIConfiguration: {
     findUnique: vi.fn(),
@@ -127,5 +134,6 @@ describe('AI Configuration Update', () => {
       requestsPerMinute: 0,
       requestsPerDay: 0
     });
+    expect(verifyProviderEntitlement).toHaveBeenCalledTimes(1);
   });
 });

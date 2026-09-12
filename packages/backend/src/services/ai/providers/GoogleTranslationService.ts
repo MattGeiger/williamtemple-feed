@@ -128,6 +128,33 @@ export class GoogleTranslationService extends AITranslationService {
     }
   }
 
+  async verifyEntitlement(): Promise<ProviderAccessResult> {
+    try {
+      const client = await this.getGoogleClient();
+      const model = this.getModel();
+      const parameters = this.checkAndOverrideParameters(
+        model,
+        undefined,
+        undefined,
+        this.config.thinkingLevel
+      );
+      await client.models.generateContent({
+        model,
+        contents: 'Reply with OK.',
+        config: {
+          maxOutputTokens: 64,
+          ...(parameters.thinkingLevel && {
+            thinkingConfig: { thinkingLevel: parameters.thinkingLevel },
+          }),
+        },
+      });
+      return { ok: true };
+    } catch (error) {
+      console.error('Google AI entitlement check failed:', error);
+      return { ok: false, error };
+    }
+  }
+
   async validateApiKey(): Promise<boolean> {
     return (await this.checkAccess()).ok;
   }
@@ -143,11 +170,11 @@ export class GoogleTranslationService extends AITranslationService {
 
   getServiceLimits(): ServiceLimits {
     return {
-      tokensPerMinute: this.config.tokensPerMinute || 30000,
-      requestsPerMinute: this.config.requestsPerMinute || 60,
-      requestsPerDay: this.config.requestsPerDay || 1500,
-      inputCost: this.config.inputCost || 0.000075,
-      outputCost: this.config.outputCost || 0.0003
+      tokensPerMinute: this.config.tokensPerMinute ?? 0,
+      requestsPerMinute: this.config.requestsPerMinute ?? 0,
+      requestsPerDay: this.config.requestsPerDay ?? 0,
+      inputCost: this.config.inputCost ?? 0,
+      outputCost: this.config.outputCost ?? 0
     };
   }
 

@@ -22,10 +22,20 @@
  * error carrying a machine-readable code.
  */
 
+import type { AIConfiguration } from '@prisma/client';
+
 import { AIServiceFactory } from './factory/AIServiceFactory';
 import type { AITranslationService } from './base/AITranslationService';
-import { providerFailureError } from './provider-failure';
+import { classifyTranslationProviderError, providerFailureError } from './provider-failure';
 import { raiseProviderAlert } from '../alerts/provider-alerts';
+
+export const PROVIDER_ACCESS_FAILURE_TTL_MS = 5 * 60 * 1000;
+
+const failureCache = new Map<string, { error: unknown; expiresAt: number }>();
+
+export const clearProviderAccessFailureCache = (): void => {
+  failureCache.clear();
+};
 
 /**
  * Resolve the active AI service and confirm its key and model can be used.
@@ -47,12 +57,46 @@ export const ensureProviderAccess = async (
     throw await reportFailure(error, subject, null);
   }
 
+  const cacheKey = service.getAccessCacheKey();
+  const cached = failureCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) {
+    throw await reportFailure(cached.error, subject, service.getConfiguredModel());
+  }
+  if (cached) failureCache.delete(cacheKey);
+
   const access = await service.checkAccess();
   if (!access.ok) {
+    const failure = classifyTranslationProviderError(access.error);
+    if (failure === 'misconfigured' || failure === 'exhausted') {
+      failureCache.set(cacheKey, {
+        error: access.error,
+        expiresAt: Date.now() + PROVIDER_ACCESS_FAILURE_TTL_MS,
+      });
+    }
     throw await reportFailure(access.error, subject, service.getConfiguredModel());
   }
 
+  failureCache.delete(cacheKey);
+
   return service;
+};
+
+/**
+ * A billed, minimal generation used only at save/activation time. Free model
+ * lookups cannot prove that an account is entitled to generate with a model
+ * (Google in particular may list a model and still refuse generation).
+ */
+export const verifyProviderEntitlement = async (
+  config: AIConfiguration,
+): Promise<void> => {
+  const service = AIServiceFactory.createServiceFromConfiguration(config);
+  const result = await service.verifyEntitlement();
+  if (!result.ok) {
+    throw providerFailureError(result.error, {
+      subject: 'this configuration',
+      model: service.getConfiguredModel(),
+    });
+  }
 };
 
 /**

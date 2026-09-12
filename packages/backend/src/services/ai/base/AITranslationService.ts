@@ -146,6 +146,14 @@ export abstract class AITranslationService {
     return this.config.model ?? null;
   }
 
+  /** Stable until this saved configuration changes. */
+  getAccessCacheKey(): string {
+    const updatedAt = this.config.updatedAt instanceof Date
+      ? this.config.updatedAt.getTime()
+      : new Date(this.config.updatedAt).getTime();
+    return `${this.serviceType}:${this.config.id}:${this.config.model ?? 'unknown'}:${updatedAt}`;
+  }
+
   /**
    * Check that the configured key and model can be used, keeping the
    * provider's error when they cannot.
@@ -169,6 +177,15 @@ export abstract class AITranslationService {
     } catch (error) {
       return { ok: false, error };
     }
+  }
+
+  /**
+   * Make one real, minimal generation to prove the configured account is
+   * entitled to use the model. Called only when a configuration is saved or
+   * activated; runtime checks use the unbilled `checkAccess` lookup.
+   */
+  async verifyEntitlement(): Promise<ProviderAccessResult> {
+    return this.checkAccess();
   }
   abstract getServiceCapabilities(): ServiceCapabilities;
   abstract getServiceLimits(): ServiceLimits;

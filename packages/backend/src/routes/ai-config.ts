@@ -7,7 +7,7 @@
 
 import { Router } from 'express';
 import { NextFunction, Request, Response } from 'express';
-import { Prisma } from '@prisma/client';
+import { Prisma, type AIConfiguration } from '@prisma/client';
 import prisma from '../db';
 import { encryptApiKey } from '../services/encryption';
 import { encoding_for_model } from 'tiktoken';
@@ -26,6 +26,11 @@ import {
   selectableEntries,
   type ReasoningValue,
 } from '../services/ai/catalogue';
+import { AIServiceFactory } from '../services/ai/factory/AIServiceFactory';
+import {
+  clearProviderAccessFailureCache,
+  verifyProviderEntitlement,
+} from '../services/ai/provider-access';
 
 const router = Router();
 
@@ -427,55 +432,63 @@ router.post('/', requireAdmin, async (req: Request, res: Response, next: NextFun
       validateServiceType(serviceType);
     }
 
+    const createData: any = {
+      name: normalizedName,
+      type,
+      value: value || '',
+      description: description || undefined,
+      isActive: true
+    };
+
+    if (type === 'apikey') {
+      createData.serviceType = serviceType;
+      createData.model = model || undefined;
+      createData.modelName = modelName || undefined;
+      createData.endpointUrl = endpointUrl || undefined;
+
+      const { encrypted, salt } = await encryptApiKey(apiKey);
+      createData.encryptedApiKey = encrypted;
+      createData.salt = salt;
+
+      createData.inputCost = inputCost;
+      createData.outputCost = outputCost;
+      createData.unitPrice = unitPrice;
+      createData.temperature = temperature ?? 0.7;
+      createData.topP = topP ?? 1.0;
+      if (thinkingLevel !== undefined) {
+        createData.thinkingLevel = validateThinkingLevel(thinkingLevel, serviceType, model);
+      }
+      createData.inputTokenLimit = inputTokenLimit;
+      createData.outputTokenLimit = outputTokenLimit;
+      createData.maxTokens = outputTokenLimit ?? maxTokens;
+      validateCostLimitCoherence(dailyCostLimit, monthlyCostLimit, inputCost, outputCost);
+      if (dailyCostLimit !== undefined) {
+        createData.dailyCostLimit = dailyCostLimit > 0 ? dailyCostLimit : null;
+      }
+      if (monthlyCostLimit !== undefined) {
+        createData.monthlyCostLimit = monthlyCostLimit > 0 ? monthlyCostLimit : null;
+      }
+      createData.tokensPerMinute = tokensPerMinute;
+      createData.requestsPerMinute = requestsPerMinute;
+      createData.requestsPerDay = requestsPerDay;
+
+      const now = new Date();
+      await verifyProviderEntitlement({
+        id: 0,
+        createdAt: now,
+        updatedAt: now,
+        deletedAt: null,
+        ...createData,
+      } as AIConfiguration);
+    }
+
     try {
-      const configuration = await prisma.$transaction(async (tx) => {
-        const createData: any = {
-          name: normalizedName,
-          type,
-          value: value || '',
-          description: description || undefined,
-          isActive: true
-        };
+      const configuration = await prisma.$transaction(async (tx) =>
+        tx.aIConfiguration.create({ data: createData })
+      );
 
-        // Add apikey-specific fields
-        if (type === 'apikey') {
-          createData.serviceType = serviceType;
-          createData.model = model || undefined;
-          createData.modelName = modelName || undefined;
-          createData.endpointUrl = endpointUrl || undefined;
-          
-          // Encrypt API key with salt
-          const { encrypted, salt } = await encryptApiKey(apiKey);
-          createData.encryptedApiKey = encrypted;
-          createData.salt = salt;
-          
-          createData.inputCost = inputCost;
-          createData.outputCost = outputCost;
-          createData.unitPrice = unitPrice;
-          createData.temperature = temperature || 0.7;
-          createData.topP = topP || 1.0;
-          if (thinkingLevel !== undefined) {
-            createData.thinkingLevel = validateThinkingLevel(thinkingLevel, serviceType, model);
-          }
-          createData.inputTokenLimit = inputTokenLimit;
-          createData.outputTokenLimit = outputTokenLimit;
-          createData.maxTokens = outputTokenLimit ?? maxTokens;
-          validateCostLimitCoherence(dailyCostLimit, monthlyCostLimit, inputCost, outputCost);
-          if (dailyCostLimit !== undefined) {
-            createData.dailyCostLimit = dailyCostLimit > 0 ? dailyCostLimit : null;
-          }
-          if (monthlyCostLimit !== undefined) {
-            createData.monthlyCostLimit = monthlyCostLimit > 0 ? monthlyCostLimit : null;
-          }
-          createData.tokensPerMinute = tokensPerMinute;
-          createData.requestsPerMinute = requestsPerMinute;
-          createData.requestsPerDay = requestsPerDay;
-        }
-
-        return await tx.aIConfiguration.create({
-          data: createData
-        });
-      });
+      AIServiceFactory.clearCache();
+      clearProviderAccessFailureCache();
 
       res.status(201).json({ configuration });
     } catch (error) {
@@ -497,6 +510,8 @@ router.post('/', requireAdmin, async (req: Request, res: Response, next: NextFun
 router.put('/:id', requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
+    // Express reaches this parameter route before the bulk route below.
+    if (id === 'bulk') return next();
     const updateFields = req.body;
 
     const configId = Number(id);
@@ -650,6 +665,17 @@ router.put('/:id', requireAdmin, async (req: Request, res: Response, next: NextF
       }
     }
 
+    const updateKeys = Object.keys(updateFields).filter((key) => key !== 'id');
+    const isDeactivationOnly = updateFields.isActive === false
+      && updateKeys.every((key) => key === 'isActive');
+    if (existing.type === 'apikey' && !isDeactivationOnly) {
+      await verifyProviderEntitlement({
+        ...existing,
+        ...updateData,
+        updatedAt: new Date(),
+      } as AIConfiguration);
+    }
+
     try {
       const configuration = await prisma.$transaction(async (tx) => {
         return await tx.aIConfiguration.update({
@@ -657,6 +683,9 @@ router.put('/:id', requireAdmin, async (req: Request, res: Response, next: NextF
           data: updateData
         });
       });
+
+      AIServiceFactory.clearCache();
+      clearProviderAccessFailureCache();
 
       res.json({ configuration: withKeyPresence(configuration) });
     } catch (error) {
@@ -686,6 +715,23 @@ router.put('/bulk', requireAdmin, async (req: Request, res: Response, next: Next
       const error = new Error('Invalid updates') as Error & { statusCode?: number };
       error.statusCode = 400;
       throw error;
+    }
+
+    if (Boolean(updates.isActive)) {
+      const configurationsToActivate = await prisma.aIConfiguration.findMany({
+        where: { id: { in: validIds }, deletedAt: null },
+      });
+      if (configurationsToActivate.length !== validIds.length) {
+        const error = new Error('One or more configurations not found') as Error & { statusCode?: number };
+        error.statusCode = 404;
+        throw error;
+      }
+      for (const configuration of configurationsToActivate) {
+        assertActivatable(configuration);
+        if (configuration.type === 'apikey') {
+          await verifyProviderEntitlement(configuration);
+        }
+      }
     }
 
     try {
@@ -733,6 +779,9 @@ router.put('/bulk', requireAdmin, async (req: Request, res: Response, next: Next
 
         return await Promise.all(updatePromises);
       });
+
+      AIServiceFactory.clearCache();
+      clearProviderAccessFailureCache();
 
       res.json({ configurations: updatedConfigurations.map(withKeyPresence) });
     } catch (error) {

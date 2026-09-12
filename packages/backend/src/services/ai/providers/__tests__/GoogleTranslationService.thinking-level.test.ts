@@ -133,6 +133,23 @@ describe('GoogleTranslationService thinking level', () => {
     GoogleTranslationService = (await import('../GoogleTranslationService')).GoogleTranslationService;
   });
 
+  test('save-time verification makes one minimal generation request', async () => {
+    const generateContent = vi.fn().mockResolvedValue({ text: 'OK' });
+    const service = new GoogleTranslationService(buildConfig()) as any;
+    vi.spyOn(service, 'getGoogleClient').mockResolvedValue({ models: { generateContent } });
+
+    await expect(service.verifyEntitlement()).resolves.toEqual({ ok: true });
+    expect(generateContent).toHaveBeenCalledTimes(1);
+    expect(generateContent.mock.calls[0][0]).toMatchObject({
+      model: 'gemini-3-flash-preview',
+      contents: 'Reply with OK.',
+      config: {
+        maxOutputTokens: 64,
+        thinkingConfig: { thinkingLevel: 'minimal' }
+      }
+    });
+  });
+
   test('uses config thinking level when provided', () => {
     const service = new GoogleTranslationService(buildConfig()) as any;
     const result = service.checkAndOverrideParameters('gemini-3-flash-preview', 1, 1, 'low');

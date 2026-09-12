@@ -19,7 +19,7 @@
  * production.
  */
 
-import { beforeEach, describe, expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import request from 'supertest';
 import express from 'express';
 
@@ -45,12 +45,19 @@ vi.mock('../../../src/services/alerts', () => ({ alertService: mockAlertService 
 
 const checkAccess = vi.hoisted(() => vi.fn());
 const getConfiguredModel = vi.hoisted(() => vi.fn(() => 'gemini-2.5-flash-lite'));
+const getAccessCacheKey = vi.hoisted(() => vi.fn(() => 'Google:1:gemini-2.5-flash-lite:1'));
 const createService = vi.hoisted(() => vi.fn());
+const createServiceFromConfiguration = vi.hoisted(() => vi.fn());
 vi.mock('../../../src/services/ai/factory/AIServiceFactory', () => ({
-  AIServiceFactory: { createService },
+  AIServiceFactory: { createService, createServiceFromConfiguration },
 }));
 
 import { resetProviderAlertThrottle } from '../../../src/services/alerts/provider-alerts';
+import {
+  clearProviderAccessFailureCache,
+  PROVIDER_ACCESS_FAILURE_TTL_MS,
+  verifyProviderEntitlement,
+} from '../../../src/services/ai/provider-access';
 
 /** A provider that answers, but refuses the configured model. */
 const refusedModel = Object.assign(
@@ -81,8 +88,13 @@ const buildApp = async () => {
 beforeEach(() => {
   vi.clearAllMocks();
   resetProviderAlertThrottle();
+  clearProviderAccessFailureCache();
   getConfiguredModel.mockReturnValue('gemini-2.5-flash-lite');
-  createService.mockResolvedValue({ checkAccess, getConfiguredModel });
+  createService.mockResolvedValue({ checkAccess, getConfiguredModel, getAccessCacheKey });
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
 });
 
 describe('POST /api/translations when the provider refuses the model', () => {
@@ -115,6 +127,37 @@ describe('POST /api/translations when the provider refuses the model', () => {
     expect(mockAlertService.createAlert).toHaveBeenCalledTimes(1);
     expect(mockAlertService.createAlert.mock.calls[0][1]).toContain('gemini-2.5-flash-lite');
   });
+
+  test('remembers a non-transient refusal instead of repeating the provider lookup', async () => {
+    checkAccess.mockResolvedValue({ ok: false, error: refusedModel });
+    const app = await buildApp();
+
+    await request(app)
+      .post('/api/translations')
+      .send({ originalText: 'Rice', targetLanguages: ['Spanish'] });
+    await request(app)
+      .post('/api/translations')
+      .send({ originalText: 'Beans', targetLanguages: ['Spanish'] });
+
+    expect(checkAccess).toHaveBeenCalledTimes(1);
+  });
+
+  test('checks again after the remembered refusal expires', async () => {
+    const now = vi.spyOn(Date, 'now').mockReturnValue(1_000);
+    checkAccess.mockResolvedValue({ ok: false, error: refusedModel });
+    const app = await buildApp();
+
+    await request(app)
+      .post('/api/translations')
+      .send({ originalText: 'Rice', targetLanguages: ['Spanish'] });
+    now.mockReturnValue(1_000 + PROVIDER_ACCESS_FAILURE_TTL_MS + 1);
+    await request(app)
+      .post('/api/translations')
+      .send({ originalText: 'Beans', targetLanguages: ['Spanish'] });
+
+    expect(checkAccess).toHaveBeenCalledTimes(2);
+    now.mockRestore();
+  });
 });
 
 describe('POST /api/translations when the account is out of credit', () => {
@@ -129,6 +172,39 @@ describe('POST /api/translations when the account is out of credit', () => {
     expect(response.status).toBe(503);
     expect(response.body.error.code).toBe('AI_TRANSLATION_QUOTA_EXHAUSTED');
     expect(response.body.error.message).toMatch(/will not clear/);
+  });
+});
+
+describe('transient runtime failures', () => {
+  test('checks the provider again because a busy response may clear', async () => {
+    checkAccess.mockResolvedValue({
+      ok: false,
+      error: Object.assign(new Error('Service temporarily unavailable'), { status: 503 }),
+    });
+    const app = await buildApp();
+
+    await request(app)
+      .post('/api/translations')
+      .send({ originalText: 'Rice', targetLanguages: ['Spanish'] });
+    await request(app)
+      .post('/api/translations')
+      .send({ originalText: 'Beans', targetLanguages: ['Spanish'] });
+
+    expect(checkAccess).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('save-time entitlement verification', () => {
+  test('uses a real-generation check and preserves the provider refusal', async () => {
+    const verifyEntitlement = vi.fn().mockResolvedValue({ ok: false, error: refusedModel });
+    createServiceFromConfiguration.mockReturnValue({ verifyEntitlement, getConfiguredModel });
+
+    await expect(verifyProviderEntitlement({ model: 'gemini-2.5-flash-lite' } as any))
+      .rejects.toMatchObject({
+        failure: 'misconfigured',
+        code: 'AI_TRANSLATION_MISCONFIGURED',
+      });
+    expect(verifyEntitlement).toHaveBeenCalledTimes(1);
   });
 });
 
