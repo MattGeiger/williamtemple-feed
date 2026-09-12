@@ -345,9 +345,41 @@ Retired: `gpt-5-nano`, `gpt-5-mini` (**production's model**, shutdown
 | Offered | Role | Price | Default thinking |
 |---|---|---|---|
 | `claude-haiku-4-5-20251001` | **Default** (retained) | $1.00 / $5.00 | off |
-| `claude-sonnet-5` | Balanced | $2.00 / $10.00 | `disabled` |
-| `claude-opus-5` | **Frontier warning** (D7) | $5.00 / $25.00 | `disabled` — *verify* |
-| `claude-fable-5-1` | **Frontier warning** (D7) | $10.00 / $50.00 | always on; lowest effort — *verify* |
+| `claude-sonnet-5` | Balanced | $2.00 / $10.00 | effort `low` (measured) |
+| `claude-opus-5` | **Frontier warning** (D7) | $5.00 / $25.00 | effort `low` — *not probed* |
+| `claude-fable-5-1` | **Frontier warning** (D7) | $10.00 / $50.00 | always on; effort `low` (measured) |
+
+**Measured against the API, 2026-09-11.** Anthropic's lifecycle, limits and
+effort come from its own pages plus three live probes:
+
+- `claude-sonnet-5` with `output_config: { effort: 'max' }` answered normally,
+  and so did `effort: 'low'`. So Claude 5 effort really is `low … max`, and
+  D2's cheapest setting is reachable — `leastCost: 'low'`.
+- `claude-fable-5-1` with `thinking: { type: 'disabled' }` returned **400**:
+  *"thinking.type.disabled is not supported for this model. Use
+  thinking.type.adaptive and output_config.effort."* That settles its
+  *verify* marker: it is always-on, `canDisable: false`, and the error names
+  the exact parameter pair FEED must send.
+- **`claude-opus-5` was not probed.** The effort page implies thinking can be
+  disabled below `xhigh`, but that is an implication, not a measurement, so
+  its marker stands.
+
+Context and output are 1M / 128K for all three, default effort `high`, from
+Anthropic's models overview.
+
+> **Prerequisite for the Anthropic third of Phase 4.**
+> `AnthropicTranslationService` sends **no** thinking or effort parameter at
+> all — its four `messages.create` calls carry only `model`, `max_tokens`,
+> optional `temperature`/`top_p`, `system` and `messages`. That is correct
+> today, because every catalogued Anthropic model is `kind: 'extended'` and
+> FEED keeps extended thinking off by sending nothing. Claude 5 is **adaptive,
+> on by default at effort `high`** — so cataloguing these three without
+> teaching the provider to send `output_config: { effort }` would have
+> `resolveReasoning` resolve `low` and the provider drop it, running every
+> request at `high` and billing the thinking as output on models at $10–$50
+> per million. D2 inverted, silently, on the most expensive presets. The SDK
+> is ready (`@anthropic-ai/sdk` 0.125 exposes `output_config` and
+> `ThinkingConfigAdaptive`); the work is FEED's.
 
 Retired: `claude-sonnet-4-5-20250929`, `claude-opus-4-5-20251101` (D19).
 
