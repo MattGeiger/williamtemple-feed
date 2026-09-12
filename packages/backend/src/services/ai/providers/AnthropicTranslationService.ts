@@ -84,17 +84,42 @@ export class AnthropicTranslationService extends AITranslationService {
     return this.anthropicClient;
   }
 
+  /**
+   * Does this model still accept sampling parameters at all?
+   *
+   * Measured against the API on 2026-09-11, not inferred: `claude-sonnet-5`
+   * answers `400 \`temperature\` is deprecated for this model.` It is the
+   * parameter's *presence* that is refused, so sending the default value
+   * instead of 0.7 does not help — it has to be omitted.
+   *
+   * Recognised by what the id is NOT: every Claude model from the 4.6
+   * generation on uses a dateless id (`claude-sonnet-5`, `claude-opus-4-8`),
+   * while everything that still takes sampling parameters carries a date
+   * (`claude-haiku-4-5-20251001`). Keying on the absence of a date suffix is
+   * narrow and testable; the general answer is a per-model capability in the
+   * catalogue (ISSUES.md #84, Phase 2), and this is deliberately not it.
+   */
+  private acceptsSamplingParameters(model: string): boolean {
+    return /-\d{8}$/.test(model);
+  }
+
   private checkAndOverrideParameters(
     model: string,
     requestedTemperature?: number,
     requestedTopP?: number
   ): {
-    temperature: number;
+    temperature?: number;
     topP?: number;
     warnings: string[];
   } {
     const warnings: string[] = [];
-    let temperature = requestedTemperature ?? 0.7;
+
+    if (!this.acceptsSamplingParameters(model)) {
+      // Claude 4.6 and later reject temperature/top_p/top_k outright.
+      return { temperature: undefined, topP: undefined, warnings };
+    }
+
+    let temperature: number | undefined = requestedTemperature ?? 0.7;
     let topP: number | undefined = requestedTopP ?? 1.0;
 
     // Claude 4.5 models reject requests that include both temperature and top_p.
@@ -112,6 +137,44 @@ export class AnthropicTranslationService extends AITranslationService {
     }
 
     return { temperature, topP, warnings };
+  }
+
+  /**
+   * Claude 4.6 and later reject an assistant message used to force a JSON
+   * opening brace: `400 This model does not support assistant message
+   * prefill. The conversation must end with a user message.` Measured
+   * 2026-09-11 against `claude-sonnet-5`.
+   *
+   * Structured outputs (`output_config.format`) are the documented
+   * replacement and were measured too: they work, but the schema is charged
+   * as input — 220 prompt tokens against 49 for the same translation asked
+   * for in the system prompt. The prompts here already ask for JSON, so the
+   * cheaper path is to stop prefilling and parse what comes back.
+   */
+  private acceptsAssistantPrefill(model: string): boolean {
+    return this.acceptsSamplingParameters(model);
+  }
+
+  /**
+   * Parse a JSON reply whether or not the opening brace was prefilled.
+   *
+   * With prefill, the model's text begins after the `{` FEED supplied. With
+   * no prefill it returns the whole object, sometimes wrapped in a fenced
+   * code block. Both shapes land here.
+   */
+  private parseJsonReply(text: string, prefilled: boolean): any {
+    const candidate = prefilled ? `{${text}` : text.trim();
+    try {
+      return JSON.parse(candidate);
+    } catch {
+      const fenced = candidate.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+      const firstBrace = fenced.indexOf('{');
+      const lastBrace = fenced.lastIndexOf('}');
+      if (firstBrace !== -1 && lastBrace > firstBrace) {
+        return JSON.parse(fenced.slice(firstBrace, lastBrace + 1));
+      }
+      return JSON.parse(fenced);
+    }
   }
 
   protected normalizeLanguage(language: string): string {
@@ -252,10 +315,11 @@ export class AnthropicTranslationService extends AITranslationService {
             promptConfig.topP
           );
           const maxTokens = this.resolveMaxTokens(model, promptConfig.maxTokens, 2048, 'translation');
+          const prefill = this.acceptsAssistantPrefill(model);
           const response = await anthropic.messages.create({
             model,
             max_tokens: maxTokens,
-            temperature: paramCheck.temperature,
+            ...(paramCheck.temperature !== undefined && { temperature: paramCheck.temperature }),
             ...(paramCheck.topP !== undefined && { top_p: paramCheck.topP }),
             system: systemPrompt,
             messages: [
@@ -263,10 +327,9 @@ export class AnthropicTranslationService extends AITranslationService {
                 role: "user",
                 content: request.text
               },
-              {
-                role: "assistant",
-                content: "{"
-              }
+              ...(prefill
+                ? [{ role: "assistant" as const, content: "{" }]
+                : [])
             ]
           });
 
@@ -286,13 +349,13 @@ export class AnthropicTranslationService extends AITranslationService {
           }
 
           const duration = Date.now() - startTime;
-          const outputText = "{" + textContent.text;
+          const outputText = prefill ? "{" + textContent.text : textContent.text;
 
           console.log('Attempting to parse:', outputText);
-          
+
           let responseJson: any;
           try {
-            responseJson = JSON.parse(outputText);
+            responseJson = this.parseJsonReply(textContent.text, prefill);
           } catch (parseError) {
             console.error('=== ANTHROPIC PARSE FAILURE ===');
             console.error('Model:', model);
@@ -454,10 +517,11 @@ export class AnthropicTranslationService extends AITranslationService {
         promptConfig.topP
       );
       const maxTokens = this.resolveMaxTokens(model, promptConfig.maxTokens, 1024, 'batch_translation');
+      const prefill = this.acceptsAssistantPrefill(model);
       const response = await anthropic.messages.create({
         model,
         max_tokens: maxTokens,
-        temperature: paramCheck.temperature,
+        ...(paramCheck.temperature !== undefined && { temperature: paramCheck.temperature }),
         ...(paramCheck.topP !== undefined && { top_p: paramCheck.topP }),
         system: systemPrompt,
         messages: [
@@ -465,10 +529,9 @@ export class AnthropicTranslationService extends AITranslationService {
             role: "user",
             content: `Translate these texts to ${targetLanguage}:\n${textsForTranslation}`
           },
-          {
-            role: "assistant",
-            content: "{"
-          }
+          ...(prefill
+            ? [{ role: "assistant" as const, content: "{" }]
+            : [])
         ]
       });
       
@@ -485,9 +548,8 @@ export class AnthropicTranslationService extends AITranslationService {
         throw new Error('No text content in translation response');
       }
 
-      const outputText = "{" + textContent.text;
-      const responseJson = JSON.parse(outputText);
-      
+      const responseJson = this.parseJsonReply(textContent.text, prefill);
+
       if (!responseJson.translations || !Array.isArray(responseJson.translations)) {
         throw new Error('Response missing translations array');
       }
@@ -616,7 +678,7 @@ export class AnthropicTranslationService extends AITranslationService {
       const response = await anthropic.messages.create({
         model,
         max_tokens: maxTokens,
-        temperature: paramCheck.temperature,
+        ...(paramCheck.temperature !== undefined && { temperature: paramCheck.temperature }),
         ...(paramCheck.topP !== undefined && { top_p: paramCheck.topP }),
         system: systemPrompt,
         tools: [classificationTool],
@@ -871,7 +933,7 @@ export class AnthropicTranslationService extends AITranslationService {
       const response = await anthropic.messages.create({
         model,
         max_tokens: this.resolveMaxTokens(model, promptConfig.maxTokens, 2048, 'batch_classification'),
-        temperature: paramCheck.temperature,
+        ...(paramCheck.temperature !== undefined && { temperature: paramCheck.temperature }),
         ...(paramCheck.topP !== undefined && { top_p: paramCheck.topP }),
         system: systemPrompt,
         tools: [classificationTool],
@@ -921,7 +983,12 @@ export class AnthropicTranslationService extends AITranslationService {
     operationType?: 'classification' | 'batch_classification' | 'translation' | 'batch_translation'
   ): number {
     const modelSpec = getModelSpecByModel(model);
-    const isClaude45Model = model.includes('-4-5-');
+    // The operation ceilings exist to keep a non-streaming request under the
+    // SDK's ten-minute guard. They applied only to ids containing `-4-5-`,
+    // which silently excluded every Claude 4.6+ model — precisely the ones
+    // with 128K output limits, where an unclamped `max_tokens` is most
+    // dangerous. Any dated-or-later Claude gets the ceiling now.
+    const isClaude45Model = model.includes('-4-5-') || !this.acceptsSamplingParameters(model);
     // Operation-specific ceilings to prevent SDK timeouts and right-size outputs.
     const OPERATION_CEILINGS: Record<string, number | undefined> = {
       classification: 16384,

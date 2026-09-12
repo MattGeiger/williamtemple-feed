@@ -63,7 +63,8 @@ model, not to a setting.
 | D24 | OpenAI list confirmed. Older GPT-5.x models with no deprecation date (e.g. 5.4) are not offered: they cost more than `gpt-5.6-luna` for no benefit to FEED's work. | 2026-09-11 |
 | D25 | Anthropic list confirmed. Only the latest generation, plus Haiku 4.5. `claude-fable-5-1` is far more model than translation or classification needs, but it is offered with the frontier warning; administrators decide how to spend their budget. | 2026-09-11 |
 | D26 | `gemini-3.1-pro-preview` is offered with a **Preview badge** and validated like every other preset. When Google releases it as stable, administrators can reach the stable id through Custom until the catalogue audit adds it. | 2026-09-11 |
-| D27 | `gemini-3.6-flash` is offered alongside `gemini-3.8-flash`. Same price, but it can run at `minimal` thinking where 3.8 cannot go below `low`. Phase 0 still measures both on FEED-shaped requests, to say which suits translation better. | 2026-09-11 |
+| D27 | `gemini-3.6-flash` is offered alongside `gemini-3.8-flash`. Same price, but it can run at `minimal` thinking where 3.8 cannot go below `low`. Phase 0 still measures both on FEED-shaped requests, to say which suits translation better — **not yet done: the Google account's prepaid credits are depleted**, so no Gemini generation could be measured on 2026-09-11. | 2026-09-11 |
+| D28 | Claude prefill is replaced by prompt-instructed JSON, not structured outputs. Measured 2026-09-11: both return clean JSON, but structured outputs charge the schema as input — 220 prompt tokens against 49 for the same translation. Per-model format enforcement stays a Phase 2 catalogue capability. | 2026-09-11 |
 | D28 | Long-running translation work gets a **translation-specific job table**, not a generic one, sharing code rather than a schema. Build it when a feature needs it — nothing does today unless the Phase 5 feature pass returns a 524. | 2026-09-11 |
 
 ## Open decisions
@@ -707,11 +708,33 @@ only (a few cents).
 
 ## Implementation phases
 
-1. **Phase 0 — Reproduce (≈ $0.10).** Run the live smoke script against the
-   Custom `gemini-3.5-flash-lite` configuration and one model per provider.
-   Settles the reported failure, confirms `gpt-6-astra`'s id and effort
-   values, confirms rejected requests are unbilled, and records the first
-   fixtures.
+1. **Phase 0 — Reproduce. Done 2026-09-11** (354 input / 109 output tokens,
+   under a cent). Run against real keys through FEED's own decryption,
+   bypassing the factory so each provider could be probed directly.
+
+   | Question | Answer |
+   |---|---|
+   | The reported failure | Reproduced verbatim: `404 This model models/gemini-2.5-flash-lite is no longer available to new users. Please update your code to use models/gemini-3.5-flash-lite`. A 404 classifies as `misconfigured`, so the new message names the model. |
+   | `gpt-6-astra` or `gpt-5.6-astra`? | **`gpt-6-astra`.** `models.retrieve('gpt-5.6-astra')` is a 404 — the pricing page was wrong, the models page and announcement right. |
+   | Do the GPT-5.6 models exist on this account? | Yes — `gpt-5.6-luna`, `-terra`, `-sol` and `gpt-6-astra` all retrieve. |
+   | Which Claude models does the account expose? | All three 5-series (`claude-sonnet-5`, `claude-opus-5`, `claude-fable-5-1`), plus 4.8 / 4.7 / 4.6 and the 4.5 pair. |
+   | Does Claude 5 reject the prefill? | Yes: `400 This model does not support assistant message prefill. The conversation must end with a user message.` |
+   | Does Claude 5 reject `temperature`? | Yes, outright: ``400 `temperature` is deprecated for this model.`` The default value is refused too — the parameter's *presence* is what fails, so overriding the value cannot save it. |
+   | Structured outputs vs prompt-instructed JSON | Both return clean JSON. Structured outputs charge the schema as input: **220 prompt tokens against 49** for the same translation. Prompt-instructed chosen. |
+   | Tiny `max_tokens` with adaptive thinking | No thinking block; the text truncates at `stop_reason: max_tokens`. The old one-token access check would have returned junk rather than hanging. |
+
+   **A limitation this exposed, and Phase 2 has to settle it.** Google's
+   `models.get` **succeeds** for `gemini-2.5-flash-lite` on a key whose
+   `generateContent` is refused. Phase 1 replaced a billed generation probe
+   with a free metadata lookup: cheaper, but for Google it no longer catches
+   the refusal it was built for, so a doomed job would start and fail
+   mid-flight. Options: accept late failure, send a one-token generation for
+   Google only, or remember a failed generation per configuration.
+
+   **Also observed:** the Google account's prepaid credits are depleted
+   (`429 ... Your prepayment credits are depleted`) — the #80 condition, live.
+   The Gemini `thinkingLevel` fix is therefore verified at the type and
+   request-shape level only; it could not be exercised against the API.
 2. **Phase 1 — Honest errors.** Key check returns the provider's error through
    the #80 classifier, and every translation and document route returns its
    error code. Availability becomes a free model lookup. `exhausted` and

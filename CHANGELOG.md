@@ -7,6 +7,32 @@ All notable changes to FEED are documented here. This project adheres to
 
 ### Fixed
 
+- **Claude 4.6 and later can be used at all.** FEED sent two things every
+  current Claude model refuses, and both were measured against the API rather
+  than inferred:
+  - an assistant message containing `{`, to force JSON — `400 This model does
+    not support assistant message prefill. The conversation must end with a
+    user message.`
+  - `temperature` — ``400 `temperature` is deprecated for this model.`` The
+    default value is refused too, so it is the parameter's presence that
+    fails and omitting it is the only fix.
+
+  Both are now conditional on the model. Dated ids (`claude-haiku-4-5-20251001`)
+  keep the prefill and sampling parameters they still accept; dateless ids
+  (`claude-sonnet-5`, `claude-opus-5`) get neither, and their replies are
+  parsed whether or not a brace was prefilled — including when wrapped in a
+  fenced code block.
+
+  Prompt-instructed JSON was chosen over structured outputs on measurement:
+  both return clean JSON, but the schema is charged as input, 220 prompt
+  tokens against 49 for the same translation. Per-model format enforcement
+  belongs to the catalogue capability work.
+
+- **The non-streaming output ceiling now covers the models that most need
+  it.** The 20,480-token clamp that keeps a request under the SDK's
+  ten-minute guard was keyed to ids containing `-4-5-`, which excluded every
+  Claude 4.6+ model — precisely the ones with 128K output limits.
+
 - **The Gemini thinking level now actually reaches Google.** FEED sent
   `thinkingConfig: { thinking_level }` in snake_case; the JS SDK field is
   `thinkingLevel`. `@google/genai` 1.11.0 compounded it by copying only
