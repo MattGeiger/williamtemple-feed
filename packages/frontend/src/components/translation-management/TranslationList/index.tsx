@@ -9,6 +9,7 @@ import { useCallback, useState, useRef, useMemo, useEffect } from "react"
 import { Translation, BulkOperationResult, TranslationType, TranslationCapabilities } from "@/types/translation"
 import { columns } from "../data-table/columns"
 import { DataList } from "@/components/shared/data-list/DataList"
+import type { TypeFilterOption } from "@/components/ui/type-filter"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { TableBulkAction } from "@/types/table"
 import { useMessage } from "@/hooks/message/useMessage"
@@ -45,6 +46,19 @@ interface TranslationListProps {
 // translation cache. Same UX as 'Generated' / 'Custom' rows -- staff can
 // curate / edit / delete via this list.
 const TRANSLATION_TYPES: TranslationType[] = ['Category', 'FoodItem', 'Custom', 'Generated', 'Generated (List)']
+
+/**
+ * The filter's checkboxes, previously hardcoded inside the shared component.
+ * These are exactly the four it rendered, so this page is unchanged — note
+ * that 'Generated (List)' is deliberately absent, matching today's behaviour
+ * rather than quietly altering a page this change is not about.
+ */
+const TRANSLATION_TYPE_OPTIONS: readonly TypeFilterOption<TranslationType>[] = [
+  { value: 'Category', label: 'Category' },
+  { value: 'FoodItem', label: 'Food Item' },
+  { value: 'Custom', label: 'Custom' },
+  { value: 'Generated', label: 'Generated (Document)' }
+]
 
 export function TranslationList({
   translations,
@@ -396,6 +410,7 @@ export function TranslationList({
         enableTypeFilter={true}
         selectedLanguage={selectedLanguage}
         selectedTypes={selectedTypes}
+        typeOptions={TRANSLATION_TYPE_OPTIONS}
         availableLanguages={availableLanguages}
         onLanguageChange={handleLanguageChange}
         onTypeChange={handleTypeChange}

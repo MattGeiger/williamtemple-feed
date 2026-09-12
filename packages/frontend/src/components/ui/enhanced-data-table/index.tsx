@@ -24,6 +24,7 @@ import { TablePagination } from "./components/TablePagination"
 import { TableSelectionOptions } from "@/types/table"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { TranslationType } from "@/types/translation"
+import type { TypeFilterOption } from "@/components/ui/type-filter"
 import {
   calculateColumnWidths,
   calculateVisibleColumnWidths,
@@ -41,7 +42,7 @@ const mobileResponsiveColumnIds = [
   'statusFlags',
 ]
 
-interface EnhancedDataTableProps<TData> {
+interface EnhancedDataTableProps<TData, TType extends string = TranslationType> {
   columns: ColumnDef<TData>[]
   data: TData[]
   isLoading?: boolean
@@ -61,10 +62,11 @@ interface EnhancedDataTableProps<TData> {
   enableLanguageFilter?: boolean
   enableTypeFilter?: boolean
   selectedLanguage?: string
-  selectedTypes?: TranslationType[]
+  selectedTypes?: TType[]
+  typeOptions?: readonly TypeFilterOption<TType>[]
   availableLanguages?: string[]
   onLanguageChange?: (language: string) => void
-  onTypeChange?: (types: TranslationType[]) => void
+  onTypeChange?: (types: TType[]) => void
   className?: string
   selection?: TableSelectionOptions<TData>
   defaultPageSize?: number
@@ -108,7 +110,10 @@ export interface EnhancedDataTableHandle {
   clearSelection?: () => void
 }
 
-const EnhancedDataTableInner = React.forwardRef(function EnhancedDataTable<TData>({
+const EnhancedDataTableInner = React.forwardRef(function EnhancedDataTable<
+  TData,
+  TType extends string = TranslationType
+>({
   columns,
   data,
   isLoading = false,
@@ -124,6 +129,7 @@ const EnhancedDataTableInner = React.forwardRef(function EnhancedDataTable<TData
   availableLanguages,
   onLanguageChange,
   onTypeChange,
+  typeOptions,
   className,
   selection,
   defaultPageSize = 5,
@@ -132,7 +138,7 @@ const EnhancedDataTableInner = React.forwardRef(function EnhancedDataTable<TData
   toolbarActions,
   toolbarControls,
   onViewStateChange,
-}: EnhancedDataTableProps<TData>, ref: React.ForwardedRef<EnhancedDataTableHandle>) {
+}: EnhancedDataTableProps<TData, TType>, ref: React.ForwardedRef<EnhancedDataTableHandle>) {
   const isMobile = useIsMobile()
   const responsiveColumnVisibility = React.useMemo(() => {
     const availableColumnIds = new Set(
@@ -327,6 +333,7 @@ const EnhancedDataTableInner = React.forwardRef(function EnhancedDataTable<TData
         enableTypeFilter={enableTypeFilter}
         selectedLanguage={selectedLanguage}
         selectedTypes={selectedTypes}
+        typeOptions={typeOptions}
         availableLanguages={availableLanguages}
         onLanguageChange={onLanguageChange}
         onTypeChange={onTypeChange}
@@ -430,8 +437,11 @@ const EnhancedDataTableInner = React.forwardRef(function EnhancedDataTable<TData
  * would be the cleaner shape under React 19, but it changes the call
  * signature at eighteen call sites for no behavioural gain.
  */
-export const EnhancedDataTable = EnhancedDataTableInner as <TData>(
-  props: EnhancedDataTableProps<TData> & {
+export const EnhancedDataTable = EnhancedDataTableInner as <
+  TData,
+  TType extends string = TranslationType
+>(
+  props: EnhancedDataTableProps<TData, TType> & {
     ref?: React.Ref<EnhancedDataTableHandle>
   }
 ) => React.ReactElement

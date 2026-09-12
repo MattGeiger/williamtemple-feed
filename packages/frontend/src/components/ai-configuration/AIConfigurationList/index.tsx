@@ -11,6 +11,7 @@ import { AIConfiguration, BulkOperationResult, AIConfigurationType } from "../ty
 import { UnifiedConfiguration } from "@/services/unified-config"
 import { columns } from "../data-table/columns"
 import { DataList } from "@/components/shared/data-list/DataList"
+import type { TypeFilterOption } from "@/components/ui/type-filter"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { TableBulkAction } from "@/types/table"
 import { useMessage } from "@/hooks/message/useMessage"
@@ -55,6 +56,18 @@ interface AIConfigurationListProps {
 }
 
 const AI_CONFIGURATION_TYPES: AIConfigurationType[] = ['prompt', 'apikey']
+
+/**
+ * What the Types filter offers on this page. The shared filter used to supply
+ * its own list, which was Translation Management's — so this page showed
+ * "Category / Food Item / Custom / Generated (Document)" above rows that are
+ * only ever API keys and system prompts, with every box unchecked and no
+ * combination of clicks able to filter anything.
+ */
+const AI_CONFIGURATION_TYPE_OPTIONS: readonly TypeFilterOption<AIConfigurationType>[] = [
+  { value: 'apikey', label: 'API Key' },
+  { value: 'prompt', label: 'System Prompt' }
+]
 
 export function AIConfigurationList({
   configurations,
@@ -204,6 +217,7 @@ export function AIConfigurationList({
         enableColumnVisibility={true}
         enableTypeFilter={true}
         selectedTypes={selectedTypes}
+        typeOptions={AI_CONFIGURATION_TYPE_OPTIONS}
         onTypeChange={handleTypeChange}
         onError={handleError}
         toolbarActions={toolbarActions}

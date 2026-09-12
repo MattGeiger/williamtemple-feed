@@ -12,6 +12,7 @@ import type { LucideIcon } from "lucide-react";
 import { TableBulkAction } from "@/types/table"
 import { SectionHeader } from "@/components/shared/section-header"
 import { TranslationType } from "@/types/translation"
+import type { TypeFilterOption } from "@/components/ui/type-filter"
 
 // Accepts Lucide and animate-ui icons (heterogeneous prop shapes). We
 // only pass className/size, but slot variance requires a permissive
@@ -31,7 +32,7 @@ interface ToolbarAction {
   action: () => void
 }
 
-interface DataListProps<T extends DataItem> {
+interface DataListProps<T extends DataItem, TType extends string = TranslationType> {
   title: string
   description: string
   items: T[]
@@ -45,10 +46,11 @@ interface DataListProps<T extends DataItem> {
   enableLanguageFilter?: boolean
   enableTypeFilter?: boolean
   selectedLanguage?: string
-  selectedTypes?: TranslationType[]
+  selectedTypes?: TType[]
+  typeOptions?: readonly TypeFilterOption<TType>[]
   availableLanguages?: string[]
   onLanguageChange?: (language: string) => void
-  onTypeChange?: (types: TranslationType[]) => void
+  onTypeChange?: (types: TType[]) => void
   onError?: (error: Error) => void
   onUpdate?: (item: T) => Promise<void>
   toolbarActions?: ToolbarAction[]
@@ -62,7 +64,10 @@ export interface DataListHandle {
   clearSelection: () => void
 }
 
-const DataListInner = forwardRef(function DataList<T extends DataItem>({
+const DataListInner = forwardRef(function DataList<
+  T extends DataItem,
+  TType extends string = TranslationType
+>({
   title,
   description,
   items,
@@ -80,12 +85,13 @@ const DataListInner = forwardRef(function DataList<T extends DataItem>({
   availableLanguages,
   onLanguageChange,
   onTypeChange,
+  typeOptions,
   onUpdate,
   toolbarActions = [],
   toolbarControls,
   toolbarIcon: Icon,
   preservePageOnDataChange = true
-}: DataListProps<T>, ref: React.ForwardedRef<DataListHandle>) {
+}: DataListProps<T, TType>, ref: React.ForwardedRef<DataListHandle>) {
   const [isBulkActionLoading, setIsBulkActionLoading] = useState(false);
   const pendingUpdatesRef = useRef<Map<number, T>>(new Map());
   const tableRef = useRef<{ clearSelection?: () => void }>(null);
@@ -139,6 +145,7 @@ const DataListInner = forwardRef(function DataList<T extends DataItem>({
           enableTypeFilter={enableTypeFilter}
           selectedLanguage={selectedLanguage}
           selectedTypes={selectedTypes}
+          typeOptions={typeOptions}
           availableLanguages={availableLanguages}
           onLanguageChange={onLanguageChange}
           onTypeChange={onTypeChange}
@@ -164,6 +171,9 @@ const DataListInner = forwardRef(function DataList<T extends DataItem>({
  * assignable to `ColumnDef<DataItem>[]`. Type-level only — the runtime value
  * is the same component. See the note on `EnhancedDataTable`'s export.
  */
-export const DataList = DataListInner as <T extends DataItem>(
-  props: DataListProps<T> & { ref?: React.Ref<DataListHandle> }
+export const DataList = DataListInner as <
+  T extends DataItem,
+  TType extends string = TranslationType
+>(
+  props: DataListProps<T, TType> & { ref?: React.Ref<DataListHandle> }
 ) => React.ReactElement

@@ -15,29 +15,53 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { TranslationType } from "@/types/translation"
 
-const TRANSLATION_TYPES: TranslationType[] = ['Category', 'FoodItem', 'Custom', 'Generated']
+/** One checkbox in the dropdown: the value stored, and what staff read. */
+export interface TypeFilterOption<TType extends string> {
+  value: TType
+  label: string
+}
 
-interface TypeFilterProps {
-  selectedTypes: TranslationType[]
-  onTypeChange: (types: TranslationType[]) => void
+interface TypeFilterProps<TType extends string> {
+  selectedTypes: TType[]
+  /**
+   * The types this table can filter by. Required, and deliberately not
+   * defaulted: this component used to map over a module-level list of
+   * *translation* types, which meant AI Configuration — the only other page
+   * using it — rendered "Category / Food Item / Custom / Generated
+   * (Document)" over rows that are only ever API keys and system prompts.
+   * Worse than mislabelled, it could not work: every box drew unchecked
+   * because none of those values appear in `['prompt', 'apikey']`, and
+   * ticking one appended a type the table has no rows of while leaving both
+   * real types selected, so the list never changed. A default here would put
+   * one page's vocabulary back inside a shared component and let the next
+   * caller inherit the same bug silently.
+   */
+  options: readonly TypeFilterOption<TType>[]
+  onTypeChange: (types: TType[]) => void
   className?: string
 }
 
-export function TypeFilter({ selectedTypes, onTypeChange, className }: TypeFilterProps) {
-  const toggleType = (type: TranslationType) => {
+export function TypeFilter<TType extends string>({
+  selectedTypes,
+  options,
+  onTypeChange,
+  className
+}: TypeFilterProps<TType>) {
+  const toggleType = (type: TType) => {
     const newTypes = selectedTypes.includes(type)
       ? selectedTypes.filter(t => t !== type)
       : [...selectedTypes, type]
-    onTypeChange(newTypes.length ? newTypes : TRANSLATION_TYPES)
+    // Clearing every box shows everything rather than nothing — an empty
+    // table with no way back would read as data loss.
+    onTypeChange(newTypes.length ? newTypes : options.map(option => option.value))
   }
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button 
-          variant="outline" 
+        <Button
+          variant="outline"
           className={cn("h-8", className)}
           data-testid="type-filter-button"
         >
@@ -45,15 +69,13 @@ export function TypeFilter({ selectedTypes, onTypeChange, className }: TypeFilte
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-[200px]">
-        {TRANSLATION_TYPES.map((type) => (
+        {options.map((option) => (
           <DropdownMenuCheckboxItem
-            key={type}
-            checked={selectedTypes.includes(type)}
-            onCheckedChange={() => toggleType(type)}
+            key={option.value}
+            checked={selectedTypes.includes(option.value)}
+            onCheckedChange={() => toggleType(option.value)}
           >
-            {type === 'FoodItem' ? 'Food Item' : 
-             type === 'Generated' ? 'Generated (Document)' : 
-             type}
+            {option.label}
           </DropdownMenuCheckboxItem>
         ))}
       </DropdownMenuContent>
