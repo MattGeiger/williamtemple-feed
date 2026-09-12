@@ -11,8 +11,8 @@ prompted this document.
 
 Sections below are marked where the code has overtaken the plan; where a
 section still reads in the future tense, it has not been built. Known to be
-outstanding: defects 5, 6 and 10 in the list below, the secondary stale lists,
-and Phase 5.
+outstanding: defects 5 and 6 in the list below, the secondary stale lists, and
+Phase 5.
 **Tracks**: ISSUES.md #84 · roadmap v1.9.5 ("LLM catalogue and pricing audit")
 **Companion**: [`translation-efficiency-and-local-models.md`](translation-efficiency-and-local-models.md)
 — prompt size, thinking-token cost, caching, and a local TranslateGemma option.
@@ -507,23 +507,24 @@ The Anthropic default stays `claude-haiku-4-5-20251001`.
 Each one blocks new models from working correctly, so they belong to this
 work, not a later cleanup.
 
-**Status, 2026-09-11.** *Fixed:* 1 (`71bdee9`), 2 (`bf3990b`), 3 (`314c04a`),
-4 and 9 (`b17b1f2`), and 7 — the pre-job key check is now a free model lookup
-instead of a paid one-token generation (`71bdee9`).
+**Status, updated 2026-09-12.** *Fixed:* 1 (`71bdee9`), 2 (`bf3990b`), 3
+(`314c04a`), 4 and 9 (`b17b1f2`), 7 — the pre-job key check is now a free model
+lookup instead of a paid one-token generation (`71bdee9`) — 8 (`c272c23`) and
+10 (`1a4c72e`, `55d4d28`).
 
-*Half done:* 8. `modelFamily` and the `-4-5-` test are gone and per-model
-values live in the catalogue, but `VALID_THINKING_LEVELS`
-(`routes/ai-config.ts:169`) and `ApiKeyConfigData.thinkingLevel` are still the
-same four-value set, so GPT-5.6's `none` / `xhigh` / `max` and Claude 5's
-`effort` cannot be stored. **Phase 4 hits this the moment those models are
-added** — widening both unions is a prerequisite for the contents refresh, not
-a follow-up to it.
+Defect 8 was the prerequisite it was described as: `VALID_THINKING_LEVELS` and
+`ApiKeyConfigData.thinkingLevel` widened from four values to seven, and
+validation moved from a flat allowlist to the model's own capabilities. Without
+it GPT-5.6's `none` / `xhigh` / `max` and Claude 5's effort could not have been
+stored, and Phase 4 could not have added those models at all.
+
+Defect 10 is answered in both places the UI-behaviour section asks for: a badge
+in the configuration list and a line in the dialog, reading one shared module
+so they cannot drift.
 
 *Still open:* 5 (temperature and top_p also arrive from `SystemPrompt` through
-`PromptBuilder`, so D3 enforcement has to sit where the request is built), 6 (a
-Custom model is still unpriced, so its spend limits never trip), and 10 (no
-lifecycle badge in the configuration list — nothing there reads the catalogue
-yet, so a saved row pointing at a retired model still looks healthy).
+`PromptBuilder`, so D3 enforcement has to sit where the request is built) and 6
+(a Custom model is still unpriced, so its spend limits never trip).
 
 1. **Every provider failure is reported as an invalid key.** `validateApiKey`
    returns a boolean and discards the error (`GoogleTranslationService.ts:170`,
@@ -723,10 +724,19 @@ model to the catalogue.
   applies each model's own cheapest value and a later model change still gets
   the right default. A model with no reasoning control says so instead of
   offering a setting it would discard.
-- **Model selection.** A `frontier` model shows the D1 warning when chosen,
-  and in the configuration list. A `preview` model shows a **Preview** badge
-  in both places. A `deprecated` or `retired` model shows its shutdown date and
-  replacement, in the dialog and as a list badge.
+- **Model selection — built (`1a4c72e`, `55d4d28`).** A `frontier` model shows
+  the D1 warning when chosen, and in the configuration list. A `preview` model
+  shows a **Preview** badge in both places. A `deprecated` or `retired` model
+  shows its shutdown date and replacement, in the dialog and as a list badge.
+
+  Both places read one module, `components/ai-configuration/model-notices.ts`,
+  so the list badge and the dialog line are the same sentence rather than two
+  phrasings of one fact. Lifecycle and cost are independent: a model can be
+  current and expensive (`gpt-6-astra`), or expiring and expensive (Claude
+  Opus 4.5), and both notices appear. A dated shutdown reads as `danger` and an
+  undated deprecation as `warning`, because only the first is something staff
+  can act on before it lands. Nothing renders for a healthy, sensibly priced
+  model, for a Custom id, or for a system prompt row.
 - **Error copy.** A refused model says the model is unavailable to this
   account and names it; a rejected key says the key was rejected. Both follow
   ASK through the #80 classifier's codes.
