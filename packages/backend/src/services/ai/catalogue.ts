@@ -142,7 +142,28 @@ export interface ModelPricing {
 }
 
 export interface ModelLifecycle {
+  /**
+   * Where the *provider* has put the model. Never FEED's opinion of it — use
+   * `offered` for that.
+   */
   status: ModelLifecycleStatus;
+  /**
+   * Whether FEED still presents this model as a choice when creating a
+   * configuration. Defaults to true; set false to drop a preset.
+   *
+   * Separate from `status` because the two answer different questions, and
+   * conflating them would require writing something false. The 2026 refresh
+   * drops 15 presets, but `gpt-5-mini-2025-08-07` is what production runs and
+   * it works until 2026-12-11 — marking it `retired` to get it out of the
+   * dialog would claim requests fail when they do not, and would strip the
+   * entry production depends on.
+   *
+   * An unoffered entry stays in `CATALOGUE`, so `findCatalogueEntry` and
+   * `capabilitiesFor` keep resolving its prices, limits, capabilities and
+   * shutdown date for the saved rows still pointing at it. It simply stops
+   * appearing in the list of new choices.
+   */
+  offered?: boolean;
   /**
    * ISO date the provider has *announced* it stops serving the model.
    *
@@ -250,6 +271,118 @@ export const SERVICE_ENDPOINTS = {
  */
 export const CATALOGUE: readonly CatalogueEntry[] = [
   // ---------------- OpenAI ----------------
+  //
+  // The 2026 refresh: four offered presets, and eight entries kept for
+  // resolution but no longer presented as choices (`offered: false`).
+  //
+  // Every fact below was measured against the API on 2026-09-12, because the
+  // models page got two of them wrong: it renders the effort values as one
+  // run-together string, which reads as though `max` were available on the
+  // GPT-5.6 family and `none` on gpt-6-astra. Neither is true.
+  //
+  //   gpt-5.6-luna  + max  -> 400 "does not support 'max' with this model"
+  //   gpt-5.6-terra + max  -> 400, same
+  //   gpt-6-astra   + none -> 400 "Supported values are: low, medium, high, xhigh"
+  //   gpt-5.6-terra + none -> OK      gpt-5.6-sol + none -> OK
+  //
+  // `rateLimits` is omitted on all four: nothing publishes per-model
+  // allowances for them, and inventing figures would pre-fill a new
+  // configuration's usage limits with fiction.
+  {
+    id: 'gpt-5.6-luna',
+    displayName: 'gpt-5.6-luna',
+    provider: 'OpenAI',
+    pricing: { input: 0.2, output: 1.2, verifiedAt: '2026-09-12' },
+    contextWindow: 1050000,
+    maxOutputTokens: 128000,
+    lifecycle: {
+      status: 'active',
+      note: "OpenAI's cost-sensitive 5.6 model, and FEED's default. No deprecation announced.",
+    },
+    costTier: 'economy',
+    capabilities: {
+      sampling: 'unsupported',
+      maxTokensField: 'max_completion_tokens',
+      // No `minimal` — it is the 2025 snapshots' floor and is refused here.
+      reasoning: {
+        kind: 'effort',
+        values: ['none', 'low', 'medium', 'high', 'xhigh'],
+        leastCost: 'none',
+      },
+      prefill: 'allowed',
+    },
+  },
+  {
+    id: 'gpt-5.6-terra',
+    displayName: 'gpt-5.6-terra',
+    provider: 'OpenAI',
+    pricing: { input: 2.0, output: 12.0, verifiedAt: '2026-09-12' },
+    contextWindow: 1050000,
+    maxOutputTokens: 128000,
+    lifecycle: { status: 'active', note: 'Balanced 5.6 model. No deprecation announced.' },
+    costTier: 'standard',
+    capabilities: {
+      sampling: 'unsupported',
+      maxTokensField: 'max_completion_tokens',
+      reasoning: {
+        kind: 'effort',
+        values: ['none', 'low', 'medium', 'high', 'xhigh'],
+        leastCost: 'none',
+      },
+      prefill: 'allowed',
+    },
+  },
+  {
+    id: 'gpt-5.6-sol',
+    displayName: 'gpt-5.6-sol',
+    provider: 'OpenAI',
+    pricing: { input: 4.0, output: 20.0, verifiedAt: '2026-09-12' },
+    contextWindow: 1050000,
+    maxOutputTokens: 128000,
+    lifecycle: { status: 'active', note: 'For complex work. No deprecation announced.' },
+    // $20.00 output is exactly the D7 threshold, so this carries the frontier
+    // cost warning: far more model than translation or classification needs.
+    costTier: 'frontier',
+    capabilities: {
+      sampling: 'unsupported',
+      maxTokensField: 'max_completion_tokens',
+      reasoning: {
+        kind: 'effort',
+        values: ['none', 'low', 'medium', 'high', 'xhigh'],
+        leastCost: 'none',
+      },
+      prefill: 'allowed',
+    },
+  },
+  {
+    id: 'gpt-6-astra',
+    displayName: 'gpt-6-astra',
+    provider: 'OpenAI',
+    pricing: { input: 10.0, output: 50.0, verifiedAt: '2026-09-12' },
+    contextWindow: 1050000,
+    maxOutputTokens: 128000,
+    lifecycle: {
+      status: 'active',
+      // The plan flagged the id itself as uncertain — the pricing page was
+      // said to call it `gpt-5.6-astra`. It does not: both the pricing and
+      // models pages print `gpt-6-astra`, and the API answers to it.
+      note: 'Frontier flagship, announced 2026-09-03. No deprecation announced.',
+    },
+    costTier: 'frontier',
+    capabilities: {
+      sampling: 'unsupported',
+      maxTokensField: 'max_completion_tokens',
+      // Measured: this one refuses `none`, unlike its 5.6 siblings, so its
+      // cheapest setting is `low` — one place a shared family rule would have
+      // produced a 400 on every request.
+      reasoning: {
+        kind: 'effort',
+        values: ['low', 'medium', 'high', 'xhigh'],
+        leastCost: 'low',
+      },
+      prefill: 'allowed',
+    },
+  },
   {
     id: 'gpt-5-nano-2025-08-07',
     displayName: 'gpt-5-nano',
@@ -260,6 +393,7 @@ export const CATALOGUE: readonly CatalogueEntry[] = [
     maxOutputTokens: 128000,
     lifecycle: {
       status: 'deprecated',
+      offered: false,
       shutdownDate: '2026-12-11',
       replacement: 'gpt-5.6-luna',
       note: 'Deprecated 2026-06-11; OpenAI shuts the 2025-08-07 snapshots down on 2026-12-11.',
@@ -284,6 +418,10 @@ export const CATALOGUE: readonly CatalogueEntry[] = [
     maxOutputTokens: 128000,
     lifecycle: {
       status: 'deprecated',
+      // Dropped as a preset, deliberately NOT marked retired: this is what
+      // production runs, and it works until 2026-12-11. The entry stays so
+      // that saved row keeps resolving its prices, limits and capabilities.
+      offered: false,
       shutdownDate: '2026-12-11',
       replacement: 'gpt-5.6-terra',
       note: 'What production runs today. Shuts down 2026-12-11.',
@@ -306,6 +444,7 @@ export const CATALOGUE: readonly CatalogueEntry[] = [
     maxOutputTokens: 128000,
     lifecycle: {
       status: 'deprecated',
+      offered: false,
       shutdownDate: '2026-12-11',
       replacement: 'gpt-5.6-sol',
     },
@@ -338,9 +477,10 @@ export const CATALOGUE: readonly CatalogueEntry[] = [
     maxOutputTokens: 32768,
     lifecycle: {
       status: 'legacy',
-      // No successor named on purpose: the GPT-5 snapshots FEED offers are
-      // themselves shut down 2026-12-11, so pointing here would send an
-      // administrator onto a model with less life left than this one.
+      offered: false,
+      // No successor named on purpose: the GPT-5 snapshots are themselves shut
+      // down 2026-12-11, so pointing here would send an administrator onto a
+      // model with less life left than this one.
       note: 'Superseded by the GPT-5 line. Under no shutdown announcement of its own.',
     },
     costTier: 'standard',
@@ -361,6 +501,7 @@ export const CATALOGUE: readonly CatalogueEntry[] = [
     maxOutputTokens: 32768,
     lifecycle: {
       status: 'legacy',
+      offered: false,
       note: 'Superseded by the GPT-5 line. Under no shutdown announcement of its own.',
     },
     costTier: 'economy',
@@ -381,6 +522,7 @@ export const CATALOGUE: readonly CatalogueEntry[] = [
     maxOutputTokens: 32768,
     lifecycle: {
       status: 'deprecated',
+      offered: false,
       shutdownDate: '2026-10-23',
       replacement: 'gpt-4.1-mini-2025-04-14',
       note: 'Deprecated 2026-04-22; OpenAI shuts this snapshot down 2026-10-23.',
@@ -404,6 +546,7 @@ export const CATALOGUE: readonly CatalogueEntry[] = [
     maxOutputTokens: 16384,
     lifecycle: {
       status: 'deprecated',
+      offered: false,
       shutdownDate: '2026-10-23',
       replacement: 'gpt-4.1-2025-04-14',
       note: 'Deprecated 2026-04-22; shuts down 2026-10-23. Also withdrawn from the ChatGPT interface in February 2026.',
@@ -427,7 +570,7 @@ export const CATALOGUE: readonly CatalogueEntry[] = [
     // Not gpt-4.1-nano: that snapshot shuts down 2026-10-23 and this one is
     // under no announcement, so it would send an administrator onto a model
     // with less life left.
-    lifecycle: { status: 'legacy', replacement: 'gpt-4.1-mini-2025-04-14' },
+    lifecycle: { status: 'legacy', offered: false, replacement: 'gpt-4.1-mini-2025-04-14' },
     costTier: 'economy',
     capabilities: {
       sampling: 'supported',
@@ -642,7 +785,13 @@ export const entriesForProvider = (provider: CatalogueEntry['provider']): Catalo
 
 /** What an administrator should be able to pick: anything not already gone. */
 export const selectableEntries = (): CatalogueEntry[] =>
-  CATALOGUE.filter((entry) => entry.lifecycle.status !== 'retired');
+  CATALOGUE.filter(
+    (entry) => entry.lifecycle.status !== 'retired' && entry.lifecycle.offered !== false
+  );
+
+/** Whether FEED presents this model as a choice for a new configuration. */
+export const isOffered = (entry: CatalogueEntry): boolean =>
+  entry.lifecycle.status !== 'retired' && entry.lifecycle.offered !== false;
 
 /**
  * The cheapest reasoning setting a model allows, which is FEED's default:
