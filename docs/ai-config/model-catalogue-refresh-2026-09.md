@@ -11,8 +11,8 @@ prompted this document.
 
 Sections below are marked where the code has overtaken the plan; where a
 section still reads in the future tense, it has not been built. Known to be
-outstanding: defect 5 in the list below, the secondary stale lists, and
-Phase 5.
+outstanding: the secondary stale lists and Phase 5. Every defect in the list
+below is now fixed.
 **Tracks**: ISSUES.md #84 · roadmap v1.9.5 ("LLM catalogue and pricing audit")
 **Companion**: [`translation-efficiency-and-local-models.md`](translation-efficiency-and-local-models.md)
 — prompt size, thinking-token cost, caching, and a local TranslateGemma option.
@@ -522,8 +522,12 @@ Defect 10 is answered in both places the UI-behaviour section asks for: a badge
 in the configuration list and a line in the dialog, reading one shared module
 so they cannot drift.
 
-*Still open:* 5 (temperature and top_p also arrive from `SystemPrompt` through
-`PromptBuilder`, so D3 enforcement has to sit where the request is built).
+*Still open:* none. Every defect in the list below is fixed.
+
+Defect 5 was the last, and half of it was already done when it was read: the
+backend enforces D3 at all twelve request-building sites across the three
+providers. What was missing was the UI half D3 also asks for — `ParametersStep`
+now offers temperature and top-p only where the chosen model accepts them.
 
 Defect 6 is fixed. An unpriced configuration remains entirely legal — the Cost
 step offers that outright, and a Custom model nobody has prices for is a real
@@ -560,11 +564,33 @@ configuration rather than once per translation, and keep translating.
    top_p, `max_tokens` vs `max_completion_tokens`, reasoning effort, and
    thinking level are all decided by looking up the exact model id. A Custom
    GPT-5.6 model therefore sends `max_tokens`, `temperature: 0.7`, and `top_p`.
-5. **Temperature and top_p come from two places.** `AIConfiguration` carries
-   them, and so does every `SystemPrompt` row (the seeded "DOCX - Low Temp"
-   prompt sets 0.3), read through `PromptBuilder`. D3's enforcement must
-   therefore sit where the request is built, not in either form. The UI can
-   only hide the controls it owns.
+5. ~~**Temperature and top_p come from two places.**~~ **Fixed.** The two
+   sources are real and unchanged: `AIConfiguration` carries these values and
+   so does every `SystemPrompt` row (the seeded "DOCX - Low Temp" prompt sets
+   0.3), with `PromptBuilder` merging them — the prompt wins, then the
+   configuration, then a default.
+
+   The backend half of D3 turned out to be built already, as a side effect of
+   the capability work: all three providers hand the *merged* value to
+   `checkAndOverrideParameters`, which reads the model's catalogue
+   capabilities, and every request is then built from that resolver's output
+   rather than from the prompt configuration. Twelve call sites — translate,
+   batch translate, classify, batch classify, for each provider — with no path
+   around it. So no forbidden parameter could reach a request, and this entry
+   had been stale for some time.
+
+   The UI half was genuinely missing. `ParametersStep` rendered both sliders
+   for every model, including the eleven catalogue entries whose `sampling` is
+   `unsupported`, inviting staff to set a value the model rejects outright.
+   It now mirrors the three resolvers: nothing offered for `unsupported`;
+   temperature only for `temperature-or-top-p`, since the backend drops top-p
+   there; and a fixed temperature shown rather than offered for Gemini 3.x,
+   where `sampling` stays `supported` because Google accepts the parameter but
+   FEED replaces the value before sending — top-p is untouched for those and
+   stays editable. Following `ThinkingLevelStep`, an absent catalogue entry is
+   never grounds for hiding a control: a Custom id, a catalogue still loading,
+   and a system prompt (which names no model, since any configuration may use
+   it) all render as before.
 6. ~~**A Custom model is unpriced unless the administrator types prices in.**~~
    **Fixed.** Two details of the original entry were wrong by the time it was
    read: `applyModelSpecs` no longer exists (the hydrate is `specFor` plus an

@@ -116,7 +116,10 @@ real answer exists only in the backend log.
   drops `thinking_level`; the JS field is `thinkingLevel`.
 - Claude 5 rejects non-default `temperature` and `top_p` with a 400. FEED
   always sends `temperature`, and drops `top_p` only for ids containing
-  `-4-5-`.
+  `-4-5-` — fixed in `314c04a` and `b17b1f2`, where the providers stopped
+  testing model ids and started asking the catalogue what each model accepts;
+  the wizard stopped offering the parameters at all where a model refuses them
+  (defect 5).
 - Custom models get no model-specific parameter handling. A Custom GPT-5.6
   sends `max_tokens`, `temperature`, and `top_p`. They also have no prices
   unless typed in — which is still true and still allowed, but no longer
@@ -194,9 +197,15 @@ but exported to the cost forecast), `config/limits.ts`, `config/translation.ts`
 and `scripts/fix-ai-config-token-limits.ts` all still name superseded models —
 though `config/limits/index.ts` has gone, being an unimported second copy
 rather than a list to correct, and `config/limits.ts` is now reached only as a
-fallback, since the wizard fills `tokensPerMinute` from the catalogue; and
-temperature and top_p still reach a request from `SystemPrompt` as well as
-`AIConfiguration` (defect 5).
+fallback, since the wizard fills `tokensPerMinute` from the catalogue.
+
+- Sampling parameters a model refuses (defect 5). Temperature and top-p reach
+  a request from `SystemPrompt` as well as `AIConfiguration`, and the backend
+  already handled that correctly — `PromptBuilder` merges the two and every
+  provider passes the result through the model's catalogue capabilities before
+  building a request. The gap was the wizard, which offered both sliders for
+  every model including the eleven that reject them outright. It now offers
+  only what the chosen model accepts, and says why when it offers nothing.
 
 - Cost limits that could never fire (defect 6). A limit is measured against
   tokens × price, so an unpriced configuration recorded zero spend and the
