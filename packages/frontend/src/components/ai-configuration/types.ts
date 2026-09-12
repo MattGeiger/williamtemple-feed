@@ -142,6 +142,7 @@ export interface CatalogueModel {
     requestsPerMinute: number
     requestsPerDay?: number
   }
+  languages: Record<string, 'evaluated' | 'supported' | 'unsupported'>
 }
 
 export interface ModelCatalogueResponse {

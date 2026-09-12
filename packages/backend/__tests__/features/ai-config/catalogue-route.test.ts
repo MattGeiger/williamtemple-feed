@@ -68,6 +68,8 @@ describe('GET /api/ai-config/models', () => {
     expect(haiku.capabilities.sampling).toBe('temperature-or-top-p');
     expect(haiku.capabilities.prefill).toBe('allowed');
     expect(haiku.lifecycle.status).toBe('active');
+    expect(haiku.languages.Spanish).toBe('supported');
+    expect(haiku.languages.Somali).toBe('unsupported');
   });
 
   test('omits retired models, so nothing shut down can be chosen', async () => {

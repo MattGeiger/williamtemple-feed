@@ -16,6 +16,12 @@ import {
 
 import { translationAuditor } from '../services/translation-auditor';
 import prisma from '../db';
+import {
+  findCatalogueEntry,
+  isCatalogueProvider,
+  languageCoverageFor,
+} from '../services/ai/catalogue';
+import { SUPPORTED_LANGUAGES } from '../services/seed/supported-languages';
 
 interface LanguageUpdate extends BulkUpdateLanguageState {
   preserveTranslations?: boolean;
@@ -53,6 +59,46 @@ router.get('/enabled', async (req, res) => {
   } catch (error) {
     console.error('Error fetching enabled languages:', error);
     res.status(500).json({ error: 'Failed to fetch enabled languages' });
+  }
+});
+
+/**
+ * GET /api/languages/model-coverage
+ * Returns the active model's catalogue coverage for the language selector.
+ */
+router.get('/model-coverage', async (_req, res) => {
+  try {
+    const config = await prisma.aIConfiguration.findFirst({
+      where: { type: 'apikey', isActive: true, deletedAt: null },
+      orderBy: { updatedAt: 'desc' },
+    });
+
+    if (!config?.model || !isCatalogueProvider(config.serviceType)) {
+      return res.json({ model: null });
+    }
+
+    const provider = config.serviceType;
+    const entry = findCatalogueEntry(config.model);
+    const languages = entry?.provider === provider && entry.languages
+      ? entry.languages
+      : Object.fromEntries(
+          SUPPORTED_LANGUAGES.map(({ name }) => [
+            name,
+            languageCoverageFor(provider, config.model, name),
+          ])
+        );
+
+    res.json({
+      model: {
+        id: config.model,
+        displayName: entry?.displayName ?? config.model,
+        provider,
+        languages,
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching active model language coverage:', error);
+    res.status(500).json({ error: 'Failed to fetch active model language coverage' });
   }
 });
 

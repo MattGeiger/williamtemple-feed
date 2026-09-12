@@ -43,3 +43,14 @@ export interface BulkUpdateResponse {
 export interface TranslationCountResponse {
   count: number;
 }
+
+export interface ActiveModelLanguageCoverage {
+  id: string;
+  displayName: string;
+  provider: 'OpenAI' | 'Anthropic' | 'Google';
+  languages: Record<string, 'evaluated' | 'supported' | 'unsupported'>;
+}
+
+export interface ActiveModelLanguageCoverageResponse {
+  model: ActiveModelLanguageCoverage | null;
+}

@@ -29,9 +29,14 @@ import { ServiceStep } from '@/components/ai-configuration/steps/ServiceStep'
 import type { ApiKeyConfigData } from '@/components/ai-configuration/shared/types'
 import type { CatalogueModel } from '@/components/ai-configuration/types'
 import { useModelCatalogue } from '@/hooks/ai-config/useModelCatalogue'
+import { useEnabledLanguages } from '@/hooks/language/useEnabledLanguages'
 
 vi.mock('@/hooks/ai-config/useModelCatalogue', () => ({
   useModelCatalogue: vi.fn()
+}))
+
+vi.mock('@/hooks/language/useEnabledLanguages', () => ({
+  useEnabledLanguages: vi.fn()
 }))
 
 const flashLite = {
@@ -49,7 +54,8 @@ const flashLite = {
     reasoning: { kind: 'none' },
     prefill: 'allowed'
   },
-  rateLimits: { tokensPerMinute: 4000000, requestsPerMinute: 2000 }
+  rateLimits: { tokensPerMinute: 4000000, requestsPerMinute: 2000 },
+  languages: { Spanish: 'supported', Somali: 'unsupported' }
 } as unknown as CatalogueModel
 
 const haiku = {
@@ -111,6 +117,11 @@ const withCatalogue = (models: CatalogueModel[]) => {
 describe('ServiceStep reading the model catalogue', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(useEnabledLanguages).mockReturnValue({
+      languages: [],
+      isLoading: false,
+      refresh: vi.fn()
+    })
   })
 
   test('offers the catalogue models for the chosen provider as a select', () => {
@@ -197,6 +208,22 @@ describe('ServiceStep reading the model catalogue', () => {
 
     expect(screen.getByText(/costs \$10\/\$50 per 1M tokens/)).toBeTruthy()
     expect(screen.getByText(/not known to translate better/)).toBeTruthy()
+  })
+
+  test('lists enabled languages the chosen model does not support', () => {
+    withCatalogue([flashLite])
+    vi.mocked(useEnabledLanguages).mockReturnValue({
+      languages: [
+        { id: 1, name: 'Spanish', isEnabled: true, sortOrder: 1, createdAt: '', updatedAt: '' },
+        { id: 2, name: 'Somali', isEnabled: true, sortOrder: 2, createdAt: '', updatedAt: '' }
+      ],
+      isLoading: false,
+      refresh: vi.fn()
+    })
+
+    render(<ServiceStep mode="add" data={buildData()} onChange={vi.fn()} />)
+
+    expect(screen.getByText('This model does not support these enabled languages: Somali.')).toBeTruthy()
   })
 
   test('says nothing about a current, sensibly priced model', () => {

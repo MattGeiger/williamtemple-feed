@@ -5,6 +5,8 @@
 // under AGPL-3.0-or-later; see LICENSE. William Temple House branding is
 // not covered by this license; see TRADEMARKS.md.
 
+import { SUPPORTED_LANGUAGES } from '../seed/supported-languages';
+
 /**
  * What FEED knows about each AI model, in one place.
  *
@@ -235,12 +237,14 @@ export interface CatalogueEntry {
   /** Starting point for a new configuration's usage limits. See the type. */
   rateLimits?: ModelRateLimits;
   /**
-   * Language coverage, by FEED's own language names. Absent means unknown
-   * rather than unsupported: only a measured or provider-published claim
-   * belongs here.
+   * Language coverage, by every one of FEED's own language names. A provider
+   * support claim is `supported`; only a successful FEED probe is
+   * `evaluated`; an explicit exclusion is `unsupported`.
    */
-  languages?: Record<string, LanguageCoverage>;
+  languages: Record<string, LanguageCoverage>;
 }
+
+type CatalogueEntryWithoutLanguages = Omit<CatalogueEntry, 'languages'>;
 
 /** The service endpoints a provider is reached on. */
 export const SERVICE_ENDPOINTS = {
@@ -249,6 +253,62 @@ export const SERVICE_ENDPOINTS = {
   Google: 'https://generativelanguage.googleapis.com',
   Azure: '',
 } as const;
+
+/**
+ * FEED's language names and legacy two-letter aliases, in the same catalogue
+ * module that decides whether a provider/model may receive them.
+ */
+export const LANGUAGE_NAMES_BY_CODE: Readonly<Record<string, string>> = {
+  en: 'English', zh: 'Chinese', es: 'Spanish', hi: 'Hindi', ar: 'Arabic', pt: 'Portuguese',
+  bn: 'Bengali', ru: 'Russian', ja: 'Japanese', pa: 'Punjabi', de: 'German', fr: 'French',
+  ur: 'Urdu', id: 'Indonesian', it: 'Italian', tr: 'Turkish', vi: 'Vietnamese', fa: 'Persian',
+  th: 'Thai', ko: 'Korean', ta: 'Tamil', sw: 'Swahili', mr: 'Marathi', te: 'Telugu',
+  gu: 'Gujarati', pl: 'Polish', uk: 'Ukrainian', ml: 'Malayalam', ro: 'Romanian', nl: 'Dutch',
+  hu: 'Hungarian', el: 'Greek', cs: 'Czech', sv: 'Swedish', tl: 'Tagalog', kk: 'Kazakh',
+  da: 'Danish', sk: 'Slovak', sl: 'Slovenian', sr: 'Serbian', fi: 'Finnish', bg: 'Bulgarian',
+  no: 'Norwegian', mk: 'Macedonian', lt: 'Lithuanian', lv: 'Latvian', hr: 'Croatian', so: 'Somali',
+  sq: 'Albanian', hy: 'Armenian', bs: 'Bosnian', ka: 'Georgian', am: 'Amharic', my: 'Burmese',
+  ms: 'Malay', et: 'Estonian', ca: 'Catalan', mn: 'Mongolian', kn: 'Kannada',
+};
+
+const LANGUAGE_BY_LOWERCASE = new Map(
+  SUPPORTED_LANGUAGES.map(({ name }) => [name.toLowerCase(), name])
+);
+
+export const normalizeCatalogueLanguage = (language: string): string => {
+  const trimmed = language.trim();
+  const lowered = trimmed.toLowerCase();
+  return LANGUAGE_NAMES_BY_CODE[lowered] ?? LANGUAGE_BY_LOWERCASE.get(lowered) ?? trimmed;
+};
+
+// Preserve the providers' previous runtime allowlists while moving their one
+// authoritative representation here. These are provider-published/support
+// claims, not successful FEED probes, so they are `supported`, not
+// `evaluated`. D29's live matrix promotes individual model/language pairs only
+// after a real generation succeeds.
+const UNSUPPORTED_BY_PROVIDER: Record<CatalogueEntry['provider'], ReadonlySet<string>> = {
+  OpenAI: new Set(),
+  Anthropic: new Set(['Tagalog', 'Somali']),
+  Google: new Set(['Tagalog', 'Somali']),
+};
+
+const coverageForProvider = (
+  provider: CatalogueEntry['provider']
+): Record<string, LanguageCoverage> => Object.fromEntries(
+  SUPPORTED_LANGUAGES.map(({ name }) => [
+    name,
+    UNSUPPORTED_BY_PROVIDER[provider].has(name) ? 'unsupported' : 'supported',
+  ])
+);
+
+const PROVIDER_LANGUAGE_COVERAGE: Record<
+  CatalogueEntry['provider'],
+  Record<string, LanguageCoverage>
+> = {
+  OpenAI: coverageForProvider('OpenAI'),
+  Anthropic: coverageForProvider('Anthropic'),
+  Google: coverageForProvider('Google'),
+};
 
 /**
  * The catalogue as it stands today — the models `model-specs.ts` offered
@@ -269,7 +329,7 @@ export const SERVICE_ENDPOINTS = {
  * the `frontier` threshold and would have raised a cost warning on a model
  * that does not warrant one.
  */
-export const CATALOGUE: readonly CatalogueEntry[] = [
+const CATALOGUE_BASE: readonly CatalogueEntryWithoutLanguages[] = [
   // ---------------- OpenAI ----------------
   //
   // The 2026 refresh: four offered presets, and eight entries kept for
@@ -1022,6 +1082,33 @@ export const CATALOGUE: readonly CatalogueEntry[] = [
     },
   },
 ] as const;
+
+/** Every entry carries a complete answer for every FEED language. */
+export const CATALOGUE: readonly CatalogueEntry[] = CATALOGUE_BASE.map((entry) => ({
+  ...entry,
+  languages: { ...PROVIDER_LANGUAGE_COVERAGE[entry.provider] },
+}));
+
+/** The coverage answer used by providers and user-facing warnings. */
+export const languageCoverageFor = (
+  provider: CatalogueEntry['provider'],
+  modelId: string | null | undefined,
+  language: string
+): LanguageCoverage | undefined => {
+  const normalized = normalizeCatalogueLanguage(language);
+  const entry = modelId
+    ? CATALOGUE.find((candidate) => candidate.id === modelId && candidate.provider === provider)
+    : undefined;
+  return entry?.languages?.[normalized] ?? PROVIDER_LANGUAGE_COVERAGE[provider][normalized];
+};
+
+/** Canonical FEED names a provider/model can receive. */
+export const supportedLanguagesFor = (
+  provider: CatalogueEntry['provider'],
+  modelId?: string | null
+): string[] => SUPPORTED_LANGUAGES
+  .map(({ name }) => name)
+  .filter((name) => languageCoverageFor(provider, modelId, name) !== 'unsupported');
 
 /** One entry by the id sent to the provider. */
 export const findCatalogueEntry = (id: string | null | undefined): CatalogueEntry | undefined =>
