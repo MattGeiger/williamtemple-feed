@@ -180,15 +180,20 @@ half:
   GPT-5.6 and `gpt-6-astra` accept, and Anthropic's tentative retirement dates
   recorded as announced shutdowns.
 
+- Lifecycle warnings, in both places the plan asks for them (`1a4c72e`,
+  `55d4d28`). The configuration list badges a saved row whose model is
+  deprecated, retired or a preview — production's `gpt-5-mini` now reads
+  `Ends 2026-12-11` beside `Active` instead of looking healthy — and the
+  dialog says the same when a model is chosen. A frontier model warns what it
+  costs (D1/D7). List and dialog read one module so they cannot drift apart.
+
 Still open from the list above: `SERVICE_SPECIFICATIONS` (labelled "mock data"
 but exported to the cost forecast), `config/limits.ts`,
 `config/limits/index.ts`, `config/translation.ts` and
 `scripts/fix-ai-config-token-limits.ts` all still name superseded models; a
-Custom model still has no prices, so its spend limits never trip; temperature
-and top_p still reach a request from `SystemPrompt` as well as
-`AIConfiguration` (defect 5); and nothing in the configuration list yet renders
-a lifecycle badge (defect 10) — though the `withdrawn` list now gives it the
-data it needs.
+Custom model still has no prices, so its spend limits never trip (defect 6);
+and temperature and top_p still reach a request from `SystemPrompt` as well as
+`AIConfiguration` (defect 5).
 
 Also outstanding: **Phase 5 live validation.** Some of it is already done as a
 by-product of writing the entries — effort values measured on four OpenAI
