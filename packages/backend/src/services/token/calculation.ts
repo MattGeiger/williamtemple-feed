@@ -6,6 +6,38 @@
 // not covered by this license; see TRADEMARKS.md.
 
 import { encoding_for_model } from 'tiktoken';
+
+/**
+ * The encoding every token estimate uses, for every provider.
+ *
+ * This was written at four sites as
+ *
+ *   config.model?.startsWith('gpt-') ? 'gpt-4o-mini' : 'gpt-4o-mini'
+ *
+ * — a ternary whose branches are the same string, so the test could not
+ * change the result. Per-provider encoding was plainly intended and collapsed
+ * at some point, invisibly, because nothing downstream looks wrong at a
+ * glance.
+ *
+ * Keeping a single encoding is a decision, not a surrender to the bug.
+ * tiktoken ships no encoding for Claude or Gemini, so there is nothing more
+ * accurate to switch to locally, and asking it for a real per-model name
+ * would throw for any id it does not recognise and drop the caller into the
+ * far cruder `length / 4` fallback further down. `gpt-4o-mini` resolves to
+ * `o200k_base`, which is also the correct encoding for the GPT-5 family FEED
+ * actually runs.
+ *
+ * What it is not good for is Anthropic: its current tokenizer counts roughly
+ * 30% more tokens for the same text (see
+ * docs/ai-config/model-catalogue-refresh-2026-09.md). That bias survives here
+ * deliberately — correcting it needs a factor measured per provider, and
+ * inventing one would swap a knowable error for a fabricated one.
+ *
+ * The bias is confined to *estimates*: pre-flight limit checks and the cost
+ * forecast. Every provider returns authoritative counts alongside its
+ * response, and recorded spend is priced from those.
+ */
+export const ENCODING_MODEL = 'gpt-4o-mini' as const;
 import prisma from '../../db';
 
 export interface TokenMetrics {
@@ -101,8 +133,7 @@ export function calculateInputMetrics(
     return result;
   }
 
-  // Use configured model or fallback for tiktoken
-  const modelForEncoding = config.model?.startsWith('gpt-') ? 'gpt-4o-mini' : 'gpt-4o-mini';
+  const modelForEncoding = ENCODING_MODEL;
   
   try {
     const encoder = encoding_for_model(modelForEncoding);
@@ -157,8 +188,7 @@ export function calculateOutputMetrics(outputText: string, config: any): TokenMe
     throw new Error('AI configuration required for token calculation.');
   }
 
-  // Use configured model or fallback for tiktoken
-  const modelForEncoding = config.model?.startsWith('gpt-') ? 'gpt-4o-mini' : 'gpt-4o-mini';
+  const modelForEncoding = ENCODING_MODEL;
   
   try {
     const encoder = encoding_for_model(modelForEncoding);
@@ -188,8 +218,7 @@ export function estimateOutputMetrics(inputText: string, config: any): TokenMetr
     throw new Error('AI configuration required for token calculation.');
   }
 
-  // Use configured model or fallback for tiktoken
-  const modelForEncoding = config.model?.startsWith('gpt-') ? 'gpt-4o-mini' : 'gpt-4o-mini';
+  const modelForEncoding = ENCODING_MODEL;
   
   try {
     const encoder = encoding_for_model(modelForEncoding);

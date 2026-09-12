@@ -11,6 +11,7 @@ import { Prisma } from '@prisma/client';
 import prisma from '../db';
 import { encryptApiKey } from '../services/encryption';
 import { encoding_for_model } from 'tiktoken';
+import { ENCODING_MODEL } from '../services/token/calculation';
 
 import { requireAdmin } from '../middleware/auth/require-admin';
 import {
@@ -799,8 +800,7 @@ router.post('/estimate-tokens', async (req: Request, res: Response, next: NextFu
       throw error;
     }
 
-    // Use configured model or fallback
-    const modelForEncoding = config.model?.startsWith('gpt-') ? 'gpt-4o-mini' : 'gpt-4o-mini';
+    const modelForEncoding = ENCODING_MODEL;
     
     try {
       const encoder = encoding_for_model(modelForEncoding);

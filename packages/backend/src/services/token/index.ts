@@ -9,15 +9,21 @@ import { calculateInputMetrics, calculateOutputMetrics, TokenMetrics } from './c
 import { AIConfiguration } from '@prisma/client';
 
 /**
- * Calculates input token metrics for gpt-4o-mini.
+ * Estimates input token metrics, for any provider.
  * Input tokens = system prompt tokens (including target language) + user prompt tokens.
+ *
+ * The count comes from one OpenAI encoding whatever the provider — see
+ * `ENCODING_MODEL` for why that is deliberate and where it is wrong. This is
+ * an estimate, used before a call is made; it is not what recorded spend is
+ * priced from.
  */
 export function estimateInputTokensAndCost(text: string, targetLanguage: string, config: AIConfiguration): TokenMetrics {
   return calculateInputMetrics(text, targetLanguage, config);
 }
 
 /**
- * Calculates output (completion) token metrics for gpt-4o-mini.
+ * Estimates output (completion) token metrics, for any provider.
+ * Same single-encoding caveat as `estimateInputTokensAndCost`.
  */
 export function estimateOutputTokensAndCost(text: string, config: AIConfiguration): TokenMetrics {
   return calculateOutputMetrics(text, config);
