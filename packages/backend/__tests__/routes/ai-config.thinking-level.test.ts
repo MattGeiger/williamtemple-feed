@@ -2,6 +2,13 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
 import request from 'supertest';
 import express from 'express';
 
+const verifyProviderEntitlement = vi.hoisted(() => vi.fn());
+
+vi.mock('../../src/services/ai/provider-access', () => ({
+  verifyProviderEntitlement,
+  clearProviderAccessFailureCache: vi.fn(),
+}));
+
 const mockPrisma = {
   aIConfiguration: {
     create: vi.fn(),

@@ -140,6 +140,21 @@ describe('the request Claude 5 actually receives', () => {
     expect(request.messages).toHaveLength(1);
   });
 
+  test('save-time verification makes one minimal generation request', async () => {
+    const create = vi.fn().mockResolvedValue({ content: [] });
+    const service = new AnthropicTranslationService(buildConfig()) as any;
+    vi.spyOn(service, 'getAnthropicClient').mockResolvedValue({ messages: { create } });
+
+    await expect(service.verifyEntitlement()).resolves.toEqual({ ok: true });
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(create.mock.calls[0][0]).toMatchObject({
+      model: 'claude-sonnet-5',
+      max_tokens: 16,
+      thinking: { type: 'disabled' },
+      messages: [{ role: 'user', content: 'Reply with OK.' }]
+    });
+  });
+
   test('Fable 5.1 gets an effort instead, since it cannot be disabled', async () => {
     const request = await translate('claude-fable-5-1');
 

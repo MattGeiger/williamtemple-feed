@@ -196,6 +196,24 @@ export class OpenAITranslationService extends AITranslationService {
     }
   }
 
+  async verifyEntitlement(): Promise<ProviderAccessResult> {
+    try {
+      const openai = await this.getOpenAIClient();
+      const model = this.getModel();
+      const reasoning = resolveReasoning(capabilitiesFor('OpenAI', model), null).value;
+      await openai.chat.completions.create({
+        model,
+        messages: [{ role: 'user', content: 'Reply with OK.' }],
+        ...(reasoning && { reasoning_effort: reasoning as ReasoningValue }),
+        ...this.buildMaxTokensParameter(model, 16),
+      });
+      return { ok: true };
+    } catch (error) {
+      console.error('OpenAI entitlement check failed:', error);
+      return { ok: false, error };
+    }
+  }
+
   async validateApiKey(): Promise<boolean> {
     return (await this.checkAccess()).ok;
   }
@@ -211,11 +229,11 @@ export class OpenAITranslationService extends AITranslationService {
 
   getServiceLimits(): ServiceLimits {
     return {
-      tokensPerMinute: this.config.tokensPerMinute || 30000,
-      requestsPerMinute: this.config.requestsPerMinute || 500,
-      requestsPerDay: this.config.requestsPerDay || 10000,
-      inputCost: this.config.inputCost || 0.00015,
-      outputCost: this.config.outputCost || 0.0006
+      tokensPerMinute: this.config.tokensPerMinute ?? 0,
+      requestsPerMinute: this.config.requestsPerMinute ?? 0,
+      requestsPerDay: this.config.requestsPerDay ?? 0,
+      inputCost: this.config.inputCost ?? 0,
+      outputCost: this.config.outputCost ?? 0
     };
   }
 

@@ -143,6 +143,22 @@ describe('OpenAITranslationService thinking level', () => {
     expect(result.reasoningEffort).toBe('high');
   });
 
+  test('save-time verification makes one minimal generation request', async () => {
+    const create = vi.fn().mockResolvedValue({ choices: [] });
+    const service = new OpenAITranslationService(buildConfig()) as any;
+    vi.spyOn(service, 'getOpenAIClient').mockResolvedValue({
+      chat: { completions: { create } }
+    });
+
+    await expect(service.verifyEntitlement()).resolves.toEqual({ ok: true });
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(create.mock.calls[0][0]).toMatchObject({
+      model: 'gpt-5-2025-08-07',
+      messages: [{ role: 'user', content: 'Reply with OK.' }],
+      max_completion_tokens: 16
+    });
+  });
+
   test('falls back to model default when config is null', () => {
     const service = new OpenAITranslationService(buildConfig()) as any;
     const result = service.checkAndOverrideParameters('gpt-5-nano-2025-08-07', 1, 1, null);

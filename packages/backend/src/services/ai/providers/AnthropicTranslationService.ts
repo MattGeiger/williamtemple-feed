@@ -204,6 +204,23 @@ export class AnthropicTranslationService extends AITranslationService {
     }
   }
 
+  async verifyEntitlement(): Promise<ProviderAccessResult> {
+    try {
+      const anthropic = await this.getAnthropicClient();
+      const model = this.getModel();
+      await anthropic.messages.create({
+        model,
+        max_tokens: 16,
+        ...this.resolveThinking(model),
+        messages: [{ role: 'user', content: 'Reply with OK.' }],
+      });
+      return { ok: true };
+    } catch (error) {
+      console.error('Anthropic entitlement check failed:', error);
+      return { ok: false, error };
+    }
+  }
+
   async validateApiKey(): Promise<boolean> {
     return (await this.checkAccess()).ok;
   }
@@ -219,11 +236,11 @@ export class AnthropicTranslationService extends AITranslationService {
 
   getServiceLimits(): ServiceLimits {
     return {
-      tokensPerMinute: this.config.tokensPerMinute || 20000,
-      requestsPerMinute: this.config.requestsPerMinute || 50,
-      requestsPerDay: this.config.requestsPerDay || 1000,
-      inputCost: this.config.inputCost || 0.003,
-      outputCost: this.config.outputCost || 0.015
+      tokensPerMinute: this.config.tokensPerMinute ?? 0,
+      requestsPerMinute: this.config.requestsPerMinute ?? 0,
+      requestsPerDay: this.config.requestsPerDay ?? 0,
+      inputCost: this.config.inputCost ?? 0,
+      outputCost: this.config.outputCost ?? 0
     };
   }
 

@@ -69,29 +69,28 @@ export class AIServiceFactory {
       }
     }
 
-    // Create new service instance
-    let service: AITranslationService;
-
-    switch (config.serviceType) {
-      case 'OpenAI':
-        service = new OpenAITranslationService(config);
-        break;
-      case 'Anthropic':
-        service = new AnthropicTranslationService(config);
-        break;
-      case 'Google':
-        service = new GoogleTranslationService(config);
-        break;
-      case 'Azure':
-        throw new Error('Azure OpenAI service not yet implemented');
-      default:
-        throw new Error(`Unsupported AI service type: ${config.serviceType}`);
-    }
+    const service = this.createServiceFromConfiguration(config);
 
     // Cache the service instance
     this.serviceInstances.set(cacheKey, service);
 
     return service;
+  }
+
+  /** Build an uncached service for a configuration that may not be saved yet. */
+  static createServiceFromConfiguration(config: AIConfiguration): AITranslationService {
+    switch (config.serviceType) {
+      case 'OpenAI':
+        return new OpenAITranslationService(config);
+      case 'Anthropic':
+        return new AnthropicTranslationService(config);
+      case 'Google':
+        return new GoogleTranslationService(config);
+      case 'Azure':
+        throw new Error('Azure OpenAI service not yet implemented');
+      default:
+        throw new Error(`Unsupported AI service type: ${config.serviceType}`);
+    }
   }
 
   /**
