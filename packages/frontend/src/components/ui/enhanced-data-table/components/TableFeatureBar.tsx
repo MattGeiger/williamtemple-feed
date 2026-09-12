@@ -22,7 +22,7 @@ import { Table } from "@tanstack/react-table"
 import { TableBulkAction } from "@/types/table"
 import { humanizeString } from "@/lib/utils"
 import { LanguageFilter } from "@/components/ui/language-filter"
-import { TypeFilter } from "@/components/ui/type-filter"
+import { TypeFilter, type TypeFilterOption } from "@/components/ui/type-filter"
 import { TranslationType } from "@/types/translation"
 import { AnimateIcon } from "@/components/animate-ui/icons/icon";
 
@@ -43,7 +43,7 @@ interface ToolbarAction {
   buttonRef?: React.Ref<HTMLButtonElement>
 }
 
-interface TableFeatureBarProps<TData> {
+interface TableFeatureBarProps<TData, TType extends string = TranslationType> {
   table: Table<TData>
   filterColumn?: string
   filterPlaceholder?: string
@@ -52,10 +52,12 @@ interface TableFeatureBarProps<TData> {
   enableLanguageFilter?: boolean
   enableTypeFilter?: boolean
   selectedLanguage?: string
-  selectedTypes?: TranslationType[]
+  selectedTypes?: TType[]
+  /** The filterable types and their labels. Without these no filter renders. */
+  typeOptions?: readonly TypeFilterOption<TType>[]
   availableLanguages?: string[]
   onLanguageChange?: (language: string) => void
-  onTypeChange?: (types: TranslationType[]) => void
+  onTypeChange?: (types: TType[]) => void
   className?: string
   bulkActions?: TableBulkAction<TData>[]
   toolbarActions?: ToolbarAction[]
@@ -64,7 +66,7 @@ interface TableFeatureBarProps<TData> {
   onClearSelection?: () => void
 }
 
-export function TableFeatureBar<TData>({
+export function TableFeatureBar<TData, TType extends string = TranslationType>({
   table,
   filterColumn,
   filterPlaceholder,
@@ -77,13 +79,14 @@ export function TableFeatureBar<TData>({
   availableLanguages,
   onLanguageChange,
   onTypeChange,
+  typeOptions,
   className,
   bulkActions,
   toolbarActions = [],
   toolbarControls,
   selectedRows = [],
   onClearSelection,
-}: TableFeatureBarProps<TData>) {
+}: TableFeatureBarProps<TData, TType>) {
   const hasSelection = selectedRows.length > 0
 
   // Animated filter funnel: draws on at page load, and again on hover / click
@@ -208,12 +211,13 @@ export function TableFeatureBar<TData>({
               availableLanguages={availableLanguages}
             />
           )}
-          {enableTypeFilter && onTypeChange && selectedTypes && (
+          {enableTypeFilter && onTypeChange && selectedTypes && typeOptions?.length ? (
             <TypeFilter
               selectedTypes={selectedTypes}
+              options={typeOptions}
               onTypeChange={onTypeChange}
             />
-          )}
+          ) : null}
           {enableColumnVisibility && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
