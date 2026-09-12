@@ -678,10 +678,10 @@ separate project with a small prepaid balance).
 | `@anthropic-ai/sdk` | 0.57.0 | 0.125.0 | Typed `thinking` modes, `output_config.effort`, structured outputs to replace prefill, current model constants and non-streaming limits | Beta Files/Skills renames (0.122.0) and beta structured-output field move (0.72.0) — FEED uses neither. |
 | `openai` | 5.10.2 | 7.15.0 (6.x at 6.49.0) | Nothing strictly: Chat Completions passes unknown `reasoning_effort` values through, and FEED already casts `minimal` past the SDK's `low \| medium \| high` type | 6.0.0: Responses tool-output types only. 7.0.0: **requires Node 22.** |
 
-**Runtime:** the Docker images run `node:20-alpine`. Node 20 reached
-end-of-life on 2026-04-30, so production already runs an unsupported Node.
-Local development runs Node 24, and `AGENTS.md` records pdfmake working on 20
-and 24 (not 23).
+**Runtime:** the Docker images ran `node:20-alpine`, which reached end-of-life
+on 2026-04-30. Moved to `node:24-alpine` (D10), matching local development;
+`AGENTS.md` records pdfmake working on 20 and 24, but not 23. That release also
+unblocks `openai` 7, which requires Node 22 or later.
 
 Approaches:
 

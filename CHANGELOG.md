@@ -5,6 +5,27 @@ All notable changes to FEED are documented here. This project adheres to
 
 ## [Unreleased]
 
+### Changed
+
+- **The Docker images run Node 24 (`node:24-alpine`).** Node 20 reached
+  end-of-life on 2026-04-30, so production had been running an unsupported
+  runtime; development has been on 24 throughout. All three Node stages move
+  together — both builders and the backend runtime — and nothing else pins a
+  Node version: there is no `.nvmrc`, no `engines` field, and no CI workflow.
+
+  Shipped on its own, deliberately. It carries no user-visible change, which
+  is exactly why it should not travel with the AI model work: when something
+  breaks after a deploy, two candidate causes in one release is one too many.
+
+  Verified by building both ARM64 images — the architecture the Pi runs — not
+  by reasoning about the base image. `npm ci`, the native module compiles,
+  `prisma generate` and the TypeScript build all succeed on 24, and the built
+  backend image reports Node v24.21.0 with Prisma 6.12.0 and Chromium 152 in
+  place for PDF export. The pdfmake/fontkit suite that AGENTS.md warns about
+  (Node 23 produced `Unknown font format`) passes on 24.
+
+  It also unblocks `openai` 7, which requires Node 22 or later.
+
 ## [1.7.5] — 2026-09-11, authored; not yet deployed
 
 Production has been serving 1.7.5-rc.1 since 2026-09-05. This is the stable

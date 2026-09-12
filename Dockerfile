@@ -7,7 +7,7 @@
 # Vite emits static files, so the frontend build does not need to run once per
 # target architecture. Build it on the host platform to avoid QEMU/native-module
 # postinstall failures during multi-arch builds, then copy dist into Nginx.
-FROM --platform=$BUILDPLATFORM node:20-alpine AS frontend-builder
+FROM --platform=$BUILDPLATFORM node:24-alpine AS frontend-builder
 
 WORKDIR /app/packages/frontend
 
@@ -31,7 +31,7 @@ RUN npm run build
 # ============================================
 # Stage 2: Build Backend
 # ============================================
-FROM node:20-alpine AS backend-builder
+FROM node:24-alpine AS backend-builder
 
 WORKDIR /app
 
@@ -83,7 +83,7 @@ CMD ["nginx", "-g", "daemon off;"]
 # ============================================
 # Stage 4: Backend Runtime
 # ============================================
-FROM node:20-alpine AS backend
+FROM node:24-alpine AS backend
 
 WORKDIR /app
 
