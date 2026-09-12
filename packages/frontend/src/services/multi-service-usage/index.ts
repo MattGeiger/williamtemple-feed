@@ -184,8 +184,8 @@ export class MultiServiceUsageService extends BaseApiService {
       const rpmLimit = config.requestsPerMinute ?? 0;
       const rpdLimit = config.requestsPerDay ?? 0;
       
-      const dailyTokenLimit = tpmLimit * 1440; // TPM * minutes per day
-      const monthlyTokenLimit = dailyTokenLimit * 30;
+      const dailyTokenLimit = 0;
+      const monthlyTokenLimit = 0;
       
       // Get daily usage from backend
       const dailyTokens = config.dailyUsage.promptTokens + config.dailyUsage.completionTokens;
@@ -213,15 +213,15 @@ export class MultiServiceUsageService extends BaseApiService {
         dailyUsage: {
           current: dailyTokens,
           limit: dailyTokenLimit,
-          remaining: Math.max(0, dailyTokenLimit - dailyTokens),
-          warningLevel: this.mapWarningLevel(metrics.dailyWarningLevel)
+          remaining: 0,
+          warningLevel: null
         },
         
         monthlyUsage: {
           current: monthlyTokens,
           limit: monthlyTokenLimit,
-          remaining: Math.max(0, monthlyTokenLimit - monthlyTokens),
-          warningLevel: this.mapWarningLevel(metrics.monthlyWarningLevel)
+          remaining: 0,
+          warningLevel: null
         },
         
         rateLimit: {
@@ -271,20 +271,6 @@ export class MultiServiceUsageService extends BaseApiService {
       // Service-specific performance metrics (new)
       performanceByService: metrics.performanceByService || {}
     };
-  }
-
-  /**
-   * Maps backend warning levels to frontend format
-   */
-  private mapWarningLevel(level: string | null): 'normal' | 'warning' | 'elevated' | 'critical' | null {
-    if (!level) return 'normal';
-    
-    switch (level.toLowerCase()) {
-      case 'critical': return 'critical';
-      case 'elevated': return 'elevated';
-      case 'warning': return 'warning';
-      default: return 'normal';
-    }
   }
 
   /**

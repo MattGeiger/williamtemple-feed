@@ -86,7 +86,7 @@ export const createApiKeySteps = (mode: 'add' | 'edit'): StepDefinition<ApiKeyCo
   {
     id: 'limits',
     title: 'Usage Limits',
-    description: 'Configure usage limits',
+    description: 'Record provider allowances',
     component: UsageLimitsStep,
     isOptional: true
   },

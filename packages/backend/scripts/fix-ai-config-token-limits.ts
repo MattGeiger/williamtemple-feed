@@ -11,33 +11,9 @@
  */
 
 import { PrismaClient } from '@prisma/client'
+import { findCatalogueEntry } from '../src/services/ai/catalogue'
 
 const prisma = new PrismaClient()
-
-// Model specifications for fixing token limits
-const MODEL_OUTPUT_LIMITS: Record<string, number> = {
-  // OpenAI Models
-  'gpt-4.1-nano-2025-04-14': 32768,
-  'gpt-4.1-mini-2025-04-14': 32768,
-  'gpt-4.1-2025-04-14': 32768,
-  'gpt-4o-mini-2024-07-18': 16384, // No outputTokenLimit in specs, use reasonable default
-  'gpt-4o-2024-05-13': 16384, // No outputTokenLimit in specs, use reasonable default
-  'o4-mini-2025-04-16': 65536, // No outputTokenLimit in specs, use reasonable default
-  'o3-mini-2025-01-31': 65536, // No outputTokenLimit in specs, use reasonable default
-  'o3-2025-04-16': 65536, // No outputTokenLimit in specs, use reasonable default
-  
-  // Anthropic Models (no outputTokenLimit specified, use reasonable defaults)
-  'claude-3-5-haiku-20241022': 8192,
-  'claude-sonnet-4-20250514': 8192,
-  'claude-3-7-sonnet-20250219': 64000,
-  'claude-opus-4-20250514': 8192,
-  
-  // Google Models
-  'gemini-2.5-flash-lite-preview-06-17': 65536,
-  'gemini-2.5-flash-lite': 65536,
-  'gemini-2.5-flash': 65536,
-  'gemini-2.5-pro': 65536
-}
 
 // Threshold for detecting incorrect values (likely inputTokenLimit)
 const UNREASONABLE_TOKEN_LIMIT = 100000
@@ -76,8 +52,9 @@ async function fixAIConfigTokenLimits() {
       let newMaxTokens: number
 
       // Try to find correct limit based on model
-      if (config.model && MODEL_OUTPUT_LIMITS[config.model]) {
-        newMaxTokens = MODEL_OUTPUT_LIMITS[config.model]
+      const catalogueEntry = config.model ? findCatalogueEntry(config.model) : undefined
+      if (catalogueEntry) {
+        newMaxTokens = catalogueEntry.maxOutputTokens
       } else {
         // Use safe default for unknown models
         newMaxTokens = 4096

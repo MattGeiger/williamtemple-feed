@@ -386,11 +386,7 @@ class TranslationTriggerService {
     }
 
     if (completedIds.length > 0) {
-      await Promise.all([
-        alertService.checkTokenUsage(),
-        alertService.checkCostUsage(),
-        alertService.checkResponseTime(result.metrics.duration)
-      ]);
+      await alertService.checkResponseTime(result.metrics.duration);
     }
   }
 

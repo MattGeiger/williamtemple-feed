@@ -8,8 +8,6 @@
 import { Router } from 'express';
 import { NextFunction, Request, Response } from 'express';
 import prisma from '../../../db';
-import { TOKEN_LIMITS, TOKEN_RATES, MODEL_NAME, getWarningLevel } from '../../../config/limits';
-import ApiUsageTracker from '../../../services/token/usage-tracker';
 import { UsageRecordService } from '../../../services/usage-record';
 import { DateRangeResolver } from '../../../utils/dateRangeResolver';
 
@@ -75,22 +73,10 @@ router.get('/token-metrics', async (req: Request, res: Response, next: NextFunct
     // Get historical usage data from UsageRecord service (7 days back)
     const dateRange = DateRangeResolver.resolveTimeRange('7d');
     const historicalData = await UsageRecordService.getHistoricalUsage(serviceProvider as string | undefined, dateRange.startDate);
-    // `MODEL_NAME` is itself the string 'gpt-4o-mini', so the conditional this
-    // replaces could only ever take the first branch — the same collapsed
-    // shape as the token-encoding ternary fixed in 1db85b3. Named plainly
-    // rather than dressed as a choice that cannot happen.
-    //
-    // This is a last-resort default, reached only when the active
-    // configuration has no `tokensPerMinute` — which the wizard fills from the
-    // catalogue, so a row created through it never gets here. It stays
-    // `gpt-4o-mini` because that is the number this dashboard has always
-    // shown; changing it would alter reported limits under cover of a cleanup.
-    const modelKey = 'gpt-4o-mini' as keyof typeof TOKEN_LIMITS.MODEL_DAILY_LIMITS;
-
     const dailyUsageHistory = historicalData.map(day => ({
       date: day.date,
       usage: day.totalTokens,
-      limit: activeConfig?.tokensPerMinute ? activeConfig.tokensPerMinute * 1440 : TOKEN_LIMITS.MODEL_DAILY_LIMITS?.[modelKey] || 1_000_000
+      limit: 0
     }));
 
     // Calculate current values from UsageRecord aggregations
@@ -118,14 +104,12 @@ router.get('/token-metrics', async (req: Request, res: Response, next: NextFunct
     const dailyGrowthRate = calculateGrowthRate(dailyTokens, dailyUsageHistory);
     const monthlyGrowthRate = calculateGrowthRate(monthlyTokens, previousMonthTokens);
 
-    // Get limits from active configuration or defaults
-    const tpmLimit = activeConfig?.tokensPerMinute || TOKEN_LIMITS.RATE_LIMITS.TPM;
-    const dailyTokenLimit = tpmLimit * 1440; // TPM * minutes per day
-    const monthlyTokenLimit = dailyTokenLimit * 30;
-    
-    // Get warning levels
-    const dailyWarningLevel = getWarningLevel(dailyTokens, dailyTokenLimit);
-    const monthlyWarningLevel = getWarningLevel(monthlyTokens, monthlyTokenLimit);
+    // Provider rate allowances are not daily budgets. FEED has no explicit
+    // daily or monthly token-limit field, so those values are reported as
+    // unconfigured instead of multiplying TPM by elapsed minutes.
+    const tpmLimit = activeConfig?.tokensPerMinute ?? 0;
+    const dailyTokenLimit = 0;
+    const monthlyTokenLimit = 0;
 
     // Get real-time rate metrics from UsageRecord table
     const oneMinuteAgo = new Date(now.getTime() - 60 * 1000);
@@ -161,21 +145,21 @@ router.get('/token-metrics', async (req: Request, res: Response, next: NextFunct
     
     // Format response data from real UsageRecord database
     const responseData = {
-      modelName: activeConfig?.model || MODEL_NAME || 'gpt-4o-mini',
+      modelName: activeConfig?.model || 'unknown',
       serviceProvider: serviceProvider || 'multi-service',
       dailyTokens,
       monthlyTokens,
       dailyTokenLimit,
       monthlyTokenLimit,
-      dailyTokensRemaining: Math.max(0, dailyTokenLimit - dailyTokens),
-      monthlyTokensRemaining: Math.max(0, monthlyTokenLimit - monthlyTokens),
-      dailyWarningLevel,
-      monthlyWarningLevel,
+      dailyTokensRemaining: 0,
+      monthlyTokensRemaining: 0,
+      dailyWarningLevel: null,
+      monthlyWarningLevel: null,
       dailyGrowthRate,
       monthlyGrowthRate,
       dailyCost,
       monthlyCost,
-      costLimit: TOKEN_LIMITS.COST_LIMITS?.MONTHLY || 2000.00,
+      costLimit: activeConfig?.monthlyCostLimit ?? 0,
       // Configuration-aware rate limits
       rateLimit: tpmLimit,
       currentRatePerMinute: (currentMinuteUsage._sum.promptTokens || 0) + (currentMinuteUsage._sum.completionTokens || 0),
@@ -185,11 +169,14 @@ router.get('/token-metrics', async (req: Request, res: Response, next: NextFunct
       // Token details from UsageRecord aggregations
       promptTokensTotal,
       completionTokensTotal,
-      // Token rates from configuration or fallback
       tokenRates: activeConfig ? {
-        prompt: activeConfig.inputCost ? (activeConfig.unitPrice === 'per_1m' ? activeConfig.inputCost / 1_000_000 : activeConfig.inputCost / 1_000) : 0.00000015,
-        completion: activeConfig.outputCost ? (activeConfig.unitPrice === 'per_1m' ? activeConfig.outputCost / 1_000_000 : activeConfig.outputCost / 1_000) : 0.0000006
-      } : TOKEN_RATES?.[MODEL_NAME] || { prompt: 0.00000015, completion: 0.0000006 },
+        prompt: activeConfig.inputCost
+          ? activeConfig.inputCost / (activeConfig.unitPrice === 'per_1m' ? 1_000_000 : 1_000)
+          : 0,
+        completion: activeConfig.outputCost
+          ? activeConfig.outputCost / (activeConfig.unitPrice === 'per_1m' ? 1_000_000 : 1_000)
+          : 0
+      } : { prompt: 0, completion: 0 },
       // Historical data from UsageRecord service
       historicalUsage: dailyUsageHistory
     };

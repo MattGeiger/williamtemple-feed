@@ -297,7 +297,7 @@ describe('LimitEnforcementService cost limits', () => {
     expect(allowed.canProceed).toBe(true);
   });
 
-  test('prioritizes token limits before cost limits', async () => {
+  test('does not convert tokens per minute into a daily token budget', async () => {
     setUsage(
       { promptTokens: 700, completionTokens: 739, totalCost: 0 },
       { promptTokens: 700, completionTokens: 739, totalCost: 0 }
@@ -308,66 +308,22 @@ describe('LimitEnforcementService cost limits', () => {
       2,
       createConfig({
         tokensPerMinute: 1,
-        dailyCostLimit: 0.0001,
-        monthlyCostLimit: 0.0001
+        dailyCostLimit: null,
+        monthlyCostLimit: null
       })
     );
 
-    expect(result.canProceed).toBe(false);
-    expect(result.reason).toBe('Daily token limit would be exceeded');
+    expect(result).toEqual({
+      canProceed: true,
+      remainingTokens: 0,
+      warningLevel: null
+    });
   });
 
-  test('counts prompt and completion tokens when enforcing daily limit', async () => {
+  test('does not fall back to a model-specific daily token budget', async () => {
     setUsage(
       { promptTokens: 700, completionTokens: 730, totalCost: 0 },
       { promptTokens: 0, completionTokens: 0, totalCost: 0 }
-    );
-
-    const service = LimitEnforcementService.getInstance();
-    const result = await service.checkTokenUsage(
-      15,
-      createConfig({ tokensPerMinute: 1 })
-    );
-
-    expect(result.canProceed).toBe(false);
-    expect(result.reason).toBe('Daily token limit would be exceeded');
-  });
-
-  test('derives daily token limits from tokens per minute', async () => {
-    setUsage(
-      { promptTokens: 2000, completionTokens: 0, totalCost: 0 },
-      { promptTokens: 2000, completionTokens: 0, totalCost: 0 }
-    );
-
-    const service = LimitEnforcementService.getInstance();
-    const result = await service.checkTokenUsage(
-      1000,
-      createConfig({ tokensPerMinute: 2 })
-    );
-
-    expect(result.canProceed).toBe(false);
-    expect(result.reason).toBe('Daily token limit would be exceeded');
-  });
-
-  test('uses tokens per minute instead of requests per day for token limits', async () => {
-    setUsage(
-      { promptTokens: 100, completionTokens: 0, totalCost: 0 },
-      { promptTokens: 100, completionTokens: 0, totalCost: 0 }
-    );
-
-    const service = LimitEnforcementService.getInstance();
-    const result = await service.checkTokenUsage(
-      100,
-      createConfig({ tokensPerMinute: 100, requestsPerDay: 10 })
-    );
-
-    expect(result.canProceed).toBe(true);
-  });
-
-  test('falls back to model daily limits when tokens per minute is missing', async () => {
-    setUsage(
-      { promptTokens: 999_999, completionTokens: 0, totalCost: 0 },
-      { promptTokens: 999_999, completionTokens: 0, totalCost: 0 }
     );
 
     const service = LimitEnforcementService.getInstance();
@@ -376,28 +332,11 @@ describe('LimitEnforcementService cost limits', () => {
       createConfig({ tokensPerMinute: null, model: 'gpt-4o-mini' })
     );
 
-    expect(result.canProceed).toBe(false);
-    expect(result.reason).toBe('Daily token limit would be exceeded');
-  });
-
-  test('skips token limit when no tokens-per-minute and model has no defaults', async () => {
-    setUsage(
-      { promptTokens: 2_000_000, completionTokens: 0, totalCost: 0 },
-      { promptTokens: 2_000_000, completionTokens: 0, totalCost: 0 }
-    );
-
-    const service = LimitEnforcementService.getInstance();
-    const result = await service.checkTokenUsage(
-      500_000,
-      createConfig({
-        tokensPerMinute: null,
-        model: 'gpt-5-mini-2025-08-07',
-        dailyCostLimit: null,
-        monthlyCostLimit: null
-      })
-    );
-
-    expect(result.canProceed).toBe(true);
+    expect(result).toEqual({
+      canProceed: true,
+      remainingTokens: 0,
+      warningLevel: null
+    });
   });
 
   test('queries usage records with daily and monthly boundaries', async () => {
