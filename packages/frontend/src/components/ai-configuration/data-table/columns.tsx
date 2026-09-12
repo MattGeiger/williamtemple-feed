@@ -13,6 +13,7 @@ import { ToggleLeftIcon } from "@/components/animate-ui/icons/toggle-left";
 import { ToggleRightIcon } from "@/components/animate-ui/icons/toggle-right";
 import { TableActionMenu } from "@/components/ui/table-action-menu"
 import { AIConfiguration, CatalogueModel } from "../types"
+import { lifecycleNotice, costNotice } from "../model-notices"
 import { UnifiedConfiguration } from "@/services/unified-config"
 import { Checkbox } from "@/components/ui/checkbox"
 import { StatusBadge } from "@/components/shared/status-badge"
@@ -30,52 +31,6 @@ export interface AIConfigurationActions {
    * arrives, or if the request fails.
    */
   findModel?: (id?: string | null) => CatalogueModel | undefined
-}
-
-/**
- * What the list says about a model's remaining life.
- *
- * Until now a configuration pointing at a shut-down model looked exactly like
- * one pointing at a current model — the failure only surfaced when a
- * translation ran, and then as an unrelated-looking provider error. That is
- * defect 10 of ISSUES.md #84.
- */
-const lifecycleNotice = (
-  model: CatalogueModel | undefined
-): { label: string; status: 'warning' | 'danger'; detail: string } | null => {
-  if (!model) return null
-  const { status, shutdownDate, replacement } = model.lifecycle
-
-  const moveTo = replacement ? ` Move to ${replacement}.` : ''
-
-  if (status === 'retired') {
-    return {
-      label: 'Retired',
-      status: 'danger',
-      detail: `${model.id} has been shut down and requests to it fail.${moveTo}`,
-    }
-  }
-
-  if (status === 'deprecated') {
-    return {
-      label: shutdownDate ? `Ends ${shutdownDate}` : 'Deprecated',
-      // A dated shutdown is the one staff must act on before it arrives.
-      status: shutdownDate ? 'danger' : 'warning',
-      detail: shutdownDate
-        ? `${model.id} stops working on ${shutdownDate}.${moveTo}`
-        : `${model.id} is deprecated.${moveTo}`,
-    }
-  }
-
-  if (status === 'preview') {
-    return {
-      label: 'Preview',
-      status: 'warning',
-      detail: `${model.id} is a provider preview and may change or be withdrawn at short notice.`,
-    }
-  }
-
-  return null
 }
 
 export const columns = ({ onEdit, onDelete, onToggleActive, findModel }: AIConfigurationActions): ColumnDef<UnifiedConfiguration>[] => {
@@ -156,6 +111,8 @@ export const columns = ({ onEdit, onDelete, onToggleActive, findModel }: AIConfi
       // Fallback to technical details when description is missing
       if (type === 'apikey') {
         const notice = lifecycleNotice(findModel?.(config.model));
+        // Only the lifecycle line here; the cost warning is a badge, and
+        // repeating it in the description would crowd the row.
         return (
           <div className="text-sm text-muted-foreground">
             <div className="font-medium">{config.serviceType} - {config.modelName}</div>
@@ -199,7 +156,9 @@ export const columns = ({ onEdit, onDelete, onToggleActive, findModel }: AIConfi
     cell: ({ row }) => {
       const isActive = row.getValue("isActive") as boolean
       const config = row.original
-      const notice = config.type === 'apikey' ? lifecycleNotice(findModel?.(config.model)) : null
+      const model = config.type === 'apikey' ? findModel?.(config.model) : undefined
+      const notice = lifecycleNotice(model)
+      const cost = costNotice(model)
 
       return (
         <div className="flex flex-wrap items-center gap-1">
@@ -208,7 +167,10 @@ export const columns = ({ onEdit, onDelete, onToggleActive, findModel }: AIConfi
             status={isActive ? 'success' : 'neutral'}
           />
           {notice && (
-            <StatusBadge label={notice.label} status={notice.status} title={notice.detail} />
+            <StatusBadge label={notice.label} status={notice.tone} title={notice.detail} />
+          )}
+          {cost && (
+            <StatusBadge label={cost.label} status={cost.tone} title={cost.detail} />
           )}
         </div>
       )

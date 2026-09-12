@@ -56,7 +56,19 @@ const haiku = {
   ...flashLite,
   id: 'claude-haiku-4-5-20251001',
   displayName: 'claude-haiku-4.5',
-  provider: 'Anthropic'
+  provider: 'Anthropic',
+  lifecycle: { status: 'active' }
+} as unknown as CatalogueModel
+
+/** Current, healthy, and far more model than translation needs (D1/D7). */
+const astra = {
+  ...flashLite,
+  id: 'gpt-6-astra',
+  displayName: 'gpt-6-astra',
+  provider: 'OpenAI',
+  pricing: { input: 10, output: 50, verifiedAt: '2026-09-12' },
+  lifecycle: { status: 'active' },
+  costTier: 'frontier'
 } as unknown as CatalogueModel
 
 const buildData = (overrides: Partial<ApiKeyConfigData> = {}): ApiKeyConfigData =>
@@ -159,6 +171,61 @@ describe('ServiceStep reading the model catalogue', () => {
     )
 
     expect(onChange).not.toHaveBeenCalled()
+  })
+
+  test('warns in the dialog when the chosen model is on its way out', () => {
+    // The plan asks for this "in the dialog and as a list badge". The list
+    // half shipped first; without this an administrator could pick a
+    // deprecated model in the wizard with no indication at all.
+    withCatalogue([flashLite])
+
+    render(<ServiceStep mode="add" data={buildData()} onChange={vi.fn()} />)
+
+    expect(screen.getByText(/gemini-2\.5-flash-lite is deprecated/)).toBeTruthy()
+  })
+
+  test('warns that a frontier model costs far more than this work needs', () => {
+    withCatalogue([astra])
+
+    render(
+      <ServiceStep
+        mode="add"
+        data={buildData({ serviceType: 'OpenAI', model: 'gpt-6-astra', modelName: 'gpt-6-astra' })}
+        onChange={vi.fn()}
+      />
+    )
+
+    expect(screen.getByText(/costs \$10\/\$50 per 1M tokens/)).toBeTruthy()
+    expect(screen.getByText(/not known to translate better/)).toBeTruthy()
+  })
+
+  test('says nothing about a current, sensibly priced model', () => {
+    // Silence when there is nothing to say, or the warnings become wallpaper.
+    withCatalogue([haiku])
+
+    render(
+      <ServiceStep
+        mode="add"
+        data={buildData({
+          serviceType: 'Anthropic',
+          model: 'claude-haiku-4-5-20251001',
+          modelName: 'claude-haiku-4.5'
+        })}
+        onChange={vi.fn()}
+      />
+    )
+
+    expect(screen.queryByRole('note')).toBeNull()
+  })
+
+  test('says nothing for a Custom model, which the catalogue knows nothing about', () => {
+    withCatalogue([flashLite, astra])
+
+    render(
+      <ServiceStep mode="add" data={buildData({ model: 'Custom' })} onChange={vi.fn()} />
+    )
+
+    expect(screen.queryByRole('note')).toBeNull()
   })
 
   test('leaves an edited configuration alone', () => {
