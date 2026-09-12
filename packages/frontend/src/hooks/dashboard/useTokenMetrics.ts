@@ -46,16 +46,6 @@ export interface TokenMetricsData {
   }[];
 }
 
-// OpenAI rate limits and pricing constants
-const OPENAI_LIMITS = {
-  TPM: 200000,          // Tokens per minute: 200,000
-  RPM: 500,             // Requests per minute: 500
-  RPD: 10000,           // Requests per day: 10,000
-  CONTEXT_WINDOW: 128000, // Context window: 128,000 tokens
-  MAX_OUTPUT: 16384,    // Max output: 16,384 tokens
-  MONTHLY_COST_LIMIT: 100.00 // $100 per month
-};
-
 // Token metrics service
 class TokenMetricsService extends BaseApiService {
   constructor() {
@@ -78,19 +68,22 @@ class TokenMetricsService extends BaseApiService {
       return {
         dailyUsage: {
           current: metrics.dailyTokens || 0,
-          limit: metrics.dailyTokenLimit || (OPENAI_LIMITS.TPM * 1440), // TPM * minutes per day
+          // Was `|| (OPENAI_LIMITS.TPM * 1440)` — a daily ceiling invented
+          // from a hardcoded OpenAI rate limit, for whichever provider was
+          // actually configured.
+          limit: metrics.dailyTokenLimit ?? 0,
           remaining: metrics.dailyTokensRemaining || 0,
           warningLevel: this.mapWarningLevel(metrics.dailyWarningLevel)
         },
         monthlyUsage: {
           current: metrics.monthlyTokens || 0,
-          limit: metrics.monthlyTokenLimit || (OPENAI_LIMITS.TPM * 1440 * 30), // Daily limit * 30 days
+          limit: metrics.monthlyTokenLimit ?? 0,
           remaining: metrics.monthlyTokensRemaining || 0,
           warningLevel: this.mapWarningLevel(metrics.monthlyWarningLevel)
         },
         modelUsage: [
           {
-            name: metrics.modelName || 'gpt-4o-mini',
+            name: metrics.modelName || 'unknown',
             promptTokens: metrics.promptTokensTotal || 0,
             completionTokens: metrics.completionTokensTotal || 0,
             totalCost: metrics.monthlyCost || 0
@@ -98,7 +91,7 @@ class TokenMetricsService extends BaseApiService {
         ],
         rateLimit: {
           current: metrics.currentRatePerMinute || 0,
-          limit: OPENAI_LIMITS.TPM, // Correct TPM limit
+          limit: metrics.rateLimit ?? 0,
           resetTime: metrics.rateLimitResetTime ? new Date(metrics.rateLimitResetTime).toLocaleTimeString() : 
             new Date(Date.now() + 60000).toLocaleTimeString() // Default to next minute
         },
@@ -106,7 +99,11 @@ class TokenMetricsService extends BaseApiService {
         // Check if they exist in the response and provide fallbacks
         requestsPerMinute: metrics.requestsPerMinute !== undefined ? metrics.requestsPerMinute : 0,
         requestsPerDay: metrics.requestsPerDay !== undefined ? metrics.requestsPerDay : 0,
-        historicalData: metrics.historicalUsage || this.getSampleHistoricalData()
+        // Was `|| this.getSampleHistoricalData()`, which built seven days of
+        // `Math.floor(Math.random() * 800000) + 200000` and handed it back as
+        // usage history — different numbers on every fetch. An empty series
+        // says "no history" honestly.
+        historicalData: metrics.historicalUsage || []
       };
     } catch (error) {
       console.error('Failed to fetch token metrics:', error);
@@ -125,24 +122,6 @@ class TokenMetricsService extends BaseApiService {
     }
   }
 
-  private getSampleHistoricalData() {
-    // Return sample data for display purposes until API provides real data
-    const today = new Date();
-    const data = [];
-    
-    for (let i = 6; i >= 0; i--) {
-      const date = new Date(today);
-      date.setDate(date.getDate() - i);
-      
-      data.push({
-        date: date.toISOString().split('T')[0],
-        usage: Math.floor(Math.random() * 800000) + 200000, // Random between 200K-1M
-        limit: OPENAI_LIMITS.TPM * 1440 // Daily limit
-      });
-    }
-    
-    return data;
-  }
 }
 
 // Create singleton instance

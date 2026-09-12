@@ -253,7 +253,9 @@ function ConfigurationMetricsCard({ configuration, expanded = false }: { configu
           footer={
             <div className="text-xs text-muted-foreground">
               <div className="font-medium text-foreground">
-                Limit: {formatLargeNumber(configuration.rateLimit.limit)} TPM
+                {configuration.rateLimit.limit > 0
+                  ? `Limit: ${formatLargeNumber(configuration.rateLimit.limit)} TPM`
+                  : 'No TPM limit set'}
               </div>
             </div>
           }
@@ -267,7 +269,9 @@ function ConfigurationMetricsCard({ configuration, expanded = false }: { configu
           footer={
             <div className="text-xs text-muted-foreground">
               <div className="font-medium text-foreground">
-                Limit: {configuration.requestsPerMinute.limit} RPM
+                {configuration.requestsPerMinute.limit > 0
+                  ? `Limit: ${configuration.requestsPerMinute.limit} RPM`
+                  : 'No RPM limit set'}
               </div>
             </div>
           }
@@ -281,7 +285,9 @@ function ConfigurationMetricsCard({ configuration, expanded = false }: { configu
           footer={
             <div className="text-xs text-muted-foreground">
               <div className="font-medium text-foreground">
-                Limit: {formatLargeNumber(configuration.requestsPerDay.limit)} RPD
+                {configuration.requestsPerDay.limit > 0
+                  ? `Limit: ${formatLargeNumber(configuration.requestsPerDay.limit)} RPD`
+                  : 'No RPD limit set'}
               </div>
             </div>
           }
@@ -370,7 +376,9 @@ function ComparisonConfigurationView({ configurations }: { configurations: Confi
               </div>
               <div>
                 <div className="font-medium">
-                  {((config.rateLimit.current / config.rateLimit.limit) * 100).toFixed(1)}%
+                  {config.rateLimit.limit > 0
+                    ? `${((config.rateLimit.current / config.rateLimit.limit) * 100).toFixed(1)}%`
+                    : 'No data'}
                 </div>
                 <div className="text-xs text-muted-foreground">Rate Usage</div>
               </div>

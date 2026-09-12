@@ -467,22 +467,34 @@ function IndividualServiceView({ configuration, stats, multiServiceData }: any) 
           <h3 className="text-sm font-medium">Rate Limits</h3>
         </div>
         <div className="grid gap-1">
+          {/*
+            A limit of zero means none is configured. These divisions had no
+            guard, so once the invented per-provider defaults were removed
+            they would have rendered NaN% — and 0/0 at that, since a
+            configuration with no limit also has no usage attributed to it.
+          */}
           <div className="flex items-center justify-between">
             <span className="text-sm text-muted-foreground">TPM Usage</span>
             <span className="font-medium">
-              {((configuration.rateLimit.current / configuration.rateLimit.limit) * 100).toFixed(1)}%
+              {configuration.rateLimit.limit > 0
+                ? `${((configuration.rateLimit.current / configuration.rateLimit.limit) * 100).toFixed(1)}%`
+                : 'No data'}
             </span>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-sm text-muted-foreground">RPM Usage</span>
             <span className="font-medium">
-              {((configuration.requestsPerMinute.current / configuration.requestsPerMinute.limit) * 100).toFixed(1)}%
+              {configuration.requestsPerMinute.limit > 0
+                ? `${((configuration.requestsPerMinute.current / configuration.requestsPerMinute.limit) * 100).toFixed(1)}%`
+                : 'No data'}
             </span>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-sm text-muted-foreground">RPD Usage</span>
             <span className="font-medium">
-              {((configuration.requestsPerDay.current / configuration.requestsPerDay.limit) * 100).toFixed(1)}%
+              {configuration.requestsPerDay.limit > 0
+                ? `${((configuration.requestsPerDay.current / configuration.requestsPerDay.limit) * 100).toFixed(1)}%`
+                : 'No data'}
             </span>
           </div>
         </div>

@@ -35,7 +35,7 @@ import { useMultiServiceUsage } from '@/hooks/dashboard/useMultiServiceUsage';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { formatCostWithCents } from '@/utils/cost-utils';
-import { ServiceProvider, ServiceUsageMetrics, ConfigurationUsageMetrics, ConfigurationComparisonData, SERVICE_SPECIFICATIONS } from '@/types/multi-service-usage';
+import { ServiceProvider, ServiceUsageMetrics, ConfigurationUsageMetrics, ConfigurationComparisonData, SERVICE_COLORS } from '@/types/multi-service-usage';
 
 function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('en-US', {
@@ -80,20 +80,6 @@ function getServiceColorClass(serviceType: ServiceProvider): string {
 }
 
 /**
- * Get base response time for service type (DEPRECATED - now uses real data from backend)
- * Kept for fallback compatibility when no real performance data is available
- */
-function getServiceBaseResponseTime(serviceType: ServiceProvider): number {
-  const baseTimes = {
-    'OpenAI': 850,      // Generally fast
-    'Anthropic': 1200,  // Slower but higher quality
-    'Google': 650,      // Very fast
-    'Azure': 920        // Similar to OpenAI
-  };
-  return baseTimes[serviceType];
-}
-
-/**
  * Transform real configuration usage data to comparison chart format
  * Uses real performance data from backend instead of mock calculations
  */
@@ -102,22 +88,20 @@ function transformConfigurationDataForComparison(
   performanceByService?: Record<string, { averageResponseTime: number }>
 ): ConfigurationComparisonData[] {
   return configurations.map(config => {
-    const specs = SERVICE_SPECIFICATIONS[config.serviceType];
     const totalTokens = config.promptTokens + config.completionTokens;
-    const hasUsageData = config.requestsPerDay.current > 0;
-    
-    // Use real response time data from backend if available
-    let averageResponseTime: number | null = null;
-    if (performanceByService && performanceByService[config.serviceType]) {
-      // Use real performance data from UsageRecord table
-      averageResponseTime = performanceByService[config.serviceType].averageResponseTime;
-    } else if (hasUsageData && totalTokens > 0) {
-      // Fallback to mock calculation only when real data unavailable
-      const baseResponseTime = getServiceBaseResponseTime(config.serviceType);
-      const complexityFactor = Math.min(2.0, Math.max(0.5, totalTokens / 10000));
-      averageResponseTime = Math.floor(baseResponseTime * complexityFactor);
-    }
-    
+
+    // Measured response times only.
+    //
+    // This fell back to `getServiceBaseResponseTime` — 850ms for OpenAI,
+    // 1200 for Anthropic, 650 for Google, 920 for Azure — scaled by a
+    // "complexity factor" derived from token count, and the product was
+    // displayed as "Avg Response" beside genuinely measured figures. Its own
+    // docstring had said DEPRECATED since real data arrived. An invented
+    // number presented as a measurement is worse than no number, and the
+    // renderer already shows "No data" when this is null.
+    const averageResponseTime: number | null =
+      performanceByService?.[config.serviceType]?.averageResponseTime ?? null;
+
     return {
       configurationId: config.configurationId,
       serviceType: config.serviceType,
@@ -130,7 +114,7 @@ function transformConfigurationDataForComparison(
       averageResponseTime,
       successRate: config.successRate,
       operationsCount: config.requestsPerDay.current,
-      color: specs?.color || 'var(--primary)'
+      color: SERVICE_COLORS[config.serviceType] || 'var(--primary)'
     };
   });
 }
