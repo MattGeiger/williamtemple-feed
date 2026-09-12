@@ -26,6 +26,7 @@ const aiConfigService = new AIConfigService();
  */
 export function useModelCatalogue() {
   const [models, setModels] = useState<CatalogueModel[]>([]);
+  const [withdrawn, setWithdrawn] = useState<CatalogueModel[]>([]);
   const [endpoints, setEndpoints] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(true);
 
@@ -34,6 +35,7 @@ export function useModelCatalogue() {
       setIsLoading(true);
       const data = await aiConfigService.getModels();
       setModels(data?.models ?? []);
+      setWithdrawn(data?.withdrawn ?? []);
       setEndpoints(data?.endpoints ?? {});
     } catch (err) {
       ErrorHandlerService.handleError(err, 'fetchModelCatalogue');
@@ -46,10 +48,25 @@ export function useModelCatalogue() {
     fetchCatalogue();
   }, [fetchCatalogue]);
 
+  /**
+   * Any catalogued model by id, offered or not.
+   *
+   * A saved configuration can point at either, and the ones it most needs
+   * explaining are the withdrawn ones — production runs `gpt-5-mini`, which is
+   * no longer a choice and shuts down 2026-12-11.
+   */
+  const findModel = useCallback(
+    (id?: string | null): CatalogueModel | undefined =>
+      id ? [...models, ...withdrawn].find((entry) => entry.id === id) : undefined,
+    [models, withdrawn]
+  );
+
   return {
     models,
+    withdrawn,
     endpoints,
     isLoading,
+    findModel,
     refresh: fetchCatalogue
   };
 }

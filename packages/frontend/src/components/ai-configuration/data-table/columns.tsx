@@ -12,7 +12,7 @@ import { Trash2Icon } from "@/components/animate-ui/icons/trash-2";
 import { ToggleLeftIcon } from "@/components/animate-ui/icons/toggle-left";
 import { ToggleRightIcon } from "@/components/animate-ui/icons/toggle-right";
 import { TableActionMenu } from "@/components/ui/table-action-menu"
-import { AIConfiguration } from "../types"
+import { AIConfiguration, CatalogueModel } from "../types"
 import { UnifiedConfiguration } from "@/services/unified-config"
 import { Checkbox } from "@/components/ui/checkbox"
 import { StatusBadge } from "@/components/shared/status-badge"
@@ -23,9 +23,62 @@ export interface AIConfigurationActions {
   onEdit: (config: UnifiedConfiguration) => void
   onDelete: (config: UnifiedConfiguration) => void
   onToggleActive: (config: UnifiedConfiguration) => void
+  /**
+   * Looks a saved configuration's model up in the catalogue, offered or
+   * withdrawn. Passed in because this is a plain function and cannot call a
+   * hook; optional so the table renders unchanged before the catalogue
+   * arrives, or if the request fails.
+   */
+  findModel?: (id?: string | null) => CatalogueModel | undefined
 }
 
-export const columns = ({ onEdit, onDelete, onToggleActive }: AIConfigurationActions): ColumnDef<UnifiedConfiguration>[] => {
+/**
+ * What the list says about a model's remaining life.
+ *
+ * Until now a configuration pointing at a shut-down model looked exactly like
+ * one pointing at a current model — the failure only surfaced when a
+ * translation ran, and then as an unrelated-looking provider error. That is
+ * defect 10 of ISSUES.md #84.
+ */
+const lifecycleNotice = (
+  model: CatalogueModel | undefined
+): { label: string; status: 'warning' | 'danger'; detail: string } | null => {
+  if (!model) return null
+  const { status, shutdownDate, replacement } = model.lifecycle
+
+  const moveTo = replacement ? ` Move to ${replacement}.` : ''
+
+  if (status === 'retired') {
+    return {
+      label: 'Retired',
+      status: 'danger',
+      detail: `${model.id} has been shut down and requests to it fail.${moveTo}`,
+    }
+  }
+
+  if (status === 'deprecated') {
+    return {
+      label: shutdownDate ? `Ends ${shutdownDate}` : 'Deprecated',
+      // A dated shutdown is the one staff must act on before it arrives.
+      status: shutdownDate ? 'danger' : 'warning',
+      detail: shutdownDate
+        ? `${model.id} stops working on ${shutdownDate}.${moveTo}`
+        : `${model.id} is deprecated.${moveTo}`,
+    }
+  }
+
+  if (status === 'preview') {
+    return {
+      label: 'Preview',
+      status: 'warning',
+      detail: `${model.id} is a provider preview and may change or be withdrawn at short notice.`,
+    }
+  }
+
+  return null
+}
+
+export const columns = ({ onEdit, onDelete, onToggleActive, findModel }: AIConfigurationActions): ColumnDef<UnifiedConfiguration>[] => {
   const columnDefinitions: ColumnDef<UnifiedConfiguration>[] = [
   {
     id: "select",
@@ -102,9 +155,13 @@ export const columns = ({ onEdit, onDelete, onToggleActive }: AIConfigurationAct
       
       // Fallback to technical details when description is missing
       if (type === 'apikey') {
+        const notice = lifecycleNotice(findModel?.(config.model));
         return (
           <div className="text-sm text-muted-foreground">
             <div className="font-medium">{config.serviceType} - {config.modelName}</div>
+            {notice && (
+              <div className="text-xs text-destructive">{notice.detail}</div>
+            )}
             <div className="font-mono text-xs">••••••••••••••••</div>
           </div>
         );
@@ -141,12 +198,18 @@ export const columns = ({ onEdit, onDelete, onToggleActive }: AIConfigurationAct
     ),
     cell: ({ row }) => {
       const isActive = row.getValue("isActive") as boolean
+      const config = row.original
+      const notice = config.type === 'apikey' ? lifecycleNotice(findModel?.(config.model)) : null
+
       return (
-        <div className="flex items-center">
+        <div className="flex flex-wrap items-center gap-1">
           <StatusBadge
             label={isActive ? 'Active' : 'Inactive'}
             status={isActive ? 'success' : 'neutral'}
           />
+          {notice && (
+            <StatusBadge label={notice.label} status={notice.status} title={notice.detail} />
+          )}
         </div>
       )
     }
