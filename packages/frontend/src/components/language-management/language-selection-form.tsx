@@ -5,7 +5,7 @@
 // under AGPL-3.0-or-later; see LICENSE. William Temple House branding is
 // not covered by this license; see TRADEMARKS.md.
 
-import React, { useState, useCallback } from 'react'
+import React, { useState } from 'react'
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
@@ -24,6 +24,11 @@ import { useLanguageContext } from "@/contexts/LanguageContext"
 import { ButtonIconX } from "@/components/ui/button-icon-x"
 import { LanguageWarningDialog } from "./language-warning-dialog"
 import { LanguageDeactivationDialog, DeactivationAction } from "./language-deactivation-dialog"
+import { LanguageService } from '@/services/language'
+import { ErrorHandlerService } from '@/services/error/ErrorHandlerService'
+import type { ActiveModelLanguageCoverage } from '@/types/language'
+
+const languageService = new LanguageService()
 
 const FormSchema = z.object({
   languages: z.array(z.string()).refine((value) => value.includes('English'), {
@@ -39,6 +44,7 @@ export function LanguageSelectionForm() {
   const [deactivatedLanguages, setDeactivatedLanguages] = useState<string[]>([])
   const [translationCount, setTranslationCount] = useState(0)
   const [pendingData, setPendingData] = useState<z.infer<typeof FormSchema> | null>(null)
+  const [activeModel, setActiveModel] = useState<ActiveModelLanguageCoverage | null>(null)
 
   const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
@@ -55,6 +61,20 @@ export function LanguageSelectionForm() {
       });
     }
   }, [languages, isLoading, form]);
+
+  React.useEffect(() => {
+    let cancelled = false
+
+    languageService.getActiveModelCoverage()
+      .then((model) => {
+        if (!cancelled) setActiveModel(model)
+      })
+      .catch((error) => ErrorHandlerService.handleError(error, 'fetchLanguageModelCoverage'))
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   async function handleWarningConfirm() {
     if (!pendingData) return;
@@ -190,45 +210,58 @@ export function LanguageSelectionForm() {
               </div>
               <ScrollArea className="h-[300px] rounded-md border bg-card text-card-foreground">
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 p-4">
-                  {filteredLanguages.map((language) => (
-                    <FormField
-                      key={language.name}
-                      control={form.control}
-                      name="languages"
-                      render={({ field }) => (
-                        <FormItem
-                          key={language.name}
-                          className="flex flex-row items-start space-x-3 space-y-0"
-                        >
-                          <FormControl>
-                            <Checkbox
-                              checked={field.value?.includes(language.name)}
-                              disabled={language.name === 'English' || isLoading || isSaving}
-                              onCheckedChange={(checked) => {
-                                return checked
-                                  ? field.onChange([...field.value, language.name])
-                                  : field.onChange(
-                                      field.value?.filter(
-                                        (value) => value !== language.name
+                  {filteredLanguages.map((language) => {
+                    const coverage = activeModel?.languages[language.name]
+                    return (
+                      <FormField
+                        key={language.name}
+                        control={form.control}
+                        name="languages"
+                        render={({ field }) => (
+                          <FormItem
+                            key={language.name}
+                            className="flex flex-row items-start space-x-3 space-y-0"
+                          >
+                            <FormControl>
+                              <Checkbox
+                                checked={field.value?.includes(language.name)}
+                                disabled={language.name === 'English' || isLoading || isSaving}
+                                onCheckedChange={(checked) => {
+                                  return checked
+                                    ? field.onChange([...field.value, language.name])
+                                    : field.onChange(
+                                        field.value?.filter(
+                                          (value) => value !== language.name
+                                        )
                                       )
-                                    )
-                              }}
-                            />
-                          </FormControl>
-                          <div className="space-y-1 leading-none text-card-foreground">
-                            <label
-                              className={`text-sm ${
-                                language.name === 'English' ? 'font-medium' : ''
-                              }`}
-                            >
-                              {language.name}
-                              {language.name === 'English' && ' (Required)'}
-                            </label>
-                          </div>
-                        </FormItem>
-                      )}
-                    />
-                  ))}
+                                }}
+                              />
+                            </FormControl>
+                            <div className="space-y-1 leading-none text-card-foreground">
+                              <label
+                                className={`text-sm ${
+                                  language.name === 'English' ? 'font-medium' : ''
+                                }`}
+                              >
+                                {language.name}
+                                {language.name === 'English' && ' (Required)'}
+                              </label>
+                              {field.value?.includes(language.name) && coverage === 'unsupported' && (
+                                <p role="note" className="text-xs leading-snug text-destructive">
+                                  Not supported by {activeModel?.displayName}
+                                </p>
+                              )}
+                              {field.value?.includes(language.name) && coverage === 'supported' && (
+                                <p role="note" className="text-xs leading-snug text-[var(--status-warning-text)]">
+                                  Supported; not yet live-tested
+                                </p>
+                              )}
+                            </div>
+                          </FormItem>
+                        )}
+                      />
+                    )
+                  })}
                 </div>
               </ScrollArea>
               <FormMessage />

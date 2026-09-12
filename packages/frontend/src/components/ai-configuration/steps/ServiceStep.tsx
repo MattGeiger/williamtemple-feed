@@ -39,6 +39,7 @@ import type { CatalogueModel } from '../types'
 import { getServiceEndpoint } from '../service-endpoints'
 import { noticesFor } from '../model-notices'
 import { useModelCatalogue } from '@/hooks/ai-config/useModelCatalogue'
+import { useEnabledLanguages } from '@/hooks/language/useEnabledLanguages'
 
 const CUSTOM = 'Custom'
 
@@ -51,6 +52,7 @@ export function ServiceStep({
   onBlur
 }: ServiceStepProps) {
   const { models } = useModelCatalogue()
+  const { languages: enabledLanguages } = useEnabledLanguages()
 
   const modelsFor = (serviceType: string): CatalogueModel[] =>
     models.filter((entry) => entry.provider === serviceType)
@@ -135,6 +137,11 @@ export function ServiceStep({
   // as `gpt-5.6-sol` does, being active and frontier together.
   const chosen = available.find((entry) => entry.id === data.model)
   const notices = data.model === CUSTOM ? [] : noticesFor(chosen)
+  const unsupportedEnabledLanguages = chosen
+    ? enabledLanguages
+        .filter((language) => language.isEnabled && chosen.languages?.[language.name] === 'unsupported')
+        .map((language) => language.name)
+    : []
 
   return (
     <StepWrapper
@@ -272,6 +279,11 @@ export function ServiceStep({
             {notice.detail}
           </p>
         ))}
+        {unsupportedEnabledLanguages.length > 0 && (
+          <p role="note" className="text-xs text-destructive">
+            This model does not support these enabled languages: {unsupportedEnabledLanguages.join(', ')}.
+          </p>
+        )}
       </div>
     </StepWrapper>
   )

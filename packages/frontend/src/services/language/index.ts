@@ -12,7 +12,9 @@ import {
   BulkUpdateLanguageState, 
   BulkUpdateResponse,
   LanguageResponse,
-  TranslationCountResponse 
+  TranslationCountResponse,
+  ActiveModelLanguageCoverageResponse,
+  ActiveModelLanguageCoverage
 } from '@/types/language';
 
 export class LanguageService extends BaseApiService {
@@ -41,6 +43,15 @@ export class LanguageService extends BaseApiService {
     try {
       const response = await this.request<LanguageResponse>('/enabled');
       return response.languages;
+    } catch (error) {
+      throw this.handleError(error);
+    }
+  }
+
+  async getActiveModelCoverage(): Promise<ActiveModelLanguageCoverage | null> {
+    try {
+      const response = await this.request<ActiveModelLanguageCoverageResponse>('/model-coverage');
+      return response.model;
     } catch (error) {
       throw this.handleError(error);
     }

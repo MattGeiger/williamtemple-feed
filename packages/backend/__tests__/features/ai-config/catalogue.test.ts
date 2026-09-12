@@ -25,8 +25,11 @@ import {
   entriesForProvider,
   findCatalogueEntry,
   leastCostReasoning,
+  languageCoverageFor,
+  normalizeCatalogueLanguage,
   resolveReasoning,
   selectableEntries,
+  supportedLanguagesFor,
   type CatalogueEntry,
 } from '../../../src/services/ai/catalogue';
 
@@ -133,6 +136,32 @@ describe('catalogue invariants', () => {
       if (least === null) continue;
       expect(acceptsReasoningValue(entry, least), entry.id).toBe(true);
     }
+  });
+
+  test('every model answers for every FEED language', () => {
+    for (const entry of CATALOGUE) {
+      expect(Object.keys(entry.languages ?? {}), entry.id).toHaveLength(59);
+      expect(Object.values(entry.languages ?? {}), entry.id).not.toContain(undefined);
+    }
+  });
+});
+
+describe('language coverage', () => {
+  test('preserves the provider allowlists in one catalogue source', () => {
+    expect(languageCoverageFor('OpenAI', 'gpt-5.6-luna', 'Tagalog')).toBe('supported');
+    expect(languageCoverageFor('Google', 'gemini-3.5-flash-lite', 'Tagalog')).toBe('unsupported');
+    expect(languageCoverageFor('Anthropic', 'claude-haiku-4-5-20251001', 'Somali')).toBe('unsupported');
+    expect(supportedLanguagesFor('Google', 'gemini-3.5-flash-lite')).not.toContain('Somali');
+  });
+
+  test('normalizes legacy codes and case before checking coverage', () => {
+    expect(normalizeCatalogueLanguage('AR')).toBe('Arabic');
+    expect(normalizeCatalogueLanguage('  persian ')).toBe('Persian');
+    expect(languageCoverageFor('Google', 'gemini-3.5-flash-lite', 'so')).toBe('unsupported');
+  });
+
+  test('does not claim coverage for a language FEED does not know', () => {
+    expect(languageCoverageFor('OpenAI', 'gpt-5.6-luna', 'Klingon')).toBeUndefined();
   });
 });
 

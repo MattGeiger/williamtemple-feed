@@ -13,45 +13,19 @@ import ApiUsageTracker from '../../token/usage-tracker';
 import { decryptApiKey } from '../../encryption';
 import { PromptBuilder } from '../prompts/PromptBuilder';
 import { TemplateEngine } from '../prompts/TemplateEngine';
-import { capabilitiesFor, resolveReasoning, type ReasoningValue } from '../catalogue';
+import {
+  capabilitiesFor,
+  languageCoverageFor,
+  normalizeCatalogueLanguage,
+  resolveReasoning,
+  supportedLanguagesFor,
+  type ReasoningValue,
+} from '../catalogue';
 
 import { GoogleGenAI } from '@google/genai';
 
 // Add delay function for rate limiting and backoff
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-
-// Google Gemini supported languages (comprehensive list based on Google's multilingual capabilities)
-const GOOGLE_SUPPORTED_LANGUAGES = [
-  'Albanian', 'Amharic', 'Arabic', 'Armenian', 'Azerbaijani', 'Basque', 'Belarusian', 'Bengali', 
-  'Bosnian', 'Bulgarian', 'Burmese', 'Catalan', 'Chinese', 'Croatian', 'Czech', 'Danish', 
-  'Dutch', 'English', 'Estonian', 'Filipino', 'Finnish', 'French', 'Galician', 'Georgian', 
-  'German', 'Greek', 'Gujarati', 'Hebrew', 'Hindi', 'Hungarian', 'Icelandic', 'Indonesian', 
-  'Irish', 'Italian', 'Japanese', 'Kannada', 'Kazakh', 'Korean', 'Latvian', 'Lithuanian', 
-  'Macedonian', 'Malay', 'Malayalam', 'Marathi', 'Mongolian', 'Nepali', 'Norwegian', 'Persian', 
-  'Polish', 'Portuguese', 'Punjabi', 'Romanian', 'Russian', 'Serbian', 'Sinhala', 'Slovak', 
-  'Slovenian', 'Spanish', 'Swahili', 'Swedish', 'Tamil', 'Telugu', 'Thai', 'Turkish', 
-  'Ukrainian', 'Urdu', 'Vietnamese', 'Welsh'
-];
-
-// Language code to full name mapping for Google
-const GOOGLE_LANGUAGE_NAMES: { [key: string]: string } = {
-  'sq': 'Albanian', 'am': 'Amharic', 'ar': 'Arabic', 'hy': 'Armenian', 'az': 'Azerbaijani',
-  'eu': 'Basque', 'be': 'Belarusian', 'bn': 'Bengali', 'bs': 'Bosnian', 'bg': 'Bulgarian',
-  'my': 'Burmese', 'ca': 'Catalan', 'zh': 'Chinese', 'hr': 'Croatian', 'cs': 'Czech',
-  'da': 'Danish', 'nl': 'Dutch', 'en': 'English', 'et': 'Estonian', 'tl': 'Filipino',
-  'fi': 'Finnish', 'fr': 'French', 'gl': 'Galician', 'ka': 'Georgian', 'de': 'German',
-  'el': 'Greek', 'gu': 'Gujarati', 'he': 'Hebrew', 'hi': 'Hindi', 'hu': 'Hungarian',
-  'is': 'Icelandic', 'id': 'Indonesian', 'ga': 'Irish', 'it': 'Italian', 'ja': 'Japanese',
-  'kn': 'Kannada', 'kk': 'Kazakh', 'ko': 'Korean', 'lv': 'Latvian', 'lt': 'Lithuanian',
-  'mk': 'Macedonian', 'ms': 'Malay', 'ml': 'Malayalam', 'mr': 'Marathi', 'mn': 'Mongolian',
-  'ne': 'Nepali', 'no': 'Norwegian', 'fa': 'Persian', 'pl': 'Polish', 'pt': 'Portuguese',
-  'pa': 'Punjabi', 'ro': 'Romanian', 'ru': 'Russian', 'sr': 'Serbian', 'si': 'Sinhala',
-  'sk': 'Slovak', 'sl': 'Slovenian', 'es': 'Spanish', 'sw': 'Swahili', 'sv': 'Swedish',
-  'ta': 'Tamil', 'te': 'Telugu', 'th': 'Thai', 'tr': 'Turkish', 'uk': 'Ukrainian',
-  'ur': 'Urdu', 'vi': 'Vietnamese', 'cy': 'Welsh'
-};
-
-const SUPPORTED_LANGUAGES_SET = new Set(GOOGLE_SUPPORTED_LANGUAGES);
 
 export class GoogleTranslationService extends AITranslationService {
   private googleClient: any = null;
@@ -128,18 +102,7 @@ export class GoogleTranslationService extends AITranslationService {
   }
 
   protected normalizeLanguage(language: string): string {
-    let targetLanguage = language.trim();
-    
-    // If it looks like a code (2-3 chars), try to map it
-    if (/^[a-z]{2,3}$/i.test(targetLanguage)) {
-      const mappedName = GOOGLE_LANGUAGE_NAMES[targetLanguage.toLowerCase()];
-      if (mappedName) {
-        console.log(`Converting language code '${targetLanguage}' to full name '${mappedName}'`);
-        targetLanguage = mappedName;
-      }
-    }
-    
-    return targetLanguage;
+    return normalizeCatalogueLanguage(language);
   }
 
   /**
@@ -171,7 +134,7 @@ export class GoogleTranslationService extends AITranslationService {
 
   getServiceCapabilities(): ServiceCapabilities {
     return {
-      supportsLanguages: GOOGLE_SUPPORTED_LANGUAGES,
+      supportsLanguages: this.getSupportedLanguages(),
       maxTokensPerRequest: this.config.maxTokens || 8192,
       supportsBatchOperations: true,
       supportsClassification: true
@@ -189,12 +152,12 @@ export class GoogleTranslationService extends AITranslationService {
   }
 
   getSupportedLanguages(): string[] {
-    return GOOGLE_SUPPORTED_LANGUAGES;
+    return supportedLanguagesFor('Google', this.getModel());
   }
 
   isLanguageSupported(language: string): boolean {
-    const normalizedLanguage = this.normalizeLanguage(language);
-    return SUPPORTED_LANGUAGES_SET.has(normalizedLanguage);
+    const coverage = languageCoverageFor('Google', this.getModel(), language);
+    return coverage !== undefined && coverage !== 'unsupported';
   }
 
   async translateText(request: TranslationRequest): Promise<TranslationResult> {

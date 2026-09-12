@@ -18,43 +18,15 @@ import { TemplateEngine } from '../prompts/TemplateEngine';
 import {
   capabilitiesFor,
   findCatalogueEntry,
+  languageCoverageFor,
+  normalizeCatalogueLanguage,
   resolveReasoning,
+  supportedLanguagesFor,
   type ReasoningValue,
 } from '../catalogue';
 
 // Add delay function for rate limiting and backoff
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-
-// OpenAI-specific supported languages
-const OPENAI_SUPPORTED_LANGUAGES = [
-  'Albanian', 'Amharic', 'Arabic', 'Armenian', 'Bengali', 'Bosnian', 'Bulgarian', 'Burmese',
-  'Catalan', 'Chinese', 'Croatian', 'Czech', 'Danish', 'Dutch', 'Estonian', 'Finnish', 'French',
-  'Georgian', 'German', 'Greek', 'Gujarati', 'Hindi', 'Hungarian', 'Icelandic', 'Indonesian',
-  'Italian', 'Japanese', 'Kannada', 'Kazakh', 'Korean', 'Latvian', 'Lithuanian', 'Macedonian',
-  'Malay', 'Malayalam', 'Marathi', 'Mongolian', 'Norwegian', 'Persian', 'Polish', 'Portuguese',
-  'Punjabi', 'Romanian', 'Russian', 'Serbian', 'Slovak', 'Slovenian', 'Somali', 'Spanish',
-  'Swahili', 'Swedish', 'Tagalog', 'Tamil', 'Telugu', 'Thai', 'Turkish', 'Ukrainian', 'Urdu',
-  'Vietnamese'
-];
-
-// Language code to full name mapping (for transition period only)
-const LANGUAGE_NAMES: { [key: string]: string } = {
-  'sq': 'Albanian', 'am': 'Amharic', 'ar': 'Arabic', 'hy': 'Armenian', 'bn': 'Bengali',
-  'bs': 'Bosnian', 'bg': 'Bulgarian', 'my': 'Burmese', 'ca': 'Catalan', 'zh': 'Chinese',
-  'hr': 'Croatian', 'cs': 'Czech', 'da': 'Danish', 'nl': 'Dutch', 'et': 'Estonian',
-  'fi': 'Finnish', 'fr': 'French', 'ka': 'Georgian', 'de': 'German', 'el': 'Greek',
-  'gu': 'Gujarati', 'hi': 'Hindi', 'hu': 'Hungarian', 'is': 'Icelandic', 'id': 'Indonesian',
-  'it': 'Italian', 'ja': 'Japanese', 'kn': 'Kannada', 'kk': 'Kazakh', 'ko': 'Korean',
-  'lv': 'Latvian', 'lt': 'Lithuanian', 'mk': 'Macedonian', 'ms': 'Malay', 'ml': 'Malayalam',
-  'mr': 'Marathi', 'mn': 'Mongolian', 'no': 'Norwegian', 'fa': 'Persian', 'pl': 'Polish',
-  'pt': 'Portuguese', 'pa': 'Punjabi', 'ro': 'Romanian', 'ru': 'Russian', 'sr': 'Serbian',
-  'sk': 'Slovak', 'sl': 'Slovenian', 'so': 'Somali', 'es': 'Spanish', 'sw': 'Swahili',
-  'sv': 'Swedish', 'tl': 'Tagalog', 'ta': 'Tamil', 'te': 'Telugu', 'th': 'Thai',
-  'tr': 'Turkish', 'uk': 'Ukrainian', 'ur': 'Urdu', 'vi': 'Vietnamese', 'en': 'English'
-};
-
-// Set for fast lookups
-const SUPPORTED_LANGUAGES_SET = new Set(OPENAI_SUPPORTED_LANGUAGES);
 
 // Cached JSON schema for classification to improve performance
 let cachedClassificationSchema: any = null;
@@ -201,18 +173,7 @@ export class OpenAITranslationService extends AITranslationService {
   }
 
   protected normalizeLanguage(language: string): string {
-    let targetLanguage = language.trim();
-    
-    // If it looks like a code (2-3 chars), try to map it
-    if (/^[a-z]{2,3}$/i.test(targetLanguage)) {
-      const mappedName = LANGUAGE_NAMES[targetLanguage.toLowerCase()];
-      if (mappedName) {
-        console.log(`Converting language code '${targetLanguage}' to full name '${mappedName}'`);
-        targetLanguage = mappedName;
-      }
-    }
-    
-    return targetLanguage;
+    return normalizeCatalogueLanguage(language);
   }
 
   /**
@@ -241,7 +202,7 @@ export class OpenAITranslationService extends AITranslationService {
 
   getServiceCapabilities(): ServiceCapabilities {
     return {
-      supportsLanguages: OPENAI_SUPPORTED_LANGUAGES,
+      supportsLanguages: this.getSupportedLanguages(),
       maxTokensPerRequest: this.config.maxTokens || 4096,
       supportsBatchOperations: true,
       supportsClassification: true
@@ -259,12 +220,12 @@ export class OpenAITranslationService extends AITranslationService {
   }
 
   getSupportedLanguages(): string[] {
-    return OPENAI_SUPPORTED_LANGUAGES;
+    return supportedLanguagesFor('OpenAI', this.getModel());
   }
 
   isLanguageSupported(language: string): boolean {
-    const normalizedLanguage = this.normalizeLanguage(language);
-    return SUPPORTED_LANGUAGES_SET.has(normalizedLanguage);
+    const coverage = languageCoverageFor('OpenAI', this.getModel(), language);
+    return coverage !== undefined && coverage !== 'unsupported';
   }
 
   async translateText(request: TranslationRequest): Promise<TranslationResult> {
