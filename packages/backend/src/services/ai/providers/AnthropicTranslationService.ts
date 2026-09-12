@@ -14,7 +14,7 @@ import { translationRecovery } from '../../translation-recovery';
 import { decryptApiKey } from '../../encryption';
 import { PromptBuilder } from '../prompts/PromptBuilder';
 import { TemplateEngine } from '../prompts/TemplateEngine';
-import { capabilitiesFor, findCatalogueEntry } from '../catalogue';
+import { capabilitiesFor, findCatalogueEntry, resolveReasoning } from '../catalogue';
 
 // Add delay function for rate limiting and backoff
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -82,6 +82,52 @@ export class AnthropicTranslationService extends AITranslationService {
       throw new Error('Anthropic client not initialized');
     }
     return this.anthropicClient;
+  }
+
+  /**
+   * How little this model can be asked to think, spelled the way it expects.
+   *
+   * Returns a fragment to spread into `messages.create`, empty for the models
+   * FEED has always used. Every catalogued Anthropic model until now was
+   * `kind: 'extended'` — manual thinking, off unless a budget is sent — so
+   * sending nothing was correct and this service sent nothing.
+   *
+   * Claude 5 is different in a way that costs money silently: adaptive
+   * thinking is **on by default at effort `high`**, and thinking is billed as
+   * output. A Claude 5 model catalogued without this method would resolve
+   * `low` and then run at `high` on models charging $5–$50 per million.
+   *
+   * Three cases, and the first is why this is not simply "send the effort".
+   * D2 asks for thinking off, *or* the lowest level a model allows, and
+   * measurement on 2026-09-12 shows those are different models:
+   *
+   *   claude-sonnet-5  thinking:{type:'disabled'}  -> OK
+   *   claude-opus-5    thinking:{type:'disabled'}  -> OK
+   *   claude-fable-5-1 thinking:{type:'disabled'}  -> 400 "not supported for
+   *     this model. Use thinking.type.adaptive and output_config.effort"
+   *
+   * So where thinking can be switched off it is, which buys no thinking
+   * tokens at all; where it cannot, the cheapest effort is sent instead; and
+   * an administrator's explicit choice always wins over both.
+   */
+  private resolveThinking(model: string): Record<string, unknown> {
+    const capabilities = capabilitiesFor('Anthropic', model);
+    const { reasoning } = capabilities;
+
+    // `extended` and `none` want no parameter, as before.
+    if (reasoning.kind !== 'adaptive') return {};
+
+    const requested = this.config.thinkingLevel ?? null;
+    const resolved = resolveReasoning(capabilities, requested);
+    for (const warning of resolved.warnings) {
+      console.log(`[Anthropic Service] ${model}: ${warning}`);
+    }
+
+    if (!requested && reasoning.canDisable) {
+      return { thinking: { type: 'disabled' } };
+    }
+
+    return resolved.value ? { output_config: { effort: resolved.value } } : {};
   }
 
   private checkAndOverrideParameters(
@@ -303,6 +349,7 @@ export class AnthropicTranslationService extends AITranslationService {
             max_tokens: maxTokens,
             ...(paramCheck.temperature !== undefined && { temperature: paramCheck.temperature }),
             ...(paramCheck.topP !== undefined && { top_p: paramCheck.topP }),
+            ...this.resolveThinking(model),
             system: systemPrompt,
             messages: [
               {
@@ -505,6 +552,7 @@ export class AnthropicTranslationService extends AITranslationService {
         max_tokens: maxTokens,
         ...(paramCheck.temperature !== undefined && { temperature: paramCheck.temperature }),
         ...(paramCheck.topP !== undefined && { top_p: paramCheck.topP }),
+        ...this.resolveThinking(model),
         system: systemPrompt,
         messages: [
           {
@@ -662,6 +710,9 @@ export class AnthropicTranslationService extends AITranslationService {
         max_tokens: maxTokens,
         ...(paramCheck.temperature !== undefined && { temperature: paramCheck.temperature }),
         ...(paramCheck.topP !== undefined && { top_p: paramCheck.topP }),
+        // Effort shapes tool calls too, not just prose, so classification
+        // gets the same treatment as translation.
+        ...this.resolveThinking(model),
         system: systemPrompt,
         tools: [classificationTool],
         tool_choice: { type: "tool", name: "classify_segments" },
@@ -917,6 +968,7 @@ export class AnthropicTranslationService extends AITranslationService {
         max_tokens: this.resolveMaxTokens(model, promptConfig.maxTokens, 2048, 'batch_classification'),
         ...(paramCheck.temperature !== undefined && { temperature: paramCheck.temperature }),
         ...(paramCheck.topP !== undefined && { top_p: paramCheck.topP }),
+        ...this.resolveThinking(model),
         system: systemPrompt,
         tools: [classificationTool],
         tool_choice: { type: "tool", name: "classify_segments_batch" },

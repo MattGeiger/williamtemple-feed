@@ -581,6 +581,110 @@ export const CATALOGUE: readonly CatalogueEntry[] = [
   },
 
   // ---------------- Anthropic ----------------
+  //
+  // The Claude 5 generation, measured against the API on 2026-09-12. Three
+  // things separate it from Haiku 4.5 above, and each one is a 400 if got
+  // wrong:
+  //
+  //   - Sampling. `temperature`, `top_p` and `top_k` return 400 at any
+  //     non-default value from Claude Opus 4.7 on, so nothing is sent.
+  //   - Prefill. An assistant message seeding `{` returns 400 from Sonnet 4.6
+  //     on, so the JSON comes from the prompt instead (D28).
+  //   - Thinking. Adaptive and **on by default at effort `high`**, where
+  //     everything above is manual `extended` thinking that is off unless
+  //     asked. `AnthropicTranslationService.resolveThinking` is what keeps
+  //     that from quietly billing `high` on every request.
+  //
+  // Retirement dates are Anthropic's *tentative* "not sooner than" floors, so
+  // they live in `note` — a `shutdownDate` here would claim an announcement
+  // that has not been made, and the invariant forbids one on an active entry.
+  {
+    id: 'claude-sonnet-5',
+    displayName: 'claude-sonnet-5',
+    provider: 'Anthropic',
+    pricing: { input: 2.0, output: 10.0, verifiedAt: '2026-09-12' },
+    contextWindow: 1000000,
+    maxOutputTokens: 128000,
+    lifecycle: {
+      status: 'active',
+      note: 'Active. Anthropic gives a tentative earliest retirement of 2027-06-30 and has announced no deprecation.',
+    },
+    costTier: 'standard',
+    capabilities: {
+      sampling: 'unsupported',
+      maxTokensField: 'max_tokens',
+      // Measured: `low`, `xhigh` and `max` all answered, and a disabled
+      // thinking config answered too — so thinking can be switched off
+      // outright, which is what D2 asks for and what the provider sends when
+      // no level is chosen.
+      reasoning: {
+        kind: 'adaptive',
+        values: ['low', 'medium', 'high', 'xhigh', 'max'],
+        leastCost: 'low',
+        canDisable: true,
+      },
+      prefill: 'rejected',
+      nonStreamingOutputCeiling: 20480,
+    },
+  },
+  {
+    id: 'claude-opus-5',
+    displayName: 'claude-opus-5',
+    provider: 'Anthropic',
+    pricing: { input: 5.0, output: 25.0, verifiedAt: '2026-09-12' },
+    contextWindow: 1000000,
+    maxOutputTokens: 128000,
+    lifecycle: {
+      status: 'active',
+      note: 'Active. Tentative earliest retirement 2027-07-24; no deprecation announced.',
+    },
+    costTier: 'frontier',
+    capabilities: {
+      sampling: 'unsupported',
+      maxTokensField: 'max_tokens',
+      // `thinking: {type:'disabled'}` measured OK. Anthropic notes it is
+      // refused at `xhigh` and `max` effort, which FEED never sends by
+      // default — an administrator choosing those gets the effort, not a
+      // disable.
+      reasoning: {
+        kind: 'adaptive',
+        values: ['low', 'medium', 'high', 'xhigh', 'max'],
+        leastCost: 'low',
+        canDisable: true,
+      },
+      prefill: 'rejected',
+      nonStreamingOutputCeiling: 20480,
+    },
+  },
+  {
+    id: 'claude-fable-5-1',
+    displayName: 'claude-fable-5.1',
+    provider: 'Anthropic',
+    pricing: { input: 10.0, output: 50.0, verifiedAt: '2026-09-12' },
+    contextWindow: 1000000,
+    maxOutputTokens: 128000,
+    lifecycle: {
+      status: 'active',
+      note: 'Active. Tentative earliest retirement 2027-09-01; no deprecation announced.',
+    },
+    costTier: 'frontier',
+    capabilities: {
+      sampling: 'unsupported',
+      maxTokensField: 'max_tokens',
+      // The one that cannot be switched off: `thinking: {type:'disabled'}`
+      // returned 400 "not supported for this model. Use thinking.type.adaptive
+      // and output_config.effort". So its cheapest state is effort `low`, and
+      // `canDisable: false` is what stops the provider trying to disable it.
+      reasoning: {
+        kind: 'adaptive',
+        values: ['low', 'medium', 'high', 'xhigh', 'max'],
+        leastCost: 'low',
+        canDisable: false,
+      },
+      prefill: 'rejected',
+      nonStreamingOutputCeiling: 20480,
+    },
+  },
   {
     id: 'claude-haiku-4-5-20251001',
     displayName: 'claude-haiku-4.5',
@@ -616,6 +720,7 @@ export const CATALOGUE: readonly CatalogueEntry[] = [
     maxOutputTokens: 64000,
     lifecycle: {
       status: 'legacy',
+      offered: false,
       replacement: 'claude-sonnet-5',
       // `legacy` is FEED's editorial stance — superseded by Sonnet 5, and D19
       // retires it from the presets. Anthropic still lists it as Active with
@@ -641,6 +746,7 @@ export const CATALOGUE: readonly CatalogueEntry[] = [
     maxOutputTokens: 64000,
     lifecycle: {
       status: 'legacy',
+      offered: false,
       replacement: 'claude-opus-5',
       note: 'Superseded by Claude Opus 5. Anthropic lists it Active, with a tentative earliest retirement of 2026-11-24 and no announced deprecation.',
     },
