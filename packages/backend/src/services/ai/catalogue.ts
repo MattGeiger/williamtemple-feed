@@ -105,7 +105,17 @@ export interface ModelPricing {
 
 export interface ModelLifecycle {
   status: ModelLifecycleStatus;
-  /** ISO date the provider stops serving it, when one is announced. */
+  /**
+   * ISO date the provider has *announced* it stops serving the model.
+   *
+   * Only ever an announcement. Anthropic publishes a "tentative retirement
+   * date" for models it has not deprecated — a floor, phrased "not sooner
+   * than" — and three of those were recorded here as though they were
+   * announcements. A date under an `active` entry is that mistake, which is
+   * why an invariant now ties this field to `deprecated` or `retired`: those
+   * are the states in which a provider commits to a date. A floor belongs in
+   * `note`.
+   */
   shutdownDate?: string;
   /** The catalogue id to move to. Must resolve to another entry. */
   replacement?: string;
@@ -271,10 +281,15 @@ export const CATALOGUE: readonly CatalogueEntry[] = [
   },
 
   // The gpt-4.1 and gpt-4o families: no reasoning control, ordinary sampling,
-  // and `max_tokens` rather than `max_completion_tokens`. OpenAI's
-  // deprecations page announces no shutdown for any of them (checked
-  // 2026-09-11), so they are `legacy` rather than `deprecated`: superseded by
-  // the GPT-5 line and not recommended, but under no clock.
+  // and `max_tokens` rather than `max_completion_tokens`.
+  //
+  // Their lifecycles differ, and the difference was got wrong once already:
+  // OpenAI's deprecations page lists *dated snapshots*, not families, and FEED
+  // configures dated snapshots. Asked about the families it answers "no
+  // deprecation"; asked about the ids below it names two of them. So
+  // `gpt-4.1-nano-2025-04-14` and `gpt-4o-2024-05-13` shut down 2026-10-23,
+  // while the other three carry no announcement and stay `legacy`. Always ask
+  // that page about the exact id being catalogued.
   {
     id: 'gpt-4.1-2025-04-14',
     displayName: 'gpt-4.1',
@@ -327,8 +342,10 @@ export const CATALOGUE: readonly CatalogueEntry[] = [
     contextWindow: 1047576,
     maxOutputTokens: 32768,
     lifecycle: {
-      status: 'legacy',
-      note: 'Superseded by the GPT-5 line. Under no shutdown announcement of its own.',
+      status: 'deprecated',
+      shutdownDate: '2026-10-23',
+      replacement: 'gpt-4.1-mini-2025-04-14',
+      note: 'Deprecated 2026-04-22; OpenAI shuts this snapshot down 2026-10-23.',
     },
     costTier: 'economy',
     capabilities: {
@@ -348,9 +365,10 @@ export const CATALOGUE: readonly CatalogueEntry[] = [
     contextWindow: 131072,
     maxOutputTokens: 16384,
     lifecycle: {
-      status: 'legacy',
+      status: 'deprecated',
+      shutdownDate: '2026-10-23',
       replacement: 'gpt-4.1-2025-04-14',
-      note: 'Still served by the API; withdrawn from the ChatGPT interface in February 2026.',
+      note: 'Deprecated 2026-04-22; shuts down 2026-10-23. Also withdrawn from the ChatGPT interface in February 2026.',
     },
     costTier: 'standard',
     capabilities: {
@@ -368,7 +386,10 @@ export const CATALOGUE: readonly CatalogueEntry[] = [
     pricing: { input: 0.15, output: 0.6, verifiedAt: '2026-09-11' },
     contextWindow: 131072,
     maxOutputTokens: 16384,
-    lifecycle: { status: 'legacy', replacement: 'gpt-4.1-nano-2025-04-14' },
+    // Not gpt-4.1-nano: that snapshot shuts down 2026-10-23 and this one is
+    // under no announcement, so it would send an administrator onto a model
+    // with less life left.
+    lifecycle: { status: 'legacy', replacement: 'gpt-4.1-mini-2025-04-14' },
     costTier: 'economy',
     capabilities: {
       sampling: 'supported',
@@ -389,8 +410,10 @@ export const CATALOGUE: readonly CatalogueEntry[] = [
     maxOutputTokens: 64000,
     lifecycle: {
       status: 'active',
-      shutdownDate: '2026-10-15',
-      note: 'Retirement not sooner than 2026-10-15, and no Haiku successor exists yet.',
+      // No shutdownDate: Anthropic lists this as Active, Deprecated N/A, with
+      // a *tentative* retirement "not sooner than" 2026-10-15. That is a floor,
+      // not an announcement, and it moves.
+      note: 'Active. Anthropic gives a tentative earliest retirement of 2026-10-15 and has announced no deprecation; no Haiku successor exists yet.',
     },
     costTier: 'economy',
     capabilities: {
@@ -412,8 +435,11 @@ export const CATALOGUE: readonly CatalogueEntry[] = [
     maxOutputTokens: 64000,
     lifecycle: {
       status: 'legacy',
-      shutdownDate: '2026-09-29',
       replacement: 'claude-sonnet-5',
+      // `legacy` is FEED's editorial stance — superseded by Sonnet 5, and D19
+      // retires it from the presets. Anthropic still lists it as Active with
+      // no deprecation and a tentative earliest retirement of 2026-09-29.
+      note: 'Superseded by Claude Sonnet 5. Anthropic lists it Active, with a tentative earliest retirement of 2026-09-29 and no announced deprecation.',
     },
     costTier: 'standard',
     capabilities: {
@@ -434,8 +460,8 @@ export const CATALOGUE: readonly CatalogueEntry[] = [
     maxOutputTokens: 64000,
     lifecycle: {
       status: 'legacy',
-      shutdownDate: '2026-11-24',
       replacement: 'claude-opus-5',
+      note: 'Superseded by Claude Opus 5. Anthropic lists it Active, with a tentative earliest retirement of 2026-11-24 and no announced deprecation.',
     },
     costTier: 'frontier',
     capabilities: {

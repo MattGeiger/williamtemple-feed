@@ -1,7 +1,13 @@
 # AI Model Catalogue Refresh — Discovery and Plan
 
-**Status**: Design in progress. No code changed. Not yet committed — held until
-the open decisions below are settled.
+**Status**: Implemented through the catalogue itself; the contents refresh is
+what remains. Ten commits on 2026-09-11 — honest provider errors and
+administrator alerts, Node 24, the three SDK upgrades, the server-authoritative
+catalogue, providers and dialogs both reading it, both `model-specs.ts` copies
+deleted, and D2's thinking defaults. Outstanding: Phase 4, the catalogue's
+*contents* (retire 15, add 11), and Phase 5, live validation. Sections below
+are marked where the code has overtaken the plan; where a section still reads
+in the future tense, it has not been built.
 **Tracks**: ISSUES.md #84 · roadmap v1.9.5 ("LLM catalogue and pricing audit")
 **Companion**: [`translation-efficiency-and-local-models.md`](translation-efficiency-and-local-models.md)
 — prompt size, thinking-token cost, caching, and a local TranslateGemma option.
@@ -103,11 +109,20 @@ Resolved 2026-09-11:
    why this looked like a key problem rather than a model problem. The real
    provider error is written only to the backend log.
 
+   *Fixed 2026-09-11 (`71bdee9`).* `ensureProviderAccess` classifies the
+   provider's answer and names the model in the message staff read, and the
+   check is now a free model lookup rather than a paid generation call.
+
 ## Why the Custom model still failed
 
 The repository cannot say which of these it was — the provider's actual
 answer is only in the backend log, on the line beginning
 `Google AI API key validation failed:`. In order of likelihood:
+
+*Two of the four are no longer possible.* The key check is a free `models.get`
+lookup rather than a one-token generation call (`71bdee9`), and the Add dialog
+trims a custom model id as Edit always did (`b3e8344`). Whichever cause it was,
+the same failure today names the model and says what was refused.
 
 - **The key check is a real model call, and it may be rejected.**
   `GoogleTranslationService.validateApiKey` sends `generateContent` with
@@ -340,12 +355,16 @@ Retired: `claude-sonnet-4-5-20250929`, `claude-opus-4-5-20251101` (D19).
 (not sooner than 2026-10-15), and no Claude 5 Haiku exists yet. The next
 monthly audit (D21) should check whether a successor has appeared.
 
-### Deleted from the source as well
+### Deleted from the source as well — done (`b17b1f2`, `8dde4f7`)
 
 Seven commented-out entries, all retired or scheduled:
 - OpenAI: `o3`, `o3-mini`, `o4-mini`
 - Anthropic: `claude-3-5-haiku`, `claude-3-7-sonnet`, `claude-sonnet-4`,
   `claude-opus-4`
+
+These lived inside the two `model-specs.ts` files and went when those files
+did — a side effect of the consolidation rather than a deliberate sweep. The
+catalogue never carried them, so nothing needs removing from it.
 
 ## Counts
 
@@ -362,7 +381,30 @@ stays.
 | Superseded; retirement window opens 2026-09-29 / 2026-11-24 | `claude-sonnet-4-5`, `claude-opus-4-5` (retired outright, D19) | 2 |
 
 Also delete the seven commented-out entries — every one is retired or
-scheduled.
+scheduled. *(Done: they went with the two `model-specs.ts` files.)*
+
+> **This table is right, and re-checking it taught something worth keeping.**
+> While adding the gpt-4.1 and gpt-4o families to the catalogue on 2026-09-11,
+> a check of OpenAI's deprecations page appeared to contradict two rows —
+> reporting no deprecation for either family. It was the question that was
+> wrong, not the table: **that page lists dated snapshots, and FEED configures
+> dated snapshots.** Asked about `gpt-4.1-nano` it says nothing; asked about
+> `gpt-4.1-nano-2025-04-14` it gives deprecation 2026-04-22 and shutdown
+> 2026-10-23, exactly as recorded above. Same for `gpt-4o-2024-05-13`.
+>
+> The wrong answer reached the catalogue before the right one did: both were
+> entered as `legacy` with no shutdown date, so FEED briefly told the interface
+> that two models dying in six weeks were under no clock. Corrected in the same
+> sweep, along with `gpt-4o-mini`'s replacement, which pointed at
+> `gpt-4.1-nano` and would have sent an administrator onto a model with less
+> life left than the one they were leaving.
+>
+> Confirmed unannounced, and so genuinely `legacy`: `gpt-4.1-2025-04-14`,
+> `gpt-4.1-mini-2025-04-14`, `gpt-4o-mini-2024-07-18`. All three are on the
+> pricing page, and their prices are what the catalogue carries. Retiring them
+> in Phase 4 would remove working options for no reason — settle each against
+> the provider's page, **by exact id**, at the moment Phase 4 edits the
+> catalogue.
 
 **Add: 11.** The catalogue goes from 16 presets to 12.
 
@@ -378,6 +420,24 @@ The Anthropic default stays `claude-haiku-4-5-20251001`.
 
 Each one blocks new models from working correctly, so they belong to this
 work, not a later cleanup.
+
+**Status, 2026-09-11.** *Fixed:* 1 (`71bdee9`), 2 (`bf3990b`), 3 (`314c04a`),
+4 and 9 (`b17b1f2`), and 7 — the pre-job key check is now a free model lookup
+instead of a paid one-token generation (`71bdee9`).
+
+*Half done:* 8. `modelFamily` and the `-4-5-` test are gone and per-model
+values live in the catalogue, but `VALID_THINKING_LEVELS`
+(`routes/ai-config.ts:169`) and `ApiKeyConfigData.thinkingLevel` are still the
+same four-value set, so GPT-5.6's `none` / `xhigh` / `max` and Claude 5's
+`effort` cannot be stored. **Phase 4 hits this the moment those models are
+added** — widening both unions is a prerequisite for the contents refresh, not
+a follow-up to it.
+
+*Still open:* 5 (temperature and top_p also arrive from `SystemPrompt` through
+`PromptBuilder`, so D3 enforcement has to sit where the request is built), 6 (a
+Custom model is still unpriced, so its spend limits never trip), and 10 (no
+lifecycle badge in the configuration list — nothing there reads the catalogue
+yet, so a saved row pointing at a retired model still looks healthy).
 
 1. **Every provider failure is reported as an invalid key.** `validateApiKey`
    returns a boolean and discards the error (`GoogleTranslationService.ts:170`,
@@ -456,13 +516,16 @@ table (companion document).
 
 ## Two sources of truth, plus stale copies
 
-The primary catalogue exists twice, identical in data today, with nothing
-enforcing it:
+The primary catalogue existed twice, identical in data, with nothing enforcing
+it. **Both copies are now deleted** — the backend's in `b17b1f2`, the
+frontend's in `8dde4f7` — and a test fails if either reappears:
 
-- `packages/backend/src/services/ai/model-specs.ts` — parameter handling and
-  `buildOpenAIParameters`.
-- `packages/frontend/src/components/ai-configuration/model-specs.ts` —
-  dropdowns, prices, and the limits the dialog pre-fills.
+- ~~`packages/backend/src/services/ai/model-specs.ts`~~ — parameter handling
+  and `buildOpenAIParameters`. Replaced by `catalogue.ts` and
+  `capabilitiesFor`.
+- ~~`packages/frontend/src/components/ai-configuration/model-specs.ts`~~ —
+  dropdowns, prices, and the limits the dialog pre-fills. Replaced by
+  `GET /api/ai-config/models` and `useModelCatalogue`.
 
 `palette-drift.test.ts` already cites this duplication as "the cautionary
 precedent". These secondary lists also name retired models:
@@ -470,19 +533,23 @@ precedent". These secondary lists also name retired models:
 | Location | Contents |
 |---|---|
 | `frontend/src/types/multi-service-usage.ts:160-206` (`SERVICE_SPECIFICATIONS`) | `claude-3-*`, `gemini-1.5-*`, `gemini-pro`, `gpt-3.5-turbo` — used by cost forecasting |
-| `backend/src/services/ai/providers/GoogleTranslationService.ts:57-63` (`GOOGLE_MODEL_PRICING`) | `gemini-1.5`, `gemini-2.0-flash-exp` with prices that do not match the specs |
+| ~~`GoogleTranslationService.ts:57-63` (`GOOGLE_MODEL_PRICING`)~~ | **Deleted `8dde4f7`.** It was declared and never read — dead since before this audit, and invisible because `noUnusedLocals` is off |
 | `backend/src/config/limits.ts`, `backend/src/config/limits/index.ts` | Token limits keyed by `gpt-4o-mini`, `gpt-4`, `gpt-3.5-turbo` |
 | `backend/src/config/translation.ts:34` | `DEFAULT_MODEL: 'gpt-4o-mini'` |
-| `backend/src/services/token/calculation.ts`, `routes/ai-config.ts:703` | Every model is tokenized as `gpt-4o-mini` |
+| `backend/src/services/token/calculation.ts:105/161/192`, `routes/ai-config.ts:724` | Worse than "every model is tokenized as `gpt-4o-mini`": the line is `config.model?.startsWith('gpt-') ? 'gpt-4o-mini' : 'gpt-4o-mini'` — a ternary whose branches are identical, so the test cannot branch. Anthropic's tokenizer counts ~30% more for the same text, so the error is neither small nor symmetric, and it feeds the spend limits |
 | `backend/scripts/fix-ai-config-token-limits.ts` | One-off script with retired ids |
-| `frontend/.../AddAIModelDialog.tsx:52` | Default model `gemini-2.5-flash-lite`; default `thinkingLevel: 'high'` |
+| `frontend/.../AddAIModelDialog.tsx:52` | Default model `gemini-2.5-flash-lite` — still, pending Phase 4: no Google entry is `active`, so deriving a default would move new configurations to Anthropic. `thinkingLevel: 'high'` fixed in `b3e8344` |
 | `frontend/.../form/AIConfigurationForm.tsx:346` | Placeholder `gpt-4o-mini-2024-07-18` |
 
 ### Consolidation options
 
-**A. Server-authoritative catalogue — approved 2026-09-11 (D22).** One backend module is the
+**A. Server-authoritative catalogue — approved 2026-09-11 (D22), and built
+(`9e98ea2`, `b17b1f2`, `8dde4f7`).** One backend module is the
 catalogue. `GET /api/ai-config/models` serves it, and a frontend service plus
-React Query hook replaces the frontend copy. Entries carry lifecycle metadata
+hook replaces the frontend copy. One divergence from this option as written:
+the hook is plain `useState`/`useEffect`, not React Query. `lib/react-query.ts`
+exists, but its query keys are dashboard-scoped and the established idiom for a
+domain lookup is `hooks/language/useEnabledLanguages.ts`. Entries carry lifecycle metadata
 (`status`, `shutdownDate`, `replacement`, `verifiedAt`), a `costTier`, and the
 capabilities below. Secondary lists are deleted or derived from it.
 *For:* one list in one runtime, so the price the dialog shows is the price the
@@ -510,10 +577,23 @@ secondary lists alone.
 *Against:* prices become data that backups carry and restores bring back
 stale; a mistyped price silently disables a spend limit. Rejected.
 
-## Catalogue entry shape (proposal)
+## Catalogue entry shape (built)
 
 Capabilities replace the `modelFamily` string and the `-4-5-` test, so a new
-model is described rather than special-cased:
+model is described rather than special-cased. Shipped in `9e98ea2` as
+`CatalogueEntry`, with two fields beyond this proposal and one that carries no
+data yet:
+
+- **Added since.** `fixedTemperature`, for a model that accepts temperature at
+  exactly one value (Gemini 3) — distinct from `sampling: 'unsupported'`, which
+  means omit the parameter entirely. And `rateLimits`, carried across from
+  `model-specs.ts` so new configurations keep pre-filling their usage limits;
+  those are account-tier allowances rather than verified provider facts, and
+  are marked as such so nobody treats them like `pricing`.
+- **Typed but empty.** `languages`. All 16 entries omit it, so the D18 coverage
+  warnings described below have nothing to read.
+
+The shape as proposed:
 
 - `id`, `displayName`, `provider`
 - `pricing`: input and output per 1M tokens, `verifiedAt`
@@ -550,9 +630,13 @@ model to the catalogue.
   allows them. With `temperature-or-top-p`, choosing one clears the other.
   Where a saved `SystemPrompt` carries a value the active model rejects, the
   backend omits it; it never errors mid-job.
-- **Thinking step.** Lists only the model's allowed values (not a fixed
-  four-stop slider). Defaults to off, or the lowest allowed value. Selecting
-  a level above Medium shows a calm cost warning with no blocking.
+- **Thinking step — built (`b3e8344`).** Lists only the model's allowed values
+  (not a fixed four-stop slider). Defaults to off, or the lowest allowed value.
+  Selecting a level above Medium shows a calm cost warning with no blocking.
+  Implemented by storing *no* level rather than a cheap one, so the backend
+  applies each model's own cheapest value and a later model change still gets
+  the right default. A model with no reasoning control says so instead of
+  offering a setting it would discard.
 - **Model selection.** A `frontier` model shows the D1 warning when chosen,
   and in the configuration list. A `preview` model shows a **Preview** badge
   in both places. A `deprecated` or `retired` model shows its shutdown date and

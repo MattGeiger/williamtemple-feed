@@ -87,6 +87,22 @@ describe('catalogue invariants', () => {
     }
   });
 
+  test('only a deprecated or retired model carries a shutdown date', () => {
+    // A provider commits to a date when it deprecates; before that it may
+    // publish a floor. Anthropic prints both in one column headed "Tentative
+    // retirement date", and three entries here recorded "not sooner than"
+    // floors as though they were announcements — including Claude Haiku 4.5,
+    // the catalogue's only `active` model, which would have had the interface
+    // announce a shutdown Anthropic has not scheduled.
+    for (const entry of CATALOGUE) {
+      if (!entry.lifecycle.shutdownDate) continue;
+      expect(
+        entry.lifecycle.status,
+        `${entry.id} carries ${entry.lifecycle.shutdownDate}; a tentative floor belongs in note`
+      ).toMatch(/^(deprecated|retired)$/);
+    }
+  });
+
   test('every reasoning control offers its least-cost value', () => {
     for (const entry of CATALOGUE) {
       const least = leastCostReasoning(entry);
