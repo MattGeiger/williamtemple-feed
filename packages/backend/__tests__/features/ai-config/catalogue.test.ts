@@ -13,7 +13,7 @@
  * an effort default the replacement model rejects (ISSUES.md #84).
  */
 
-import { readFileSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 import { describe, expect, test } from 'vitest';
@@ -179,35 +179,29 @@ describe('the capabilities that string tests could not express', () => {
   });
 });
 
-describe('drift against the list the dialog actually offers', () => {
-  // The precedent this guards against is named in
+describe('the dialog keeps no model list of its own', () => {
+  // This began as a drift guard comparing the catalogue against the frontend's
+  // `model-specs.ts`, and it earned its place: when the catalogue was
+  // introduced it restated 11 of the 16 models the dialog offered, and the
+  // five missing ones stayed missing until that comparison was written.
+  //
+  // The dialogs read `GET /api/ai-config/models` now and the duplicate is
+  // deleted, so there is no longer a second list to compare against — which
+  // makes the useful invariant the stronger one: that it stays deleted. The
+  // precedent for why is named in
   // `brand-theme/__tests__/palette-drift.test.ts`: two lists identical today
-  // and enforced by nothing. It was not hypothetical — when the catalogue was
-  // introduced it restated 11 of the 16 offered models, and the five missing
-  // ones stayed missing until this test was written.
+  // and enforced by nothing is how a model shut down for six months went on
+  // being offered.
   const FRONTEND_SPECS = resolve(
     __dirname,
     '../../../../frontend/src/components/ai-configuration/model-specs.ts'
   );
 
-  /** Model ids the dialog offers, ignoring the commented-out sunset blocks. */
-  const offeredModelIds = (): string[] => {
-    const source = readFileSync(FRONTEND_SPECS, 'utf8')
-      .replace(/\/\*[\s\S]*?\*\//g, '')
-      .replace(/^\s*\/\/.*$/gm, '');
-    return [...source.matchAll(/^\s*model:\s*'([^']+)'/gm)].map((match) => match[1]);
-  };
-
-  test('the sunset models really are commented out, so the scan means something', () => {
-    // If the comment-stripping broke, every assertion below would pass by
-    // finding *more* than it should. Pin one id known to be commented out.
-    expect(offeredModelIds()).not.toContain('o3-mini-2025-01-31');
-    expect(offeredModelIds().length).toBeGreaterThan(10);
-  });
-
-  test('every model the dialog offers has a catalogue entry', () => {
-    const missing = offeredModelIds().filter((id) => !findCatalogueEntry(id));
-    expect(missing, 'offered by the dialog, absent from the catalogue').toEqual([]);
+  test('the frontend model-specs duplicate has not come back', () => {
+    expect(
+      existsSync(FRONTEND_SPECS),
+      'a second model list has reappeared in the frontend; the catalogue is the only source (ISSUES.md #84)'
+    ).toBe(false);
   });
 });
 

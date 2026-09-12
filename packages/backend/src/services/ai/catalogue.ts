@@ -8,10 +8,12 @@
 /**
  * What FEED knows about each AI model, in one place.
  *
- * `model-specs.ts` holds price and limits and is duplicated byte-for-byte in
- * the frontend, with nothing enforcing the two agree (ISSUES.md #84). This
- * module is the server-authoritative replacement it names: the same facts
- * plus the two kinds of knowledge the duplicated file could not express.
+ * This replaces `model-specs.ts`, which held prices and limits in two
+ * byte-identical copies with nothing enforcing that they agree (ISSUES.md
+ * #84). Both copies are deleted now: the providers read this module directly,
+ * the configuration dialogs read it over `GET /api/ai-config/models`, and a
+ * test fails if a second list reappears. It carries the same facts, plus the
+ * two kinds of knowledge the duplicated file could not express.
  *
  * **Lifecycle**, because a model's availability changes under us. A provider
  * withdraws a model, or stops offering it to new accounts, and FEED finds out
@@ -33,9 +35,9 @@
  * String tests on model ids cannot carry that. `model.includes('-4-5-')` was
  * the previous answer and it silently excluded every dateless Claude 5 id.
  *
- * Nothing consumes this module yet. It is introduced alongside the existing
- * `model-specs.ts` so the change can be reviewed on its own; the providers,
- * the dialogs, and the catalogue contents follow in their own commits.
+ * The providers and the dialogs both read this now. What is left is the
+ * catalogue's *contents*: the 2026 refresh that retires the models the
+ * vendors have withdrawn and adds their replacements.
  */
 
 /** Where a model is in its life, and what to say when it is ending. */
@@ -132,6 +134,23 @@ export interface ModelCapabilities {
   nonStreamingOutputCeiling?: number;
 }
 
+/**
+ * Throughput allowances, used to pre-fill a new configuration's usage limits.
+ *
+ * Unlike everything else here, these are NOT verified provider facts. Every
+ * one is an account-tier-dependent allowance — OpenAI's 200,000 TPM is a
+ * tier-1 figure, Google's differ by billing tier — carried forward verbatim
+ * from the `model-specs.ts` they replaced so that new configurations keep
+ * pre-filling as they always have. They are a starting point an administrator
+ * can edit, not a claim about what a given key is entitled to, which is why
+ * they carry no `verifiedAt` and must never be treated like `pricing`.
+ */
+export interface ModelRateLimits {
+  tokensPerMinute: number;
+  requestsPerMinute: number;
+  requestsPerDay?: number;
+}
+
 export interface CatalogueEntry {
   /** The exact id sent to the provider. */
   id: string;
@@ -144,6 +163,8 @@ export interface CatalogueEntry {
   lifecycle: ModelLifecycle;
   costTier: ModelCostTier;
   capabilities: ModelCapabilities;
+  /** Starting point for a new configuration's usage limits. See the type. */
+  rateLimits?: ModelRateLimits;
   /**
    * Language coverage, by FEED's own language names. Absent means unknown
    * rather than unsupported: only a measured or provider-published claim
@@ -161,10 +182,10 @@ export const SERVICE_ENDPOINTS = {
 } as const;
 
 /**
- * The catalogue as it stands today — the models `model-specs.ts` currently
- * offers, restated with lifecycle and capabilities. Retiring these and adding
- * the 2026 families is a separate commit, so that this one can be read as
- * "the same list, described properly".
+ * The catalogue as it stands today — the models `model-specs.ts` offered
+ * before it was deleted, restated with lifecycle and capabilities. Retiring
+ * these and adding the 2026 families is a separate commit, so that this one
+ * can be read as "the same list, described properly".
  *
  * "The same list" was not true when this module was introduced: it restated 11
  * of the 16 models the dialog offers, silently dropping the whole gpt-4.1 and
@@ -185,6 +206,7 @@ export const CATALOGUE: readonly CatalogueEntry[] = [
     id: 'gpt-5-nano-2025-08-07',
     displayName: 'gpt-5-nano',
     provider: 'OpenAI',
+    rateLimits: { tokensPerMinute: 200000, requestsPerMinute: 500 },
     pricing: { input: 0.05, output: 0.4, verifiedAt: '2026-09-11' },
     contextWindow: 128000,
     maxOutputTokens: 128000,
@@ -208,6 +230,7 @@ export const CATALOGUE: readonly CatalogueEntry[] = [
     id: 'gpt-5-mini-2025-08-07',
     displayName: 'gpt-5-mini',
     provider: 'OpenAI',
+    rateLimits: { tokensPerMinute: 200000, requestsPerMinute: 500 },
     pricing: { input: 0.25, output: 2.0, verifiedAt: '2026-09-11' },
     contextWindow: 128000,
     maxOutputTokens: 128000,
@@ -229,6 +252,7 @@ export const CATALOGUE: readonly CatalogueEntry[] = [
     id: 'gpt-5-2025-08-07',
     displayName: 'gpt-5',
     provider: 'OpenAI',
+    rateLimits: { tokensPerMinute: 200000, requestsPerMinute: 500 },
     pricing: { input: 1.25, output: 10.0, verifiedAt: '2026-09-11' },
     contextWindow: 128000,
     maxOutputTokens: 128000,
@@ -255,6 +279,7 @@ export const CATALOGUE: readonly CatalogueEntry[] = [
     id: 'gpt-4.1-2025-04-14',
     displayName: 'gpt-4.1',
     provider: 'OpenAI',
+    rateLimits: { tokensPerMinute: 30000, requestsPerMinute: 500 },
     pricing: { input: 2.0, output: 8.0, verifiedAt: '2026-09-11' },
     contextWindow: 1047576,
     maxOutputTokens: 32768,
@@ -277,6 +302,7 @@ export const CATALOGUE: readonly CatalogueEntry[] = [
     id: 'gpt-4.1-mini-2025-04-14',
     displayName: 'gpt-4.1-mini',
     provider: 'OpenAI',
+    rateLimits: { tokensPerMinute: 30000, requestsPerMinute: 500 },
     pricing: { input: 0.4, output: 1.6, verifiedAt: '2026-09-11' },
     contextWindow: 1047576,
     maxOutputTokens: 32768,
@@ -296,6 +322,7 @@ export const CATALOGUE: readonly CatalogueEntry[] = [
     id: 'gpt-4.1-nano-2025-04-14',
     displayName: 'gpt-4.1-nano',
     provider: 'OpenAI',
+    rateLimits: { tokensPerMinute: 30000, requestsPerMinute: 500 },
     pricing: { input: 0.1, output: 0.4, verifiedAt: '2026-09-11' },
     contextWindow: 1047576,
     maxOutputTokens: 32768,
@@ -315,6 +342,7 @@ export const CATALOGUE: readonly CatalogueEntry[] = [
     id: 'gpt-4o-2024-05-13',
     displayName: 'gpt-4o',
     provider: 'OpenAI',
+    rateLimits: { tokensPerMinute: 30000, requestsPerMinute: 500, requestsPerDay: 720000 },
     // Was recorded as $5.00/$20.00. OpenAI's pricing page says $2.50/$10.00.
     pricing: { input: 2.5, output: 10.0, verifiedAt: '2026-09-11' },
     contextWindow: 131072,
@@ -336,6 +364,7 @@ export const CATALOGUE: readonly CatalogueEntry[] = [
     id: 'gpt-4o-mini-2024-07-18',
     displayName: 'gpt-4o-mini',
     provider: 'OpenAI',
+    rateLimits: { tokensPerMinute: 200000, requestsPerMinute: 500, requestsPerDay: 10000 },
     pricing: { input: 0.15, output: 0.6, verifiedAt: '2026-09-11' },
     contextWindow: 131072,
     maxOutputTokens: 16384,
@@ -354,6 +383,7 @@ export const CATALOGUE: readonly CatalogueEntry[] = [
     id: 'claude-haiku-4-5-20251001',
     displayName: 'claude-haiku-4.5',
     provider: 'Anthropic',
+    rateLimits: { tokensPerMinute: 10000, requestsPerMinute: 50 },
     pricing: { input: 1.0, output: 5.0, verifiedAt: '2026-09-11' },
     contextWindow: 200000,
     maxOutputTokens: 64000,
@@ -376,6 +406,7 @@ export const CATALOGUE: readonly CatalogueEntry[] = [
     id: 'claude-sonnet-4-5-20250929',
     displayName: 'claude-sonnet-4.5',
     provider: 'Anthropic',
+    rateLimits: { tokensPerMinute: 8000, requestsPerMinute: 50 },
     pricing: { input: 3.0, output: 15.0, verifiedAt: '2026-09-11' },
     contextWindow: 200000,
     maxOutputTokens: 64000,
@@ -397,6 +428,7 @@ export const CATALOGUE: readonly CatalogueEntry[] = [
     id: 'claude-opus-4-5-20251101',
     displayName: 'claude-opus-4.5',
     provider: 'Anthropic',
+    rateLimits: { tokensPerMinute: 8000, requestsPerMinute: 50 },
     pricing: { input: 5.0, output: 25.0, verifiedAt: '2026-09-11' },
     contextWindow: 200000,
     maxOutputTokens: 64000,
@@ -420,6 +452,7 @@ export const CATALOGUE: readonly CatalogueEntry[] = [
     id: 'gemini-2.5-flash-lite',
     displayName: 'gemini-2.5-flash-lite',
     provider: 'Google',
+    rateLimits: { tokensPerMinute: 4000000, requestsPerMinute: 2000 },
     pricing: { input: 0.1, output: 0.4, verifiedAt: '2026-09-11' },
     contextWindow: 1048576,
     maxOutputTokens: 65536,
@@ -446,6 +479,7 @@ export const CATALOGUE: readonly CatalogueEntry[] = [
     id: 'gemini-2.5-flash',
     displayName: 'gemini-2.5-flash',
     provider: 'Google',
+    rateLimits: { tokensPerMinute: 4000000, requestsPerMinute: 2000 },
     pricing: { input: 0.3, output: 2.5, verifiedAt: '2026-09-11' },
     contextWindow: 1048576,
     maxOutputTokens: 65536,
@@ -466,6 +500,7 @@ export const CATALOGUE: readonly CatalogueEntry[] = [
     id: 'gemini-2.5-pro',
     displayName: 'gemini-2.5-pro',
     provider: 'Google',
+    rateLimits: { tokensPerMinute: 8000000, requestsPerMinute: 2000 },
     pricing: { input: 1.25, output: 10.0, verifiedAt: '2026-09-11' },
     contextWindow: 1048576,
     maxOutputTokens: 65536,
@@ -486,6 +521,7 @@ export const CATALOGUE: readonly CatalogueEntry[] = [
     id: 'gemini-3-flash-preview',
     displayName: 'gemini-3-flash-preview',
     provider: 'Google',
+    rateLimits: { tokensPerMinute: 4000000, requestsPerMinute: 2000 },
     pricing: { input: 0.5, output: 3.0, verifiedAt: '2026-09-11' },
     contextWindow: 1048576,
     maxOutputTokens: 65536,
@@ -511,6 +547,7 @@ export const CATALOGUE: readonly CatalogueEntry[] = [
     id: 'gemini-3-pro-preview',
     displayName: 'gemini-3-pro-preview',
     provider: 'Google',
+    rateLimits: { tokensPerMinute: 8000000, requestsPerMinute: 2000 },
     pricing: { input: 2.0, output: 12.0, verifiedAt: '2026-09-11' },
     contextWindow: 1048576,
     maxOutputTokens: 65536,

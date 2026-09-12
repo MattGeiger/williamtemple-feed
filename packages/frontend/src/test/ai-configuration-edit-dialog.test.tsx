@@ -19,6 +19,22 @@ vi.mock('@/hooks/message/useMessage', () => ({
   })
 }));
 
+// These two tests render the real wizard and click through the service step,
+// which now fetches the model catalogue. Nothing in `src/test/setup.ts` stubs
+// `fetch`, and Node's global one is real under jsdom — so without this the
+// suite would attempt an actual connection to localhost on every run. An empty
+// catalogue is a valid state: the step falls back to free-text inputs, so
+// navigation still works and these assertions stay about the API key and cost
+// fields they were written for.
+vi.stubGlobal(
+  'fetch',
+  vi.fn().mockResolvedValue({
+    ok: true,
+    status: 200,
+    json: async () => ({ models: [], endpoints: {} })
+  })
+);
+
 describe('EditAIModelDialog', () => {
   test('offers the API key as an editable, hidden-value field', () => {
     // Edit used to render a disabled box of bullets and tell the administrator

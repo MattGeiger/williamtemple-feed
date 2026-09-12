@@ -82,8 +82,10 @@ turned the bar red and settled it. Choose a backdrop with contrast, too: white
 at 40% over a white card is indistinguishable from white at 72%.
 
 ### #84 — The AI model catalogue is out of date, and a refused model reports as an invalid API key
-**Priority**: High · **Status**: Phase 1 (honest errors and alerts) delivered;
-catalogue contents, SDK upgrades and Node 24 still to come
+**Priority**: High · **Status**: honest errors and alerts, Node 24, the SDK
+upgrades, and one server-authoritative catalogue that the providers and the
+configuration dialogs both read are all delivered. The catalogue's *contents*
+— retiring 15 presets and adding 11 — and live validation are the open half
 **Bucket**: AI configuration / translation providers
 
 Google no longer lets new projects call `gemini-2.5-flash-lite`, FEED's
@@ -128,6 +130,34 @@ real answer exists only in the backend log.
   and at least six secondary lists name retired models
   (`SERVICE_SPECIFICATIONS`, `GOOGLE_MODEL_PRICING`, both `config/limits`
   files, `config/translation.ts`, the token-limit fix-up script).
+
+**Delivered 2026-09-11**, leaving catalogue contents as the open half:
+
+- Honest provider errors and administrator alerts (`71bdee9`).
+- Node 24 (`7c7b350`); `openai` 5.10.2 → 7.15.0 (`8789655`).
+- The Gemini thinking level now reaches the SDK (`bf3990b`), and Claude 5's
+  sampling parameters and assistant prefill are handled (`314c04a`) — both
+  measured against live APIs rather than read off a documentation page.
+- `catalogue.ts`, with lifecycle and capability data (`9e98ea2`); then the
+  five models it had silently omitted — the whole gpt-4.1 and gpt-4o family —
+  and a `gpt-4o` price that had been wrong since the day it was added:
+  $5.00/$20.00 against OpenAI's actual $2.50/$10.00, which also put it exactly
+  on the `frontier` cost-warning threshold (`fcc645c`).
+- Providers read capabilities instead of testing model ids (`b17b1f2`). The
+  `-4-5-` check, the dateless-id regex and both `modelFamily` switches are
+  gone, and a Custom model now gets a documented parameter profile instead of
+  silently sending `max_tokens` to a model that refuses it.
+- Both `model-specs.ts` copies are deleted and the dialogs read
+  `GET /api/ai-config/models`. `GOOGLE_MODEL_PRICING` turned out to be dead
+  code — declared, never read — and went with them.
+
+Still open from the list above: `SERVICE_SPECIFICATIONS` (labelled "mock data"
+but exported to the cost forecast), `config/limits.ts`,
+`config/limits/index.ts`, `config/translation.ts` and
+`scripts/fix-ai-config-token-limits.ts` all still name superseded models;
+`AddAIModelDialog` still saves a custom model id untrimmed where Edit trims it,
+and still defaults Thinking Level to `high`; a Custom model still has no
+prices, so its spend limits never trip.
 
 **Plan**: retire 15 of 16 presets and add 11. Steps: reproduce against real
 keys, honest errors, one server-authoritative catalogue with lifecycle and
