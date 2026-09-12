@@ -117,6 +117,13 @@ export interface ModelCapabilities {
   reasoning: ReasoningControl;
   prefill: PrefillSupport;
   /**
+   * The single temperature a model accepts, where the provider fixes one.
+   * Distinct from `sampling: 'unsupported'`, which means omit the parameter
+   * altogether: here it is sent, but only at this value, and a saved
+   * configuration asking for another gets a warning rather than a refusal.
+   */
+  fixedTemperature?: number;
+  /**
    * Ceiling FEED applies to a non-streaming request, below the model's own
    * output limit. The Anthropic SDK refuses a non-streaming call whose
    * expected duration passes ten minutes, and a 128K output limit sails past
@@ -158,6 +165,19 @@ export const SERVICE_ENDPOINTS = {
  * offers, restated with lifecycle and capabilities. Retiring these and adding
  * the 2026 families is a separate commit, so that this one can be read as
  * "the same list, described properly".
+ *
+ * "The same list" was not true when this module was introduced: it restated 11
+ * of the 16 models the dialog offers, silently dropping the whole gpt-4.1 and
+ * gpt-4o family. They are here now, and a drift test holds the two lists to
+ * each other so the gap cannot reopen.
+ *
+ * Every price below was re-checked against the provider's own pricing page on
+ * 2026-09-11, per AGENTS.md. That check found one error worth naming: FEED had
+ * carried `gpt-4o` at $5.00/$20.00 since it was added, against OpenAI's actual
+ * $2.50/$10.00. Nothing ever failed — a wrong price does not error, it just
+ * mis-projects the spend limits it feeds, and at $20.00 it also sat exactly on
+ * the `frontier` threshold and would have raised a cost warning on a model
+ * that does not warrant one.
  */
 export const CATALOGUE: readonly CatalogueEntry[] = [
   // ---------------- OpenAI ----------------
@@ -222,6 +242,109 @@ export const CATALOGUE: readonly CatalogueEntry[] = [
       sampling: 'unsupported',
       maxTokensField: 'max_completion_tokens',
       reasoning: { kind: 'effort', values: ['minimal', 'low', 'medium', 'high'], leastCost: 'minimal' },
+      prefill: 'allowed',
+    },
+  },
+
+  // The gpt-4.1 and gpt-4o families: no reasoning control, ordinary sampling,
+  // and `max_tokens` rather than `max_completion_tokens`. OpenAI's
+  // deprecations page announces no shutdown for any of them (checked
+  // 2026-09-11), so they are `legacy` rather than `deprecated`: superseded by
+  // the GPT-5 line and not recommended, but under no clock.
+  {
+    id: 'gpt-4.1-2025-04-14',
+    displayName: 'gpt-4.1',
+    provider: 'OpenAI',
+    pricing: { input: 2.0, output: 8.0, verifiedAt: '2026-09-11' },
+    contextWindow: 1047576,
+    maxOutputTokens: 32768,
+    lifecycle: {
+      status: 'legacy',
+      // No successor named on purpose: the GPT-5 snapshots FEED offers are
+      // themselves shut down 2026-12-11, so pointing here would send an
+      // administrator onto a model with less life left than this one.
+      note: 'Superseded by the GPT-5 line. Under no shutdown announcement of its own.',
+    },
+    costTier: 'standard',
+    capabilities: {
+      sampling: 'supported',
+      maxTokensField: 'max_tokens',
+      reasoning: { kind: 'none' },
+      prefill: 'allowed',
+    },
+  },
+  {
+    id: 'gpt-4.1-mini-2025-04-14',
+    displayName: 'gpt-4.1-mini',
+    provider: 'OpenAI',
+    pricing: { input: 0.4, output: 1.6, verifiedAt: '2026-09-11' },
+    contextWindow: 1047576,
+    maxOutputTokens: 32768,
+    lifecycle: {
+      status: 'legacy',
+      note: 'Superseded by the GPT-5 line. Under no shutdown announcement of its own.',
+    },
+    costTier: 'economy',
+    capabilities: {
+      sampling: 'supported',
+      maxTokensField: 'max_tokens',
+      reasoning: { kind: 'none' },
+      prefill: 'allowed',
+    },
+  },
+  {
+    id: 'gpt-4.1-nano-2025-04-14',
+    displayName: 'gpt-4.1-nano',
+    provider: 'OpenAI',
+    pricing: { input: 0.1, output: 0.4, verifiedAt: '2026-09-11' },
+    contextWindow: 1047576,
+    maxOutputTokens: 32768,
+    lifecycle: {
+      status: 'legacy',
+      note: 'Superseded by the GPT-5 line. Under no shutdown announcement of its own.',
+    },
+    costTier: 'economy',
+    capabilities: {
+      sampling: 'supported',
+      maxTokensField: 'max_tokens',
+      reasoning: { kind: 'none' },
+      prefill: 'allowed',
+    },
+  },
+  {
+    id: 'gpt-4o-2024-05-13',
+    displayName: 'gpt-4o',
+    provider: 'OpenAI',
+    // Was recorded as $5.00/$20.00. OpenAI's pricing page says $2.50/$10.00.
+    pricing: { input: 2.5, output: 10.0, verifiedAt: '2026-09-11' },
+    contextWindow: 131072,
+    maxOutputTokens: 16384,
+    lifecycle: {
+      status: 'legacy',
+      replacement: 'gpt-4.1-2025-04-14',
+      note: 'Still served by the API; withdrawn from the ChatGPT interface in February 2026.',
+    },
+    costTier: 'standard',
+    capabilities: {
+      sampling: 'supported',
+      maxTokensField: 'max_tokens',
+      reasoning: { kind: 'none' },
+      prefill: 'allowed',
+    },
+  },
+  {
+    id: 'gpt-4o-mini-2024-07-18',
+    displayName: 'gpt-4o-mini',
+    provider: 'OpenAI',
+    pricing: { input: 0.15, output: 0.6, verifiedAt: '2026-09-11' },
+    contextWindow: 131072,
+    maxOutputTokens: 16384,
+    lifecycle: { status: 'legacy', replacement: 'gpt-4.1-nano-2025-04-14' },
+    costTier: 'economy',
+    capabilities: {
+      sampling: 'supported',
+      maxTokensField: 'max_tokens',
+      reasoning: { kind: 'none' },
       prefill: 'allowed',
     },
   },
@@ -381,6 +504,7 @@ export const CATALOGUE: readonly CatalogueEntry[] = [
         leastCost: 'minimal',
       },
       prefill: 'allowed',
+      fixedTemperature: 1.0,
     },
   },
   {
@@ -402,6 +526,7 @@ export const CATALOGUE: readonly CatalogueEntry[] = [
       maxTokensField: 'max_tokens',
       reasoning: { kind: 'thinking-level', values: ['low', 'high'], leastCost: 'low' },
       prefill: 'allowed',
+      fixedTemperature: 1.0,
     },
   },
 ] as const;
@@ -434,4 +559,134 @@ export const acceptsReasoningValue = (entry: CatalogueEntry, value: string): boo
   if (reasoning.kind === 'none') return false;
   if (reasoning.kind === 'extended') return value === 'off';
   return reasoning.values.includes(value);
+};
+
+/**
+ * What FEED assumes about a model it has never heard of.
+ *
+ * An administrator can type any id into the Custom field, so the catalogue can
+ * never be the *only* answer — something has to decide what to send to
+ * `claude-sonnet-5` before Phase 4 gives it an entry. This is that something,
+ * and it is deliberately the one place guessing is allowed: three providers
+ * each holding their own private string test is the arrangement that produced
+ * `-4-5-`, which broke on the first dateless id.
+ *
+ * Every guess here is conservative, because being wrong costs a failed request
+ * rather than a slightly larger bill. Each entry added in Phase 4 shrinks how
+ * often this is reached.
+ */
+const inferCapabilities = (
+  provider: CatalogueEntry['provider'],
+  id: string
+): ModelCapabilities => {
+  switch (provider) {
+    case 'Anthropic': {
+      // Everything from the 4.6 generation on carries a dateless id
+      // (`claude-sonnet-5`) and refuses both sampling parameters and prefill;
+      // dated ids still take one sampling parameter. Measured 2026-09-11.
+      const dated = /-\d{8}$/.test(id);
+      return {
+        sampling: dated ? 'temperature-or-top-p' : 'unsupported',
+        maxTokensField: 'max_tokens',
+        reasoning: { kind: 'extended', leastCost: 'off' },
+        prefill: dated ? 'allowed' : 'rejected',
+        // Applies to any Claude: the ceiling exists to keep a non-streaming
+        // request under the SDK's ten-minute guard, and a large output limit
+        // is exactly when that matters.
+        nonStreamingOutputCeiling: 20480,
+      };
+    }
+    case 'OpenAI': {
+      const reasoningFamily = /^(gpt-5|o\d)/.test(id);
+      return {
+        sampling: reasoningFamily ? 'unsupported' : 'supported',
+        maxTokensField: reasoningFamily ? 'max_completion_tokens' : 'max_tokens',
+        // `minimal` is deliberately absent. It is valid on the 2025-08-07
+        // snapshots and refused by gpt-5.6-luna, so an unrecognised GPT-5-ish
+        // id gets the value every member of the family accepts.
+        reasoning: reasoningFamily
+          ? { kind: 'effort', values: ['low', 'medium', 'high'], leastCost: 'low' }
+          : { kind: 'none' },
+        prefill: 'allowed',
+      };
+    }
+    case 'Google': {
+      // Gemini 3 and later take a thinking level and want temperature 1.0;
+      // 2.5 and earlier take neither.
+      const thinks = /^gemini-(?:[3-9]|\d{2,})/.test(id);
+      return {
+        sampling: 'supported',
+        maxTokensField: 'max_tokens',
+        reasoning: thinks
+          ? { kind: 'thinking-level', values: ['low', 'high'], leastCost: 'low' }
+          : { kind: 'none' },
+        prefill: 'allowed',
+        ...(thinks ? { fixedTemperature: 1.0 } : {}),
+      };
+    }
+  }
+};
+
+/**
+ * What a model accepts: the catalogue's measured answer where there is one,
+ * and a documented guess where there is not. This is what providers call —
+ * they should never test a model id themselves.
+ */
+export const capabilitiesFor = (
+  provider: CatalogueEntry['provider'],
+  id: string
+): ModelCapabilities => findCatalogueEntry(id)?.capabilities ?? inferCapabilities(provider, id);
+
+export interface ResolvedReasoning {
+  /** The value to send, or undefined to send nothing. */
+  value?: string;
+  warnings: string[];
+}
+
+/**
+ * Turn a saved configuration's thinking level into something the model will
+ * accept, explaining any substitution.
+ *
+ * All three providers had their own copy of this, each keyed to one family
+ * (`modelFamily === 'gpt-5'`, `=== 'gemini-3'`), so a model outside that family
+ * silently ignored a level the administrator had chosen and a level the model
+ * rejected produced a 400 rather than a warning.
+ */
+export const resolveReasoning = (
+  capabilities: ModelCapabilities,
+  requested?: string | null
+): ResolvedReasoning => {
+  const warnings: string[] = [];
+  const { reasoning } = capabilities;
+
+  if (reasoning.kind === 'none') {
+    if (requested) {
+      warnings.push(
+        `This model has no thinking or reasoning control, so the configured level "${requested}" was not sent.`
+      );
+    }
+    return { warnings };
+  }
+
+  // Claude's extended thinking is off unless asked for, and translation gains
+  // nothing from it while paying for it as output.
+  if (reasoning.kind === 'extended') {
+    if (requested && requested !== 'off') {
+      warnings.push(
+        `Extended thinking stays off for this work, so the configured level "${requested}" was not sent.`
+      );
+    }
+    return { warnings };
+  }
+
+  if (!requested) return { value: reasoning.leastCost, warnings };
+
+  if (reasoning.values.includes(requested)) return { value: requested, warnings };
+
+  warnings.push(
+    `This model does not accept the thinking level "${requested}" (it accepts ${reasoning.values
+      .map((value) => `"${value}"`)
+      .join(', ')}). Using "${reasoning.leastCost}".`
+  );
+  return { value: reasoning.leastCost, warnings };
 };

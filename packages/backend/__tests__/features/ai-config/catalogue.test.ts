@@ -13,14 +13,19 @@
  * an effort default the replacement model rejects (ISSUES.md #84).
  */
 
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+
 import { describe, expect, test } from 'vitest';
 
 import {
   CATALOGUE,
   acceptsReasoningValue,
+  capabilitiesFor,
   entriesForProvider,
   findCatalogueEntry,
   leastCostReasoning,
+  resolveReasoning,
   selectableEntries,
   type CatalogueEntry,
 } from '../../../src/services/ai/catalogue';
@@ -122,11 +127,47 @@ describe('the capabilities that string tests could not express', () => {
     expect(leastCostReasoning(nano)).toBe('minimal');
   });
 
-  test('OpenAI reasoning models want max_completion_tokens', () => {
+  test('OpenAI reasoning models want max_completion_tokens, and the rest do not', () => {
     // Also measured: `max_tokens` is refused outright by GPT-5.6, which is
     // what makes the Custom path unusable there until it carries a profile.
+    //
+    // This once asserted `max_completion_tokens` for *every* OpenAI entry,
+    // which held only because the gpt-4.1 and gpt-4o families were missing
+    // from the catalogue. They take the opposite field, so the split is the
+    // point of the test rather than an exception to it.
     for (const openai of entriesForProvider('OpenAI')) {
-      expect(openai.capabilities.maxTokensField, openai.id).toBe('max_completion_tokens');
+      const reasons = openai.capabilities.reasoning.kind !== 'none';
+      expect(openai.capabilities.maxTokensField, openai.id).toBe(
+        reasons ? 'max_completion_tokens' : 'max_tokens'
+      );
+    }
+  });
+
+  test('gpt-4o is priced at what OpenAI charges, not what FEED remembered', () => {
+    // Carried as $5.00/$20.00 from the day it was added; OpenAI's pricing page
+    // says $2.50/$10.00. A wrong price never raises an error — it mis-projects
+    // the spend limits it feeds, and $20.00 sat exactly on the `frontier`
+    // threshold, so it would also have warned about a model that is standard.
+    const entry = findCatalogueEntry('gpt-4o-2024-05-13')!;
+    expect(entry.pricing).toMatchObject({ input: 2.5, output: 10.0 });
+    expect(entry.costTier).toBe('standard');
+  });
+
+  test('a replacement never points at a model with less life left', () => {
+    // Weaker than it sounds if left to the retired-only check: naming a
+    // successor that shuts down before the model it replaces is worse advice
+    // than naming none, and nothing else here would catch it.
+    const shutdown = (entry: CatalogueEntry) => entry.lifecycle.shutdownDate;
+    for (const entry of CATALOGUE) {
+      const target = findCatalogueEntry(entry.lifecycle.replacement);
+      if (!target) continue;
+      const ownEnd = shutdown(entry);
+      const targetEnd = shutdown(target);
+      if (!targetEnd) continue;
+      expect(
+        ownEnd === undefined ? false : targetEnd >= ownEnd,
+        `${entry.id} (ends ${ownEnd ?? 'never'}) -> ${target.id} (ends ${targetEnd})`
+      ).toBe(true);
     }
   });
 
@@ -135,5 +176,119 @@ describe('the capabilities that string tests could not express', () => {
     expect(withdrawn.lifecycle.status).toBe('deprecated');
     expect(withdrawn.lifecycle.replacement).toBe('gemini-3.5-flash-lite');
     expect(withdrawn.lifecycle.note).toMatch(/no longer available to new users/);
+  });
+});
+
+describe('drift against the list the dialog actually offers', () => {
+  // The precedent this guards against is named in
+  // `brand-theme/__tests__/palette-drift.test.ts`: two lists identical today
+  // and enforced by nothing. It was not hypothetical — when the catalogue was
+  // introduced it restated 11 of the 16 offered models, and the five missing
+  // ones stayed missing until this test was written.
+  const FRONTEND_SPECS = resolve(
+    __dirname,
+    '../../../../frontend/src/components/ai-configuration/model-specs.ts'
+  );
+
+  /** Model ids the dialog offers, ignoring the commented-out sunset blocks. */
+  const offeredModelIds = (): string[] => {
+    const source = readFileSync(FRONTEND_SPECS, 'utf8')
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/^\s*\/\/.*$/gm, '');
+    return [...source.matchAll(/^\s*model:\s*'([^']+)'/gm)].map((match) => match[1]);
+  };
+
+  test('the sunset models really are commented out, so the scan means something', () => {
+    // If the comment-stripping broke, every assertion below would pass by
+    // finding *more* than it should. Pin one id known to be commented out.
+    expect(offeredModelIds()).not.toContain('o3-mini-2025-01-31');
+    expect(offeredModelIds().length).toBeGreaterThan(10);
+  });
+
+  test('every model the dialog offers has a catalogue entry', () => {
+    const missing = offeredModelIds().filter((id) => !findCatalogueEntry(id));
+    expect(missing, 'offered by the dialog, absent from the catalogue').toEqual([]);
+  });
+});
+
+describe('models the catalogue has never heard of', () => {
+  test('a dateless Claude id is assumed to refuse sampling and prefill', () => {
+    // `claude-sonnet-5` is reachable through the Custom field today and gets
+    // no entry until Phase 4. Guessing wrong here is a 400, so the guess is
+    // the conservative one.
+    const caps = capabilitiesFor('Anthropic', 'claude-sonnet-5');
+    expect(caps.sampling).toBe('unsupported');
+    expect(caps.prefill).toBe('rejected');
+    expect(caps.nonStreamingOutputCeiling).toBe(20480);
+  });
+
+  test('a dated Claude id keeps the older behaviour', () => {
+    const caps = capabilitiesFor('Anthropic', 'claude-sonnet-4-20250514');
+    expect(caps.sampling).toBe('temperature-or-top-p');
+    expect(caps.prefill).toBe('allowed');
+  });
+
+  test('an unknown GPT-5 id is never offered minimal effort', () => {
+    // gpt-5.6-luna answers `400 ... does not support 'minimal'` while the
+    // 2025-08-07 snapshots accept it. The catalogue can be exact per model;
+    // a guess cannot, so it offers only what the whole family takes.
+    const caps = capabilitiesFor('OpenAI', 'gpt-5.6-luna');
+    expect(caps.maxTokensField).toBe('max_completion_tokens');
+    expect(caps.reasoning).toMatchObject({ kind: 'effort', leastCost: 'low' });
+    expect(resolveReasoning(caps, 'minimal').value).toBe('low');
+  });
+
+  test('an unknown Gemini 3-or-later id gets a thinking level and a fixed temperature', () => {
+    const caps = capabilitiesFor('Google', 'gemini-3.8-flash');
+    expect(caps.reasoning.kind).toBe('thinking-level');
+    expect(caps.fixedTemperature).toBe(1.0);
+  });
+
+  test('an unknown Gemini 2.5 id gets neither', () => {
+    const caps = capabilitiesFor('Google', 'gemini-2.5-something');
+    expect(caps.reasoning.kind).toBe('none');
+    expect(caps.fixedTemperature).toBeUndefined();
+  });
+
+  test('a known id always beats the guess', () => {
+    // The whole point: measurement wins over inference wherever it exists.
+    expect(capabilitiesFor('OpenAI', 'gpt-5-nano-2025-08-07').reasoning).toMatchObject({
+      leastCost: 'minimal',
+    });
+  });
+});
+
+describe('resolving a saved thinking level', () => {
+  const caps = (provider: CatalogueEntry['provider'], id: string) => capabilitiesFor(provider, id);
+
+  test('an unset level falls to the cheapest the model accepts', () => {
+    expect(resolveReasoning(caps('OpenAI', 'gpt-5-nano-2025-08-07'), null).value).toBe('minimal');
+  });
+
+  test('a level the model accepts is sent as chosen', () => {
+    const resolved = resolveReasoning(caps('OpenAI', 'gpt-5-2025-08-07'), 'high');
+    expect(resolved.value).toBe('high');
+    expect(resolved.warnings).toEqual([]);
+  });
+
+  test('a level the model refuses is substituted, and says so', () => {
+    // gemini-3-pro-preview takes only low and high.
+    const resolved = resolveReasoning(caps('Google', 'gemini-3-pro-preview'), 'medium');
+    expect(resolved.value).toBe('low');
+    expect(resolved.warnings[0]).toMatch(/does not accept the thinking level "medium"/);
+  });
+
+  test('a model with no reasoning control sends nothing, and does not fail', () => {
+    // The old per-provider copies silently dropped this. Silence is how an
+    // administrator comes to believe a setting is in effect when it is not.
+    const resolved = resolveReasoning(caps('Google', 'gemini-2.5-flash'), 'high');
+    expect(resolved.value).toBeUndefined();
+    expect(resolved.warnings[0]).toMatch(/no thinking or reasoning control/);
+  });
+
+  test('Claude keeps extended thinking off for this work', () => {
+    const resolved = resolveReasoning(caps('Anthropic', 'claude-haiku-4-5-20251001'), 'high');
+    expect(resolved.value).toBeUndefined();
+    expect(resolved.warnings[0]).toMatch(/Extended thinking stays off/);
   });
 });
