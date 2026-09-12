@@ -908,7 +908,7 @@ This analysis reveals that while the documentation suggests token tracking needs
 - Realistic API rate metrics (0-1.5K TPM)
 - Proper warning level calculation
 
-**⚠️ REMOVAL REQUIRED**: This mock implementation must be removed in Phase 3 when real database integration is implemented. Search for "Phase 2 mock" and "generateMockTokenMetrics" in codebase.
+**~~⚠️ REMOVAL REQUIRED~~ — done.** The mock is gone: `generateMockTokenMetrics`, "Phase 2 mock" and every other mock fallback return no matches anywhere in `packages/backend/src`, and the token-metrics route reads `UsageRecord` throughout. Recorded as discharged 2026-09-12, because an instruction telling a future reader to remove something that no longer exists sends them looking for it. The entries above are left as written: they record what was done at the time, not what the tree looks like now.
 
 **Files Modified for Mock Implementation**:
 - `/packages/backend/src/config/limits/index.ts` - Added MODEL_NAME constant and TPM limit

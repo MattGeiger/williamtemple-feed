@@ -188,9 +188,11 @@ half:
   costs (D1/D7). List and dialog read one module so they cannot drift apart.
 
 Still open from the list above: `SERVICE_SPECIFICATIONS` (labelled "mock data"
-but exported to the cost forecast), `config/limits.ts`,
-`config/limits/index.ts`, `config/translation.ts` and
-`scripts/fix-ai-config-token-limits.ts` all still name superseded models; a
+but exported to the cost forecast), `config/limits.ts`, `config/translation.ts`
+and `scripts/fix-ai-config-token-limits.ts` all still name superseded models —
+though `config/limits/index.ts` has gone, being an unimported second copy
+rather than a list to correct, and `config/limits.ts` is now reached only as a
+fallback, since the wizard fills `tokensPerMinute` from the catalogue; a
 Custom model still has no prices, so its spend limits never trip (defect 6);
 and temperature and top_p still reach a request from `SystemPrompt` as well as
 `AIConfiguration` (defect 5).

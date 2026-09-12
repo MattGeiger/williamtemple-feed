@@ -75,9 +75,17 @@ router.get('/token-metrics', async (req: Request, res: Response, next: NextFunct
     // Get historical usage data from UsageRecord service (7 days back)
     const dateRange = DateRangeResolver.resolveTimeRange('7d');
     const historicalData = await UsageRecordService.getHistoricalUsage(serviceProvider as string | undefined, dateRange.startDate);
-    const modelKey = (MODEL_NAME in TOKEN_LIMITS.MODEL_DAILY_LIMITS
-      ? MODEL_NAME
-      : 'gpt-4o-mini') as keyof typeof TOKEN_LIMITS.MODEL_DAILY_LIMITS;
+    // `MODEL_NAME` is itself the string 'gpt-4o-mini', so the conditional this
+    // replaces could only ever take the first branch — the same collapsed
+    // shape as the token-encoding ternary fixed in 1db85b3. Named plainly
+    // rather than dressed as a choice that cannot happen.
+    //
+    // This is a last-resort default, reached only when the active
+    // configuration has no `tokensPerMinute` — which the wizard fills from the
+    // catalogue, so a row created through it never gets here. It stays
+    // `gpt-4o-mini` because that is the number this dashboard has always
+    // shown; changing it would alter reported limits under cover of a cleanup.
+    const modelKey = 'gpt-4o-mini' as keyof typeof TOKEN_LIMITS.MODEL_DAILY_LIMITS;
 
     const dailyUsageHistory = historicalData.map(day => ({
       date: day.date,

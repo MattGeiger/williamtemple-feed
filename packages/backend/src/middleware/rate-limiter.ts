@@ -6,7 +6,7 @@
 // not covered by this license; see TRADEMARKS.md.
 
 import { Request, Response, NextFunction } from 'express';
-import { MODEL_NAME, TOKEN_LIMITS, TOKEN_RATES } from '../config/limits';
+import { TOKEN_LIMITS } from '../config/limits';
 import { calculateInputMetrics, calculateOutputMetrics } from '../services/token/calculation';
 
 interface RequestStore {
@@ -22,12 +22,19 @@ const requests: RequestStore = {};
 export const rateLimiter = async (req: Request, res: Response, next: NextFunction) => {
   const ip = req.ip || req.headers['x-forwarded-for']?.toString() || 'unknown';
   const now = Date.now();
-  const fallbackConfig = {
-    model: MODEL_NAME,
-    inputCost: TOKEN_RATES[MODEL_NAME].prompt,
-    outputCost: TOKEN_RATES[MODEL_NAME].completion,
-    unitPrice: 'per_1m'
-  };
+  // This middleware counts tokens; it does not price them. The counting
+  // functions want a config object, so it is given one with no prices at all
+  // rather than plausible-looking wrong ones.
+  //
+  // It previously carried `TOKEN_RATES[MODEL_NAME]` — 0.00000015 and
+  // 0.0000006, which are already *per token* — under `unitPrice: 'per_1m'`,
+  // so `convertToPerTokenRate` divided them by a million a second time. The
+  // resulting costs were wrong by a factor of 10^6. Nothing read them (only
+  // `.tokenCount` is used below), so nothing was ever charged or limited on
+  // that basis, which is exactly why it survived: a live middleware on ten
+  // data-import routes carrying prices wrong by a millionfold, one field
+  // away from being believed.
+  const tokenCountingConfig = { inputCost: 0, outputCost: 0, unitPrice: 'per_1m' };
 
   // Initialize or reset if window expired
   if (!requests[ip] || now > requests[ip].resetTime) {
@@ -44,9 +51,9 @@ export const rateLimiter = async (req: Request, res: Response, next: NextFunctio
   // Estimate tokens for this request
   let estimatedTokens = 0;
   if (req.body?.text && req.body?.targetLanguage) {
-    const inputMetrics = calculateInputMetrics(req.body.text, req.body.targetLanguage, fallbackConfig);
+    const inputMetrics = calculateInputMetrics(req.body.text, req.body.targetLanguage, tokenCountingConfig);
     // Estimate output tokens (typically similar to input for translations)
-    const outputMetrics = calculateOutputMetrics(req.body.text, fallbackConfig);
+    const outputMetrics = calculateOutputMetrics(req.body.text, tokenCountingConfig);
     estimatedTokens = inputMetrics.tokenCount + outputMetrics.tokenCount;
   }
 
