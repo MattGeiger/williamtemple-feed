@@ -211,6 +211,41 @@ describe('the capabilities that string tests could not express', () => {
     }
   });
 
+  test('the Gemini thinking floors are the ones the API enforces', () => {
+    // Measured 2026-09-12. Same list price, and the difference is not just
+    // that 3.6 *allows* a lower setting: at `minimal` it spends no thinking
+    // tokens, while 3.8 answers `400 Thinking level MINIMAL is not supported
+    // for this model` and bills 11 at its `low` floor — on every request,
+    // however short. That is the whole of D27.
+    expect(leastCostReasoning(entry('gemini-3.6-flash'))).toBe('minimal');
+    expect(leastCostReasoning(entry('gemini-3.8-flash'))).toBe('low');
+    expect(acceptsReasoningValue(entry('gemini-3.8-flash'), 'minimal')).toBe(false);
+    expect(acceptsReasoningValue(entry('gemini-3.6-flash'), 'minimal')).toBe(true);
+
+    // The default preset must be able to think as little as possible (D2).
+    expect(leastCostReasoning(entry('gemini-3.5-flash-lite'))).toBe('minimal');
+
+    // Gemini 3.x takes temperature at one value only; `supported` plus a fixed
+    // value, not `unsupported`, because the parameter is still sent.
+    for (const id of ['gemini-3.5-flash-lite', 'gemini-3.6-flash', 'gemini-3.8-flash']) {
+      expect(entry(id).capabilities.fixedTemperature, id).toBe(1.0);
+      expect(entry(id).capabilities.sampling, id).toBe('supported');
+    }
+  });
+
+  test('the preview preset is marked preview, so the badge has something to read', () => {
+    // D26: offered, but never mistaken for stable. Google's previews churn —
+    // the one this replaces lasted under four months.
+    expect(entry('gemini-3.1-pro-preview').lifecycle.status).toBe('preview');
+  });
+
+  test('the price rise Google has already announced is recorded', () => {
+    // A doubling on 2027-01-01 that no one will remember by then. Spend limits
+    // sized against today's price trip twice as late once it lands.
+    expect(entry('gemini-3.6-flash').pricing.changesOn).toBe('2027-01-01');
+    expect(entry('gemini-3.8-flash').pricing.changesOn).toBe('2027-01-01');
+  });
+
   test('the withdrawn Gemini model records why it fails', () => {
     const withdrawn = entry('gemini-2.5-flash-lite');
     expect(withdrawn.lifecycle.status).toBe('deprecated');

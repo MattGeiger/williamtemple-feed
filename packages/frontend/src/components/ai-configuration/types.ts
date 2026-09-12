@@ -145,6 +145,22 @@ export interface CatalogueModel {
 }
 
 export interface ModelCatalogueResponse {
+  /** What an administrator may choose when creating a configuration. */
   models: CatalogueModel[]
+  /**
+   * Everything else the catalogue still knows: presets the 2026 refresh
+   * dropped, plus anything the provider has retired.
+   *
+   * Saved configurations point at these — production runs
+   * `gpt-5-mini-2025-08-07` until 2026-12-11, and `gemini-2.5-flash-lite` is
+   * the model whose 404 started ISSUES.md #84 — so the dialog needs their
+   * shutdown dates and replacements to explain a row it did not offer. They
+   * are deliberately absent from `models` so they cannot be picked afresh.
+   *
+   * Optional because nothing reads it yet: the lifecycle badges are defect #10
+   * and still to build. Declared now so the mirror matches what the endpoint
+   * actually sends, rather than drifting quietly from it.
+   */
+  withdrawn?: CatalogueModel[]
   endpoints: Record<string, string>
 }

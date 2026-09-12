@@ -761,6 +761,141 @@ export const CATALOGUE: readonly CatalogueEntry[] = [
   },
 
   // ---------------- Google ----------------
+  //
+  // The 2026 refresh. Ids and token limits come from Google's own
+  // `models.list`, prices from its pricing page by exact id, and the thinking
+  // ranges from live probes on 2026-09-12 — the free metadata reports only
+  // `thinking: true`, a boolean, so it can say *whether* a model thinks but
+  // never at which levels.
+  //
+  //   gemini-3.5-flash-lite  minimal(0) medium(12) high(13)   all OK
+  //   gemini-3.6-flash       minimal(0) medium(12) high(12)   all OK
+  //   gemini-3.8-flash       minimal -> 400 "Thinking level MINIMAL is not
+  //                          supported for this model";  low OK (11 thinking)
+  //   gemini-3.1-pro-preview minimal -> 400, same;           low OK (11)
+  //
+  // The bracketed number is thinking tokens spent, and it is the whole D27
+  // argument: 3.6 and 3.8 are the same list price, but 3.6 can run at
+  // `minimal` for no thinking tokens at all while 3.8 cannot go below `low`
+  // and bills 11 on every request, however trivial. For one-sentence
+  // translations that is the entire reasoning budget, paid forever.
+  //
+  // Google now says `temperature`, `topP` and `topK` are "no longer
+  // recommended" on any 3.x model — advice, not refusal, so `sampling` stays
+  // `supported` while `fixedTemperature` pins the value metadata reports
+  // (`temperature: 1`, `maxTemperature: 2`). `rateLimits` is omitted: nothing
+  // publishes per-model allowances for these, and inventing them would
+  // pre-fill a configuration's usage limits with fiction.
+  {
+    id: 'gemini-3.5-flash-lite',
+    displayName: 'gemini-3.5-flash-lite',
+    provider: 'Google',
+    pricing: { input: 0.3, output: 2.5, verifiedAt: '2026-09-12' },
+    contextWindow: 1048576,
+    maxOutputTokens: 65536,
+    lifecycle: {
+      status: 'active',
+      note: "FEED's default. GA 2026-07-21; Google's deprecation page announces no shutdown.",
+    },
+    costTier: 'economy',
+    capabilities: {
+      sampling: 'supported',
+      maxTokensField: 'max_tokens',
+      // Whole range measured.
+      reasoning: {
+        kind: 'thinking-level',
+        values: ['minimal', 'low', 'medium', 'high'],
+        leastCost: 'minimal',
+      },
+      prefill: 'allowed',
+      fixedTemperature: 1.0,
+    },
+  },
+  {
+    id: 'gemini-3.6-flash',
+    displayName: 'gemini-3.6-flash',
+    provider: 'Google',
+    // Google states these double on 2027-01-01, to $1.50 / $7.50.
+    pricing: { input: 0.75, output: 3.75, verifiedAt: '2026-09-12', changesOn: '2027-01-01' },
+    contextWindow: 1048576,
+    maxOutputTokens: 65536,
+    lifecycle: {
+      status: 'active',
+      note: 'GA 2026-07-21, previous generation to 3.8 but able to run at minimal thinking (D27). No shutdown announced. First Google preset the monthly audit should expect to lose.',
+    },
+    costTier: 'economy',
+    capabilities: {
+      sampling: 'supported',
+      maxTokensField: 'max_tokens',
+      // Whole range measured.
+      reasoning: {
+        kind: 'thinking-level',
+        values: ['minimal', 'low', 'medium', 'high'],
+        leastCost: 'minimal',
+      },
+      prefill: 'allowed',
+      fixedTemperature: 1.0,
+    },
+  },
+  {
+    id: 'gemini-3.8-flash',
+    displayName: 'gemini-3.8-flash',
+    provider: 'Google',
+    pricing: { input: 0.75, output: 3.75, verifiedAt: '2026-09-12', changesOn: '2027-01-01' },
+    contextWindow: 1048576,
+    maxOutputTokens: 65536,
+    lifecycle: {
+      status: 'active',
+      note: 'Newest Flash, GA 2026-09-02 (D8). No shutdown announced. Cannot disable thinking.',
+    },
+    costTier: 'economy',
+    capabilities: {
+      sampling: 'supported',
+      maxTokensField: 'max_tokens',
+      // Floor measured (`minimal` refused, `low` accepted); `medium` and
+      // `high` are Google's documented range, not probed.
+      reasoning: {
+        kind: 'thinking-level',
+        values: ['low', 'medium', 'high'],
+        leastCost: 'low',
+      },
+      prefill: 'allowed',
+      fixedTemperature: 1.0,
+    },
+  },
+  {
+    id: 'gemini-3.1-pro-preview',
+    displayName: 'gemini-3.1-pro-preview',
+    provider: 'Google',
+    // Tiered, which `ModelPricing` cannot express: $2.00 / $12.00 for prompts
+    // at or under 200k tokens, $4.00 / $18.00 above. FEED's translation
+    // prompts run to a few hundred tokens, so the lower tier always applies —
+    // but the figures here are the lower tier, not a flat rate.
+    pricing: { input: 2.0, output: 12.0, verifiedAt: '2026-09-12' },
+    contextWindow: 1048576,
+    maxOutputTokens: 65536,
+    lifecycle: {
+      // `preview` drives the badge (D26). Google's previews churn: the model
+      // this replaces lasted from 2025-11-18 to 2026-03-09, and
+      // `gemini-3.1-flash-lite-preview` managed under three months. It is
+      // absent from the deprecation page, which is not the same as safe.
+      status: 'preview',
+      note: 'Preview. No stable 3.x Pro exists yet. Expect it to change or vanish within months; the monthly audit checks whether it has reached stable.',
+    },
+    costTier: 'standard',
+    capabilities: {
+      sampling: 'supported',
+      maxTokensField: 'max_tokens',
+      // Floor measured; `medium` and `high` documented.
+      reasoning: {
+        kind: 'thinking-level',
+        values: ['low', 'medium', 'high'],
+        leastCost: 'low',
+      },
+      prefill: 'allowed',
+      fixedTemperature: 1.0,
+    },
+  },
   {
     id: 'gemini-2.5-flash-lite',
     displayName: 'gemini-2.5-flash-lite',
@@ -771,6 +906,10 @@ export const CATALOGUE: readonly CatalogueEntry[] = [
     maxOutputTokens: 65536,
     lifecycle: {
       status: 'deprecated',
+      // Withdrawn as a preset: this is the model whose 404 started ISSUES #84.
+      // Kept resolvable, because existing projects still reach it and saved
+      // configurations point at it.
+      offered: false,
       replacement: 'gemini-3.5-flash-lite',
       // Measured with two keys from the same instance on 2026-09-11: an older
       // project reaches this model normally, a newer one gets
@@ -798,6 +937,7 @@ export const CATALOGUE: readonly CatalogueEntry[] = [
     maxOutputTokens: 65536,
     lifecycle: {
       status: 'deprecated',
+      offered: false,
       replacement: 'gemini-3.8-flash',
       note: 'Refused to newer projects, as 2.5 Flash-Lite is.',
     },
@@ -819,6 +959,7 @@ export const CATALOGUE: readonly CatalogueEntry[] = [
     maxOutputTokens: 65536,
     lifecycle: {
       status: 'deprecated',
+      offered: false,
       replacement: 'gemini-3.1-pro-preview',
       note: 'Refused to newer projects.',
     },
@@ -840,6 +981,7 @@ export const CATALOGUE: readonly CatalogueEntry[] = [
     maxOutputTokens: 65536,
     lifecycle: {
       status: 'deprecated',
+      offered: false,
       replacement: 'gemini-3.8-flash',
       note: 'Preview, superseded by the stable 3.x Flash line.',
     },

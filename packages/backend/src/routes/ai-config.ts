@@ -14,6 +14,7 @@ import { encoding_for_model } from 'tiktoken';
 
 import { requireAdmin } from '../middleware/auth/require-admin';
 import {
+  CATALOGUE,
   REASONING_VALUES,
   SERVICE_ENDPOINTS,
   acceptedReasoningValues,
@@ -273,7 +274,27 @@ const withKeyPresence = <T extends { type: string; encryptedApiKey?: string | nu
  */
 router.get('/models', async (_req: Request, res: Response, next: NextFunction) => {
   try {
-    res.json({ models: selectableEntries(), endpoints: SERVICE_ENDPOINTS });
+    // Two lists, because withdrawing a preset split one job into two.
+    //
+    // `models` is what an administrator may choose. `withdrawn` is everything
+    // else the catalogue still knows — the 2025-era presets the refresh
+    // dropped, including the one production runs until 2026-12-11 and the
+    // Gemini model whose 404 started ISSUES.md #84.
+    //
+    // Serving only `models` would leave the dialog unable to explain the
+    // configurations people already have: a saved row pointing at a withdrawn
+    // id would render with no shutdown date and no replacement, which is
+    // exactly the silence this issue is about. Those entries stay resolvable
+    // in-process via `findCatalogueEntry`, but the interface reaches them
+    // over HTTP or not at all.
+    const offered = selectableEntries();
+    const offeredIds = new Set(offered.map((entry) => entry.id));
+
+    res.json({
+      models: offered,
+      withdrawn: CATALOGUE.filter((entry) => !offeredIds.has(entry.id)),
+      endpoints: SERVICE_ENDPOINTS,
+    });
   } catch (error) {
     next(error);
   }

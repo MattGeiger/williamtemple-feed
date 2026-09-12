@@ -88,14 +88,58 @@ describe('GET /api/ai-config/models', () => {
     });
   });
 
-  test('a withdrawn model still appears, and says what to move to', async () => {
-    // It has to remain choosable-and-warned rather than vanish: saved
-    // configurations point at it, and the interface needs to explain them.
+  test('a withdrawn model is not offered as a new choice', async () => {
+    // The 2026 refresh drops it as a preset. It used to be FEED's default.
     const response = await request(await buildApp()).get('/api/ai-config/models');
-    const withdrawn = response.body.models.find((m: any) => m.id === 'gemini-2.5-flash-lite');
+    const ids = response.body.models.map((m: any) => m.id);
 
+    expect(ids).not.toContain('gemini-2.5-flash-lite');
+    expect(ids).toContain('gemini-3.5-flash-lite');
+  });
+
+  test('but it is still served, and still says what to move to', async () => {
+    // This asserted the withdrawn model appeared in `models`, and it did until
+    // the refresh withheld it — at which point the dialog lost the only way to
+    // explain a configuration already pointing at it. The entry never left the
+    // catalogue and `findCatalogueEntry` still resolves it, but in-process
+    // resolvable is not the same as reachable over HTTP, which is what the
+    // interface has. Hence a second list rather than a deleted assertion.
+    const response = await request(await buildApp()).get('/api/ai-config/models');
+    const withdrawn = response.body.withdrawn.find(
+      (m: any) => m.id === 'gemini-2.5-flash-lite'
+    );
+
+    expect(withdrawn).toBeDefined();
     expect(withdrawn.lifecycle.status).toBe('deprecated');
     expect(withdrawn.lifecycle.replacement).toBe('gemini-3.5-flash-lite');
     expect(withdrawn.lifecycle.note).toMatch(/no longer available to new users/);
+  });
+
+  test('production’s model can still be explained, six weeks before it dies', async () => {
+    // gpt-5-mini is what production runs and it shuts down 2026-12-11. A saved
+    // configuration on it has to render that date and its replacement, so the
+    // one preset whose withdrawal matters most must not be the one that goes
+    // silent.
+    const response = await request(await buildApp()).get('/api/ai-config/models');
+    const mini = response.body.withdrawn.find(
+      (m: any) => m.id === 'gpt-5-mini-2025-08-07'
+    );
+
+    expect(mini).toBeDefined();
+    expect(mini.lifecycle.shutdownDate).toBe('2026-12-11');
+    expect(mini.lifecycle.replacement).toBe('gpt-5.6-terra');
+    // And it is genuinely gone from the choices.
+    expect(response.body.models.map((m: any) => m.id)).not.toContain('gpt-5-mini-2025-08-07');
+  });
+
+  test('every catalogue entry is in exactly one of the two lists', async () => {
+    // The split must partition, not sample: an entry in neither list is one
+    // the interface can neither offer nor explain.
+    const response = await request(await buildApp()).get('/api/ai-config/models');
+    const offered = response.body.models.map((m: any) => m.id);
+    const withdrawn = response.body.withdrawn.map((m: any) => m.id);
+
+    expect(offered.filter((id: string) => withdrawn.includes(id))).toEqual([]);
+    expect(new Set([...offered, ...withdrawn]).size).toBe(offered.length + withdrawn.length);
   });
 });
