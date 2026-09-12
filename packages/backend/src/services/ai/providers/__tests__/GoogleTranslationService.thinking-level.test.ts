@@ -7,6 +7,7 @@
 
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import type { AIConfiguration } from '@prisma/client';
+import type { ThinkingConfig } from '@google/genai';
 
 let GoogleTranslationService: typeof import('../GoogleTranslationService').GoogleTranslationService;
 let modelSpecs: typeof import('../../model-specs');
@@ -222,7 +223,21 @@ describe('GoogleTranslationService thinking level', () => {
     await service.translateText({ text: 'Hello', targetLanguage: 'Spanish' });
 
     const request = generateContent.mock.calls[0][0];
-    expect(request.config.thinkingConfig).toEqual({ thinking_level: 'minimal' });
+    // `thinkingLevel`, camelCase, is the JS SDK's field name. This asserted
+    // `thinking_level` and passed for months while the level never reached
+    // Google at all: `@google/genai` 1.11 copied only `includeThoughts` and
+    // `thinkingBudget` out of `thinkingConfig` and dropped everything else,
+    // silently. A test written against FEED's own request object cannot see
+    // that, which is what the type assertion below is for (ISSUES.md #84).
+    expect(request.config.thinkingConfig).toEqual({ thinkingLevel: 'minimal' });
+  });
+
+  test('the SDK in use actually carries thinkingLevel', () => {
+    // The guard the previous test cannot be: if a future SDK renames or drops
+    // this field, FEED would go back to sending a value the client discards
+    // and nothing else would notice.
+    const config: ThinkingConfig = { thinkingLevel: 'minimal' as ThinkingConfig['thinkingLevel'] };
+    expect(config.thinkingLevel).toBe('minimal');
   });
 
   test('omits thinkingConfig for non-Gemini 3 models', async () => {

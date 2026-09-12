@@ -595,7 +595,7 @@ const response = await client.models.generateContent({
 });
 ```
 
-**SDK Parameter Name**: ~~`thinking_level` (snake_case) - **VERIFIED** from official @google/genai SDK documentation~~ **Incorrect (2026-09-11):** the JS SDK field is `thinkingLevel`, and the installed `@google/genai` 1.11.0 forwards neither spelling, so this value has never reached the API. See ISSUES.md #84.
+**SDK Parameter Name**: ~~`thinking_level` (snake_case) - **VERIFIED** from official @google/genai SDK documentation~~ **Corrected (2026-09-11):** the JS SDK field is `thinkingLevel`. The old spelling reached nothing — `@google/genai` 1.11.0 forwarded only `includeThoughts` and `thinkingBudget`. FEED now runs SDK 2.22.0 and sends `thinkingLevel`. See ISSUES.md #84.
 **Parameter Structure**: Nested in `thinkingConfig` object (not top-level like temperature/topP)
 
 **Applied to**:

@@ -5,6 +5,23 @@ All notable changes to FEED are documented here. This project adheres to
 
 ## [Unreleased]
 
+### Fixed
+
+- **The Gemini thinking level now actually reaches Google.** FEED sent
+  `thinkingConfig: { thinking_level }` in snake_case; the JS SDK field is
+  `thinkingLevel`. `@google/genai` 1.11.0 compounded it by copying only
+  `includeThoughts` and `thinkingBudget` out of `thinkingConfig` and dropping
+  the rest without an error, so every Gemini 3 request ran at Google's default
+  no matter what an administrator chose. Upgraded to `@google/genai` 2.22.0,
+  which declares `thinkingLevel` on `ThinkingConfig`, and corrected all four
+  call sites.
+
+  The unit test asserted the wrong spelling and passed throughout — a test
+  written against FEED's own request object cannot see a field the client
+  discards afterwards. It now asserts the correct spelling, with a type-level
+  check against the SDK's own `ThinkingConfig` beside it, so a future rename
+  or removal fails the build rather than going quiet again.
+
 ### Changed
 
 - **The Docker images run Node 24 (`node:24-alpine`).** Node 20 reached
