@@ -5,6 +5,27 @@ All notable changes to FEED are documented here. This project adheres to
 
 ## [Unreleased]
 
+### Added
+
+- **A server-authoritative model catalogue**, served from
+  `GET /api/ai-config/models`. It records the same prices and limits as
+  `model-specs.ts` plus the two things a duplicated list of specs could not
+  express:
+  - **lifecycle** — status, shutdown date, replacement, and a line saying
+    why, so the interface can warn before a model fails rather than after.
+    `gemini-3-pro-preview` shut down on 2026-03-09 and was still selectable;
+    it is now marked retired and excluded from what the endpoint offers.
+  - **capabilities** — whether sampling parameters are accepted, which
+    max-tokens field to send, which reasoning values exist and which costs
+    least, whether an assistant prefill is allowed, and the non-streaming
+    output ceiling. Every one measured against a live API rather than read
+    off a documentation page, because three of them contradicted the docs.
+
+  Nothing consumes it yet. It is introduced beside the existing
+  `model-specs.ts` so this change can be reviewed on its own; the dialogs,
+  capability-driven request building, and the catalogue contents follow
+  separately.
+
 ### Changed
 
 - **`openai` upgraded 5.10.2 → 7.15.0.** Its `ReasoningEffort` type now covers

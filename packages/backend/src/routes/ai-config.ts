@@ -13,6 +13,7 @@ import { encryptApiKey } from '../services/encryption';
 import { encoding_for_model } from 'tiktoken';
 
 import { requireAdmin } from '../middleware/auth/require-admin';
+import { SERVICE_ENDPOINTS, selectableEntries } from '../services/ai/catalogue';
 
 const router = Router();
 
@@ -205,6 +206,26 @@ const withKeyPresence = <T extends { type: string; encryptedApiKey?: string | nu
     hasApiKey: configuration.type !== 'apikey' || Boolean(encryptedApiKey),
   } as Omit<T, 'encryptedApiKey' | 'salt'> & { hasApiKey: boolean };
 };
+
+/**
+ * GET the model catalogue — what an administrator may choose, with the
+ * lifecycle and capability facts the interface needs to warn about.
+ *
+ * Declared **above** `/:id` deliberately. Express matches in declaration
+ * order, so `/:id` would otherwise swallow `/models` and answer "Invalid
+ * configuration ID" — a failure that looks like a bug in the client.
+ *
+ * Not admin-gated: this is public product knowledge (prices, limits, which
+ * models exist), it contains no configuration and no secret, and every
+ * authenticated user's dialog needs it to render.
+ */
+router.get('/models', async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    res.json({ models: selectableEntries(), endpoints: SERVICE_ENDPOINTS });
+  } catch (error) {
+    next(error);
+  }
+});
 
 // GET all configurations
 router.get('/', async (req: Request, res: Response, next: NextFunction) => {
