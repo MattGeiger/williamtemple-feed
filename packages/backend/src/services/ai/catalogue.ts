@@ -72,11 +72,24 @@ export type SamplingSupport =
 /**
  * Every reasoning value any catalogued model accepts, cheapest first.
  *
- * A storage vocabulary, not a per-model allowlist — no model takes all seven.
- * `minimal` is valid on the GPT-5 snapshots and Gemini 3 and refused by
- * GPT-5.6; `none` is GPT-5.6's floor and exists nowhere else; `xhigh` and
- * `max` come from GPT-5.6 and Anthropic's `output_config.effort` (verified
- * against OpenAI's and Anthropic's own pages, 2026-09-11).
+ * A storage vocabulary, not a per-model allowlist — no model takes all seven,
+ * and one value is not known to be accepted by anything FEED can reach.
+ * Measured against the live APIs on 2026-09-11:
+ *
+ *   gpt-5.6-luna / -terra / -sol   none, low, medium, high, xhigh
+ *   gpt-6-astra                    low, medium, high, xhigh   (no `none`)
+ *   gpt-5-*-2025-08-07             minimal, low, medium, high
+ *
+ * So `minimal` is valid on the 2025 snapshots and refused by GPT-5.6, while
+ * `none` is GPT-5.6's floor and exists nowhere else.
+ *
+ * `max` is refused by every OpenAI model probed — `400 ... does not support
+ * 'max' with this model` — and accepted by Anthropic: `claude-sonnet-5` with
+ * `output_config: { effort: 'max' }` answered normally, as it did at `low`.
+ * The value is real, and it is Anthropic's alone. Note the two providers
+ * spell the same idea differently: OpenAI takes `reasoning_effort` on the
+ * request, Anthropic takes `output_config.effort`, which is why this is a
+ * shared vocabulary rather than one provider's parameter.
  *
  * The order is the cost order, so an index comparison decides what counts as
  * "above medium" for the D2 warning. What a *given* model accepts is per-entry
