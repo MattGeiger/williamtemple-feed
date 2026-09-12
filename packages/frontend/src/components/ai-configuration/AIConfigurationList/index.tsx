@@ -14,6 +14,7 @@ import { DataList } from "@/components/shared/data-list/DataList"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { TableBulkAction } from "@/types/table"
 import { useMessage } from "@/hooks/message/useMessage"
+import { useModelCatalogue } from "@/hooks/ai-config/useModelCatalogue"
 import { Trash2, ToggleLeft, ToggleRight, Bot } from "@/components/ui/icons";
 import { PlusIcon } from "@/components/animate-ui/icons/plus";
 import { SettingsIcon } from "@/components/animate-ui/icons/settings";
@@ -67,6 +68,10 @@ export function AIConfigurationList({
   onResetDefaults,
 }: AIConfigurationListProps) {
   const { showSuccess, showError } = useMessage()
+  // The catalogue lives here rather than in `columns`, which is a plain
+  // function and cannot call a hook. Until it arrives `findModel` returns
+  // undefined and the table renders exactly as before.
+  const { findModel } = useModelCatalogue()
   const [selectedForBulkDelete, setSelectedForBulkDelete] = useState<UnifiedConfiguration[]>([])
   const [selectedTypes, setSelectedTypes] = useState<AIConfigurationType[]>(AI_CONFIGURATION_TYPES)
   const dataListRef = useRef<{ clearSelection: () => void } | null>(null)
@@ -191,7 +196,7 @@ export function AIConfigurationList({
         title="AI Configuration"
         description="Manage AI system prompts, model selection, and API settings."
         items={filteredConfigurations}
-        columns={columns({ onEdit, onDelete, onToggleActive })}
+        columns={columns({ onEdit, onDelete, onToggleActive, findModel })}
         isLoading={isLoading}
         bulkActions={bulkActions}
         filterColumn="name"

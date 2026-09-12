@@ -13,15 +13,19 @@ export interface StatusBadgeProps {
   label: string;
   status: StatusType;
   className?: string;
+  /** Hover text, where the badge is a summary of something longer. */
+  title?: string;
 }
 
-export function StatusBadge({ 
-  label, 
+export function StatusBadge({
+  label,
   status,
-  className 
+  className,
+  title
 }: StatusBadgeProps) {
   return (
     <span
+      title={title}
       className={cn(
         "px-2 py-1 rounded-full text-xs font-medium border",
         {
