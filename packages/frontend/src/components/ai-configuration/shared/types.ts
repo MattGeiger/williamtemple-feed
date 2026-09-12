@@ -6,7 +6,7 @@
 // not covered by this license; see TRADEMARKS.md.
 
 import React from 'react'
-import { AIConfigurationType } from '../types'
+import { AIConfigurationType, ThinkingLevelValue } from '../types'
 
 /**
  * Base configuration data shared by both API key and prompt configurations
@@ -16,7 +16,7 @@ export interface BaseConfigData {
   description: string
   temperature: number
   topP: number
-  thinkingLevel?: 'minimal' | 'low' | 'medium' | 'high' | null
+  thinkingLevel?: ThinkingLevelValue | null
 }
 
 /**
@@ -48,7 +48,7 @@ export interface ApiKeyConfigData extends BaseConfigData {
    * `BaseConfigData`'s nullable version is what forced the old hard-coded
    * `'high'` default.
    */
-  thinkingLevel?: 'minimal' | 'low' | 'medium' | 'high' | null
+  thinkingLevel?: ThinkingLevelValue | null
   value: string
   isActive?: boolean
 }

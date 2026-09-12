@@ -25,7 +25,7 @@ export interface AIConfiguration {
   unitPrice?: string
   temperature?: number
   topP?: number
-  thinkingLevel?: 'minimal' | 'low' | 'medium' | 'high' | null
+  thinkingLevel?: ThinkingLevelValue | null
   maxTokens?: number
   inputTokenLimit?: number | null
   outputTokenLimit?: number | null
@@ -70,6 +70,26 @@ export interface SetupState {
   isInitializing: boolean
   initializationError: string | null
 }
+
+/**
+ * Every thinking / reasoning level FEED can store, cheapest first.
+ *
+ * Mirrors `REASONING_VALUES` in
+ * `packages/backend/src/services/ai/catalogue.ts`, which is authoritative. A
+ * storage vocabulary, not a per-model list — no model accepts all seven.
+ * `minimal` is valid on the GPT-5 snapshots and Gemini 3 and refused by
+ * GPT-5.6; `none` is GPT-5.6's floor; `xhigh` and `max` come from GPT-5.6 and
+ * Anthropic's `output_config.effort`. What a given model takes comes from its
+ * catalogue entry, and the backend rejects a level the model refuses.
+ */
+export type ThinkingLevelValue =
+  | 'none'
+  | 'minimal'
+  | 'low'
+  | 'medium'
+  | 'high'
+  | 'xhigh'
+  | 'max'
 
 /**
  * The model catalogue served by `GET /api/ai-config/models`.

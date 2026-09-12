@@ -13,7 +13,7 @@ import ApiUsageTracker from '../../token/usage-tracker';
 import { decryptApiKey } from '../../encryption';
 import { PromptBuilder } from '../prompts/PromptBuilder';
 import { TemplateEngine } from '../prompts/TemplateEngine';
-import { capabilitiesFor, resolveReasoning } from '../catalogue';
+import { capabilitiesFor, resolveReasoning, type ReasoningValue } from '../catalogue';
 
 import { GoogleGenAI } from '@google/genai';
 
@@ -98,7 +98,7 @@ export class GoogleTranslationService extends AITranslationService {
   ): {
     temperature: number;
     topP?: number;
-    thinkingLevel?: 'minimal' | 'low' | 'medium' | 'high';
+    thinkingLevel?: ReasoningValue;
     warnings: string[];
   } {
     const capabilities = capabilitiesFor('Google', model);
@@ -122,7 +122,7 @@ export class GoogleTranslationService extends AITranslationService {
     return {
       temperature,
       topP,
-      thinkingLevel: reasoning.value as 'minimal' | 'low' | 'medium' | 'high' | undefined,
+      thinkingLevel: reasoning.value as ReasoningValue | undefined,
       warnings
     };
   }

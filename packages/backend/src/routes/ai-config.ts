@@ -13,7 +13,17 @@ import { encryptApiKey } from '../services/encryption';
 import { encoding_for_model } from 'tiktoken';
 
 import { requireAdmin } from '../middleware/auth/require-admin';
-import { SERVICE_ENDPOINTS, selectableEntries } from '../services/ai/catalogue';
+import {
+  REASONING_VALUES,
+  SERVICE_ENDPOINTS,
+  acceptedReasoningValues,
+  capabilitiesFor,
+  capabilityAccepts,
+  hasReasoningControl,
+  isCatalogueProvider,
+  selectableEntries,
+  type ReasoningValue,
+} from '../services/ai/catalogue';
 
 const router = Router();
 
@@ -166,24 +176,66 @@ const validateServiceType = (serviceType?: string): boolean => {
   return true;
 };
 
-const VALID_THINKING_LEVELS = ['minimal', 'low', 'medium', 'high'] as const;
-
+/**
+ * Validate a saved thinking level against the model it is saved for.
+ *
+ * This was a flat allowlist of `minimal | low | medium | high`, which is not
+ * any real model's set: GPT-5.6 refuses `minimal` and adds `none`, `xhigh` and
+ * `max`; Anthropic's effort runs `low` to `max`; Gemini 3 Pro takes only `low`
+ * and `high`. A single list is wrong for every model at once, and widening it
+ * would only be wrong more expensively — so the shape comes from
+ * `REASONING_VALUES` and the *membership* from the model's own capabilities.
+ *
+ * A model with no reasoning control clears the value rather than rejecting it.
+ * Rejecting would fail the next save of every configuration already carrying a
+ * level for such a model — a field the administrator never touched — where
+ * clearing makes the stored row true. A 400 is kept for the one case that is
+ * genuinely a mistake: a model that has a control and refuses this value.
+ */
 const validateThinkingLevel = (
-  thinkingLevel: unknown
-): (typeof VALID_THINKING_LEVELS)[number] | null => {
+  thinkingLevel: unknown,
+  serviceType: unknown,
+  model: unknown
+): ReasoningValue | null => {
   if (thinkingLevel === null || thinkingLevel === '') {
     return null;
   }
 
-  if (typeof thinkingLevel !== 'string' || !VALID_THINKING_LEVELS.includes(thinkingLevel as any)) {
-    const error = new Error('Thinking level must be one of: minimal, low, medium, high') as Error & {
-      statusCode?: number;
-    };
+  if (
+    typeof thinkingLevel !== 'string' ||
+    !REASONING_VALUES.includes(thinkingLevel as ReasoningValue)
+  ) {
+    const error = new Error(
+      `Thinking level must be one of: ${REASONING_VALUES.join(', ')}`
+    ) as Error & { statusCode?: number };
     error.statusCode = 400;
     throw error;
   }
 
-  return thinkingLevel as (typeof VALID_THINKING_LEVELS)[number];
+  const value = thinkingLevel as ReasoningValue;
+
+  // Azure has no catalogue entry, and a model id FEED has never seen gets the
+  // inferred profile rather than a free pass.
+  if (!isCatalogueProvider(serviceType) || typeof model !== 'string' || !model) {
+    return value;
+  }
+
+  const capabilities = capabilitiesFor(serviceType, model);
+
+  if (!hasReasoningControl(capabilities)) {
+    return null;
+  }
+
+  if (!capabilityAccepts(capabilities, value)) {
+    const accepted = acceptedReasoningValues(capabilities).join(', ');
+    const error = new Error(
+      `${model} does not accept the thinking level "${value}". It accepts: ${accepted}.`
+    ) as Error & { statusCode?: number };
+    error.statusCode = 400;
+    throw error;
+  }
+
+  return value;
 };
 
 /**
@@ -344,7 +396,7 @@ router.post('/', requireAdmin, async (req: Request, res: Response, next: NextFun
           createData.temperature = temperature || 0.7;
           createData.topP = topP || 1.0;
           if (thinkingLevel !== undefined) {
-            createData.thinkingLevel = validateThinkingLevel(thinkingLevel);
+            createData.thinkingLevel = validateThinkingLevel(thinkingLevel, serviceType, model);
           }
           createData.inputTokenLimit = inputTokenLimit;
           createData.outputTokenLimit = outputTokenLimit;
@@ -475,7 +527,13 @@ router.put('/:id', requireAdmin, async (req: Request, res: Response, next: NextF
         updateData.unitPrice = updateFields.unitPrice;
       }
       if (updateFields.thinkingLevel !== undefined) {
-        updateData.thinkingLevel = validateThinkingLevel(updateFields.thinkingLevel);
+        // Edit disables changing the service type and may not resend the
+        // model, so the stored row supplies whatever the request omits.
+        updateData.thinkingLevel = validateThinkingLevel(
+          updateFields.thinkingLevel,
+          updateFields.serviceType ?? existing.serviceType,
+          updateFields.model ?? existing.model
+        );
       }
       if (updateFields.inputTokenLimit !== undefined) {
         updateData.inputTokenLimit = updateFields.inputTokenLimit;
