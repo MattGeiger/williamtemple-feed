@@ -146,8 +146,8 @@ translations across 59 languages:
 
 ### Prerequisites
 
-- **Node.js 20 or 24** (Node 23 has known `fontkit` issues with PDF
-  rendering)
+- **Node.js 24** (Node 20 reached end-of-life on 2026-04-30 and the Docker
+  images run 24; Node 23 has known `fontkit` issues with PDF rendering)
 - **Docker Desktop** (for the full local stack)
 - A modern terminal
 
