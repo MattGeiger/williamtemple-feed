@@ -8,7 +8,8 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { AITranslationService, TranslationRequest, TranslationResult, ClassificationRequest, ClassificationResult, BatchTranslationRequest, BatchTranslationResult, ServiceCapabilities, ServiceLimits, ProviderAccessResult } from '../base/AITranslationService';
 import { limitEnforcement } from '../../limits';
-import { estimateInputTokensAndCost, estimateOutputTokensAndCost } from '../../token';
+import { estimateInputTokensAndCost } from '../../token';
+import { convertToPerTokenRate } from '../../token/calculation';
 import ApiUsageTracker from '../../token/usage-tracker';
 import { translationRecovery } from '../../translation-recovery';
 import { decryptApiKey } from '../../encryption';
@@ -264,6 +265,33 @@ export class AnthropicTranslationService extends AITranslationService {
     };
   }
 
+  /**
+   * What a call actually cost, from the token counts the provider returned.
+   *
+   * Two separate defects met here, both ending up in `UsageRecord.totalCost`
+   * — the field the daily and monthly cost limits are enforced against.
+   *
+   * The translation path recorded `inputMetrics.cost + outputMetrics.cost`,
+   * which is FEED's own tiktoken estimate, while `response.usage.input_tokens`
+   * and `.output_tokens` sat twenty lines below it. Every estimate is made
+   * with an OpenAI encoding (see `ENCODING_MODEL`), and Anthropic is the one
+   * provider documented as counting roughly 30% more tokens for the same
+   * text — so this was the worst possible place to prefer a guess over the
+   * answer already in hand.
+   *
+   * The batch and classification paths did use the real counts, but priced
+   * them with a hardcoded `/ 1000000` that ignores `unitPrice`, so a `per_1k`
+   * configuration recorded a thousandth of what it spent.
+   *
+   * `convertToPerTokenRate` is the same helper OpenAI and Google already use,
+   * which is why neither of them had either bug.
+   */
+  private recordedCost(inputTokens: number, outputTokens: number): number {
+    const inputRate = convertToPerTokenRate(this.config.inputCost || 0, this.config.unitPrice);
+    const outputRate = convertToPerTokenRate(this.config.outputCost || 0, this.config.unitPrice);
+    return (inputTokens * inputRate) + (outputTokens * outputRate);
+  }
+
   getSupportedLanguages(): string[] {
     return ANTHROPIC_SUPPORTED_LANGUAGES;
   }
@@ -404,8 +432,10 @@ export class AnthropicTranslationService extends AITranslationService {
             throw new Error('Response missing translatedText field');
           }
 
-          const outputMetrics = estimateOutputTokensAndCost(outputText, this.config);
-          const totalCost = inputMetrics.cost + outputMetrics.cost;
+          const totalCost = this.recordedCost(
+            response.usage.input_tokens,
+            response.usage.output_tokens
+          );
 
           // Log API usage for metrics tracking
           try {
@@ -603,8 +633,7 @@ export class AnthropicTranslationService extends AITranslationService {
       const duration = Date.now() - startTime;
       const inputTokens = response.usage.input_tokens;
       const outputTokens = response.usage.output_tokens;
-      const totalCost = (inputTokens * this.getServiceLimits().inputCost / 1000000) + 
-                       (outputTokens * this.getServiceLimits().outputCost / 1000000);
+      const totalCost = this.recordedCost(inputTokens, outputTokens);
       
       // Log API usage
       try {
@@ -760,8 +789,7 @@ export class AnthropicTranslationService extends AITranslationService {
 
       const inputTokens = response.usage.input_tokens;
       const outputTokens = response.usage.output_tokens;
-      const totalCost = (inputTokens * this.getServiceLimits().inputCost / 1000000) + 
-                       (outputTokens * this.getServiceLimits().outputCost / 1000000);
+      const totalCost = this.recordedCost(inputTokens, outputTokens);
 
       // Log API usage
       try {
@@ -997,8 +1025,7 @@ export class AnthropicTranslationService extends AITranslationService {
     
     const inputTokens = response.usage.input_tokens;
     const outputTokens = response.usage.output_tokens;
-    const totalCost = (inputTokens * this.getServiceLimits().inputCost / 1000000) + 
-                     (outputTokens * this.getServiceLimits().outputCost / 1000000);
+    const totalCost = this.recordedCost(inputTokens, outputTokens);
     
     return {
       classifications,
