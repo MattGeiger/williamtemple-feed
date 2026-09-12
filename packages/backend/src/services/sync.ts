@@ -6,12 +6,11 @@
 // not covered by this license; see TRADEMARKS.md.
 
 import '../bootstrap';
-import { TOKEN_RATES, TOKEN_LIMITS, MODEL_NAME } from '../config/limits';
 
-// Force early initialization of limits and rates
-// Uncomment for debugging
-// console.log('Syncing configuration...', {
-//   model: MODEL_NAME,
-//   rates: TOKEN_RATES[MODEL_NAME],
-//   limits: TOKEN_LIMITS.MODEL_DAILY_LIMITS[MODEL_NAME]
-// });
+// Force early initialization of limits and rates.
+//
+// A commented-out debug `console.log` sat here referencing MODEL_NAME,
+// TOKEN_RATES and TOKEN_LIMITS. Those were this file's only mention of them,
+// so the import existed solely to satisfy a comment — and it has been
+// removed. The block goes with it: left in place it would have read as an
+// instruction ("uncomment for debugging") that no longer compiles.
