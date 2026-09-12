@@ -188,9 +188,14 @@ describe('ThinkingLevelStep', () => {
     expect(onChange).toHaveBeenLastCalledWith({ thinkingLevel: 'medium' })
   })
 
-  test('an unknown model keeps every level, because nothing knows better', () => {
+  test('an unknown model keeps the four common levels, because nothing knows better', () => {
     // A Custom id, or a catalogue that has not arrived. Hiding the control
     // would be a guess; the backend substitutes anything the model refuses.
+    //
+    // Four, not the seven FEED can store: `xhigh` and `max` point at the
+    // expensive end on nothing but a hunch, and `none` is refused by every
+    // model except GPT-5.6. A guess about an unrecognised id should only
+    // offer what the catalogued models actually use.
     render(
       <ThinkingLevelStep
         {...(buildProps({ data: { thinkingLevel: undefined, model: 'something-custom' } }) as any)}

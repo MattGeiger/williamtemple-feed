@@ -220,4 +220,109 @@ describe('AI Configuration thinking level routes', () => {
 
     expect(response.body.configuration.thinkingLevel).toBeNull();
   });
+
+  describe('validated against the model, not a flat allowlist', () => {
+    // Every test above sends no `model`, and the update mocks return a row
+    // without `serviceType` or `model` — so all of them take the validator's
+    // early return and never reach the catalogue. They passed unchanged when
+    // the flat `minimal|low|medium|high` allowlist became per-model checking,
+    // which is exactly why that green suite proved nothing about it.
+    const post = (body: Record<string, unknown>) =>
+      request(app)
+        .post('/api/ai-config')
+        .send({ name: 'Config', type: 'apikey', value: '', apiKey: 'test-key', ...body });
+
+    test('a level the model accepts is stored', async () => {
+      mockPrisma.aIConfiguration.create.mockResolvedValue({ id: 10, thinkingLevel: 'minimal' });
+
+      await post({
+        serviceType: 'Google',
+        model: 'gemini-3-flash-preview',
+        thinkingLevel: 'minimal'
+      }).expect(201);
+
+      expect(mockPrisma.aIConfiguration.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ thinkingLevel: 'minimal' })
+      });
+    });
+
+    test('a level the model refuses is a 400 that names what it takes', async () => {
+      // Gemini 3 Pro accepts only low and high. Under the old allowlist
+      // `medium` was stored happily and failed later at the provider.
+      const response = await post({
+        serviceType: 'Google',
+        model: 'gemini-3-pro-preview',
+        thinkingLevel: 'medium'
+      }).expect(400);
+
+      expect(response.body.error).toContain('gemini-3-pro-preview');
+      expect(response.body.error).toContain('low, high');
+      expect(mockPrisma.aIConfiguration.create).not.toHaveBeenCalled();
+    });
+
+    test('a model with no reasoning control clears the level rather than failing', async () => {
+      // Rejecting would fail the next save of every configuration already
+      // carrying a level for such a model — a field nobody touched.
+      mockPrisma.aIConfiguration.create.mockResolvedValue({ id: 11, thinkingLevel: null });
+
+      await post({
+        serviceType: 'Google',
+        model: 'gemini-2.5-flash',
+        thinkingLevel: 'high'
+      }).expect(201);
+
+      expect(mockPrisma.aIConfiguration.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ thinkingLevel: null })
+      });
+    });
+
+    test('Azure has no catalogue entry, so its level passes through', async () => {
+      // Also the only way `xhigh` is storable today: it is in the vocabulary
+      // because GPT-5.6 and Anthropic effort use it, and no catalogued model
+      // offers it until the contents refresh.
+      mockPrisma.aIConfiguration.create.mockResolvedValue({ id: 12, thinkingLevel: 'xhigh' });
+
+      await post({
+        serviceType: 'Azure',
+        model: 'some-deployment',
+        thinkingLevel: 'xhigh'
+      }).expect(201);
+
+      expect(mockPrisma.aIConfiguration.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ thinkingLevel: 'xhigh' })
+      });
+    });
+
+    test('an update takes the model and service from the stored row', async () => {
+      // Edit disables changing the service type and need not resend the model,
+      // so a request carrying only a thinking level still has to be checked
+      // against the model it will actually run on.
+      mockPrisma.aIConfiguration.findUnique.mockResolvedValue({
+        id: 1,
+        type: 'apikey',
+        serviceType: 'Google',
+        model: 'gemini-3-pro-preview',
+        deletedAt: null
+      });
+
+      const response = await request(app)
+        .put('/api/ai-config/1')
+        .send({ thinkingLevel: 'medium' })
+        .expect(400);
+
+      expect(response.body.error).toContain('low, high');
+      expect(mockPrisma.aIConfiguration.update).not.toHaveBeenCalled();
+    });
+
+    test('a value outside the vocabulary lists every storable one', async () => {
+      const response = await post({
+        serviceType: 'Google',
+        model: 'gemini-3-flash-preview',
+        thinkingLevel: 'enthusiastic'
+      }).expect(400);
+
+      expect(response.body.error).toContain('none');
+      expect(response.body.error).toContain('max');
+    });
+  });
 });

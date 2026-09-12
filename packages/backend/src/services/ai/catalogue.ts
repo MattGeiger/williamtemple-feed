@@ -69,6 +69,31 @@ export type SamplingSupport =
   /** Neither may be sent at all (Claude 4.6 and later). */
   | 'unsupported';
 
+/**
+ * Every reasoning value any catalogued model accepts, cheapest first.
+ *
+ * A storage vocabulary, not a per-model allowlist — no model takes all seven.
+ * `minimal` is valid on the GPT-5 snapshots and Gemini 3 and refused by
+ * GPT-5.6; `none` is GPT-5.6's floor and exists nowhere else; `xhigh` and
+ * `max` come from GPT-5.6 and Anthropic's `output_config.effort` (verified
+ * against OpenAI's and Anthropic's own pages, 2026-09-11).
+ *
+ * The order is the cost order, so an index comparison decides what counts as
+ * "above medium" for the D2 warning. What a *given* model accepts is per-entry
+ * data — ask `capabilityAccepts`, never this list.
+ */
+export const REASONING_VALUES = [
+  'none',
+  'minimal',
+  'low',
+  'medium',
+  'high',
+  'xhigh',
+  'max',
+] as const;
+
+export type ReasoningValue = (typeof REASONING_VALUES)[number];
+
 /** How a model is asked to think less, or more. */
 export type ReasoningControl =
   /** No control, and nothing to send. */
@@ -623,6 +648,33 @@ export const acceptsReasoningValue = (entry: CatalogueEntry, value: string): boo
   if (reasoning.kind === 'extended') return value === 'off';
   return reasoning.values.includes(value);
 };
+
+/**
+ * The same question asked of capabilities rather than an entry, so it can be
+ * answered for a model the catalogue has never seen (`capabilitiesFor` supplies
+ * the inferred profile).
+ */
+export const capabilityAccepts = (capabilities: ModelCapabilities, value: string): boolean => {
+  const { reasoning } = capabilities;
+  if (reasoning.kind === 'none') return false;
+  if (reasoning.kind === 'extended') return value === 'off';
+  return reasoning.values.includes(value);
+};
+
+/** Whether this model has any reasoning control at all. */
+export const hasReasoningControl = (capabilities: ModelCapabilities): boolean =>
+  capabilities.reasoning.kind !== 'none' && capabilities.reasoning.kind !== 'extended';
+
+/** The values a model accepts, for an error message that tells staff what to do. */
+export const acceptedReasoningValues = (capabilities: ModelCapabilities): readonly string[] => {
+  const { reasoning } = capabilities;
+  if (reasoning.kind === 'none' || reasoning.kind === 'extended') return [];
+  return reasoning.values;
+};
+
+/** Whether a string names a provider the catalogue describes (Azure does not). */
+export const isCatalogueProvider = (value: unknown): value is CatalogueEntry['provider'] =>
+  value === 'OpenAI' || value === 'Anthropic' || value === 'Google';
 
 /**
  * What FEED assumes about a model it has never heard of.

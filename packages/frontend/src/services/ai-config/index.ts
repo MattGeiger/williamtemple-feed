@@ -5,7 +5,7 @@
 // under AGPL-3.0-or-later; see LICENSE. William Temple House branding is
 // not covered by this license; see TRADEMARKS.md.
 
-import { AIConfiguration, BulkOperationResult, AIConfigurationType, ModelCatalogueResponse } from '@/components/ai-configuration/types';
+import { AIConfiguration, BulkOperationResult, AIConfigurationType, ModelCatalogueResponse, ThinkingLevelValue } from '@/components/ai-configuration/types';
 import { BaseApiService } from '../base';
 import config from '@/config/config';
 
@@ -23,7 +23,7 @@ interface CreateAIConfigData {
   outputCost?: number;
   temperature?: number;
   topP?: number;
-  thinkingLevel?: 'minimal' | 'low' | 'medium' | 'high' | null;
+  thinkingLevel?: ThinkingLevelValue | null;
   inputTokenLimit?: number;
   outputTokenLimit?: number;
   dailyCostLimit?: number | null;

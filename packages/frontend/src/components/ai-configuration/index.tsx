@@ -5,7 +5,7 @@
 // under AGPL-3.0-or-later; see LICENSE. William Temple House branding is
 // not covered by this license; see TRADEMARKS.md.
 
-import { AIConfiguration, AIConfigurationType } from "./types"
+import { AIConfiguration, AIConfigurationType, ThinkingLevelValue } from "./types"
 import { useDialogState } from "@/hooks/dialog/useDialogState"
 import { AIConfigurationList } from "./AIConfigurationList"
 import { AddAIModelDialog } from "./AddAIModelDialog"
@@ -305,7 +305,7 @@ export function AIConfiguration() {
     outputCost?: number;
     temperature?: number;
     topP?: number;
-    thinkingLevel?: 'minimal' | 'low' | 'medium' | 'high' | null;
+    thinkingLevel?: ThinkingLevelValue | null;
     inputTokenLimit?: number;
     outputTokenLimit?: number;
     tokensPerMinute?: number;

@@ -9,6 +9,7 @@ import React from 'react'
 import { BaseAIConfigDialog } from './shared/BaseAIConfigDialog'
 import { createApiKeySteps } from './shared/stepDefinitions'
 import { ApiKeyConfigData } from './shared/types'
+import type { ThinkingLevelValue } from './types'
 import { getServiceEndpoint } from './service-endpoints'
 
 interface AddAIModelDialogProps {
@@ -32,7 +33,7 @@ interface AddAIModelDialogProps {
     monthlyCostLimit?: number
     temperature?: number
     topP?: number
-    thinkingLevel?: 'minimal' | 'low' | 'medium' | 'high' | null
+    thinkingLevel?: ThinkingLevelValue | null
     tokensPerMinute?: number
     requestsPerMinute?: number
     requestsPerDay?: number

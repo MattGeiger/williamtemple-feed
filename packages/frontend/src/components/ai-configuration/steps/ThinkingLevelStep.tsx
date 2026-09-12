@@ -33,8 +33,23 @@ import { BaseStepProps } from '../shared/types'
 import type { CatalogueModel } from '../types'
 import { useModelCatalogue } from '@/hooks/ai-config/useModelCatalogue'
 
-const ALL_LEVELS = ['minimal', 'low', 'medium', 'high'] as const
-type ThinkingLevel = typeof ALL_LEVELS[number]
+/**
+ * Every storable level, cheapest first. Used for *ordering* — which level
+ * counts as above medium, and what order a model's own values appear in.
+ */
+const COST_ORDER = ['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'] as const
+type ThinkingLevel = typeof COST_ORDER[number]
+
+/**
+ * What to offer when the catalogue has nothing to say — a Custom id, or a
+ * request that has not returned.
+ *
+ * Deliberately not `COST_ORDER`. Offering `xhigh` or `max` for a model nobody
+ * can vouch for points at the expensive end on a guess, and `none` is refused
+ * by everything except GPT-5.6. These four are the values the catalogued
+ * models actually use, and the backend substitutes anything a model rejects.
+ */
+const FALLBACK_LEVELS: readonly ThinkingLevel[] = ['minimal', 'low', 'medium', 'high']
 
 /** Levels above this raise the cost of every request, so they are warned about. */
 const WARN_ABOVE: ThinkingLevel = 'medium'
@@ -52,11 +67,11 @@ const levelsFor = (entry: CatalogueModel | undefined): ThinkingLevel[] => {
   // No entry means a Custom id, or a catalogue that has not arrived. Neither
   // is grounds for hiding the control: offer everything and let the backend
   // substitute, exactly as it does for any level a model turns out to refuse.
-  if (!entry) return [...ALL_LEVELS]
+  if (!entry) return [...FALLBACK_LEVELS]
 
   const { reasoning } = entry.capabilities
   if (reasoning.kind === 'none' || reasoning.kind === 'extended') return []
-  return ALL_LEVELS.filter((level) => reasoning.values.includes(level))
+  return COST_ORDER.filter((level) => reasoning.values.includes(level))
 }
 
 export function ThinkingLevelStep({
@@ -96,7 +111,7 @@ export function ThinkingLevelStep({
   const currentLevel = levels[currentIndex] ?? levels[0]
   const isUnset = data.thinkingLevel === undefined || data.thinkingLevel === null
   const isAboveWarnThreshold =
-    ALL_LEVELS.indexOf(currentLevel) > ALL_LEVELS.indexOf(WARN_ABOVE)
+    COST_ORDER.indexOf(currentLevel) > COST_ORDER.indexOf(WARN_ABOVE)
 
   return (
     <StepWrapper

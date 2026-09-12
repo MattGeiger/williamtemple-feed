@@ -7,7 +7,7 @@
 
 import { AIConfigService } from '../ai-config';
 import { SystemPromptService } from '../system-prompt';
-import { AIConfiguration } from '@/components/ai-configuration/types';
+import { AIConfiguration, ThinkingLevelValue } from '@/components/ai-configuration/types';
 import { SystemPrompt } from '@/types/system-prompt';
 
 /**
@@ -46,7 +46,7 @@ export interface UnifiedConfiguration {
   temperature?: number;
   inputTokenLimit?: number;
   outputTokenLimit?: number;
-  thinkingLevel?: 'minimal' | 'low' | 'medium' | 'high' | null;
+  thinkingLevel?: ThinkingLevelValue | null;
   dailyCostLimit?: number | null;
   monthlyCostLimit?: number | null;
   tokensPerMinute?: number;

@@ -15,7 +15,12 @@ import { translationRecovery } from '../../translation-recovery';
 import { decryptApiKey } from '../../encryption';
 import { PromptBuilder } from '../prompts/PromptBuilder';
 import { TemplateEngine } from '../prompts/TemplateEngine';
-import { capabilitiesFor, findCatalogueEntry, resolveReasoning } from '../catalogue';
+import {
+  capabilitiesFor,
+  findCatalogueEntry,
+  resolveReasoning,
+  type ReasoningValue,
+} from '../catalogue';
 
 // Add delay function for rate limiting and backoff
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -109,7 +114,9 @@ export class OpenAITranslationService extends AITranslationService {
   ): {
     temperature: number;
     topP?: number;
-    reasoningEffort?: 'minimal' | 'low' | 'medium' | 'high';
+    // Seven values, not four: GPT-5.6 refuses `minimal` and adds `none`,
+    // `xhigh` and `max`. The SDK's own `ReasoningEffort` spans the same set.
+    reasoningEffort?: ReasoningValue;
     warnings: string[];
   } {
     const capabilities = capabilitiesFor('OpenAI', model);
@@ -150,7 +157,7 @@ export class OpenAITranslationService extends AITranslationService {
     return {
       temperature,
       topP,
-      reasoningEffort: reasoning.value as 'minimal' | 'low' | 'medium' | 'high' | undefined,
+      reasoningEffort: reasoning.value as ReasoningValue | undefined,
       warnings
     };
   }
