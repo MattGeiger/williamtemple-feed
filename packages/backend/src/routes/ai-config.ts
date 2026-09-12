@@ -241,6 +241,43 @@ const validateThinkingLevel = (
 };
 
 /**
+ * Refuse a cost limit that cannot be enforced.
+ *
+ * A daily or monthly cost limit is compared against `UsageRecord.totalCost`,
+ * which is tokens x price. With no price the product is zero, recorded spend
+ * never moves, and the comparison in `LimitEnforcementService` is
+ * `0 + 0 > limit` on every request — so a limit an administrator deliberately
+ * set is silently inert. That is defect 6 of ISSUES.md #84.
+ *
+ * Only the provably inert case is refused: a positive limit with no usable
+ * price at all. A configuration priced on input but not output still measures
+ * something, and "Leave empty to skip cost tracking" is an offer the Cost step
+ * makes on purpose — so an unpriced configuration with no limit stays entirely
+ * legal. Zero already means unlimited (`> 0 ? … : null` below), so only a
+ * positive limit is checked.
+ */
+const validateCostLimitCoherence = (
+  dailyCostLimit: unknown,
+  monthlyCostLimit: unknown,
+  inputCost: unknown,
+  outputCost: unknown
+): void => {
+  const positive = (value: unknown): boolean => typeof value === 'number' && value > 0;
+
+  if (!positive(dailyCostLimit) && !positive(monthlyCostLimit)) return;
+  if (positive(inputCost) || positive(outputCost)) return;
+
+  const error = new Error(
+    'A cost limit needs a price to measure against. Set an input or output rate on '
+    + 'the Cost Tracking step, or clear the cost limit — with no rate, recorded spend '
+    + 'stays at zero and the limit would never stop anything.'
+  ) as Error & { statusCode?: number; code?: string };
+  error.statusCode = 400;
+  error.code = 'AI_CONFIGURATION_UNENFORCEABLE_COST_LIMIT';
+  throw error;
+};
+
+/**
  * Adds the one fact about the key that a client legitimately needs: whether
  * there is one. The ciphertext itself is never something a browser should be
  * reasoning about.
@@ -423,6 +460,7 @@ router.post('/', requireAdmin, async (req: Request, res: Response, next: NextFun
           createData.inputTokenLimit = inputTokenLimit;
           createData.outputTokenLimit = outputTokenLimit;
           createData.maxTokens = outputTokenLimit ?? maxTokens;
+          validateCostLimitCoherence(dailyCostLimit, monthlyCostLimit, inputCost, outputCost);
           if (dailyCostLimit !== undefined) {
             createData.dailyCostLimit = dailyCostLimit > 0 ? dailyCostLimit : null;
           }
@@ -564,6 +602,23 @@ router.put('/:id', requireAdmin, async (req: Request, res: Response, next: NextF
         updateData.outputTokenLimit = updateFields.outputTokenLimit;
         updateData.maxTokens = updateFields.outputTokenLimit;
       }
+      // An edit reaches the unenforceable pair from either side: adding a
+      // limit to a configuration that has no prices, or clearing the prices
+      // from one that already has a limit. Each field above is guarded by its
+      // own `!== undefined`, so a request may carry only one of the four and
+      // the stored row supplies the rest.
+      //
+      // `!== undefined` rather than `??`: an explicit null is how a price is
+      // cleared, and `??` would read that as "unchanged" and wave through
+      // precisely the case being guarded.
+      const sentOrStored = (sent: unknown, stored: unknown): unknown =>
+        sent !== undefined ? sent : stored;
+      validateCostLimitCoherence(
+        sentOrStored(updateFields.dailyCostLimit, existing.dailyCostLimit),
+        sentOrStored(updateFields.monthlyCostLimit, existing.monthlyCostLimit),
+        sentOrStored(updateFields.inputCost, existing.inputCost),
+        sentOrStored(updateFields.outputCost, existing.outputCost)
+      );
       if (updateFields.dailyCostLimit !== undefined) {
         updateData.dailyCostLimit = updateFields.dailyCostLimit > 0 ? updateFields.dailyCostLimit : null;
       }
