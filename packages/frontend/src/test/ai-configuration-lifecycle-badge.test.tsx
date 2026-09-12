@@ -30,17 +30,19 @@ import type { UnifiedConfiguration } from '@/services/unified-config'
 
 const model = (
   id: string,
-  lifecycle: Record<string, unknown>
+  lifecycle: Record<string, unknown>,
+  costTier: 'economy' | 'standard' | 'frontier' = 'economy',
+  pricing: { input: number; output: number } = { input: 1, output: 1 }
 ): CatalogueModel =>
   ({
     id,
     displayName: id,
     provider: 'OpenAI',
-    pricing: { input: 1, output: 1, verifiedAt: '2026-09-12' },
+    pricing: { ...pricing, verifiedAt: '2026-09-12' },
     contextWindow: 1000,
     maxOutputTokens: 1000,
     lifecycle,
-    costTier: 'economy',
+    costTier,
     capabilities: {
       sampling: 'unsupported',
       maxTokensField: 'max_completion_tokens',
@@ -66,6 +68,19 @@ const CATALOGUE: Record<string, CatalogueModel> = {
   }),
   'gemini-3.1-pro-preview': model('gemini-3.1-pro-preview', { status: 'preview' }),
   'gpt-5.6-luna': model('gpt-5.6-luna', { status: 'active' }),
+  // Active and frontier at once — the case that proves the two notices are
+  // independent rather than either/or (D1/D7).
+  'gpt-6-astra': model('gpt-6-astra', { status: 'active' }, 'frontier', {
+    input: 10,
+    output: 50,
+  }),
+  // Frontier *and* on its way out, so both badges must appear together.
+  'claude-opus-4-5-20251101': model(
+    'claude-opus-4-5-20251101',
+    { status: 'deprecated', shutdownDate: '2026-11-24', replacement: 'claude-opus-5' },
+    'frontier',
+    { input: 5, output: 25 }
+  ),
 }
 
 const findModel = (id?: string | null) => (id ? CATALOGUE[id] : undefined)
@@ -165,6 +180,26 @@ describe('what the configuration list says about a model’s remaining life', ()
 
     expect(screen.getByText('Active')).toBeTruthy()
     expect(screen.queryByText(/Ends /)).toBeNull()
+  })
+
+  test('a frontier model is flagged as expensive even though nothing is wrong with it', () => {
+    // D1/D7. `gpt-6-astra` is current and healthy — the warning is about
+    // $50 per 1M output tokens against work that costs a few dozen.
+    renderCell('isActive', row({ model: 'gpt-6-astra' }))
+
+    expect(screen.getByText('Active')).toBeTruthy()
+    expect(screen.getByText('Expensive')).toBeTruthy()
+    // And no lifecycle badge, because there is nothing wrong with its life.
+    expect(screen.queryByText(/Ends |Deprecated|Retired|Preview/)).toBeNull()
+  })
+
+  test('a model can be both expensive and expiring, and says both', () => {
+    // The two notices answer different questions, so one must not hide the
+    // other. Opus 4.5 is withdrawn from the presets and costs $25/1M out.
+    renderCell('isActive', row({ model: 'claude-opus-4-5-20251101', serviceType: 'Anthropic' }))
+
+    expect(screen.getByText('Ends 2026-11-24')).toBeTruthy()
+    expect(screen.getByText('Expensive')).toBeTruthy()
   })
 
   test('a system prompt row is never given a model badge', () => {

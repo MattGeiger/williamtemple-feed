@@ -37,6 +37,7 @@ import { StepWrapper } from '../shared/StepWrapper'
 import { ServiceStepProps } from '../shared/types'
 import type { CatalogueModel } from '../types'
 import { getServiceEndpoint } from '../service-endpoints'
+import { noticesFor } from '../model-notices'
 import { useModelCatalogue } from '@/hooks/ai-config/useModelCatalogue'
 
 const CUSTOM = 'Custom'
@@ -126,6 +127,14 @@ export function ServiceStep({
 
   const modelNameError = validation?.showValidation && validation?.errors?.modelName
   const modelError = validation?.showValidation && validation?.errors?.model
+
+  // What the chosen model is worth saying out loud: how much life it has left
+  // (D26 for previews, defect 10 for the rest) and whether it costs far more
+  // than this work needs (D1/D7). Both are advisory — an administrator may
+  // spend their budget as they see fit — and a model can warrant both at once,
+  // as `gpt-5.6-sol` does, being active and frontier together.
+  const chosen = available.find((entry) => entry.id === data.model)
+  const notices = data.model === CUSTOM ? [] : noticesFor(chosen)
 
   return (
     <StepWrapper
@@ -250,6 +259,19 @@ export function ServiceStep({
         <p className="text-xs text-muted-foreground">
           Exact model identifier as provided by the AI service
         </p>
+        {notices.map((notice) => (
+          <p
+            key={notice.label}
+            role="note"
+            className={
+              notice.tone === 'danger'
+                ? 'text-xs text-destructive'
+                : 'text-xs text-[var(--status-warning-text)]'
+            }
+          >
+            {notice.detail}
+          </p>
+        ))}
       </div>
     </StepWrapper>
   )
