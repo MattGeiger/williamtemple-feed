@@ -69,6 +69,30 @@ describe('catalogue invariants', () => {
     expect(retired).toContain('gemini-3-pro-preview');
   });
 
+  test('withdrawing a preset never claims the provider shut it down', () => {
+    // `status` is the provider's reality and `offered` is FEED's choice, and
+    // the refresh needs both: it drops 15 presets while `gpt-5-mini` still
+    // serves production until 2026-12-11. Marking a working model `retired`
+    // to get it out of the dialog would be a lie in the data, and would take
+    // the entry production's saved row resolves against.
+    for (const entry of CATALOGUE) {
+      if (entry.lifecycle.offered !== false) continue;
+      expect(entry.lifecycle.status, `${entry.id} is unoffered`).not.toBe('active');
+      // Whatever the reason it is no longer a choice, the entry must remain
+      // resolvable for the configurations still pointing at it.
+      expect(findCatalogueEntry(entry.id), entry.id).toBeDefined();
+    }
+  });
+
+  test('an unoffered model keeps its capabilities for the rows still using it', () => {
+    // The whole point of keeping it in CATALOGUE rather than deleting it.
+    const unoffered = CATALOGUE.filter((e) => e.lifecycle.offered === false);
+    for (const entry of unoffered) {
+      const capabilities = capabilitiesFor(entry.provider, entry.id);
+      expect(capabilities, entry.id).toBe(entry.capabilities);
+    }
+  });
+
   test('frontier tier means an output price of $20/1M or more', () => {
     for (const entry of CATALOGUE) {
       if (entry.costTier === 'frontier') {
@@ -239,13 +263,31 @@ describe('models the catalogue has never heard of', () => {
   });
 
   test('an unknown GPT-5 id is never offered minimal effort', () => {
-    // gpt-5.6-luna answers `400 ... does not support 'minimal'` while the
-    // 2025-08-07 snapshots accept it. The catalogue can be exact per model;
-    // a guess cannot, so it offers only what the whole family takes.
-    const caps = capabilitiesFor('OpenAI', 'gpt-5.6-luna');
+    // `minimal` is valid on the 2025-08-07 snapshots and refused by GPT-5.6,
+    // so a guess about an unrecognised id may only offer what the whole family
+    // takes. This used `gpt-5.6-luna` as the unknown id until the 2026 refresh
+    // catalogued it — the example was adopted, so it needs one that is still
+    // genuinely absent.
+    const caps = capabilitiesFor('OpenAI', 'gpt-5.9-unreleased');
+    expect(findCatalogueEntry('gpt-5.9-unreleased')).toBeUndefined();
     expect(caps.maxTokensField).toBe('max_completion_tokens');
     expect(caps.reasoning).toMatchObject({ kind: 'effort', leastCost: 'low' });
     expect(resolveReasoning(caps, 'minimal').value).toBe('low');
+  });
+
+  test('a catalogued GPT-5.6 id answers with what was measured, not the guess', () => {
+    // The other half of the same point. Inference offers `low` because that is
+    // safe for the family; the real entry knows luna accepts `none`, which is
+    // cheaper and is what D2 wants. Measured 2026-09-12 — `max` returns
+    // `400 ... does not support 'max' with this model`.
+    const caps = capabilitiesFor('OpenAI', 'gpt-5.6-luna');
+    expect(caps.reasoning).toMatchObject({ kind: 'effort', leastCost: 'none' });
+    expect(resolveReasoning(caps, null).value).toBe('none');
+    expect(acceptsReasoningValue(findCatalogueEntry('gpt-5.6-luna')!, 'max')).toBe(false);
+    // And gpt-6-astra refuses `none`, so a family-wide rule would 400 on it.
+    const astra = capabilitiesFor('OpenAI', 'gpt-6-astra');
+    expect(astra.reasoning).toMatchObject({ kind: 'effort', leastCost: 'low' });
+    expect(resolveReasoning(astra, 'none').value).toBe('low');
   });
 
   test('an unknown Gemini 3-or-later id gets a thinking level and a fixed temperature', () => {

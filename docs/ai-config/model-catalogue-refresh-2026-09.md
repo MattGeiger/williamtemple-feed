@@ -259,10 +259,36 @@ in Phase 0.
 
 | Offered | Role | Price | Default thinking |
 |---|---|---|---|
-| `gemini-3.5-flash-lite` | **Default** | $0.30 / $2.50 | `minimal` |
-| `gemini-3.6-flash` | Mid tier, least thinking (D27) | $0.75 / $3.75, doubling 2027-01-01 | `minimal` |
-| `gemini-3.8-flash` | Mid tier, newest (D8) | $0.75 / $3.75, doubling 2027-01-01 | `low` (cannot be disabled) |
-| `gemini-3.1-pro-preview` | Top tier, **Preview badge** (D26) | $2.00 / $12.00 | `low` (cannot be disabled) |
+| `gemini-3.5-flash-lite` | **Default** | $0.30 / $2.50 | `minimal` (measured) |
+| `gemini-3.6-flash` | Mid tier, least thinking (D27) | $0.75 / $3.75, doubling 2027-01-01 | `minimal` (measured) |
+| `gemini-3.8-flash` | Mid tier, newest (D8) | $0.75 / $3.75, doubling 2027-01-01 | `low` — floor measured |
+| `gemini-3.1-pro-preview` | Top tier, **Preview badge** (D26) | $2.00 / $12.00 | `low` — floor measured |
+
+**Measured 2026-09-12**, on a temporary key, closing D27's "not yet done":
+
+| Probe | Result |
+|---|---|
+| `gemini-3.5-flash-lite` @ `minimal` | OK — **0 thinking tokens** |
+| `gemini-3.6-flash` @ `minimal` | OK — **0 thinking tokens** |
+| `gemini-3.8-flash` @ `minimal` | **400** "Thinking level MINIMAL is not supported for this model" |
+| `gemini-3.8-flash` @ `low` | OK — **11 thinking tokens** |
+| `gemini-3.1-pro-preview` @ `minimal` | **400**, same message |
+| `gemini-3.1-pro-preview` @ `low` | OK — **11 thinking tokens** |
+| `gemini-3.5-flash-lite` @ `high` | OK — 13 thinking tokens |
+
+This is stronger evidence for D27 than the documented ranges were. 3.6 and 3.8
+are the same list price, and the difference is not merely that 3.6 *allows* a
+lower setting: at `minimal` it spends **no** thinking tokens at all, while 3.8
+cannot go below `low` and bills 11 thinking tokens as output on every request,
+however trivial. For FEED's one-sentence translations that is the whole
+reasoning budget, paid on every string, forever.
+
+Free metadata (`models.list`) also reports `thinking: true`, `temperature: 1`,
+`maxTemperature: 2`, `topP: 0.95`, `topK: 64` and input/output limits of
+1,048,576 / 65,536 for all four — which is where the token limits came from,
+and which independently corroborates `fixedTemperature: 1.0` for Gemini 3.x.
+Note `thinking` is a boolean there: metadata says *whether* a model thinks,
+never at which levels, so the levels above required real requests.
 
 Retired: `gemini-2.5-flash-lite` (the old default), `gemini-2.5-flash`,
 `gemini-2.5-pro`, `gemini-3-flash-preview`, `gemini-3-pro-preview`.
@@ -402,6 +428,22 @@ catalogue never carried them, so nothing needs removing from it.
 
 **Retire: 15 of 16 selectable presets.** Only `claude-haiku-4-5-20251001`
 stays.
+
+> **How "retire" is implemented — `offered: false`, not `status: 'retired'`.**
+> Those are two different claims and the refresh needs both. `status` records
+> what the *provider* has done, and `retired` means "gone, requests fail";
+> `lifecycle.offered` records whether *FEED* still presents the model as a
+> choice. Marking `gpt-5-mini-2025-08-07` retired to drop it from the dialog
+> would state that requests fail when they do not — it is what production runs
+> until 2026-12-11 — and would remove the entry that production's saved
+> configuration resolves its prices, limits and capabilities against.
+>
+> A withheld entry stays in `CATALOGUE`, so `findCatalogueEntry` and
+> `capabilitiesFor` keep answering for the rows still pointing at it. It simply
+> stops appearing in `selectableEntries()`, which is what
+> `GET /api/ai-config/models` serves. Two invariants hold the line: no withheld
+> entry may claim `status: 'active'`, and every withheld entry must remain
+> resolvable.
 
 | Why | Presets | Count |
 |---|---|---|
