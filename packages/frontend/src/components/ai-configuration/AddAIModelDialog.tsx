@@ -55,7 +55,10 @@ export function AddAIModelDialog({
     // fills them in as soon as the catalogue arrives, and again whenever a
     // different model is chosen.
     const defaultServiceType: ApiKeyConfigData['serviceType'] = 'Google'
-    const defaultModelName = 'gemini-2.5-flash-lite'
+    // Was `gemini-2.5-flash-lite` — the model Google refuses to new projects,
+    // whose 404 is what ISSUES.md #84 was reported for. Every configuration
+    // created since then started out pointed at it.
+    const defaultModelName = 'gemini-3.5-flash-lite'
 
     return {
       type: 'apikey',
