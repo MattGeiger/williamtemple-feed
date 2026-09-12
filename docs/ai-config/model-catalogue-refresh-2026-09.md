@@ -1,20 +1,32 @@
 # AI Model Catalogue Refresh — Discovery and Plan
 
-**Status**: Implemented through the catalogue itself; the contents refresh is
-what remains. Ten commits on 2026-09-11 — honest provider errors and
+**Status**: Phases 1–4 delivered; **Phase 5, live validation, is what remains.**
+Fifteen commits across 2026-09-11 and 2026-09-12 — honest provider errors and
 administrator alerts, Node 24, the three SDK upgrades, the server-authoritative
 catalogue, providers and dialogs both reading it, both `model-specs.ts` copies
-deleted, and D2's thinking defaults. Outstanding: Phase 4, the catalogue's
-*contents* (retire 15, add 11), and Phase 5, live validation. Sections below
-are marked where the code has overtaken the plan; where a section still reads
-in the future tense, it has not been built.
+deleted, D2's thinking defaults, and the contents refresh itself: 27 entries,
+**12 offered — four per provider** — and 15 withheld. FEED's default model is
+`gemini-3.5-flash-lite`, no longer the `gemini-2.5-flash-lite` whose 404
+prompted this document.
+
+Sections below are marked where the code has overtaken the plan; where a
+section still reads in the future tense, it has not been built. Known to be
+outstanding: defects 5, 6 and 10 in the list below, the secondary stale lists,
+and Phase 5.
 **Tracks**: ISSUES.md #84 · roadmap v1.9.5 ("LLM catalogue and pricing audit")
 **Companion**: [`translation-efficiency-and-local-models.md`](translation-efficiency-and-local-models.md)
 — prompt size, thinking-token cost, caching, and a local TranslateGemma option.
-**Provider facts checked**: 2026-09-11, against each provider's own model,
-pricing, and deprecation pages (sources at the end). Prices and dates move;
-re-check them on the day the catalogue is edited and record that date in the
-catalogue itself.
+**Provider facts checked**: 2026-09-11, and re-checked per exact model id on
+2026-09-12 when each entry was written, against each provider's own model,
+pricing and deprecation pages (sources at the end) — plus live probes for every
+capability a page could not settle. Prices and dates move; re-check them on the
+day the catalogue is edited and record that date in the catalogue itself.
+
+Three things that check caught, all of which a page had stated otherwise:
+`gpt-4o` priced at $5.00/$20.00 against an actual $2.50/$10.00; the OpenAI
+models page implying `max` on the GPT-5.6 family and `none` on `gpt-6-astra`,
+both refused with a 400; and Anthropic's tentative "not sooner than" dates
+recorded as though they were announced shutdowns.
 
 ## What was reported
 

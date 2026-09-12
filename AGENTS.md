@@ -461,6 +461,15 @@ finished code:
   `components/ai-configuration/service-endpoints.ts`: four stable service
   URLs, no model ids, prices or capabilities, needed because the Add dialog
   builds its initial state before any request has been made.
+- **Dropping a preset is `lifecycle.offered: false`, never `status:
+  'retired'`.** `status` is the provider's reality — `retired` means requests
+  fail — and `offered` is FEED's own choice about what to present. They come
+  apart constantly: the 2026 refresh withdrew `gpt-5-mini-2025-08-07`, which
+  production ran successfully for months afterwards. Marking it retired would
+  have written a falsehood *and* removed the entry its saved configuration
+  resolves prices and limits against. A withheld entry stays in `CATALOGUE`
+  and is served by `GET /api/ai-config/models` under `withdrawn`, so the
+  dialog can still explain a row it no longer offers.
 - **Describe model constraints as catalogue capabilities**, not string tests on
   model ids: sampling parameters, thinking or effort values, max-token field,
   prefill, language coverage. The `-4-5-` check broke on the first dateless id.
