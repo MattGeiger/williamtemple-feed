@@ -80,7 +80,13 @@ export function AddAIModelDialog({
       value: '',
       temperature: 0.7,
       topP: 1.0,
-      thinkingLevel: 'high',
+      // Unset, not `high`. The backend resolves an unset level to the cheapest
+      // the chosen model accepts (D2) — which is `low` for a model that cannot
+      // turn thinking off, and nothing at all for a model with no reasoning
+      // control. Defaulting to `high` here sent `reasoning_effort: high` on
+      // every new GPT-5 configuration; production's own gpt-5-mini runs at
+      // minimal.
+      thinkingLevel: null,
       isActive: true
     }
   }, [])
@@ -91,8 +97,11 @@ export function AddAIModelDialog({
       type: 'apikey',
       value: '',
       description: data.description || undefined,
-      modelName: data.modelName === 'Custom' ? data.customModelName : data.modelName,
-      model: data.model === 'Custom' ? data.customModel : data.model,
+      // Trimmed, as Edit has always done. Add saved them raw, so a custom id
+      // pasted with a trailing space was stored with it and every request for
+      // that model failed (ISSUES.md #84).
+      modelName: data.modelName === 'Custom' ? data.customModelName.trim() : data.modelName,
+      model: data.model === 'Custom' ? data.customModel.trim() : data.model,
       serviceType: data.serviceType,
       endpointUrl: data.endpointUrl,
       apiKey: data.apiKey,
