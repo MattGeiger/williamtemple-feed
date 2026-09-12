@@ -150,14 +150,29 @@ real answer exists only in the backend log.
 - Both `model-specs.ts` copies are deleted and the dialogs read
   `GET /api/ai-config/models`. `GOOGLE_MODEL_PRICING` turned out to be dead
   code — declared, never read — and went with them.
+- Thinking level defaults to unset instead of `high`, so the backend applies
+  the cheapest level each model accepts (D2) rather than the dialog guessing
+  one. The step now offers only the levels a model takes, says plainly when a
+  model has no reasoning control instead of accepting a setting it will
+  discard, and warns that a level above medium raises the cost of every
+  request (D2, D3). The `high` default had lived in three places, two of them
+  fallbacks inside `ThinkingLevelStep`, so every configuration with no stored
+  level opened at `high` and persisted it on the next save.
+- `AddAIModelDialog` trims a custom model id before saving, as Edit always
+  did.
 
 Still open from the list above: `SERVICE_SPECIFICATIONS` (labelled "mock data"
 but exported to the cost forecast), `config/limits.ts`,
 `config/limits/index.ts`, `config/translation.ts` and
-`scripts/fix-ai-config-token-limits.ts` all still name superseded models;
-`AddAIModelDialog` still saves a custom model id untrimmed where Edit trims it,
-and still defaults Thinking Level to `high`; a Custom model still has no
-prices, so its spend limits never trip.
+`scripts/fix-ai-config-token-limits.ts` all still name superseded models; and
+a Custom model still has no prices, so its spend limits never trip.
+
+Also waiting on the contents refresh: new configurations still default to
+`gemini-2.5-flash-lite`, the model Google closed to new projects. Swapping it
+for another deprecated Google id would not be a fix, and deriving the default
+from lifecycle cannot work yet — exactly one of the sixteen catalogue entries
+is `active` (Claude Haiku 4.5), so the derivation would silently move every
+new configuration to Anthropic and change who the deployment is billed by.
 
 **Plan**: retire 15 of 16 presets and add 11. Steps: reproduce against real
 keys, honest errors, one server-authoritative catalogue with lifecycle and

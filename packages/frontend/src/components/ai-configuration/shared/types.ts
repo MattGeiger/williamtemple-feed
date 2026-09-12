@@ -41,7 +41,14 @@ export interface ApiKeyConfigData extends BaseConfigData {
   tokensPerMinute: number | null | undefined
   requestsPerMinute: number | null | undefined
   requestsPerDay: number | null | undefined
-  thinkingLevel?: 'minimal' | 'low' | 'medium' | 'high'
+  /**
+   * `null` means "no level chosen" — the backend then applies the cheapest
+   * value the model accepts (D2), which is per-model and therefore not
+   * something the dialog can work out for itself. Narrowing this away from
+   * `BaseConfigData`'s nullable version is what forced the old hard-coded
+   * `'high'` default.
+   */
+  thinkingLevel?: 'minimal' | 'low' | 'medium' | 'high' | null
   value: string
   isActive?: boolean
 }
