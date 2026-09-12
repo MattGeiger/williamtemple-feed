@@ -106,7 +106,7 @@ describe('a configuration with no rate limits of its own', () => {
     expect(configuration.monthlyUsage.limit).toBe(0);
   });
 
-  test('keeps the limits a configuration does set', () => {
+  test('keeps configured provider rate allowances without turning them into budgets', () => {
     const [configuration] = mapResponse(
       wireResponse({ tokensPerMinute: 200000, requestsPerMinute: 500, requestsPerDay: 10000 })
     ).configurations;
@@ -114,8 +114,8 @@ describe('a configuration with no rate limits of its own', () => {
     expect(configuration.rateLimit.limit).toBe(200000);
     expect(configuration.requestsPerMinute.limit).toBe(500);
     expect(configuration.requestsPerDay.limit).toBe(10000);
-    // 200000 TPM x 1440 minutes.
-    expect(configuration.dailyUsage.limit).toBe(288_000_000);
+    expect(configuration.dailyUsage.limit).toBe(0);
+    expect(configuration.monthlyUsage.limit).toBe(0);
   });
 
   test('a blank model is unknown, not a retired id', () => {

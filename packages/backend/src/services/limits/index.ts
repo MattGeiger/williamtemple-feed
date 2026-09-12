@@ -6,13 +6,7 @@
 // not covered by this license; see TRADEMARKS.md.
 
 import { PrismaClient, type AIConfiguration } from '@prisma/client';
-import {
-  TOKEN_LIMITS,
-  OPTIMIZATION_THRESHOLDS,
-  getWarningLevel,
-  wouldExceedLimit,
-  calculateRemainingTokens
-} from '../../config/limits';
+import { wouldExceedLimit } from '../../config/limits';
 import { alertService } from '../alerts';
 import { convertToPerTokenRate } from '../token/calculation';
 
@@ -21,13 +15,11 @@ const prisma = new PrismaClient();
 interface TokenUsageCheck {
   canProceed: boolean;
   remainingTokens: number;
-  warningLevel: keyof typeof TOKEN_LIMITS.WARNING_THRESHOLDS | null;
+  warningLevel: 'WARNING' | 'ELEVATED_WARNING' | 'FINAL_WARNING' | null;
   reason?: string;
 }
 
 interface UsagePeriod {
-  dailyTokens: number;
-  monthlyTokens: number;
   dailyCost: number;
   monthlyCost: number;
 }
@@ -66,8 +58,6 @@ export class LimitEnforcementService {
 
     const usage = await this.getCurrentUsage(config.id);
     
-    const dailyTokenLimit = this.getDailyTokenLimit(config);
-    const monthlyTokenLimit = dailyTokenLimit !== null ? dailyTokenLimit * 30 : null;
     const dailyCostLimit = config.dailyCostLimit && config.dailyCostLimit > 0
       ? config.dailyCostLimit
       : null;
@@ -75,26 +65,6 @@ export class LimitEnforcementService {
       ? config.monthlyCostLimit
       : null;
     
-    // Check daily token limit
-    if (dailyTokenLimit !== null && wouldExceedLimit(usage.dailyTokens, estimatedTokens, dailyTokenLimit)) {
-      return {
-        canProceed: false,
-        remainingTokens: calculateRemainingTokens(usage.dailyTokens, dailyTokenLimit),
-        warningLevel: 'FINAL_WARNING',
-        reason: 'Daily token limit would be exceeded'
-      };
-    }
-
-    // Check monthly token limit
-    if (monthlyTokenLimit !== null && wouldExceedLimit(usage.monthlyTokens, estimatedTokens, monthlyTokenLimit)) {
-      return {
-        canProceed: false,
-        remainingTokens: calculateRemainingTokens(usage.monthlyTokens, monthlyTokenLimit),
-        warningLevel: 'FINAL_WARNING',
-        reason: 'Monthly token limit would be exceeded'
-      };
-    }
-
     // A cost limit with no price behind it cannot fire. `estimatedCost` is
     // zero, `usage.dailyCost` sums a `totalCost` written at the same zero
     // rate, and both comparisons below reduce to `0 + 0 > limit` on every
@@ -141,22 +111,10 @@ export class LimitEnforcementService {
       };
     }
 
-    const warningLevel = dailyTokenLimit !== null
-      ? getWarningLevel(usage.dailyTokens + estimatedTokens, dailyTokenLimit)
-      : null;
-    
-    if (warningLevel && dailyTokenLimit !== null) {
-      const percentUsed = ((usage.dailyTokens + estimatedTokens) / dailyTokenLimit) * 100;
-      await alertService.createAlert(warningLevel === 'FINAL_WARNING' ? 'critical' : 'warning',
-        `Approaching daily token limit for ${config.model}: ${percentUsed.toFixed(1)}% used`);
-    }
-
     return {
       canProceed: true,
-      remainingTokens: dailyTokenLimit !== null
-        ? calculateRemainingTokens(usage.dailyTokens + estimatedTokens, dailyTokenLimit)
-        : 0,
-      warningLevel
+      remainingTokens: 0,
+      warningLevel: null
     };
   }
 
@@ -175,8 +133,6 @@ export class LimitEnforcementService {
           success: true
         },
         _sum: {
-          promptTokens: true,
-          completionTokens: true,
           totalCost: true
         }
       }),
@@ -187,16 +143,12 @@ export class LimitEnforcementService {
           success: true
         },
         _sum: {
-          promptTokens: true,
-          completionTokens: true,
           totalCost: true
         }
       })
     ]);
 
     return {
-      dailyTokens: (dailyUsage._sum.promptTokens || 0) + (dailyUsage._sum.completionTokens || 0),
-      monthlyTokens: (monthlyUsage._sum.promptTokens || 0) + (monthlyUsage._sum.completionTokens || 0),
       dailyCost: dailyUsage._sum.totalCost || 0,
       monthlyCost: monthlyUsage._sum.totalCost || 0
     };
@@ -213,39 +165,6 @@ export class LimitEnforcementService {
     const promptTokens = this.SYSTEM_PROMPT_TOKENS + (tokens * 0.5);  // System prompt + input
     const completionTokens = tokens * 0.5;     // Output typically matches input length
     return (promptTokens * promptCost) + (completionTokens * completionCost);
-  }
-
-  private getDailyTokenLimit(config: AIConfiguration): number | null {
-    if (config.tokensPerMinute && config.tokensPerMinute > 0) {
-      return config.tokensPerMinute * 60 * 24;
-    }
-
-    const modelKey = this.getTokenLimitModelKey(config.model);
-    if (modelKey) {
-      return TOKEN_LIMITS.MODEL_DAILY_LIMITS?.[modelKey] ?? null;
-    }
-
-    return null;
-  }
-
-  private getTokenLimitModelKey(
-    model?: string | null
-  ): keyof typeof TOKEN_LIMITS.MODEL_DAILY_LIMITS | null {
-    if (!model) {
-      return null;
-    }
-
-    if (model.startsWith('gpt-4o-mini')) {
-      return 'gpt-4o-mini';
-    }
-    if (model.startsWith('gpt-4')) {
-      return 'gpt-4';
-    }
-    if (model.startsWith('gpt-3.5')) {
-      return 'gpt-3.5-turbo';
-    }
-
-    return null;
   }
 
   private async calculateRemainingTokens(
@@ -270,7 +189,7 @@ export class LimitEnforcementService {
       orderBy: { updatedAt: 'desc' }
     });
     
-    return config?.model || 'gpt-4o-mini';
+    return config?.model || 'unknown';
   }
 }
 

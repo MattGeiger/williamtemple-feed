@@ -329,9 +329,6 @@ router.post('/', async (req, res, next) => {
         console.log(`Translation completed for language: ${translation.language}`);
 
         // Update metrics
-        await alertService.checkTokenUsage();
-        await alertService.checkCostUsage();
-        
         if (result.metrics.duration) {
           await alertService.checkResponseTime(result.metrics.duration);
         }
@@ -541,9 +538,6 @@ router.post('/bulk-retry', async (req, res, next) => {
           });
 
           // Update metrics
-          await alertService.checkTokenUsage();
-          await alertService.checkCostUsage();
-          
           if (result.metrics.duration) {
             await alertService.checkResponseTime(result.metrics.duration);
           }

@@ -630,11 +630,7 @@ class DocxTranslationService {
       }
 
     // Check for alerts
-    await Promise.all([
-      alertService.checkTokenUsage(),
-      alertService.checkCostUsage(),
-      alertService.checkResponseTime(translationResult.metrics.duration)
-    ]);
+    await alertService.checkResponseTime(translationResult.metrics.duration);
     
     return {
       segments,
@@ -1331,11 +1327,7 @@ class DocxTranslationService {
     await Promise.all(savePromises);
     
     // Check alerts once per batch
-    await Promise.all([
-      alertService.checkTokenUsage(),
-      alertService.checkCostUsage(),
-      alertService.checkResponseTime(batchResult.metrics.duration)
-    ]);
+    await alertService.checkResponseTime(batchResult.metrics.duration);
     
     return {
       segments,

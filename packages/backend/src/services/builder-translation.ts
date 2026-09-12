@@ -316,15 +316,11 @@ export async function translateBuilderStrings(
         successfullyHandledIds.add(id);
       }
 
-      // Fire daily-aggregate alert checks per batch. Non-blocking: alert
-      // failures must not break the translation operation. Mirrors
-      // docx/translation.ts:1326-1331.
+      // Response-time alerting is non-blocking: alert failures must not break
+      // the translation operation. Spend is enforced from this request's
+      // active AI configuration before the provider call.
       try {
-        await Promise.all([
-          alertService.checkTokenUsage(),
-          alertService.checkCostUsage(),
-          alertService.checkResponseTime(metrics.duration),
-        ]);
+        await alertService.checkResponseTime(metrics.duration);
       } catch (alertError) {
         console.warn('Builder translation alert check failed:', alertError);
       }

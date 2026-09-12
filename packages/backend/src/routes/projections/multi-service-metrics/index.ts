@@ -148,21 +148,13 @@ router.get('/multi-service-metrics', async (req: Request, res: Response, next: N
     const monthlyTotal = monthlyConfigMetrics.reduce((sum, config) => sum + config.totalPromptTokens + config.totalCompletionTokens, 0);
     const monthlyCost = monthlyConfigMetrics.reduce((sum, config) => sum + config.totalCost, 0);
 
-    // Use configuration limits or defaults
-    const tpmLimit = primaryConfig.tokensPerMinute || 200000;
-    const rpmLimit = primaryConfig.requestsPerMinute || 500;
-    const rpdLimit = primaryConfig.requestsPerDay || 10000;
-    const dailyTokenLimit = tpmLimit * 1440; // TPM * minutes per day
-    const monthlyTokenLimit = dailyTokenLimit * 30;
-
-    // Warning level calculation
-    const getWarningLevel = (current: number, limit: number) => {
-      const usage = current / limit;
-      if (usage >= 0.9) return 'critical';
-      if (usage >= 0.75) return 'elevated';
-      if (usage >= 0.5) return 'warning';
-      return 'normal';
-    };
+    // These are provider/account rate allowances. They are not daily token
+    // budgets, and zero means the administrator has not recorded one.
+    const tpmLimit = primaryConfig.tokensPerMinute ?? 0;
+    const rpmLimit = primaryConfig.requestsPerMinute ?? 0;
+    const rpdLimit = primaryConfig.requestsPerDay ?? 0;
+    const dailyTokenLimit = 0;
+    const monthlyTokenLimit = 0;
 
     // Map usage data to configurations
     const configurationsWithUsage = targetConfigs.map(config => {
@@ -225,12 +217,12 @@ router.get('/multi-service-metrics', async (req: Request, res: Response, next: N
       rpdLimit,
       
       // Remaining capacity
-      dailyTokensRemaining: Math.max(0, dailyTokenLimit - dailyTotal),
-      monthlyTokensRemaining: Math.max(0, monthlyTokenLimit - monthlyTotal),
+      dailyTokensRemaining: 0,
+      monthlyTokensRemaining: 0,
       
       // Warning levels
-      dailyWarningLevel: getWarningLevel(dailyTotal, dailyTokenLimit),
-      monthlyWarningLevel: getWarningLevel(monthlyTotal, monthlyTokenLimit),
+      dailyWarningLevel: null,
+      monthlyWarningLevel: null,
       
       // Real-time metrics from UsageRecord table
       currentRatePerMinute: (currentMinuteUsage._sum.promptTokens || 0) + (currentMinuteUsage._sum.completionTokens || 0),

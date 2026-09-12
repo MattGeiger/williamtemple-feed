@@ -5,11 +5,7 @@
 // under AGPL-3.0-or-later; see LICENSE. William Temple House branding is
 // not covered by this license; see TRADEMARKS.md.
 
-import { 
-  TRANSLATION_THRESHOLDS, 
-  ALERT_LEVELS, 
-  ALERT_MESSAGES 
-} from '../../config/translation';
+import { TRANSLATION_THRESHOLDS, ALERT_LEVELS, ALERT_MESSAGES } from '../../config/translation';
 import { alertEventEmitter } from '../events/alert-events';
 import prisma from '../../db';
 
@@ -28,75 +24,6 @@ export class AlertService {
       AlertService.instance = new AlertService();
     }
     return AlertService.instance;
-  }
-
-  /**
-   * Checks daily token usage and sends alerts if thresholds are exceeded
-   */
-  async checkTokenUsage(): Promise<void> {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    // Get today's token usage
-    const result = await prisma.translation.aggregate({
-      _sum: {
-        promptTokens: true,
-        completionTokens: true
-      },
-      where: {
-        createdAt: {
-          gte: today
-        }
-      }
-    });
-
-    const totalTokens = (result._sum.promptTokens || 0) + (result._sum.completionTokens || 0);
-
-    if (totalTokens >= TRANSLATION_THRESHOLDS.DAILY_TOKEN_LIMIT) {
-      await this.createAlert(
-        ALERT_LEVELS.CRITICAL,
-        ALERT_MESSAGES.TOKEN_LIMIT_APPROACHING(totalTokens, TRANSLATION_THRESHOLDS.DAILY_TOKEN_LIMIT)
-      );
-    } else if (totalTokens >= TRANSLATION_THRESHOLDS.DAILY_TOKEN_WARNING) {
-      await this.createAlert(
-        ALERT_LEVELS.WARNING,
-        ALERT_MESSAGES.TOKEN_LIMIT_APPROACHING(totalTokens, TRANSLATION_THRESHOLDS.DAILY_TOKEN_LIMIT)
-      );
-    }
-  }
-
-  /**
-   * Checks daily cost and sends alerts if thresholds are exceeded
-   */
-  async checkCostUsage(): Promise<void> {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    // Get today's cost
-    const result = await prisma.translation.aggregate({
-      _sum: {
-        totalCost: true
-      },
-      where: {
-        createdAt: {
-          gte: today
-        }
-      }
-    });
-
-    const totalCost = result._sum.totalCost || 0;
-
-    if (totalCost >= TRANSLATION_THRESHOLDS.DAILY_COST_LIMIT) {
-      await this.createAlert(
-        ALERT_LEVELS.CRITICAL,
-        ALERT_MESSAGES.COST_LIMIT_APPROACHING(totalCost, TRANSLATION_THRESHOLDS.DAILY_COST_LIMIT)
-      );
-    } else if (totalCost >= TRANSLATION_THRESHOLDS.DAILY_COST_WARNING) {
-      await this.createAlert(
-        ALERT_LEVELS.WARNING,
-        ALERT_MESSAGES.COST_LIMIT_APPROACHING(totalCost, TRANSLATION_THRESHOLDS.DAILY_COST_WARNING)
-      );
-    }
   }
 
   /**

@@ -48,8 +48,8 @@ export function UsageLimitsStep({
   return (
     <StepWrapper 
       icon={Gauge} 
-      title="Usage Limits" 
-      description={mode === 'add' ? 'Configure usage limits and rate controls' : 'Update usage limits and rate controls'}
+      title="Provider Allowances"
+      description={mode === 'add' ? 'Record the allowances on this provider account' : 'Update the recorded provider allowances'}
     >
       <div className="space-y-2">
         <Label htmlFor="tokensPerMinute">Tokens Per Minute</Label>
@@ -62,7 +62,7 @@ export function UsageLimitsStep({
           disabled={isLoading}
         />
         <p className="text-xs text-muted-foreground">
-          Maximum tokens processed per minute. Leave empty for unlimited.
+          Provider or account allowance used for monitoring. Leave empty when unknown.
         </p>
       </div>
 
@@ -77,7 +77,7 @@ export function UsageLimitsStep({
           disabled={isLoading}
         />
         <p className="text-xs text-muted-foreground">
-          Maximum requests per minute. Leave empty for unlimited.
+          Provider or account allowance used for monitoring. Leave empty when unknown.
         </p>
       </div>
 
@@ -92,7 +92,7 @@ export function UsageLimitsStep({
           disabled={isLoading}
         />
         <p className="text-xs text-muted-foreground">
-          Maximum requests per day. Leave empty for unlimited.
+          Provider or account allowance used for monitoring. Leave empty when unknown.
         </p>
       </div>
     </StepWrapper>

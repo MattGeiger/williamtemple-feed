@@ -6,7 +6,6 @@
 // not covered by this license; see TRADEMARKS.md.
 
 import prisma from '../../db';
-import { MODEL_NAME } from '../../config/limits';
 
 /**
  * Service for tracking API usage
@@ -18,7 +17,7 @@ export class ApiUsageTracker {
   static async logApiUsage(
     promptTokens: number,
     completionTokens: number,
-    model: string = MODEL_NAME,
+    model: string = 'unknown',
     endpoint: string = 'completion'
   ): Promise<void> {
     const totalTokens = promptTokens + completionTokens;
