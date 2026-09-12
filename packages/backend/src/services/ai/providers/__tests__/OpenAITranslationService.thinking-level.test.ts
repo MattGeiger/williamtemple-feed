@@ -9,7 +9,6 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
 import type { AIConfiguration } from '@prisma/client';
 
 let OpenAITranslationService: typeof import('../OpenAITranslationService').OpenAITranslationService;
-let modelSpecs: typeof import('../../model-specs');
 
 vi.mock('../../../limits', () => ({
   limitEnforcement: {
@@ -134,7 +133,6 @@ const buildConfig = (overrides: Partial<AIConfiguration> = {}): AIConfiguration 
 
 describe('OpenAITranslationService thinking level', () => {
   beforeEach(async () => {
-    modelSpecs = await import('../../model-specs');
     OpenAITranslationService = (await import('../OpenAITranslationService')).OpenAITranslationService;
   });
 
@@ -152,24 +150,17 @@ describe('OpenAITranslationService thinking level', () => {
     expect(result.reasoningEffort).toBe('minimal');
   });
 
-  test('falls back to low when model default is missing', () => {
+  test('an id the catalogue has never seen falls back to low', () => {
+    // This needed a hand-mocked spec to exist at all. It does not any more:
+    // `gpt-5-custom` is exactly the Custom-field case `capabilitiesFor`
+    // handles, and `low` — not `minimal` — is deliberate. `minimal` is valid
+    // on the 2025-08-07 snapshots and refused by gpt-5.6-luna, so a guess
+    // about an unrecognised id may only offer what the whole family accepts.
     const service = new OpenAITranslationService(buildConfig()) as any;
-    const getModelSpecSpy = vi.spyOn(modelSpecs, 'getModelSpecByModel');
-    getModelSpecSpy.mockImplementation((model: string) => {
-      if (model === 'gpt-5-custom') {
-        return {
-          apiParameters: {
-            modelFamily: 'gpt-5'
-          }
-        } as any;
-      }
-      return undefined;
-    });
 
     const result = service.checkAndOverrideParameters('gpt-5-custom', 1, 1, null);
 
     expect(result.reasoningEffort).toBe('low');
-    getModelSpecSpy.mockRestore();
   });
 
   test('ignores thinking level for non-GPT-5 models', () => {

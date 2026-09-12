@@ -442,13 +442,20 @@ finished code:
 - **Preview models churn in months** (Google's `gemini-3-pro-preview` lasted
   under four). Offer one only with a Preview badge. Every audit checks whether
   each preview has reached stable or been given a shutdown date.
-- **Model ids, prices, and language support live in one catalogue.** Until the
-  planned server-authoritative catalogue lands (#84), the two `model-specs.ts`
-  copies must change together. Never add a model id, price, or language list
-  anywhere else — the stale secondary lists #84 found are what that produces.
+- **Model ids, prices, and language support live in one catalogue.**
+  `packages/backend/src/services/ai/catalogue.ts` is authoritative for the
+  backend and the providers read it directly; the backend `model-specs.ts` is
+  gone. The frontend copy is the last one left, and a drift test in
+  `__tests__/features/ai-config/catalogue.test.ts` fails if it offers a model
+  the catalogue does not carry — it was written because the catalogue silently
+  restated only 11 of the 16 models the dialog offers. Never add a model id,
+  price, or language list anywhere else.
 - **Describe model constraints as catalogue capabilities**, not string tests on
   model ids: sampling parameters, thinking or effort values, max-token field,
   prefill, language coverage. The `-4-5-` check broke on the first dateless id.
+  A model the catalogue has never seen still needs an answer, so `capabilitiesFor`
+  is the single place a guess is permitted; keep its guesses conservative, and
+  note that every entry added to the catalogue shrinks how often it is reached.
 - **A model the provider refuses is not a bad key.** Classify the provider's
   answer (`classifyTranslationProviderError`) and name the model. Never
   collapse a provider failure into a boolean.
