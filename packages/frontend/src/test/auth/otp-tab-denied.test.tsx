@@ -5,8 +5,8 @@
 // under AGPL-3.0-or-later; see LICENSE. William Temple House branding is
 // not covered by this license; see TRADEMARKS.md.
 
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { OTPTab } from '@/components/auth/otp-tab';
 
@@ -43,6 +43,42 @@ describe('OTPTab — refused request', () => {
 
   beforeEach(() => {
     vi.restoreAllMocks();
+  });
+
+  /**
+   * Let `input-otp`'s selection-mirror timers finish while jsdom still exists.
+   *
+   * The third test reaches the code step, which mounts `InputOTP`. Its effect
+   * calls a helper that schedules the same callback three times — at 0ms, 10ms
+   * and 50ms — and returns the timer ids, but the effect never returns a
+   * cleanup, so unmounting does not clear them. (The neighbouring
+   * password-manager effect in the same file does clear its timers, so this is
+   * an oversight upstream rather than a deliberate design.) `cleanup()` in
+   * src/test/setup.ts unmounts the component correctly; the timers survive it
+   * regardless.
+   *
+   * When one fires after the environment is torn down, the callback reaches a
+   * React state setter, React asks for the update priority, and that touches
+   * `window`, which is gone:
+   *
+   *   ReferenceError: window is not defined
+   *     ❯ resolveUpdatePriority react-dom-client.development.js
+   *     ❯ Timeout._onTimeout input-otp/src/input.tsx:250
+   *
+   * The whole suite then exits 1 while reporting every test passed — which is
+   * worse than a plain failure, because it teaches everyone to disregard the
+   * exit code that CI actually reads.
+   *
+   * Waiting past the longest of the three is what makes this deterministic; a
+   * single macrotask tick would flush only the 0ms one and leave the flake
+   * exactly as intermittent as before. It costs ~60ms per test in this file
+   * and nothing anywhere else, which is why it lives here rather than in the
+   * shared setup.
+   */
+  afterEach(async () => {
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 60));
+    });
   });
 
   it('stays on the email step and explains why, with no code prompt', async () => {
