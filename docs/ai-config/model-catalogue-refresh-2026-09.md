@@ -65,6 +65,7 @@ model, not to a setting.
 | D26 | `gemini-3.1-pro-preview` is offered with a **Preview badge** and validated like every other preset. When Google releases it as stable, administrators can reach the stable id through Custom until the catalogue audit adds it. | 2026-09-11 |
 | D27 | `gemini-3.6-flash` is offered alongside `gemini-3.8-flash`. Same price, but it can run at `minimal` thinking where 3.8 cannot go below `low`. Phase 0 still measures both on FEED-shaped requests, to say which suits translation better — **not yet done: the Google account's prepaid credits are depleted**, so no Gemini generation could be measured on 2026-09-11. | 2026-09-11 |
 | D28 | Claude prefill is replaced by prompt-instructed JSON, not structured outputs. Measured 2026-09-11: both return clean JSON, but structured outputs charge the schema as input — 220 prompt tokens against 49 for the same translation. Per-model format enforcement stays a Phase 2 catalogue capability. | 2026-09-11 |
+| D29 | **Entitlement is verified when a configuration is saved or activated, not when a job starts.** One real request at the moment an administrator chooses the model, where the fix is; the runtime keeps the free model lookup plus a remembered failure. Only non-transient classifications (`misconfigured`, `exhausted`) are remembered, cleared on save and by a short TTL, held in memory. | 2026-09-11 |
 | D28 | Long-running translation work gets a **translation-specific job table**, not a generic one, sharing code rather than a schema. Build it when a feature needs it — nothing does today unless the Phase 5 feature pass returns a 524. | 2026-09-11 |
 
 ## Open decisions
@@ -744,8 +745,18 @@ only (a few cents).
    `generateContent` is refused. Phase 1 replaced a billed generation probe
    with a free metadata lookup: cheaper, but for Google it no longer catches
    the refusal it was built for, so a doomed job would start and fail
-   mid-flight. Options: accept late failure, send a one-token generation for
-   Google only, or remember a failed generation per configuration.
+   mid-flight.
+
+   **Settled by D29.** Not by making the runtime check heavier, but by moving
+   the real check to where the fix is: verify entitlement once when a
+   configuration is saved or activated, so an administrator choosing a
+   withdrawn model learns immediately in AI Configuration rather than through
+   a failed job. At runtime the free lookup stays, plus a remembered failure so
+   the second doomed attempt is instant and correctly explained.
+
+   This cannot be exhaustive — an account can lose entitlement between save
+   and use, which is what the remembered failure and Phase 1's honest error
+   messages are for.
 
    **Also observed:** the Google account's prepaid credits are depleted
    (`429 ... Your prepayment credits are depleted`) — the #80 condition, live.
@@ -758,6 +769,22 @@ only (a few cents).
 3. **Phase 2 — One catalogue** (option A) with the entry shape above, request
    building driven by capabilities, UI gating and warnings (D1–D3), and the $0
    test layers.
+
+   **Slice 1 done 2026-09-11:** `services/ai/catalogue.ts` and
+   `GET /api/ai-config/models`, carrying lifecycle and capabilities for the
+   models offered today, with 17 tests. Nothing consumes it yet — deliberately,
+   so the shape could be reviewed before anything depends on it. The endpoint
+   is declared above `/:id`, which Express would otherwise match first.
+
+   Remaining slices, each its own commit:
+   1. Frontend service and hook; delete the duplicated `model-specs.ts` and
+      collapse `ServiceStep`'s six repeated Select-plus-Custom blocks into two.
+      Its dialog tests mock no services today and will need a fixture.
+   2. Providers read capabilities instead of string tests, retiring the
+      `-4-5-` heuristics and the narrow effort/thinking unions.
+   3. Save-time entitlement verification and remembered failures (D29).
+   4. UI gating and warnings: sampling controls, per-model thinking values,
+      frontier and preview badges, language coverage (D1–D3, D18, D26).
 4. **Phase 3 — SDK upgrades**, one provider per commit.
 5. **Phase 4 — Catalogue contents**: retire 15, add 11, badge saved rows, delete
    the secondary lists.
