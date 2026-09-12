@@ -3,14 +3,22 @@
 **Status**: Phase 3 complete (backend integration)  
 **Last Updated**: December 29, 2025
 
-> **2026-09-11 — the Gemini half of Phase 3 never took effect.** FEED sends
-> `thinkingConfig: { thinking_level }`, but the installed `@google/genai`
-> 1.11.0 forwards only `includeThoughts` and `thinkingBudget` from
-> `thinkingConfig`. The level is silently dropped, and every Gemini 3 request
-> has run at Google's default. The JS SDK field is `thinkingLevel`, understood
-> by current SDK releases. The OpenAI `reasoning_effort` mapping is unaffected.
-> Supported levels also differ across Gemini 3.5–3.8, and some of those models
-> cannot disable thinking. See
+> **2026-09-11 — the Gemini half of Phase 3 never took effect, and now does.**
+> FEED sent `thinkingConfig: { thinking_level }` in snake_case, while the JS
+> SDK field is `thinkingLevel`. Worse, `@google/genai` 1.11.0 forwarded only
+> `includeThoughts` and `thinkingBudget` out of `thinkingConfig` and dropped
+> everything else without complaint, so every Gemini 3 request ran at Google's
+> default however the slider was set.
+>
+> Fixed by upgrading to `@google/genai` 2.22.0, where `ThinkingConfig`
+> declares `thinkingLevel`, and by sending that spelling at all four call
+> sites. The unit test asserted the wrong spelling and passed throughout,
+> which is why a type-level assertion against the SDK's own `ThinkingConfig`
+> now sits beside it.
+>
+> The OpenAI `reasoning_effort` mapping was always unaffected. Supported
+> levels still differ across Gemini 3.5–3.8, and some of those models cannot
+> disable thinking. See
 > [`model-catalogue-refresh-2026-09.md`](model-catalogue-refresh-2026-09.md)
 > and ISSUES.md #84.
 

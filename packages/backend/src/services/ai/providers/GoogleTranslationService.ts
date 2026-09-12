@@ -315,7 +315,7 @@ export class GoogleTranslationService extends AITranslationService {
               temperature: paramCheck.temperature,
               ...(paramCheck.topP !== undefined && { topP: paramCheck.topP }),
               ...(paramCheck.thinkingLevel && {
-                thinkingConfig: { thinking_level: paramCheck.thinkingLevel }
+                thinkingConfig: { thinkingLevel: paramCheck.thinkingLevel }
               }),
               maxOutputTokens: promptConfig.maxTokens
             }
@@ -516,7 +516,7 @@ export class GoogleTranslationService extends AITranslationService {
           temperature: paramCheck.temperature,
           ...(paramCheck.topP !== undefined && { topP: paramCheck.topP }),
           ...(paramCheck.thinkingLevel && {
-            thinkingConfig: { thinking_level: paramCheck.thinkingLevel }
+            thinkingConfig: { thinkingLevel: paramCheck.thinkingLevel }
           }),
           maxOutputTokens: promptConfig.maxTokens
         }
@@ -674,7 +674,7 @@ export class GoogleTranslationService extends AITranslationService {
           temperature: paramCheck.temperature,
           ...(paramCheck.topP !== undefined && { topP: paramCheck.topP }),
           ...(paramCheck.thinkingLevel && {
-            thinkingConfig: { thinking_level: paramCheck.thinkingLevel }
+            thinkingConfig: { thinkingLevel: paramCheck.thinkingLevel }
           }),
           maxOutputTokens: promptConfig.maxTokens
         }
@@ -852,7 +852,7 @@ export class GoogleTranslationService extends AITranslationService {
           temperature: paramCheck.temperature,
           ...(paramCheck.topP !== undefined && { topP: paramCheck.topP }),
           ...(paramCheck.thinkingLevel && {
-            thinkingConfig: { thinking_level: paramCheck.thinkingLevel }
+            thinkingConfig: { thinkingLevel: paramCheck.thinkingLevel }
           }),
           maxOutputTokens: promptConfig.maxTokens
         }
