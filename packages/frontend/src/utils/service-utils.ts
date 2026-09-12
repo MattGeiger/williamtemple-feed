@@ -5,13 +5,13 @@
 // under AGPL-3.0-or-later; see LICENSE. William Temple House branding is
 // not covered by this license; see TRADEMARKS.md.
 
-import { ServiceProvider, SERVICE_SPECIFICATIONS } from '@/types/multi-service-usage';
+import { ServiceProvider, SERVICE_COLORS } from '@/types/multi-service-usage';
 
 /**
  * Get service-specific display color
  */
 export function getServiceColor(serviceType: ServiceProvider): string {
-  return SERVICE_SPECIFICATIONS[serviceType].color;
+  return SERVICE_COLORS[serviceType];
 }
 
 /**

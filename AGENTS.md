@@ -452,12 +452,12 @@ finished code:
   16 models the dialog offered until a drift test caught it.
 - **That consolidation is not finished, so do not read the rule above as a
   description of the tree.** ISSUES.md #84 names other lists still carrying
-  model ids and 2024-era prices: `SERVICE_SPECIFICATIONS` in
-  `frontend/src/types/multi-service-usage.ts` (labelled "mock data" but
-  exported to the cost forecast), `config/limits.ts`, `config/translation.ts`,
-  and `scripts/fix-ai-config-token-limits.ts` — `config/limits/index.ts` is
-  deleted, having been an abandoned fork with no importers rather than a list
-  anyone could update. Never
+  model ids and 2024-era prices: `config/limits.ts`, `config/translation.ts`,
+  and `scripts/fix-ai-config-token-limits.ts`. Two named there earlier are
+  gone: `config/limits/index.ts` was an abandoned fork with no importers
+  rather than a list anyone could update, and `SERVICE_SPECIFICATIONS` is now
+  `SERVICE_COLORS` — one colour per provider and no model data at all, its
+  invented prices having been read by nothing. Never
   add a model id, price, or language list anywhere new, and retire one of
   those when work takes you through it. The single deliberate exception is
   `components/ai-configuration/service-endpoints.ts`: four stable service

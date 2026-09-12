@@ -140,82 +140,35 @@ export interface MultiServiceUsageData {
   }>;
 }
 
-// Service-specific specifications for mock data
-export const SERVICE_SPECIFICATIONS: Record<ServiceProvider, {
-  defaultModel: string;
-  models: string[];
-  defaultLimits: {
-    tokensPerMinute: number;
-    requestsPerMinute: number;
-    requestsPerDay: number;
-  };
-  defaultPricing: {
-    inputCost: number;
-    outputCost: number;
-    unitPrice: 'per_1k' | 'per_1m';
-  };
-  color: string;
-}> = {
-  OpenAI: {
-    defaultModel: 'gpt-4o-mini',
-    models: ['gpt-4o-mini', 'gpt-4o', 'gpt-3.5-turbo'],
-    defaultLimits: {
-      tokensPerMinute: 200000,
-      requestsPerMinute: 500,
-      requestsPerDay: 10000
-    },
-    defaultPricing: {
-      inputCost: 0.150,
-      outputCost: 0.600,
-      unitPrice: 'per_1m'
-    },
-    color: 'var(--service-openai)'
-  },
-  Anthropic: {
-    defaultModel: 'claude-3-haiku-20240307',
-    models: ['claude-3-haiku-20240307', 'claude-3-sonnet-20240229', 'claude-3-opus-20240229'],
-    defaultLimits: {
-      tokensPerMinute: 100000,
-      requestsPerMinute: 1000,
-      requestsPerDay: 5000
-    },
-    defaultPricing: {
-      inputCost: 0.25,
-      outputCost: 1.25,
-      unitPrice: 'per_1m'
-    },
-    color: 'var(--service-anthropic)'
-  },
-  Google: {
-    defaultModel: 'gemini-1.5-flash',
-    models: ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-pro'],
-    defaultLimits: {
-      tokensPerMinute: 300000,
-      requestsPerMinute: 300,
-      requestsPerDay: 15000
-    },
-    defaultPricing: {
-      inputCost: 0.075,
-      outputCost: 0.30,
-      unitPrice: 'per_1m'
-    },
-    color: 'var(--service-google)'
-  },
-  Azure: {
-    defaultModel: 'gpt-4o-mini',
-    models: ['gpt-4o-mini', 'gpt-4o', 'gpt-35-turbo'],
-    defaultLimits: {
-      tokensPerMinute: 150000,
-      requestsPerMinute: 300,
-      requestsPerDay: 8000
-    },
-    defaultPricing: {
-      inputCost: 0.165,
-      outputCost: 0.660,
-      unitPrice: 'per_1m'
-    },
-    color: 'var(--service-azure)'
-  }
+/**
+ * Per-provider display data.
+ *
+ * This was `SERVICE_SPECIFICATIONS`, "for mock data", and it carried four
+ * things besides the colour: `defaultModel`, a `models[]` list, `defaultLimits`
+ * and `defaultPricing`. The model ids were 2024-era — `claude-3-haiku-20240307`,
+ * `gemini-1.5-flash`, `gpt-3.5-turbo` — and none of them appear in the
+ * catalogue any more.
+ *
+ * ISSUES.md #84 listed this as a stale list "exported to the cost forecast",
+ * which turned out to overstate it: `defaultPricing` and `models[]` were read
+ * by nothing at all, and the cost forecast imports the constant only to read
+ * `.color`. Every figure it displays comes from the backend. So the invented
+ * prices were inert, and are deleted rather than corrected.
+ *
+ * `defaultLimits` has gone too. It fed live fallbacks in
+ * `services/multi-service-usage`, so a configuration with no rate limits of
+ * its own displayed invented ones and the gauges drew a percentage against
+ * them. A missing limit is now zero, meaning "not configured", and each
+ * reader guards for it.
+ *
+ * What remains is the one thing that was never fiction: a colour per
+ * provider, pointing at variables defined in index.css for both themes.
+ */
+export const SERVICE_COLORS: Record<ServiceProvider, string> = {
+  OpenAI: 'var(--service-openai)',
+  Anthropic: 'var(--service-anthropic)',
+  Google: 'var(--service-google)',
+  Azure: 'var(--service-azure)'
 };
 
 export interface ConfigurationComparisonData {

@@ -10,8 +10,7 @@ import {
   MultiServiceUsageData, 
   ConfigurationUsageMetrics,
   ServiceUsageMetrics, 
-  ServiceProvider,
-  SERVICE_SPECIFICATIONS 
+  ServiceProvider
 } from '@/types/multi-service-usage';
 import config from '@/config/config';
 
@@ -174,13 +173,16 @@ export class MultiServiceUsageService extends BaseApiService {
     
     // Build configuration metrics from backend data
     const configurations = metrics.configurations.map(config => {
-      // Get service specifications for defaults
-      const specs = SERVICE_SPECIFICATIONS[config.serviceType as ServiceProvider];
-      
-      // Use configuration limits or defaults from specifications
-      const tpmLimit = config.tokensPerMinute || specs?.defaultLimits.tokensPerMinute || 200000;
-      const rpmLimit = config.requestsPerMinute || specs?.defaultLimits.requestsPerMinute || 500;
-      const rpdLimit = config.requestsPerDay || specs?.defaultLimits.requestsPerDay || 10000;
+      // A configuration's own limits, or none at all.
+      //
+      // These fell back to per-provider figures invented in
+      // SERVICE_SPECIFICATIONS and then to a generic 200000/500/10000, so a
+      // configuration with no rate limits set displayed limits it did not
+      // have — and the gauges drew a percentage against them. Zero means "not
+      // configured", and every reader now guards for it.
+      const tpmLimit = config.tokensPerMinute ?? 0;
+      const rpmLimit = config.requestsPerMinute ?? 0;
+      const rpdLimit = config.requestsPerDay ?? 0;
       
       const dailyTokenLimit = tpmLimit * 1440; // TPM * minutes per day
       const monthlyTokenLimit = dailyTokenLimit * 30;
@@ -197,7 +199,10 @@ export class MultiServiceUsageService extends BaseApiService {
         configurationId: config.id,
         configurationName: config.name,
         serviceType: config.serviceType as ServiceProvider,
-        model: config.model || specs?.defaultModel || 'unknown',
+        // Was `|| specs?.defaultModel`, which showed a retired id such as
+        // claude-3-haiku-20240307 for a configuration whose model is blank —
+        // a worse answer than admitting we do not know.
+        model: config.model || 'unknown',
         isActive: config.isActive,
         
         // Configuration limits
@@ -293,8 +298,11 @@ export class MultiServiceUsageService extends BaseApiService {
       return [];
     }
     
-    const specs = SERVICE_SPECIFICATIONS[serviceType as ServiceProvider];
-    const dailyLimit = (specs?.defaultLimits.tokensPerMinute || 200000) * 1440;
+    // No limit line unless a real one is known. This was
+    // `(specs?.defaultLimits.tokensPerMinute || 200000) * 1440` — a limit
+    // drawn across the history chart that consulted no configuration at all,
+    // so every provider got the same invented ceiling.
+    const dailyLimit = 0;
 
     return historicalUsage.map(day => {
       const serviceData = day.services?.[serviceType] || { tokens: 0, cost: 0 };

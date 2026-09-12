@@ -38,10 +38,21 @@ export function TokenUsageRadialChart({
 }: TokenUsageRadialChartProps) {
   // Ensure values are numbers
   const safeCurrentValue = typeof currentValue === 'number' ? currentValue : 0;
-  const safeMaxValue = typeof maxValue === 'number' ? maxValue : 100;
-  
+  const safeMaxValue = typeof maxValue === 'number' ? maxValue : 0;
+
+  /**
+   * Zero means the configuration has no limit set — not that its ceiling is
+   * zero. The guard above caught only non-numbers, so a zero reached the
+   * division and `0 / 0` gave NaN, which became
+   * `endAngle={180 + (360 * (NaN / 100))}` and broke the arc outright. That
+   * is why callers invented a limit rather than pass the truth; now they can.
+   */
+  const hasLimit = safeMaxValue > 0;
+
   // Calculate percentage (capped at 100%)
-  const percentage = Math.min(100, (safeCurrentValue / safeMaxValue) * 100);
+  const percentage = hasLimit
+    ? Math.min(100, (safeCurrentValue / safeMaxValue) * 100)
+    : 0;
   
   // Format with commas
   const formattedCurrent = safeCurrentValue.toLocaleString();
@@ -126,7 +137,9 @@ export function TokenUsageRadialChart({
                           className="fill-muted-foreground text-xs"
                           style={{ letterSpacing: '0.5px' }}
                         >
-                          of<tspan>&nbsp;</tspan>{formattedMax}<tspan>&nbsp;</tspan>{label}
+                          {hasLimit
+                            ? <>of<tspan>&nbsp;</tspan>{formattedMax}<tspan>&nbsp;</tspan>{label}</>
+                            : <>{label}<tspan>&nbsp;</tspan>&mdash;<tspan>&nbsp;</tspan>no limit set</>}
                         </tspan>
                       </text>
                     )

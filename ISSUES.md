@@ -135,7 +135,10 @@ real answer exists only in the backend log.
 - The catalogue is duplicated between backend and frontend `model-specs.ts`,
   and at least six secondary lists name retired models
   (`SERVICE_SPECIFICATIONS`, `GOOGLE_MODEL_PRICING`, both `config/limits`
-  files, `config/translation.ts`, the token-limit fix-up script).
+  files, `config/translation.ts`, the token-limit fix-up script) — of which
+  four are since gone: `GOOGLE_MODEL_PRICING` and `config/limits/index.ts`
+  were dead, and `SERVICE_SPECIFICATIONS` is now `SERVICE_COLORS`, holding no
+  model data at all.
 
 **Delivered 2026-09-11 and 2026-09-12**, leaving Phase 5 validation as the open
 half:
@@ -192,8 +195,7 @@ half:
   dialog says the same when a model is chosen. A frontier model warns what it
   costs (D1/D7). List and dialog read one module so they cannot drift apart.
 
-Still open from the list above: `SERVICE_SPECIFICATIONS` (labelled "mock data"
-but exported to the cost forecast), `config/limits.ts`, `config/translation.ts`
+Still open from the list above: `config/limits.ts`, `config/translation.ts`
 and `scripts/fix-ai-config-token-limits.ts` all still name superseded models —
 though `config/limits/index.ts` has gone, being an unimported second copy
 rather than a list to correct, and `config/limits.ts` is now reached only as a
