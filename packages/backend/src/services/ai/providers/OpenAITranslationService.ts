@@ -326,7 +326,9 @@ export class OpenAITranslationService extends AITranslationService {
             promptConfig.topP,
             this.config.thinkingLevel
           );
-          const requestReasoningEffort = paramCheck.reasoningEffort as any;
+          // No cast needed since openai 7: `ReasoningEffort` covers
+          // none/minimal/low/medium/high/xhigh/max.
+          const requestReasoningEffort = paramCheck.reasoningEffort;
           const maxTokensValue = apiParameters.max_completion_tokens ?? apiParameters.max_tokens;
           console.log('[OpenAI Service] API call parameters:', {
             model,

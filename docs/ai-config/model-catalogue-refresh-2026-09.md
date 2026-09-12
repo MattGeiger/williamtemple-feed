@@ -181,7 +181,23 @@ and Responses both supported):
 
 GPT-5.6 reasoning effort accepts `none`, `low`, `medium` (default), `high`,
 `xhigh`, `max`. **`minimal` is not among them**, and it is FEED's default for
-`gpt-5-nano`. OpenAI's pricing page names the flagship `gpt-5.6-astra`, while
+`gpt-5-nano`. Confirmed against the API on 2026-09-11:
+`400 Unsupported value: 'reasoning_effort' does not support 'minimal' with
+this model. Supported values are: 'none', 'low', 'medium', 'high', and
+'xhigh'.` So swapping `gpt-5-nano` for `gpt-5.6-luna` in the catalogue
+**must** change the effort default in the same edit, or every request 400s.
+
+Measured at the same time, and the reason D2 is worth having: on
+`gpt-5.6-luna`, effort `none` answered a one-sentence translation in 19
+completion tokens with 0 reasoning tokens, against 97 completion / 72
+reasoning at `high` — roughly five times the billable output for the same
+sentence.
+
+`max_tokens` is also refused outright (`Unsupported parameter: 'max_tokens'
+is not supported with this model. Use 'max_completion_tokens' instead`),
+which is what makes the Custom path unusable for these models until it
+carries a capability profile: a Custom entry gets no spec and falls back to
+`max_tokens`. OpenAI's pricing page names the flagship `gpt-5.6-astra`, while
 its models page, announcement, and Bedrock card say `gpt-6-astra`. Confirm the
 id and its effort values with `models.list` and one probe before adding it.
 

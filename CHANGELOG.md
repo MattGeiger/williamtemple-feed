@@ -5,6 +5,34 @@ All notable changes to FEED are documented here. This project adheres to
 
 ## [Unreleased]
 
+### Changed
+
+- **`openai` upgraded 5.10.2 → 7.15.0.** Its `ReasoningEffort` type now covers
+  `none`, `minimal`, `low`, `medium`, `high`, `xhigh` and `max`, so the `as
+  any` FEED used to push a value past the old three-value type is gone. The
+  v6 and v7 breaking changes do not reach FEED: it calls
+  `chat.completions.create` and never touched `beta.chat`, `del()`,
+  `httpAgent`, or `APIError.headers` — the two `APIError` sites read only
+  `.status` and `.message`. Node 24 satisfies v7's Node 22 requirement, and
+  the dependency tree gained and lost nothing.
+
+  Two facts measured against the API while upgrading, both of which the
+  catalogue work depends on and neither of which is inferable from the types:
+
+  - **`minimal` is rejected on GPT-5.6.** `400 Unsupported value:
+    'reasoning_effort' does not support 'minimal' with this model. Supported
+    values are: 'none', 'low', 'medium', 'high', and 'xhigh'.` It is FEED's
+    spec default for `gpt-5-nano`, so the model swap and the effort default
+    have to change in the same edit or every request fails.
+  - **`max_tokens` is refused** in favour of `max_completion_tokens`, which is
+    why a Custom configuration — which gets no model spec and falls back to
+    `max_tokens` — cannot call these models at all today.
+
+  The per-model effort and thinking unions stay narrow on purpose. The allowed
+  values differ by model (`minimal` is valid on `gpt-5-nano` and invalid on
+  `gpt-5.6-luna`; Gemini 3.8 Flash cannot go below `low`), which one flat union
+  cannot express. That belongs to the catalogue capability field, not here.
+
 ### Fixed
 
 - **Claude 4.6 and later can be used at all.** FEED sent two things every
