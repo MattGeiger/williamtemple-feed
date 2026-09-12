@@ -5,7 +5,7 @@
 // under AGPL-3.0-or-later; see LICENSE. William Temple House branding is
 // not covered by this license; see TRADEMARKS.md.
 
-import { AIConfiguration, BulkOperationResult, AIConfigurationType } from '@/components/ai-configuration/types';
+import { AIConfiguration, BulkOperationResult, AIConfigurationType, ModelCatalogueResponse } from '@/components/ai-configuration/types';
 import { BaseApiService } from '../base';
 import config from '@/config/config';
 
@@ -114,6 +114,23 @@ export class AIConfigService extends BaseApiService {
     try {
       const response = await this.get<{ configurations: AIConfiguration[] }>('');
       return response.configurations;
+    } catch (error) {
+      throw this.handleError(error);
+    }
+  }
+
+  /**
+   * Fetches the server-authoritative model catalogue.
+   *
+   * Replaces the dialogs' second copy of the model list (ISSUES.md #84). The
+   * whole envelope is returned rather than just `models`, because the wizard
+   * needs `endpoints` to pre-fill the service URL.
+   *
+   * @returns Promise<ModelCatalogueResponse>
+   */
+  async getModels(): Promise<ModelCatalogueResponse> {
+    try {
+      return await this.get<ModelCatalogueResponse>('/models');
     } catch (error) {
       throw this.handleError(error);
     }

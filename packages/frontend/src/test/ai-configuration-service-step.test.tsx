@@ -1,0 +1,174 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 Matt Geiger
+//
+// FEED — Food Equity & Efficient Delivery. Application code licensed
+// under AGPL-3.0-or-later; see LICENSE. William Temple House branding is
+// not covered by this license; see TRADEMARKS.md.
+
+// @vitest-environment jsdom
+
+/**
+ * The service step, reading the server catalogue rather than a second copy of
+ * the model list (ISSUES.md #84).
+ *
+ * Two behaviours earn tests here. The step must degrade to free-text inputs
+ * when the catalogue is empty — the configuration wizard's own tests click
+ * straight through this step to reach later ones, so gating navigation on a
+ * network round trip would break them and, more importantly, would strand an
+ * administrator whenever the request failed. And the pre-fill has to survive
+ * the catalogue arriving late: the Add dialog opens with a model already
+ * chosen, so if nothing applied its prices once they loaded, the Cost step
+ * would simply be blank.
+ */
+
+import React from 'react'
+import { render, screen } from '@testing-library/react'
+import { describe, expect, test, vi, beforeEach } from 'vitest'
+
+import { ServiceStep } from '@/components/ai-configuration/steps/ServiceStep'
+import type { ApiKeyConfigData } from '@/components/ai-configuration/shared/types'
+import type { CatalogueModel } from '@/components/ai-configuration/types'
+import { useModelCatalogue } from '@/hooks/ai-config/useModelCatalogue'
+
+vi.mock('@/hooks/ai-config/useModelCatalogue', () => ({
+  useModelCatalogue: vi.fn()
+}))
+
+const flashLite = {
+  id: 'gemini-2.5-flash-lite',
+  displayName: 'gemini-2.5-flash-lite',
+  provider: 'Google',
+  pricing: { input: 0.1, output: 0.4, verifiedAt: '2026-09-11' },
+  contextWindow: 1048576,
+  maxOutputTokens: 65536,
+  lifecycle: { status: 'deprecated' },
+  costTier: 'economy',
+  capabilities: {
+    sampling: 'supported',
+    maxTokensField: 'max_tokens',
+    reasoning: { kind: 'none' },
+    prefill: 'allowed'
+  },
+  rateLimits: { tokensPerMinute: 4000000, requestsPerMinute: 2000 }
+} as unknown as CatalogueModel
+
+const haiku = {
+  ...flashLite,
+  id: 'claude-haiku-4-5-20251001',
+  displayName: 'claude-haiku-4.5',
+  provider: 'Anthropic'
+} as unknown as CatalogueModel
+
+const buildData = (overrides: Partial<ApiKeyConfigData> = {}): ApiKeyConfigData =>
+  ({
+    type: 'apikey',
+    serviceType: 'Google',
+    model: 'gemini-2.5-flash-lite',
+    modelName: 'gemini-2.5-flash-lite',
+    customModel: '',
+    customModelName: '',
+    apiKey: '',
+    endpointUrl: '',
+    inputCost: undefined,
+    outputCost: undefined,
+    unitPrice: 'per_1m',
+    inputTokenLimit: undefined,
+    outputTokenLimit: undefined,
+    dailyCostLimit: undefined,
+    monthlyCostLimit: undefined,
+    tokensPerMinute: undefined,
+    requestsPerMinute: undefined,
+    requestsPerDay: undefined,
+    name: '',
+    description: '',
+    value: '',
+    temperature: 0.7,
+    topP: 1.0,
+    ...overrides
+  }) as ApiKeyConfigData
+
+const withCatalogue = (models: CatalogueModel[]) => {
+  vi.mocked(useModelCatalogue).mockReturnValue({
+    models,
+    endpoints: {},
+    isLoading: false,
+    refresh: vi.fn()
+  } as unknown as ReturnType<typeof useModelCatalogue>)
+}
+
+describe('ServiceStep reading the model catalogue', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  test('offers the catalogue models for the chosen provider as a select', () => {
+    withCatalogue([flashLite, haiku])
+
+    render(<ServiceStep mode="add" data={buildData()} onChange={vi.fn()} />)
+
+    // The labels finally name their controls: `htmlFor` pointed at ids that
+    // did not exist, so these selects had no accessible name at all.
+    expect(screen.getByRole('combobox', { name: 'Model Name' })).toBeTruthy()
+    expect(screen.getByRole('combobox', { name: 'Model' })).toBeTruthy()
+  })
+
+  test('falls back to free text when the catalogue is empty, so the step stays usable', () => {
+    withCatalogue([])
+
+    render(<ServiceStep mode="add" data={buildData()} onChange={vi.fn()} />)
+
+    const modelName = screen.getByLabelText('Model Name') as HTMLInputElement
+    const model = screen.getByLabelText('Model') as HTMLInputElement
+
+    expect(modelName.tagName).toBe('INPUT')
+    expect(model.tagName).toBe('INPUT')
+    // And the values the administrator already had are still there to save.
+    expect(model.value).toBe('gemini-2.5-flash-lite')
+  })
+
+  test('applies prices and limits when the catalogue arrives after the dialog opens', () => {
+    withCatalogue([flashLite])
+    const onChange = vi.fn()
+
+    render(<ServiceStep mode="add" data={buildData()} onChange={onChange} />)
+
+    expect(onChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        inputCost: 0.1,
+        outputCost: 0.4,
+        unitPrice: 'per_1m',
+        inputTokenLimit: 1048576,
+        outputTokenLimit: 65536,
+        tokensPerMinute: 4000000,
+        requestsPerMinute: 2000
+      })
+    )
+  })
+
+  test('never overwrites costs an administrator has already set', () => {
+    // The same hydrate path, on a configuration that already carries prices.
+    withCatalogue([flashLite])
+    const onChange = vi.fn()
+
+    render(
+      <ServiceStep
+        mode="add"
+        data={buildData({ inputCost: 9.99, outputCost: 1.23 })}
+        onChange={onChange}
+      />
+    )
+
+    expect(onChange).not.toHaveBeenCalled()
+  })
+
+  test('leaves an edited configuration alone', () => {
+    // Edit reads its costs from the stored row; hydrating would silently
+    // replace what the administrator saved with the catalogue's list price.
+    withCatalogue([flashLite])
+    const onChange = vi.fn()
+
+    render(<ServiceStep mode="edit" data={buildData()} onChange={onChange} />)
+
+    expect(onChange).not.toHaveBeenCalled()
+  })
+})

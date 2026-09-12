@@ -53,15 +53,6 @@ const GOOGLE_LANGUAGE_NAMES: { [key: string]: string } = {
 
 const SUPPORTED_LANGUAGES_SET = new Set(GOOGLE_SUPPORTED_LANGUAGES);
 
-// Google Gemini model pricing (estimated based on current rates)
-const GOOGLE_MODEL_PRICING = {
-  'gemini-2.5-flash': { prompt: 0.000075, completion: 0.0003 },
-  'gemini-2.5-pro': { prompt: 0.00125, completion: 0.005 },
-  'gemini-2.0-flash-exp': { prompt: 0.000075, completion: 0.0003 },
-  'gemini-1.5-flash': { prompt: 0.000075, completion: 0.0003 },
-  'gemini-1.5-pro': { prompt: 0.00125, completion: 0.005 }
-};
-
 export class GoogleTranslationService extends AITranslationService {
   private googleClient: any = null;
   private cachedApiKey: string | null = null;

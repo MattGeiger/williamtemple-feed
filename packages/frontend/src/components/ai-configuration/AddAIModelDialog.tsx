@@ -9,7 +9,7 @@ import React from 'react'
 import { BaseAIConfigDialog } from './shared/BaseAIConfigDialog'
 import { createApiKeySteps } from './shared/stepDefinitions'
 import { ApiKeyConfigData } from './shared/types'
-import { getModelSpec, getServiceEndpoint } from './model-specs'
+import { getServiceEndpoint } from './service-endpoints'
 
 interface AddAIModelDialogProps {
   open: boolean
@@ -48,29 +48,33 @@ export function AddAIModelDialog({
   isLoading
 }: AddAIModelDialogProps) {
   const initialData = React.useMemo<ApiKeyConfigData>(() => {
+    // Costs and limits are left unset here on purpose. They used to be read
+    // from the duplicated `model-specs.ts`; the catalogue that replaces it is
+    // fetched, and this runs synchronously before any request. `ServiceStep`
+    // fills them in as soon as the catalogue arrives, and again whenever a
+    // different model is chosen.
     const defaultServiceType: ApiKeyConfigData['serviceType'] = 'Google'
     const defaultModelName = 'gemini-2.5-flash-lite'
-    const defaultSpec = getModelSpec(defaultModelName, defaultServiceType)
 
     return {
       type: 'apikey',
       serviceType: defaultServiceType,
-      model: defaultSpec?.model || defaultModelName,
+      model: defaultModelName,
       modelName: defaultModelName,
       customModel: '',
       customModelName: '',
       apiKey: '',
       endpointUrl: getServiceEndpoint(defaultServiceType),
-      inputCost: defaultSpec?.inputPrice,
-      outputCost: defaultSpec?.outputPrice,
+      inputCost: undefined,
+      outputCost: undefined,
       unitPrice: 'per_1m',
-      inputTokenLimit: defaultSpec?.inputTokenLimit,
-      outputTokenLimit: defaultSpec?.outputTokenLimit,
+      inputTokenLimit: undefined,
+      outputTokenLimit: undefined,
       dailyCostLimit: undefined,
       monthlyCostLimit: undefined,
-      tokensPerMinute: defaultSpec?.tokensPerMinute,
-      requestsPerMinute: defaultSpec?.requestsPerMinute,
-      requestsPerDay: defaultSpec?.requestsPerDay,
+      tokensPerMinute: undefined,
+      requestsPerMinute: undefined,
+      requestsPerDay: undefined,
       name: '',
       description: '',
       value: '',
