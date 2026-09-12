@@ -15,7 +15,7 @@ import { translationRecovery } from '../../translation-recovery';
 import { decryptApiKey } from '../../encryption';
 import { PromptBuilder } from '../prompts/PromptBuilder';
 import { TemplateEngine } from '../prompts/TemplateEngine';
-import { buildOpenAIParameters, getModelSpecByModel } from '../model-specs';
+import { capabilitiesFor, findCatalogueEntry, resolveReasoning } from '../catalogue';
 
 // Add delay function for rate limiting and backoff
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -93,8 +93,13 @@ export class OpenAITranslationService extends AITranslationService {
   private cachedApiKey: string | null = null;
 
   /**
-   * Check and override parameters for GPT-5 models
-   * Returns the effective parameters and any warnings
+   * Resolve sampling and reasoning parameters from the model's capabilities.
+   *
+   * Keyed to `modelSpec.apiParameters.modelFamily === 'gpt-5'` before, so a
+   * reasoning value configured on anything outside that family was dropped in
+   * silence. The catalogue answers per model, which matters more here than
+   * anywhere else: `minimal` is valid on the 2025-08-07 snapshots and refused
+   * outright by gpt-5.6-luna, so no one family-wide rule can be correct.
    */
   private checkAndOverrideParameters(
     model: string,
@@ -107,61 +112,63 @@ export class OpenAITranslationService extends AITranslationService {
     reasoningEffort?: 'minimal' | 'low' | 'medium' | 'high';
     warnings: string[];
   } {
-    const modelSpec = getModelSpecByModel(model);
+    const capabilities = capabilitiesFor('OpenAI', model);
     const warnings: string[] = [];
     let temperature = requestedTemperature ?? 1.0;
     let topP: number | undefined = requestedTopP;
-    let reasoningEffort: 'minimal' | 'low' | 'medium' | 'high' | undefined;
-    const validThinkingLevels = ['minimal', 'low', 'medium', 'high'] as const;
-    const isValidThinkingLevel = requestedThinkingLevel
-      ? validThinkingLevels.includes(requestedThinkingLevel as (typeof validThinkingLevels)[number])
-      : false;
-    
-    // Check if this is a GPT-5 model that has special constraints
-    if (modelSpec?.apiParameters?.modelFamily === 'gpt-5') {
-      // GPT-5 models only support temperature=1.0
-      if (requestedTemperature !== 1.0) {
-        console.log(`[OpenAI Service] GPT-5 model detected, overriding temperature from ${requestedTemperature} to 1.0`);
-        temperature = 1.0;
-        warnings.push(`GPT-5 models only support temperature=1.0. Your configured temperature of ${requestedTemperature} has been overridden to 1.0.`);
+
+    // `sampling: 'unsupported'` means the API refuses these parameters as
+    // FEED would otherwise send them. For the GPT-5 line that is temperature
+    // at anything but its default, and top_p at all. Sending 1.0 rather than
+    // omitting it is what production does today and is left alone here: this
+    // commit changes where the answer comes from, not what gets sent.
+    if (capabilities.sampling === 'unsupported') {
+      if (requestedTemperature !== undefined && requestedTemperature !== 1.0) {
+        console.log(`[OpenAI Service] ${model} takes temperature=1.0 only, overriding from ${requestedTemperature}`);
+        warnings.push(`This model only supports temperature=1.0. Your configured temperature of ${requestedTemperature} has been overridden to 1.0.`);
       }
-      
-      // GPT-5 models don't support top_p parameter
+      temperature = 1.0;
+
       if (requestedTopP !== undefined && requestedTopP !== null) {
-        console.log(`[OpenAI Service] GPT-5 model detected, excluding top_p parameter (was ${requestedTopP})`);
+        console.log(`[OpenAI Service] ${model} does not accept top_p, excluding it (was ${requestedTopP})`);
         topP = undefined;
-        warnings.push(`GPT-5 models don't support the top_p parameter. It has been excluded from the API call.`);
+        warnings.push(`This model does not accept the top_p parameter. It has been excluded from the API call.`);
       }
+    }
 
-      if (requestedThinkingLevel && !isValidThinkingLevel) {
-        warnings.push(
-          `GPT-5 model reasoning_effort "${requestedThinkingLevel}" is invalid. Defaulting to "${modelSpec.apiParameters?.reasoningEffort ?? 'low'}".`
-        );
-      }
-
-      const normalizedThinkingLevel = isValidThinkingLevel
-        ? (requestedThinkingLevel as (typeof validThinkingLevels)[number])
-        : undefined;
-
-      reasoningEffort = normalizedThinkingLevel ??
-        modelSpec.apiParameters?.reasoningEffort ??
-        'low';
-
-      const reasoningSource = requestedThinkingLevel
-        ? 'AIConfiguration'
-        : modelSpec.apiParameters?.reasoningEffort
-          ? 'ModelSpec'
-          : 'OpenAI Default';
-      console.log('[OpenAI Service] GPT-5 reasoning effort resolved:', {
+    const reasoning = resolveReasoning(capabilities, requestedThinkingLevel);
+    warnings.push(...reasoning.warnings);
+    if (reasoning.value) {
+      console.log('[OpenAI Service] reasoning effort resolved:', {
+        model,
         requestedThinkingLevel,
-        modelSpecDefault: modelSpec.apiParameters?.reasoningEffort,
-        resolved: reasoningEffort,
-        source: reasoningSource
+        resolved: reasoning.value,
+        source: requestedThinkingLevel ? 'AIConfiguration' : 'catalogue least-cost'
       });
     }
-    
-    // Return the adjusted parameters
-    return { temperature, topP, reasoningEffort, warnings };
+
+    return {
+      temperature,
+      topP,
+      reasoningEffort: reasoning.value as 'minimal' | 'low' | 'medium' | 'high' | undefined,
+      warnings
+    };
+  }
+
+  /**
+   * The max-tokens field this model wants, and the value to put in it.
+   *
+   * Replaces `buildOpenAIParameters`, which looked the field up in a spec
+   * list. The catalogue records it per model because GPT-5.6 refuses
+   * `max_tokens` outright — `400 Unsupported parameter: 'max_tokens' is not
+   * supported with this model` — so guessing wrong fails the request rather
+   * than degrading. The fallback chain is unchanged: an explicit limit wins,
+   * then the model's own output limit, then 2048.
+   */
+  private buildMaxTokensParameter(model: string, maxTokens?: number): Record<string, number> {
+    const resolved =
+      typeof maxTokens === 'number' ? maxTokens : findCatalogueEntry(model)?.maxOutputTokens ?? 2048;
+    return { [capabilitiesFor('OpenAI', model).maxTokensField]: resolved };
   }
 
   protected async getApiKey(): Promise<string> {
@@ -317,7 +324,7 @@ export class OpenAITranslationService extends AITranslationService {
             fullPrompt: systemPrompt
           });
           
-          const apiParameters = buildOpenAIParameters(model, promptConfig.maxTokens);
+          const apiParameters = this.buildMaxTokensParameter(model, promptConfig.maxTokens);
           
           // Check and override parameters for GPT-5 models
           const paramCheck = this.checkAndOverrideParameters(
@@ -562,7 +569,7 @@ export class OpenAITranslationService extends AITranslationService {
         fullPrompt: systemPrompt
       });
       
-      const apiParameters = buildOpenAIParameters(model, promptConfig.maxTokens);
+      const apiParameters = this.buildMaxTokensParameter(model, promptConfig.maxTokens);
       
       // Check and override parameters for GPT-5 models
       const paramCheck = this.checkAndOverrideParameters(
@@ -744,7 +751,7 @@ export class OpenAITranslationService extends AITranslationService {
         fullPrompt: systemPrompt
       });
 
-      const apiParameters = buildOpenAIParameters(model, promptConfig.maxTokens);
+      const apiParameters = this.buildMaxTokensParameter(model, promptConfig.maxTokens);
       
       // Check and override parameters for GPT-5 models
       const paramCheck = this.checkAndOverrideParameters(
@@ -939,7 +946,7 @@ export class OpenAITranslationService extends AITranslationService {
       );
       const systemPrompt = promptConfig.systemPrompt;
       const cachedSchema = getClassificationSchema();
-      const apiParameters = buildOpenAIParameters(model, promptConfig.maxTokens);
+      const apiParameters = this.buildMaxTokensParameter(model, promptConfig.maxTokens);
       
       // Check and override parameters for GPT-5 models (do once for all batches)
       const paramCheck = this.checkAndOverrideParameters(

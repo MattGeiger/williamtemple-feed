@@ -14,7 +14,7 @@ import { translationRecovery } from '../../translation-recovery';
 import { decryptApiKey } from '../../encryption';
 import { PromptBuilder } from '../prompts/PromptBuilder';
 import { TemplateEngine } from '../prompts/TemplateEngine';
-import { getModelSpecByModel } from '../model-specs';
+import { capabilitiesFor, findCatalogueEntry } from '../catalogue';
 
 // Add delay function for rate limiting and backoff
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -84,25 +84,6 @@ export class AnthropicTranslationService extends AITranslationService {
     return this.anthropicClient;
   }
 
-  /**
-   * Does this model still accept sampling parameters at all?
-   *
-   * Measured against the API on 2026-09-11, not inferred: `claude-sonnet-5`
-   * answers `400 \`temperature\` is deprecated for this model.` It is the
-   * parameter's *presence* that is refused, so sending the default value
-   * instead of 0.7 does not help — it has to be omitted.
-   *
-   * Recognised by what the id is NOT: every Claude model from the 4.6
-   * generation on uses a dateless id (`claude-sonnet-5`, `claude-opus-4-8`),
-   * while everything that still takes sampling parameters carries a date
-   * (`claude-haiku-4-5-20251001`). Keying on the absence of a date suffix is
-   * narrow and testable; the general answer is a per-model capability in the
-   * catalogue (ISSUES.md #84, Phase 2), and this is deliberately not it.
-   */
-  private acceptsSamplingParameters(model: string): boolean {
-    return /-\d{8}$/.test(model);
-  }
-
   private checkAndOverrideParameters(
     model: string,
     requestedTemperature?: number,
@@ -113,8 +94,9 @@ export class AnthropicTranslationService extends AITranslationService {
     warnings: string[];
   } {
     const warnings: string[] = [];
+    const { sampling } = capabilitiesFor('Anthropic', model);
 
-    if (!this.acceptsSamplingParameters(model)) {
+    if (sampling === 'unsupported') {
       // Claude 4.6 and later reject temperature/top_p/top_k outright.
       return { temperature: undefined, topP: undefined, warnings };
     }
@@ -122,18 +104,18 @@ export class AnthropicTranslationService extends AITranslationService {
     let temperature: number | undefined = requestedTemperature ?? 0.7;
     let topP: number | undefined = requestedTopP ?? 1.0;
 
-    // Claude 4.5 models reject requests that include both temperature and top_p.
-    if (model.includes('-4-5-')) {
-      if (temperature !== undefined && topP !== undefined) {
-        const excludedTopP = topP;
-        console.log(
-          `[Anthropic Service] Claude 4.5 model detected, excluding top_p parameter (temperature=${temperature}, top_p=${excludedTopP})`
-        );
-        topP = undefined;
-        warnings.push(
-          `Claude 4.5 models don't support both temperature and top_p. Excluding top_p=${excludedTopP} and keeping temperature=${temperature}.`
-        );
-      }
+    // Claude 4.5 accepts one of temperature/top_p, never both. This was
+    // `model.includes('-4-5-')`, which asked the id a question only the
+    // catalogue can answer.
+    if (sampling === 'temperature-or-top-p' && temperature !== undefined && topP !== undefined) {
+      const excludedTopP = topP;
+      console.log(
+        `[Anthropic Service] ${model} accepts one sampling parameter, excluding top_p (temperature=${temperature}, top_p=${excludedTopP})`
+      );
+      topP = undefined;
+      warnings.push(
+        `This model does not accept both temperature and top_p. Excluding top_p=${excludedTopP} and keeping temperature=${temperature}.`
+      );
     }
 
     return { temperature, topP, warnings };
@@ -152,7 +134,7 @@ export class AnthropicTranslationService extends AITranslationService {
    * cheaper path is to stop prefilling and parse what comes back.
    */
   private acceptsAssistantPrefill(model: string): boolean {
-    return this.acceptsSamplingParameters(model);
+    return capabilitiesFor('Anthropic', model).prefill === 'allowed';
   }
 
   /**
@@ -982,14 +964,21 @@ export class AnthropicTranslationService extends AITranslationService {
     fallback: number,
     operationType?: 'classification' | 'batch_classification' | 'translation' | 'batch_translation'
   ): number {
-    const modelSpec = getModelSpecByModel(model);
-    // The operation ceilings exist to keep a non-streaming request under the
-    // SDK's ten-minute guard. They applied only to ids containing `-4-5-`,
-    // which silently excluded every Claude 4.6+ model — precisely the ones
-    // with 128K output limits, where an unclamped `max_tokens` is most
-    // dangerous. Any dated-or-later Claude gets the ceiling now.
-    const isClaude45Model = model.includes('-4-5-') || !this.acceptsSamplingParameters(model);
-    // Operation-specific ceilings to prevent SDK timeouts and right-size outputs.
+    const entry = findCatalogueEntry(model);
+    const { nonStreamingOutputCeiling } = capabilitiesFor('Anthropic', model);
+    // Two different ceilings are at work here and both are needed. The table
+    // below belongs to the *operation* — a classification wants less room than
+    // a translation — while `nonStreamingOutputCeiling` belongs to the
+    // *model*. Either alone gives a wrong answer, so the smaller wins.
+    //
+    // Both exist to keep a non-streaming request under the SDK's ten-minute
+    // guard. The gate was `model.includes('-4-5-')`, which silently excluded
+    // every Claude 4.6+ id — precisely the ones with 128K output limits, where
+    // an unclamped `max_tokens` is most dangerous.
+    //
+    // It stays gated on `operationType`. A call naming no operation is asking
+    // for the model's own limit, and clamping there would turn
+    // `resolveMaxTokens(model, undefined, 2048)` from 64000 into 20480.
     const OPERATION_CEILINGS: Record<string, number | undefined> = {
       classification: 16384,
       batch_classification: 16384,
@@ -997,14 +986,16 @@ export class AnthropicTranslationService extends AITranslationService {
       batch_translation: 20480
     };
     const operationCeiling =
-      isClaude45Model && operationType ? OPERATION_CEILINGS[operationType] : undefined;
+      nonStreamingOutputCeiling !== undefined && operationType
+        ? Math.min(OPERATION_CEILINGS[operationType] ?? Infinity, nonStreamingOutputCeiling)
+        : undefined;
     const candidates = [
       operationCeiling,
       promptConfigMaxTokens,
       this.config.outputTokenLimit ?? undefined,
       this.config.maxTokens ?? undefined,
-      modelSpec?.outputTokenLimit
-    ].filter((value): value is number => typeof value === 'number' && value > 0);
+      entry?.maxOutputTokens
+    ].filter((value): value is number => typeof value === 'number' && Number.isFinite(value) && value > 0);
 
     const resolved = candidates.length > 0 ? Math.min(...candidates) : fallback;
     return Math.max(1, Math.floor(resolved));

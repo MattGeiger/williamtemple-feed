@@ -13,7 +13,7 @@ import ApiUsageTracker from '../../token/usage-tracker';
 import { decryptApiKey } from '../../encryption';
 import { PromptBuilder } from '../prompts/PromptBuilder';
 import { TemplateEngine } from '../prompts/TemplateEngine';
-import { getModelSpecByModel } from '../model-specs';
+import { capabilitiesFor, resolveReasoning } from '../catalogue';
 
 import { GoogleGenAI } from '@google/genai';
 
@@ -90,8 +90,14 @@ export class GoogleTranslationService extends AITranslationService {
   }
 
   /**
-   * Check and override parameters for Gemini 3 preview models
-   * Returns the effective parameters and any warnings
+   * Resolve sampling and thinking parameters from the model's capabilities.
+   *
+   * This was keyed to `modelSpec.apiParameters.modelFamily === 'gemini-3'`, so
+   * a thinking level configured on any other model was discarded without a
+   * word, and a level a model rejects reached the API as a 400 rather than
+   * being substituted with a warning. Both answers come from the catalogue
+   * now, which knows per model rather than per family — Gemini 3 Flash takes
+   * four thinking levels and Gemini 3 Pro takes two.
    */
   private checkAndOverrideParameters(
     model: string,
@@ -104,52 +110,30 @@ export class GoogleTranslationService extends AITranslationService {
     thinkingLevel?: 'minimal' | 'low' | 'medium' | 'high';
     warnings: string[];
   } {
-    const modelSpec = getModelSpecByModel(model);
+    const capabilities = capabilitiesFor('Google', model);
     const warnings: string[] = [];
     let temperature = requestedTemperature ?? 0.7;
-    let topP: number | undefined = requestedTopP;
-    let thinkingLevel: 'minimal' | 'low' | 'medium' | 'high' | undefined;
-    const validThinkingLevels = ['minimal', 'low', 'medium', 'high'] as const;
-    const isValidThinkingLevel = requestedThinkingLevel
-      ? validThinkingLevels.includes(requestedThinkingLevel as (typeof validThinkingLevels)[number])
-      : false;
+    const topP: number | undefined = requestedTopP;
 
-    if (modelSpec?.apiParameters?.modelFamily === 'gemini-3') {
-      if (requestedTemperature !== 1.0) {
-        temperature = 1.0;
-        if (requestedTemperature !== undefined) {
-          warnings.push(
-            `Gemini 3 models default to temperature=1.0. Your configured temperature of ${requestedTemperature} has been overridden to 1.0 per Google's recommendation.`
-          );
-        }
-      }
-
-      if (requestedThinkingLevel && !isValidThinkingLevel) {
+    const { fixedTemperature } = capabilities;
+    if (fixedTemperature !== undefined && requestedTemperature !== fixedTemperature) {
+      if (requestedTemperature !== undefined) {
         warnings.push(
-          `Gemini 3 model thinking_level "${requestedThinkingLevel}" is invalid. Defaulting to "${modelSpec.apiParameters.thinkingLevel ?? 'low'}".`
+          `Gemini 3 and later models take temperature=${fixedTemperature}. Your configured temperature of ${requestedTemperature} has been overridden to ${fixedTemperature} per Google's recommendation.`
         );
       }
-
-      const normalizedThinkingLevel = isValidThinkingLevel
-        ? (requestedThinkingLevel as (typeof validThinkingLevels)[number])
-        : undefined;
-
-      thinkingLevel = normalizedThinkingLevel
-        ?? modelSpec.apiParameters.thinkingLevel
-        ?? 'low';
-      const supportedLevels = modelSpec.apiParameters.supportedThinkingLevels;
-      if (supportedLevels && thinkingLevel && !supportedLevels.includes(thinkingLevel)) {
-        const fallbackLevel = modelSpec.apiParameters.thinkingLevel ?? supportedLevels[0];
-        if (requestedThinkingLevel !== undefined && requestedThinkingLevel !== null) {
-          warnings.push(
-            `Gemini 3 model thinking_level "${requestedThinkingLevel}" is not supported. Defaulting to "${fallbackLevel}".`
-          );
-        }
-        thinkingLevel = fallbackLevel;
-      }
+      temperature = fixedTemperature;
     }
 
-    return { temperature, topP, thinkingLevel, warnings };
+    const reasoning = resolveReasoning(capabilities, requestedThinkingLevel);
+    warnings.push(...reasoning.warnings);
+
+    return {
+      temperature,
+      topP,
+      thinkingLevel: reasoning.value as 'minimal' | 'low' | 'medium' | 'high' | undefined,
+      warnings
+    };
   }
 
   protected normalizeLanguage(language: string): string {

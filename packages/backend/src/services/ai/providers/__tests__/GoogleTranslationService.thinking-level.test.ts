@@ -10,7 +10,6 @@ import type { AIConfiguration } from '@prisma/client';
 import type { ThinkingConfig } from '@google/genai';
 
 let GoogleTranslationService: typeof import('../GoogleTranslationService').GoogleTranslationService;
-let modelSpecs: typeof import('../../model-specs');
 
 vi.mock('../../../limits', () => ({
   limitEnforcement: {
@@ -124,46 +123,14 @@ const buildConfig = (overrides: Partial<AIConfiguration> = {}): AIConfiguration 
   }) as AIConfiguration;
 
 describe('GoogleTranslationService thinking level', () => {
+  // These cases used to run against a hand-mocked `getModelSpecByModel`. The
+  // mock had drifted into fiction — it returned `modelFamily: 'gemini-2.5'`,
+  // which is not a member of the `ModelSpec` union at all — so the assertions
+  // were checking behaviour against a spec shape that could never exist. They
+  // now run against the real catalogue, and `gemini-3-custom` exercises the
+  // documented fallback for an id the catalogue has never seen.
   beforeEach(async () => {
-    modelSpecs = await import('../../model-specs');
     GoogleTranslationService = (await import('../GoogleTranslationService')).GoogleTranslationService;
-    const getModelSpecSpy = vi.spyOn(modelSpecs, 'getModelSpecByModel');
-    getModelSpecSpy.mockImplementation((model: string) => {
-      if (model === 'gemini-3-flash-preview') {
-        return {
-          apiParameters: {
-            modelFamily: 'gemini-3',
-            thinkingLevel: 'low',
-            supportedThinkingLevels: ['minimal', 'low', 'medium', 'high']
-          }
-        } as any;
-      }
-      if (model === 'gemini-3-pro-preview') {
-        return {
-          apiParameters: {
-            modelFamily: 'gemini-3',
-            thinkingLevel: 'low',
-            supportedThinkingLevels: ['low', 'high']
-          }
-        } as any;
-      }
-      if (model === 'gemini-3-custom') {
-        return {
-          apiParameters: {
-            modelFamily: 'gemini-3',
-            supportedThinkingLevels: ['low', 'high']
-          }
-        } as any;
-      }
-      if (model === 'gemini-2.5-flash') {
-        return {
-          apiParameters: {
-            modelFamily: 'gemini-2.5'
-          }
-        } as any;
-      }
-      return undefined;
-    });
   });
 
   test('uses config thinking level when provided', () => {
@@ -173,11 +140,16 @@ describe('GoogleTranslationService thinking level', () => {
     expect(result.thinkingLevel).toBe('low');
   });
 
-  test('falls back to model default when config is null', () => {
+  test('falls back to the cheapest level the model accepts when config is null', () => {
+    // Was `low`, from a hand-written spec default. The catalogue records that
+    // Gemini 3 Flash accepts `minimal`, and thinking is billed as output that
+    // translation gains nothing from, so the unset default is now the cheapest
+    // value the model actually takes. Gemini 3 Pro, which has no `minimal`,
+    // still falls to `low` — see the test below.
     const service = new GoogleTranslationService(buildConfig()) as any;
     const result = service.checkAndOverrideParameters('gemini-3-flash-preview', 1, 1, null);
 
-    expect(result.thinkingLevel).toBe('low');
+    expect(result.thinkingLevel).toBe('minimal');
   });
 
   test('falls back to low when no model default is provided', () => {
