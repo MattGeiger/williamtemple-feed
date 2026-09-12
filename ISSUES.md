@@ -83,9 +83,10 @@ at 40% over a white card is indistinguishable from white at 72%.
 
 ### #84 — The AI model catalogue is out of date, and a refused model reports as an invalid API key
 **Priority**: High · **Status**: honest errors and alerts, Node 24, the SDK
-upgrades, and one server-authoritative catalogue that the providers and the
-configuration dialogs both read are all delivered. The catalogue's *contents*
-— retiring 15 presets and adding 11 — and live validation are the open half
+upgrades, one server-authoritative catalogue read by both the providers and the
+dialogs, and the contents refresh are all delivered — 12 presets offered, four
+per provider, and FEED's default moved off the model Google refuses. Open:
+**Phase 5 live validation**, defects 5, 6 and 10 below, and the secondary lists
 **Bucket**: AI configuration / translation providers
 
 Google no longer lets new projects call `gemini-2.5-flash-lite`, FEED's
@@ -131,7 +132,8 @@ real answer exists only in the backend log.
   (`SERVICE_SPECIFICATIONS`, `GOOGLE_MODEL_PRICING`, both `config/limits`
   files, `config/translation.ts`, the token-limit fix-up script).
 
-**Delivered 2026-09-11**, leaving catalogue contents as the open half:
+**Delivered 2026-09-11 and 2026-09-12**, leaving Phase 5 validation as the open
+half:
 
 - Honest provider errors and administrator alerts (`71bdee9`).
 - Node 24 (`7c7b350`); `openai` 5.10.2 → 7.15.0 (`8789655`).
@@ -160,19 +162,39 @@ real answer exists only in the backend log.
   level opened at `high` and persisted it on the next save.
 - `AddAIModelDialog` trims a custom model id before saving, as Edit always
   did.
+- **The contents refresh (2026-09-12).** 27 entries, 12 offered — four per
+  provider — and 15 withheld. OpenAI's GPT-5.6 line and `gpt-6-astra`
+  (`e5394b2`); Claude Sonnet 5, Opus 5 and Fable 5.1, with
+  `AnthropicTranslationService` taught to send `output_config.effort` and to
+  disable thinking outright where a model allows it (`a25f057`); and the
+  Gemini 3.x presets, which moved FEED's default off `gemini-2.5-flash-lite`
+  — the model whose 404 opened this issue (`9f6c476`).
+- Withdrawing a preset uses `lifecycle.offered`, not `status: 'retired'`. The
+  two are different claims: production runs `gpt-5-mini` successfully until
+  2026-12-11, so calling it retired would be false and would strip the entry
+  its saved row resolves against. `GET /api/ai-config/models` now returns two
+  lists — `models` to choose from, `withdrawn` so the dialog can still explain
+  a configuration it no longer offers.
+- Every capability was measured rather than read. Three provider pages proved
+  wrong: `gpt-4o`'s price by 2x, the OpenAI models page on which effort values
+  GPT-5.6 and `gpt-6-astra` accept, and Anthropic's tentative retirement dates
+  recorded as announced shutdowns.
 
 Still open from the list above: `SERVICE_SPECIFICATIONS` (labelled "mock data"
 but exported to the cost forecast), `config/limits.ts`,
 `config/limits/index.ts`, `config/translation.ts` and
-`scripts/fix-ai-config-token-limits.ts` all still name superseded models; and
-a Custom model still has no prices, so its spend limits never trip.
+`scripts/fix-ai-config-token-limits.ts` all still name superseded models; a
+Custom model still has no prices, so its spend limits never trip; temperature
+and top_p still reach a request from `SystemPrompt` as well as
+`AIConfiguration` (defect 5); and nothing in the configuration list yet renders
+a lifecycle badge (defect 10) — though the `withdrawn` list now gives it the
+data it needs.
 
-Also waiting on the contents refresh: new configurations still default to
-`gemini-2.5-flash-lite`, the model Google closed to new projects. Swapping it
-for another deprecated Google id would not be a fix, and deriving the default
-from lifecycle cannot work yet — exactly one of the sixteen catalogue entries
-is `active` (Claude Haiku 4.5), so the derivation would silently move every
-new configuration to Anthropic and change who the deployment is billed by.
+Also outstanding: **Phase 5 live validation.** Some of it is already done as a
+by-product of writing the entries — effort values measured on four OpenAI
+models, effort and thinking-disable on three Anthropic ones, thinking floors on
+four Gemini ones — but no FEED-shaped end-to-end translation has been run
+against the new presets.
 
 **Plan**: retire 15 of 16 presets and add 11. Steps: reproduce against real
 keys, honest errors, one server-authoritative catalogue with lifecycle and
