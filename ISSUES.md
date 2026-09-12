@@ -119,7 +119,9 @@ real answer exists only in the backend log.
   `-4-5-`.
 - Custom models get no model-specific parameter handling. A Custom GPT-5.6
   sends `max_tokens`, `temperature`, and `top_p`. They also have no prices
-  unless typed in, so their spend limits never trip.
+  unless typed in — which is still true and still allowed, but no longer
+  silent: a cost limit on an unpriced configuration is refused rather than
+  saved and left inert (defect 6).
 - Anthropic translation sends an assistant prefill of `{`, which Claude
   Sonnet 4.6 and later reject with 400 — independently of the sampling
   parameters.
@@ -192,10 +194,18 @@ but exported to the cost forecast), `config/limits.ts`, `config/translation.ts`
 and `scripts/fix-ai-config-token-limits.ts` all still name superseded models —
 though `config/limits/index.ts` has gone, being an unimported second copy
 rather than a list to correct, and `config/limits.ts` is now reached only as a
-fallback, since the wizard fills `tokensPerMinute` from the catalogue; a
-Custom model still has no prices, so its spend limits never trip (defect 6);
-and temperature and top_p still reach a request from `SystemPrompt` as well as
+fallback, since the wizard fills `tokensPerMinute` from the catalogue; and
+temperature and top_p still reach a request from `SystemPrompt` as well as
 `AIConfiguration` (defect 5).
+
+- Cost limits that could never fire (defect 6). A limit is measured against
+  tokens × price, so an unpriced configuration recorded zero spend and the
+  daily and monthly limits never tripped, however small they were set. Saving
+  an unpriced configuration is still allowed — the Cost step offers it — but
+  the contradiction is refused: a cost limit on one now fails with a 400 that
+  says what to do, on create and on update. Configurations already saved that
+  way raise a critical alert once each and keep translating, because a config
+  defect should not stop the pantry's translations.
 
 Also outstanding: **Phase 5 live validation.** Some of it is already done as a
 by-product of writing the entries — effort values measured on four OpenAI

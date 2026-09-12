@@ -11,7 +11,7 @@ prompted this document.
 
 Sections below are marked where the code has overtaken the plan; where a
 section still reads in the future tense, it has not been built. Known to be
-outstanding: defects 5 and 6 in the list below, the secondary stale lists, and
+outstanding: defect 5 in the list below, the secondary stale lists, and
 Phase 5.
 **Tracks**: ISSUES.md #84 · roadmap v1.9.5 ("LLM catalogue and pricing audit")
 **Companion**: [`translation-efficiency-and-local-models.md`](translation-efficiency-and-local-models.md)
@@ -523,8 +523,16 @@ in the configuration list and a line in the dialog, reading one shared module
 so they cannot drift.
 
 *Still open:* 5 (temperature and top_p also arrive from `SystemPrompt` through
-`PromptBuilder`, so D3 enforcement has to sit where the request is built) and 6
-(a Custom model is still unpriced, so its spend limits never trip).
+`PromptBuilder`, so D3 enforcement has to sit where the request is built).
+
+Defect 6 is fixed. An unpriced configuration remains entirely legal — the Cost
+step offers that outright, and a Custom model nobody has prices for is a real
+thing to save. What is refused is the pair: a cost limit on a configuration
+whose spend FEED cannot measure, which could never fire. Checked on create and
+on update, the latter against effective values so an edit cannot arrive at the
+same state by clearing prices from a configuration that already has a limit.
+Rows saved before the check existed raise a critical alert, once per
+configuration rather than once per translation, and keep translating.
 
 1. **Every provider failure is reported as an invalid key.** `validateApiKey`
    returns a boolean and discards the error (`GoogleTranslationService.ts:170`,
@@ -557,10 +565,29 @@ so they cannot drift.
    prompt sets 0.3), read through `PromptBuilder`. D3's enforcement must
    therefore sit where the request is built, not in either form. The UI can
    only hide the controls it owns.
-6. **A Custom model is unpriced unless the administrator types prices in.**
-   `applyModelSpecs` returns early for Custom, and `shared/validation.ts` does
-   not require costs. With no costs, recorded spend is zero and the daily and
-   monthly cost limits never trip.
+6. ~~**A Custom model is unpriced unless the administrator types prices in.**~~
+   **Fixed.** Two details of the original entry were wrong by the time it was
+   read: `applyModelSpecs` no longer exists (the hydrate is `specFor` plus an
+   effect in `ServiceStep`, which returns early for Custom because a custom id
+   never matches a catalogue entry), and `shared/validation.ts` has no cost
+   validation of any kind — not a missing requirement but an absent concern.
+   The mechanism was confirmed as described: `convertToPerTokenRate` returns 0
+   for an absent price, so `estimatedCost` is 0, `UsageRecord.totalCost` is
+   written at the same zero rate, and `(current + additional) > limit` is
+   `0 + 0 > limit` on every request, forever.
+
+   Requiring prices would have been the wrong fix — the Cost step offers
+   "Leave empty to skip cost tracking" deliberately, and an unpriced Custom
+   model is a legitimate thing to save. What is incoherent is the *pair*: a
+   cost limit on a configuration FEED cannot measure. The API now refuses that
+   combination on create and on update, reading effective values so an edit
+   cannot reach it by clearing prices from a configuration that already has a
+   limit. Enforcement raises a critical alert once per configuration for rows
+   already saved that way — restore-from-backup and the scripts directory
+   write rows without passing through the route — and lets the translation
+   proceed, because halting the pantry's translations over a configuration
+   defect is worse than spend that is uncapped but now visible. The wizard
+   says so on the step where the limit is typed.
 7. **The key check uses a one-token output limit, and on Google and Anthropic
    it is a paid call** made before every translation job. On thinking-by-default
    models the one-token cap is shared with reasoning. Behaviour unverified.

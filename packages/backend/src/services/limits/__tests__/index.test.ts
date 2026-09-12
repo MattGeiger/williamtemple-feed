@@ -32,6 +32,7 @@ vi.mock('../../alerts', () => ({
 }));
 
 import { LimitEnforcementService } from '../index';
+import { alertService } from '../../alerts';
 
 const createConfig = (overrides: Partial<AIConfiguration> = {}): AIConfiguration => {
   return {
@@ -424,5 +425,127 @@ describe('LimitEnforcementService cost limits', () => {
     expect(monthlyCall.where.aiConfigurationId).toBe(42);
     expect(monthlyCall.where.success).toBe(true);
     expect(monthlyCall.where.timestamp.gte.getTime()).toBe(expectedStartOfMonth.getTime());
+  });
+});
+
+/**
+ * A cost limit with no price behind it (defect 6, ISSUES.md #84).
+ *
+ * `estimatedCost` is zero and `usage.dailyCost` sums a `totalCost` written at
+ * the same zero rate, so both cost comparisons reduce to `0 + 0 > limit` on
+ * every request. The limit reads as protection and stops nothing. The API now
+ * refuses to save that pair, but rows saved before it did still exist, and
+ * restore-from-backup and the scripts directory write configurations without
+ * passing through the route — so enforcement says so loudly and carries on.
+ *
+ * Carrying on is the deliberate half. Halting the pantry's translations over a
+ * configuration defect is a worse outcome than spend that is uncapped but now
+ * visible in the alert list.
+ *
+ * NOTE for anyone adding cases here: the service is a singleton and the
+ * "already warned" set is an instance field, so it survives
+ * `vi.clearAllMocks()` and every test in this file shares it. Give each test a
+ * distinct `id`, or a later test will see its alert silently suppressed by an
+ * earlier one and read as "the alert never fires".
+ */
+describe('a cost limit that cannot be measured', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockPrisma.usageRecord.aggregate.mockResolvedValue({
+      _sum: { promptTokens: 0, completionTokens: 0, totalCost: 0 }
+    });
+  });
+
+  const unpriced = (id: number) =>
+    createConfig({
+      id,
+      name: 'Custom model',
+      inputCost: null,
+      outputCost: null,
+      dailyCostLimit: 5,
+      tokensPerMinute: null,
+      model: 'Custom'
+    } as Partial<AIConfiguration>);
+
+  test('raises a critical alert naming the configuration', async () => {
+    const service = LimitEnforcementService.getInstance();
+    await service.checkTokenUsage(100, unpriced(9001));
+
+    expect(alertService.createAlert).toHaveBeenCalledTimes(1);
+    const [level, message] = vi.mocked(alertService.createAlert).mock.calls[0];
+    expect(level).toBe('critical');
+    // Without a name the alert would read `"undefined" has a cost limit`,
+    // which tells staff nothing about which configuration to open.
+    expect(message).toContain('Custom model');
+    expect(message).toMatch(/cost limit but no input or output rate/);
+  });
+
+  test('still lets the translation through', async () => {
+    const service = LimitEnforcementService.getInstance();
+    const result = await service.checkTokenUsage(100, unpriced(9002));
+
+    expect(result.canProceed).toBe(true);
+  });
+
+  test('warns once per configuration, not once per translation', async () => {
+    // This check runs before every request, and `createAlert` writes a row and
+    // emits an event. Alerting per call would bury the alert list during a
+    // bulk import — the alert would be true and useless.
+    const service = LimitEnforcementService.getInstance();
+    const config = unpriced(9003);
+
+    await service.checkTokenUsage(100, config);
+    await service.checkTokenUsage(100, config);
+    await service.checkTokenUsage(100, config);
+
+    expect(alertService.createAlert).toHaveBeenCalledTimes(1);
+  });
+
+  test('says nothing when the configuration is priced', async () => {
+    const service = LimitEnforcementService.getInstance();
+    await service.checkTokenUsage(
+      100,
+      createConfig({ id: 9004, name: 'Priced', dailyCostLimit: 5, tokensPerMinute: null })
+    );
+
+    expect(alertService.createAlert).not.toHaveBeenCalled();
+  });
+
+  test('says nothing when there is no limit to be inert', async () => {
+    // An unpriced configuration with no cost limit is a legitimate state the
+    // Cost step offers outright. Alerting on it would be noise.
+    const service = LimitEnforcementService.getInstance();
+    await service.checkTokenUsage(
+      100,
+      createConfig({
+        id: 9005,
+        name: 'Unpriced, unlimited',
+        inputCost: null,
+        outputCost: null,
+        dailyCostLimit: null,
+        monthlyCostLimit: null,
+        tokensPerMinute: null
+      } as Partial<AIConfiguration>)
+    );
+
+    expect(alertService.createAlert).not.toHaveBeenCalled();
+  });
+
+  test('a monthly-only limit is caught too', async () => {
+    const service = LimitEnforcementService.getInstance();
+    await service.checkTokenUsage(
+      100,
+      createConfig({
+        id: 9006,
+        name: 'Monthly only',
+        inputCost: null,
+        outputCost: null,
+        dailyCostLimit: null,
+        monthlyCostLimit: 30,
+        tokensPerMinute: null
+      } as Partial<AIConfiguration>)
+    );
+
+    expect(alertService.createAlert).toHaveBeenCalledTimes(1);
   });
 });

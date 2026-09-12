@@ -55,6 +55,16 @@ export function CostLimitsStep({
     setState(prev => ({ ...prev, rawMonthlyCostLimit: value }))
   }
 
+  // A limit here is measured against tokens x price. With no price the product
+  // is zero, recorded spend never moves, and the limit never stops anything —
+  // so say so on the step where the limit is set, rather than let the server's
+  // refusal be the first the administrator hears of it (defect 6, #84).
+  const positive = (value?: number | null) => typeof value === 'number' && value > 0
+  const limitWithoutPrices =
+    (positive(data.dailyCostLimit) || positive(data.monthlyCostLimit)) &&
+    !positive(data.inputCost) &&
+    !positive(data.outputCost)
+
   return (
     <StepWrapper 
       icon={CircleDollarSign} 
@@ -98,6 +108,15 @@ export function CostLimitsStep({
           Set maximum cost per month. Leave empty or 0 for unlimited.
         </p>
       </div>
+
+      {limitWithoutPrices && (
+        <p role="note" className="text-xs text-destructive">
+          This limit cannot be enforced yet. FEED measures spend as tokens x price, and
+          this configuration has no input or output rate — so recorded spend stays at
+          zero and the limit would never stop a translation. Set a rate on the Cost
+          Tracking step, or leave the limit empty.
+        </p>
+      )}
     </StepWrapper>
   )
 }

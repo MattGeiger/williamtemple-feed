@@ -36,6 +36,17 @@ export class LimitEnforcementService {
   private static instance: LimitEnforcementService;
   private readonly SYSTEM_PROMPT_TOKENS = 61;
 
+  /**
+   * Configurations already reported as having an unenforceable cost limit.
+   *
+   * This check sits before every translation, and `createAlert` writes a row
+   * and emits an event, so alerting per request would bury the alert list
+   * during a bulk import. Once per configuration per process is enough to be
+   * seen, and resets on restart — which for a service redeployed on every
+   * release is a reasonable cadence to be reminded.
+   */
+  private readonly unmeteredWarned = new Set<number>();
+
   private constructor() {}
 
   public static getInstance(): LimitEnforcementService {
@@ -82,6 +93,33 @@ export class LimitEnforcementService {
         warningLevel: 'FINAL_WARNING',
         reason: 'Monthly token limit would be exceeded'
       };
+    }
+
+    // A cost limit with no price behind it cannot fire. `estimatedCost` is
+    // zero, `usage.dailyCost` sums a `totalCost` written at the same zero
+    // rate, and both comparisons below reduce to `0 + 0 > limit` on every
+    // request — so the limit reads as protection while stopping nothing
+    // (defect 6, ISSUES.md #84).
+    //
+    // The API now refuses to save this pair, but rows saved before it did,
+    // and restore-from-backup and the scripts directory write configurations
+    // without passing through the route at all. Translation is allowed to
+    // continue: this is a configuration defect, and halting the pantry's
+    // translations over it would be a worse outcome than spend that is
+    // uncapped but now visible.
+    if (dailyCostLimit !== null || monthlyCostLimit !== null) {
+      const inputRate = convertToPerTokenRate(config.inputCost || 0, config.unitPrice);
+      const outputRate = convertToPerTokenRate(config.outputCost || 0, config.unitPrice);
+
+      if (inputRate === 0 && outputRate === 0 && !this.unmeteredWarned.has(config.id)) {
+        this.unmeteredWarned.add(config.id);
+        await alertService.createAlert(
+          'critical',
+          `"${config.name}" has a cost limit but no input or output rate, so FEED cannot `
+          + 'measure what it spends and the limit will never stop a translation. '
+          + 'Open it and set the rates for this model.'
+        );
+      }
     }
 
     const estimatedCost = await this.calculateCost(estimatedTokens, config);
