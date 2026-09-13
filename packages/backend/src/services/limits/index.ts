@@ -26,7 +26,15 @@ interface UsagePeriod {
 
 export class LimitEnforcementService {
   private static instance: LimitEnforcementService;
-  private readonly SYSTEM_PROMPT_TOKENS = 61;
+
+  /**
+   * The share of the input estimate booked as output when pricing a request.
+   *
+   * Deliberately a ratio, and deliberately still this one — `calculateCost`
+   * records why the better-looking alternative would make this limit protect
+   * less than it does today.
+   */
+  private readonly OUTPUT_TO_INPUT_RATIO = 0.5;
 
   /**
    * Configurations already reported as having an unenforceable cost limit.
@@ -49,7 +57,7 @@ export class LimitEnforcementService {
   }
 
   async checkTokenUsage(
-    estimatedTokens: number,
+    estimatedInputTokens: number,
     config: AIConfiguration
   ): Promise<TokenUsageCheck> {
     if (!config.model || !config.id) {
@@ -92,7 +100,7 @@ export class LimitEnforcementService {
       }
     }
 
-    const estimatedCost = await this.calculateCost(estimatedTokens, config);
+    const estimatedCost = await this.calculateCost(estimatedInputTokens, config);
     if (dailyCostLimit !== null && wouldExceedLimit(usage.dailyCost, estimatedCost, dailyCostLimit)) {
       return {
         canProceed: false,
@@ -154,17 +162,43 @@ export class LimitEnforcementService {
     };
   }
 
-  private async calculateCost(tokens: number, config: AIConfiguration): Promise<number> {
+  /**
+   * What this request would add to the period's spend.
+   *
+   * The argument is the pre-flight *input* estimate, which since the prompt
+   * fix carries the system prompt that will actually be sent plus the user's
+   * text. This method used to read
+   *
+   *   const promptTokens = this.SYSTEM_PROMPT_TOKENS + (tokens * 0.5);
+   *   const completionTokens = tokens * 0.5;
+   *
+   * and that was wrong twice over (ISSUES.md #84).
+   *
+   * `SYSTEM_PROMPT_TOKENS` was a flat 61 added on top of a count that already
+   * contained the real prompt, so the prompt was paid for twice. And `* 0.5`
+   * halved the input, as though the argument were a combined input-plus-output
+   * total waiting to be split between the two rates — it never was. The two
+   * errors pull opposite ways and so partly concealed each other: for this
+   * deployment's 143-token FOOD_TRANSLATION prompt the pair returned 132.5
+   * prompt tokens against a true 143, close enough to look right and arrived
+   * at entirely by accident. The flat 61 was also the third hardcoded guess at
+   * a prompt this codebase now measures, after the two in `calculation.ts`.
+   *
+   * Input is now priced as what it is. Output stays a fraction of input, and
+   * stays this fraction on purpose. The obvious replacement is FEED's own
+   * `estimateOutputMetrics`, at 1.5x the *user text* — about six tokens for a
+   * three-word pantry item. Measured on 2026-09-13, `gemini-3.1-pro-preview`
+   * returned 262 completion tokens for exactly such an item, nearly all of it
+   * thinking. Swapping a conservative ratio for a confident underestimate
+   * would leave this limit protecting less than it does now, so the ratio
+   * holds until output is measured per model.
+   */
+  private async calculateCost(estimatedInputTokens: number, config: AIConfiguration): Promise<number> {
     const promptCost = convertToPerTokenRate(config?.inputCost || 0, config?.unitPrice);
     const completionCost = convertToPerTokenRate(config?.outputCost || 0, config?.unitPrice);
-    
-    // For translation service:
-    // - Fixed system prompt (61 tokens)
-    // - Short input texts
-    // - Similar length output
-    const promptTokens = this.SYSTEM_PROMPT_TOKENS + (tokens * 0.5);  // System prompt + input
-    const completionTokens = tokens * 0.5;     // Output typically matches input length
-    return (promptTokens * promptCost) + (completionTokens * completionCost);
+
+    const completionTokens = estimatedInputTokens * this.OUTPUT_TO_INPUT_RATIO;
+    return (estimatedInputTokens * promptCost) + (completionTokens * completionCost);
   }
 
   private async calculateRemainingTokens(
