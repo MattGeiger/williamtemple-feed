@@ -5,6 +5,8 @@
 // under AGPL-3.0-or-later; see LICENSE. William Temple House branding is
 // not covered by this license; see TRADEMARKS.md.
 
+import { describe, expect, test } from 'vitest';
+
 import { TemplateEngine, PromptTemplate, ValidationResult } from '../TemplateEngine';
 import { SystemPrompt, PromptType } from '@prisma/client';
 
