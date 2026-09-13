@@ -11,7 +11,16 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "moduleResolution": "node",
-    "jsx": "react-jsx"
+    "jsx": "react-jsx",
+    // Two test files reach for `@/...`, in `vi.mock()` and dynamic `import()`.
+    // vitest maps the alias (vitest.config.ts) but tsc had no equivalent, so
+    // every one of those read as a missing module even though the files exist.
+    // No non-test source uses the alias, so this changes nothing about the
+    // build; TypeScript 5.8 resolves `paths` relative to this file, with no
+    // `baseUrl` and so no change to how bare imports resolve.
+    "paths": {
+      "@/*": ["./src/*"]
+    }
   },
   "include": ["src/**/*"],
   "exclude": [
