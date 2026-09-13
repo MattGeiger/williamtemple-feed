@@ -30,11 +30,29 @@ export function validateApiKeyForService(
   const trimmed = key.trim()
   if (!trimmed) return { error: 'API key is required' }
 
-  // Broad, permissive patterns to reduce false positives
+  // Broad, permissive patterns to reduce false positives.
+  //
+  // Both non-OpenAI patterns were wrong, and warned on almost every valid key
+  // an administrator pasted. Neither was "checked against OpenAI's format" —
+  // each provider had its own rule, and two of them were simply out of date.
+  //
+  // Anthropic: the body after the prefix is base64url, the
+  // `A–Z a–z 0–9 - _` alphabet, roughly 95 characters. The old class omitted
+  // `_`, so at that length nearly every real key contained a character it
+  // refused. The sub-prefix is also not always `api03`: `sk-ant-oat01-` is an
+  // OAuth token issued by first-party tools, so the sub-prefix is matched
+  // loosely rather than pinned to a version that will change again.
+  //
+  // Google: keys used to be `AIza…`, and Google is migrating to `AQ.Ab…` auth
+  // keys, which is now what AI Studio issues. Insisting on `AIza` warned on
+  // the format that works — and note the dot, which no character class here
+  // previously admitted. Lengths are left generous deliberately: this is a
+  // typo catcher, not an authenticator. The provider's own verdict arrives at
+  // save time, where entitlement is verified against a real request.
   const patterns: Record<string, RegExp> = {
     OpenAI: /^sk(?:-proj)?-[A-Za-z0-9_\-]{20,}$/,
-    Anthropic: /^sk-ant-[A-Za-z0-9\-]{20,}$/i,
-    Google: /^AIza[0-9A-Za-z_\-]{30,60}$/
+    Anthropic: /^sk-ant-(?:[A-Za-z0-9]+-)?[A-Za-z0-9_\-]{20,}$/i,
+    Google: /^(?:AIza[0-9A-Za-z_\-]{30,60}|AQ\.[0-9A-Za-z_\-.]{20,})$/
   }
 
   if (serviceType && patterns[serviceType]) {
