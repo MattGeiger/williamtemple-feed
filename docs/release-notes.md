@@ -2,6 +2,64 @@
 
 ## Unreleased
 
+*The AI model catalogue, brought up to date. FEED's list of models was written
+in 2024 and several of them no longer exist.*
+
+**FEED now tells you when a model is running out of time.** The AI
+Configuration list shows a saved configuration's expiry beside its status, and
+says what to move to. This matters right now: FEED runs GPT-5 Mini, and OpenAI
+shuts that model down on **11 December 2026**. Until now the list said
+"Active" and nothing more, and the first sign of trouble would have been a
+translation failing with a message about the provider rather than about the
+model. Choosing a model in the Add or Edit dialog gives you the same warning
+before you save.
+
+**New models to choose from, and the withdrawn ones no longer offered.** The
+2026 families from all three providers are available — Gemini 3.5 Flash Lite,
+3.6 Flash, 3.8 Flash and 3.1 Pro; GPT-5.6 Luna, Terra and Sol, and GPT-6
+Astra; Claude Sonnet 5, Opus 5 and Fable 5.1. Older models are no longer in
+the list for new configurations, but nothing that already uses one has been
+changed or switched off.
+
+**New configurations no longer start out pointed at a model Google refuses.**
+The default was Gemini 2.5 Flash Lite, which Google will not serve to new
+projects — the failure this whole piece of work was reported for. Every
+configuration created since that change began started out broken. The default
+is now Gemini 3.5 Flash Lite.
+
+**Two settings that quietly cost money have been corrected.** Thinking Level
+started every new configuration at "high" — the most expensive setting — and
+any existing configuration that had never had one set would adopt it the next
+time you saved. It now starts at the cheapest level each model allows. And a
+model that is far more powerful than translating a food label requires is
+marked as expensive when you pick it.
+
+**A cost limit that FEED cannot enforce is now refused instead of accepted.**
+Spend is measured as tokens multiplied by price, so a configuration with no
+prices recorded no spend at all — and a daily or monthly limit set on one
+would never have stopped anything, however small. FEED now explains this when
+you set the limit, rather than saving a cap that does nothing. Leaving prices
+empty is still fine if you do not want cost tracking.
+
+**The dashboard no longer shows numbers it made up.** Rate limits, average
+response times and a week of usage history were being filled in with invented
+figures whenever the real ones were unavailable — in one case with random
+numbers that changed on every refresh. Where FEED does not have a figure it
+now says so.
+
+**Smaller fixes.** The Types filter on AI Configuration listed categories and
+food items, which belong to Translation Management; it now offers API Key and
+System Prompt, and actually filters. Anthropic's recorded spend is calculated
+from the token counts Anthropic reports rather than from an estimate. Language
+support is recorded per model, so an enabled language a model cannot serve is
+flagged where you choose it instead of failing mid-translation. Saving or
+activating a model now checks the account can actually use it.
+
+Behind all of this, FEED's model information now lives in one place on the
+server instead of two copies that had drifted apart, alongside several older
+lists that still named models FEED no longer uses. Bringing them together is
+what allowed the errors above to be found.
+
 ## Version 1.7.5 — 2026-09-11, not yet deployed
 
 *Everything in 1.7.5-rc.1, which has been running since September 5th, plus
