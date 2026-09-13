@@ -215,7 +215,24 @@ names no model; and `scripts/fix-ai-config-token-limits.ts` reads
 `findCatalogueEntry(...).maxOutputTokens` instead of a hardcoded table
 (`d203c77`). `config/limits/index.ts` was deleted earlier as an unimported
 second copy, and `SERVICE_SPECIFICATIONS` is now `SERVICE_COLORS` with no model
-data at all. **Phase 5 live validation is the only part of #84 outstanding.**
+data at all. **Phase 5 live validation is the only part of #84 outstanding**, and
+a first slice of it ran on 2026-09-12 (below).
+
+Two things that live testing turned up, neither of them defects on the #84
+list:
+
+- **A failed translation records nothing.** `trackFailedUsage` exists on
+  `AITranslationService` and passes `success: false`, but it has exactly one
+  reference in the codebase — its own definition. Nothing calls it. All 19
+  `UsageRecord` rows are `success = 1`, and a live Google failure (three
+  attempts, two backoffs, depleted prepay credits) left no trace outside
+  stdout. `LimitEnforcementService` already filters on `success: true`, so the
+  plumbing anticipates failures it has never received. Wiring it up would
+  change what a `UsageRecord` row means — rows would no longer all represent
+  spend — so it wants deciding rather than doing.
+- **The pre-flight estimate understates input by ~2.4x**, measured on two
+  providers, and the cause is a prompt mismatch rather than the tokenizer. See
+  the stale-list table in the refresh doc for the numbers.
 
 - Sampling parameters a model refuses (defect 5). Temperature and top-p reach
   a request from `SystemPrompt` as well as `AIConfiguration`, and the backend
