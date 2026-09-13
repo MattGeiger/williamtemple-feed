@@ -450,16 +450,15 @@ finished code:
   `__tests__/features/ai-config/catalogue.test.ts` fails if the frontend one
   reappears — written because the catalogue silently restated only 11 of the
   16 models the dialog offered until a drift test caught it.
-- **That consolidation is not finished, so do not read the rule above as a
-  description of the tree.** ISSUES.md #84 names other lists still carrying
-  model ids and 2024-era prices: `config/limits.ts`, `config/translation.ts`,
-  and `scripts/fix-ai-config-token-limits.ts`. Two named there earlier are
-  gone: `config/limits/index.ts` was an abandoned fork with no importers
-  rather than a list anyone could update, and `SERVICE_SPECIFICATIONS` is now
-  `SERVICE_COLORS` — one colour per provider and no model data at all, its
-  invented prices having been read by nothing. Never
-  add a model id, price, or language list anywhere new, and retire one of
-  those when work takes you through it. The single deliberate exception is
+- **That consolidation is now finished.** Every secondary list ISSUES.md #84
+  named has been retired: `config/limits.ts` keeps no model ids, rates or
+  daily table; `config/translation.ts` names no model; the token-limit fix-up
+  script reads the catalogue; `config/limits/index.ts` was an abandoned fork
+  with no importers and is deleted; `GOOGLE_MODEL_PRICING` was dead and is
+  deleted; and `SERVICE_SPECIFICATIONS` is now `SERVICE_COLORS`, one colour per
+  provider and no model data at all. The catalogue is the single source, and it
+  should stay that way: never add a model id, price, or language list anywhere
+  new. The single deliberate exception is
   `components/ai-configuration/service-endpoints.ts`: four stable service
   URLs, no model ids, prices or capabilities, needed because the Add dialog
   builds its initial state before any request has been made.

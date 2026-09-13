@@ -209,11 +209,13 @@ half:
   dialog says the same when a model is chosen. A frontier model warns what it
   costs (D1/D7). List and dialog read one module so they cannot drift apart.
 
-Still open from the list above: `config/limits.ts`, `config/translation.ts`
-and `scripts/fix-ai-config-token-limits.ts` all still name superseded models —
-though `config/limits/index.ts` has gone, being an unimported second copy
-rather than a list to correct, and `config/limits.ts` is now reached only as a
-fallback, since the wizard fills `tokensPerMinute` from the catalogue.
+Nothing from that list is still open. `config/limits.ts` has no
+`MODEL_DAILY_LIMITS`, `TOKEN_RATES` or `MODEL_NAME` left; `config/translation.ts`
+names no model; and `scripts/fix-ai-config-token-limits.ts` reads
+`findCatalogueEntry(...).maxOutputTokens` instead of a hardcoded table
+(`d203c77`). `config/limits/index.ts` was deleted earlier as an unimported
+second copy, and `SERVICE_SPECIFICATIONS` is now `SERVICE_COLORS` with no model
+data at all. **Phase 5 live validation is the only part of #84 outstanding.**
 
 - Sampling parameters a model refuses (defect 5). Temperature and top-p reach
   a request from `SystemPrompt` as well as `AIConfiguration`, and the backend
