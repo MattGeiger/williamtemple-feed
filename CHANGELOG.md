@@ -5,6 +5,65 @@ All notable changes to FEED are documented here. This project adheres to
 
 ## [Unreleased]
 
+## [1.8.0-beta.2] — 2026-09-12, authored; not yet deployed
+
+The catalogue introduced in beta.1 is now the thing FEED runs on, and the
+sweep it enabled found rather more than the stale model list it was opened
+for. Twenty-five commits; `docs/release-notes.md` describes what staff will
+notice, and ISSUES.md #84 records the defect list, now closed.
+
+### Added
+
+- **The 2026 model families**, and a way to withdraw a preset without lying
+  about it. `lifecycle.offered` is FEED's editorial choice and `status` is the
+  provider's reality; conflating them would have marked `gpt-5-mini-2025-08-07`
+  retired while production ran it successfully.
+- **Lifecycle and cost warnings** in the configuration list and the wizard,
+  reading one shared module so the two cannot drift into different phrasings.
+  Production's own row now reads `Ends 2026-12-11` beside `Active`.
+- **Per-model language coverage** in the catalogue, so an enabled language the
+  chosen model cannot serve is flagged where it is chosen rather than when a
+  translation fails. Provider claims are `supported`; `evaluated` is reserved
+  for a successful FEED probe.
+- **Save-time entitlement verification.** One real, minimal generation when a
+  configuration is saved or activated — the runtime keeps the free lookup.
+  This deliberately reinstates a billed call on a path that had none.
+
+### Fixed
+
+- **Recorded spend was wrong for Anthropic.** `totalCost` came from FEED's
+  tiktoken estimate while the provider's own counts sat twenty lines below,
+  and the batch and classification paths priced with a hardcoded `/ 1000000`
+  that ignored `unitPrice` — a `per_1k` configuration recorded a thousandth of
+  what it spent.
+- **Cost limits that could never fire.** A limit is measured against tokens ×
+  price, so an unpriced configuration recorded zero spend and no limit ever
+  tripped. The pair is now refused at the API; an unpriced configuration with
+  no limit remains legal.
+- **Throughput masquerading as a budget.** `tokensPerMinute × 1440` was
+  enforced and displayed as a daily token limit — 288 million a day for GPT-5
+  mini. TPM, RPM and RPD are provider rate allowances only.
+- **Invented dashboard figures.** Rate limits, response times and a week of
+  usage history were filled in when real values were unavailable, in one case
+  with `Math.random()`. Where a figure is unknown, FEED says so.
+- **A no-op ternary in four places** — `startsWith('gpt-') ? 'gpt-4o-mini' :
+  'gpt-4o-mini'` — plus a second of the same shape in the metrics route.
+- **Sampling parameters offered for models that reject them**, and a Types
+  filter on AI Configuration listing Translation Management's vocabulary.
+
+### Removed
+
+- Every secondary list carrying model ids: `config/limits/index.ts` (an
+  abandoned fork with no importers), `GOOGLE_MODEL_PRICING` (dead),
+  `SERVICE_SPECIFICATIONS` (now `SERVICE_COLORS`, holding one colour per
+  provider), and the hardcoded tables in `config/limits.ts` and
+  `config/translation.ts`.
+
+## [1.8.0-beta.1] — 2026-09-11, authored; not yet deployed
+
+Cut without a changelog entry at the time; what follows is the work it
+contained, filed under the version that shipped it rather than left unreleased.
+
 ### Added
 
 - **A server-authoritative model catalogue**, served from

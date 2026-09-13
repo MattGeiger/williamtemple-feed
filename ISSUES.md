@@ -1,6 +1,6 @@
 # FEED — Known Issues & Future Work
 
-**Last Updated**: September 11, 2026
+**Last Updated**: September 12, 2026
 **Status**: 1.7.5-rc.1 in production since 2026-09-05
 **Production**: https://feed.williamtemple.app — serving **1.7.5-rc.1**,
 deployed 2026-09-05 over 1.6.0 (which had run since 2026-08-24). Migration
