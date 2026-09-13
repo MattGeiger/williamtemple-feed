@@ -294,7 +294,29 @@ export class AnthropicTranslationService extends AITranslationService {
     }
 
     const model = this.getModel();
-    const inputMetrics = estimateInputTokensAndCost(request.text, request.targetLanguage, this.config);
+
+    // The estimate must measure the prompt that will actually be sent. This
+    // resolution used to sit inside the retry loop below, so the limit check
+    // ran on a hardcoded stand-in that understated input by 2.8x-3.5x against
+    // this deployment's own SystemPrompt rows (ISSUES.md #84).
+    // `getPromptConfiguration` wraps its own body and falls back to the
+    // default template, so hoisting it moves no error path.
+    const promptConfig = await PromptBuilder.getPromptConfiguration(
+      this.config,
+      'translation',
+      request.context
+    );
+    const systemPrompt = TemplateEngine.substituteVariables(
+      promptConfig.systemPrompt,
+      { targetLanguage, instructions: request.instructions }
+    );
+
+    const inputMetrics = estimateInputTokensAndCost(
+      request.text,
+      request.targetLanguage,
+      this.config,
+      systemPrompt
+    );
 
     const usageCheck = await limitEnforcement.checkTokenUsage(inputMetrics.tokenCount, this.config);
 
@@ -327,15 +349,7 @@ export class AnthropicTranslationService extends AITranslationService {
           
           const anthropic = await this.getAnthropicClient();
           
-          const promptConfig = await PromptBuilder.getPromptConfiguration(
-            this.config,
-            'translation',
-            request.context
-          );
-          const systemPrompt = TemplateEngine.substituteVariables(
-            promptConfig.systemPrompt,
-            { targetLanguage, instructions: request.instructions }
-          );
+          // Resolved above, before the limit check, and reused across retries.
           
           console.log('[Anthropic Service] Sending translation request with system prompt:', {
             model,

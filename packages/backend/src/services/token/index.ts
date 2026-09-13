@@ -16,9 +16,18 @@ import { AIConfiguration } from '@prisma/client';
  * `ENCODING_MODEL` for why that is deliberate and where it is wrong. This is
  * an estimate, used before a call is made; it is not what recorded spend is
  * priced from.
+ *
+ * Pass `systemPrompt` whenever the real one is available. Callers that omit it
+ * are measured against a stand-in sentence that understated this deployment's
+ * own prompts by 2.8x to 3.5x — see `approximateSystemPrompt`.
  */
-export function estimateInputTokensAndCost(text: string, targetLanguage: string, config: AIConfiguration): TokenMetrics {
-  return calculateInputMetrics(text, targetLanguage, config);
+export function estimateInputTokensAndCost(
+  text: string,
+  targetLanguage: string,
+  config: AIConfiguration,
+  systemPrompt?: string
+): TokenMetrics {
+  return calculateInputMetrics(text, targetLanguage, config, systemPrompt);
 }
 
 /**

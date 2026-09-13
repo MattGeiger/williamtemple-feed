@@ -8,6 +8,8 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import type { AIConfiguration } from '@prisma/client';
 
+import { estimateInputTokensAndCost } from '../../../token';
+
 let OpenAITranslationService: typeof import('../OpenAITranslationService').OpenAITranslationService;
 
 vi.mock('../../../limits', () => ({
@@ -234,5 +236,41 @@ describe('OpenAITranslationService thinking level', () => {
 
     const request = create.mock.calls[0][0];
     expect(request.reasoning_effort).toBeUndefined();
+  });
+
+  test('estimates against the prompt it is about to send', async () => {
+    // The estimate feeds the pre-flight limit check. It used to measure a
+    // hardcoded stand-in sentence while the real prompt was built further
+    // down, inside the retry loop — understating input by 2.8x to 3.5x
+    // against real SystemPrompt rows (ISSUES.md #84).
+    //
+    // This assertion guards the wiring rather than the arithmetic. Without it
+    // the hoist could be undone and every test in token/calculation would
+    // still pass, because the function would remain correct while nothing
+    // handed it the prompt any more.
+    const create = vi.fn().mockResolvedValue({
+      choices: [
+        {
+          finish_reason: 'stop',
+          message: { content: JSON.stringify({ translatedText: 'Hola' }) }
+        }
+      ],
+      usage: { prompt_tokens: 10, completion_tokens: 5 }
+    });
+    const service = new OpenAITranslationService(buildConfig()) as any;
+    vi.spyOn(service, 'getOpenAIClient').mockResolvedValue({
+      chat: { completions: { create } }
+    });
+    vi.mocked(estimateInputTokensAndCost).mockClear();
+
+    await service.translateText({ text: 'Hello', targetLanguage: 'Spanish' });
+
+    // 'system' is what the mocked TemplateEngine returns above.
+    expect(estimateInputTokensAndCost).toHaveBeenCalledWith(
+      'Hello',
+      'Spanish',
+      expect.anything(),
+      'system'
+    );
   });
 });
