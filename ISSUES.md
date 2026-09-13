@@ -148,6 +148,20 @@ half:
 - The Gemini thinking level now reaches the SDK (`bf3990b`), and Claude 5's
   sampling parameters and assistant prefill are handled (`314c04a`) — both
   measured against live APIs rather than read off a documentation page.
+- Throughput stopped masquerading as a budget (`d203c77`). `tokensPerMinute ×
+  1440` was being enforced and displayed as a daily token limit — 288 million
+  a day for GPT-5 mini. TPM, RPM and RPD are now provider rate allowances
+  only; daily enforcement happens where an explicit daily cost limit exists,
+  and nowhere else. The hard-coded one-million-token and daily-cost alerts
+  went with it.
+- Language coverage moved into the catalogue (`9fbee5c`), so the Languages page
+  and AI Configuration can warn when an enabled language is not served by the
+  chosen model, rather than letting the translation fail. Provider claims are
+  recorded as `supported`; `evaluated` is reserved for a real FEED probe.
+- Entitlement is verified when a model is saved or activated (`dfc6511`) — one
+  minimal real generation, at the moment the choice is made, with non-transient
+  refusals remembered briefly. The per-job path keeps the free lookup that
+  defect 7 introduced.
 - `catalogue.ts`, with lifecycle and capability data (`9e98ea2`); then the
   five models it had silently omitted — the whole gpt-4.1 and gpt-4o family —
   and a `gpt-4o` price that had been wrong since the day it was added:
