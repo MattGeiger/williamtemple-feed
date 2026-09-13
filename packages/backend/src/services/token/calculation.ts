@@ -40,6 +40,36 @@ import { encoding_for_model } from 'tiktoken';
 export const ENCODING_MODEL = 'gpt-4o-mini' as const;
 import prisma from '../../db';
 
+/**
+ * The stand-in prompt, for callers that cannot know the real one.
+ *
+ * Every translation is preceded by a limit check priced from an estimate, and
+ * that estimate used to measure *this sentence* — always, for every request —
+ * while the prompt actually sent was built further down by `PromptBuilder`
+ * from the active `SystemPrompt` row. The two had no relationship beyond
+ * resembling each other.
+ *
+ * Measured against this deployment's own rows, with a four-token input:
+ *
+ *   this sentence                          41 tokens
+ *   FOOD_TRANSLATION  "Food Items and…"   143 tokens   3.49x
+ *   BATCH_TRANSLATION "DOCX - Low Temp"   114 tokens   2.78x
+ *   CUSTOM_TRANSLATION (no row, defaults)  51 tokens   1.24x
+ *
+ * Note that the error is not a constant to be corrected with a factor: it
+ * scales with how much an administrator has written into the prompt row, so
+ * the only estimate that tracks it is the prompt itself. Callers that have the
+ * real prompt now pass it.
+ *
+ * This remains for the one caller that genuinely cannot: `rateLimiter` runs
+ * per-IP on ten import routes before any configuration is resolved, and only
+ * reads `.tokenCount` for throttling. A rough number is the right answer
+ * there, and it is honest about being one.
+ */
+export function approximateSystemPrompt(targetLanguage: string): string {
+  return `You are a translation service for a nonprofit food pantry. Translate to ${targetLanguage} using the closest natural equivalent. Your response must be a valid JSON string containing only a "translatedText" field.`;
+}
+
 export interface TokenMetrics {
   tokenCount: number;
   cost: number;
@@ -86,8 +116,11 @@ export function clearTokenCache(): void {
 /**
  * Create cache key for token calculations
  */
-function createCacheKey(text: string, language?: string, operation?: string): string {
-  const content = `${text}:${language || ''}:${operation || 'default'}`;
+function createCacheKey(text: string, language?: string, operation?: string, systemPrompt?: string): string {
+  // The prompt belongs in the key. Two configurations translating the same
+  // string to the same language now legitimately produce different counts,
+  // and without this the first one to run would answer for both.
+  const content = `${text}:${language || ''}:${operation || 'default'}:${systemPrompt || ''}`;
   // Use simple hash for cache key
   let hash = 0;
   for (let i = 0; i < content.length; i++) {
@@ -104,9 +137,10 @@ function createCacheKey(text: string, language?: string, operation?: string): st
 export function calculateInputMetrics(
   userText: string, 
   targetLanguage: string,
-  config: any
+  config: any,
+  systemPrompt?: string
 ): TokenMetrics {
-  const cacheKey = createCacheKey(userText, targetLanguage, 'input');
+  const cacheKey = createCacheKey(userText, targetLanguage, 'input', systemPrompt);
   const cached = tokenCache.get(cacheKey);
   const now = Date.now();
   
@@ -118,8 +152,16 @@ export function calculateInputMetrics(
     throw new Error('AI configuration required for token calculation.');
   }
 
-  // Skip token calculation for very small texts (optimization)
-  if (userText.length < 10) {
+  const promptText = systemPrompt ?? approximateSystemPrompt(targetLanguage);
+
+  // Skip token calculation for very small texts (optimization).
+  //
+  // The shortcut books the system prompt at a flat 50 tokens, which is only
+  // defensible while the prompt is a guess anyway. Once the caller has handed
+  // over the real one, approximating its size would throw away the entire
+  // point of passing it — a 143-token prompt would still be booked at 50 — so
+  // the shortcut now applies only to the callers that cannot supply it.
+  if (userText.length < 10 && systemPrompt === undefined) {
     const fallbackTokens = 5 + 50; // Small text + system prompt
     const inputCostPerToken = convertToPerTokenRate(config.inputCost || 0, config.unitPrice);
     const cost = fallbackTokens * inputCostPerToken;
@@ -138,9 +180,8 @@ export function calculateInputMetrics(
   try {
     const encoder = encoding_for_model(modelForEncoding);
     
-    // System prompt calculation
-    const systemPrompt = `You are a translation service for a nonprofit food pantry. Translate to ${targetLanguage} using the closest natural equivalent. Your response must be a valid JSON string containing only a "translatedText" field.`;
-    const systemTokenCount = encoder.encode(systemPrompt).length;
+    // The prompt that will actually be sent, when the caller knows it.
+    const systemTokenCount = encoder.encode(promptText).length;
     
     // User text calculation
     const userTokenCount = encoder.encode(userText).length;
@@ -163,8 +204,9 @@ export function calculateInputMetrics(
   } catch (error) {
     console.error('Token encoding error:', error);
     
-    // Fallback calculation
-    const roughTokens = Math.ceil(userText.length / 4) + 50; // ~4 chars per token + system prompt
+    // Fallback calculation: ~4 chars per token, over prompt and text alike,
+    // rather than a flat 50 for a prompt whose length we are holding.
+    const roughTokens = Math.ceil((promptText.length + userText.length) / 4);
     const inputCostPerToken = convertToPerTokenRate(config.inputCost || 0, config.unitPrice);
     const cost = roughTokens * inputCostPerToken;
     

@@ -9,6 +9,8 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
 import type { AIConfiguration } from '@prisma/client';
 import type { ThinkingConfig } from '@google/genai';
 
+import { estimateInputTokensAndCost } from '../../../token';
+
 let GoogleTranslationService: typeof import('../GoogleTranslationService').GoogleTranslationService;
 
 vi.mock('../../../limits', () => ({
@@ -244,5 +246,34 @@ describe('GoogleTranslationService thinking level', () => {
 
     const request = generateContent.mock.calls[0][0];
     expect(request.config.thinkingConfig).toBeUndefined();
+  });
+
+  test('estimates against the prompt it is about to send', async () => {
+    // The estimate feeds the pre-flight limit check. It used to measure a
+    // hardcoded stand-in sentence while the real prompt was built further
+    // down, inside the retry loop — understating input by 2.8x to 3.5x
+    // against real SystemPrompt rows (ISSUES.md #84).
+    //
+    // This guards the wiring, not the arithmetic. The prompt argument is
+    // optional, so dropping it here would still typecheck and every test in
+    // token/calculation would still pass.
+    const generateContent = vi.fn().mockResolvedValue({
+      text: JSON.stringify({ translatedText: 'Hola' })
+    });
+    const service = new GoogleTranslationService(buildConfig()) as any;
+    vi.spyOn(service, 'getGoogleClient').mockResolvedValue({
+      models: { generateContent }
+    });
+    vi.mocked(estimateInputTokensAndCost).mockClear();
+
+    await service.translateText({ text: 'Hello', targetLanguage: 'Spanish' });
+
+    // 'system' is what the mocked TemplateEngine returns above.
+    expect(estimateInputTokensAndCost).toHaveBeenCalledWith(
+      'Hello',
+      'Spanish',
+      expect.anything(),
+      'system'
+    );
   });
 });
