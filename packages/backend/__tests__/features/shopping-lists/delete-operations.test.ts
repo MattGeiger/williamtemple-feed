@@ -120,7 +120,6 @@ describe('Shopping Lists Delete Operations', () => {
     test('should handle active template with sections', async () => {
       const activeTemplateWithSections = {
         ...createMockTemplates(1)[0],
-        isActive: true,
         sections: [
           {
             id: 1,
@@ -374,7 +373,6 @@ describe('Shopping Lists Delete Operations', () => {
     test('should handle deletion during active template generation', async () => {
       const activeTemplate = {
         ...createMockTemplates(1)[0],
-        isActive: true,
         instances: [
           {
             id: 1,

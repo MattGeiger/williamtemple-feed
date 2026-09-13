@@ -103,10 +103,12 @@ describe('Shopping Lists Messaging Architecture Backend Validation', () => {
     test('successful bulk update returns updated templates without messaging', async () => {
       const testData = createBulkTestData(2);
       const idsToUpdate = testData.templates.map(t => t.id);
-      const updateData = { isActive: false };
+      // `layoutType` is a real column; this test previously updated `isActive`,
+      // which is not one, so its assertion only read back its own mock.
+      const updateData = { layoutType: 'split-page' };
 
       // Mock successful bulk update using transaction
-      const updatedTemplates = testData.templates.map(t => ({ ...t, isActive: false }));
+      const updatedTemplates = testData.templates.map(t => ({ ...t, ...updateData }));
       mockPrisma.$transaction.mockResolvedValue(updatedTemplates);
 
       const response = await request(app)
@@ -117,7 +119,7 @@ describe('Shopping Lists Messaging Architecture Backend Validation', () => {
       // Verify response contains data without premature messaging
       expect(response.body).toHaveProperty('templates');
       expect(response.body.templates).toHaveLength(2);
-      expect(response.body.templates[0].isActive).toBe(false);
+      expect(response.body.templates[0].layoutType).toBe('split-page');
       
       // Verify no premature success messaging in response
       expect(response.body).not.toHaveProperty('message');

@@ -113,7 +113,12 @@ describe('Shopping List Builder translation routes', () => {
     app.use((req, _res, next) => {
       // Matches the auth shape `getOwnerId` reads from in the route module
       // (see shopping-list-builder.test.ts for the established pattern).
-      (req as typeof req & { auth: { userId: string } }).auth = { userId: 'test-owner' };
+      req.auth = {
+        userId: 'test-owner',
+        email: 'test-owner@example.org',
+        role: 'STAFF',
+        accessState: 'ALLOWED',
+      };
       next();
     });
 

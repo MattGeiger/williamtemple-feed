@@ -408,12 +408,47 @@ export class OpenAITranslationService extends AITranslationService {
 
           console.log('Attempting to parse:', outputText);
           
-          const responseJson = JSON.parse(outputText);
-          
-          console.log('Parsed response:', responseJson);
+          let responseJson: any;
+          try {
+            responseJson = JSON.parse(outputText);
+            console.log('Parsed response:', responseJson);
 
-          if (!responseJson.translatedText) {
-            throw new Error('Response missing translatedText field');
+            if (!responseJson.translatedText) {
+              throw new Error('Response missing translatedText field');
+            }
+          } catch (unusable) {
+            // The provider answered, and billed for answering; FEED then could
+            // not use the reply. That spend is real and was recorded nowhere:
+            // `trackFailedUsage` existed with no callers, so every UsageRecord
+            // row was a success and a malformed reply cost money invisibly.
+            //
+            // Recorded from the provider's own counts, not an estimate. Parse
+            // and validation errors are not retryable (`isRetryableError`), so
+            // this writes one row per failed request, not one per attempt.
+            // `success: false`, so `LimitEnforcementService` -- which filters
+            // on `success: true` -- still excludes it from the cost limit.
+            // Whether billed-but-failed spend should count against that limit
+            // is a separate decision (ISSUES.md #84).
+            const failedOutput = estimateOutputTokensAndCost(outputText, this.config);
+            const failed = this.extractUsageMetrics(
+              completion,
+              inputMetrics.tokenCount,
+              failedOutput.tokenCount
+            );
+            const inRate = convertToPerTokenRate(this.config.inputCost || 0, this.config.unitPrice);
+            const outRate = convertToPerTokenRate(this.config.outputCost || 0, this.config.unitPrice);
+            await this.trackFailedUsage(
+              'translation',
+              {
+                promptTokens: failed.promptTokens,
+                completionTokens: failed.completionTokens,
+                totalCost: (failed.promptTokens * inRate) + (failed.completionTokens * outRate),
+                duration
+              },
+              model,
+              { language: targetLanguage }
+            );
+            throw unusable;
           }
 
           const outputMetrics = estimateOutputTokensAndCost(outputText, this.config);

@@ -13,7 +13,10 @@ export const createMockTemplate = (overrides: Partial<ShoppingListTemplate> = {}
   language: 'en',
   layoutType: 'full-page',
   paperSize: 'letter',
-  isActive: true,
+  // No `isActive` here: `ShoppingListTemplate` has never had that column. It
+  // is absent from the schema and from every migration, and neither
+  // shopping-list route reads or writes it. Tests that set it on this mock and
+  // asserted it back were asserting their own input.
   createdAt: new Date('2024-01-01'),
   updatedAt: new Date('2024-01-01'),
   ...overrides
@@ -39,8 +42,7 @@ export const createMockTemplates = (count: number): ShoppingListTemplate[] => {
     createMockTemplate({
       id: index + 1,
       name: `Template ${index + 1}`,
-      description: `Description for template ${index + 1}`,
-      isActive: index % 2 === 0 // Alternate active/inactive
+      description: `Description for template ${index + 1}`
     })
   );
 };
@@ -128,15 +130,18 @@ export const createBulkTestData = (count?: number) => {
   const templateCount = count || 4;
   const halfCount = Math.floor(templateCount / 2);
   
-  const activeTemplates = Array.from({ length: halfCount }, (_, index) => 
-    createMockTemplate({ id: index + 1, name: `Active Template ${index + 1}`, isActive: true })
+  // "Active" and "inactive" are vestigial names. Templates have no such state
+  // -- the column never existed -- so these are simply two disjoint groups,
+  // which is all their callers use them for: two sets of ids to update in
+  // bulk. The names are kept because tests refer to them.
+  const activeTemplates = Array.from({ length: halfCount }, (_, index) =>
+    createMockTemplate({ id: index + 1, name: `Active Template ${index + 1}` })
   );
-  
-  const inactiveTemplates = Array.from({ length: templateCount - halfCount }, (_, index) => 
-    createMockTemplate({ 
-      id: halfCount + index + 1, 
-      name: `Inactive Template ${index + 1}`, 
-      isActive: false 
+
+  const inactiveTemplates = Array.from({ length: templateCount - halfCount }, (_, index) =>
+    createMockTemplate({
+      id: halfCount + index + 1,
+      name: `Inactive Template ${index + 1}`
     })
   );
   

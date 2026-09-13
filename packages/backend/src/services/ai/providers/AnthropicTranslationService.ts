@@ -416,12 +416,45 @@ export class AnthropicTranslationService extends AITranslationService {
             console.error('Output text (with prefix):', outputText);
             console.error('Parse error:', parseError);
             console.error('==============================');
+            // Billed by the provider, unusable to FEED. Anthropic reports its
+            // own counts on the response, so this is recorded spend rather
+            // than an estimate. See OpenAITranslationService for the full
+            // reasoning; it stays `success: false` (ISSUES.md #84).
+            await this.trackFailedUsage(
+              'translation',
+              {
+                promptTokens: response.usage.input_tokens,
+                completionTokens: response.usage.output_tokens,
+                totalCost: this.recordedCost(
+                  response.usage.input_tokens,
+                  response.usage.output_tokens
+                ),
+                duration
+              },
+              model,
+              { language: targetLanguage }
+            );
             throw parseError;
           }
           
           console.log('Parsed response:', responseJson);
 
           if (!responseJson.translatedText) {
+            // Parsed, but not a translation. Billed all the same.
+            await this.trackFailedUsage(
+              'translation',
+              {
+                promptTokens: response.usage.input_tokens,
+                completionTokens: response.usage.output_tokens,
+                totalCost: this.recordedCost(
+                  response.usage.input_tokens,
+                  response.usage.output_tokens
+                ),
+                duration
+              },
+              model,
+              { language: targetLanguage }
+            );
             throw new Error('Response missing translatedText field');
           }
 

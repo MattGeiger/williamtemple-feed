@@ -23,7 +23,6 @@ import {
   CHROMATIC_FAMILIES,
 } from '../validate';
 import { NEUTRAL_FAMILIES } from '../palettes';
-import { NEUTRAL_FAMILIES } from '../palettes';
 
 describe('the configurable theme space', () => {
   it('is finite and fully enumerated', () => {

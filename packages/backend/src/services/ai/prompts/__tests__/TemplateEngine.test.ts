@@ -8,7 +8,12 @@
 import { describe, expect, test } from 'vitest';
 
 import { TemplateEngine, PromptTemplate, ValidationResult } from '../TemplateEngine';
-import { SystemPrompt, PromptType } from '@prisma/client';
+import { SystemPrompt } from '@prisma/client';
+
+// `promptType` is a plain `String` column -- Prisma exports no `PromptType`,
+// and `TemplateEngine` declares `type PromptType = string` locally for the
+// same reason. This file imported the non-existent Prisma type.
+type PromptType = string;
 
 describe('TemplateEngine Phase 4 Validation', () => {
   // Mock SystemPrompt data for testing
@@ -18,6 +23,7 @@ describe('TemplateEngine Phase 4 Validation', () => {
     promptType: 'CUSTOM_TRANSLATION' as PromptType,
     isActive: true,
     isDefault: false,
+    description: null,
     serviceDescription: 'Custom translation service',
     translationApproach: 'accurate and contextual translation',
     contextGuidance: 'Focus on food pantry terminology',
@@ -26,6 +32,12 @@ describe('TemplateEngine Phase 4 Validation', () => {
     includeEnglish: 'Technical terms and brand names',
     skipTranslationThreshold: 0.7,
     includeEnglishThreshold: 0.7,
+    // `temperature` and `topP` are the fields with teeth: PromptBuilder
+    // resolves both *from the SystemPrompt row*, overriding AIConfiguration.
+    // A fixture missing them cannot catch a regression in that resolution.
+    temperature: 0.7,
+    topP: 1.0,
+    rememberFormattingChoices: true,
     createdAt: new Date(),
     updatedAt: new Date()
   };
@@ -337,6 +349,7 @@ describe('TemplateEngine Phase 4 Validation', () => {
         promptType: 'FOOD_TRANSLATION' as PromptType,
         isActive: true,
         isDefault: false,
+        description: null,
         serviceDescription: 'Existing service description',
         translationApproach: 'existing approach',
         contextGuidance: 'existing guidance',
@@ -345,6 +358,9 @@ describe('TemplateEngine Phase 4 Validation', () => {
         includeEnglish: null,
         skipTranslationThreshold: 0.8,
         includeEnglishThreshold: 0.6,
+        temperature: 0.7,
+        topP: 1.0,
+        rememberFormattingChoices: true,
         createdAt: new Date('2024-01-01'),
         updatedAt: new Date('2024-01-01')
       };
