@@ -1081,8 +1081,16 @@ only (a few cents).
      third provider.
    - **The corrected pre-flight estimate holds on Google**: 143 estimated
      against Google's 146 reported, **-2%**, where the stand-in it replaced
-     would have said 41 (-72%). OpenAI and Anthropic measured 39-vs-95 and
-     39-vs-93 before the fix, so all three providers now agree.
+     would have said 41 (-72%).
+
+     This entry first read "so all three providers now agree". **That was an
+     overclaim** and is withdrawn: it rested on the pre-fix 39-vs-95 and
+     39-vs-93 pairs, which were taken under a different prompt context and are
+     not comparable. Measured properly against one 143-token estimate later
+     the same day, the providers do not agree at all — Google -2%, Claude 4.5
+     -12%, OpenAI -24%, Claude 5 -42%. The prompt-mismatch defect is fixed;
+     what remains is per-provider tokenization and request framing, which is a
+     separate and unfixed thing. See the note above `ENCODING_MODEL`.
    - Recorded cost is priced from Google's reported tokens, as it already was
      for OpenAI and Anthropic.
    - **`gemini-3.1-pro-preview` costs ~40x `gemini-3.5-flash-lite`** for the
@@ -1097,10 +1105,26 @@ only (a few cents).
      all providers, so the four models are not individually reachable through
      FEED itself (ISSUES.md #84).
 
+   **A third slice, the same day**, closed the per-model gap: the six
+   configurations never exercised — `claude-haiku-4-5` and the five that were
+   inactive — were driven directly, one tiny translation each, about $0.05 in
+   total.
+
+   - **All twelve live configurations now translate correctly.** Every
+     catalogued 2026 model has answered a real FEED request.
+   - **`claude-fable-5-1` accepted `output_config.effort` with no 400.** This
+     is the first live confirmation of the adaptive-thinking path: Fable is the
+     one model that refuses `thinking: {type: 'disabled'}`, and until now that
+     branch was exercised only against fixtures.
+   - **`gpt-6-astra` is a real, working id**, not an aspirational catalogue
+     entry.
+   - The estimate spread above (Google -2% through Claude 5 -42%) comes from
+     this slice: one prompt, six models, each provider's own count.
+
    Not yet covered: the seven request types, the `busy` and `unavailable`
    classifications, the batch and document paths, and anything beyond one
-   string per model. Google now has all four presets covered; OpenAI and
-   Anthropic remain at one model apiece.
+   string per model. Per-model coverage is now complete for all three
+   providers; per-*request-type* coverage remains at one.
 7. **Phase 6 — Local model: shelved** (D16). What reviving it needs is listed
    in the companion document.
 

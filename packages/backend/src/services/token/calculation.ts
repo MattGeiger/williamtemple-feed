@@ -27,11 +27,25 @@ import { encoding_for_model } from 'tiktoken';
  * `o200k_base`, which is also the correct encoding for the GPT-5 family FEED
  * actually runs.
  *
- * What it is not good for is Anthropic: its current tokenizer counts roughly
- * 30% more tokens for the same text (see
- * docs/ai-config/model-catalogue-refresh-2026-09.md). That bias survives here
- * deliberately — correcting it needs a factor measured per provider, and
- * inventing one would swap a knowable error for a fabricated one.
+ * This comment used to say the bias was Anthropic's, at roughly 30%, citing
+ * documentation. Measured on 2026-09-13 — one prompt of 143 estimated tokens,
+ * sent to six models, each provider's own reported count:
+ *
+ *   Google   gemini-3.x            146   -2%
+ *   Anthropic claude-haiku-4.5     163  -12%
+ *   OpenAI   gpt-5.6 / gpt-6       189  -24%
+ *   Anthropic claude-opus-5 / fable 245  -42%
+ *
+ * So the old figure was too high for one Claude generation and less than half
+ * the truth for the other. More to the point, OpenAI is 24% low — and this
+ * *is* OpenAI's tokenizer, so most of that gap cannot be encoding at all. It
+ * is request framing: role markers, message structure and per-model overhead
+ * the provider counts and a bare `encode()` of the prompt text does not.
+ *
+ * The estimate is therefore closest for the provider whose tokenizer it does
+ * not model (Google) and furthest for the newest Claude models. No single
+ * factor corrects that, which is why none is applied: a fabricated constant
+ * would replace a knowable error with an invented one.
  *
  * The bias is confined to *estimates*: pre-flight limit checks and the cost
  * forecast. Every provider returns authoritative counts alongside its
