@@ -222,7 +222,9 @@ last of which closed the per-model gap (below).
 Six things this work turned up, none of them defects on the #84 list. Some
 came from live testing against the providers, one from reconciling the usage
 dashboard against the database, and two from typechecking the test suite,
-which had never been done:
+which had never been done. **Five are now fixed.** The sixth — the factory
+resolving a single configuration for every provider — is an architectural
+choice rather than a defect, and is described last:
 
 - **A failed translation recorded nothing** (fixed, `181d917`).
   `trackFailedUsage` existed on `AITranslationService` with exactly one
@@ -242,16 +244,25 @@ which had never been done:
   cost limit. Whether it should is a separate decision, and recording it first
   is what makes that decision answerable — until now nobody could size the
   problem, because the rows did not exist.
-- **The usage dashboard counts deleted configurations.** Not fixed.
-  `routes/projections/multi-service-metrics/index.ts:39` selects
+- **The usage dashboard counted deleted configurations** (fixed, `6afb4cc`).
+  `routes/projections/multi-service-metrics/index.ts` selects
   `findMany({ where: { type: 'apikey' } })` with no `deletedAt` filter — no
-  route under `projections/` has one — and the breakdown labels each row by
+  route under `projections/` has one — and the breakdown labelled each row by
   `isActive`. Two soft-deleted configurations here carry `isActive = 1`, so
-  they render with no "(Inactive)" marker, indistinguishable from live rows;
-  one of them is a zero-usage duplicate of a live model id. Excluding deleted
-  rows outright would be wrong — one carries 1,236 tokens of genuine
-  production history, and dropping it would make past spend vanish — so the
-  fix is to mark them as deleted, not to hide them.
+  they rendered with no "(Inactive)" marker, indistinguishable from live rows;
+  one of them is a zero-usage duplicate of a live model id.
+
+  Excluding deleted rows outright would have been wrong — one carries 1,236
+  tokens of genuine production history, and dropping it would both make past
+  spend vanish and leave the row disagreeing with the month's total it is
+  still inside. So they are marked, not hidden: the endpoint now sends
+  `deletedAt` and the dashboard labels those rows "(Deleted)", which takes
+  precedence over "(Inactive)" at all three label sites.
+
+  Writing the fix turned up a second consequence of the same flag. The
+  frontend picked the active configuration with `find(c => c.isActive)`, and
+  since deletion leaves `isActive` untouched, a deleted row sorting first was
+  reported as the one in use. It now has to be undeleted as well.
 - **Three tests that could not fail**, found while typechecking the suite for
   the first time (all fixed in `181d917`). Twenty-one assertions on a
   `ShoppingListTemplate.isActive` column that has never existed in any
@@ -272,16 +283,39 @@ which had never been done:
   constant to be corrected with a factor: it scales with how much an
   administrator has written into the prompt row, which is why the fix passes
   the prompt itself rather than a better guess.
-- **The limit check double-counts the system prompt.** Not fixed, and its own
-  slice. `LimitEnforcementService.calculateCost` receives the input estimate —
-  prompt and user text together — then treats it as a grand total: halves it,
-  and adds a hardcoded `SYSTEM_PROMPT_TOKENS = 61` for a prompt already in the
+- **The limit check double-counted the system prompt** (fixed, `497c652`).
+  `LimitEnforcementService.calculateCost` received the input estimate — prompt
+  and user text together — then treated it as a grand total: halved it, and
+  added a hardcoded `SYSTEM_PROMPT_TOKENS = 61` for a prompt already in the
   number. With the two `+ 50` fallbacks in `calculation.ts`, the system prompt
-  is now estimated in three places and counted twice in the one that decides
-  whether to block a translation. It errs high, which is the safe direction
-  for a spend cap, so this is not urgent — but correcting it changes what
-  stops a translation and rewrites ~20 existing `checkTokenUsage` tests, so it
-  wants doing deliberately rather than as a rider on the estimate fix.
+  was estimated in three places and counted twice in the one that decides
+  whether to block a translation.
+
+  **Two things this entry got wrong, both found by doing the work.**
+
+  It said the error "errs high, which is the safe direction for a spend cap,
+  so this is not urgent". That holds only below 122 input tokens, which is
+  where `61 + 0.5t` crosses `t`. This deployment's prompts are 143 tokens for
+  `Food Items and Categories` and 114 for `DOCX - Low Temp`, so in real use
+  the estimate errs **low** — the unsafe direction — and the two faults were
+  partly cancelling each other rather than compounding. For 143 tokens the
+  pair returned 132.5 against a true 143: close enough to look deliberate,
+  reached by accident.
+
+  It also predicted rewriting "~20 existing `checkTokenUsage` tests". One test
+  needed it. That one asserted `((61 + tokens * 0.5) * rate)` — the
+  implementation line for line, so it would have passed for any constant —
+  and is now written to state intent. The other 19 never encoded the
+  arithmetic and were indifferent to the change.
+
+  Input is now priced whole. Output stays at half of input deliberately: the
+  obvious replacement, `estimateOutputMetrics` at 1.5x the *user text*, books
+  about six tokens for a three-word pantry item, while
+  `gemini-3.1-pro-preview` was measured returning 262 completion tokens for
+  exactly that. Trading a conservative ratio for a confident underestimate
+  would leave the limit protecting less than it does now, so the ratio holds
+  until output is measured per model. Two new guards fail against the old
+  arithmetic (verified at 3 failed / 17 passed with it restored).
 - **Six active configurations, one reachable model.** All three translation
   call sites — `translations.ts:323`, `translations.ts:516` and
   `translation-trigger.ts:231` — call `AIServiceFactory.createService()` with
