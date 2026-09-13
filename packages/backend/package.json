@@ -17,6 +17,7 @@
     "seed:languages": "ts-node scripts/seed-languages.ts",
     "test:bulk-retry": "ts-node scripts/test-bulk-retry.ts",
     "measure:builder-translation-heights": "ts-node scripts/measure-builder-translation-heights.ts",
+    "smoke:live": "ts-node scripts/live-smoke.ts",
     "admin:list": "ts-node src/cli/admin.ts list",
     "admin:grant": "ts-node src/cli/admin.ts grant",
     "admin:revoke": "ts-node src/cli/admin.ts revoke",
