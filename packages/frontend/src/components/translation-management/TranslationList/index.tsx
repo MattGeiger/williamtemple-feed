@@ -45,19 +45,40 @@ interface TranslationListProps {
 // 'Generated (List)' added for the Shopping List Builder's render-time
 // translation cache. Same UX as 'Generated' / 'Custom' rows -- staff can
 // curate / edit / delete via this list.
+//
+// Every type here must have a checkbox in TRANSLATION_TYPE_OPTIONS below: this
+// is the initial selection, and the filter's empty-selection fallback restores
+// the *options*, so a type present here but absent there disappears the first
+// time someone unticks everything.
 const TRANSLATION_TYPES: TranslationType[] = ['Category', 'FoodItem', 'Custom', 'Generated', 'Generated (List)']
 
 /**
- * The filter's checkboxes, previously hardcoded inside the shared component.
- * These are exactly the four it rendered, so this page is unchanged — note
- * that 'Generated (List)' is deliberately absent, matching today's behaviour
- * rather than quietly altering a page this change is not about.
+ * The filter's checkboxes — one per type this page can hold.
+ *
+ * These were the four hardcoded inside the shared `TypeFilter`, carried over
+ * unchanged when that list moved out here, so that a fix to AI Configuration's
+ * dropdown would not quietly alter this page. That caution has served its
+ * purpose and the omission is now the bug: `TRANSLATION_TYPES` above declares
+ * five, and its comment says staff should be able to curate, edit and delete
+ * Shopping List rows from this list.
+ *
+ * Missing the fifth did more than hide a checkbox. `toggleType` restores
+ * `options.map(o => o.value)` when the last box is unticked, so a full untick
+ * reset the selection to these four and dropped every 'Generated (List)' row —
+ * 170 of them in a local database, the second-largest type — with no control
+ * left on screen to bring them back.
+ *
+ * The label is the one the Find Missing dialog and the backend's own message
+ * already use. The Type column still prints the raw `Generated (List)`,
+ * because `columns.tsx` maps only `FoodItem` and `Generated`; that is a
+ * separate inconsistency, not this page's to fix here.
  */
 const TRANSLATION_TYPE_OPTIONS: readonly TypeFilterOption<TranslationType>[] = [
   { value: 'Category', label: 'Category' },
   { value: 'FoodItem', label: 'Food Item' },
   { value: 'Custom', label: 'Custom' },
-  { value: 'Generated', label: 'Generated (Document)' }
+  { value: 'Generated', label: 'Generated (Document)' },
+  { value: 'Generated (List)', label: 'Generated (Shopping List)' }
 ]
 
 export function TranslationList({
