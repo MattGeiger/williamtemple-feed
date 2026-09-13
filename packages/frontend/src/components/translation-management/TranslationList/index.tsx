@@ -73,7 +73,7 @@ const TRANSLATION_TYPES: TranslationType[] = ['Category', 'FoodItem', 'Custom', 
  * because `columns.tsx` maps only `FoodItem` and `Generated`; that is a
  * separate inconsistency, not this page's to fix here.
  */
-const TRANSLATION_TYPE_OPTIONS: readonly TypeFilterOption<TranslationType>[] = [
+export const TRANSLATION_TYPE_OPTIONS: readonly TypeFilterOption<TranslationType>[] = [
   { value: 'Category', label: 'Category' },
   { value: 'FoodItem', label: 'Food Item' },
   { value: 'Custom', label: 'Custom' },

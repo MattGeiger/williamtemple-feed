@@ -120,10 +120,17 @@ export const columns = ({ onEdit, onDelete, onRetry, onToggleOriginal, capabilit
     ),
     cell: ({ row }) => {
       const type = row.getValue("type") as string
-      // Format type for display - convert camelCase to Title Case with spaces
+      // Format type for display - convert camelCase to Title Case with spaces.
+      //
+      // 'Generated (List)' had no mapping, so it printed its stored value while
+      // the Types filter, the Find Missing dialog and the backend's own
+      // "no queueable translations" message all called the same rows
+      // 'Generated (Shopping List)'. Three surfaces agreeing and the table
+      // disagreeing reads as two different kinds of row.
       let displayType = type
       if (type === 'FoodItem') displayType = 'Food Item'
       if (type === 'Generated') displayType = 'Generated (Document)'
+      if (type === 'Generated (List)') displayType = 'Generated (Shopping List)'
       return displayType
     }
   },
