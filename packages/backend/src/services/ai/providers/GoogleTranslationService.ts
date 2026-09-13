@@ -311,12 +311,38 @@ export class GoogleTranslationService extends AITranslationService {
 
           console.log('Attempting to parse:', outputText);
           
-          const responseJson = JSON.parse(outputText);
-          
-          console.log('Parsed response:', responseJson);
+          let responseJson: any;
+          try {
+            responseJson = JSON.parse(outputText);
+            console.log('Parsed response:', responseJson);
 
-          if (!responseJson.translatedText) {
-            throw new Error('Response missing translatedText field');
+            if (!responseJson.translatedText) {
+              throw new Error('Response missing translatedText field');
+            }
+          } catch (unusable) {
+            // Billed by the provider, unusable to FEED. See the equivalent
+            // block in OpenAITranslationService for why this is recorded and
+            // why it stays `success: false` (ISSUES.md #84).
+            const failedOutput = estimateOutputTokensAndCost(outputText, this.config);
+            const failed = this.extractUsageMetrics(
+              response,
+              inputMetrics.tokenCount,
+              failedOutput.tokenCount
+            );
+            const inRate = convertToPerTokenRate(this.config.inputCost || 0, this.config.unitPrice);
+            const outRate = convertToPerTokenRate(this.config.outputCost || 0, this.config.unitPrice);
+            await this.trackFailedUsage(
+              'translation',
+              {
+                promptTokens: failed.promptTokens,
+                completionTokens: failed.completionTokens,
+                totalCost: (failed.promptTokens * inRate) + (failed.completionTokens * outRate),
+                duration
+              },
+              model,
+              { language: targetLanguage }
+            );
+            throw unusable;
           }
 
           const outputMetrics = estimateOutputTokensAndCost(outputText, this.config);

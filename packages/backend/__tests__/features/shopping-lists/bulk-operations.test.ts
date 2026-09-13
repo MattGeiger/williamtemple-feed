@@ -188,8 +188,8 @@ describe('Shopping Lists Bulk Operations', () => {
       const testData = createBulkTestData();
       const idsToUpdate = [1, 2];
       const existingTemplates = testData.mixedTemplates.slice(0, 2);
-      const updates = { isActive: true, layoutType: 'split-page' as const };
-      
+      const updates = { layoutType: 'split-page' as const };
+
       const updatedTemplates = existingTemplates.map(t => ({ ...t, ...updates }));
       setupBulkUpdateTest(mockPrisma, existingTemplates, updatedTemplates);
 
@@ -202,7 +202,6 @@ describe('Shopping Lists Bulk Operations', () => {
         templates: expect.arrayContaining(
           updatedTemplates.map(t => expect.objectContaining({
             id: t.id,
-            isActive: true,
             layoutType: 'split-page'
           }))
         )
@@ -297,7 +296,7 @@ describe('Shopping Lists Bulk Operations', () => {
         .put('/api/shopping-lists/templates/bulk')
         .send({ 
           ids: idsToUpdate, 
-          updates: { isActive: false }
+          updates: { layoutType: 'split-page' }
         })
         .expect(404);
 
@@ -308,32 +307,18 @@ describe('Shopping Lists Bulk Operations', () => {
       });
     });
 
-    test('should update only isActive status', async () => {
-      const testData = createBulkTestData();
-      const idsToUpdate = testData.activeIds;
-      const existingTemplates = testData.activeTemplates;
-      const updates = { isActive: false };
-      
-      const updatedTemplates = existingTemplates.map(t => ({ ...t, isActive: false }));
-      setupBulkUpdateTest(mockPrisma, existingTemplates, updatedTemplates);
-
-      const response = await request(app)
-        .put('/api/shopping-lists/templates/bulk')
-        .send({ ids: idsToUpdate, updates })
-        .expect(200);
-
-      expect(response.body.templates).toHaveLength(idsToUpdate.length);
-      response.body.templates.forEach((template: any) => {
-        expect(template.isActive).toBe(false);
-      });
-    });
+    // Removed: 'should update only isActive status'. `ShoppingListTemplate`
+    // has no `isActive` column -- it appears in no migration, and neither
+    // shopping-list route reads or writes it. The test set the field on its
+    // own mock, had the mock hand it back, and asserted it: it could not fail.
+    // Single-field bulk update is still covered by the `layoutType` cases
+    // above and below, against a column that exists.
 
     test('should update multiple fields simultaneously', async () => {
       const testData = createBulkTestData();
       const idsToUpdate = [1, 2];
       const existingTemplates = testData.mixedTemplates.slice(0, 2);
-      const updates = { 
-        isActive: true, 
+      const updates = {
         layoutType: 'grid-2x3' as const,
         paperSize: 'legal' as const,
         description: 'Bulk updated description'
@@ -348,7 +333,6 @@ describe('Shopping Lists Bulk Operations', () => {
         .expect(200);
 
       response.body.templates.forEach((template: any) => {
-        expect(template.isActive).toBe(true);
         expect(template.layoutType).toBe('grid-2x3');
         expect(template.paperSize).toBe('legal');
         expect(template.description).toBe('Bulk updated description');
@@ -368,7 +352,7 @@ describe('Shopping Lists Bulk Operations', () => {
         .put('/api/shopping-lists/templates/bulk')
         .send({ 
           ids: idsToUpdate, 
-          updates: { isActive: false }
+          updates: { layoutType: 'split-page' }
         })
         .expect(409);
 
@@ -408,9 +392,9 @@ describe('Shopping Lists Bulk Operations', () => {
 
       const response = await request(app)
         .put('/api/shopping-lists/templates/bulk')
-        .send({ 
-          ids: idsToUpdate, 
-          updates: { isActive: false }
+        .send({
+          ids: idsToUpdate,
+          updates: { layoutType: 'split-page' }
         })
         .expect(404);
 
@@ -468,7 +452,7 @@ describe('Shopping Lists Bulk Operations', () => {
     test('should handle large batch updates efficiently', async () => {
       const largeTemplateSet = createMockTemplates(50);
       const idsToUpdate = largeTemplateSet.map(t => t.id);
-      const updates = { isActive: false };
+      const updates = { layoutType: 'split-page' };
       
       const updatedTemplates = largeTemplateSet.map(t => ({ ...t, ...updates }));
       // Only setup transaction mock for bulk update

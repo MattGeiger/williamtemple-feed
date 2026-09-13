@@ -50,6 +50,9 @@ const { mockDb } = vi.hoisted(() => {
       },
       update: async ({ where, data }: any) => {
         const row = state.users.find(u => u.id === where.id);
+        // Throw rather than assert non-null: a mock quietly assigning onto
+        // `undefined` would fail somewhere far from the cause.
+        if (!row) throw new Error(`mock update: no user ${where.id}`);
         Object.assign(row, data);
         return row;
       },
@@ -324,7 +327,7 @@ describe('roster guards', () => {
       RosterService.setRole(ADMIN.id, 'STAFF', ACTOR)
     ).rejects.toThrow(/no administrator/i);
 
-    expect(mockDb.state.users.find(u => u.id === ADMIN.id).role).toBe(
+    expect(mockDb.state.users.find(u => u.id === ADMIN.id)?.role).toBe(
       'ADMINISTRATOR'
     );
   });

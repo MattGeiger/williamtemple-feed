@@ -75,13 +75,25 @@ describe('the v1.7.5 serializer', () => {
 
   it('keeps percentage lightness numerically equal to the token map', () => {
     const css = serializeOklch(theme);
-    for (const [token, value] of Object.entries(theme)) {
+    // This loop asserted nothing until now. `TokenMap` is
+    // `Record<ThemeScope, Record<BrandToken, Oklch>>` -- two levels -- so
+    // `Object.entries(theme)` yielded ['light', {...}] and ['dark', {...}],
+    // binding `token` to the *scope* names. The regex then looked for
+    // `--light:` and `--dark:`, which the serializer never emits, so the
+    // `continue` below fired on both iterations and the expect never ran. The
+    // stale `value as { l: number }` cast was what hid it: the entry value was
+    // a whole token map, not an Oklch.
+    //
+    // `exec` finds the first match, which is the `:root, .light` block, so the
+    // light scope is the one being checked.
+    for (const token of BRAND_TOKENS) {
+      const value = theme.light[token];
       const hit = new RegExp(`--${token}:\\s*oklch\\(([\\d.]+)%`).exec(css);
       if (!hit) continue;
       // 44.8% is the same colour as 0.448 — the conversion must be exact to
       // the emitted precision, not merely close.
       expect(Number(hit[1]) / 100).toBeCloseTo(
-        Number((value as { l: number }).l.toFixed(4)),
+        Number(value.l.toFixed(4)),
         3
       );
     }

@@ -84,7 +84,12 @@ describe('LimitEnforcementService cost limits', () => {
 
   test('throws when model configuration is missing', async () => {
     const service = LimitEnforcementService.getInstance();
-    await expect(service.checkTokenUsage(10, { id: undefined } as AIConfiguration)).rejects.toThrow(
+    // Deliberately invalid: the guard under test is `!config.model ||
+    // !config.id`, so the whole point is a configuration that is not one.
+    // `as unknown as` rather than filling the fixture in, which would remove
+    // the condition being tested.
+    const notAConfiguration = { id: undefined } as unknown as AIConfiguration;
+    await expect(service.checkTokenUsage(10, notAConfiguration)).rejects.toThrow(
       'Model configuration required for limit enforcement.'
     );
   });

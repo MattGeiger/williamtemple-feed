@@ -172,7 +172,9 @@ describe('every declared dependency is a real one', () => {
 
 describe('the units and the backup contract agree', () => {
   test('every table a unit restores is carried by the artifact', () => {
-    const included = new Set(INCLUDED_TABLES);
+    // `new Set(INCLUDED_TABLES)` infers the literal union, so `.has()` refuses
+    // the plain strings the units carry. The check is membership, not identity.
+    const included = new Set<string>(INCLUDED_TABLES);
     const missing = RESTORE_UNITS.flatMap(u =>
       u.tables.filter(t => !included.has(t)).map(t => `${u.id} restores '${t}', which the backup does not carry`)
     );

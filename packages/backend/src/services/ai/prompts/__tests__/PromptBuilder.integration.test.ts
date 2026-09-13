@@ -8,7 +8,11 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { PromptBuilder } from '../PromptBuilder';
 import { TemplateEngine } from '../TemplateEngine';
-import { AIConfiguration, SystemPrompt, PromptType, PrismaClient } from '@prisma/client';
+import { AIConfiguration, SystemPrompt, PrismaClient } from '@prisma/client';
+
+// `promptType` is a plain `String` column -- Prisma exports no `PromptType`.
+// `TemplateEngine` declares the same local alias for the same reason.
+type PromptType = string;
 
 const mockPrisma = vi.hoisted(() => ({
   systemPrompt: {
@@ -27,22 +31,26 @@ describe('PromptBuilder Integration Validation', () => {
     model: 'gpt-4',
     modelName: 'GPT-4',
     value: '',
+    description: null,
     isActive: true,
-    isDefault: false,
     encryptedApiKey: 'encrypted_key',
     salt: 'salt',
     endpointUrl: 'https://api.openai.com/v1',
     temperature: 0.7,
     topP: 1.0,
+    thinkingLevel: null,
     inputCost: 0.03,
     outputCost: 0.06,
     unitPrice: 'per_1k',
     inputTokenLimit: 8000,
     outputTokenLimit: 4000,
+    dailyCostLimit: null,
+    monthlyCostLimit: null,
     tokensPerMinute: 30000,
     requestsPerMinute: 500,
     requestsPerDay: 10000,
     maxTokens: 4096,
+    deletedAt: null,
     createdAt: new Date(),
     updatedAt: new Date()
   };
@@ -53,6 +61,7 @@ describe('PromptBuilder Integration Validation', () => {
     promptType: 'CUSTOM_TRANSLATION' as PromptType,
     isActive: true,
     isDefault: false,
+    description: null,
     serviceDescription: 'Professional translation service',
     translationApproach: 'contextually accurate translation',
     contextGuidance: 'Maintain cultural sensitivity',
@@ -61,6 +70,13 @@ describe('PromptBuilder Integration Validation', () => {
     includeEnglish: 'Brand names',
     skipTranslationThreshold: 0.7,
     includeEnglishThreshold: 0.7,
+    // The fields with teeth. `getPromptConfiguration` resolves temperature and
+    // top-p from the SystemPrompt row in preference to AIConfiguration, and
+    // this file is the test of that resolution -- with them absent from the
+    // fixture it could not have caught a regression in it.
+    temperature: 0.7,
+    topP: 1.0,
+    rememberFormattingChoices: true,
     createdAt: new Date(),
     updatedAt: new Date()
   };

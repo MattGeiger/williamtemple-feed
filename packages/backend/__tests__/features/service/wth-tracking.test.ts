@@ -220,10 +220,10 @@ describe('WTH Tracking long-form adapter', () => {
 
   test('rejects duplicate metric/day observations instead of choosing row order', async () => {
     await expect(parseFixture(csv([row(), row({ 'Source Cell': 'J3' })])))
-      .rejects.toMatchObject<WthTrackingImportError>({
+      .rejects.toMatchObject({
         code: 'DUPLICATE_WTH_TRACKING_OBSERVATION',
         rowNumber: 3,
-      });
+      } satisfies Partial<WthTrackingImportError>);
   });
 
   test('rejects a changed metric contract and unsupported schema version', async () => {

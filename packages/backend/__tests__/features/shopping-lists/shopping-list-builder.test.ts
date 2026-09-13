@@ -135,7 +135,12 @@ describe('Shopping List Builder API', () => {
     app = express();
     app.use(express.json());
     app.use((req, _res, next) => {
-      (req as typeof req & { auth: { userId: string } }).auth = { userId: 'test-owner' };
+      req.auth = {
+        userId: 'test-owner',
+        email: 'test-owner@example.org',
+        role: 'STAFF',
+        accessState: 'ALLOWED',
+      };
       next();
     });
 
@@ -771,11 +776,15 @@ describe('Shopping List Builder API', () => {
       // Freeform: legacy planner that respects component.y for first placement.
       // The new Guided planner ignores user.y for flowing tables, so this test
       // is pinned to Freeform to keep verifying the legacy behavior.
-      layoutMode: 'freeform',
-      bodyLayoutMode: 'split',
+      // `as const` on each: these are optional literal-union fields on
+      // `ShoppingListBuilderTemplate`, and an object literal widens them to
+      // `string`. TypeScript reports only the first mismatch, so fixing them
+      // one at a time just moves the error along.
+      layoutMode: 'freeform' as const,
+      bodyLayoutMode: 'split' as const,
       bodyColumnGap: 18,
       maxPages: 2,
-      printMode: 'single-sided',
+      printMode: 'single-sided' as const,
       components: [
         textComponent,
         {
@@ -784,8 +793,11 @@ describe('Shopping List Builder API', () => {
           title: 'Dry Goods',
           x: 28,
           y: 620,
-          region: 'body',
-          flowMode: 'flowing',
+          region: 'body' as const,
+          // `as const`: in an object literal this widens to `string`, and
+          // `BuilderTableFlowMode` is a union. Casting the whole template
+          // instead would suppress real mismatches across twenty fields.
+          flowMode: 'flowing' as const,
           rows,
         },
         {
@@ -794,8 +806,8 @@ describe('Shopping List Builder API', () => {
           title: 'Hygiene Items',
           x: 315,
           y: 720,
-          region: 'body',
-          flowMode: 'flowing',
+          region: 'body' as const,
+          flowMode: 'flowing' as const,
           rows: hygieneRows,
         },
       ],

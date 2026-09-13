@@ -99,7 +99,13 @@ describe('the narrow trigger', () => {
 
     process.env.DATABASE_URL = `file:${second}`;
     // A fresh module registry, so the client binds to the second database.
+    // The `?bootstrap-key-present` suffix is vitest's cache-buster: it makes
+    // the loader treat this as a distinct specifier and re-evaluate the
+    // module. No file of that name exists or should, so tsc can never resolve
+    // it -- this is not drift and there is nothing to repair. The suppression
+    // is self-policing: it fails if the import ever becomes resolvable.
     const { VerificationService } = await import(
+      // @ts-expect-error -- vitest query-suffix import, unresolvable by design
       `../../../src/services/auth/verification-service?bootstrap-key-present`
     );
     const user = await (VerificationService as unknown as {
