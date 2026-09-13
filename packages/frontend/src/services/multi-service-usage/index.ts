@@ -45,6 +45,7 @@ interface BackendMultiServiceResponse {
       inputCost?: number;
       outputCost?: number;
       isActive: boolean;
+      deletedAt?: string | null;
       dailyUsage: {
         promptTokens: number;
         completionTokens: number;
@@ -204,6 +205,7 @@ export class MultiServiceUsageService extends BaseApiService {
         // a worse answer than admitting we do not know.
         model: config.model || 'unknown',
         isActive: config.isActive,
+        deletedAt: config.deletedAt ?? null,
         
         // Configuration limits
         tokensPerMinute: config.tokensPerMinute,
@@ -254,8 +256,11 @@ export class MultiServiceUsageService extends BaseApiService {
     return {
       configurations,
       services: configurations, // Backward compatibility - same data structure
-      activeConfigurationId: metrics.configurations.find(c => c.isActive)?.id,
-      activeServiceId: metrics.configurations.find(c => c.isActive)?.id, // Backward compatibility
+      // Soft-deleted rows keep whatever `isActive` they were deleted with, so
+      // this used to be able to name a configuration nobody can use as the
+      // active one — and did, for the two deleted rows on this deployment.
+      activeConfigurationId: metrics.configurations.find(c => c.isActive && !c.deletedAt)?.id,
+      activeServiceId: metrics.configurations.find(c => c.isActive && !c.deletedAt)?.id, // Backward compatibility
       lastUpdated: new Date().toISOString(),
       
       // Real performance metrics from UsageRecord duration tracking
