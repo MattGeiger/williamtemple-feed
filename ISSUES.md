@@ -216,14 +216,14 @@ names no model; and `scripts/fix-ai-config-token-limits.ts` reads
 (`d203c77`). `config/limits/index.ts` was deleted earlier as an unimported
 second copy, and `SERVICE_SPECIFICATIONS` is now `SERVICE_COLORS` with no model
 data at all. **Phase 5 live validation is the only part of #84 outstanding**, and
-a first slice of it ran on 2026-09-12 (below).
+two slices of it have now run — 2026-09-12 and 2026-09-13 (below).
 
-Three things that live testing turned up, none of them defects on the #84
+Four things that live testing turned up, none of them defects on the #84
 list:
 
 - **A failed translation records nothing.** `trackFailedUsage` exists on
   `AITranslationService` and passes `success: false`, but it has exactly one
-  reference in the codebase — its own definition. Nothing calls it. All 19
+  reference in the codebase — its own definition. Nothing calls it. All 27
   `UsageRecord` rows are `success = 1`, and a live Google failure (three
   attempts, two backoffs, depleted prepay credits) left no trace outside
   stdout. `LimitEnforcementService` already filters on `success: true`, so the
@@ -251,6 +251,19 @@ list:
   for a spend cap, so this is not urgent — but correcting it changes what
   stops a translation and rewrites ~20 existing `checkTokenUsage` tests, so it
   wants doing deliberately rather than as a rider on the estimate fix.
+- **Six active configurations, one reachable model.** All three translation
+  call sites — `translations.ts:323`, `translations.ts:516` and
+  `translation-trigger.ts:231` — call `AIServiceFactory.createService()` with
+  no argument, which resolves to `findFirst({ type:'apikey', isActive:true,
+  deletedAt:null }, orderBy:{ updatedAt:'desc' })`: one row, whichever was
+  saved last, across every provider. `isActive` reads in the interface as
+  "this model is offered", but the factory treats the set as a pool and
+  silently picks one, so with six active configurations here every translation
+  goes to whichever was edited most recently. Nothing is broken and nothing is
+  mis-recorded — but a model cannot be chosen, activating a model does not
+  make it reachable, and testing several models cannot be done through the
+  interface at all. Found while trying to validate the four Gemini presets,
+  which had to be driven directly instead.
 
 - Sampling parameters a model refuses (defect 5). Temperature and top-p reach
   a request from `SystemPrompt` as well as `AIConfiguration`, and the backend
