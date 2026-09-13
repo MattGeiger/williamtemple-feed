@@ -216,20 +216,51 @@ names no model; and `scripts/fix-ai-config-token-limits.ts` reads
 (`d203c77`). `config/limits/index.ts` was deleted earlier as an unimported
 second copy, and `SERVICE_SPECIFICATIONS` is now `SERVICE_COLORS` with no model
 data at all. **Phase 5 live validation is the only part of #84 outstanding**, and
-two slices of it have now run — 2026-09-12 and 2026-09-13 (below).
+three slices of it have now run — one on 2026-09-12 and two on 2026-09-13, the
+last of which closed the per-model gap (below).
 
-Four things that live testing turned up, none of them defects on the #84
-list:
+Six things this work turned up, none of them defects on the #84 list. Some
+came from live testing against the providers, one from reconciling the usage
+dashboard against the database, and two from typechecking the test suite,
+which had never been done:
 
-- **A failed translation records nothing.** `trackFailedUsage` exists on
-  `AITranslationService` and passes `success: false`, but it has exactly one
-  reference in the codebase — its own definition. Nothing calls it. All 27
-  `UsageRecord` rows are `success = 1`, and a live Google failure (three
-  attempts, two backoffs, depleted prepay credits) left no trace outside
-  stdout. `LimitEnforcementService` already filters on `success: true`, so the
-  plumbing anticipates failures it has never received. Wiring it up would
-  change what a `UsageRecord` row means — rows would no longer all represent
-  spend — so it wants deciding rather than doing.
+- **A failed translation recorded nothing** (fixed, `181d917`).
+  `trackFailedUsage` existed on `AITranslationService` with exactly one
+  reference — its own definition — so every `UsageRecord` row was
+  `success = 1`, and a live Google failure (three attempts, two backoffs,
+  depleted prepay credits) left no trace outside stdout.
+
+  Only the billed half is now recorded, which is the distinction that decides
+  the scope. A request refused before an answer (429, auth, network) bills
+  nothing and still records nothing. A request the provider answered and
+  charged for, which FEED then could not use — a reply that will not parse, or
+  one that parses without a `translatedText` — is real spend, and is written
+  `success: false` from the provider's own counts.
+
+  What this deliberately does **not** change: `getCurrentUsage` filters on
+  `success: true`, so billed-but-failed spend still does not count against a
+  cost limit. Whether it should is a separate decision, and recording it first
+  is what makes that decision answerable — until now nobody could size the
+  problem, because the rows did not exist.
+- **The usage dashboard counts deleted configurations.** Not fixed.
+  `routes/projections/multi-service-metrics/index.ts:39` selects
+  `findMany({ where: { type: 'apikey' } })` with no `deletedAt` filter — no
+  route under `projections/` has one — and the breakdown labels each row by
+  `isActive`. Two soft-deleted configurations here carry `isActive = 1`, so
+  they render with no "(Inactive)" marker, indistinguishable from live rows;
+  one of them is a zero-usage duplicate of a live model id. Excluding deleted
+  rows outright would be wrong — one carries 1,236 tokens of genuine
+  production history, and dropping it would make past spend vanish — so the
+  fix is to mark them as deleted, not to hide them.
+- **Three tests that could not fail**, found while typechecking the suite for
+  the first time (all fixed in `181d917`). Twenty-one assertions on a
+  `ShoppingListTemplate.isActive` column that has never existed in any
+  migration, including a test named "should update only isActive status"; the
+  brand-theme lightness check, whose loop bound `token` to scope names so its
+  assertion never executed once in either iteration; and a draft of my own,
+  discarded before commit, that counted the estimate rather than the prompt
+  resolution it was named for. The first two were invisible because the test
+  suite was excluded from the typecheck — 98 of 100 files were never checked.
 - **The pre-flight estimate measured a prompt that was never sent** (fixed,
   `8eaea48`). It encoded a hardcoded one-sentence stand-in while the real
   prompt was built afterwards, inside the retry loop, by `PromptBuilder` from
