@@ -260,8 +260,12 @@ describe('LimitEnforcementService cost limits', () => {
     const tokens = 1000;
     const inputCost = 0.05;
     const outputCost = 0.15;
+    // Input priced whole, output at the documented ratio. This used to read
+    // `(61 + tokens * 0.5)` for the input half, mirroring the implementation
+    // line for line — so it asserted that the code did what it did, and would
+    // have gone on passing had the constant been any other number.
     const expectedCost =
-      ((61 + tokens * 0.5) * (inputCost / 1_000_000)) +
+      (tokens * (inputCost / 1_000_000)) +
       ((tokens * 0.5) * (outputCost / 1_000_000));
 
     setUsage(
@@ -300,6 +304,62 @@ describe('LimitEnforcementService cost limits', () => {
     expect(blocked.canProceed).toBe(false);
     expect(blocked.reason).toBe('Daily cost limit would be exceeded');
     expect(allowed.canProceed).toBe(true);
+  });
+
+  test('prices the whole input, without a second helping of the system prompt', async () => {
+    // The estimate handed in already contains the system prompt that will be
+    // sent. With no output rate, the answer must be exactly input x rate.
+    //
+    // Sharp on purpose. The arithmetic this replaced returned
+    // (61 + 1000 * 0.5) * 0.001 = $0.561 for this request, which a $0.9 limit
+    // waves through; priced honestly it is $1.00 and the limit stops it. A
+    // regression to either the flat 61 or the halved input flips this back.
+    setUsage(
+      { promptTokens: 0, completionTokens: 0, totalCost: 0 },
+      { promptTokens: 0, completionTokens: 0, totalCost: 0 }
+    );
+
+    const service = LimitEnforcementService.getInstance();
+    const result = await service.checkTokenUsage(
+      1000,
+      createConfig({
+        id: 7001,
+        inputCost: 1,
+        outputCost: 0,
+        unitPrice: 'per_1k',
+        dailyCostLimit: 0.9,
+        monthlyCostLimit: 100
+      })
+    );
+
+    expect(result.canProceed).toBe(false);
+    expect(result.reason).toBe('Daily cost limit would be exceeded');
+  });
+
+  test('charges nothing for an empty input', async () => {
+    // The flat 61 was added whatever came in, so a request with no measurable
+    // input still accrued 61 tokens of spend against the limit.
+    setUsage(
+      { promptTokens: 0, completionTokens: 0, totalCost: 0 },
+      { promptTokens: 0, completionTokens: 0, totalCost: 0 }
+    );
+
+    const service = LimitEnforcementService.getInstance();
+    const result = await service.checkTokenUsage(
+      0,
+      createConfig({
+        id: 7002,
+        inputCost: 1,
+        outputCost: 1,
+        unitPrice: 'per_1k',
+        dailyCostLimit: 0.0001,
+        monthlyCostLimit: 100
+      })
+    );
+
+    // Nothing in, nothing charged. The old code booked 61 x 0.001 = $0.061
+    // and blocked on a limit this size.
+    expect(result.canProceed).toBe(true);
   });
 
   test('does not convert tokens per minute into a daily token budget', async () => {
