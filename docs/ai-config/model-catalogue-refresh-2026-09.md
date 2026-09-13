@@ -1063,15 +1063,44 @@ only (a few cents).
      `misconfigured`: `QUOTA_EXHAUSTED_MARKERS` matches the provider's own
      "prepayment credits" wording, and quota is tested before the
      misconfigured statuses. This is the same billing wall that moved
-     production to `gpt-5-mini` in the first place, so **Google cannot serve
-     translations from this machine until credits are restored** — which also
-     blocks validating the four Gemini presets.
+     production to `gpt-5-mini` in the first place, so Google could not serve
+     translations from this machine until credits were restored — which
+     blocked the four Gemini presets until 2026-09-13.
    - An entitlement pass does not guarantee a working translation: the same
      Gemini configuration passed the 64-token probe and then failed a real
      request on credits.
 
-   Not yet covered: the remaining nine models, the seven request types, the
-   `busy` and `unavailable` classifications, and any Google path at all.
+   **A second slice ran on 2026-09-13**, after $5 of Gemini credit was applied
+   and all four Google presets activated. One string ("Canned black beans" →
+   Spanish) through FEED's own FOOD_TRANSLATION prompt, one request per model:
+
+   - **All four Gemini presets translate correctly.** `gemini-3.5-flash-lite`,
+     `gemini-3.6-flash`, `gemini-3.8-flash` and `gemini-3.1-pro-preview` each
+     returned valid Spanish and a parseable JSON body. The Google path is no
+     longer unvalidated, and the 2026 request shape is confirmed against a
+     third provider.
+   - **The corrected pre-flight estimate holds on Google**: 143 estimated
+     against Google's 146 reported, **-2%**, where the stand-in it replaced
+     would have said 41 (-72%). OpenAI and Anthropic measured 39-vs-95 and
+     39-vs-93 before the fix, so all three providers now agree.
+   - Recorded cost is priced from Google's reported tokens, as it already was
+     for OpenAI and Anthropic.
+   - **`gemini-3.1-pro-preview` costs ~40x `gemini-3.5-flash-lite`** for the
+     same three-word translation — 262 completion tokens against 17, nearly
+     all of it thinking, at the same `low` level FEED sends both. The
+     catalogue's recorded figure for that model (11 thinking tokens) is wrong
+     by more than an order of magnitude; see the note above the Google
+     entries, and D27's cost argument rests on figures from the same probe.
+   - **Per-model testing required bypassing the interface.** All three
+     translation call sites ask `AIServiceFactory.createService()` with no
+     argument, which picks one active configuration by `updatedAt desc` across
+     all providers, so the four models are not individually reachable through
+     FEED itself (ISSUES.md #84).
+
+   Not yet covered: the seven request types, the `busy` and `unavailable`
+   classifications, the batch and document paths, and anything beyond one
+   string per model. Google now has all four presets covered; OpenAI and
+   Anthropic remain at one model apiece.
 7. **Phase 6 — Local model: shelved** (D16). What reviving it needs is listed
    in the companion document.
 

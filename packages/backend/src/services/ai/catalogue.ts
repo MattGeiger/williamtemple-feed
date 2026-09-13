@@ -840,6 +840,21 @@ const CATALOGUE_BASE: readonly CatalogueEntryWithoutLanguages[] = [
   // and bills 11 on every request, however trivial. For one-sentence
   // translations that is the entire reasoning budget, paid forever.
   //
+  // Those bracketed figures hold for Flash and do NOT hold for Pro. Real
+  // translations on 2026-09-13 — one three-word string through FEED's own
+  // FOOD_TRANSLATION prompt, thinking level `low` sent to both:
+  //
+  //   gemini-3.8-flash         12 completion tokens   $0.00015
+  //   gemini-3.1-pro-preview  262 completion tokens   $0.0034
+  //
+  // Same level, same prompt, ~22x the output and ~40x the cost of
+  // 3.5-flash-lite. So `low OK (11)` is right for 3.8 and wrong for Pro by
+  // more than an order of magnitude. Unconfirmed cause: `verifyEntitlement`
+  // sends `maxOutputTokens: 64`, which cannot observe 262 — if these probes
+  // ran through that path then every figure above is capped, and understates
+  // any model that thinks heavily. Treat the table as a floor rather than a
+  // measurement until it is re-taken through a real request.
+  //
   // Google now says `temperature`, `topP` and `topK` are "no longer
   // recommended" on any 3.x model — advice, not refusal, so `sampling` stays
   // `supported` while `fixedTemperature` pins the value metadata reports
