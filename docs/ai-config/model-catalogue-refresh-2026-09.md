@@ -674,7 +674,7 @@ precedent". These secondary lists also name retired models:
 |---|---|
 | ~~`frontend/src/types/multi-service-usage.ts:160-206` (`SERVICE_SPECIFICATIONS`)~~ | **Fixed.** It held `claude-3-*`, `gemini-1.5-*`, `gemini-pro` and `gpt-3.5-turbo`, and this row said "used by cost forecasting" — which overstated it. The forecast imported the constant only to read `.color`; every figure it displays comes from the backend, and `defaultPricing` and `models[]` were read by *nothing*. The invented prices were inert and are deleted. What was live was narrower and never mentioned here: `defaultLimits` filled rate-limit gauges for configurations that had no limits set, and a `defaultModel` fallback would have shown a retired id for a blank model. It is now `SERVICE_COLORS` — one colour per provider, the only thing in it that was ever real. A missing limit is zero, meaning "not configured", and each reader guards for it |
 | ~~`GoogleTranslationService.ts:57-63` (`GOOGLE_MODEL_PRICING`)~~ | **Deleted `8dde4f7`.** It was declared and never read — dead since before this audit, and invisible because `noUnusedLocals` is off |
-| `backend/src/config/limits.ts`, ~~`backend/src/config/limits/index.ts`~~ | Token limits keyed by `gpt-4o-mini`, `gpt-4`, `gpt-3.5-turbo`. Still stale in the live file, but reached only as a fallback: `getDailyTokenLimit` prefers `tokensPerMinute × 60 × 24`, and the wizard fills `tokensPerMinute` from the catalogue, so a row created through it never consults this table. **`index.ts` is deleted** — not a stale copy of the live module but an abandoned fork with zero importers, exporting a `MODEL_MONTHLY_LIMITS` the live file never had while lacking its `TOKEN_RATES`, `MODEL_NAME` and `RATE_LIMITS`. Updating it would have been work on code nothing loads |
+| ~~`backend/src/config/limits.ts`~~, ~~`backend/src/config/limits/index.ts`~~ | **Fixed (`d203c77`).** The table keyed by `gpt-4o-mini`, `gpt-4` and `gpt-3.5-turbo` is gone, along with the thing that made it matter: `getDailyTokenLimit` used to prefer `tokensPerMinute × 60 × 24` and fall back to this table, turning a per-minute *throughput allowance* into a daily *budget*. For GPT-5 mini that was 288 million tokens a day — a limit in name only. Throughput now describes provider rate allowances and nothing else; daily enforcement exists only where an administrator has set an explicit daily cost limit, which matches the same "not configured means no invented number" rule the dashboard adopted. **`index.ts`** was separately deleted as an abandoned fork with zero importers, exporting a `MODEL_MONTHLY_LIMITS` the live file never had |
 | `backend/src/config/translation.ts:34` | `DEFAULT_MODEL: 'gpt-4o-mini'` |
 | ~~`backend/src/services/token/calculation.ts:105/161/192`, `routes/ai-config.ts:724`~~ | **Fixed.** The no-op ternary is replaced by one `ENCODING_MODEL` constant carrying the reason a single encoding is kept: tiktoken ships none for Claude or Gemini, and asking it for a real per-model name would throw on any unknown id and drop through to the much cruder `length / 4` fallback. The ~30% Anthropic bias survives, but only in *estimates* — pre-flight limit checks and the forecast. Recorded spend no longer depends on it: every provider returns authoritative counts, and cost is priced from those. Anthropic was the one provider still recording its tiktoken estimate as `UsageRecord.totalCost` while the real counts sat twenty lines below, and its batch and classification paths priced with a hardcoded `/ 1000000` that ignored `unitPrice` — a `per_1k` configuration recorded a thousandth of what it spent. Both fixed. What is *not* yet known is how large the estimate error actually is: measuring it needs production `UsageRecord` rows joined to their source text, and the local database has 16 rows, all Google, none linked to a translation |
 | `backend/scripts/fix-ai-config-token-limits.ts` | One-off script with retired ids |
@@ -730,8 +730,21 @@ data yet:
   `model-specs.ts` so new configurations keep pre-filling their usage limits;
   those are account-tier allowances rather than verified provider facts, and
   are marked as such so nobody treats them like `pricing`.
-- **Typed but empty.** `languages`. All 16 entries omit it, so the D18 coverage
-  warnings described below have nothing to read.
+- ~~**Typed but empty.** `languages`.~~ **Populated (`9fbee5c`).** Every entry
+  now answers for every FEED language, and the field is required rather than
+  optional. Coverage is asserted per *provider* — one table mapped across that
+  provider's entries — with the provenance rule kept: a provider's own support
+  claim is `supported`, and only a successful FEED probe is `evaluated`. The
+  Anthropic and Google exclusions (Tagalog, Somali) are the providers' previous
+  runtime allowlists, moved here rather than invented.
+
+  Two consequences worth knowing. Because coverage is per provider, every model
+  from one provider inherits identical claims, which is a simplification —
+  language support does vary between a flagship and a small model. And because
+  the field is now required, "absent means unknown" is no longer expressible:
+  an unevaluated pair reads as `supported` on the provider's word, not as a
+  gap. D29's live matrix is what promotes an individual model/language pair to
+  `evaluated`.
 
 The shape as proposed:
 
@@ -1015,7 +1028,14 @@ only (a few cents).
       Its dialog tests mock no services today and will need a fixture.
    2. Providers read capabilities instead of string tests, retiring the
       `-4-5-` heuristics and the narrow effort/thinking unions.
-   3. Save-time entitlement verification and remembered failures (D29).
+   3. ~~Save-time entitlement verification and remembered failures (D29).~~
+      **Built (`dfc6511`).** Saving or activating a model makes one real,
+      minimal generation before the row is persisted; the runtime keeps the
+      free model lookup. Only non-transient refusals are remembered, for five
+      minutes, cleared on a successful save. Note this deliberately reinstates
+      a *billed* call: defect 7 removed a paid check from the per-job path,
+      and this one sits at save and activation only, where an administrator is
+      choosing the model and a wrong answer is worth a cent to catch.
    4. UI gating and warnings: sampling controls, per-model thinking values,
       frontier and preview badges, language coverage (D1–D3, D18, D26).
 4. **Phase 3 — SDK upgrades**, one provider per commit.

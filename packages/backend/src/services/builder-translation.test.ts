@@ -34,12 +34,16 @@ vi.mock('./ai/factory/AIServiceFactory', () => ({
   },
 }));
 
-// Hoisted alertService mock so tests can assert daily-aggregate alert
-// hooks fire per batch (mirrors docx/translation.ts:1326-1331) without
-// touching the real Prisma aggregate path.
+// Hoisted alertService mock so tests can assert the response-time alert
+// fires per batch, without touching the real Prisma path.
+//
+// `checkTokenUsage` and `checkCostUsage` were mocked here too, until d203c77
+// deleted them: both aggregated the day's rows against a fixed
+// DAILY_TOKEN_LIMIT, which is the invented daily budget that commit abolished.
+// Spend is enforced from the request's own configuration before the provider
+// call. Keeping dead spies would be worse than useless — see the swallow test
+// below, which passed for a while by rejecting a method nothing calls.
 const mockAlertService = vi.hoisted(() => ({
-  checkTokenUsage: vi.fn(),
-  checkCostUsage: vi.fn(),
   checkResponseTime: vi.fn(),
 }));
 
@@ -60,11 +64,7 @@ const resetMocks = () => {
   mockPrisma.translation.update.mockReset();
   mockPrisma.translation.updateMany.mockReset();
   mockTranslateTextBatch.mockReset();
-  mockAlertService.checkTokenUsage.mockReset();
-  mockAlertService.checkCostUsage.mockReset();
   mockAlertService.checkResponseTime.mockReset();
-  mockAlertService.checkTokenUsage.mockResolvedValue(undefined);
-  mockAlertService.checkCostUsage.mockResolvedValue(undefined);
   mockAlertService.checkResponseTime.mockResolvedValue(undefined);
 };
 
@@ -335,7 +335,7 @@ describe('builder-translation', () => {
       });
     });
 
-    it('fires alertService.checkTokenUsage / checkCostUsage / checkResponseTime once per AI batch result', async () => {
+    it('fires alertService.checkResponseTime once per AI batch result', async () => {
       mockPrisma.translation.findMany.mockResolvedValue([]);
       mockPrisma.translation.upsert.mockResolvedValueOnce({ id: 401 });
       mockTranslateTextBatch.mockResolvedValue({
@@ -346,8 +346,6 @@ describe('builder-translation', () => {
 
       await translateBuilderStrings(['Hello'], 'Spanish');
 
-      expect(mockAlertService.checkTokenUsage).toHaveBeenCalledTimes(1);
-      expect(mockAlertService.checkCostUsage).toHaveBeenCalledTimes(1);
       expect(mockAlertService.checkResponseTime).toHaveBeenCalledTimes(1);
       expect(mockAlertService.checkResponseTime).toHaveBeenCalledWith(750);
     });
@@ -360,8 +358,6 @@ describe('builder-translation', () => {
       await translateBuilderStrings(['Hello'], 'Spanish');
 
       expect(mockTranslateTextBatch).not.toHaveBeenCalled();
-      expect(mockAlertService.checkTokenUsage).not.toHaveBeenCalled();
-      expect(mockAlertService.checkCostUsage).not.toHaveBeenCalled();
       expect(mockAlertService.checkResponseTime).not.toHaveBeenCalled();
     });
 
@@ -373,7 +369,10 @@ describe('builder-translation', () => {
         metrics: { duration: 100, promptTokens: 5, completionTokens: 3, totalCost: 0.0001 },
       });
       mockPrisma.translation.update.mockResolvedValue({});
-      mockAlertService.checkTokenUsage.mockRejectedValueOnce(new Error('alert subsystem down'));
+      // Must reject the method the code actually calls. This rejected
+      // `checkTokenUsage` after that method was deleted, so the test passed
+      // while exercising no alert failure at all — green, and proving nothing.
+      mockAlertService.checkResponseTime.mockRejectedValueOnce(new Error('alert subsystem down'));
 
       // Translation itself must still resolve with the freshly-translated map.
       await expect(translateBuilderStrings(['Hello'], 'Spanish')).resolves.toEqual({
