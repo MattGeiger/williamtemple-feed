@@ -1121,10 +1121,32 @@ only (a few cents).
    - The estimate spread above (Google -2% through Claude 5 -42%) comes from
      this slice: one prompt, six models, each provider's own count.
 
-   Not yet covered: the seven request types, the `busy` and `unavailable`
-   classifications, the batch and document paths, and anything beyond one
-   string per model. Per-model coverage is now complete for all three
-   providers; per-*request-type* coverage remains at one.
+   **A fourth slice, the same day**, built the sweep itself:
+   `packages/backend/scripts/live-smoke.ts`, run as `npm run smoke:live`.
+   This is test layer 6 — opt-in, never in CI, and unable to spend anything
+   without `--bill`. It calls `createServiceFromConfiguration` rather than the
+   factory, which is what makes a named model reachable at all. Its free half
+   has now run against all twelve configurations: 36 requests, $0.00.
+
+   - **Requests 5, 6 and 7 pass on every model** — availability by model
+     lookup, a rejected key, and a model id the account cannot call. Three of
+     the seven request types are now covered for all twelve, where coverage
+     had been one.
+   - **The first run found a defect.** All four Gemini configurations
+     classified a rejected key as `unavailable` rather than `misconfigured`,
+     so a mistyped Google key told staff the service had not responded and to
+     try again shortly — when it had responded, refusing, and no retry could
+     clear it. Google's `400 INVALID_ARGUMENT` / "API key not valid" matched
+     none of the misconfigured markers, and 400 is not a misconfigured
+     status. Fixed by wording rather than status, with a negative control
+     holding the line against generic 400s; the free sweep re-runs green at
+     36 of 36. Recorded in ISSUES.md.
+
+   Not yet covered: request types 1-4, the billable half; the `busy`
+   classification; the batch and document paths; and anything beyond one
+   string per model. Worst case for the billable half, priced from the
+   catalogue's own figures, is **$0.4635** for all twelve and **$0.1184** for
+   the eight non-frontier.
 7. **Phase 6 — Local model: shelved** (D16). What reviving it needs is listed
    in the companion document.
 
