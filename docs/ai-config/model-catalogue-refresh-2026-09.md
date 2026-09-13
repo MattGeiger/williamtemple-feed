@@ -1044,6 +1044,34 @@ only (a few cents).
 6. **Phase 5 — Live validation** (seven requests × 12 models), one feature pass
    on the new default, docs, release. Production moves off `gpt-5-mini` before
    2026-12-11.
+
+   **A first slice ran on 2026-09-12** against fifteen local configurations —
+   one string, not seven requests, and three providers rather than twelve
+   models, so this is a start and not the phase. What it established:
+
+   - All three providers authenticate and accept the 2026 request shapes,
+     including Claude 5's adaptive thinking and GPT-5.6's resolved reasoning
+     effort — either would 400 if the capability data were wrong.
+   - Recorded cost is priced from provider-reported tokens on both OpenAI and
+     Anthropic, matching `tokens × price` exactly. Anthropic is the one that
+     matters: it recorded its own estimate before `1db85b3`.
+   - A deliberately invalid key is refused as `misconfigured` /
+     `AI_TRANSLATION_MISCONFIGURED`, and the message **names the model** rather
+     than saying "Invalid API key configuration" — defect 1, confirmed against
+     a live provider rather than a fixture.
+   - Google's depleted prepay credits classify as `exhausted`, not
+     `misconfigured`: `QUOTA_EXHAUSTED_MARKERS` matches the provider's own
+     "prepayment credits" wording, and quota is tested before the
+     misconfigured statuses. This is the same billing wall that moved
+     production to `gpt-5-mini` in the first place, so **Google cannot serve
+     translations from this machine until credits are restored** — which also
+     blocks validating the four Gemini presets.
+   - An entitlement pass does not guarantee a working translation: the same
+     Gemini configuration passed the 64-token probe and then failed a real
+     request on credits.
+
+   Not yet covered: the remaining nine models, the seven request types, the
+   `busy` and `unavailable` classifications, and any Google path at all.
 7. **Phase 6 — Local model: shelved** (D16). What reviving it needs is listed
    in the companion document.
 
