@@ -219,12 +219,13 @@ data at all. **Phase 5 live validation is the only part of #84 outstanding**, an
 three slices of it have now run — one on 2026-09-12 and two on 2026-09-13, the
 last of which closed the per-model gap (below).
 
-Six things this work turned up, none of them defects on the #84 list. Some
+Seven things this work turned up, none of them defects on the #84 list. Some
 came from live testing against the providers, one from reconciling the usage
-dashboard against the database, and two from typechecking the test suite,
-which had never been done. **Five are now fixed.** The sixth — the factory
-resolving a single configuration for every provider — is an architectural
-choice rather than a defect, and is described last:
+dashboard against the database, two from typechecking the test suite, which
+had never been done, and one from the first run of the live smoke sweep's
+free half. **Six are now fixed.** The seventh — the factory resolving a
+single configuration for every provider — is an architectural choice rather
+than a defect, and is described last:
 
 - **A failed translation recorded nothing** (fixed, `181d917`).
   `trackFailedUsage` existed on `AITranslationService` with exactly one
@@ -316,6 +317,30 @@ choice rather than a defect, and is described last:
   would leave the limit protecting less than it does now, so the ratio holds
   until output is measured per model. Two new guards fail against the old
   arithmetic (verified at 3 failed / 17 passed with it restored).
+- **A mistyped Google key reported an outage, not a key problem** (fixed,
+  `9de7aa4`). Found by the live smoke sweep's free half on its first run: all
+  four Gemini configurations classified a rejected key as `unavailable`, where
+  OpenAI and Anthropic both said `misconfigured`. Staff would have read "The
+  AI service did not respond, so this text was not translated. Try again in a
+  moment." It had responded — it had refused — and no retry could clear it.
+
+  Google answers `400 INVALID_ARGUMENT` / "API key not valid. Please pass a
+  valid API key." / reason `API_KEY_INVALID`. That matched none of
+  `MISCONFIGURED_MARKERS` — `invalid_api_key` is OpenAI's spelling and Google
+  reverses the words — and 400 is absent from `MISCONFIGURED_STATUSES`, so it
+  fell through every test to the default.
+
+  Fixed by wording rather than by status. `ApiError.status` really is the
+  number 400, which makes adding it to the status list the obvious move and
+  the wrong one: 400 is Google's generic bad request, returned for a malformed
+  body or a sampling parameter a model refuses, and blaming those on the key
+  would send an administrator to check something that is fine. A negative
+  control holds that line — and passes with or without the fix by design,
+  because it guards against over-reach rather than detecting it.
+
+  This is the defect #84 opened on — a provider's refusal reported as the
+  wrong kind of problem — surviving in the one provider that could not be
+  exercised until Google credits were restored on 2026-09-13.
 - **Six active configurations, one reachable model.** All three translation
   call sites — `translations.ts:323`, `translations.ts:516` and
   `translation-trigger.ts:231` — call `AIServiceFactory.createService()` with
