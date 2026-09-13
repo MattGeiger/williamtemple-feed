@@ -33,7 +33,15 @@ export interface ConfigurationUsageMetrics {
   serviceType: ServiceProvider;
   model: string;
   isActive: boolean;
-  
+  /**
+   * When the configuration was soft-deleted, or null while it still exists.
+   *
+   * Deleted configurations stay in the breakdown because their spend is real
+   * and did happen. `isActive` cannot carry that: a row can be deleted and
+   * still hold `isActive: true`, which the dashboard drew as live.
+   */
+  deletedAt?: string | null;
+
   // Cost configuration from AI Config (rate limits are below in the
   // structured `rateLimit`, `requestsPerMinute`, and `requestsPerDay`
   // objects). The previous flat `tokensPerMinute?`, `requestsPerMinute?`,

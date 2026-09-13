@@ -256,7 +256,7 @@ export function UsageSummary() {
                         value={String(config.configurationId)}
                       >
                         {config.configurationName}
-                        {!config.isActive ? ' (Inactive)' : ''}
+                        {config.deletedAt ? ' (Deleted)' : !config.isActive ? ' (Inactive)' : ''}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -331,9 +331,11 @@ function AggregatedMetricsView({ configurations, aggregatedMetrics, stats }: any
                 <div className="flex flex-col">
                   <span className="text-sm font-medium">
                     {config.configurationName}
-                    {!config.isActive && (
+                    {config.deletedAt ? (
+                      <span className="text-muted-foreground"> (Deleted)</span>
+                    ) : !config.isActive ? (
                       <span className="text-muted-foreground"> (Inactive)</span>
-                    )}
+                    ) : null}
                   </span>
                   <span className="text-xs text-muted-foreground">{config.serviceType} • {config.model}</span>
                 </div>
@@ -423,9 +425,11 @@ function IndividualServiceView({ configuration, stats, multiServiceData }: any) 
           <div>
             <div className="font-medium">
               {configuration.configurationName}
-              {!configuration.isActive && (
+              {configuration.deletedAt ? (
+                <span className="text-muted-foreground"> (Deleted)</span>
+              ) : !configuration.isActive ? (
                 <span className="text-muted-foreground"> (Inactive)</span>
-              )}
+              ) : null}
             </div>
             <div className="text-sm text-muted-foreground">{configuration.serviceType} • {configuration.model}</div>
           </div>

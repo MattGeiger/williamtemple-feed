@@ -173,7 +173,13 @@ router.get('/multi-service-metrics', async (req: Request, res: Response, next: N
         inputCost: config.inputCost,
         outputCost: config.outputCost,
         isActive: config.isActive,
-        
+        // A soft-deleted configuration still owns the spend it made, so it
+        // stays in the breakdown and gets labelled rather than hidden — one of
+        // this deployment's two holds real production history. What it must
+        // not do is read as live, which is what happened while `isActive` was
+        // the only flag on the wire (ISSUES.md #84).
+        deletedAt: config.deletedAt,
+
         // Usage metrics
         dailyUsage: {
           promptTokens: dailyUsage?.totalPromptTokens || 0,
