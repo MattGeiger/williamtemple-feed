@@ -57,6 +57,46 @@ describe('the message staff read', () => {
     expect(error.message).not.toContain('Invalid API key configuration');
   });
 
+  test("Google's rejected key is a key problem, not an outage", () => {
+    // The body below is Google's, measured against the live API on
+    // 2026-09-13 by the live smoke sweep. It matched none of the misconfigured
+    // markers — `invalid_api_key` is OpenAI's spelling and Google reverses the
+    // words — and 400 is not a misconfigured status, so a mistyped Google key
+    // fell through every test to `unavailable`: "The AI service did not
+    // respond… try again in a moment." It had responded, and no amount of
+    // retrying could clear it.
+    const error = providerFailureError(
+      providerError(
+        '{"error":{"code":400,"message":"API key not valid. Please pass a valid API key.",'
+        + '"status":"INVALID_ARGUMENT","details":[{"reason":"API_KEY_INVALID"}]}}',
+        400,
+      ),
+      { subject: 'this text', model: 'gemini-3.8-flash' },
+    );
+
+    expect(error.failure).toBe('misconfigured');
+    expect(error.message).toContain('gemini-3.8-flash');
+    expect(error.message).not.toContain('did not respond');
+  });
+
+  test('a Google 400 that is not about the key stays out of misconfigured', () => {
+    // The negative control for the marker above, and the reason the fix
+    // matches wording instead of adding 400 to MISCONFIGURED_STATUSES: 400 is
+    // Google's generic bad request, returned for a malformed body or a
+    // sampling parameter a model refuses. Sending an administrator to check a
+    // key that is perfectly fine would be its own defect.
+    const error = providerFailureError(
+      providerError(
+        '{"error":{"code":400,"message":"Unable to submit request because temperature '
+        + 'is not supported by this model.","status":"INVALID_ARGUMENT"}}',
+        400,
+      ),
+      { subject: 'this text', model: 'gemini-3.8-flash' },
+    );
+
+    expect(error.failure).not.toBe('misconfigured');
+  });
+
   test('every failure answers 503, which Cloudflare passes through', () => {
     // 502 is replaced by Cloudflare's own HTML page (ISSUES.md #80), and 400
     // would blame the caller for a provider's refusal.

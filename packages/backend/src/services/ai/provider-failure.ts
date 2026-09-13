@@ -57,6 +57,21 @@ const MISCONFIGURED_MARKERS = [
   'permission_denied',
   'unsupported_country',
   'not authorized',
+  // Google's wording for a rejected key, measured against the live API on
+  // 2026-09-13: `400 INVALID_ARGUMENT` / "API key not valid. Please pass a
+  // valid API key." / reason `API_KEY_INVALID`. It matched none of the
+  // markers above — `invalid_api_key` is OpenAI's spelling, and Google
+  // reverses the words — and 400 is not a misconfigured status, so a
+  // mistyped Google key fell through every test to `unavailable` and told
+  // staff the service had not responded and to try again shortly. It had
+  // responded, and retrying could never work.
+  //
+  // Matched on wording rather than by adding 400 to MISCONFIGURED_STATUSES:
+  // 400 is Google's generic bad request, returned for a malformed body or a
+  // parameter a model refuses, and blaming those on the key would send an
+  // administrator to check something that is fine.
+  'api key not valid',
+  'api_key_invalid',
 ];
 
 /**
