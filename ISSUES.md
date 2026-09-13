@@ -218,7 +218,7 @@ second copy, and `SERVICE_SPECIFICATIONS` is now `SERVICE_COLORS` with no model
 data at all. **Phase 5 live validation is the only part of #84 outstanding**, and
 a first slice of it ran on 2026-09-12 (below).
 
-Two things that live testing turned up, neither of them defects on the #84
+Three things that live testing turned up, none of them defects on the #84
 list:
 
 - **A failed translation records nothing.** `trackFailedUsage` exists on
@@ -230,9 +230,27 @@ list:
   plumbing anticipates failures it has never received. Wiring it up would
   change what a `UsageRecord` row means — rows would no longer all represent
   spend — so it wants deciding rather than doing.
-- **The pre-flight estimate understates input by ~2.4x**, measured on two
-  providers, and the cause is a prompt mismatch rather than the tokenizer. See
-  the stale-list table in the refresh doc for the numbers.
+- **The pre-flight estimate measured a prompt that was never sent** (fixed,
+  `8eaea48`). It encoded a hardcoded one-sentence stand-in while the real
+  prompt was built afterwards, inside the retry loop, by `PromptBuilder` from
+  the active `SystemPrompt` row. Recorded here earlier as a flat ~2.4x from a
+  single live pair; measuring against this deployment's own rows with a
+  four-token input gives a spread instead — stand-in 41 tokens, against 143
+  for `Food Items and Categories` (3.49x), 114 for `DOCX - Low Temp` (2.78x),
+  and 51 for the default template with no row (1.24x). The error is not a
+  constant to be corrected with a factor: it scales with how much an
+  administrator has written into the prompt row, which is why the fix passes
+  the prompt itself rather than a better guess.
+- **The limit check double-counts the system prompt.** Not fixed, and its own
+  slice. `LimitEnforcementService.calculateCost` receives the input estimate —
+  prompt and user text together — then treats it as a grand total: halves it,
+  and adds a hardcoded `SYSTEM_PROMPT_TOKENS = 61` for a prompt already in the
+  number. With the two `+ 50` fallbacks in `calculation.ts`, the system prompt
+  is now estimated in three places and counted twice in the one that decides
+  whether to block a translation. It errs high, which is the safe direction
+  for a spend cap, so this is not urgent — but correcting it changes what
+  stops a translation and rewrites ~20 existing `checkTokenUsage` tests, so it
+  wants doing deliberately rather than as a rider on the estimate fix.
 
 - Sampling parameters a model refuses (defect 5). Temperature and top-p reach
   a request from `SystemPrompt` as well as `AIConfiguration`, and the backend
