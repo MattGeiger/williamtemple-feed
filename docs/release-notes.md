@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## Version 1.8.0-beta.2 — 2026-09-12, not yet deployed
+
 *The AI model catalogue, brought up to date. FEED's list of models was written
 in 2024 and several of them no longer exist.*
 
