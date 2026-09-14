@@ -6,8 +6,12 @@
 // not covered by this license; see TRADEMARKS.md.
 
 import prisma from '../../db';
-import { AIConfiguration } from '@prisma/client';
+import { AIConfiguration, UsageRecord } from '@prisma/client';
+import { AsyncLocalStorage } from 'node:async_hooks';
 import crypto from 'crypto';
+
+type CapturedRecord = Pick<UsageRecord, 'id' | 'promptTokens' | 'completionTokens' | 'totalCost' | 'success'>;
+const usageCapture = new AsyncLocalStorage<{ records: CapturedRecord[]; writeFailed: boolean }>();
 
 export interface UsageMetrics {
   promptTokens: number;
@@ -169,6 +173,19 @@ class ConfigurationSnapshotCache {
  * Service for tracking AI usage with persistent records linked to configurations
  */
 export class UsageRecordService {
+  /** Collect only persisted rows from this async operation, including failed replies.
+   * Other requests and processes cannot enter this collection. No database schema change.
+   */
+  static async captureUsage<T>(work: () => Promise<T>): Promise<{ result: T; records: CapturedRecord[] }> {
+    const capture = { records: [] as CapturedRecord[], writeFailed: false };
+    return usageCapture.run(capture, async () => {
+      const result = await work();
+      if (capture.writeFailed) {
+        throw new Error('Usage could not be recorded. Stop live testing and check the database before spending more.');
+      }
+      return { result, records: capture.records };
+    });
+  }
   
   /**
    * Creates a usage record with configuration snapshot
@@ -189,7 +206,7 @@ export class UsageRecordService {
       // Get cached configuration snapshot to preserve pricing at time of operation
       const configSnapshot = ConfigurationSnapshotCache.getOrCreateSnapshot(configuration, modelUsed);
 
-      await prisma.usageRecord.create({
+      const record = await prisma.usageRecord.create({
         data: {
           aiConfigurationId,
           configurationSnapshot: JSON.stringify(configSnapshot),
@@ -206,7 +223,10 @@ export class UsageRecordService {
           language: options?.language // Target language for language-specific analytics
         }
       });
+      usageCapture.getStore()?.records.push(record);
     } catch (error) {
+      const capture = usageCapture.getStore();
+      if (capture) capture.writeFailed = true;
       console.error('Error creating usage record:', error);
       // Don't throw - this is non-critical logging
     }

@@ -87,9 +87,10 @@ upgrades, one server-authoritative catalogue read by both the providers and the
 dialogs, and the contents refresh are all delivered — 12 presets offered, four
 per provider, and FEED's default moved off the model Google refuses. **Phase 5's
 small-request sweep has run** — all seven request types against all twelve
-models (2026-09-13) — but Phase 5 also includes the feature pass, docs and
-release, so the phase is not complete. Open: defects 5, 6 and 10 below, the
-secondary lists
+models (2026-09-13). The Fable and spending findings are fixed, and the local
+feature pass is complete (2026-09-14). Phase 5 remains open for the Cloudflare
+checks and production rollout; Pi Connect requires sign-in. See
+`docs/ai-config/phase5-validation-2026-09-14.md`.
 **Bucket**: AI configuration / translation providers
 
 Google no longer lets new projects call `gemini-2.5-flash-lite`, FEED's
@@ -226,8 +227,11 @@ twelve models, 83 requests for $0.1022 (below).
 That is the sweep, not the phase. Phase 5 is defined as seven requests × 12
 models **plus one feature pass on the new default, docs, and release**, and
 the sweep itself left the `busy` classification and the document path
-uncovered. Still outstanding for #84: the rest of Phase 5, the three defects
-the sweep found, and production's move off `gpt-5-mini` before 2026-12-11.
+uncovered. Those gaps are now covered locally, with transient busy responses
+verified through the real error handler using provider-shaped fixtures.
+The sweep's three defects are fixed. Still outstanding: the Cloudflare feature
+checks and staged release, including production's move off `gpt-5-mini` before
+2026-12-11. Production still reports `1.7.5-rc.1` on 2026-09-14.
 
 Ten things this work turned up, none of them defects on the #84 list. Some
 came from live testing against the providers, one from reconciling the usage
@@ -416,20 +420,39 @@ this list exists to catch, and it survived three separate seam checks.)
   depend on the guard passed, and that is stated rather than counted as
   evidence.
 
-- **`claude-fable-5-1` cannot classify at all.** Not fixed. Both Anthropic
+- **`claude-fable-5-1` cannot classify at all.** Fixed 2026-09-14. The new
+  `forcedToolUse` catalogue capability selects `auto` for Fable and unknown
+  Claude models; known compatible models retain forced tools. Explicit prompt
+  instructions and validation require the named tool, one result per segment,
+  and finite scores in range. Both public classification paths passed live:
+  $0.01261 and $0.01282. Invalid billed replies are recorded as failures.
+  Parallel batches settle and record individually, so a successful sibling's
+  cost survives another batch's failure without double counting.
+
+  Original finding: both Anthropic
   classification paths hardcode `tool_choice: { type: "tool", name: ... }`
   (lines 773 and 1028), and Fable answers `400 tool_choice: type "tool" and
   "any" are not supported for this model`. Every other catalogued model
   accepts it, so this is Fable's second refusal of a parameter the rest take
   — it already carries `sampling: 'unsupported'` and `prefill: 'rejected'`.
 
-  The catalogue has no way to say it. A grep for `tool_choice|toolChoice|
-  forcedTool|tools` across `catalogue.ts` returns nothing, so this needs a
+  The catalogue had no way to say it. A grep for `tool_choice|toolChoice|
+  forcedTool|tools` across `catalogue.ts` returned nothing, so this needed a
   capability field rather than a patch at the call site — the same lesson as
   the `-4-5-` string tests: a model's refusals belong in the catalogue, not
   in an `if` next to the request.
 
-- **The sweep under-reports its own spend.** Not fixed, and mine. The script
+- **The sweep under-reports its own spend.** Fixed 2026-09-14. An async-local
+  capture collects persisted `UsageRecord` rows belonging to each call,
+  including failed replies; unrelated requests cannot enter that collection.
+  A failed write stops the sweep. It checks a conservative reservation before
+  every billable call, including three projected attempts, and refuses
+  uncatalogued models, missing/nonpositive saved prices, mismatched providers,
+  and invalid ceilings. Reservations use the higher of saved and catalogue
+  rates, including `per_1k`. Input remains estimated: this is a stop policy,
+  not a hard dollar limit.
+
+  Original finding: the script
   sums `costUsd` from outcomes, and `costUsd` is only ever set from
   `result.metrics.totalCost` — so a request that *throws* contributes nothing,
   even when the provider answered and billed for it. The run printed $0.0940
@@ -441,7 +464,13 @@ this list exists to catch, and it survived three separate seam checks.)
   token counts, so the honest repair is to reconcile from the `UsageRecord`
   rows the run wrote, which is the only place that spend exists.
 
-  **Three Google paths still bill without recording.** Same slice, found while
+  **Three Google paths billed without recording.** Fixed 2026-09-14: all three
+  now record unusable billed responses once, including empty truncations and
+  malformed JSON, using Google's prompt, answer, and thinking counts. Provider
+  refusals before a response record no invented usage. The application cost
+  limit's historical `success: true` filter remains a separate decision (above).
+
+  Original finding, while
   adding the truncation guard (`4ba8e30`). `trackFailedUsage` appears exactly
   once in `GoogleTranslationService`, in the `catch (unusable)` wrapped around
   `translateText`'s parse. `translateTextBatch`, `classifySegments` and
@@ -456,7 +485,8 @@ this list exists to catch, and it survived three separate seam checks.)
   four on this provider. Worth saying plainly, since the earlier entry does
   not qualify it.
 
-  **An unpriced model reserves nothing against the ceiling.** Same slice,
+  **An unpriced model reserved nothing against the ceiling.** Fixed by the
+  refusal and pricing checks above. Original finding, same slice,
   raised in review. `selectConfigurations` filters on
   `entry?.costTier !== 'frontier'`, which is `true` when there is no entry at
   all, so an uncatalogued id is admitted; `--include-frontier` returns `true`

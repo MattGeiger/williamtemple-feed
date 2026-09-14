@@ -176,6 +176,19 @@ describe('POST /api/translations when the account is out of credit', () => {
 });
 
 describe('transient runtime failures', () => {
+  test.each([
+    Object.assign(new Error('Model is overloaded. Try again later.'), { status: 529 }),
+    Object.assign(new Error('Rate limit exceeded. Please retry.'), { status: 429 }),
+  ])('a busy refusal reaches staff as a retryable 503 without an administrator alert', async error => {
+    checkAccess.mockResolvedValue({ ok: false, error });
+    const app = await buildApp();
+    const response = await request(app).post('/api/translations')
+      .send({ originalText: 'Brown rice', targetLanguages: ['Spanish'] });
+    expect(response.status).toBe(503);
+    expect(response.body.error.code).toBe('AI_TRANSLATION_BUSY');
+    expect(response.body.error.message).toMatch(/busy|try again/i);
+    expect(mockAlertService.createAlert).not.toHaveBeenCalled();
+  });
   test('checks the provider again because a busy response may clear', async () => {
     checkAccess.mockResolvedValue({
       ok: false,

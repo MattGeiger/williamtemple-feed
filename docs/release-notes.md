@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+## Version 1.8.0-beta.3 — 2026-09-14, not yet deployed
+
+**Fable can now classify document text.** FEED asks it for classifications in
+the form that Fable accepts, and checks that every segment has a usable answer.
+
+**Failed answers still count as spending.** Google batch translations and
+document classifications now record the tokens charged for an answer that is
+cut short or cannot be read. Claude classification batches also retain the
+cost of completed work when another batch fails.
+
+The release checks now include live Fable classification, a Spanish document,
+an Arabic shopping list, a longer document and a 40-item translation retry.
+Production deployment is pending; this version includes the catalogue changes
+described below.
+
 ## Version 1.8.0-beta.2 — 2026-09-12, not yet deployed
 
 *The AI model catalogue, brought up to date. FEED's list of models was written

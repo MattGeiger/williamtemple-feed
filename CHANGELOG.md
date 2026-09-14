@@ -5,6 +5,34 @@ All notable changes to FEED are documented here. This project adheres to
 
 ## [Unreleased]
 
+## [1.8.0-beta.3] — 2026-09-14, authored; not yet deployed
+
+### Fixed
+
+- Fable 5.1 classification uses automatic tool selection, as its API requires.
+  The catalogue owns the capability; other known Claude models retain forced
+  tools. Missing, truncated, or invalid tool results fail clearly and record
+  their billed usage. Parallel classification records each completed batch,
+  including successful siblings of a failed batch.
+- Google batch translation and both classification paths now record billed
+  replies that FEED cannot use, including empty truncations and malformed JSON.
+- The live smoke script totals persisted usage from each request, including
+  failures, without counting concurrent activity. It refuses unknown models,
+  missing prices, and invalid ceilings; reserves before each call using the
+  higher of catalogue and saved rates, including legacy per-thousand units;
+  and stops if usage cannot be persisted. The input projection remains an
+  estimate, so the script does not promise a hard dollar cap.
+
+### Validated
+
+- Both Fable classification paths passed live. Gemini 3.5 Flash Lite passed
+  DOCX classification/Spanish translation and Arabic builder translation/PDF
+  export. Rendered files were inspected. Opus 5 classified a 121-segment
+  document (117 uncached) and completed a 40-row bulk retry locally.
+- The release and Cloudflare checks remain pending Pi access. Production
+  still reports `1.7.5-rc.1`; the separate Node 24 rollout remains required.
+  Evidence and rollout steps: `docs/ai-config/phase5-validation-2026-09-14.md`.
+
 ## [1.8.0-beta.2] — 2026-09-12, authored; not yet deployed
 
 The catalogue introduced in beta.1 is now the thing FEED runs on, and the

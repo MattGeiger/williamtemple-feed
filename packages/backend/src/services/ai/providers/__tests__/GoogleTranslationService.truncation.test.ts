@@ -126,6 +126,35 @@ beforeEach(() => {
 });
 
 describe('a Gemini reply cut off at the token cap', () => {
+  test.each(['translateTextBatch', 'classifySegments', 'classifySegmentsBatch'] as const)(
+    '%s records a billed failure exactly once', async method => {
+      const service = serviceReturning(truncated(''));
+      const request = method === 'translateTextBatch'
+        ? { texts: [{ id: 'a', text: 'Rice' }], targetLanguage: 'Spanish' }
+        : { segments: [{ id: 'a', text: 'Rice' }] };
+      await expect(service[method](request)).rejects.toThrow(/truncated/);
+      const records = vi.mocked(UsageRecordService.createUsageRecord).mock.calls;
+      expect(records).toHaveLength(1);
+      expect(records[0][3]).toMatchObject({ success: false, promptTokens: 152, completionTokens: 497 });
+      expect(records[0][3].totalCost).toBeCloseTo((152 * 0.75 + 497 * 3.75) / 1_000_000, 10);
+    }
+  );
+  test.each(['translateTextBatch', 'classifySegments', 'classifySegmentsBatch'] as const)(
+    '%s records malformed answered replies but not provider refusals', async method => {
+      const request = method === 'translateTextBatch'
+        ? { texts: [{ id: 'a', text: 'Rice' }], targetLanguage: 'Spanish' }
+        : { segments: [{ id: 'a', text: 'Rice' }] };
+      await expect(serviceReturning(complete('{broken'))[method](request)).rejects.toThrow();
+      expect(UsageRecordService.createUsageRecord).toHaveBeenCalledTimes(1);
+      vi.mocked(UsageRecordService.createUsageRecord).mockClear();
+      const service = serviceReturning(null);
+      vi.spyOn(service, 'getGoogleClient').mockResolvedValue({ models: {
+        generateContent: vi.fn().mockRejectedValue({ status: 401, message: 'Invalid API key' })
+      } });
+      await expect(service[method](request)).rejects.toThrow();
+      expect(UsageRecordService.createUsageRecord).not.toHaveBeenCalled();
+    }
+  );
   test('says the answer was truncated, not that the JSON is broken', async () => {
     const service = serviceReturning(truncated('{"translatedText": "Arroz'));
 
