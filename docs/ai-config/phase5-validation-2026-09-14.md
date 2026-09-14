@@ -48,10 +48,21 @@ ran in local containers with networking disabled; they made no provider calls.
   same SQLite and storage procedure, then set `.env`, pulled and started the
   `1.8.0-beta.3` pair. Startup reported a healthy backend and recreated
   frontend; the public health endpoint confirmed `1.8.0-beta.3`.
-- The user then requested removing the beta designation. Stable 1.8.0 is
-  built and published as above; the final Pi pull/start awaits restoration
-  of the Connect terminal session. The current Pi `.env` is still
-  `VERSION=1.8.0-beta.3`, not the final stable tag.
+- The user then requested removing the beta designation. With the Connect
+  terminal restored, created and verified `backups/2026-09-14-pre-stable/`
+  using SQLite `.backup`, `integrity_check`, a checked storage archive, and
+  copies of `.env` and Compose configuration. Fast-forwarded the Pi checkout
+  to `d99f370`, saved `VERSION=1.8.0` in `.env`, and confirmed both resolved
+  image tags before pulling and starting only backend and frontend.
+- Stable **1.8.0 is deployed and verified**. Both containers report healthy;
+  their running image identities match the stable digests above. The backend
+  reports Node `24.21.0`, 36 migrations, no pending migrations, and WAL mode.
+  Local and public `/health` responses both report `status: ok` and
+  `version: 1.8.0`. The Cloudflare container remains unchanged.
+- The public frontend serves `index-hjmeAa2Z.js`, matching the stable build;
+  its bundle includes 1.8.0 and contains no `## Unreleased` heading. GitHub's
+  latest-release endpoint confirms `v1.8.0` is neither draft nor prerelease.
+  Verification made no production AI calls or changes to keys or model settings.
 
 ## What changed
 
