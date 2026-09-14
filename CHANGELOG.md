@@ -19,7 +19,7 @@ All notable changes to FEED are documented here. This project adheres to
   will replace the API keys and configure the production models. Deployment
   verification covers image identity, health, migrations and version only.
 
-## [1.8.0-beta.3] — 2026-09-14, authored; not yet deployed
+## [1.8.0-beta.3] — 2026-09-14, intermediate deployment
 
 ### Fixed
 
@@ -43,9 +43,10 @@ All notable changes to FEED are documented here. This project adheres to
   DOCX classification/Spanish translation and Arabic builder translation/PDF
   export. Rendered files were inspected. Opus 5 classified a 121-segment
   document (117 uncached) and completed a 40-row bulk retry locally.
-- The release and Cloudflare checks remain pending Pi access. Production
-  still reports `1.7.5-rc.1`; the separate Node 24 rollout remains required.
-  Evidence and rollout steps: `docs/ai-config/phase5-validation-2026-09-14.md`.
+- Deployed as an intermediate build on September 14 before the user requested
+  the stable 1.8.0 designation. The separate Node 24 stage was skipped at the
+  user's request; production AI checks were explicitly excluded. Evidence
+  and final rollout status: `docs/ai-config/phase5-validation-2026-09-14.md`.
 
 ## [1.8.0-beta.2] — 2026-09-12, authored; not yet deployed
 
