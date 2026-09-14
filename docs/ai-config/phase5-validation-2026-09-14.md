@@ -93,8 +93,27 @@ The isolated backend container reports Node **24.21.0**, application version
 **1.8.0-beta.3**, and Chromium **152.0.7977.82**. All 36 migrations applied to a
 fresh disposable database with external networking disabled. The frontend's
 Nginx configuration validates and its compiled bundle contains the new version.
-These are Pi-architecture builds, not an AMD64 validation claim. The staged
-older releases described below still need their own immutable images.
+The real builder PDF route also passed inside the isolated ARM64 backend,
+using a fresh database and synthetic Arabic cache rows. Its 38,809-byte PDF
+was rendered and visually inspected with joined Arabic glyphs and mirrored
+columns. These are Pi-architecture builds, not an AMD64 validation claim.
+
+The two preceding stages are also built and loaded locally from clean Git
+archives. Their backend runtimes report application version `1.7.5`, with
+Node **20.20.2** for the error-only stage and **24.21.0** for the runtime-only
+stage. Both frontend Nginx configurations validate. No stage has been pushed.
+
+| Stage and source | Image | Image ID |
+| --- | --- | --- |
+| Errors, `f9ca7f4` | `et2geiger/feed-backend:1.7.5-errors` | `sha256:848ca1573363d6cac5a1c7105c584ccb9e454ebf0382d9c3c5ba2bc3d128f3ca` |
+| Errors, `f9ca7f4` | `et2geiger/feed-frontend:1.7.5-errors` | `sha256:c6d3af4340121d00d9422e6127f0932b686e1527c1f84c45d3f84ed756b5ff9b` |
+| Node 24, `7c7b350` | `et2geiger/feed-backend:1.7.5-node24` | `sha256:71b46390e2a2e27ccd3e9710ffe485fa5a8b813246175900af2224f639815889` |
+| Node 24, `7c7b350` | `et2geiger/feed-frontend:1.7.5-node24` | `sha256:c947bfc0986ed6077e96bd584966e800b369483613a416a07e2e0f651d7e00a6` |
+
+Fetching the older public Node 20 base initially timed out while Docker's
+credential helper waited. An isolated temporary Docker client configuration
+pulled the official public image anonymously; saved credentials and the
+normal Docker configuration were unchanged. Both builds then completed.
 
 Local reproducibility material is under `/tmp/feed-phase5/`: input/output
 documents, PDF renders, request summaries, configuration restoration values,
@@ -107,13 +126,14 @@ outside Git. Temporary files may be removed by the OS.
 
 Preserve the agreed D23 order. The existing commits make the stages separable:
 
-1. Release honest provider errors and alerts from `f9ca7f4` (`1.7.5`). Verify
+1. Publish and deploy the `1.7.5-errors` image pair from `f9ca7f4`
+   (application version `1.7.5`). Verify
    authentication, basic inventory access, and the existing translation path.
-2. Release the Node 24-only delta at `7c7b350`. This commit still reports
-   application version `1.7.5`, so give its images a distinct immutable tag
-   such as `1.7.5-node24`, and verify `node --version` inside the running backend.
+2. Publish and deploy the `1.7.5-node24` image pair, the Node 24-only delta at
+   `7c7b350`. This commit still reports application version `1.7.5`, so retain
+   the distinct image tag and verify `node --version` inside the running backend.
    Do not combine this rollout with the catalogue/SDK change.
-3. Release `1.8.0-beta.3`, then select and verify the approved replacement for
+3. Publish and deploy `1.8.0-beta.3`, then select and verify the approved replacement for
    production's `gpt-5-mini` in AI Configuration. The new-configuration default
    does not automatically migrate a saved production row.
 4. Through the production Cloudflare URL, repeat a synthetic DOCX translation,
