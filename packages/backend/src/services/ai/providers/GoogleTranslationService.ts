@@ -302,12 +302,8 @@ export class GoogleTranslationService extends AITranslationService {
 
           console.log('Google AI response:', response);
 
-          if (!response.text) {
-            throw new Error('No content in translation response');
-          }
-
           const duration = Date.now() - startTime;
-          const outputText = response.text;
+          const outputText = response.text ?? '';
 
           console.log('Attempting to parse:', outputText);
           
@@ -329,6 +325,20 @@ export class GoogleTranslationService extends AITranslationService {
             // make the error clearer and the spend invisible.
             if (this.wasTruncated(response)) {
               throw new Error('Translation response was truncated due to length');
+            }
+
+            // This check used to sit above the `try`, and it ran first — so a
+            // reply that spent its whole budget thinking and returned no text
+            // was reported as "No content", naming the wrong cause, and never
+            // recorded despite being billed. Not hypothetical: the sweep saw
+            // `gemini-3.8-flash` return 5 answer tokens against 492 of
+            // thinking, and zero is that case one notch further on.
+            //
+            // Below the truncation guard so the more specific cause wins, and
+            // inside the `try` so an empty reply is recorded like any other
+            // the provider charged for.
+            if (!outputText) {
+              throw new Error('No content in translation response');
             }
 
             responseJson = JSON.parse(outputText);
@@ -545,17 +555,19 @@ export class GoogleTranslationService extends AITranslationService {
         }
       });
 
-      if (!response.text) {
-        throw new Error('No content in translation response');
-      }
-
-      // See the equivalent guard in `translateText`. Note this path has no
-      // billed-but-failed recording around it at all, so a truncated batch
-      // still costs money that goes unrecorded — the batch half of the
-      // `trackFailedUsage` work, recorded in ISSUES.md rather than widened
-      // into this change.
+      // Truncation is tested before emptiness: a reply that ran out of room
+      // may carry no text at all, and "No content" would name the wrong cause.
+      //
+      // Note this path has no billed-but-failed recording around it, so a
+      // truncated batch still costs money that goes unrecorded — the batch
+      // half of the `trackFailedUsage` work, recorded in ISSUES.md rather than
+      // widened into this change.
       if (this.wasTruncated(response)) {
         throw new Error('Translation response was truncated due to length');
+      }
+
+      if (!response.text) {
+        throw new Error('No content in translation response');
       }
 
       const responseJson = JSON.parse(response.text);
@@ -714,18 +726,19 @@ export class GoogleTranslationService extends AITranslationService {
 
       console.log('Google AI classification response:', response);
 
+      // Truncation before emptiness, as in `translateText`: a reply cut off at
+      // the cap may carry no text at all. Anthropic words the classification
+      // case separately, and so does this.
+      if (this.wasTruncated(response)) {
+        throw new Error('Classification response was truncated due to length');
+      }
+
       if (!response.text) {
         throw new Error('No content in classification response');
       }
 
       const duration = Date.now() - startTime;
       const outputText = response.text;
-
-      // See the equivalent guard in `translateText`. Anthropic words the
-      // classification case separately, and so does this.
-      if (this.wasTruncated(response)) {
-        throw new Error('Classification response was truncated due to length');
-      }
 
       const responseJson = JSON.parse(outputText);
 
@@ -898,17 +911,17 @@ export class GoogleTranslationService extends AITranslationService {
 
       console.log('Google AI batch classification response:', response);
 
+      // Truncation before emptiness, as in `translateText`.
+      if (this.wasTruncated(response)) {
+        throw new Error('Classification response was truncated due to length');
+      }
+
       if (!response.text) {
         throw new Error('No content in classification response');
       }
 
       const duration = Date.now() - startTime;
       const outputText = response.text;
-
-      // See the equivalent guard in `translateText`.
-      if (this.wasTruncated(response)) {
-        throw new Error('Classification response was truncated due to length');
-      }
 
       const responseJson = JSON.parse(outputText);
 
