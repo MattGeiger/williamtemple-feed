@@ -85,8 +85,11 @@ at 40% over a white card is indistinguishable from white at 72%.
 **Priority**: High · **Status**: honest errors and alerts, Node 24, the SDK
 upgrades, one server-authoritative catalogue read by both the providers and the
 dialogs, and the contents refresh are all delivered — 12 presets offered, four
-per provider, and FEED's default moved off the model Google refuses. Open:
-**Phase 5 live validation**, defects 5, 6 and 10 below, and the secondary lists
+per provider, and FEED's default moved off the model Google refuses. **Phase 5's
+small-request sweep has run** — all seven request types against all twelve
+models (2026-09-13) — but Phase 5 also includes the feature pass, docs and
+release, so the phase is not complete. Open: defects 5, 6 and 10 below, the
+secondary lists
 **Bucket**: AI configuration / translation providers
 
 Google no longer lets new projects call `gemini-2.5-flash-lite`, FEED's
@@ -215,9 +218,16 @@ names no model; and `scripts/fix-ai-config-token-limits.ts` reads
 `findCatalogueEntry(...).maxOutputTokens` instead of a hardcoded table
 (`d203c77`). `config/limits/index.ts` was deleted earlier as an unimported
 second copy, and `SERVICE_SPECIFICATIONS` is now `SERVICE_COLORS` with no model
-data at all. **Phase 5 live validation is the only part of #84 outstanding**, and
-three slices of it have now run — one on 2026-09-12 and two on 2026-09-13, the
-last of which closed the per-model gap (below).
+data at all. **Phase 5's small-request sweep has run** across four slices — one
+on 2026-09-12 and three on 2026-09-13. The third closed the per-model gap; the
+fourth built the live smoke sweep and ran all seven request types against all
+twelve models, 83 requests for $0.1022 (below).
+
+That is the sweep, not the phase. Phase 5 is defined as seven requests × 12
+models **plus one feature pass on the new default, docs, and release**, and
+the sweep itself left the `busy` classification and the document path
+uncovered. Still outstanding for #84: the rest of Phase 5, the three defects
+the sweep found, and production's move off `gpt-5-mini` before 2026-12-11.
 
 Ten things this work turned up, none of them defects on the #84 list. Some
 came from live testing against the providers, one from reconciling the usage
@@ -415,11 +425,24 @@ rather than a defect:
   way raise a critical alert once each and keep translating, because a config
   defect should not stop the pantry's translations.
 
-Also outstanding: **Phase 5 live validation.** Some of it is already done as a
-by-product of writing the entries — effort values measured on four OpenAI
-models, effort and thinking-disable on three Anthropic ones, thinking floors on
-four Gemini ones — but no FEED-shaped end-to-end translation has been run
-against the new presets.
+**Phase 5's small-request sweep: done (2026-09-13). The phase is not.** This
+paragraph used to end "no FEED-shaped end-to-end translation has been run
+against the new presets", and stayed that way for a day after it stopped being
+true — it sits in the plan section, away from the findings list whose seams
+were being checked, so every verification pass walked straight past it.
+
+What has actually run: effort values on four OpenAI models, effort and
+thinking-disable on three Anthropic ones and thinking floors on four Gemini
+ones as a by-product of writing the entries; then four live slices ending in
+the smoke sweep, which put all seven request types through all twelve models
+— 83 requests, 81 of 84 outcomes passing, $0.1022.
+
+What has not: the feature pass on the new default (a DOCX translation and a
+Shopping List Builder PDF, rendered and inspected — coverage item 10), the
+docs, and the release, all of which Phase 5 includes. The sweep also left the
+`busy` classification and the document path untested, and turned up three
+defects of its own. Calling the phase finished because its cheapest part
+succeeded would repeat the error this paragraph exists to record.
 
 **Plan**: retire 15 of 16 presets and add 11. Steps: reproduce against real
 keys, honest errors, one server-authoritative catalogue with lifecycle and
