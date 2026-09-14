@@ -770,41 +770,24 @@ export class AnthropicTranslationService extends AITranslationService {
         ...this.resolveThinking(model),
         system: systemPrompt,
         tools: [classificationTool],
-        tool_choice: { type: "tool", name: "classify_segments" },
+        tool_choice: this.classificationToolChoice(model, classificationTool.name),
         messages: [
           {
             role: "user",
-            content: `Classify these text segments:\n${segmentsText}`
+            content: `Use ${classificationTool.name} to return one classification per numbered segment, in order.\nClassify these text segments:\n${segmentsText}`
           }
         ]
       });
 
       console.log('Anthropic classification response:', response);
 
-      if (response.stop_reason === 'max_tokens') {
-        throw new Error('Classification response was truncated due to length');
-      }
-
-      // Extract tool use response
-      const toolUseContent = response.content.find(block => block.type === 'tool_use');
-      if (!toolUseContent) {
-        throw new Error('No tool use content in classification response');
-      }
-
-      const classifications = (toolUseContent.input as any).classifications;
-      if (!Array.isArray(classifications)) {
-        throw new Error('Tool response missing classifications array');
-      }
+      const classifications = await this.readClassifications(
+        response, classificationTool.name, request.segments.length, startTime
+      );
 
       const duration = Date.now() - startTime;
 
       console.log('Parsed classification response:', { classifications });
-
-      // Validate response count matches input count
-      if (classifications.length !== request.segments.length) {
-        console.warn(`Classification count mismatch: expected ${request.segments.length}, got ${classifications.length}`);
-        // Continue processing but log the discrepancy
-      }
 
       // Map segment IDs back to the original IDs
       const classificationsWithIds = classifications.map((classification: any, index: number) => ({
@@ -907,7 +890,13 @@ export class AnthropicTranslationService extends AITranslationService {
         return this.processSingleBatch(batch, batchIndex, promptConfig);
       });
       
-      const batchResults = await Promise.all(batchPromises);
+      // Finish recording every in-flight reply before reporting a failure. A
+      // successful sibling still costs money when another batch is unusable.
+      const settled = await Promise.allSettled(batchPromises);
+      const batchResults = settled.map(result => {
+        if (result.status === 'rejected') throw result.reason;
+        return result.value;
+      });
       
       // Combine all results
       let allClassifications: Array<{ id: string; a: number; b: number; }> = [];
@@ -957,19 +946,6 @@ export class AnthropicTranslationService extends AITranslationService {
         }
       };
 
-      // Track usage for multi-service analytics
-      await this.trackSuccessfulUsage(
-        'classification',
-        {
-          promptTokens: totalInputTokens,
-          completionTokens: totalOutputTokens,
-          totalCost,
-          duration
-        },
-        model,
-        { language: undefined }
-      );
-
       return result;
       
     } catch (error) {
@@ -978,6 +954,7 @@ export class AnthropicTranslationService extends AITranslationService {
   }
   
   private async processSingleBatch(batch: string[], batchIndex: number, promptConfig: any): Promise<{ classifications: any[], metrics: any }> {
+    const startTime = Date.now();
     const model = this.getModel();
     const anthropic = await this.getAnthropicClient();
     
@@ -1025,33 +1002,26 @@ export class AnthropicTranslationService extends AITranslationService {
         ...this.resolveThinking(model),
         system: systemPrompt,
         tools: [classificationTool],
-        tool_choice: { type: "tool", name: "classify_segments_batch" },
+        tool_choice: this.classificationToolChoice(model, classificationTool.name),
         messages: [
           {
             role: "user",
-            content: `Classify these text segments:\n${segmentsText}`
+            content: `Use ${classificationTool.name} to return one classification per numbered segment, in order.\nClassify these text segments:\n${segmentsText}`
           }
         ]
       });
 
-    if (response.stop_reason === 'max_tokens') {
-      throw new Error(`Classification batch ${batchIndex} response was truncated due to length`);
-    }
-
-    // Extract tool use response
-    const toolUseContent = response.content.find(block => block.type === 'tool_use');
-    if (!toolUseContent) {
-      throw new Error(`No tool use content in classification batch ${batchIndex} response`);
-    }
-
-    const classifications = (toolUseContent.input as any).classifications;
-    if (!Array.isArray(classifications)) {
-      throw new Error(`Tool response missing classifications array in batch ${batchIndex}`);
-    }
+    const classifications = await this.readClassifications(
+      response, classificationTool.name, batch.length, startTime
+    );
     
     const inputTokens = response.usage.input_tokens;
     const outputTokens = response.usage.output_tokens;
     const totalCost = this.recordedCost(inputTokens, outputTokens);
+    await this.trackSuccessfulUsage('classification', {
+      promptTokens: inputTokens, completionTokens: outputTokens,
+      totalCost, duration: Date.now() - startTime,
+    }, model);
     
     return {
       classifications,
@@ -1061,6 +1031,43 @@ export class AnthropicTranslationService extends AITranslationService {
         totalCost
       }
     };
+  }
+
+  private classificationToolChoice(model: string, name: string): Anthropic.ToolChoice {
+    return capabilitiesFor('Anthropic', model).forcedToolUse === true
+      ? { type: 'tool', name }
+      : { type: 'auto' };
+  }
+
+  private async readClassifications(
+    response: Anthropic.Message, toolName: string, expectedCount: number, startTime: number
+  ): Promise<Array<{ id: string; a: number; b: number }>> {
+    try {
+      if (response.stop_reason === 'max_tokens') {
+        throw new Error('Classification response was truncated due to length');
+      }
+      const tool = response.content.find(block => block.type === 'tool_use' && block.name === toolName);
+      if (!tool || tool.type !== 'tool_use') {
+        throw new Error('The model did not return the requested classification. Try again or choose another AI model.');
+      }
+      const rows = (tool.input as { classifications?: unknown } | null)?.classifications;
+      if (!Array.isArray(rows) || rows.length !== expectedCount || rows.some(row =>
+        !row || typeof row.id !== 'string' ||
+        !Number.isFinite(row.a) || row.a < 0 || row.a > 1 ||
+        !Number.isFinite(row.b) || row.b < 0 || row.b > 1
+      )) {
+        throw new Error('The model returned incomplete or invalid classifications. Try again or choose another AI model.');
+      }
+      return rows;
+    } catch (error) {
+      await this.trackFailedUsage('classification', {
+        promptTokens: response.usage.input_tokens,
+        completionTokens: response.usage.output_tokens,
+        totalCost: this.recordedCost(response.usage.input_tokens, response.usage.output_tokens),
+        duration: Date.now() - startTime,
+      }, this.getModel());
+      throw error;
+    }
   }
 
   private resolveMaxTokens(

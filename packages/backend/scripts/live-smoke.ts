@@ -49,14 +49,15 @@
  *   ts-node scripts/live-smoke.ts --bill --include-frontier --ceiling 2.00
  *
  * Frontier models are skipped unless `--include-frontier`. Every request is
- * capped at `SWEEP_OUTPUT_CAP` output tokens, which is what makes the figure
- * printed before a run a bound rather than a hope, and the run stops before
- * any model whose worst case would carry it past `--ceiling` (default $1.00).
+ * capped at `SWEEP_OUTPUT_CAP` output tokens. The input estimate is not a
+ * guarantee. A conservative reservation is checked before each billable call;
+ * persisted spend includes failed replies and unknown prices are refused.
  */
 
 import type { AIConfiguration } from '@prisma/client';
 
 import prisma from '../src/db';
+import { UsageRecordService } from '../src/services/usage-record';
 import { AIServiceFactory } from '../src/services/ai/factory/AIServiceFactory';
 import type { AITranslationService } from '../src/services/ai/base/AITranslationService';
 import { encryptApiKey } from '../src/services/encryption';
@@ -142,7 +143,7 @@ interface Options {
   ceiling: number;
 }
 
-const parseArgs = (argv: string[]): Options => {
+export const parseArgs = (argv: string[]): Options => {
   const value = (flag: string): string | undefined => {
     const at = argv.indexOf(flag);
     return at === -1 ? undefined : argv[at + 1];
@@ -150,6 +151,15 @@ const parseArgs = (argv: string[]): Options => {
 
   const ceilingRaw = value('--ceiling');
   const configRaw = value('--config');
+
+  if (ceilingRaw !== undefined && (!Number.isFinite(Number(ceilingRaw)) || Number(ceilingRaw) <= 0)) {
+    throw new Error('--ceiling must be a positive finite dollar amount.');
+  }
+  if (argv.includes('--ceiling') && ceilingRaw === undefined) throw new Error('--ceiling requires a dollar amount.');
+  if (argv.includes('--config') && (!configRaw || !Number.isSafeInteger(Number(configRaw)) || Number(configRaw) <= 0)) {
+    throw new Error('--config requires a positive integer ID.');
+  }
+  if (argv.includes('--bill') && argv.includes('--unbilled')) throw new Error('Choose --bill or --unbilled, not both.');
 
   return {
     bill: argv.includes('--bill'),
@@ -204,16 +214,24 @@ const selectConfigurations = async (options: Options): Promise<AIConfiguration[]
  * `ASSUMED_INPUT_TOKENS`.
  *
  * So: a projection with an enforced ceiling on the expensive half, not a
- * guarantee. `--ceiling` is the actual stop.
+ * guarantee. The sweep reserves three projected attempts before each call.
  */
-const worstCaseForModel = (model: string): number | null => {
-  const entry = findCatalogueEntry(model);
-  if (!entry) return null;
+export const projectedCost = (config: AIConfiguration): number | null => {
+  const entry = findCatalogueEntry(config.model ?? '');
+  if (!entry || entry.provider !== config.serviceType) return null;
+  // Saved prices may be higher than the catalogue (including legacy per_1k
+  // rows). Reserve at the higher rate while preserving actual recording.
+  const multiplier = config.unitPrice === 'per_1k' ? 1000 : config.unitPrice === 'per_1m' ? 1 : null;
+  if (multiplier === null || typeof config.inputCost !== 'number' || typeof config.outputCost !== 'number'
+    || !Number.isFinite(config.inputCost) || !Number.isFinite(config.outputCost)
+    || config.inputCost <= 0 || config.outputCost <= 0) return null;
+  const inputPrice = Math.max(entry.pricing.input, config.inputCost * multiplier);
+  const outputPrice = Math.max(entry.pricing.output, config.outputCost * multiplier);
 
   const inputTokens = ASSUMED_INPUT_TOKENS * BILLABLE_REQUESTS;
   const outputTokens = SWEEP_OUTPUT_CAP * BILLABLE_REQUESTS;
 
-  return (inputTokens * entry.pricing.input + outputTokens * entry.pricing.output) / 1_000_000;
+  return (inputTokens * inputPrice + outputTokens * outputPrice) / 1_000_000;
 };
 
 /**
@@ -228,14 +246,25 @@ const worstCaseForModel = (model: string): number | null => {
 const capped = (config: AIConfiguration): AIConfiguration =>
   ({ ...config, maxTokens: SWEEP_OUTPUT_CAP }) as AIConfiguration;
 
-const time = async <T>(work: () => Promise<T>): Promise<{ result?: T; error?: unknown; ms: number }> => {
+export const measureRequest = async <T>(work: () => Promise<T>) => {
   const started = Date.now();
-  try {
-    return { result: await work(), ms: Date.now() - started };
-  } catch (error) {
-    return { error, ms: Date.now() - started };
-  }
+  const { result, records } = await UsageRecordService.captureUsage(async () => {
+    try {
+      return { result: await work(), error: undefined as unknown };
+    } catch (error) {
+      return { result: undefined, error };
+    }
+  });
+  return {
+    ...result, ms: Date.now() - started,
+    usage: records.reduce((sum, record) => ({
+      promptTokens: sum.promptTokens + record.promptTokens,
+      completionTokens: sum.completionTokens + record.completionTokens,
+      totalCost: sum.totalCost + record.totalCost,
+    }), { promptTokens: 0, completionTokens: 0, totalCost: 0 }),
+  };
 };
+const time = measureRequest;
 
 /**
  * Requests 5-7: the three that are expected to cost nothing.
@@ -322,11 +351,27 @@ const unbilledRequests = async (
 const billableRequests = async (
   config: AIConfiguration,
   service: AITranslationService,
+  budget: { ceiling: number; reserved: number; spent: number },
+  outcomes: RequestOutcome[],
 ): Promise<RequestOutcome[]> => {
   const model = config.model ?? 'unknown';
-  const outcomes: RequestOutcome[] = [];
+  const projected = projectedCost(config);
+  if (projected === null) throw new Error(`Cannot price ${model}; no billable request was sent.`);
+  const measure = async <T>(work: () => Promise<T>) => {
+    // Reserve a projected request including FEED's possible retries. Input remains
+    // an estimate, so this is a stop policy, not a provider-side hard dollar cap.
+    const reservation = projected / BILLABLE_REQUESTS * 3;
+    if (budget.reserved + reservation > budget.ceiling) {
+      throw new Error(`Sweep ceiling reached; ${usd(budget.spent)} recorded so far. No next request sent.`);
+    }
+    budget.reserved += reservation;
+    const measured = await time(work);
+    budget.spent += measured.usage.totalCost;
+    budget.reserved += Math.max(0, measured.usage.totalCost - reservation);
+    return measured;
+  };
 
-  const one = await time(() =>
+  const one = await measure(() =>
     service.translateText({
       text: 'Canned black beans, low sodium.',
       targetLanguage: 'Spanish',
@@ -341,14 +386,14 @@ const billableRequests = async (
     ok: Boolean(one.result?.translatedText),
     detail: one.result?.translatedText ?? describeFailure(one.error),
     ms: one.ms,
-    promptTokens: one.result?.metrics.promptTokens,
-    completionTokens: one.result?.metrics.completionTokens,
-    costUsd: one.result?.metrics.totalCost,
+    promptTokens: one.usage.promptTokens,
+    completionTokens: one.usage.completionTokens,
+    costUsd: one.usage.totalCost,
   });
 
   // Arabic, with a duplicate among the three, so this exercises RTL, the
   // de-duplication, and that results come back matched to their ids.
-  const two = await time(() =>
+  const two = await measure(() =>
     service.translateTextBatch({
       texts: [
         { id: 'a', text: 'Rice' },
@@ -372,12 +417,12 @@ const billableRequests = async (
       ? two.result!.translations.map((t) => `${t.id}=${t.translatedText}`).join(' | ')
       : describeFailure(two.error),
     ms: two.ms,
-    promptTokens: two.result?.metrics.promptTokens,
-    completionTokens: two.result?.metrics.completionTokens,
-    costUsd: two.result?.metrics.totalCost,
+    promptTokens: two.usage.promptTokens,
+    completionTokens: two.usage.completionTokens,
+    costUsd: two.usage.totalCost,
   });
 
-  const three = await time(() =>
+  const three = await measure(() =>
     service.classifySegmentsBatch({
       segments: [
         { id: 's1', text: 'Food Pantry Hours' },
@@ -397,9 +442,9 @@ const billableRequests = async (
         .map((c) => `${c.id}:a=${c.a.toFixed(2)},b=${c.b.toFixed(2)}`)
         .join(' | ') ?? describeFailure(three.error),
     ms: three.ms,
-    promptTokens: three.result?.metrics.promptTokens,
-    completionTokens: three.result?.metrics.completionTokens,
-    costUsd: three.result?.metrics.totalCost,
+    promptTokens: three.usage.promptTokens,
+    completionTokens: three.usage.completionTokens,
+    costUsd: three.usage.totalCost,
   });
 
   // 4. The highest reasoning level the model accepts. Models whose thinking
@@ -429,7 +474,7 @@ const billableRequests = async (
     ...capped(config),
     thinkingLevel: highest,
   } as AIConfiguration);
-  const four = await time(() =>
+  const four = await measure(() =>
     raised.translateText({
       text: 'Please bring your identification and a proof of address.',
       targetLanguage: 'Spanish',
@@ -444,9 +489,9 @@ const billableRequests = async (
     ok: Boolean(four.result?.translatedText),
     detail: four.result?.translatedText ?? describeFailure(four.error),
     ms: four.ms,
-    promptTokens: four.result?.metrics.promptTokens,
-    completionTokens: four.result?.metrics.completionTokens,
-    costUsd: four.result?.metrics.totalCost,
+    promptTokens: four.usage.promptTokens,
+    completionTokens: four.usage.completionTokens,
+    costUsd: four.usage.totalCost,
   });
 
   return outcomes;
@@ -460,8 +505,8 @@ const describeFailure = (error: unknown): string => {
 
 const usd = (n: number): string => `$${n.toFixed(4)}`;
 
-const main = async (): Promise<void> => {
-  const options = parseArgs(process.argv.slice(2));
+export const main = async (args = process.argv.slice(2)): Promise<void> => {
+  const options = parseArgs(args);
   const configs = await selectConfigurations(options);
 
   if (!configs.length) {
@@ -471,25 +516,25 @@ const main = async (): Promise<void> => {
 
   console.log(`\nFEED live smoke sweep — ${configs.length} configuration(s)\n`);
 
-  let worstCaseTotal = 0;
+  let projectedTotal = 0;
   for (const config of configs) {
-    const worst = worstCaseForModel(config.model!);
-    if (worst !== null) worstCaseTotal += worst;
+    const worst = projectedCost(config);
+    if (worst !== null) projectedTotal += worst;
     const entry = findCatalogueEntry(config.model!);
     console.log(
       `  [${String(config.id).padStart(2)}] ${(config.model ?? '?').padEnd(26)} `
       + `${(config.serviceType ?? '?').padEnd(10)} ${(entry?.costTier ?? 'uncatalogued').padEnd(9)} `
-      + `projected ${worst === null ? 'unknown (not in catalogue)' : usd(worst)}`,
+      + `projected ${worst === null ? 'unknown (unpriced model or configuration)' : usd(worst)}`,
     );
   }
   console.log(
     `\n  Output is capped at ${SWEEP_OUTPUT_CAP} tokens per request and enforced, so the`
-    + `\n  expensive half of this figure cannot be exceeded. Input is assumed at`
+    + `\n  output allowance applies to each attempt. Input is assumed at`
     + `\n  ${ASSUMED_INPUT_TOKENS} tokens per request and is NOT enforced — a larger prompt row`
-    + `\n  moves it. Treat the total as a projection, not a guarantee; --ceiling stops.`
+    + `\n  moves it. Reservations include up to three attempts per call; this is not a hard dollar cap.`
     + `\n  Request 4 proves the highest reasoning level is accepted, not how long`
     + `\n  a model would think unbounded.`
-    + `\n\n  Projected for the billable half: ${usd(worstCaseTotal)}`
+    + `\n\n  Projected for the billable half: ${usd(projectedTotal)}`
     + `\n  Ceiling for this run: ${usd(options.ceiling)}\n`,
   );
 
@@ -500,7 +545,7 @@ const main = async (): Promise<void> => {
   }
 
   const outcomes: RequestOutcome[] = [];
-  let spent = 0;
+  const budget = { ceiling: options.ceiling, reserved: 0, spent: 0 };
 
   for (const config of configs) {
     // Cap before anything is built from the row, and clear the prompt cache
@@ -513,21 +558,18 @@ const main = async (): Promise<void> => {
 
     if (!options.bill) continue;
 
-    // Checked *before* the requests, never after. Checking afterwards let a
-    // model overshoot the ceiling by its own cost, which on an uncapped
-    // frontier request would have been dollars rather than cents.
-    const worstCase = worstCaseForModel(sweepConfig.model!) ?? 0;
-    if (spent + worstCase > options.ceiling) {
-      console.log(
-        `\nStopping before ${sweepConfig.model}: ${usd(spent)} spent, and its worst `
-        + `case of ${usd(worstCase)} would pass the ${usd(options.ceiling)} ceiling.\n`,
-      );
+    if (projectedCost(sweepConfig) === null) {
+      outcomes.push({ model: sweepConfig.model!, configId: config.id, request: 'billable requests',
+        billable: false, ok: false, detail: 'Unpriced model or configuration: billable requests refused.', ms: 0 });
+      continue;
+    }
+    try {
+      await billableRequests(sweepConfig, service, budget, outcomes);
+    } catch (error) {
+      console.error(`Sweep stopped: ${describeFailure(error)} Recorded so far: ${usd(budget.spent)}.`);
+      process.exitCode = 1;
       break;
     }
-
-    const billed = await billableRequests(sweepConfig, service);
-    outcomes.push(...billed);
-    spent += billed.reduce((sum, o) => sum + (o.costUsd ?? 0), 0);
   }
 
   console.log('\nResults\n');
@@ -546,7 +588,7 @@ const main = async (): Promise<void> => {
   const failures = outcomes.filter((o) => !o.ok).length;
   console.log(
     `\n  ${outcomes.length - failures} passed, ${failures} failed. `
-    + `Recorded spend this run: ${usd(spent)}.\n`,
+    + `Recorded spend this run: ${usd(budget.spent)}.\n`,
   );
   console.log('  Spend is recorded as UsageRecord rows against each configuration');
   console.log('  and will appear in the usage dashboard.\n');
@@ -554,7 +596,7 @@ const main = async (): Promise<void> => {
   if (failures) process.exitCode = 1;
 };
 
-main()
+if (require.main === module) main()
   .catch((error) => {
     console.error('Live smoke sweep failed:', error);
     process.exitCode = 1;

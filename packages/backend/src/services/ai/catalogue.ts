@@ -189,6 +189,8 @@ export interface ModelCapabilities {
   maxTokensField: 'max_tokens' | 'max_completion_tokens';
   reasoning: ReasoningControl;
   prefill: PrefillSupport;
+  /** Anthropic classification may force a tool only when explicitly supported. */
+  forcedToolUse?: boolean;
   /**
    * The single temperature a model accepts, where the provider fixes one.
    * Distinct from `sampling: 'unsupported'`, which means omit the parameter
@@ -684,6 +686,7 @@ const CATALOGUE_BASE: readonly CatalogueEntryWithoutLanguages[] = [
         canDisable: true,
       },
       prefill: 'rejected',
+      forcedToolUse: true,
       nonStreamingOutputCeiling: 20480,
     },
   },
@@ -713,6 +716,7 @@ const CATALOGUE_BASE: readonly CatalogueEntryWithoutLanguages[] = [
         canDisable: true,
       },
       prefill: 'rejected',
+      forcedToolUse: true,
       nonStreamingOutputCeiling: 20480,
     },
   },
@@ -742,6 +746,9 @@ const CATALOGUE_BASE: readonly CatalogueEntryWithoutLanguages[] = [
         canDisable: false,
       },
       prefill: 'rejected',
+      // Verified 2026-09-14: Fable rejects tool_choice tool/any.
+      // https://platform.claude.com/docs/en/models/fable-5-1/overview
+      forcedToolUse: false,
       nonStreamingOutputCeiling: 20480,
     },
   },
@@ -767,6 +774,7 @@ const CATALOGUE_BASE: readonly CatalogueEntryWithoutLanguages[] = [
       maxTokensField: 'max_tokens',
       reasoning: { kind: 'extended', leastCost: 'off' },
       prefill: 'allowed',
+      forcedToolUse: true,
       nonStreamingOutputCeiling: 20480,
     },
   },
@@ -793,6 +801,7 @@ const CATALOGUE_BASE: readonly CatalogueEntryWithoutLanguages[] = [
       maxTokensField: 'max_tokens',
       reasoning: { kind: 'extended', leastCost: 'off' },
       prefill: 'allowed',
+      forcedToolUse: true,
       nonStreamingOutputCeiling: 20480,
     },
   },
@@ -816,6 +825,7 @@ const CATALOGUE_BASE: readonly CatalogueEntryWithoutLanguages[] = [
       maxTokensField: 'max_tokens',
       reasoning: { kind: 'extended', leastCost: 'off' },
       prefill: 'allowed',
+      forcedToolUse: true,
       nonStreamingOutputCeiling: 20480,
     },
   },

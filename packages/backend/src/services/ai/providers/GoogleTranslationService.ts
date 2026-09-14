@@ -555,90 +555,91 @@ export class GoogleTranslationService extends AITranslationService {
         }
       });
 
-      // Truncation is tested before emptiness: a reply that ran out of room
-      // may carry no text at all, and "No content" would name the wrong cause.
-      //
-      // Note this path has no billed-but-failed recording around it, so a
-      // truncated batch still costs money that goes unrecorded — the batch
-      // half of the `trackFailedUsage` work, recorded in ISSUES.md rather than
-      // widened into this change.
-      if (this.wasTruncated(response)) {
-        throw new Error('Translation response was truncated due to length');
-      }
+      const result = await this.readBilledResponse(response, model, 'batch', startTime,
+        Math.ceil(textsForTranslation.length / 4) + 100, targetLanguage, async () => {
+        // Truncation is tested before emptiness: a reply that ran out of room
+        // may carry no text at all, and "No content" would name the wrong cause.
+        //
+        if (this.wasTruncated(response)) {
+          throw new Error('Translation response was truncated due to length');
+        }
 
-      if (!response.text) {
-        throw new Error('No content in translation response');
-      }
+        if (!response.text) {
+          throw new Error('No content in translation response');
+        }
 
-      const responseJson = JSON.parse(response.text);
-      if (!responseJson.translations || !Array.isArray(responseJson.translations)) {
-        throw new Error('Response missing translations array');
-      }
-      
-      // Map translations back to all IDs
-      const allTranslations: Array<{ id: string; originalText: string; translatedText: string }> = [];
-      
-      uniqueTextsList.forEach(([originalText, data], index) => {
-        const translation = responseJson.translations[index];
-        if (translation && translation.translatedText) {
-          data.ids.forEach(id => {
-            allTranslations.push({
-              id,
-              originalText,
-              translatedText: translation.translatedText
+        const responseJson = JSON.parse(response.text);
+        if (!responseJson.translations || !Array.isArray(responseJson.translations)) {
+          throw new Error('Response missing translations array');
+        }
+
+        // Map translations back to all IDs
+        const allTranslations: Array<{ id: string; originalText: string; translatedText: string }> = [];
+
+        uniqueTextsList.forEach(([originalText, data], index) => {
+          const translation = responseJson.translations[index];
+          if (translation && translation.translatedText) {
+            data.ids.forEach(id => {
+              allTranslations.push({
+                id,
+                originalText,
+                translatedText: translation.translatedText
+              });
             });
-          });
-        }
-      });
-      
-      const duration = Date.now() - startTime;
-      // Estimate token usage
-      const estimatedInputTokens = Math.ceil(textsForTranslation.length / 4) + 100;
-      const estimatedOutputTokens = Math.ceil(response.text.length / 4);
-      const usageMetrics = this.extractUsageMetrics(response, estimatedInputTokens, estimatedOutputTokens);
-      
-      // Calculate cost using configuration-based rates
-      const inputCostPerToken = convertToPerTokenRate(this.config.inputCost || 0, this.config.unitPrice);
-      const outputCostPerToken = convertToPerTokenRate(this.config.outputCost || 0, this.config.unitPrice);
-      const totalCost = (usageMetrics.promptTokens * inputCostPerToken) +
-        (usageMetrics.completionTokens * outputCostPerToken);
-      
-      // Log API usage
-      try {
-        await ApiUsageTracker.logApiUsage(
-          usageMetrics.promptTokens,
-          usageMetrics.completionTokens,
-          model,
-          'translation'
-        );
-      } catch (loggingError) {
-        console.warn('Failed to log API usage:', loggingError);
-      }
-      
-      console.log(`Batch translation completed: ${uniqueTexts.size} unique -> ${allTranslations.length} total`);
-      
-      const result: BatchTranslationResult = {
-        translations: allTranslations,
-        metrics: {
-          duration,
-          promptTokens: usageMetrics.promptTokens,
-          completionTokens: usageMetrics.completionTokens,
-          totalCost
-        }
-      };
+          }
+        });
 
-      if (warnings.length > 0) {
-        result.warnings = warnings;
-      }
+        const duration = Date.now() - startTime;
+        // Estimate token usage
+        const estimatedInputTokens = Math.ceil(textsForTranslation.length / 4) + 100;
+        const estimatedOutputTokens = Math.ceil(response.text.length / 4);
+        const usageMetrics = this.extractUsageMetrics(response, estimatedInputTokens, estimatedOutputTokens);
+
+        // Calculate cost using configuration-based rates
+        const inputCostPerToken = convertToPerTokenRate(this.config.inputCost || 0, this.config.unitPrice);
+        const outputCostPerToken = convertToPerTokenRate(this.config.outputCost || 0, this.config.unitPrice);
+        const totalCost = (usageMetrics.promptTokens * inputCostPerToken) +
+          (usageMetrics.completionTokens * outputCostPerToken);
+
+        // Log API usage
+        try {
+          await ApiUsageTracker.logApiUsage(
+            usageMetrics.promptTokens,
+            usageMetrics.completionTokens,
+            model,
+            'translation'
+          );
+        } catch (loggingError) {
+          console.warn('Failed to log API usage:', loggingError);
+        }
+
+        console.log(`Batch translation completed: ${uniqueTexts.size} unique -> ${allTranslations.length} total`);
+
+        const result: BatchTranslationResult = {
+          translations: allTranslations,
+          metrics: {
+            duration,
+            promptTokens: usageMetrics.promptTokens,
+            completionTokens: usageMetrics.completionTokens,
+            totalCost
+          }
+        };
+
+        if (warnings.length > 0) {
+          result.warnings = warnings;
+        }
+
+        return result;
+      });
 
       // Track usage for multi-service analytics
       await this.trackSuccessfulUsage(
         'batch',
         {
-          promptTokens: usageMetrics.promptTokens,
-          completionTokens: usageMetrics.completionTokens,
-          totalCost,
-          duration
+          promptTokens: result.metrics.promptTokens,
+          completionTokens: result.metrics.completionTokens,
+          totalCost: result.metrics.totalCost,
+          duration: result.metrics.duration
         },
         model,
         { language: targetLanguage }
@@ -726,83 +727,88 @@ export class GoogleTranslationService extends AITranslationService {
 
       console.log('Google AI classification response:', response);
 
-      // Truncation before emptiness, as in `translateText`: a reply cut off at
-      // the cap may carry no text at all. Anthropic words the classification
-      // case separately, and so does this.
-      if (this.wasTruncated(response)) {
-        throw new Error('Classification response was truncated due to length');
-      }
-
-      if (!response.text) {
-        throw new Error('No content in classification response');
-      }
-
-      const duration = Date.now() - startTime;
-      const outputText = response.text;
-
-      const responseJson = JSON.parse(outputText);
-
-      if (!responseJson.classifications || !Array.isArray(responseJson.classifications)) {
-        throw new Error('Response missing classifications array');
-      }
-
-      // Validate response count matches input count
-      if (responseJson.classifications.length !== request.segments.length) {
-        console.warn(`Classification count mismatch: expected ${request.segments.length}, got ${responseJson.classifications.length}`);
-        // Continue processing but log the discrepancy
-      }
-
-      // Map segment IDs back to the original IDs
-      const classificationsWithIds = responseJson.classifications.map((classification: any, index: number) => ({
-        ...classification,
-        id: request.segments[index]?.id || classification.id
-      }));
-
-      // Estimate token usage
-      const estimatedInputTokens = Math.ceil(segmentsText.length / 4) + 100;
-      const estimatedOutputTokens = Math.ceil(outputText.length / 4);
-      const usageMetrics = this.extractUsageMetrics(response, estimatedInputTokens, estimatedOutputTokens);
-      
-      // Calculate cost using configuration-based rates
-      const inputCostPerToken = convertToPerTokenRate(this.config.inputCost || 0, this.config.unitPrice);
-      const outputCostPerToken = convertToPerTokenRate(this.config.outputCost || 0, this.config.unitPrice);
-      const totalCost = (usageMetrics.promptTokens * inputCostPerToken) +
-        (usageMetrics.completionTokens * outputCostPerToken);
-
-      // Log API usage
-      try {
-        await ApiUsageTracker.logApiUsage(
-          usageMetrics.promptTokens,
-          usageMetrics.completionTokens,
-          model,
-          'classification'
-        );
-      } catch (loggingError) {
-        console.warn('Failed to log API usage:', loggingError);
-      }
-
-      const result: ClassificationResult = {
-        classifications: classificationsWithIds,
-        metrics: {
-          duration,
-          promptTokens: usageMetrics.promptTokens,
-          completionTokens: usageMetrics.completionTokens,
-          totalCost
+      const result = await this.readBilledResponse(response, model, 'classification', startTime,
+        Math.ceil(segmentsText.length / 4) + 100, undefined, async () => {
+        // Truncation before emptiness, as in `translateText`: a reply cut off at
+        // the cap may carry no text at all. Anthropic words the classification
+        // case separately, and so does this.
+        if (this.wasTruncated(response)) {
+          throw new Error('Classification response was truncated due to length');
         }
-      };
 
-      if (warnings.length > 0) {
-        result.warnings = warnings;
-      }
+        if (!response.text) {
+          throw new Error('No content in classification response');
+        }
+
+        const duration = Date.now() - startTime;
+        const outputText = response.text;
+
+        const responseJson = JSON.parse(outputText);
+
+        if (!responseJson.classifications || !Array.isArray(responseJson.classifications)) {
+          throw new Error('Response missing classifications array');
+        }
+
+        // Validate response count matches input count
+        if (responseJson.classifications.length !== request.segments.length) {
+          console.warn(`Classification count mismatch: expected ${request.segments.length}, got ${responseJson.classifications.length}`);
+          // Continue processing but log the discrepancy
+        }
+
+        // Map segment IDs back to the original IDs
+        const classificationsWithIds = responseJson.classifications.map((classification: any, index: number) => ({
+          ...classification,
+          id: request.segments[index]?.id || classification.id
+        }));
+
+        // Estimate token usage
+        const estimatedInputTokens = Math.ceil(segmentsText.length / 4) + 100;
+        const estimatedOutputTokens = Math.ceil(outputText.length / 4);
+        const usageMetrics = this.extractUsageMetrics(response, estimatedInputTokens, estimatedOutputTokens);
+
+        // Calculate cost using configuration-based rates
+        const inputCostPerToken = convertToPerTokenRate(this.config.inputCost || 0, this.config.unitPrice);
+        const outputCostPerToken = convertToPerTokenRate(this.config.outputCost || 0, this.config.unitPrice);
+        const totalCost = (usageMetrics.promptTokens * inputCostPerToken) +
+          (usageMetrics.completionTokens * outputCostPerToken);
+
+        // Log API usage
+        try {
+          await ApiUsageTracker.logApiUsage(
+            usageMetrics.promptTokens,
+            usageMetrics.completionTokens,
+            model,
+            'classification'
+          );
+        } catch (loggingError) {
+          console.warn('Failed to log API usage:', loggingError);
+        }
+
+        const result: ClassificationResult = {
+          classifications: classificationsWithIds,
+          metrics: {
+            duration,
+            promptTokens: usageMetrics.promptTokens,
+            completionTokens: usageMetrics.completionTokens,
+            totalCost
+          }
+        };
+
+        if (warnings.length > 0) {
+          result.warnings = warnings;
+        }
+
+        return result;
+      });
 
       // Track usage for multi-service analytics
       await this.trackSuccessfulUsage(
         'classification',
         {
-          promptTokens: usageMetrics.promptTokens,
-          completionTokens: usageMetrics.completionTokens,
-          totalCost,
-          duration
+          promptTokens: result.metrics.promptTokens,
+          completionTokens: result.metrics.completionTokens,
+          totalCost: result.metrics.totalCost,
+          duration: result.metrics.duration
         },
         model,
         { language: undefined } // Classification doesn't target a specific language
@@ -911,92 +917,97 @@ export class GoogleTranslationService extends AITranslationService {
 
       console.log('Google AI batch classification response:', response);
 
-      // Truncation before emptiness, as in `translateText`.
-      if (this.wasTruncated(response)) {
-        throw new Error('Classification response was truncated due to length');
-      }
+      const result = await this.readBilledResponse(response, model, 'classification', startTime,
+        Math.ceil(segmentsText.length / 4) + 100, undefined, async () => {
+        // Truncation before emptiness, as in `translateText`.
+        if (this.wasTruncated(response)) {
+          throw new Error('Classification response was truncated due to length');
+        }
 
-      if (!response.text) {
-        throw new Error('No content in classification response');
-      }
+        if (!response.text) {
+          throw new Error('No content in classification response');
+        }
 
-      const duration = Date.now() - startTime;
-      const outputText = response.text;
+        const duration = Date.now() - startTime;
+        const outputText = response.text;
 
-      const responseJson = JSON.parse(outputText);
+        const responseJson = JSON.parse(outputText);
 
-      if (!responseJson.classifications || !Array.isArray(responseJson.classifications)) {
-        throw new Error('Response missing classifications array');
-      }
+        if (!responseJson.classifications || !Array.isArray(responseJson.classifications)) {
+          throw new Error('Response missing classifications array');
+        }
 
-      // Map results back to all segment instances using response IDs and text
-      const allClassifications: Array<{
-        id: string;
-        a: number;
-        b: number;
-      }> = [];
-      
-      // Create mapping from response classifications back to original segments
-      responseJson.classifications.forEach((classification: any, index: number) => {
-        const originalText = uniqueTextsArray[index];
-        const segmentIds = uniqueTexts.get(originalText) || [];
+        // Map results back to all segment instances using response IDs and text
+        const allClassifications: Array<{
+          id: string;
+          a: number;
+          b: number;
+        }> = [];
         
-        segmentIds.forEach(id => {
-          allClassifications.push({
-            id,
-            a: classification.a,
-            b: classification.b
+        // Create mapping from response classifications back to original segments
+        responseJson.classifications.forEach((classification: any, index: number) => {
+          const originalText = uniqueTextsArray[index];
+          const segmentIds = uniqueTexts.get(originalText) || [];
+
+          segmentIds.forEach(id => {
+            allClassifications.push({
+              id,
+              a: classification.a,
+              b: classification.b
+            });
           });
         });
-      });
 
-      // Estimate token usage
-      const estimatedInputTokens = Math.ceil(segmentsText.length / 4) + 100;
-      const estimatedOutputTokens = Math.ceil(outputText.length / 4);
-      const usageMetrics = this.extractUsageMetrics(response, estimatedInputTokens, estimatedOutputTokens);
-      
-      // Calculate cost using configuration-based rates
-      const inputCostPerToken = convertToPerTokenRate(this.config.inputCost || 0, this.config.unitPrice);
-      const outputCostPerToken = convertToPerTokenRate(this.config.outputCost || 0, this.config.unitPrice);
-      const totalCost = (usageMetrics.promptTokens * inputCostPerToken) +
-        (usageMetrics.completionTokens * outputCostPerToken);
+        // Estimate token usage
+        const estimatedInputTokens = Math.ceil(segmentsText.length / 4) + 100;
+        const estimatedOutputTokens = Math.ceil(outputText.length / 4);
+        const usageMetrics = this.extractUsageMetrics(response, estimatedInputTokens, estimatedOutputTokens);
 
-      // Log API usage
-      try {
-        await ApiUsageTracker.logApiUsage(
-          usageMetrics.promptTokens,
-          usageMetrics.completionTokens,
-          model,
-          'classification'
-        );
-      } catch (loggingError) {
-        console.warn('Failed to log API usage:', loggingError);
-      }
+        // Calculate cost using configuration-based rates
+        const inputCostPerToken = convertToPerTokenRate(this.config.inputCost || 0, this.config.unitPrice);
+        const outputCostPerToken = convertToPerTokenRate(this.config.outputCost || 0, this.config.unitPrice);
+        const totalCost = (usageMetrics.promptTokens * inputCostPerToken) +
+          (usageMetrics.completionTokens * outputCostPerToken);
 
-      console.log(`Batch classification completed: ${uniqueTexts.size} unique texts -> ${allClassifications.length} total results`);
-
-      const result: ClassificationResult = {
-        classifications: allClassifications,
-        metrics: {
-          duration,
-          promptTokens: usageMetrics.promptTokens,
-          completionTokens: usageMetrics.completionTokens,
-          totalCost
+        // Log API usage
+        try {
+          await ApiUsageTracker.logApiUsage(
+            usageMetrics.promptTokens,
+            usageMetrics.completionTokens,
+            model,
+            'classification'
+          );
+        } catch (loggingError) {
+          console.warn('Failed to log API usage:', loggingError);
         }
-      };
 
-      if (warnings.length > 0) {
-        result.warnings = warnings;
-      }
+        console.log(`Batch classification completed: ${uniqueTexts.size} unique texts -> ${allClassifications.length} total results`);
+
+        const result: ClassificationResult = {
+          classifications: allClassifications,
+          metrics: {
+            duration,
+            promptTokens: usageMetrics.promptTokens,
+            completionTokens: usageMetrics.completionTokens,
+            totalCost
+          }
+        };
+
+        if (warnings.length > 0) {
+          result.warnings = warnings;
+        }
+
+        return result;
+      });
 
       // Track usage for multi-service analytics
       await this.trackSuccessfulUsage(
         'classification',
         {
-          promptTokens: usageMetrics.promptTokens,
-          completionTokens: usageMetrics.completionTokens,
-          totalCost,
-          duration
+          promptTokens: result.metrics.promptTokens,
+          completionTokens: result.metrics.completionTokens,
+          totalCost: result.metrics.totalCost,
+          duration: result.metrics.duration
         },
         model,
         { language: undefined } // Classification doesn't target a specific language
@@ -1036,6 +1047,26 @@ export class GoogleTranslationService extends AITranslationService {
    */
   private wasTruncated(response: any): boolean {
     return response?.candidates?.[0]?.finishReason === 'MAX_TOKENS';
+  }
+
+  /** Preserve the provider's charge when a received reply cannot be used. */
+  private async readBilledResponse<T>(
+    response: any, model: string, operation: 'batch' | 'classification', startTime: number,
+    fallbackInput: number, language: string | undefined, read: () => Promise<T>
+  ): Promise<T> {
+    try {
+      return await read();
+    } catch (error) {
+      const usage = this.extractUsageMetrics(response, fallbackInput, Math.ceil((response.text ?? '').length / 4));
+      await this.trackFailedUsage(operation, {
+        promptTokens: usage.promptTokens,
+        completionTokens: usage.completionTokens,
+        totalCost: usage.promptTokens * convertToPerTokenRate(this.config.inputCost || 0, this.config.unitPrice)
+          + usage.completionTokens * convertToPerTokenRate(this.config.outputCost || 0, this.config.unitPrice),
+        duration: Date.now() - startTime,
+      }, model, { language });
+      throw error;
+    }
   }
 
   private extractUsageMetrics(

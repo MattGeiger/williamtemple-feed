@@ -2,10 +2,14 @@
 
 **Status**: Phases 1–4 delivered. **Phase 5's small-request sweep ran on
 2026-09-13** — all seven request types against all twelve models, 83 requests
-for $0.1022, turning up three defects of its own (recorded in ISSUES.md). Phase
-5 is not finished: it also takes in the feature pass on the new default, the
-docs and the release, and the sweep left the `busy` classification and the
-document path uncovered. Production moves off `gpt-5-mini` before 2026-12-11.
+for $0.1022, turning up three defects of its own (recorded in ISSUES.md).
+Those findings are fixed, and the local feature pass completed on 2026-09-14:
+Fable classification, DOCX translation, Arabic builder PDF, large bulk retry,
+and long-document classification. Busy responses are covered by fixtures
+through the real error handler. Phase 5 is not finished: Cloudflare checks
+and production rollout require Pi Connect sign-in. Evidence and staged rollout:
+[`phase5-validation-2026-09-14.md`](phase5-validation-2026-09-14.md).
+Production moves off `gpt-5-mini` before 2026-12-11.
 Fifteen commits across 2026-09-11 and 2026-09-12 — honest provider errors and
 administrator alerts, Node 24, the three SDK upgrades, the server-authoritative
 catalogue, providers and dialogs both reading it, both `model-specs.ts` copies
@@ -18,9 +22,9 @@ Sections below are marked where the code has overtaken the plan; where a
 section still reads in the future tense, it has not been built. Every defect in
 the list below is fixed, and every secondary stale list has been retired.
 Phase 5's small-request sweep has run as well — but not the phase, which also
-covers the feature pass, the docs and the release. Outstanding: the rest of
-Phase 5, production's move off `gpt-5-mini`, and the three defects the sweep
-itself found.
+covers the feature pass, the docs and the release. Outstanding: verification
+through Cloudflare and staged deployment, including production's move off
+`gpt-5-mini`. The three defects the sweep itself found are fixed.
 **Tracks**: ISSUES.md #84 · roadmap v1.9.5 ("LLM catalogue and pricing audit")
 **Companion**: [`translation-efficiency-and-local-models.md`](translation-efficiency-and-local-models.md)
 — prompt size, thinking-token cost, caching, and a local TranslateGemma option.
@@ -1165,8 +1169,9 @@ only (a few cents).
    Anthropic clamps to 20,480 and OpenAI and Google do not clamp at all. One
    `gpt-6-astra` request at its cap would have been $6.40, and the sweep's
    true worst case about **$55** against an expected $0.46. Every request now
-   carries `maxTokens: 512`, making the figure a bound; the ceiling is checked
-   before a model rather than after.
+   carries `maxTokens: 512`, capping output per attempt. Input is estimated,
+   so the cost is a projection. As of 2026-09-14 the reservation is checked
+   before each call, includes three attempts, and refuses unpriced rows.
 
    - **81 of 84 outcomes passed.** Every model translates, batch-translates
      to Arabic with de-duplication, and classifies — except where noted below.
@@ -1189,8 +1194,12 @@ only (a few cents).
      classification paths hardcode, so it cannot classify; and the sweep
      under-reports its own spend by summing only successful outcomes.
 
-   Not yet covered: the `busy` classification, the document path, and
-   anything beyond one string per model.
+   **Feature pass, 2026-09-14:** the document and builder paths passed on the
+   new default; larger calls passed on Opus 5, and Fable classification passed
+   live after its tool-choice fix. Busy refusal handling passed with fixtures.
+   See the linked validation report for costs, timings and the still-open
+   Cloudflare/deployment gate. No background-job table was added on the basis
+   of local timings alone.
 7. **Phase 6 — Local model: shelved** (D16). What reviving it needs is listed
    in the companion document.
 
