@@ -216,3 +216,103 @@ describe('a Gemini reply cut off at the token cap', () => {
     ).rejects.toThrow(/Classification response was truncated/);
   });
 });
+
+/**
+ * The case where the whole budget went to thinking and no answer came back.
+ *
+ * Every fixture above carries partial text, and that hid a branch: all four
+ * paths tested `!response.text` *before* the truncation guard, so an empty
+ * truncated reply reported "No content" — the wrong cause — and in
+ * `translateText` that check sat above the `try`, so the billed reply was not
+ * recorded either. Raised in review of `4ba8e30`, against the source.
+ *
+ * Not a hypothetical shape. The sweep measured `gemini-3.8-flash` returning 5
+ * answer tokens against 492 of thinking at a 512 cap; zero answer tokens is
+ * that same case one notch further on, and gets likelier as thinking rises.
+ */
+describe('a Gemini reply that ran out of room before writing anything', () => {
+  const emptyTruncated = (text: string | undefined) => ({
+    text,
+    candidates: [{ finishReason: 'MAX_TOKENS', index: 0 }],
+    usageMetadata: {
+      promptTokenCount: 152,
+      candidatesTokenCount: 0,
+      thoughtsTokenCount: 512
+    }
+  });
+
+  test('names truncation, not missing content', async () => {
+    const service = serviceReturning(emptyTruncated(''));
+
+    await expect(
+      service.translateText({ text: 'Rice', targetLanguage: 'Spanish' })
+    ).rejects.toThrow(/truncated due to length/);
+  });
+
+  test('an undefined body is the same case', async () => {
+    // `response.text` is a getter that can be absent entirely, not merely ''.
+    const service = serviceReturning(emptyTruncated(undefined));
+
+    await expect(
+      service.translateText({ text: 'Rice', targetLanguage: 'Spanish' })
+    ).rejects.toThrow(/truncated due to length/);
+  });
+
+  test('is recorded as spend, which it never was before', async () => {
+    // The half of this the message alone would not fix. The old check threw
+    // above the `try`, so `catch (unusable)` never saw it and a reply that
+    // cost 664 tokens left no row.
+    const service = serviceReturning(emptyTruncated(''));
+
+    await expect(
+      service.translateText({ text: 'Rice', targetLanguage: 'Spanish' })
+    ).rejects.toThrow(/truncated/);
+
+    expect(UsageRecordService.createUsageRecord).toHaveBeenCalledTimes(1);
+    const metrics = vi.mocked(UsageRecordService.createUsageRecord).mock.calls[0][3];
+    expect(metrics.success).toBe(false);
+    expect(metrics.promptTokens).toBe(152);
+    expect(metrics.completionTokens).toBe(512);
+  });
+
+  test('an empty reply that was NOT truncated still says No content', async () => {
+    // The control. Emptiness and truncation are different faults, and the
+    // reorder must not collapse one into the other.
+    const service = serviceReturning({
+      text: '',
+      candidates: [{ finishReason: 'STOP', index: 0 }],
+      usageMetadata: { promptTokenCount: 152, candidatesTokenCount: 0, thoughtsTokenCount: 0 }
+    });
+
+    await expect(
+      service.translateText({ text: 'Rice', targetLanguage: 'Spanish' })
+    ).rejects.toThrow(/No content/);
+  });
+
+  test('the batch translation path names truncation too', async () => {
+    const service = serviceReturning(emptyTruncated(''));
+
+    await expect(
+      service.translateTextBatch({
+        texts: [{ id: 'a', text: 'Rice' }],
+        targetLanguage: 'Spanish'
+      })
+    ).rejects.toThrow(/truncated due to length/);
+  });
+
+  test('classification names truncation too', async () => {
+    const service = serviceReturning(emptyTruncated(''));
+
+    await expect(
+      service.classifySegments({ segments: [{ id: 's1', text: 'Food Pantry Hours' }] })
+    ).rejects.toThrow(/Classification response was truncated/);
+  });
+
+  test('batch classification names truncation too', async () => {
+    const service = serviceReturning(emptyTruncated(''));
+
+    await expect(
+      service.classifySegmentsBatch({ segments: [{ id: 's1', text: 'Food Pantry Hours' }] })
+    ).rejects.toThrow(/Classification response was truncated/);
+  });
+});
