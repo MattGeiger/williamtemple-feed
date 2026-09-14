@@ -10,9 +10,22 @@ Pi Connect access was restored on September 14. All six ARM64 stage images
 were published and the source commits pushed. The error-handling stage is
 deployed and verified. The user then explicitly directed the rollout to
 fast-forward to v1.8, superseding the separate Node 24 deployment step in D23.
-The stable 1.8.0 image pair is being rebuilt with matching package versions
-and finalized user-facing release notes. GitHub's latest release will be
-tagged `v1.8.0`.
+The stable 1.8.0 image pair was rebuilt from `b53e2e5` with matching package
+versions and finalized user-facing release notes. Both images are published
+as `1.8.0` and `latest`. GitHub release
+[`v1.8.0`](https://github.com/MattGeiger/williamtemple-feed/releases/tag/v1.8.0)
+is published as **Latest**, with `draft: false` and `prerelease: false`.
+The annotated tag points to `b53e2e5c587a1df3a5bf6a20dd4f4f37f860d507`.
+
+| Stable image | Published digest |
+| --- | --- |
+| `et2geiger/feed-backend:1.8.0` | `sha256:315ea2146e873cd08e33f1a9c798033d0754e98c00cf974a50e2c6e1b76eee39` |
+| `et2geiger/feed-frontend:1.8.0` | `sha256:63a0462386dc0baa5befb4109709e77b0f8a041a98404df9e740a9cff2414797` |
+
+The stable backend image reports Node `24.21.0` and package version `1.8.0`.
+The frontend Nginx configuration validates. Its actual JavaScript bundle
+contains the 1.8.0 release notes and no `## Unreleased` heading. These checks
+ran in local containers with networking disabled; they made no provider calls.
 
 ## Production rollout, September 14
 
@@ -31,6 +44,14 @@ tagged `v1.8.0`.
   and documents and displayed version `1.7.5`.
 - The separate `1.7.5-node24` deployment is **skipped at the user's explicit
   request**. Its images remain published; v1.8 includes Node 24.
+- Created and verified `backups/2026-09-14-pre-v18/` on the Pi using the
+  same SQLite and storage procedure, then set `.env`, pulled and started the
+  `1.8.0-beta.3` pair. Startup reported a healthy backend and recreated
+  frontend; the public health endpoint confirmed `1.8.0-beta.3`.
+- The user then requested removing the beta designation. Stable 1.8.0 is
+  built and published as above; the final Pi pull/start awaits restoration
+  of the Connect terminal session. The current Pi `.env` is still
+  `VERSION=1.8.0-beta.3`, not the final stable tag.
 
 ## What changed
 
