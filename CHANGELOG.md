@@ -15,6 +15,9 @@ All notable changes to FEED are documented here. This project adheres to
   provider errors and improved spending records.
 - Removed the draft "Unreleased" heading from the user-facing release notes
   and documented that requirement for future production builds.
+- Deployed stable 1.8.0 to the Pi after a verified database and storage backup.
+  Both services are healthy with matching published images; all 36 migrations
+  are current. Published `v1.8.0` as GitHub's latest stable release.
 - At the user's direction, production AI feature tests are omitted; the user
   will replace the API keys and configure the production models. Deployment
   verification covers image identity, health, migrations and version only.
