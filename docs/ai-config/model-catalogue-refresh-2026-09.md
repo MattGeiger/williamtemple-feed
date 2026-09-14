@@ -1142,11 +1142,47 @@ only (a few cents).
      holding the line against generic 400s; the free sweep re-runs green at
      36 of 36. Recorded in ISSUES.md.
 
-   Not yet covered: request types 1-4, the billable half; the `busy`
-   classification; the batch and document paths; and anything beyond one
-   string per model. Worst case for the billable half, priced from the
-   catalogue's own figures, is **$0.4635** for all twelve and **$0.1184** for
-   the eight non-frontier.
+   **The billable half then ran, the same day: all seven request types against
+   all twelve models — 83 requests, 84 outcomes, $0.1022 recorded.** The
+   eighty-fourth outcome is a deliberate skip, not a request: extended
+   thinking has no selectable level, so `claude-haiku-4-5` has no request 4.
+   (The database holds $0.10254 across 50 rows for the window, which also
+   carries the $0.0003 single-model canary run beforehand.) Phase 5's
+   per-request-type coverage is no longer one.
+
+   Before it ran, the sweep was hardened. Its printed estimate had assumed
+   request 4 emits 2,000 output tokens because this document budgets that,
+   and nothing enforced it: FEED resolves the cap through `PromptBuilder`
+   (`config.maxTokens ?? 4096`) and these rows carry 64,000-128,000, which
+   Anthropic clamps to 20,480 and OpenAI and Google do not clamp at all. One
+   `gpt-6-astra` request at its cap would have been $6.40, and the sweep's
+   true worst case about **$55** against an expected $0.46. Every request now
+   carries `maxTokens: 512`, making the figure a bound; the ceiling is checked
+   before a model rather than after.
+
+   - **81 of 84 outcomes passed.** Every model translates, batch-translates
+     to Arabic with de-duplication, and classifies — except where noted below.
+   - **Request 4 confirmed the adaptive path across providers**, resolving to
+     `max` on Claude 5, `xhigh` on GPT-5.6/6 and `high` on Gemini.
+     `claude-haiku-4-5` is skipped by design: extended thinking has no
+     selectable level.
+   - **The cap demonstrably binds.** `gemini-3.8-flash` and
+     `gemini-3.1-pro-preview` returned `finishReason: MAX_TOKENS` at 497 and
+     498 completion tokens — of which **490 and 492 were thinking**, leaving
+     5 and 8 tokens for the answer. At `high`, these models spend essentially
+     the whole budget reasoning about a three-word pantry item.
+   - **`trackFailedUsage` proved itself in the field.** Exactly two
+     `success = 0` rows, and the right two: both truncations, billed and
+     unusable. Fable's 400 was refused before an answer and correctly
+     recorded nothing.
+   - **Three defects found**, all recorded in ISSUES.md: Google never checks
+     `finishReason`, so truncation reaches staff as a raw JSON parse error;
+     `claude-fable-5-1` refuses the forced `tool_choice` both Anthropic
+     classification paths hardcode, so it cannot classify; and the sweep
+     under-reports its own spend by summing only successful outcomes.
+
+   Not yet covered: the `busy` classification, the document path, and
+   anything beyond one string per model.
 7. **Phase 6 — Local model: shelved** (D16). What reviving it needs is listed
    in the companion document.
 
