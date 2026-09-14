@@ -1,6 +1,11 @@
 # AI Model Catalogue Refresh — Discovery and Plan
 
-**Status**: Phases 1–4 delivered; **Phase 5, live validation, is what remains.**
+**Status**: Phases 1–4 delivered. **Phase 5's small-request sweep ran on
+2026-09-13** — all seven request types against all twelve models, 83 requests
+for $0.1022, turning up three defects of its own (recorded in ISSUES.md). Phase
+5 is not finished: it also takes in the feature pass on the new default, the
+docs and the release, and the sweep left the `busy` classification and the
+document path uncovered. Production moves off `gpt-5-mini` before 2026-12-11.
 Fifteen commits across 2026-09-11 and 2026-09-12 — honest provider errors and
 administrator alerts, Node 24, the three SDK upgrades, the server-authoritative
 catalogue, providers and dialogs both reading it, both `model-specs.ts` copies
@@ -10,9 +15,12 @@ deleted, D2's thinking defaults, and the contents refresh itself: 27 entries,
 prompted this document.
 
 Sections below are marked where the code has overtaken the plan; where a
-section still reads in the future tense, it has not been built. Known to be
-outstanding: Phase 5 live validation, and nothing else. Every defect in the
-list below is fixed, and every secondary stale list has been retired.
+section still reads in the future tense, it has not been built. Every defect in
+the list below is fixed, and every secondary stale list has been retired.
+Phase 5's small-request sweep has run as well — but not the phase, which also
+covers the feature pass, the docs and the release. Outstanding: the rest of
+Phase 5, production's move off `gpt-5-mini`, and the three defects the sweep
+itself found.
 **Tracks**: ISSUES.md #84 · roadmap v1.9.5 ("LLM catalogue and pricing audit")
 **Companion**: [`translation-efficiency-and-local-models.md`](translation-efficiency-and-local-models.md)
 — prompt size, thinking-token cost, caching, and a local TranslateGemma option.

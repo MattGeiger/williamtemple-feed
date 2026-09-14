@@ -98,8 +98,24 @@ import {
  */
 const SWEEP_OUTPUT_CAP = 512;
 
-/** Input side of the bound; the refresh doc measures ~250 tokens per request. */
-const ESTIMATE_INPUT_TOKENS = 250;
+/**
+ * The input size the projection assumes — assumed, not enforced.
+ *
+ * This read 250, from the refresh document's measurement of a one-sentence
+ * translation, and the sweep that was meant to justify it falsified it on its
+ * first run: observed prompt sizes ranged 133 to 977 tokens, the top three
+ * being `classifySegmentsBatch` at 909, 954 and 977. Classification sends
+ * every segment plus a tool schema, so it is nothing like a one-sentence
+ * translation, and 250 was low by 3.9x.
+ *
+ * 1,024 sits above every figure this deployment has produced. It is still an
+ * assumption: `SWEEP_OUTPUT_CAP` is enforced through `maxTokens`, but nothing
+ * caps input, which is the resolved `SystemPrompt` row plus the fixed strings
+ * below. A larger prompt row moves it. Making it a real bound would mean
+ * resolving the prompt through `PromptBuilder` and measuring it before the
+ * run, which is worth doing and is not done here.
+ */
+const ASSUMED_INPUT_TOKENS = 1_024;
 const BILLABLE_REQUESTS = 4;
 
 const DEFAULT_CEILING_USD = 1.0;
@@ -173,18 +189,28 @@ const selectConfigurations = async (options: Options): Promise<AIConfiguration[]
 };
 
 /**
- * The most one model's four billable requests can cost.
+ * What one model's four billable requests should cost — half bound, half
+ * assumption, and the halves are worth keeping straight.
  *
- * A bound rather than an estimate: every request carries `SWEEP_OUTPUT_CAP`,
- * so the output side cannot exceed it however long the model would like to
- * think. The input side is the measured ~250 tokens, which a three-word
- * pantry item and a 143-token prompt cannot overshoot by much.
+ * The **output** side is a real bound: every request carries
+ * `SWEEP_OUTPUT_CAP` through `maxTokens`, so it cannot be exceeded however
+ * long the model would like to think. Output is where the money is on a
+ * frontier model, which is why capping it was the thing worth doing.
+ *
+ * The **input** side is assumed, at `ASSUMED_INPUT_TOKENS`, and nothing
+ * enforces it. This comment used to call the whole figure "a bound rather
+ * than an estimate" — wrong on the input half, and wrong in a way the sweep
+ * had already disproved by the time it was written. See
+ * `ASSUMED_INPUT_TOKENS`.
+ *
+ * So: a projection with an enforced ceiling on the expensive half, not a
+ * guarantee. `--ceiling` is the actual stop.
  */
 const worstCaseForModel = (model: string): number | null => {
   const entry = findCatalogueEntry(model);
   if (!entry) return null;
 
-  const inputTokens = ESTIMATE_INPUT_TOKENS * BILLABLE_REQUESTS;
+  const inputTokens = ASSUMED_INPUT_TOKENS * BILLABLE_REQUESTS;
   const outputTokens = SWEEP_OUTPUT_CAP * BILLABLE_REQUESTS;
 
   return (inputTokens * entry.pricing.input + outputTokens * entry.pricing.output) / 1_000_000;
@@ -453,14 +479,17 @@ const main = async (): Promise<void> => {
     console.log(
       `  [${String(config.id).padStart(2)}] ${(config.model ?? '?').padEnd(26)} `
       + `${(config.serviceType ?? '?').padEnd(10)} ${(entry?.costTier ?? 'uncatalogued').padEnd(9)} `
-      + `at most ${worst === null ? 'unknown (not in catalogue)' : usd(worst)}`,
+      + `projected ${worst === null ? 'unknown (not in catalogue)' : usd(worst)}`,
     );
   }
   console.log(
-    `\n  Every request is capped at ${SWEEP_OUTPUT_CAP} output tokens, so this is a`
-    + `\n  bound, not an estimate. Request 4 therefore proves the highest reasoning`
-    + `\n  level is accepted — not how long the model would think unbounded.`
-    + `\n\n  At most, for the billable half: ${usd(worstCaseTotal)}`
+    `\n  Output is capped at ${SWEEP_OUTPUT_CAP} tokens per request and enforced, so the`
+    + `\n  expensive half of this figure cannot be exceeded. Input is assumed at`
+    + `\n  ${ASSUMED_INPUT_TOKENS} tokens per request and is NOT enforced — a larger prompt row`
+    + `\n  moves it. Treat the total as a projection, not a guarantee; --ceiling stops.`
+    + `\n  Request 4 proves the highest reasoning level is accepted, not how long`
+    + `\n  a model would think unbounded.`
+    + `\n\n  Projected for the billable half: ${usd(worstCaseTotal)}`
     + `\n  Ceiling for this run: ${usd(options.ceiling)}\n`,
   );
 
