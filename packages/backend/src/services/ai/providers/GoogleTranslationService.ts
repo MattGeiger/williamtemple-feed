@@ -313,6 +313,24 @@ export class GoogleTranslationService extends AITranslationService {
           
           let responseJson: any;
           try {
+            // A reply cut off at the token cap is not malformed JSON, it is an
+            // answer that ran out of room — and until this check existed staff
+            // read `Unterminated string in JSON at position 22`, which names
+            // neither the cause nor anything they can do (ISSUES.md #84).
+            //
+            // Anthropic has tested `stop_reason === 'max_tokens'` at three
+            // sites all along; Google tested `finishReason` nowhere. Found by
+            // the live smoke sweep on 2026-09-13, when two Gemini models spent
+            // their whole budget thinking — 490 and 492 of 512 tokens — and
+            // returned 5 and 8 tokens of answer.
+            //
+            // Deliberately inside this `try`: the reply was billed, and the
+            // `catch` below is what records that. Throwing before it would
+            // make the error clearer and the spend invisible.
+            if (this.wasTruncated(response)) {
+              throw new Error('Translation response was truncated due to length');
+            }
+
             responseJson = JSON.parse(outputText);
             console.log('Parsed response:', responseJson);
 
@@ -531,6 +549,15 @@ export class GoogleTranslationService extends AITranslationService {
         throw new Error('No content in translation response');
       }
 
+      // See the equivalent guard in `translateText`. Note this path has no
+      // billed-but-failed recording around it at all, so a truncated batch
+      // still costs money that goes unrecorded — the batch half of the
+      // `trackFailedUsage` work, recorded in ISSUES.md rather than widened
+      // into this change.
+      if (this.wasTruncated(response)) {
+        throw new Error('Translation response was truncated due to length');
+      }
+
       const responseJson = JSON.parse(response.text);
       if (!responseJson.translations || !Array.isArray(responseJson.translations)) {
         throw new Error('Response missing translations array');
@@ -693,6 +720,12 @@ export class GoogleTranslationService extends AITranslationService {
 
       const duration = Date.now() - startTime;
       const outputText = response.text;
+
+      // See the equivalent guard in `translateText`. Anthropic words the
+      // classification case separately, and so does this.
+      if (this.wasTruncated(response)) {
+        throw new Error('Classification response was truncated due to length');
+      }
 
       const responseJson = JSON.parse(outputText);
 
@@ -872,6 +905,11 @@ export class GoogleTranslationService extends AITranslationService {
       const duration = Date.now() - startTime;
       const outputText = response.text;
 
+      // See the equivalent guard in `translateText`.
+      if (this.wasTruncated(response)) {
+        throw new Error('Classification response was truncated due to length');
+      }
+
       const responseJson = JSON.parse(outputText);
 
       if (!responseJson.classifications || !Array.isArray(responseJson.classifications)) {
@@ -963,6 +1001,28 @@ export class GoogleTranslationService extends AITranslationService {
       
       this.handleServiceError(error, 'batch classification');
     }
+  }
+
+  /**
+   * Whether the model stopped because it ran out of room, rather than because
+   * it had finished.
+   *
+   * `MAX_TOKENS` is the only one of Google's finish reasons that means this.
+   * `STOP` is a completed answer; `SAFETY` and `RECITATION` are refusals with
+   * their own causes, and reporting either as truncation would send staff to
+   * raise a token limit that was never the problem.
+   *
+   * Read from `candidates[0]` because FEED asks for one candidate: the
+   * request sets no `candidateCount`, so the API returns a single one. If that
+   * ever changes, this needs to change with it.
+   *
+   * Note what this deliberately does not do: it does not inspect the body. A
+   * reply can be cut off having still produced valid JSON, and that is a
+   * different fault — the answer is short, not unparseable — which the
+   * existing `translatedText` and array checks already catch further down.
+   */
+  private wasTruncated(response: any): boolean {
+    return response?.candidates?.[0]?.finishReason === 'MAX_TOKENS';
   }
 
   private extractUsageMetrics(
