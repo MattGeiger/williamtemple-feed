@@ -1,10 +1,36 @@
 # Phase 5 validation and release handoff
 
 The Fable classification and spending-accounting findings are fixed in
-**1.8.0-beta.3**. Local feature validation is complete. **Phase 5 remains open
-for the Cloudflare checks and production rollout.** Raspberry Pi Connect
-requires sign-in; no production configuration, data, or container was changed.
-The public production health endpoint reports `1.7.5-rc.1` on September 14.
+**1.8.0-beta.3**, promoted to stable **1.8.0** at the user's request. Local
+feature validation is complete. The user explicitly excluded live production
+AI tests and will replace API keys and configure production models. Cloudflare
+AI feature checks are **omitted, not passed**. Release verification is limited
+to image identity, health, migrations and version.
+Pi Connect access was restored on September 14. All six ARM64 stage images
+were published and the source commits pushed. The error-handling stage is
+deployed and verified. The user then explicitly directed the rollout to
+fast-forward to v1.8, superseding the separate Node 24 deployment step in D23.
+The stable 1.8.0 image pair is being rebuilt with matching package versions
+and finalized user-facing release notes. GitHub's latest release will be
+tagged `v1.8.0`.
+
+## Production rollout, September 14
+
+- Confirmed deployment directory: `/home/feedadmin/apps/williamtemple-feed`.
+  Initial running images and durable `.env` version were `1.7.5-rc.1`.
+- Created `backups/2026-09-14-pre-errors/` on the Pi, with SQLite `.backup`,
+  an `integrity_check` result of `ok`, a verified storage tar archive, and
+  copies of `.env` and Compose configuration. Raw operator backups remain
+  on the Pi.
+- Fast-forwarded the deployment checkout to `4eee81c`, set `.env` to
+  `1.7.5-errors`, inspected resolved images, and pulled/started only backend
+  and frontend. The existing Cloudflare container was preserved.
+- Verified both running error-stage image identities against the built
+  images, healthy services, Node `20.20.2`, 36 migrations, no pending
+  migrations, and WAL mode. The authenticated public app loaded inventory
+  and documents and displayed version `1.7.5`.
+- The separate `1.7.5-node24` deployment is **skipped at the user's explicit
+  request**. Its images remain published; v1.8 includes Node 24.
 
 ## What changed
 
@@ -82,7 +108,7 @@ available for review.
 
 Both **linux/arm64** images were built locally from commit `aeab799`, with
 same-origin frontend API routing. They are loaded into Docker on this Mac;
-they have **not** been pushed to a registry or deployed.
+they were subsequently pushed to the registry during the rollout above.
 
 | Local image | Image ID |
 | --- | --- |
@@ -101,7 +127,7 @@ columns. These are Pi-architecture builds, not an AMD64 validation claim.
 The two preceding stages are also built and loaded locally from clean Git
 archives. Their backend runtimes report application version `1.7.5`, with
 Node **20.20.2** for the error-only stage and **24.21.0** for the runtime-only
-stage. Both frontend Nginx configurations validate. No stage has been pushed.
+stage. Both frontend Nginx configurations validate. All stages are now published.
 
 | Stage and source | Image | Image ID |
 | --- | --- | --- |
@@ -122,33 +148,16 @@ These are local QA artifacts, not production data or distributable examples.
 The database backup there contains local operational data and is deliberately
 outside Git. Temporary files may be removed by the OS.
 
-## Remaining release steps
+## Release scope and operator follow-up
 
-Preserve the agreed D23 order. The existing commits make the stages separable:
+The September 14 user instructions supersede the original three-stage plan:
+finish the stable 1.8.0 deployment and mark GitHub tag `v1.8.0` as the latest
+release. Both package versions and the Pi's durable `.env` version must match.
+Keep the existing verified Pi backups and prior images available for rollback.
 
-1. Publish and deploy the `1.7.5-errors` image pair from `f9ca7f4`
-   (application version `1.7.5`). Verify
-   authentication, basic inventory access, and the existing translation path.
-2. Publish and deploy the `1.7.5-node24` image pair, the Node 24-only delta at
-   `7c7b350`. This commit still reports application version `1.7.5`, so retain
-   the distinct image tag and verify `node --version` inside the running backend.
-   Do not combine this rollout with the catalogue/SDK change.
-3. Publish and deploy `1.8.0-beta.3`, then select and verify the approved replacement for
-   production's `gpt-5-mini` in AI Configuration. The new-configuration default
-   does not automatically migrate a saved production row.
-4. Through the production Cloudflare URL, repeat a synthetic DOCX translation,
-   Arabic builder export, long-document classification, and large bulk retry.
-   Local eight-second timings do not prove the Pi or Cloudflare path. If a
-   synchronous route returns 524, follow D20/D28 and implement the approved
-   translation-specific background-job design before closing Phase 5.
-
-For each stage, inspect the live Pi state and take a verified database/storage
-backup before applying it. Follow `docs/deployment/DOCKER_DEPLOYMENT.md`:
-persist the selected `VERSION` in the Pi's `.env`, confirm `docker compose
-config` resolves the intended images, pull and start, then inspect running
-image IDs, health, and frontend version/assets. Retain the previous image tags
-and backups for rollback. Do not run seeding against production.
-
-Pi access is the concrete remaining dependency: sign in to Raspberry Pi
-Connect and open the FEED device session. The deployment guide records direct
-SSH as unreliable; it was not substituted for the missing Connect session.
+The user owns fresh API keys and production model setup. No production AI
+test calls ran and no synthetic documents were uploaded. Do not run the
+original Cloudflare DOCX, Arabic export, long-classification or bulk-retry
+checks without renewed authorization. Their local results above do not prove
+Pi/Cloudflare timings. D20/D28 remains the agreed response if a future
+authorized feature check encounters a 524.

@@ -41,6 +41,12 @@ If you prefer an explicit value, use `export VITE_API_BASE_URL="https://feed.wil
 
 ### 3. Build Multi-Architecture Images (Mac)
 
+Before building a production frontend, finalize `docs/release-notes.md`:
+remove the `Unreleased` heading and put the version being shipped first.
+The version-number dialog renders this file directly, so draft labels become
+visible to staff. Check the built release notes as part of release verification.
+`CHANGELOG.md` is separate and may keep its developer-facing Unreleased section.
+
 ```bash
 cd /Users/russbook/Repos/williamtemple-feed
 

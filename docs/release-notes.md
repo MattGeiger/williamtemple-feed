@@ -1,8 +1,11 @@
 # Release Notes
 
-## Unreleased
+## Version 1.8.0 — 2026-09-14
 
-## Version 1.8.0-beta.3 — 2026-09-14, not yet deployed
+**The refreshed AI model support is now released.** FEED's updated model
+catalogue, provider SDKs, thinking controls, language coverage and model-expiry
+warnings are included, together with clearer provider errors and more accurate
+spending records. This release also moves the server to Node 24.
 
 **Fable can now classify document text.** FEED asks it for classifications in
 the form that Fable accepts, and checks that every segment has a usable answer.
@@ -12,12 +15,11 @@ document classifications now record the tokens charged for an answer that is
 cut short or cannot be read. Claude classification batches also retain the
 cost of completed work when another batch fails.
 
-The release checks now include live Fable classification, a Spanish document,
+The development release checks include Fable classification, a Spanish document,
 an Arabic shopping list, a longer document and a 40-item translation retry.
-Production deployment is pending; this version includes the catalogue changes
-described below.
+This version includes the catalogue changes described below.
 
-## Version 1.8.0-beta.2 — 2026-09-12, not yet deployed
+## Version 1.8.0-beta.2 — 2026-09-12, included in 1.8.0
 
 *The AI model catalogue, brought up to date. FEED's list of models was written
 in 2024 and several of them no longer exist.*
@@ -77,7 +79,7 @@ server instead of two copies that had drifted apart, alongside several older
 lists that still named models FEED no longer uses. Bringing them together is
 what allowed the errors above to be found.
 
-## Version 1.7.5 — 2026-09-11, not yet deployed
+## Version 1.7.5 — 2026-09-11, deployed 2026-09-14
 
 *Everything in 1.7.5-rc.1, which has been running since September 5th, plus
 two fixes.*

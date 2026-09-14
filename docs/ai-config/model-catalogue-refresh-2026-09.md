@@ -6,8 +6,12 @@ for $0.1022, turning up three defects of its own (recorded in ISSUES.md).
 Those findings are fixed, and the local feature pass completed on 2026-09-14:
 Fable classification, DOCX translation, Arabic builder PDF, large bulk retry,
 and long-document classification. Busy responses are covered by fixtures
-through the real error handler. Phase 5 is not finished: Cloudflare checks
-and production rollout require Pi Connect sign-in. Evidence and staged rollout:
+through the real error handler. On September 14 the user directed a stable
+**1.8.0** release, skipped the separate Node 24 deployment stage, and explicitly
+excluded live production AI tests. Fresh production API keys and model setup
+are the user's responsibility. Those Cloudflare feature checks are omitted,
+not claimed as passed. Deployment verification covers health, migrations,
+image identity and version. Evidence and rollout:
 [`phase5-validation-2026-09-14.md`](phase5-validation-2026-09-14.md).
 Production moves off `gpt-5-mini` before 2026-12-11.
 Fifteen commits across 2026-09-11 and 2026-09-12 — honest provider errors and
@@ -90,6 +94,7 @@ model, not to a setting.
 | D21 | Catalogue maintenance is a standing rule in `AGENTS.md`: audit at every release boundary and at least monthly. | 2026-09-11 |
 | D22 | Consolidate into one **server-authoritative catalogue** (option A). | 2026-09-11 |
 | D23 | Release order agreed: (1) honest errors and administrator alerts; (2) Node 24; (3) catalogue, SDKs, and thinking defaults, before 2026-12-11. | 2026-09-11 |
+| D23 update | After the error stage deployed, the user requested fast-forwarding to stable 1.8.0, omitting the separate Node 24 stage. Production AI tests are excluded; the user will replace API keys and set up production models. | 2026-09-14 |
 | D24 | OpenAI list confirmed. Older GPT-5.x models with no deprecation date (e.g. 5.4) are not offered: they cost more than `gpt-5.6-luna` for no benefit to FEED's work. | 2026-09-11 |
 | D25 | Anthropic list confirmed. Only the latest generation, plus Haiku 4.5. `claude-fable-5-1` is far more model than translation or classification needs, but it is offered with the frontier warning; administrators decide how to spend their budget. | 2026-09-11 |
 | D26 | `gemini-3.1-pro-preview` is offered with a **Preview badge** and validated like every other preset. When Google releases it as stable, administrators can reach the stable id through Custom until the catalogue audit adds it. | 2026-09-11 |
