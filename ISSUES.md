@@ -236,7 +236,12 @@ had never been done, and four from the live smoke sweep — one on the free
 half, three more once the billable half ran. **Seven are now fixed.** The
 three open ones are described last, ending with the factory resolving a
 single configuration for every provider, which is an architectural choice
-rather than a defect:
+rather than a defect.
+
+(This sentence read "Seven are now fixed" while six were, and became true only
+when `4ba8e30` landed. It was wrong when written, not made right by events —
+noted because a count that corrects itself by accident is the kind of error
+this list exists to catch, and it survived three separate seam checks.)
 
 - **A failed translation recorded nothing** (fixed, `181d917`).
   `trackFailedUsage` existed on `AITranslationService` with exactly one
@@ -352,22 +357,64 @@ rather than a defect:
   This is the defect #84 opened on — a provider's refusal reported as the
   wrong kind of problem — surviving in the one provider that could not be
   exercised until Google credits were restored on 2026-09-13.
-- **Google never checks whether a response was truncated.** Not fixed, and
-  its own slice. `AnthropicTranslationService` tests
+- **Google never checked whether a response was truncated** (fixed, `4ba8e30`
+  and `d08618a`). `AnthropicTranslationService` tests
   `stop_reason === 'max_tokens'` at three sites and throws "Translation
   response was truncated due to length" — a sentence staff can act on.
-  `GoogleTranslationService` tests `finishReason` nowhere: a grep for
-  `truncat|MAX_TOKENS|finishReason` across the file returns nothing. It hands
-  the truncated body to `JSON.parse` at four sites (lines 316, 534, 697, 875),
-  so staff read `Unterminated string in JSON at position 22`.
+  `GoogleTranslationService` tested `finishReason` nowhere: a grep for
+  `truncat|MAX_TOKENS|finishReason` across the file returned nothing. It
+  handed the truncated body to `JSON.parse` at four sites, so staff read
+  `Unterminated string in JSON at position 22`.
 
   Found when the sweep's 512-token cap made two Gemini models truncate, but
-  the missing check is real at any cap — a long document at the production
-  cap of 65,536 fails the same way. The refresh document lists this exact
+  the missing check was real at any cap — a long document at the production
+  cap of 65,536 failed the same way. The refresh document lists this exact
   behaviour as required: "output truncated at the token cap → a clear error
-  rather than a JSON parse failure". The fix is
-  `response.candidates?.[0]?.finishReason === 'MAX_TOKENS'` ahead of each
-  parse, mirroring Anthropic's wording.
+  rather than a JSON parse failure".
+
+  `wasTruncated` reads `candidates[0].finishReason`, the single candidate FEED
+  asks for, and matches `MAX_TOKENS` only. `STOP` is a finished answer, and
+  `SAFETY` and `RECITATION` are refusals whose cause is not a token limit —
+  reporting either as truncation would send an administrator to raise a limit
+  that was never the problem.
+
+  **Placement had two axes, and the first commit got only one of them right.**
+
+  The axis it got right: in `translateText` the guard sits *inside* the `try`,
+  ahead of the parse, because `catch (unusable)` is what records a
+  billed-but-unusable reply. Throwing above it — the tidier-looking spot —
+  would have made the error clearer and the spend invisible, quietly undoing
+  `181d917` on the very path the sweep had just confirmed working.
+
+  The axis it missed (**fixed in `d08618a`**, raised in source review): all
+  four sites tested `!response.text` *above* the new guard. A reply that spent
+  its whole budget thinking and returned no text therefore never reached
+  `wasTruncated` at all — it reported "No content in translation response",
+  naming the wrong cause, and in `translateText` that check also sat above the
+  `try`, so the billed reply left no row either. The seven tests written with
+  it all supplied non-empty bodies, so none of them crossed that branch.
+
+  That shape is not hypothetical: the sweep measured `gemini-3.8-flash`
+  returning 5 answer tokens against 492 of thinking, and zero answer tokens is
+  the same case one notch on — likelier as thinking rises, which is exactly
+  when an administrator would reach for a higher level. Truncation is now
+  tested before emptiness at all four sites, and in `translateText` both
+  checks sit inside the `try`, so an empty reply that was *not* truncated is
+  recorded too, where before it also vanished.
+
+  The lesson is the one worth keeping, and it is about the writing rather than
+  the code: having found one counter-intuitive constraint on where the guard
+  belonged, I wrote "placement was the subtle part" and stopped looking. A
+  second constraint sat four lines above the first.
+
+  Verified by negative control at both stages. For the original guard, forcing
+  `wasTruncated` false failed 6 of 7 — including the assertion that the parser
+  message never surfaces, which is what proves `rejects.not.toThrow` bites
+  rather than passing vacuously. For the ordering, short-circuiting
+  `wasTruncated` on empty text — reproducing the old ordering at every site in
+  one line — failed 6 of 14. In both runs the tests that legitimately do not
+  depend on the guard passed, and that is stated rather than counted as
+  evidence.
 
 - **`claude-fable-5-1` cannot classify at all.** Not fixed. Both Anthropic
   classification paths hardcode `tool_choice: { type: "tool", name: ... }`
@@ -393,6 +440,21 @@ rather than a defect:
   my own tooling within hours of writing about it. The thrown error carries no
   token counts, so the honest repair is to reconcile from the `UsageRecord`
   rows the run wrote, which is the only place that spend exists.
+
+  **Three Google paths still bill without recording.** Same slice, found while
+  adding the truncation guard (`4ba8e30`). `trackFailedUsage` appears exactly
+  once in `GoogleTranslationService`, in the `catch (unusable)` wrapped around
+  `translateText`'s parse. `translateTextBatch`, `classifySegments` and
+  `classifySegmentsBatch` parse bare, so a reply on any of those three that
+  the provider answered, charged for, and FEED could not use — truncated or
+  otherwise unparseable — costs money and leaves no row at all. The sweep hit
+  exactly this: its two recorded failures were both `translateText`, which is
+  the one path that records.
+
+  The translation half was the right place to start, being what production
+  runs, but "billed-but-failed spend is now recorded" is true of one path in
+  four on this provider. Worth saying plainly, since the earlier entry does
+  not qualify it.
 
   **An unpriced model reserves nothing against the ceiling.** Same slice,
   raised in review. `selectConfigurations` filters on
@@ -1879,6 +1941,23 @@ Lesson worth keeping: "passes in isolation, fails in a suite" is not
 automatically a shared-fixture problem. Read the failure message before
 choosing a cause — this one said `TimeoutError`, which pointed straight at the
 answer and was not looked at first.
+
+**Seen once more on 2026-09-13, after the fix.** One full run failed
+`__tests__/features/food-items/create-duplicate.test.ts > successful create is
+unaffected (201 with the new item)`; the file passed alone (4/4) immediately
+after, and the next full run was green at 106 files / 1267 passed / 2 skipped,
+matching the two runs before it exactly. Nothing in that session touched
+food-items — the working tree held only Google translation files, and the test
+was last committed in `972f344`.
+
+What can be said: it is intermittent, and it is not a shared-database problem.
+That test mocks `src/db` outright, as this entry already establishes every such
+file does. What cannot yet be said is the cause. It is a candidate for the same
+mistake recorded above — inferring a mechanism instead of reading one — so the
+suspicion is noted and left as a suspicion: possibly the dynamic
+`await import(...)` of the router inside `beforeEach` racing `vi.clearAllMocks`
+under parallel workers. The failure message was not captured before the re-run
+overwrote it, which is the thing to do differently next time.
 
 ### #58 — Tailwind v4 codemod renamed a variant *value*, not just classes
 **Priority**: Medium · **Status**: Fixed in 1.5.0-beta.6
