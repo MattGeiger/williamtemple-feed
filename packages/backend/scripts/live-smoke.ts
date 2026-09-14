@@ -48,9 +48,10 @@
  *   ts-node scripts/live-smoke.ts --bill --config 9
  *   ts-node scripts/live-smoke.ts --bill --include-frontier --ceiling 2.00
  *
- * Frontier models are skipped unless `--include-frontier`. The run aborts as
- * soon as recorded spend passes `--ceiling` (default $1.00), checked after
- * every billable request rather than estimated in advance.
+ * Frontier models are skipped unless `--include-frontier`. Every request is
+ * capped at `SWEEP_OUTPUT_CAP` output tokens, which is what makes the figure
+ * printed before a run a bound rather than a hope, and the run stops before
+ * any model whose worst case would carry it past `--ceiling` (default $1.00).
  */
 
 import type { AIConfiguration } from '@prisma/client';
@@ -59,6 +60,7 @@ import prisma from '../src/db';
 import { AIServiceFactory } from '../src/services/ai/factory/AIServiceFactory';
 import type { AITranslationService } from '../src/services/ai/base/AITranslationService';
 import { encryptApiKey } from '../src/services/encryption';
+import { PromptBuilder } from '../src/services/ai/prompts/PromptBuilder';
 import {
   acceptedReasoningValues,
   capabilitiesFor,
@@ -72,18 +74,32 @@ import {
 } from '../src/services/ai/provider-failure';
 
 /**
- * The request shape the cost estimate assumes, measured and recorded in the
- * refresh document: about 250 input and 60 output tokens for a one-sentence
- * translation at no thinking.
+ * The output ceiling this sweep imposes on every request it makes.
  *
- * Request 4 is the exception — it asks for the highest reasoning level the
- * model accepts, and the doc budgets up to 2,000 output tokens of it. The
- * estimate uses that ceiling, so the figure printed before a run is the worst
- * case rather than the likely one.
+ * Without it, the figure printed before a run is a guess wearing a bound's
+ * clothing. FEED resolves a request's output cap through `PromptBuilder`,
+ * which reads `config.maxTokens ?? 4096`, and this deployment's rows carry
+ * 64,000 to 128,000. Anthropic's `resolveMaxTokens` clamps that to 20,480 for
+ * a translation; OpenAI and Google pass it straight through. So one
+ * `gpt-6-astra` request that ran to its cap would be 128,000 x $50/1M =
+ * $6.40, and the twelve-model sweep's true worst case was about $55 against
+ * an expected $0.46. Two orders of magnitude of daylight is not a budget.
+ *
+ * Setting `maxTokens` on the configuration the sweep uses closes it: the
+ * value flows through `PromptBuilder` into all three providers, and no
+ * request can emit more than this many output tokens. 512 is ample for a
+ * one-sentence translation — the longest completion measured anywhere in this
+ * catalogue was 262 tokens, on `gemini-3.1-pro-preview` at `low`.
+ *
+ * What it costs: request 4 no longer measures *unbounded* reasoning, only
+ * that the highest level is accepted and answers inside 512 tokens. That is
+ * the honest trade, and the run says so in its own output rather than
+ * quietly reporting a smaller number.
  */
+const SWEEP_OUTPUT_CAP = 512;
+
+/** Input side of the bound; the refresh doc measures ~250 tokens per request. */
 const ESTIMATE_INPUT_TOKENS = 250;
-const ESTIMATE_OUTPUT_TOKENS = 60;
-const ESTIMATE_REASONING_OUTPUT_TOKENS = 2_000;
 const BILLABLE_REQUESTS = 4;
 
 const DEFAULT_CEILING_USD = 1.0;
@@ -156,17 +172,35 @@ const selectConfigurations = async (options: Options): Promise<AIConfiguration[]
   });
 };
 
-/** Worst-case spend for one model's four billable requests, from catalogue prices. */
-const estimateForModel = (model: string): number | null => {
+/**
+ * The most one model's four billable requests can cost.
+ *
+ * A bound rather than an estimate: every request carries `SWEEP_OUTPUT_CAP`,
+ * so the output side cannot exceed it however long the model would like to
+ * think. The input side is the measured ~250 tokens, which a three-word
+ * pantry item and a 143-token prompt cannot overshoot by much.
+ */
+const worstCaseForModel = (model: string): number | null => {
   const entry = findCatalogueEntry(model);
   if (!entry) return null;
 
   const inputTokens = ESTIMATE_INPUT_TOKENS * BILLABLE_REQUESTS;
-  const outputTokens =
-    ESTIMATE_OUTPUT_TOKENS * (BILLABLE_REQUESTS - 1) + ESTIMATE_REASONING_OUTPUT_TOKENS;
+  const outputTokens = SWEEP_OUTPUT_CAP * BILLABLE_REQUESTS;
 
   return (inputTokens * entry.pricing.input + outputTokens * entry.pricing.output) / 1_000_000;
 };
+
+/**
+ * The configuration this sweep actually sends: the saved row, capped.
+ *
+ * `PromptBuilder` caches its resolved configuration under `config.id`, and
+ * every clone below reuses the original's id — so capping the *base* row, not
+ * only the clones, is what makes the cap hold across all four billable
+ * requests. `main` also clears that cache per configuration, so an uncapped
+ * resolution cannot survive from an earlier one.
+ */
+const capped = (config: AIConfiguration): AIConfiguration =>
+  ({ ...config, maxTokens: SWEEP_OUTPUT_CAP }) as AIConfiguration;
 
 const time = async <T>(work: () => Promise<T>): Promise<{ result?: T; error?: unknown; ms: number }> => {
   const started = Date.now();
@@ -366,7 +400,7 @@ const billableRequests = async (
   const values = acceptedReasoningValues(capabilities);
   const highest = values[values.length - 1];
   const raised = AIServiceFactory.createServiceFromConfiguration({
-    ...config,
+    ...capped(config),
     thinkingLevel: highest,
   } as AIConfiguration);
   const four = await time(() =>
@@ -411,19 +445,22 @@ const main = async (): Promise<void> => {
 
   console.log(`\nFEED live smoke sweep — ${configs.length} configuration(s)\n`);
 
-  let estimateTotal = 0;
+  let worstCaseTotal = 0;
   for (const config of configs) {
-    const estimate = estimateForModel(config.model!);
-    if (estimate !== null) estimateTotal += estimate;
+    const worst = worstCaseForModel(config.model!);
+    if (worst !== null) worstCaseTotal += worst;
     const entry = findCatalogueEntry(config.model!);
     console.log(
       `  [${String(config.id).padStart(2)}] ${(config.model ?? '?').padEnd(26)} `
       + `${(config.serviceType ?? '?').padEnd(10)} ${(entry?.costTier ?? 'uncatalogued').padEnd(9)} `
-      + `worst case ${estimate === null ? 'unknown (not in catalogue)' : usd(estimate)}`,
+      + `at most ${worst === null ? 'unknown (not in catalogue)' : usd(worst)}`,
     );
   }
   console.log(
-    `\n  Worst-case total for the billable half: ${usd(estimateTotal)}`
+    `\n  Every request is capped at ${SWEEP_OUTPUT_CAP} output tokens, so this is a`
+    + `\n  bound, not an estimate. Request 4 therefore proves the highest reasoning`
+    + `\n  level is accepted — not how long the model would think unbounded.`
+    + `\n\n  At most, for the billable half: ${usd(worstCaseTotal)}`
     + `\n  Ceiling for this run: ${usd(options.ceiling)}\n`,
   );
 
@@ -437,18 +474,29 @@ const main = async (): Promise<void> => {
   let spent = 0;
 
   for (const config of configs) {
-    const service = AIServiceFactory.createServiceFromConfiguration(config);
+    // Cap before anything is built from the row, and clear the prompt cache
+    // so no uncapped resolution survives from an earlier configuration.
+    PromptBuilder.clearCache();
+    const sweepConfig = capped(config);
+    const service = AIServiceFactory.createServiceFromConfiguration(sweepConfig);
 
-    outcomes.push(...(await unbilledRequests(config, service)));
+    outcomes.push(...(await unbilledRequests(sweepConfig, service)));
 
     if (!options.bill) continue;
 
-    if (spent > options.ceiling) {
-      console.log(`\nCeiling reached at ${usd(spent)} — stopping before ${config.model}.\n`);
+    // Checked *before* the requests, never after. Checking afterwards let a
+    // model overshoot the ceiling by its own cost, which on an uncapped
+    // frontier request would have been dollars rather than cents.
+    const worstCase = worstCaseForModel(sweepConfig.model!) ?? 0;
+    if (spent + worstCase > options.ceiling) {
+      console.log(
+        `\nStopping before ${sweepConfig.model}: ${usd(spent)} spent, and its worst `
+        + `case of ${usd(worstCase)} would pass the ${usd(options.ceiling)} ceiling.\n`,
+      );
       break;
     }
 
-    const billed = await billableRequests(config, service);
+    const billed = await billableRequests(sweepConfig, service);
     outcomes.push(...billed);
     spent += billed.reduce((sum, o) => sum + (o.costUsd ?? 0), 0);
   }
