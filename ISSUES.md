@@ -219,13 +219,14 @@ data at all. **Phase 5 live validation is the only part of #84 outstanding**, an
 three slices of it have now run — one on 2026-09-12 and two on 2026-09-13, the
 last of which closed the per-model gap (below).
 
-Seven things this work turned up, none of them defects on the #84 list. Some
+Ten things this work turned up, none of them defects on the #84 list. Some
 came from live testing against the providers, one from reconciling the usage
 dashboard against the database, two from typechecking the test suite, which
-had never been done, and one from the first run of the live smoke sweep's
-free half. **Six are now fixed.** The seventh — the factory resolving a
-single configuration for every provider — is an architectural choice rather
-than a defect, and is described last:
+had never been done, and four from the live smoke sweep — one on the free
+half, three more once the billable half ran. **Seven are now fixed.** The
+three open ones are described last, ending with the factory resolving a
+single configuration for every provider, which is an architectural choice
+rather than a defect:
 
 - **A failed translation recorded nothing** (fixed, `181d917`).
   `trackFailedUsage` existed on `AITranslationService` with exactly one
@@ -341,6 +342,48 @@ than a defect, and is described last:
   This is the defect #84 opened on — a provider's refusal reported as the
   wrong kind of problem — surviving in the one provider that could not be
   exercised until Google credits were restored on 2026-09-13.
+- **Google never checks whether a response was truncated.** Not fixed, and
+  its own slice. `AnthropicTranslationService` tests
+  `stop_reason === 'max_tokens'` at three sites and throws "Translation
+  response was truncated due to length" — a sentence staff can act on.
+  `GoogleTranslationService` tests `finishReason` nowhere: a grep for
+  `truncat|MAX_TOKENS|finishReason` across the file returns nothing. It hands
+  the truncated body to `JSON.parse` at four sites (lines 316, 534, 697, 875),
+  so staff read `Unterminated string in JSON at position 22`.
+
+  Found when the sweep's 512-token cap made two Gemini models truncate, but
+  the missing check is real at any cap — a long document at the production
+  cap of 65,536 fails the same way. The refresh document lists this exact
+  behaviour as required: "output truncated at the token cap → a clear error
+  rather than a JSON parse failure". The fix is
+  `response.candidates?.[0]?.finishReason === 'MAX_TOKENS'` ahead of each
+  parse, mirroring Anthropic's wording.
+
+- **`claude-fable-5-1` cannot classify at all.** Not fixed. Both Anthropic
+  classification paths hardcode `tool_choice: { type: "tool", name: ... }`
+  (lines 773 and 1028), and Fable answers `400 tool_choice: type "tool" and
+  "any" are not supported for this model`. Every other catalogued model
+  accepts it, so this is Fable's second refusal of a parameter the rest take
+  — it already carries `sampling: 'unsupported'` and `prefill: 'rejected'`.
+
+  The catalogue has no way to say it. A grep for `tool_choice|toolChoice|
+  forcedTool|tools` across `catalogue.ts` returns nothing, so this needs a
+  capability field rather than a patch at the call site — the same lesson as
+  the `-4-5-` string tests: a model's refusals belong in the catalogue, not
+  in an `if` next to the request.
+
+- **The sweep under-reports its own spend.** Not fixed, and mine. The script
+  sums `costUsd` from outcomes, and `costUsd` is only ever set from
+  `result.metrics.totalCost` — so a request that *throws* contributes nothing,
+  even when the provider answered and billed for it. The run printed $0.0940
+  where the database holds $0.10254 across the same 50 rows; the difference is
+  the two billed-but-failed Gemini rows.
+
+  This is precisely the defect fixed in `181d917` this morning, reproduced in
+  my own tooling within hours of writing about it. The thrown error carries no
+  token counts, so the honest repair is to reconcile from the `UsageRecord`
+  rows the run wrote, which is the only place that spend exists.
+
 - **Six active configurations, one reachable model.** All three translation
   call sites — `translations.ts:323`, `translations.ts:516` and
   `translation-trigger.ts:231` — call `AIServiceFactory.createService()` with
