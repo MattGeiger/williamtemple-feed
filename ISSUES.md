@@ -394,6 +394,34 @@ rather than a defect:
   token counts, so the honest repair is to reconcile from the `UsageRecord`
   rows the run wrote, which is the only place that spend exists.
 
+  **An unpriced model reserves nothing against the ceiling.** Same slice,
+  raised in review. `selectConfigurations` filters on
+  `entry?.costTier !== 'frontier'`, which is `true` when there is no entry at
+  all, so an uncatalogued id is admitted; `--include-frontier` returns `true`
+  before the lookup and admits it too. Then the pre-flight guard reads
+  `worstCaseForModel(model) ?? 0`, and `worstCaseForModel` returns `null`
+  precisely when the model has no catalogue entry and therefore no price. The
+  `?? 0` turns "I do not know what this costs" into "this costs nothing",
+  directly inside the check that exists to stop spending.
+
+  A Custom configuration — an administrator may type any id — would therefore
+  run its four billable requests having reserved nothing. `SWEEP_OUTPUT_CAP`
+  still bounds the tokens, so the volume is capped and the exposure is not
+  unbounded; it is the *price* that is unknown, which is exactly the term the
+  guard needs. Unknown should read as maximum risk, not zero: either refuse an
+  uncatalogued model unless a flag opts into it, or reserve a deliberate
+  worst-case price.
+
+  Latent, not live: every one of the twelve configurations on this deployment
+  resolves to a catalogue entry (checked against the catalogue's ids,
+  2026-09-13), so nothing reaches this today. It takes a Custom id, which the
+  interface exists to let an administrator type.
+
+  This is the same mistake `dashboard-invented-limits.test.ts` was written to
+  guard against, in its own words — "a zero that is a real observation, versus
+  a zero standing in for an absence" — committed in a spend guard by the
+  person who had just finished quoting it.
+
 - **Six active configurations, one reachable model.** All three translation
   call sites — `translations.ts:323`, `translations.ts:516` and
   `translation-trigger.ts:231` — call `AIServiceFactory.createService()` with
