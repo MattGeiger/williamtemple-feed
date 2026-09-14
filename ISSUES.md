@@ -88,8 +88,11 @@ dialogs, and the contents refresh are all delivered — 12 presets offered, four
 per provider, and FEED's default moved off the model Google refuses. **Phase 5's
 small-request sweep has run** — all seven request types against all twelve
 models (2026-09-13). The Fable and spending findings are fixed, and the local
-feature pass is complete (2026-09-14). Phase 5 remains open for the Cloudflare
-checks and production rollout; Pi Connect requires sign-in. See
+feature pass is complete (2026-09-14). The user requested stable 1.8.0 and
+explicitly excluded live production AI tests, taking responsibility for fresh
+API keys and model setup. Cloudflare AI feature checks are therefore omitted,
+not passed; deployment verification is limited to health, migrations, image
+identity and version. See
 `docs/ai-config/phase5-validation-2026-09-14.md`.
 **Bucket**: AI configuration / translation providers
 

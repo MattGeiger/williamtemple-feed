@@ -5,6 +5,20 @@ All notable changes to FEED are documented here. This project adheres to
 
 ## [Unreleased]
 
+## [1.8.0] — 2026-09-14
+
+### Released
+
+- Promoted the revised AI model support and beta.3 fixes to the stable 1.8.0
+  version in both packages. Includes Node 24, refreshed provider SDKs and model
+  catalogue, thinking controls, entitlement checks, language coverage, clearer
+  provider errors and improved spending records.
+- Removed the draft "Unreleased" heading from the user-facing release notes
+  and documented that requirement for future production builds.
+- At the user's direction, production AI feature tests are omitted; the user
+  will replace the API keys and configure the production models. Deployment
+  verification covers image identity, health, migrations and version only.
+
 ## [1.8.0-beta.3] — 2026-09-14, authored; not yet deployed
 
 ### Fixed
