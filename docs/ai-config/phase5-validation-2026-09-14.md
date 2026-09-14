@@ -74,6 +74,27 @@ Arabic preview selected, and Download PDF completed. Synthetic fixtures were
 kept separate from existing inventory and documents. Local configurations 5
 and 14 were restored to their original activation, token, thinking, and update
 values after the checks. Usage rows remain as real spending history.
+The 40 synthetic bulk rows were removed after verification; the two synthetic
+source documents, Spanish output and named builder template remain locally
+available for review.
+
+## Built release candidate
+
+Both **linux/arm64** images were built locally from commit `aeab799`, with
+same-origin frontend API routing. They are loaded into Docker on this Mac;
+they have **not** been pushed to a registry or deployed.
+
+| Local image | Image ID |
+| --- | --- |
+| `et2geiger/feed-backend:1.8.0-beta.3` | `sha256:efa3e912417caa935cf0731e8407130cc7602f78cc6e8ffea36958cf036ede17` |
+| `et2geiger/feed-frontend:1.8.0-beta.3` | `sha256:06c840b6e7c088f863bfd85b15c2d221e3e630b6c152c191ac2114cb30fcb65a` |
+
+The isolated backend container reports Node **24.21.0**, application version
+**1.8.0-beta.3**, and Chromium **152.0.7977.82**. All 36 migrations applied to a
+fresh disposable database with external networking disabled. The frontend's
+Nginx configuration validates and its compiled bundle contains the new version.
+These are Pi-architecture builds, not an AMD64 validation claim. The staged
+older releases described below still need their own immutable images.
 
 Local reproducibility material is under `/tmp/feed-phase5/`: input/output
 documents, PDF renders, request summaries, configuration restoration values,
