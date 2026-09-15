@@ -1,14 +1,13 @@
 # FEED — Known Issues & Future Work
 
-**Last Updated**: September 12, 2026
-**Status**: 1.7.5-rc.1 in production since 2026-09-05
-**Production**: https://feed.williamtemple.app — serving **1.7.5-rc.1**,
-deployed 2026-09-05 over 1.6.0 (which had run since 2026-08-24). Migration
-count 34 to 36; rollback artifact is `~/backups/feed/pre-175rc1.db` on the Pi,
-with the 1.6.0 images retained. 1.6.5 and every 1.7.5 beta were authored but
-never deployed, so a dated heading in `CHANGELOG.md` or `docs/release-notes.md`
-marks when a version was *written*, not when it shipped; headings now say which
-happened.
+**Last Updated**: September 14, 2026
+**Status**: 1.8.1 deployed and verified in production
+**Production**: https://feed.williamtemple.app — serving **1.8.1**,
+deployed 2026-09-14 over stable 1.8.0. Both services are healthy and all 36
+migrations are current. The verified rollback backup is
+`backups/2026-09-14-pre-1.8.1/` in the Pi checkout, with 1.8.0 images retained.
+See `docs/deployment/v1.8.1-validation.md` for release and browser evidence.
+Historical release headings distinguish authored versions from deployments.
 
 This file tracks open issues, planned work, and recently-resolved items
 during the v1.0.0 release-prep window. Detailed root-cause writeups for
@@ -45,7 +44,7 @@ Everything else in this file. The application is shippable today.
 ## Open Issues
 
 ### #85 — The breadcrumb banner loses its frosted glass in Chrome production builds
-**Priority**: Low · **Status**: Fixed in 1.8.1; production verification pending
+**Priority**: Low · **Status**: Fixed in 1.8.1; Chrome production verified
 **Bucket**: Layout / shell surfaces
 
 Reproduced on stable 1.8.0 on September 14: sharp chart bars and text showed
@@ -66,7 +65,8 @@ tokens or layout changes are needed. A regression test runs the real production
 optimizer on those source rules: all four cases fail before the reorder and
 pass after it. The optimized localhost app now computes `blur(14px)
 saturate(1.5)` on both Analytics banners and visibly blurs charts in light and
-dark Chrome.
+dark Chrome. The same packaged frontend retains Safari's frost on localhost;
+Chrome production also passes both themes after deployment.
 
 **Earlier diagnosis superseded:** the initial light-opacity adjustment to
 0.55/0.45 remains as the reviewed appearance, but it did not fix the Chrome

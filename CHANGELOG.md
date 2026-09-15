@@ -7,6 +7,15 @@ All notable changes to FEED are documented here. This project adheres to
 
 ## [1.8.1] — 2026-09-14
 
+### Released
+
+- Published v1.8.1 as GitHub's latest stable release and tagged the ARM64
+  frontend/backend Docker images as `1.8.1` and `latest`.
+- Deployed through the Pi's screen-shared terminal after a verified database
+  and storage backup. Both services are healthy, all 36 migrations are
+  current, and public version/release notes and Chrome light/dark frost
+  checks pass. Detailed evidence: `docs/deployment/v1.8.1-validation.md`.
+
 ### Fixed
 
 - Restored the breadcrumb banner's frosted glass in Chrome production builds.
