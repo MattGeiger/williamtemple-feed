@@ -202,23 +202,9 @@
     --feed-shell-veil: color-mix(in oklab, var(--color-white) 42.0%, transparent);
     --feed-shell-panel-start: color-mix(in oklab, var(--card) 88%, transparent);
     --feed-shell-panel-end: color-mix(in oklab, var(--color-mist-100) 76.0%, transparent);
-    /*
-     * Light header tokens, raised 0.40/0.32 -> 0.55/0.45 to match the dark
-     * values #78 arrived at.
-     *
-     * #78 fixed the mirror image of this: dark aliased the *panel* gradient,
-     * composited to ~89% opaque, and the blur had nothing to show. Light was
-     * correct then and stayed at the original 0.40/0.32 -- the thinnest
-     * surface in the app, against the Analytics filter bar's single 0.80
-     * layer directly beneath it. Over a white card the difference is
-     * invisible, which is why this looked fine for so long; over dark card
-     * titles and chart bars the bar reads as flat transparency with content
-     * smearing through rather than as frosted glass.
-     *
-     * Verified in the browser rather than by eye: the computed gradient
-     * tracks these tokens exactly, so the blur was applied all along and only
-     * the body was missing.
-     */
+    /* Match the dark header's reviewed 0.55/0.45 opacity. The earlier #85
+       opacity adjustment did not fix Chrome's production-only loss of blur;
+       that was declaration ordering in .feed-shell-header-panel below. */
     --feed-shell-header-start: color-mix(in oklab, var(--background) 55%, transparent);
     --feed-shell-header-end: color-mix(in oklab, var(--background) 45%, transparent);
     --feed-shell-card-start: color-mix(in oklab, var(--card) 94%, transparent);
@@ -966,8 +952,8 @@
     border-color: var(--feed-shell-panel-border);
     background-image: linear-gradient(180deg, var(--feed-shell-panel-start), var(--feed-shell-panel-end));
     box-shadow: var(--feed-shell-surface-shadow);
-    backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
+    backdrop-filter: blur(16px);
   }
 
   .feed-shell-header-panel {
@@ -975,8 +961,10 @@
     background-color: color-mix(in oklab, var(--background) 40%, transparent);
     background-image: linear-gradient(180deg, var(--feed-shell-header-start), var(--feed-shell-header-end));
     box-shadow: var(--feed-shell-surface-shadow);
-    backdrop-filter: blur(14px) saturate(1.5);
+    /* Keep the standard declaration last: the production CSS optimizer drops
+       it when the prefixed declaration follows, leaving Chrome without blur. */
     -webkit-backdrop-filter: blur(14px) saturate(1.5);
+    backdrop-filter: blur(14px) saturate(1.5);
   }
 
   .feed-shell-sidebar [data-sidebar="sidebar"] {
@@ -984,8 +972,8 @@
     background-color: color-mix(in oklab, var(--sidebar-background) 82%, transparent);
     background-image: linear-gradient(180deg, var(--feed-shell-panel-start), var(--feed-shell-panel-end));
     box-shadow: var(--feed-shell-surface-shadow);
-    backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
+    backdrop-filter: blur(16px);
   }
 
   .feed-shell-card-surface,
@@ -1020,8 +1008,8 @@
   .print-theme [data-feed-card-surface="soft"] {
     background-image: none;
     box-shadow: none;
-    backdrop-filter: none;
     -webkit-backdrop-filter: none;
+    backdrop-filter: none;
   }
 }
 
