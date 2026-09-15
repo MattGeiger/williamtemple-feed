@@ -44,7 +44,7 @@ Everything else in this file. The application is shippable today.
 ## Open Issues
 
 ### #85 — The breadcrumb banner loses its frosted glass in Chrome production builds
-**Priority**: Low · **Status**: Fixed in 1.8.1; Chrome production verified
+**Priority**: Low · **Status**: Fixed in 1.8.1; production visually confirmed
 **Bucket**: Layout / shell surfaces
 
 Reproduced on stable 1.8.0 on September 14: sharp chart bars and text showed
@@ -66,7 +66,8 @@ optimizer on those source rules: all four cases fail before the reorder and
 pass after it. The optimized localhost app now computes `blur(14px)
 saturate(1.5)` on both Analytics banners and visibly blurs charts in light and
 dark Chrome. The same packaged frontend retains Safari's frost on localhost;
-Chrome production also passes both themes after deployment.
+Chrome production also passes both themes after deployment. The user confirmed
+both browsers on localhost and completed the final production visual inspection.
 
 **Earlier diagnosis superseded:** the initial light-opacity adjustment to
 0.55/0.45 remains as the reviewed appearance, but it did not fix the Chrome
