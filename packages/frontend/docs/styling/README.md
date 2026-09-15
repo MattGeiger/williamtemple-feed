@@ -354,6 +354,13 @@ function ThemedIcon() {
 
 ### App Shell Surfaces
 
+Write `-webkit-backdrop-filter` **before** `backdrop-filter` in authored shell
+CSS, including print resets. Tailwind's production optimizer retains only the
+prefixed property when it comes last, so Safari renders the frost while Chrome
+loses it. Development CSS is unaffected: verify optimized assets on localhost,
+not just Vite dev mode. `src/test/shell-backdrop-build.test.ts` exercises the
+actual optimizer to protect both declarations (ISSUES.md #85, v1.8.1).
+
 Authenticated app screens use centralized shell atmosphere tokens in `src/index.css`.
 The fixed backdrop is owned by `RootLayout`, and reusable surface treatments are opt-in:
 

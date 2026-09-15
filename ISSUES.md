@@ -44,42 +44,36 @@ Everything else in this file. The application is shippable today.
 
 ## Open Issues
 
-### #85 — The header banner lost its frosted glass in light mode
-**Priority**: Low · **Status**: Fixed; production acceptance pending
+### #85 — The breadcrumb banner loses its frosted glass in Chrome production builds
+**Priority**: Low · **Status**: Fixed in 1.8.1; production verification pending
 **Bucket**: Layout / shell surfaces
 
-Reported against 1.7.5-rc.1 with a screenshot: the breadcrumb header read as
-flat transparency, with the card title beneath it smearing through the bar.
-The mirror image of #78, which fixed the same symptom in dark mode and
-recorded that "light mode was always right".
+Reproduced on stable 1.8.0 on September 14: sharp chart bars and text showed
+through the breadcrumb header in Chrome, while the Analytics date banner
+blurred them correctly. Safari rendered both correctly.
 
-It was right, and then it was the only surface left behind. #78 raised dark to
-0.55/0.45; light kept the original **0.40/0.32** — the thinnest surface in the
-app, sitting directly above the Analytics filter bar's single 0.80 layer. Over
-a white card the difference is invisible, which is why this survived so long.
-Over dark card titles and chart bars there is not enough body for the blur to
-register, so content reads as bleeding through rather than as frost.
+**Root cause:** the authored shell rules placed `-webkit-backdrop-filter`
+after `backdrop-filter`. Tailwind 4.3.3's production optimizer (Lightning CSS
+1.32.0) collapsed this to the prefixed declaration alone. The live asset
+`index-CJFBoG8I.css` contained only `-webkit-backdrop-filter` for the header;
+Chrome computed `backdrop-filter: none`. Vite development preserved both,
+concealing the defect. The Analytics banner uses Tailwind utilities, whose
+generated declarations already have the working order.
 
-**Not a broken effect, and three wrong theories were discarded by measuring:**
+**Fixed:** put the prefixed declaration first and the standard one last on
+the header, shared panels, sidebar and print reset. No markup, opacity, theme
+tokens or layout changes are needed. A regression test runs the real production
+optimizer on those source rules: all four cases fail before the reorder and
+pass after it. The optimized localhost app now computes `blur(14px)
+saturate(1.5)` on both Analytics banners and visibly blurs charts in light and
+dark Chrome.
 
-- `backdrop-filter: blur(14px) saturate(1.5)` computes on the panel, and no
-  ancestor establishes a containing block that would disable it. The only
-  opaque ancestor is `BODY`.
-- `SidebarInset`'s `bg-background dark:bg-transparent` looked like the culprit
-  — an opaque light-mode fill behind a translucent header — but `twMerge`
-  resolves it against `root-layout.tsx`'s own `bg-transparent`, so the inset is
-  transparent in both modes.
-- The runtime brand stylesheet was suspected of supplying the tokens; it is a
-  71-byte comment that declares nothing. `index.css` is authoritative.
-
-**Fixed** by raising the light tokens to 0.55/0.45 — parity with a value
-already reviewed for dark, rather than a new number invented for light.
-
-**Lesson**: an A/B screenshot with no repaint delay proves nothing. Three
-comparisons at 0.40, 0.60 and 0.72 looked identical and nearly sent this off
-after the wrong cause; setting the tokens to opaque red with a one-second wait
-turned the bar red and settled it. Choose a backdrop with contrast, too: white
-at 40% over a white card is indistinguishable from white at 72%.
+**Earlier diagnosis superseded:** the initial light-opacity adjustment to
+0.55/0.45 remains as the reviewed appearance, but it did not fix the Chrome
+build defect. A computed property in dev mode does not establish that the
+production stylesheet contains it. Test the optimized build, with contrasting
+content behind the banner and time for a repaint. Release/deployment evidence:
+`docs/deployment/v1.8.1-validation.md`.
 
 ### #84 — The AI model catalogue is out of date, and a refused model reports as an invalid API key
 **Priority**: High · **Status**: honest errors and alerts, Node 24, the SDK

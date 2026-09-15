@@ -1,5 +1,12 @@
 # Release Notes
 
+## Version 1.8.1 — 2026-09-14
+
+**The top navigation banner has its frosted glass back in Chrome.** Content
+scrolling behind the breadcrumbs is softly blurred, as it is in Safari and
+behind the Analytics date controls. The correction also restores the shared
+sidebar and panel blur in Chrome, in both light and dark themes.
+
 ## Version 1.8.0 — 2026-09-14
 
 **The refreshed AI model support is now released.** FEED's updated model

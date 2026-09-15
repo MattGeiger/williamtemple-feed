@@ -5,6 +5,19 @@ All notable changes to FEED are documented here. This project adheres to
 
 ## [Unreleased]
 
+## [1.8.1] — 2026-09-14
+
+### Fixed
+
+- Restored the breadcrumb banner's frosted glass in Chrome production builds.
+  Put prefixed backdrop-filter declarations before the standard declarations
+  so Tailwind's CSS optimizer preserves both. Applied the same correction to
+  shared shell panels, the sidebar and the print reset; colors and layout stay
+  unchanged.
+- Added four production-optimizer regression cases, proved failing before the
+  fix. All 16 focused backdrop/theme tests pass. The optimized frontend was
+  visually checked on localhost in Chrome in light and dark modes.
+
 ## [1.8.0] — 2026-09-14
 
 ### Released
