@@ -5,6 +5,11 @@ All notable changes to FEED are documented here. This project adheres to
 
 ## [Unreleased]
 
+### Documentation
+
+- Redacted individual client-record identifiers from historical import examples
+  and replaced the import-progress test's record identifier with a synthetic value.
+
 ## [1.8.1] — 2026-09-14
 
 ### Released

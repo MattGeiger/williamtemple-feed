@@ -147,12 +147,12 @@ describe('every job status maps to a deliberate phase', () => {
   test('a failed job carries the server reason and stops working', () => {
     const phase = importPhase(job({
       status: 'failed',
-      errorMessage: 'Visit [ID] must identify exactly one Head of Household.',
+      errorMessage: 'Visit 99999901 must identify exactly one Head of Household.',
     }));
 
     expect(phase.failed).toBe(true);
     expect(phase.working).toBe(false);
-    expect(phase.message).toContain('[ID]');
+    expect(phase.message).toContain('99999901');
   });
 
   test('a failed job with no message still says something useful', () => {
