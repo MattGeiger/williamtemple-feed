@@ -11,6 +11,8 @@ All notable changes to FEED are documented here. This project adheres to
   and replaced the import-progress test's record identifier with a synthetic value.
 - Replaced personal checkout paths with repository-relative references in agent
   guidance, setup instructions, historical handoffs, and error-message fixtures.
+- Documented the runtime Appearance workflow and its protected boundaries in
+  the README; aligned deployer branding requirements with LOTTO.
 
 ## [1.8.1] — 2026-09-14
 

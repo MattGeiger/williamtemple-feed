@@ -74,6 +74,16 @@ software. FEED supports the common operational reality of food pantries:
 - **Administration** — see who has access, invite staff, revoke access with
   immediate effect, and optionally restrict sign-in to an allowlist. An audit
   history records what administrators changed.
+- **Configurable Appearance** — administrators use the guided workflow in
+  Settings → Appearance to set organization identity, light and dark logos
+  and an app mark, an accessible brand color story, staff sign-in copy, and
+  organization terminology. Save drafts, preview in the current browser session,
+  activate organization-wide, revert to the built-in appearance, or delete
+  inactive configurations without rebuilding the app. Reports, authentication
+  email, public inventory identity, and shopping-list PDF metadata follow the
+  active organization. Operational and status colors and fixed analytic
+  definitions stay outside brand control. See the
+  [Appearance implementation plan](./docs/roadmap/v1.7-white-label-plan.md).
 - **In-app Help** — searchable staff guides written in plain language,
   plus a concise About page with project and license information.
 - **Magic-link OTP authentication** — no passwords. Email-based
@@ -288,9 +298,10 @@ The FEED application code is licensed under
 4. The **William Temple House name, logo, visual identity, and other
    branding assets are *not* open source** and may not be reused without
    separate written permission. See [TRADEMARKS.md](./TRADEMARKS.md).
-5. **Food pantries deploying FEED should replace the included branding**
-   — name, logo, colors, and contact information — with their own before
-   any public deployment.
+5. **Anyone deploying FEED must configure an authorized Appearance** and use
+   their own name, logo, colors, domain, and contact information before a public
+   deployment. The no-configuration William Temple House default preserves the
+   originating production deployment; it is not permission to reuse that identity.
 
 ---
 
