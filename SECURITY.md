@@ -6,7 +6,7 @@ If you discover a security vulnerability in FEED, please report it
 **privately** rather than opening a public issue.
 
 **How to report:** email
-[technology@williamtemple.org](mailto:technology@williamtemple.org)
+[matt@templepdx.com](mailto:matt@templepdx.com)
 with:
 
 - A description of the vulnerability and its potential impact

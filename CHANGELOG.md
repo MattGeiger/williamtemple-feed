@@ -13,6 +13,8 @@ All notable changes to FEED are documented here. This project adheres to
   guidance, setup instructions, historical handoffs, and error-message fixtures.
 - Documented the runtime Appearance workflow and its protected boundaries in
   the README; aligned deployer branding requirements with LOTTO.
+- Routed non-GitHub project inquiries and private security disclosures to
+  Temple Consulting; retained the originating deployment's own identity.
 
 ## [1.8.1] — 2026-09-14
 

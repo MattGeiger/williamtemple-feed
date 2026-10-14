@@ -346,7 +346,7 @@ positions from postal codes alone and never stores a client address.
 
 - **General questions / discussion:** open a GitHub Discussion or
   `question` issue. For non-GitHub contact, email
-  [technology@williamtemple.org](mailto:technology@williamtemple.org).
+  [matt@templepdx.com](mailto:matt@templepdx.com).
 - **Bug reports:** open an issue with the `bug` template.
 - **Security disclosures:** see [SECURITY.md](./SECURITY.md).
 - **Project maintainer:** Matt Geiger, Temple Consulting, LLC. —
