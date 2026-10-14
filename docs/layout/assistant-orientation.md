@@ -29,7 +29,7 @@
 This is FEED (Food Equity & Efficient Delivery), a food pantry management system implementing a UI layout migration. The project is transitioning from floating individual components to a cohesive UI with shadcn/ui components.
 
 ## Key Project Files Location
-Base project path: 
+Base project path: .
 
 ## MCP Tools Guidelines
 

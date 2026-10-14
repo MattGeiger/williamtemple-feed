@@ -182,9 +182,8 @@ for the settled decision record, and Phase 6 for status. Summary:
 Full technical specification for a future implementation session lives in the
 extension'''s own repository, not this one — a future session should start
 there directly rather than through FEED:
-`OFB Data Fetch Plugin/docs/unified-export-design.md`
-(local path on this machine at time of writing:
-`<ofb-plugin-root>/docs/unified-export-design.md`).
+`<ofb-plugin-root>/docs/unified-export-design.md`, where `<ofb-plugin-root>`
+is your checkout of the OFB Data Fetch Plugin.
 That document is self-contained and does not assume access to this repository.
 
 The short version: the unified v2 export pulls Completed Orders (Warehouse,

@@ -9,6 +9,8 @@ All notable changes to FEED are documented here. This project adheres to
 
 - Redacted individual client-record identifiers from historical import examples
   and replaced the import-progress test's record identifier with a synthetic value.
+- Replaced personal checkout paths with repository-relative references in agent
+  guidance, setup instructions, historical handoffs, and error-message fixtures.
 
 ## [1.8.1] — 2026-09-14
 
@@ -315,8 +317,7 @@ when it reached the Pi, as 1.6.5 and the betas before it taught us to record.
   - what running TranslateGemma through Ollama would require of FEED —
     explored, then shelved as a project of its own, with the design kept.
 
-- **`AGENTS.md` paths now point at `<repos-root>/`**, where the local
-  checkouts moved.
+- **`AGENTS.md` paths now point at the current local checkout locations.**
 
 - **`AGENTS.md` makes AI model catalogue maintenance a standing rule.**
   Provider offerings shift in months: 15 of 16 presets had gone stale by

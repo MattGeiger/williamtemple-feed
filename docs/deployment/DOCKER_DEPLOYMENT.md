@@ -28,7 +28,7 @@ docker buildx inspect --bootstrap
 
 **Mac (for build):**
 ```bash
-cd .
+# Run from the repository root.
 cp packages/backend/.env.docker.example packages/backend/.env
 ```
 
@@ -48,7 +48,7 @@ visible to staff. Check the built release notes as part of release verification.
 `CHANGELOG.md` is separate and may keep its developer-facing Unreleased section.
 
 ```bash
-cd .
+# Run from the repository root.
 
 # Option A: Build and push to registry (recommended)
 export DOCKER_REGISTRY="yourusername"  # Docker Hub username (not email) or ghcr.io/username

@@ -291,7 +291,7 @@ Current builder expectations:
 
 Use targeted validation first, then broaden based on risk.
 
-Common commands:
+Common commands (each starts from the repository root):
 
 ```bash
 cd packages/frontend && npm run build
@@ -300,13 +300,13 @@ cd packages/backend && npm run test:shopping-lists
 cd packages/backend && npm test
 ```
 
-When validating the Phase 1/reference pdfmake generator locally, use a Node runtime compatible with pdfmake/fontkit embedded TTF parsing. Node 20/24 have worked in this project; Node 23 has produced `Unknown font format` failures with embedded fonts. In the current macOS setup, this command has been used successfully:
+When validating the Phase 1/reference pdfmake generator locally, use a Node runtime compatible with pdfmake/fontkit embedded TTF parsing. Node 20/24 have worked in this project; Node 23 has produced `Unknown font format` failures with embedded fonts. With Node 24 selected in your shell, run from the repository root:
 
 ```bash
 cd packages/backend && npm run test:shopping-lists
 ```
 
-Development servers typically run as:
+Development servers typically run as (each starts from the repository root):
 
 ```bash
 cd packages/backend && npm run dev
@@ -342,7 +342,8 @@ Manual validation checklists should be short and task-specific. For shopping lis
 
 ## Local Development Environment
 
-The active working repo is `.`.
+The active working repo is the repository root (`.`). All paths below resolve
+from that root unless a command explicitly changes directory.
 (`../wth_app_clean` is a **retired** old checkout kept warm
 for operational reference only — do not edit or run it, and never `git
 push` from it.)
