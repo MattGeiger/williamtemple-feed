@@ -215,7 +215,7 @@ to any Docker host (Synology, NAS, cloud VPS, your own home server).
 
 ## Tech stack
 
-- **Frontend:** React 18, TypeScript, Vite, Tailwind CSS,
+- **Frontend:** React 19, TypeScript, Vite, Tailwind CSS,
   Shadcn/Radix UI components, Motion (formerly Framer Motion) for the
   animated icon system
 - **Backend:** Node.js, Express, TypeScript, Prisma ORM

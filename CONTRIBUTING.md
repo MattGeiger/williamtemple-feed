@@ -16,8 +16,7 @@ AGPL-3.0 reference implementation for other nonprofits.
 
 ### Prerequisites
 
-- Node.js 20 or 24 (Node 23 has known `fontkit` issues with the
-  Phase 1 / reference PDF pipeline)
+- Node.js 24, matching the README and production Docker runtime
 - Docker Desktop (for running the full stack locally)
 - A modern terminal
 

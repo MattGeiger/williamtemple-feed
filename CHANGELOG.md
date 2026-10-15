@@ -7,6 +7,8 @@ All notable changes to FEED are documented here. This project adheres to
 
 ### Documentation
 
+- Aligned the documented React version and development Node requirement with
+  the current package and Docker configuration.
 - Routed project questions through GitHub issues in the README and contributor
   guide, matching the repository's available contact channels.
 - Replaced record identifiers in historical import examples with placeholders
