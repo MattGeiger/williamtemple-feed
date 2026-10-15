@@ -7,6 +7,8 @@ All notable changes to FEED are documented here. This project adheres to
 
 ### Documentation
 
+- Routed project questions through GitHub issues in the README and contributor
+  guide, matching the repository's available contact channels.
 - Redacted individual client-record identifiers from historical import examples
   and replaced the import-progress test's record identifier with a synthetic value.
 - Replaced personal checkout paths with repository-relative references in agent

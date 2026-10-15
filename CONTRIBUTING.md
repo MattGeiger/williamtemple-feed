@@ -8,7 +8,7 @@ AGPL-3.0 reference implementation for other nonprofits.
 
 - **Bug reports** — open an issue with the `bug` template
 - **Feature requests** — open an issue with the `feature` template
-- **Questions** — use the `question` issue template or start a Discussion
+- **Questions** — use the `question` issue template
 - **Security issues** — please do **not** open a public issue. See
   [SECURITY.md](./SECURITY.md) for the private disclosure process.
 
@@ -104,6 +104,6 @@ the specific network-use clause.
 
 ## Questions
 
-If you're not sure whether a contribution fits, open a Discussion or a
-`question` issue before investing significant work. The maintainers are
+If you're not sure whether a contribution fits, open a `question` issue
+before investing significant work. The maintainers are
 happy to weigh in on direction.

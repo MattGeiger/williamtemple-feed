@@ -270,7 +270,7 @@ Bug reports, feature requests, and pull requests are all welcome. See
 conventions, and PR expectations.
 
 If you're not sure whether a contribution fits the project direction,
-open a Discussion or a `question` issue before investing significant
+open a `question` issue before investing significant
 work.
 
 **Security issues** — please do **not** open a public issue. See
@@ -344,8 +344,7 @@ positions from postal codes alone and never stores a client address.
 
 ## Contact
 
-- **General questions / discussion:** open a GitHub Discussion or
-  `question` issue. For non-GitHub contact, email
+- **General questions:** open a `question` issue. For non-GitHub contact, email
   [matt@templepdx.com](mailto:matt@templepdx.com).
 - **Bug reports:** open an issue with the `bug` template.
 - **Security disclosures:** see [SECURITY.md](./SECURITY.md).
