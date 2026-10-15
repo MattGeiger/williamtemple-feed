@@ -9,9 +9,9 @@ All notable changes to FEED are documented here. This project adheres to
 
 - Routed project questions through GitHub issues in the README and contributor
   guide, matching the repository's available contact channels.
-- Redacted individual client-record identifiers from historical import examples
-  and replaced the import-progress test's record identifier with a synthetic value.
-- Replaced personal checkout paths with repository-relative references in agent
+- Replaced record identifiers in historical import examples with placeholders
+  and used a synthetic record identifier in the import-progress test.
+- Replaced machine-specific paths with repository-relative references in agent
   guidance, setup instructions, historical handoffs, and error-message fixtures.
 - Documented the runtime Appearance workflow and its protected boundaries in
   the README; aligned deployer branding requirements with LOTTO.
