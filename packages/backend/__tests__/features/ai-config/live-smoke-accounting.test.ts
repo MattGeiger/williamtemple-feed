@@ -79,3 +79,17 @@ test('a ceiling too small for a request stops before sending it', async () => {
   expect(process.exitCode).toBe(1);
   process.exitCode = 0;
 });
+
+
+test('an explicit model reuses local credentials without editing the saved configuration', async () => {
+  const saved = { ...config, encryptedApiKey: 'test-encrypted', thinkingLevel: 'high' };
+  mocks.configs.mockResolvedValue([saved]);
+  expect(parseArgs(['--model', 'claude-haiku-5-5']).modelId).toBe('claude-haiku-5-5');
+  mocks.factory.mockReturnValueOnce({ checkAccess: vi.fn().mockResolvedValue({ ok: true }) })
+    .mockReturnValue({ checkAccess: vi.fn().mockResolvedValue({ ok: false, error: { status: 401 } }) });
+  await main(['--model', 'claude-haiku-5-5', '--unbilled']);
+  expect(mocks.factory).toHaveBeenCalledWith(expect.objectContaining({
+    id: saved.id, model: 'claude-haiku-5-5', pricingSource: 'preset', thinkingLevel: null,
+  }));
+  expect(saved.model).toBe('claude-fable-5-1');
+});

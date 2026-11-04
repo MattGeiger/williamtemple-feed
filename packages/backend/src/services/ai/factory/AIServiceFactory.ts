@@ -5,6 +5,8 @@
 // under AGPL-3.0-or-later; see LICENSE. William Temple House branding is
 // not covered by this license; see TRADEMARKS.md.
 
+import { findCatalogueEntry } from '../catalogue';
+import { createRouteError } from '../../../lib/route-error';
 import { AIConfiguration, PrismaClient } from '@prisma/client';
 import { AITranslationService } from '../base/AITranslationService';
 import { OpenAITranslationService } from '../providers/OpenAITranslationService';
@@ -53,6 +55,10 @@ export class AIServiceFactory {
       throw new Error('AI configuration required. Please configure AI settings in Tools → AI Configuration.');
     }
 
+    // Check before cache reuse too: an unchanged configuration can cross its
+    // provider shutdown date while the process remains running.
+    this.assertModelAvailable(config);
+
     // Use service type as cache key
     const cacheKey = `${config.serviceType}_${config.id}`;
 
@@ -79,6 +85,7 @@ export class AIServiceFactory {
 
   /** Build an uncached service for a configuration that may not be saved yet. */
   static createServiceFromConfiguration(config: AIConfiguration): AITranslationService {
+    this.assertModelAvailable(config);
     switch (config.serviceType) {
       case 'OpenAI':
         return new OpenAITranslationService(config);
@@ -90,6 +97,15 @@ export class AIServiceFactory {
         throw new Error('Azure OpenAI service not yet implemented');
       default:
         throw new Error(`Unsupported AI service type: ${config.serviceType}`);
+    }
+  }
+
+  private static assertModelAvailable(config: AIConfiguration): void {
+    const entry = findCatalogueEntry(config.model);
+    if (entry?.provider === config.serviceType && (entry.lifecycle.status === 'retired'
+      || (entry.lifecycle.shutdownDate && entry.lifecycle.shutdownDate <= new Date().toISOString().slice(0, 10)))) {
+      throw createRouteError(`${entry.id} is no longer available. Choose ${entry.lifecycle.replacement ?? 'a current model'} in AI Configuration.`,
+        400, 'AI_MODEL_RETIRED');
     }
   }
 

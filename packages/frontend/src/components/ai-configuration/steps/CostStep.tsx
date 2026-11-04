@@ -35,6 +35,12 @@ export function CostStep({
   validation,
   onBlur
 }: CostStepProps) {
+  const changeManual: typeof onChange = updates => onChange({
+    ...updates,
+    ...('inputCost' in updates ? { inputCost: updates.inputCost ?? null } : {}),
+    ...('outputCost' in updates ? { outputCost: updates.outputCost ?? null } : {}),
+    pricingSource: 'manual'
+  });
   const [state, setState] = React.useState<CostStepState>({
     rawInputCost: data.inputCost?.toString() || '',
     rawOutputCost: data.outputCost?.toString() || '',
@@ -73,7 +79,7 @@ export function CostStep({
         <Label htmlFor="unitPrice">Unit Price</Label>
         <Select 
           value={data.unitPrice || 'per_1m'} 
-          onValueChange={(value: 'per_1k' | 'per_1m') => onChange({ unitPrice: value })}
+          onValueChange={(value: 'per_1k' | 'per_1m') => changeManual({ unitPrice: value })}
         >
           <SelectTrigger>
             <SelectValue />
@@ -93,7 +99,7 @@ export function CostStep({
             id="inputCost"
             type="text"
             value={state.rawInputCost}
-            onChange={createCurrencyChangeHandler('inputCost', setRawInputCost, onChange, setInputCostAtLimit, setOutputCostAtLimit, showError)}
+            onChange={createCurrencyChangeHandler('inputCost', setRawInputCost, changeManual, setInputCostAtLimit, setOutputCostAtLimit, showError)}
             placeholder="Cost per unit (8 decimal precision)"
             className="pl-8"
             disabled={isLoading}
@@ -112,7 +118,7 @@ export function CostStep({
             id="outputCost"
             type="text"
             value={state.rawOutputCost}
-            onChange={createCurrencyChangeHandler('outputCost', setRawOutputCost, onChange, setInputCostAtLimit, setOutputCostAtLimit, showError)}
+            onChange={createCurrencyChangeHandler('outputCost', setRawOutputCost, changeManual, setInputCostAtLimit, setOutputCostAtLimit, showError)}
             placeholder="Cost per unit (8 decimal precision)"
             className="pl-8"
             disabled={isLoading}

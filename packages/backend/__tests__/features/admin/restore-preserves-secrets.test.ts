@@ -38,6 +38,8 @@ beforeAll(() => {
   workdir = mkdtempSync(join(tmpdir(), 'feed-restore-secrets-'));
   databasePath = join(workdir, 'fresh.db');
 
+  // Prisma 6's schema engine on this runtime needs the empty SQLite file to exist.
+  execFileSync('sqlite3', [databasePath, 'VACUUM;']);
   execFileSync('npx', ['prisma', 'migrate', 'deploy'], {
     cwd: join(__dirname, '../../..'),
     env: { ...process.env, DATABASE_URL: `file:${databasePath}` },
@@ -70,7 +72,7 @@ describe('recovery ordering: encryption first, then restore', () => {
         AIConfiguration: [
           {
             id: 1, name: 'Google Gemini', type: 'apikey', value: '',
-            serviceType: 'Google', model: 'gemini-2.5-flash',
+            serviceType: 'Google', model: 'gemini-2.5-flash', pricingSource: 'preset',
             isActive: true, updatedAt: AT,
           },
         ],
@@ -101,6 +103,12 @@ describe('recovery ordering: encryption first, then restore', () => {
     expect(sqlite("SELECT isActive FROM AIConfiguration WHERE type = 'apikey';")).toBe('0');
     expect(sqlite("SELECT encryptedApiKey IS NULL FROM AIConfiguration WHERE type = 'apikey';"))
       .toBe('1');
+  });
+
+  test('pricing provenance survives restore and old rows default safely', () => {
+    expect(sqlite('SELECT pricingSource FROM AIConfiguration WHERE id = 1;')).toBe('preset');
+    sqlite("INSERT INTO AIConfiguration(name,type,value,updatedAt) VALUES ('Legacy','apikey','',CURRENT_TIMESTAMP);");
+    expect(sqlite("SELECT pricingSource IS NULL FROM AIConfiguration WHERE name = 'Legacy';")).toBe('1');
   });
 
   test('a restored prompt keeps the state it was backed up in', () => {

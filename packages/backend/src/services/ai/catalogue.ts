@@ -23,9 +23,10 @@ import { SUPPORTED_LANGUAGES } from '../seed/supported-languages';
  * the interface say so first.
  *
  * **Capabilities**, because what a model accepts is not derivable from its
- * name. Every one of these was measured against a live API on 2026-09-11
- * rather than read off a documentation page, and three of them contradicted
- * what the docs implied:
+ * name. The September entries were measured against live APIs; November
+ * additions use official documentation and request fixtures, with live
+ * generation pending working local credentials. September probes contradicted
+ * three implications in the documentation:
  *
  *   - `claude-sonnet-5` refuses `temperature` outright — its presence, not
  *     its value, so sending the default does not help.
@@ -120,7 +121,7 @@ export type ReasoningControl =
   /** Claude's extended thinking: off unless asked. */
   | { kind: 'extended'; leastCost: 'off' }
   /** Claude 5's adaptive thinking: on unless disabled. */
-  | { kind: 'adaptive'; values: readonly string[]; leastCost: string; canDisable: boolean };
+  | { kind: 'adaptive'; values: readonly string[]; leastCost: string; canDisable: boolean; lowestThinkingMode?: 'disabled' | 'between_tools' };
 
 /** Whether FEED may seed the reply to force a JSON opening brace. */
 export type PrefillSupport = 'allowed' | 'rejected';
@@ -141,6 +142,9 @@ export interface ModelPricing {
   verifiedAt: string;
   /** Set when a provider has announced a change, e.g. Gemini 3.x in 2027. */
   changesOn?: string;
+  /** Rates for the whole request once its input exceeds this boundary. */
+  longContext?: { above: number; input: number; output: number };
+  scheduled?: { effectiveOn: string; input: number; output: number };
 }
 
 export interface ModelLifecycle {
@@ -154,11 +158,9 @@ export interface ModelLifecycle {
    * configuration. Defaults to true; set false to drop a preset.
    *
    * Separate from `status` because the two answer different questions, and
-   * conflating them would require writing something false. The 2026 refresh
-   * drops 15 presets, but `gpt-5-mini-2025-08-07` is what production runs and
-   * it works until 2026-12-11 — marking it `retired` to get it out of the
-   * dialog would claim requests fail when they do not, and would strip the
-   * entry production depends on.
+   * conflating them would require writing something false. A superseded model
+   * may remain callable until its announced shutdown. The November refresh
+   * removes those choices without claiming they have already retired.
    *
    * An unoffered entry stays in `CATALOGUE`, so `findCatalogueEntry` and
    * `capabilitiesFor` keep resolving its prices, limits, capabilities and
@@ -332,6 +334,41 @@ const PROVIDER_LANGUAGE_COVERAGE: Record<
  * that does not warrant one.
  */
 const CATALOGUE_BASE: readonly CatalogueEntryWithoutLanguages[] = [
+  // November 2026 refresh. Provider documentation verified 2026-11-04;
+  // request-contract tests are separate from live provider verification.
+  ...([
+    ['gpt-6-luna', 0.1, 0.5, 'none', 'economy'],
+    ['gpt-6.1-terra', 1, 5, 'none', 'standard'],
+    ['gpt-6.1-sol', 2, 10, 'low', 'standard'],
+  ] as const).map(([id, input, output, leastCost, costTier]): CatalogueEntryWithoutLanguages => ({
+    id, displayName: id, provider: 'OpenAI',
+    pricing: { input, output, verifiedAt: '2026-11-04',
+      longContext: { above: 272000, input: input * 2, output: output * 1.5 } },
+    contextWindow: 1050000, maxOutputTokens: 128000,
+    lifecycle: { status: 'active' }, costTier,
+    capabilities: {
+      sampling: 'unsupported', maxTokensField: 'max_completion_tokens', prefill: 'allowed',
+      reasoning: { kind: 'effort', leastCost,
+        values: [...(leastCost === 'none' ? ['none'] : []), 'low', 'medium', 'high', 'xhigh', 'max'] },
+    },
+  })),
+  ...([
+    ['claude-haiku-5-5', 0.1, 0.5, 'economy', 'disabled', true],
+    ['claude-sonnet-5-5', 2, 10, 'standard', 'between_tools', false],
+    ['claude-opus-5-5', 4, 20, 'frontier', undefined, false],
+  ] as const).map(([id, input, output, costTier, lowestThinkingMode, forcedToolUse]): CatalogueEntryWithoutLanguages => ({
+    id, displayName: id, provider: 'Anthropic',
+    pricing: { input, output, verifiedAt: '2026-11-04',
+      ...(id === 'claude-haiku-5-5' ? { longContext: { above: 100000, input: 0.5, output: 2.5 } } : {}) },
+    contextWindow: 1000000, maxOutputTokens: 128000,
+    lifecycle: { status: 'active' }, costTier,
+    capabilities: {
+      sampling: 'unsupported', maxTokensField: 'max_tokens', prefill: 'rejected',
+      forcedToolUse, nonStreamingOutputCeiling: 20480,
+      reasoning: { kind: 'adaptive', values: ['low', 'medium', 'high', 'xhigh', 'max'],
+        leastCost: 'low', canDisable: lowestThinkingMode !== undefined, lowestThinkingMode },
+    },
+  })),
   // ---------------- OpenAI ----------------
   //
   // The 2026 refresh: four offered presets, and eight entries kept for
@@ -358,8 +395,8 @@ const CATALOGUE_BASE: readonly CatalogueEntryWithoutLanguages[] = [
     contextWindow: 1050000,
     maxOutputTokens: 128000,
     lifecycle: {
-      status: 'active',
-      note: "OpenAI's cost-sensitive 5.6 model, and FEED's default. No deprecation announced.",
+      status: 'active', offered: false, replacement: 'gpt-6-luna',
+      note: "Superseded in FEED by GPT-6 Luna. No provider deprecation announced.",
     },
     costTier: 'economy',
     capabilities: {
@@ -381,7 +418,7 @@ const CATALOGUE_BASE: readonly CatalogueEntryWithoutLanguages[] = [
     pricing: { input: 2.0, output: 12.0, verifiedAt: '2026-09-12' },
     contextWindow: 1050000,
     maxOutputTokens: 128000,
-    lifecycle: { status: 'active', note: 'Balanced 5.6 model. No deprecation announced.' },
+    lifecycle: { status: 'active', offered: false, replacement: 'gpt-6.1-terra', note: 'Balanced 5.6 model. No deprecation announced.' },
     costTier: 'standard',
     capabilities: {
       sampling: 'unsupported',
@@ -401,7 +438,7 @@ const CATALOGUE_BASE: readonly CatalogueEntryWithoutLanguages[] = [
     pricing: { input: 4.0, output: 20.0, verifiedAt: '2026-09-12' },
     contextWindow: 1050000,
     maxOutputTokens: 128000,
-    lifecycle: { status: 'active', note: 'For complex work. No deprecation announced.' },
+    lifecycle: { status: 'active', offered: false, replacement: 'gpt-6.1-sol', note: 'For complex work. No deprecation announced.' },
     // $20.00 output is exactly the D7 threshold, so this carries the frontier
     // cost warning: far more model than translation or classification needs.
     costTier: 'frontier',
@@ -457,7 +494,7 @@ const CATALOGUE_BASE: readonly CatalogueEntryWithoutLanguages[] = [
       status: 'deprecated',
       offered: false,
       shutdownDate: '2026-12-11',
-      replacement: 'gpt-5.6-luna',
+      replacement: 'gpt-6-luna',
       note: 'Deprecated 2026-06-11; OpenAI shuts the 2025-08-07 snapshots down on 2026-12-11.',
     },
     costTier: 'economy',
@@ -480,13 +517,12 @@ const CATALOGUE_BASE: readonly CatalogueEntryWithoutLanguages[] = [
     maxOutputTokens: 128000,
     lifecycle: {
       status: 'deprecated',
-      // Dropped as a preset, deliberately NOT marked retired: this is what
-      // production runs, and it works until 2026-12-11. The entry stays so
-      // that saved row keeps resolving its prices, limits and capabilities.
+      // Retained for saved/custom configurations until the provider shutdown.
+      // The user confirmed no current deployment uses GPT-5 models.
       offered: false,
       shutdownDate: '2026-12-11',
-      replacement: 'gpt-5.6-terra',
-      note: 'What production runs today. Shuts down 2026-12-11.',
+      replacement: 'gpt-6.1-terra',
+      note: 'Withdrawn from FEED selection. Shuts down 2026-12-11.',
     },
     costTier: 'economy',
     capabilities: {
@@ -508,7 +544,7 @@ const CATALOGUE_BASE: readonly CatalogueEntryWithoutLanguages[] = [
       status: 'deprecated',
       offered: false,
       shutdownDate: '2026-12-11',
-      replacement: 'gpt-5.6-sol',
+      replacement: 'gpt-6.1-sol',
     },
     costTier: 'standard',
     capabilities: {
@@ -527,7 +563,7 @@ const CATALOGUE_BASE: readonly CatalogueEntryWithoutLanguages[] = [
   // configures dated snapshots. Asked about the families it answers "no
   // deprecation"; asked about the ids below it names two of them. So
   // `gpt-4.1-nano-2025-04-14` and `gpt-4o-2024-05-13` shut down 2026-10-23,
-  // while the other three carry no announcement and stay `legacy`. Always ask
+  // while the other three now carry a January 14, 2027 shutdown. Always ask
   // that page about the exact id being catalogued.
   {
     id: 'gpt-4.1-2025-04-14',
@@ -538,12 +574,10 @@ const CATALOGUE_BASE: readonly CatalogueEntryWithoutLanguages[] = [
     contextWindow: 1047576,
     maxOutputTokens: 32768,
     lifecycle: {
-      status: 'legacy',
+      status: 'deprecated', shutdownDate: '2027-01-14',
       offered: false,
-      // No successor named on purpose: the GPT-5 snapshots are themselves shut
-      // down 2026-12-11, so pointing here would send an administrator onto a
-      // model with less life left than this one.
-      note: 'Superseded by the GPT-5 line. Under no shutdown announcement of its own.',
+      replacement: 'gpt-6.1-sol',
+      note: 'Withdrawn from FEED selection. Shuts down 2027-01-14.',
     },
     costTier: 'standard',
     capabilities: {
@@ -562,9 +596,10 @@ const CATALOGUE_BASE: readonly CatalogueEntryWithoutLanguages[] = [
     contextWindow: 1047576,
     maxOutputTokens: 32768,
     lifecycle: {
-      status: 'legacy',
+      status: 'deprecated', shutdownDate: '2027-01-14',
       offered: false,
-      note: 'Superseded by the GPT-5 line. Under no shutdown announcement of its own.',
+      replacement: 'gpt-6.1-terra',
+      note: 'Withdrawn from FEED selection. Shuts down 2027-01-14.',
     },
     costTier: 'economy',
     capabilities: {
@@ -583,10 +618,10 @@ const CATALOGUE_BASE: readonly CatalogueEntryWithoutLanguages[] = [
     contextWindow: 1047576,
     maxOutputTokens: 32768,
     lifecycle: {
-      status: 'deprecated',
+      status: 'retired',
       offered: false,
       shutdownDate: '2026-10-23',
-      replacement: 'gpt-4.1-mini-2025-04-14',
+      replacement: 'gpt-6-luna',
       note: 'Deprecated 2026-04-22; OpenAI shuts this snapshot down 2026-10-23.',
     },
     costTier: 'economy',
@@ -607,10 +642,10 @@ const CATALOGUE_BASE: readonly CatalogueEntryWithoutLanguages[] = [
     contextWindow: 131072,
     maxOutputTokens: 16384,
     lifecycle: {
-      status: 'deprecated',
+      status: 'retired',
       offered: false,
       shutdownDate: '2026-10-23',
-      replacement: 'gpt-4.1-2025-04-14',
+      replacement: 'gpt-6.1-sol',
       note: 'Deprecated 2026-04-22; shuts down 2026-10-23. Also withdrawn from the ChatGPT interface in February 2026.',
     },
     costTier: 'standard',
@@ -629,10 +664,8 @@ const CATALOGUE_BASE: readonly CatalogueEntryWithoutLanguages[] = [
     pricing: { input: 0.15, output: 0.6, verifiedAt: '2026-09-11' },
     contextWindow: 131072,
     maxOutputTokens: 16384,
-    // Not gpt-4.1-nano: that snapshot shuts down 2026-10-23 and this one is
-    // under no announcement, so it would send an administrator onto a model
-    // with less life left.
-    lifecycle: { status: 'legacy', offered: false, replacement: 'gpt-4.1-mini-2025-04-14' },
+    // Withdrawn early; retain its request contract until provider shutdown.
+    lifecycle: { status: 'deprecated', shutdownDate: '2027-01-14', offered: false, replacement: 'gpt-6-luna' },
     costTier: 'economy',
     capabilities: {
       sampling: 'supported',
@@ -668,7 +701,7 @@ const CATALOGUE_BASE: readonly CatalogueEntryWithoutLanguages[] = [
     contextWindow: 1000000,
     maxOutputTokens: 128000,
     lifecycle: {
-      status: 'active',
+      status: 'active', offered: false, replacement: 'claude-sonnet-5-5',
       note: 'Active. Anthropic gives a tentative earliest retirement of 2027-06-30 and has announced no deprecation.',
     },
     costTier: 'standard',
@@ -698,7 +731,7 @@ const CATALOGUE_BASE: readonly CatalogueEntryWithoutLanguages[] = [
     contextWindow: 1000000,
     maxOutputTokens: 128000,
     lifecycle: {
-      status: 'active',
+      status: 'active', offered: false, replacement: 'claude-opus-5-5',
       note: 'Active. Tentative earliest retirement 2027-07-24; no deprecation announced.',
     },
     costTier: 'frontier',
@@ -761,11 +794,11 @@ const CATALOGUE_BASE: readonly CatalogueEntryWithoutLanguages[] = [
     contextWindow: 200000,
     maxOutputTokens: 64000,
     lifecycle: {
-      status: 'active',
+      status: 'active', offered: false, replacement: 'claude-haiku-5-5',
       // No shutdownDate: Anthropic lists this as Active, Deprecated N/A, with
       // a *tentative* retirement "not sooner than" 2026-10-15. That is a floor,
       // not an announcement, and it moves.
-      note: 'Active. Anthropic gives a tentative earliest retirement of 2026-10-15 and has announced no deprecation; no Haiku successor exists yet.',
+      note: 'Withdrawn from FEED selection in favor of Haiku 5.5; no provider deprecation announced.',
     },
     costTier: 'economy',
     capabilities: {
@@ -787,13 +820,10 @@ const CATALOGUE_BASE: readonly CatalogueEntryWithoutLanguages[] = [
     contextWindow: 200000,
     maxOutputTokens: 64000,
     lifecycle: {
-      status: 'legacy',
+      status: 'deprecated', shutdownDate: '2026-11-30',
       offered: false,
-      replacement: 'claude-sonnet-5',
-      // `legacy` is FEED's editorial stance — superseded by Sonnet 5, and D19
-      // retires it from the presets. Anthropic still lists it as Active with
-      // no deprecation and a tentative earliest retirement of 2026-09-29.
-      note: 'Superseded by Claude Sonnet 5. Anthropic lists it Active, with a tentative earliest retirement of 2026-09-29 and no announced deprecation.',
+      replacement: 'claude-sonnet-5-5',
+      note: 'Withdrawn early in favor of Sonnet 5.5. Anthropic shuts it down 2026-11-30.',
     },
     costTier: 'standard',
     capabilities: {
@@ -816,8 +846,8 @@ const CATALOGUE_BASE: readonly CatalogueEntryWithoutLanguages[] = [
     lifecycle: {
       status: 'legacy',
       offered: false,
-      replacement: 'claude-opus-5',
-      note: 'Superseded by Claude Opus 5. Anthropic lists it Active, with a tentative earliest retirement of 2026-11-24 and no announced deprecation.',
+      replacement: 'claude-opus-5-5',
+      note: 'Superseded by Claude Opus 5.5. Anthropic lists it Active, with a tentative earliest retirement of 2026-11-24 and no announced deprecation.',
     },
     costTier: 'frontier',
     capabilities: {
@@ -901,7 +931,7 @@ const CATALOGUE_BASE: readonly CatalogueEntryWithoutLanguages[] = [
     displayName: 'gemini-3.6-flash',
     provider: 'Google',
     // Google states these double on 2027-01-01, to $1.50 / $7.50.
-    pricing: { input: 0.75, output: 3.75, verifiedAt: '2026-09-12', changesOn: '2027-01-01' },
+    pricing: { input: 0.75, output: 3.75, verifiedAt: '2026-09-12', changesOn: '2027-01-01', scheduled: { effectiveOn: '2027-01-01', input: 1.5, output: 7.5 } },
     contextWindow: 1048576,
     maxOutputTokens: 65536,
     lifecycle: {
@@ -926,7 +956,7 @@ const CATALOGUE_BASE: readonly CatalogueEntryWithoutLanguages[] = [
     id: 'gemini-3.8-flash',
     displayName: 'gemini-3.8-flash',
     provider: 'Google',
-    pricing: { input: 0.75, output: 3.75, verifiedAt: '2026-09-12', changesOn: '2027-01-01' },
+    pricing: { input: 0.75, output: 3.75, verifiedAt: '2026-09-12', changesOn: '2027-01-01', scheduled: { effectiveOn: '2027-01-01', input: 1.5, output: 7.5 } },
     contextWindow: 1048576,
     maxOutputTokens: 65536,
     lifecycle: {
@@ -952,7 +982,7 @@ const CATALOGUE_BASE: readonly CatalogueEntryWithoutLanguages[] = [
     id: 'gemini-3.1-pro-preview',
     displayName: 'gemini-3.1-pro-preview',
     provider: 'Google',
-    // Tiered, which `ModelPricing` cannot express: $2.00 / $12.00 for prompts
+    // Historical lower-tier snapshot: $2.00 / $12.00 for prompts
     // at or under 200k tokens, $4.00 / $18.00 above. FEED's translation
     // prompts run to a few hundred tokens, so the lower tier always applies —
     // but the figures here are the lower tier, not a flat rate.
@@ -990,7 +1020,7 @@ const CATALOGUE_BASE: readonly CatalogueEntryWithoutLanguages[] = [
     contextWindow: 1048576,
     maxOutputTokens: 65536,
     lifecycle: {
-      status: 'deprecated',
+      status: 'active',
       // Withdrawn as a preset: this is the model whose 404 started ISSUES #84.
       // Kept resolvable, because existing projects still reach it and saved
       // configurations point at it.
@@ -1023,8 +1053,8 @@ const CATALOGUE_BASE: readonly CatalogueEntryWithoutLanguages[] = [
     lifecycle: {
       status: 'deprecated',
       offered: false,
-      replacement: 'gemini-3.8-flash',
-      note: 'Refused to newer projects, as 2.5 Flash-Lite is.',
+      replacement: 'gemini-3.5-flash-lite',
+      note: 'Deprecated; existing-user access only. From 2026-12-01 Google automatically routes this alias to Gemini 3.5 Flash-Lite at its rates. Select the replacement explicitly before then to use its request contract and pricing.',
     },
     costTier: 'economy',
     capabilities: {
@@ -1045,8 +1075,8 @@ const CATALOGUE_BASE: readonly CatalogueEntryWithoutLanguages[] = [
     lifecycle: {
       status: 'deprecated',
       offered: false,
-      replacement: 'gemini-3.1-pro-preview',
-      note: 'Refused to newer projects.',
+      replacement: 'gemini-3.8-flash',
+      note: 'Deprecated; existing-user access only. From 2026-12-01 Google automatically routes this alias to Gemini 3.8 Flash at its rates. Select the replacement explicitly before then to use its request contract and pricing.',
     },
     costTier: 'standard',
     capabilities: {
@@ -1234,7 +1264,7 @@ const inferCapabilities = (
       };
     }
     case 'OpenAI': {
-      const reasoningFamily = /^(gpt-5|o\d)/.test(id);
+      const reasoningFamily = /^(gpt-[5-9]|gpt-\d{2,}|o\d)/.test(id);
       return {
         sampling: reasoningFamily ? 'unsupported' : 'supported',
         maxTokensField: reasoningFamily ? 'max_completion_tokens' : 'max_tokens',

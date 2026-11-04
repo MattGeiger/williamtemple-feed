@@ -1382,6 +1382,7 @@ model AIConfiguration {
   inputCost         Float?
   outputCost        Float?
   unitPrice         String?
+  pricingSource     String? // preset or manual; null preserves legacy/manual rates
   temperature       Float?        @default(0.7)
   topP              Float?        @default(1.0)
   thinkingLevel     String?

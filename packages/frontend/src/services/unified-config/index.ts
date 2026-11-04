@@ -41,17 +41,20 @@ export interface UnifiedConfiguration {
   modelName?: string;
   model?: string;
   endpointUrl?: string;
-  inputCost?: number;
-  outputCost?: number;
+  inputCost?: number | null;
+  outputCost?: number | null;
+  pricingSource?: 'preset' | 'manual' | null;
+  unitPrice?: string;
+  topP?: number;
   temperature?: number;
-  inputTokenLimit?: number;
-  outputTokenLimit?: number;
+  inputTokenLimit?: number | null;
+  outputTokenLimit?: number | null;
   thinkingLevel?: ThinkingLevelValue | null;
   dailyCostLimit?: number | null;
   monthlyCostLimit?: number | null;
-  tokensPerMinute?: number;
-  requestsPerMinute?: number;
-  requestsPerDay?: number;
+  tokensPerMinute?: number | null;
+  requestsPerMinute?: number | null;
+  requestsPerDay?: number | null;
   // Prompt fields (when type === 'prompt')
   promptType?: string;
   promptCategory?: string;
@@ -97,6 +100,9 @@ export class UnifiedConfigService {
         endpointUrl: config.endpointUrl,
         inputCost: config.inputCost,
         outputCost: config.outputCost,
+        pricingSource: config.pricingSource,
+        unitPrice: config.unitPrice,
+        topP: config.topP,
         temperature: config.temperature,
         thinkingLevel: config.thinkingLevel,
         inputTokenLimit: config.inputTokenLimit,
@@ -237,6 +243,9 @@ export class UnifiedConfigService {
         endpointUrl: config.endpointUrl,
         inputCost: config.inputCost,
         outputCost: config.outputCost,
+        pricingSource: config.pricingSource,
+        unitPrice: config.unitPrice,
+        topP: config.topP,
         temperature: config.temperature,
         inputTokenLimit: config.inputTokenLimit,
         outputTokenLimit: config.outputTokenLimit ?? config.maxTokens,

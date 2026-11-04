@@ -1,3 +1,17 @@
+# Current pricing contract — v1.8.2
+
+Preset-managed configurations resolve rates through `services/ai/pricing.ts` at
+request time, including supported long-prompt tiers and scheduled price changes.
+Explicit rate/unit edits become manual overrides. Null provenance on existing
+rows and older backups means manual, never an inferred permission to overwrite.
+Estimates, spending checks, actual billed replies and smoke-test reservations use
+the same resolver. Historical recorded spend is immutable. Estimates still carry
+tokenization/framing uncertainty and are not hard dollar guarantees.
+
+See [model pricing](ai-models.md) and [November validation](model-catalogue-refresh-2026-11.md).
+
+---
+
 # AI Cost Control System
 
 ## Problem Statement

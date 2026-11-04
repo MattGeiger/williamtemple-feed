@@ -5,6 +5,7 @@
 // under AGPL-3.0-or-later; see LICENSE. William Temple House branding is
 // not covered by this license; see TRADEMARKS.md.
 
+import { pricingFields, pricingRates, type PricingConfiguration } from '../services/ai/pricing';
 import { Router } from 'express';
 import { NextFunction, Request, Response } from 'express';
 import { Prisma, type AIConfiguration } from '@prisma/client';
@@ -20,6 +21,7 @@ import {
   SERVICE_ENDPOINTS,
   acceptedReasoningValues,
   capabilitiesFor,
+  findCatalogueEntry,
   capabilityAccepts,
   hasReasoningControl,
   isCatalogueProvider,
@@ -287,7 +289,7 @@ const validateCostLimitCoherence = (
  * there is one. The ciphertext itself is never something a browser should be
  * reasoning about.
  */
-const withKeyPresence = <T extends { type: string; encryptedApiKey?: string | null }>(
+const withKeyPresence = <T extends PricingConfiguration & { type: string; encryptedApiKey?: string | null }>(
   configuration: T
 ): Omit<T, 'encryptedApiKey' | 'salt'> & { hasApiKey: boolean } => {
   // The ciphertext and its salt leave the server no further. They were being
@@ -299,6 +301,7 @@ const withKeyPresence = <T extends { type: string; encryptedApiKey?: string | nu
   void salt;
   return {
     ...safe,
+    ...(safe.pricingSource === 'preset' ? { inputCost: pricingRates(safe).input * 1e6, outputCost: pricingRates(safe).output * 1e6, unitPrice: 'per_1m' } : {}),
     hasApiKey: configuration.type !== 'apikey' || Boolean(encryptedApiKey),
   } as Omit<T, 'encryptedApiKey' | 'salt'> & { hasApiKey: boolean };
 };
@@ -320,9 +323,8 @@ router.get('/models', async (_req: Request, res: Response, next: NextFunction) =
     // Two lists, because withdrawing a preset split one job into two.
     //
     // `models` is what an administrator may choose. `withdrawn` is everything
-    // else the catalogue still knows — the 2025-era presets the refresh
-    // dropped, including the one production runs until 2026-12-11 and the
-    // Gemini model whose 404 started ISSUES.md #84.
+    // else the catalogue still knows, including callable superseded presets
+    // and models with announced shutdowns.
     //
     // Serving only `models` would leave the dialog unable to explain the
     // configurations people already have: a saved row pointing at a withdrawn
@@ -334,7 +336,10 @@ router.get('/models', async (_req: Request, res: Response, next: NextFunction) =
     const offeredIds = new Set(offered.map((entry) => entry.id));
 
     res.json({
-      models: offered,
+      models: offered.map(entry => {
+        const rates = pricingRates({ serviceType: entry.provider, model: entry.id, pricingSource: 'preset' });
+        return { ...entry, pricing: { ...entry.pricing, input: rates.input * 1e6, output: rates.output * 1e6 } };
+      }),
       withdrawn: CATALOGUE.filter((entry) => !offeredIds.has(entry.id)),
       endpoints: SERVICE_ENDPOINTS,
     });
@@ -453,6 +458,7 @@ router.post('/', requireAdmin, async (req: Request, res: Response, next: NextFun
       createData.inputCost = inputCost;
       createData.outputCost = outputCost;
       createData.unitPrice = unitPrice;
+      Object.assign(createData, pricingFields(req.body.pricingSource, createData));
       createData.temperature = temperature ?? 0.7;
       createData.topP = topP ?? 1.0;
       if (thinkingLevel !== undefined) {
@@ -461,7 +467,7 @@ router.post('/', requireAdmin, async (req: Request, res: Response, next: NextFun
       createData.inputTokenLimit = inputTokenLimit;
       createData.outputTokenLimit = outputTokenLimit;
       createData.maxTokens = outputTokenLimit ?? maxTokens;
-      validateCostLimitCoherence(dailyCostLimit, monthlyCostLimit, inputCost, outputCost);
+      validateCostLimitCoherence(dailyCostLimit, monthlyCostLimit, createData.inputCost, createData.outputCost);
       if (dailyCostLimit !== undefined) {
         createData.dailyCostLimit = dailyCostLimit > 0 ? dailyCostLimit : null;
       }
@@ -490,7 +496,7 @@ router.post('/', requireAdmin, async (req: Request, res: Response, next: NextFun
       AIServiceFactory.clearCache();
       clearProviderAccessFailureCache();
 
-      res.status(201).json({ configuration });
+      res.status(201).json({ configuration: withKeyPresence(configuration) });
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError) {
         if (error.code === 'P2002') {  // Unique constraint violation
@@ -601,6 +607,12 @@ router.put('/:id', requireAdmin, async (req: Request, res: Response, next: NextF
       if (updateFields.unitPrice !== undefined) {
         updateData.unitPrice = updateFields.unitPrice;
       }
+      const ratesChanged = ['inputCost', 'outputCost', 'unitPrice'].some(key =>
+        updateFields[key] !== undefined && updateFields[key] !== (existing as any)[key]);
+      Object.assign(updateData, pricingFields(
+        updateFields.pricingSource ?? (ratesChanged ? 'manual' : undefined),
+        { ...existing, ...updateData }
+      ));
       if (updateFields.thinkingLevel !== undefined) {
         // Edit disables changing the service type and may not resend the
         // model, so the stored row supplies whatever the request omits.
@@ -631,8 +643,8 @@ router.put('/:id', requireAdmin, async (req: Request, res: Response, next: NextF
       validateCostLimitCoherence(
         sentOrStored(updateFields.dailyCostLimit, existing.dailyCostLimit),
         sentOrStored(updateFields.monthlyCostLimit, existing.monthlyCostLimit),
-        sentOrStored(updateFields.inputCost, existing.inputCost),
-        sentOrStored(updateFields.outputCost, existing.outputCost)
+        sentOrStored(updateData.inputCost, existing.inputCost),
+        sentOrStored(updateData.outputCost, existing.outputCost)
       );
       if (updateFields.dailyCostLimit !== undefined) {
         updateData.dailyCostLimit = updateFields.dailyCostLimit > 0 ? updateFields.dailyCostLimit : null;
@@ -668,7 +680,13 @@ router.put('/:id', requireAdmin, async (req: Request, res: Response, next: NextF
     const updateKeys = Object.keys(updateFields).filter((key) => key !== 'id');
     const isDeactivationOnly = updateFields.isActive === false
       && updateKeys.every((key) => key === 'isActive');
-    if (existing.type === 'apikey' && !isDeactivationOnly) {
+    const changedKeys = updateKeys.filter(key => updateFields[key] !== (existing as any)[key]);
+    const lifecycle = findCatalogueEntry(existing.model)?.lifecycle;
+    const retired = lifecycle?.status === 'retired' || Boolean(lifecycle?.shutdownDate
+      && lifecycle.shutdownDate <= new Date().toISOString().slice(0, 10));
+    const isHousekeeping = retired && changedKeys.every(key => ['name', 'description', 'isActive'].includes(key))
+      && !(updateFields.isActive === true && !existing.isActive);
+    if (existing.type === 'apikey' && !isDeactivationOnly && !isHousekeeping) {
       await verifyProviderEntitlement({
         ...existing,
         ...updateData,

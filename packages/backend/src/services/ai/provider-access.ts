@@ -52,6 +52,7 @@ export const ensureProviderAccess = async (
   try {
     service = await AIServiceFactory.createService();
   } catch (error) {
+    if ((error as { code?: string })?.code === 'AI_MODEL_RETIRED') throw error;
     // No active configuration at all: the factory throws rather than
     // answering, and this classifies as `not-configured`.
     throw await reportFailure(error, subject, null);

@@ -5,6 +5,7 @@
 // under AGPL-3.0-or-later; see LICENSE. William Temple House branding is
 // not covered by this license; see TRADEMARKS.md.
 
+import { pricingRates } from '../ai/pricing';
 import { encoding_for_model } from 'tiktoken';
 
 /**
@@ -154,7 +155,8 @@ export function calculateInputMetrics(
   config: any,
   systemPrompt?: string
 ): TokenMetrics {
-  const cacheKey = createCacheKey(userText, targetLanguage, 'input', systemPrompt);
+  const cacheKey = JSON.stringify([createCacheKey(userText, targetLanguage, 'input', systemPrompt),
+    config?.model, config?.serviceType, config?.pricingSource, config?.inputCost, config?.outputCost, config?.unitPrice, new Date().toISOString().slice(0, 10)]);
   const cached = tokenCache.get(cacheKey);
   const now = Date.now();
   
@@ -177,7 +179,7 @@ export function calculateInputMetrics(
   // the shortcut now applies only to the callers that cannot supply it.
   if (userText.length < 10 && systemPrompt === undefined) {
     const fallbackTokens = 5 + 50; // Small text + system prompt
-    const inputCostPerToken = convertToPerTokenRate(config.inputCost || 0, config.unitPrice);
+    const inputCostPerToken = pricingRates(config, fallbackTokens).input;
     const cost = fallbackTokens * inputCostPerToken;
     const result = { tokenCount: fallbackTokens, cost };
     
@@ -203,7 +205,7 @@ export function calculateInputMetrics(
     encoder.free();
     
     const totalInputTokens = systemTokenCount + userTokenCount;
-    const inputCostPerToken = convertToPerTokenRate(config.inputCost || 0, config.unitPrice);
+    const inputCostPerToken = pricingRates(config, totalInputTokens).input;
     const cost = totalInputTokens * inputCostPerToken;
     
     const result = { tokenCount: totalInputTokens, cost };
@@ -221,7 +223,7 @@ export function calculateInputMetrics(
     // Fallback calculation: ~4 chars per token, over prompt and text alike,
     // rather than a flat 50 for a prompt whose length we are holding.
     const roughTokens = Math.ceil((promptText.length + userText.length) / 4);
-    const inputCostPerToken = convertToPerTokenRate(config.inputCost || 0, config.unitPrice);
+    const inputCostPerToken = pricingRates(config, roughTokens).input;
     const cost = roughTokens * inputCostPerToken;
     
     const result = { tokenCount: roughTokens, cost };
@@ -251,7 +253,7 @@ export function calculateOutputMetrics(outputText: string, config: any): TokenMe
     const outputTokenCount = encoder.encode(outputText).length;
     encoder.free();
     
-    const outputCostPerToken = convertToPerTokenRate(config.outputCost || 0, config.unitPrice);
+    const outputCostPerToken = pricingRates(config).output;
     const cost = outputTokenCount * outputCostPerToken;
     return { tokenCount: outputTokenCount, cost };
   } catch (error) {
@@ -259,7 +261,7 @@ export function calculateOutputMetrics(outputText: string, config: any): TokenMe
     
     // Fallback calculation
     const roughTokens = Math.ceil(outputText.length / 4);
-    const outputCostPerToken = convertToPerTokenRate(config.outputCost || 0, config.unitPrice);
+    const outputCostPerToken = pricingRates(config).output;
     const cost = roughTokens * outputCostPerToken;
     
     return { tokenCount: roughTokens, cost };
@@ -282,7 +284,7 @@ export function estimateOutputMetrics(inputText: string, config: any): TokenMetr
     encoder.free();
     
     const estimatedOutputTokens = Math.ceil(inputTokenCount * 1.5);
-    const outputCostPerToken = convertToPerTokenRate(config.outputCost || 0, config.unitPrice);
+    const outputCostPerToken = pricingRates(config).output;
     const cost = estimatedOutputTokens * outputCostPerToken;
     
     return { tokenCount: estimatedOutputTokens, cost };
@@ -292,7 +294,7 @@ export function estimateOutputMetrics(inputText: string, config: any): TokenMetr
     // Fallback calculation
     const roughInputTokens = Math.ceil(inputText.length / 4);
     const estimatedOutputTokens = Math.ceil(roughInputTokens * 1.5);
-    const outputCostPerToken = convertToPerTokenRate(config.outputCost || 0, config.unitPrice);
+    const outputCostPerToken = pricingRates(config).output;
     const cost = estimatedOutputTokens * outputCostPerToken;
     
     return { tokenCount: estimatedOutputTokens, cost };

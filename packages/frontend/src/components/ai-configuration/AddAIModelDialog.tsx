@@ -37,6 +37,7 @@ interface AddAIModelDialogProps {
     tokensPerMinute?: number
     requestsPerMinute?: number
     requestsPerDay?: number
+    pricingSource?: 'preset' | 'manual' | null
     unitPrice?: 'per_1k' | 'per_1m'
   }) => Promise<boolean>
   isLoading?: boolean
@@ -72,6 +73,7 @@ export function AddAIModelDialog({
       inputCost: undefined,
       outputCost: undefined,
       unitPrice: 'per_1m',
+      pricingSource: 'preset',
       inputTokenLimit: undefined,
       outputTokenLimit: undefined,
       dailyCostLimit: undefined,
@@ -121,6 +123,7 @@ export function AddAIModelDialog({
       tokensPerMinute: data.tokensPerMinute,
       requestsPerMinute: data.requestsPerMinute,
       requestsPerDay: data.requestsPerDay,
+      pricingSource: data.pricingSource,
       unitPrice: data.unitPrice
     })
   }

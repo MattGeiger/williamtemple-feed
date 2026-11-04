@@ -1,3 +1,7 @@
+> **Historical September audit.** Its measured results and decisions are preserved.
+> The November refresh is v1.8.2; no current deployment uses GPT-5 (user confirmation,
+> 2026-11-04). Current implementation/evidence: [November refresh](model-catalogue-refresh-2026-11.md).
+
 # AI Model Catalogue Refresh — Discovery and Plan
 
 **Status**: Phases 1–4 delivered. **Phase 5's small-request sweep ran on

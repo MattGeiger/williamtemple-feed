@@ -1,5 +1,9 @@
 # FEED App Deployment Checklist
 
+> **v1.8.2 preparation:** see [release preparation](v1.8.2-release-preparation.md).
+> This release is prepared locally; the historical deployment milestone below
+> is not evidence that v1.8.2 is deployed.
+
 **Target:** Raspberry Pi 5 + Cloudflare Tunnel  
 **Domain:** feed.williamtemple.app  
 **Status:** ✅ **PRODUCTION - DEPLOYED AND VERIFIED**  

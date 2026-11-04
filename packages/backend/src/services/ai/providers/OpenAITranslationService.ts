@@ -5,11 +5,11 @@
 // under AGPL-3.0-or-later; see LICENSE. William Temple House branding is
 // not covered by this license; see TRADEMARKS.md.
 
+import { priceUsage } from '../pricing';
 import OpenAI from 'openai';
 import { AITranslationService, TranslationRequest, TranslationResult, ClassificationRequest, ClassificationResult, BatchTranslationRequest, BatchTranslationResult, ServiceCapabilities, ServiceLimits, ProviderAccessResult } from '../base/AITranslationService';
 import { limitEnforcement } from '../../limits';
 import { estimateInputTokensAndCost, estimateOutputTokensAndCost } from '../../token';
-import { convertToPerTokenRate } from '../../token/calculation';
 import ApiUsageTracker from '../../token/usage-tracker';
 import { translationRecovery } from '../../translation-recovery';
 import { decryptApiKey } from '../../encryption';
@@ -84,7 +84,7 @@ export class OpenAITranslationService extends AITranslationService {
     requestedTopP?: number,
     requestedThinkingLevel?: string | null
   ): {
-    temperature: number;
+    temperature?: number;
     topP?: number;
     // Seven values, not four: GPT-5.6 refuses `minimal` and adds `none`,
     // `xhigh` and `max`. The SDK's own `ReasoningEffort` spans the same set.
@@ -93,26 +93,13 @@ export class OpenAITranslationService extends AITranslationService {
   } {
     const capabilities = capabilitiesFor('OpenAI', model);
     const warnings: string[] = [];
-    let temperature = requestedTemperature ?? 1.0;
+    let temperature: number | undefined = requestedTemperature ?? 1.0;
     let topP: number | undefined = requestedTopP;
 
-    // `sampling: 'unsupported'` means the API refuses these parameters as
-    // FEED would otherwise send them. For the GPT-5 line that is temperature
-    // at anything but its default, and top_p at all. Sending 1.0 rather than
-    // omitting it is what production does today and is left alone here: this
-    // commit changes where the answer comes from, not what gets sent.
+    // Omit unsupported sampling altogether, including temperature=1.
     if (capabilities.sampling === 'unsupported') {
-      if (requestedTemperature !== undefined && requestedTemperature !== 1.0) {
-        console.log(`[OpenAI Service] ${model} takes temperature=1.0 only, overriding from ${requestedTemperature}`);
-        warnings.push(`This model only supports temperature=1.0. Your configured temperature of ${requestedTemperature} has been overridden to 1.0.`);
-      }
-      temperature = 1.0;
-
-      if (requestedTopP !== undefined && requestedTopP !== null) {
-        console.log(`[OpenAI Service] ${model} does not accept top_p, excluding it (was ${requestedTopP})`);
-        topP = undefined;
-        warnings.push(`This model does not accept the top_p parameter. It has been excluded from the API call.`);
-      }
+      temperature = undefined;
+      topP = undefined;
     }
 
     const reasoning = resolveReasoning(capabilities, requestedThinkingLevel);
@@ -435,14 +422,12 @@ export class OpenAITranslationService extends AITranslationService {
               inputMetrics.tokenCount,
               failedOutput.tokenCount
             );
-            const inRate = convertToPerTokenRate(this.config.inputCost || 0, this.config.unitPrice);
-            const outRate = convertToPerTokenRate(this.config.outputCost || 0, this.config.unitPrice);
             await this.trackFailedUsage(
               'translation',
               {
                 promptTokens: failed.promptTokens,
                 completionTokens: failed.completionTokens,
-                totalCost: (failed.promptTokens * inRate) + (failed.completionTokens * outRate),
+                totalCost: priceUsage(this.config, failed.promptTokens, failed.completionTokens),
                 duration
               },
               model,
@@ -457,10 +442,7 @@ export class OpenAITranslationService extends AITranslationService {
             inputMetrics.tokenCount,
             outputMetrics.tokenCount
           );
-          const inputCostPerToken = convertToPerTokenRate(this.config.inputCost || 0, this.config.unitPrice);
-          const outputCostPerToken = convertToPerTokenRate(this.config.outputCost || 0, this.config.unitPrice);
-          const totalCost = (usageMetrics.promptTokens * inputCostPerToken) +
-            (usageMetrics.completionTokens * outputCostPerToken);
+          const totalCost = priceUsage(this.config, usageMetrics.promptTokens, usageMetrics.completionTokens);
 
           // Log API usage for metrics tracking
           try {
@@ -707,9 +689,7 @@ export class OpenAITranslationService extends AITranslationService {
       const outputTokens = completion.usage?.completion_tokens || 0;
       
       // Calculate cost using configuration-based rates
-      const inputCostPerToken = convertToPerTokenRate(this.config.inputCost || 0, this.config.unitPrice);
-      const outputCostPerToken = convertToPerTokenRate(this.config.outputCost || 0, this.config.unitPrice);
-      const totalCost = (inputTokens * inputCostPerToken) + (outputTokens * outputCostPerToken);
+      const totalCost = priceUsage(this.config, inputTokens, outputTokens);
       
       // Log API usage
       try {
@@ -752,191 +732,6 @@ export class OpenAITranslationService extends AITranslationService {
       
     } catch (error) {
       this.handleServiceError(error, 'batch translation');
-    }
-  }
-
-  async classifySegments(request: ClassificationRequest): Promise<ClassificationResult> {
-    const model = this.getModel();
-    const startTime = Date.now();
-    const warnings: string[] = [];  // Collect any warnings
-    
-    try {
-      console.log('Classification request:', {
-        model,
-        segmentCount: request.segments.length
-      });
-
-      const openai = await this.getOpenAIClient();
-      
-      // Create the classification prompt
-      const segmentsText = request.segments.map((seg, index) => 
-        `${index + 1}. "${seg.text}"`
-      ).join('\n');
-
-      const promptConfig = await PromptBuilder.getPromptConfiguration(
-        this.config,
-        'classification'
-      );
-      const systemPrompt = promptConfig.systemPrompt;
-
-      console.log('[OpenAI Service] Sending classification request with system prompt:', {
-        model,
-        promptLength: systemPrompt.length,
-        promptPreview: systemPrompt.substring(0, 150) + '...',
-        fullPrompt: systemPrompt
-      });
-
-      const apiParameters = this.buildMaxTokensParameter(model, promptConfig.maxTokens);
-      
-      // Check and override parameters for GPT-5 models
-      const paramCheck = this.checkAndOverrideParameters(
-        model,
-        promptConfig.temperature,
-        promptConfig.topP,
-        this.config.thinkingLevel
-      );
-      const requestReasoningEffort = paramCheck.reasoningEffort as any;
-      const maxTokensValue = apiParameters.max_completion_tokens ?? apiParameters.max_tokens;
-      console.log('[OpenAI Service] API call parameters:', {
-        model,
-        temperature: paramCheck.temperature,
-        topP: paramCheck.topP,
-        reasoningEffort: paramCheck.reasoningEffort,
-        maxTokens: maxTokensValue
-      });
-      if (paramCheck.warnings.length > 0) {
-        warnings.push(...paramCheck.warnings);
-      }
-
-      const completion = await openai.chat.completions.create({
-        model,
-        temperature: paramCheck.temperature,
-        ...(paramCheck.topP !== undefined && { top_p: paramCheck.topP }),
-        ...(requestReasoningEffort && { reasoning_effort: requestReasoningEffort }),
-        ...apiParameters,
-        messages: [
-          {
-            role: "system",
-            content: systemPrompt
-          },
-          {
-            role: "user",
-            content: `Classify these text segments:\n${segmentsText}`
-          }
-        ],
-        response_format: {
-          type: "json_schema",
-          json_schema: {
-            name: "classification_response",
-            schema: {
-              type: "object",
-              properties: {
-                classifications: {
-                  type: "array",
-                  items: {
-                    type: "object",
-                    properties: {
-                      id: { type: "string" },
-                      a: { type: "number", minimum: 0, maximum: 1 },
-                      b: { type: "number", minimum: 0, maximum: 1 }
-                    },
-                    required: ["id", "a", "b"],
-                    additionalProperties: false
-                  }
-                }
-              },
-              required: ["classifications"],
-              additionalProperties: false
-            },
-            strict: true
-          }
-        }
-      });
-
-      console.log('OpenAI classification response:', completion);
-
-      if (completion.choices[0].finish_reason === 'length') {
-        throw new Error('Classification response was truncated due to length');
-      }
-
-      if (completion.choices[0].finish_reason === 'content_filter') {
-        throw new Error('Classification was halted by content filter');
-      }
-
-      const message = completion.choices[0].message;
-      
-      if (!message.content) {
-        throw new Error('No content in classification response');
-      }
-
-      const duration = Date.now() - startTime;
-      const outputText = message.content;
-
-      const responseJson = JSON.parse(outputText);
-
-      if (!responseJson.classifications || !Array.isArray(responseJson.classifications)) {
-        throw new Error('Response missing classifications array');
-      }
-
-      // Validate response count matches input count
-      if (responseJson.classifications.length !== request.segments.length) {
-        console.warn(`Classification count mismatch: expected ${request.segments.length}, got ${responseJson.classifications.length}`);
-        // Continue processing but log the discrepancy
-      }
-
-      // Map segment IDs back to the original IDs
-      const classificationsWithIds = responseJson.classifications.map((classification: any, index: number) => ({
-        ...classification,
-        id: request.segments[index]?.id || classification.id
-      }));
-
-      const inputTokens = completion.usage?.prompt_tokens || 0;
-      const outputTokens = completion.usage?.completion_tokens || 0;
-      
-      // Calculate cost using configuration-based rates
-      const inputCostPerToken = convertToPerTokenRate(this.config.inputCost || 0, this.config.unitPrice);
-      const outputCostPerToken = convertToPerTokenRate(this.config.outputCost || 0, this.config.unitPrice);
-      const totalCost = (inputTokens * inputCostPerToken) + (outputTokens * outputCostPerToken);
-
-      // Log API usage
-      try {
-        await ApiUsageTracker.logApiUsage(inputTokens, outputTokens, model, 'classification');
-      } catch (loggingError) {
-        console.warn('Failed to log API usage:', loggingError);
-      }
-
-      const result: ClassificationResult = {
-        classifications: classificationsWithIds,
-        metrics: {
-          duration,
-          promptTokens: inputTokens,
-          completionTokens: outputTokens,
-          totalCost
-        }
-      };
-      
-      // Add warnings if any
-      if (warnings.length > 0) {
-        result.warnings = warnings;
-      }
-
-      // Track usage for multi-service analytics
-      await this.trackSuccessfulUsage(
-        'classification',
-        {
-          promptTokens: inputTokens,
-          completionTokens: outputTokens,
-          totalCost,
-          duration
-        },
-        model,
-        { language: undefined } // Classification doesn't target a specific language
-      );
-
-      return result;
-      
-    } catch (error) {
-      this.handleServiceError(error, 'classification');
     }
   }
 
@@ -1096,9 +891,7 @@ export class OpenAITranslationService extends AITranslationService {
       });
       
       // Calculate cost using configuration-based rates
-      const inputCostPerToken = convertToPerTokenRate(this.config.inputCost || 0, this.config.unitPrice);
-      const outputCostPerToken = convertToPerTokenRate(this.config.outputCost || 0, this.config.unitPrice);
-      const totalCost = (totalInputTokens * inputCostPerToken) + (totalOutputTokens * outputCostPerToken);
+      const totalCost = batchResults.reduce((sum, result) => sum + priceUsage(this.config, result.metrics.promptTokens, result.metrics.completionTokens), 0);
       const duration = Date.now() - startTime;
       
       // Log API usage

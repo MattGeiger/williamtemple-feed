@@ -59,14 +59,14 @@ describe('GET /api/ai-config/models', () => {
   test('serves entries with the lifecycle and capability facts the UI needs', async () => {
     const response = await request(await buildApp()).get('/api/ai-config/models');
     const haiku = response.body.models.find(
-      (m: any) => m.id === 'claude-haiku-4-5-20251001'
+      (m: any) => m.id === 'claude-haiku-5-5'
     );
 
     expect(haiku).toBeDefined();
-    expect(haiku.pricing).toMatchObject({ input: 1, output: 5 });
+    expect(haiku.pricing).toMatchObject({ input: 0.1, output: 0.5 });
     expect(haiku.pricing.verifiedAt).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-    expect(haiku.capabilities.sampling).toBe('temperature-or-top-p');
-    expect(haiku.capabilities.prefill).toBe('allowed');
+    expect(haiku.capabilities.sampling).toBe('unsupported');
+    expect(haiku.capabilities.prefill).toBe('rejected');
     expect(haiku.lifecycle.status).toBe('active');
     expect(haiku.languages.Spanish).toBe('supported');
     expect(haiku.languages.Somali).toBe('unsupported');
@@ -88,6 +88,18 @@ describe('GET /api/ai-config/models', () => {
       Anthropic: 'https://api.anthropic.com/v1',
       Google: 'https://generativelanguage.googleapis.com',
     });
+  });
+
+  test('the dropdown displays the effective scheduled base rates', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+      vi.setSystemTime(new Date('2027-01-01T00:00:00Z'));
+      const response = await request(await buildApp()).get('/api/ai-config/models');
+      expect(response.body.models.find((m: any) => m.id === 'gemini-3.8-flash').pricing)
+        .toMatchObject({ input: 1.5, output: 7.5 });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   test('a withdrawn model is not offered as a new choice', async () => {
@@ -112,12 +124,12 @@ describe('GET /api/ai-config/models', () => {
     );
 
     expect(withdrawn).toBeDefined();
-    expect(withdrawn.lifecycle.status).toBe('deprecated');
+    expect(withdrawn.lifecycle.status).toBe('active');
     expect(withdrawn.lifecycle.replacement).toBe('gemini-3.5-flash-lite');
     expect(withdrawn.lifecycle.note).toMatch(/no longer available to new users/);
   });
 
-  test('production’s model can still be explained, six weeks before it dies', async () => {
+  test('a withdrawn original GPT-5 model keeps its shutdown date and current replacement', async () => {
     // gpt-5-mini is what production runs and it shuts down 2026-12-11. A saved
     // configuration on it has to render that date and its replacement, so the
     // one preset whose withdrawal matters most must not be the one that goes
@@ -129,7 +141,7 @@ describe('GET /api/ai-config/models', () => {
 
     expect(mini).toBeDefined();
     expect(mini.lifecycle.shutdownDate).toBe('2026-12-11');
-    expect(mini.lifecycle.replacement).toBe('gpt-5.6-terra');
+    expect(mini.lifecycle.replacement).toBe('gpt-6.1-terra');
     // And it is genuinely gone from the choices.
     expect(response.body.models.map((m: any) => m.id)).not.toContain('gpt-5-mini-2025-08-07');
   });

@@ -5,10 +5,10 @@
 // under AGPL-3.0-or-later; see LICENSE. William Temple House branding is
 // not covered by this license; see TRADEMARKS.md.
 
+import { priceUsage } from '../pricing';
 import { AITranslationService, TranslationRequest, TranslationResult, ClassificationRequest, ClassificationResult, BatchTranslationRequest, BatchTranslationResult, ServiceCapabilities, ServiceLimits, ProviderAccessResult } from '../base/AITranslationService';
 import { limitEnforcement } from '../../limits';
 import { estimateInputTokensAndCost, estimateOutputTokensAndCost } from '../../token';
-import { convertToPerTokenRate } from '../../token/calculation';
 import ApiUsageTracker from '../../token/usage-tracker';
 import { decryptApiKey } from '../../encryption';
 import { PromptBuilder } from '../prompts/PromptBuilder';
@@ -357,14 +357,12 @@ export class GoogleTranslationService extends AITranslationService {
               inputMetrics.tokenCount,
               failedOutput.tokenCount
             );
-            const inRate = convertToPerTokenRate(this.config.inputCost || 0, this.config.unitPrice);
-            const outRate = convertToPerTokenRate(this.config.outputCost || 0, this.config.unitPrice);
             await this.trackFailedUsage(
               'translation',
               {
                 promptTokens: failed.promptTokens,
                 completionTokens: failed.completionTokens,
-                totalCost: (failed.promptTokens * inRate) + (failed.completionTokens * outRate),
+                totalCost: priceUsage(this.config, failed.promptTokens, failed.completionTokens),
                 duration
               },
               model,
@@ -379,10 +377,7 @@ export class GoogleTranslationService extends AITranslationService {
             inputMetrics.tokenCount,
             outputMetrics.tokenCount
           );
-          const inputCostPerToken = convertToPerTokenRate(this.config.inputCost || 0, this.config.unitPrice);
-          const outputCostPerToken = convertToPerTokenRate(this.config.outputCost || 0, this.config.unitPrice);
-          const totalCost = (usageMetrics.promptTokens * inputCostPerToken) +
-            (usageMetrics.completionTokens * outputCostPerToken);
+          const totalCost = priceUsage(this.config, usageMetrics.promptTokens, usageMetrics.completionTokens);
 
           // Log API usage for metrics tracking
           try {
@@ -596,10 +591,7 @@ export class GoogleTranslationService extends AITranslationService {
         const usageMetrics = this.extractUsageMetrics(response, estimatedInputTokens, estimatedOutputTokens);
 
         // Calculate cost using configuration-based rates
-        const inputCostPerToken = convertToPerTokenRate(this.config.inputCost || 0, this.config.unitPrice);
-        const outputCostPerToken = convertToPerTokenRate(this.config.outputCost || 0, this.config.unitPrice);
-        const totalCost = (usageMetrics.promptTokens * inputCostPerToken) +
-          (usageMetrics.completionTokens * outputCostPerToken);
+        const totalCost = priceUsage(this.config, usageMetrics.promptTokens, usageMetrics.completionTokens);
 
         // Log API usage
         try {
@@ -650,181 +642,6 @@ export class GoogleTranslationService extends AITranslationService {
     } catch (error) {
       console.error('Batch translation error:', error);
       this.handleServiceError(error, 'batch translation');
-    }
-  }
-
-  async classifySegments(request: ClassificationRequest): Promise<ClassificationResult> {
-    const model = this.getModel();
-    const startTime = Date.now();
-    const warnings: string[] = [];
-    
-    try {
-      console.log('Classification request:', {
-        model,
-        segmentCount: request.segments.length
-      });
-
-      const client = await this.getGoogleClient();
-      
-      // Create the classification prompt
-      const segmentsText = request.segments.map((seg, index) => 
-        `${index + 1}. "${seg.text}"`
-      ).join('\n');
-
-      const promptConfig = await PromptBuilder.getPromptConfiguration(
-        this.config,
-        'classification'
-      );
-      const systemInstruction = promptConfig.systemPrompt;
-      
-      console.log('[Google Service] Sending classification request with system prompt:', {
-        promptLength: systemInstruction.length,
-        segmentCount: request.segments.length
-      });
-
-      const paramCheck = this.checkAndOverrideParameters(
-        model,
-        promptConfig.temperature,
-        promptConfig.topP,
-        this.config.thinkingLevel
-      );
-      if (paramCheck.warnings.length > 0) {
-        warnings.push(...paramCheck.warnings);
-      }
-
-      const response = await client.models.generateContent({
-        model,
-        contents: `Classify these text segments:\n${segmentsText}`,
-        config: {
-          systemInstruction,
-          responseMimeType: 'application/json',
-          responseSchema: {
-            type: 'object',
-            properties: {
-              classifications: {
-                type: 'array',
-                items: {
-                  type: 'object',
-                  properties: {
-                    id: { type: 'string' },
-                    a: { type: 'number', minimum: 0, maximum: 1 },
-                    b: { type: 'number', minimum: 0, maximum: 1 }
-                  },
-                  required: ['id', 'a', 'b']
-                }
-              }
-            },
-            required: ['classifications']
-          },
-          temperature: paramCheck.temperature,
-          ...(paramCheck.topP !== undefined && { topP: paramCheck.topP }),
-          ...(paramCheck.thinkingLevel && {
-            thinkingConfig: { thinkingLevel: paramCheck.thinkingLevel }
-          }),
-          maxOutputTokens: promptConfig.maxTokens
-        }
-      });
-
-      console.log('Google AI classification response:', response);
-
-      const result = await this.readBilledResponse(response, model, 'classification', startTime,
-        Math.ceil(segmentsText.length / 4) + 100, undefined, async () => {
-        // Truncation before emptiness, as in `translateText`: a reply cut off at
-        // the cap may carry no text at all. Anthropic words the classification
-        // case separately, and so does this.
-        if (this.wasTruncated(response)) {
-          throw new Error('Classification response was truncated due to length');
-        }
-
-        if (!response.text) {
-          throw new Error('No content in classification response');
-        }
-
-        const duration = Date.now() - startTime;
-        const outputText = response.text;
-
-        const responseJson = JSON.parse(outputText);
-
-        if (!responseJson.classifications || !Array.isArray(responseJson.classifications)) {
-          throw new Error('Response missing classifications array');
-        }
-
-        // Validate response count matches input count
-        if (responseJson.classifications.length !== request.segments.length) {
-          console.warn(`Classification count mismatch: expected ${request.segments.length}, got ${responseJson.classifications.length}`);
-          // Continue processing but log the discrepancy
-        }
-
-        // Map segment IDs back to the original IDs
-        const classificationsWithIds = responseJson.classifications.map((classification: any, index: number) => ({
-          ...classification,
-          id: request.segments[index]?.id || classification.id
-        }));
-
-        // Estimate token usage
-        const estimatedInputTokens = Math.ceil(segmentsText.length / 4) + 100;
-        const estimatedOutputTokens = Math.ceil(outputText.length / 4);
-        const usageMetrics = this.extractUsageMetrics(response, estimatedInputTokens, estimatedOutputTokens);
-
-        // Calculate cost using configuration-based rates
-        const inputCostPerToken = convertToPerTokenRate(this.config.inputCost || 0, this.config.unitPrice);
-        const outputCostPerToken = convertToPerTokenRate(this.config.outputCost || 0, this.config.unitPrice);
-        const totalCost = (usageMetrics.promptTokens * inputCostPerToken) +
-          (usageMetrics.completionTokens * outputCostPerToken);
-
-        // Log API usage
-        try {
-          await ApiUsageTracker.logApiUsage(
-            usageMetrics.promptTokens,
-            usageMetrics.completionTokens,
-            model,
-            'classification'
-          );
-        } catch (loggingError) {
-          console.warn('Failed to log API usage:', loggingError);
-        }
-
-        const result: ClassificationResult = {
-          classifications: classificationsWithIds,
-          metrics: {
-            duration,
-            promptTokens: usageMetrics.promptTokens,
-            completionTokens: usageMetrics.completionTokens,
-            totalCost
-          }
-        };
-
-        if (warnings.length > 0) {
-          result.warnings = warnings;
-        }
-
-        return result;
-      });
-
-      // Track usage for multi-service analytics
-      await this.trackSuccessfulUsage(
-        'classification',
-        {
-          promptTokens: result.metrics.promptTokens,
-          completionTokens: result.metrics.completionTokens,
-          totalCost: result.metrics.totalCost,
-          duration: result.metrics.duration
-        },
-        model,
-        { language: undefined } // Classification doesn't target a specific language
-      );
-
-      return result;
-      
-    } catch (error) {
-      console.error('Classification error details:', {
-        error,
-        request: {
-          segmentCount: request.segments.length
-        }
-      });
-      
-      this.handleServiceError(error, 'classification');
     }
   }
 
@@ -964,10 +781,7 @@ export class GoogleTranslationService extends AITranslationService {
         const usageMetrics = this.extractUsageMetrics(response, estimatedInputTokens, estimatedOutputTokens);
 
         // Calculate cost using configuration-based rates
-        const inputCostPerToken = convertToPerTokenRate(this.config.inputCost || 0, this.config.unitPrice);
-        const outputCostPerToken = convertToPerTokenRate(this.config.outputCost || 0, this.config.unitPrice);
-        const totalCost = (usageMetrics.promptTokens * inputCostPerToken) +
-          (usageMetrics.completionTokens * outputCostPerToken);
+        const totalCost = priceUsage(this.config, usageMetrics.promptTokens, usageMetrics.completionTokens);
 
         // Log API usage
         try {
@@ -1061,8 +875,7 @@ export class GoogleTranslationService extends AITranslationService {
       await this.trackFailedUsage(operation, {
         promptTokens: usage.promptTokens,
         completionTokens: usage.completionTokens,
-        totalCost: usage.promptTokens * convertToPerTokenRate(this.config.inputCost || 0, this.config.unitPrice)
-          + usage.completionTokens * convertToPerTokenRate(this.config.outputCost || 0, this.config.unitPrice),
+        totalCost: priceUsage(this.config, usage.promptTokens, usage.completionTokens),
         duration: Date.now() - startTime,
       }, model, { language });
       throw error;

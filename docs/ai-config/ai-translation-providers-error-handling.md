@@ -1,3 +1,8 @@
+> **v1.8.2:** Current provider contracts and lifecycle behavior are in
+> [AI models](ai-models.md). Known unavailable models fail before a provider call
+> with `AI_MODEL_RETIRED`; inactive housekeeping and deletion remain available.
+> Existing error classification, administrator alerts and cache clearing remain.
+
 # AI Translation Providers Error Handling
 
 ## Overview

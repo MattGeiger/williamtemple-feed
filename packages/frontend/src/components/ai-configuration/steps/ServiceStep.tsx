@@ -51,7 +51,7 @@ export function ServiceStep({
   validation,
   onBlur
 }: ServiceStepProps) {
-  const { models } = useModelCatalogue()
+  const { models, findModel } = useModelCatalogue()
   const { languages: enabledLanguages } = useEnabledLanguages()
 
   const modelsFor = (serviceType: string): CatalogueModel[] =>
@@ -66,6 +66,7 @@ export function ServiceStep({
           inputCost: entry.pricing.input,
           outputCost: entry.pricing.output,
           unitPrice: 'per_1m' as const,
+          pricingSource: 'preset' as const,
           inputTokenLimit: entry.contextWindow,
           outputTokenLimit: entry.maxOutputTokens,
           tokensPerMinute: entry.rateLimits?.tokensPerMinute,
@@ -90,12 +91,20 @@ export function ServiceStep({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once, when the catalogue first arrives
   }, [models])
 
+  const compatibleThinking = (entry: CatalogueModel) => {
+    const reasoning = entry.capabilities.reasoning;
+    return reasoning.kind !== 'none' && reasoning.kind !== 'extended'
+      && data.thinkingLevel && reasoning.values.includes(data.thinkingLevel)
+      ? data.thinkingLevel : null;
+  }
+
   const handleServiceTypeChange = (value: 'OpenAI' | 'Anthropic' | 'Google') => {
     const first = modelsFor(value)[0]
     onChange({
       serviceType: value,
       modelName: first?.displayName ?? '',
       model: first?.id ?? '',
+      thinkingLevel: null,
       customModelName: '',
       customModel: '',
       endpointUrl: getServiceEndpoint(value),
@@ -105,25 +114,25 @@ export function ServiceStep({
 
   const handleModelNameChange = (value: string) => {
     if (value === CUSTOM) {
-      onChange({ modelName: CUSTOM })
+      onChange({ modelName: CUSTOM, pricingSource: 'manual', thinkingLevel: null })
       return
     }
     const entry = available.find((candidate) => candidate.displayName === value)
     onChange({
       modelName: value,
-      ...(entry ? { model: entry.id, ...specFor(entry) } : {})
+      ...(entry ? { model: entry.id, thinkingLevel: compatibleThinking(entry), ...specFor(entry) } : {})
     })
   }
 
   const handleModelChange = (value: string) => {
     if (value === CUSTOM) {
-      onChange({ model: CUSTOM })
+      onChange({ model: CUSTOM, pricingSource: 'manual', thinkingLevel: null })
       return
     }
     const entry = available.find((candidate) => candidate.id === value)
     onChange({
       model: value,
-      ...(entry ? { modelName: entry.displayName, ...specFor(entry) } : {})
+      ...(entry ? { modelName: entry.displayName, thinkingLevel: compatibleThinking(entry), ...specFor(entry) } : {})
     })
   }
 
@@ -135,7 +144,7 @@ export function ServiceStep({
   // than this work needs (D1/D7). Both are advisory — an administrator may
   // spend their budget as they see fit — and a model can warrant both at once,
   // as `gpt-5.6-sol` does, being active and frontier together.
-  const chosen = available.find((entry) => entry.id === data.model)
+  const chosen = findModel(data.model)
   const notices = data.model === CUSTOM ? [] : noticesFor(chosen)
   const unsupportedEnabledLanguages = chosen
     ? enabledLanguages
@@ -186,7 +195,7 @@ export function ServiceStep({
           <>
             <Select value={data.modelName} onValueChange={handleModelNameChange}>
               <SelectTrigger id="modelName">
-                <SelectValue placeholder="Select model name" />
+                <SelectValue placeholder="Select model name">{data.modelName || undefined}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {available.map((entry) => (
@@ -230,7 +239,7 @@ export function ServiceStep({
           <>
             <Select value={data.model} onValueChange={handleModelChange}>
               <SelectTrigger id="model">
-                <SelectValue placeholder="Select model" />
+                <SelectValue placeholder="Select model">{data.model || undefined}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {available.map((entry) => (

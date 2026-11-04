@@ -61,7 +61,7 @@ export const lifecycleNotice = (model: CatalogueModel | undefined): ModelNotice 
       tone: shutdownDate ? 'danger' : 'warning',
       detail: shutdownDate
         ? `${model.id} stops working on ${shutdownDate}.${moveTo}`
-        : `${model.id} is deprecated.${moveTo}`,
+        : `${model.id} is deprecated.${model.lifecycle.note ? ` ${model.lifecycle.note}` : ''}${moveTo}`,
     }
   }
 
@@ -71,6 +71,11 @@ export const lifecycleNotice = (model: CatalogueModel | undefined): ModelNotice 
       tone: 'warning',
       detail: `${model.id} is a provider preview and may change or be withdrawn at short notice.`,
     }
+  }
+
+  if (model.lifecycle.offered === false) {
+    return { label: 'Superseded', tone: 'warning',
+      detail: `${model.id} is supported for existing configurations but is no longer offered as a preset.${moveTo}` };
   }
 
   return null

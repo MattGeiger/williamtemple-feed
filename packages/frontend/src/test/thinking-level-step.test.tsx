@@ -78,6 +78,7 @@ const noControl = model('gemini-2.5-flash', { kind: 'none' })
 const withCatalogue = (models: CatalogueModel[]) => {
   vi.mocked(useModelCatalogue).mockReturnValue({
     models,
+    findModel: (id?: string | null) => models.find(entry => entry.id === id),
     endpoints: {},
     isLoading: false,
     refresh: vi.fn()

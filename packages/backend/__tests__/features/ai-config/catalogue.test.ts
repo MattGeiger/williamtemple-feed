@@ -80,7 +80,7 @@ describe('catalogue invariants', () => {
     // the entry production's saved row resolves against.
     for (const entry of CATALOGUE) {
       if (entry.lifecycle.offered !== false) continue;
-      expect(entry.lifecycle.status, `${entry.id} is unoffered`).not.toBe('active');
+      expect(selectableEntries().some(candidate => candidate.id === entry.id)).toBe(false);
       // Whatever the reason it is no longer a choice, the entry must remain
       // resolvable for the configurations still pointing at it.
       expect(findCatalogueEntry(entry.id), entry.id).toBeDefined();
@@ -277,7 +277,7 @@ describe('the capabilities that string tests could not express', () => {
 
   test('the withdrawn Gemini model records why it fails', () => {
     const withdrawn = entry('gemini-2.5-flash-lite');
-    expect(withdrawn.lifecycle.status).toBe('deprecated');
+    expect(withdrawn.lifecycle.status).toBe('active');
     expect(withdrawn.lifecycle.replacement).toBe('gemini-3.5-flash-lite');
     expect(withdrawn.lifecycle.note).toMatch(/no longer available to new users/);
   });

@@ -82,8 +82,8 @@ export function ThinkingLevelStep({
   validation,
   onBlur
 }: ThinkingLevelStepProps) {
-  const { models } = useModelCatalogue()
-  const entry = models.find((candidate) => candidate.id === data.model)
+  const { findModel } = useModelCatalogue()
+  const entry = findModel(data.model)
   const levels = levelsFor(entry)
 
   if (levels.length === 0) {

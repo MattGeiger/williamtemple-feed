@@ -5,11 +5,11 @@
 // under AGPL-3.0-or-later; see LICENSE. William Temple House branding is
 // not covered by this license; see TRADEMARKS.md.
 
+import { priceUsage } from '../pricing';
 import Anthropic from '@anthropic-ai/sdk';
 import { AITranslationService, TranslationRequest, TranslationResult, ClassificationRequest, ClassificationResult, BatchTranslationRequest, BatchTranslationResult, ServiceCapabilities, ServiceLimits, ProviderAccessResult } from '../base/AITranslationService';
 import { limitEnforcement } from '../../limits';
 import { estimateInputTokensAndCost } from '../../token';
-import { convertToPerTokenRate } from '../../token/calculation';
 import ApiUsageTracker from '../../token/usage-tracker';
 import { translationRecovery } from '../../translation-recovery';
 import { decryptApiKey } from '../../encryption';
@@ -98,7 +98,8 @@ export class AnthropicTranslationService extends AITranslationService {
     }
 
     if (!requested && reasoning.canDisable) {
-      return { thinking: { type: 'disabled' } };
+      return { thinking: { type: reasoning.lowestThinkingMode ?? 'disabled' },
+        ...(reasoning.lowestThinkingMode ? { output_config: { effort: reasoning.leastCost } } : {}) };
     }
 
     return resolved.value ? { output_config: { effort: resolved.value } } : {};
@@ -262,13 +263,11 @@ export class AnthropicTranslationService extends AITranslationService {
    * them with a hardcoded `/ 1000000` that ignores `unitPrice`, so a `per_1k`
    * configuration recorded a thousandth of what it spent.
    *
-   * `convertToPerTokenRate` is the same helper OpenAI and Google already use,
-   * which is why neither of them had either bug.
+   * All adapters now use the shared pricing resolver for managed rates,
+   * long-context tiers, effective dates and legacy manual units.
    */
   private recordedCost(inputTokens: number, outputTokens: number): number {
-    const inputRate = convertToPerTokenRate(this.config.inputCost || 0, this.config.unitPrice);
-    const outputRate = convertToPerTokenRate(this.config.outputCost || 0, this.config.unitPrice);
-    return (inputTokens * inputRate) + (outputTokens * outputRate);
+    return priceUsage(this.config, inputTokens, outputTokens);
   }
 
   getSupportedLanguages(): string[] {
@@ -697,143 +696,6 @@ export class AnthropicTranslationService extends AITranslationService {
       
     } catch (error) {
       this.handleServiceError(error, 'batch translation');
-    }
-  }
-
-  async classifySegments(request: ClassificationRequest): Promise<ClassificationResult> {
-    const model = this.getModel();
-    const startTime = Date.now();
-    
-    try {
-      console.log('Classification request:', {
-        model,
-        segmentCount: request.segments.length
-      });
-
-      const anthropic = await this.getAnthropicClient();
-      
-      // Create the classification prompt
-      const segmentsText = request.segments.map((seg, index) => 
-        `${index + 1}. "${seg.text}"`
-      ).join('\n');
-
-      const promptConfig = await PromptBuilder.getPromptConfiguration(
-        this.config,
-        'classification'
-      );
-      const systemPrompt = promptConfig.systemPrompt;
-      
-      console.log('[Anthropic Service] Sending classification request with system prompt:', {
-        model,
-        promptLength: systemPrompt.length,
-        promptPreview: systemPrompt.substring(0, 150) + '...',
-        fullPrompt: systemPrompt
-      });
-
-      // Define classification tool for guaranteed structured output
-      const classificationTool: Anthropic.Tool = {
-        name: "classify_segments",
-        description: "Classify text segments using binary confidence scores",
-        input_schema: {
-          type: "object",
-          properties: {
-            classifications: {
-              type: "array",
-              items: {
-                type: "object",
-                properties: {
-                  id: { type: "string" },
-                  a: { type: "number", minimum: 0, maximum: 1 },
-                  b: { type: "number", minimum: 0, maximum: 1 }
-                },
-                required: ["id", "a", "b"]
-              }
-            }
-          },
-          required: ["classifications"]
-        }
-      };
-
-      const paramCheck = this.checkAndOverrideParameters(
-        model,
-        promptConfig.temperature,
-        promptConfig.topP
-      );
-      const maxTokens = this.resolveMaxTokens(model, promptConfig.maxTokens, 2048, 'classification');
-      const response = await anthropic.messages.create({
-        model,
-        max_tokens: maxTokens,
-        ...(paramCheck.temperature !== undefined && { temperature: paramCheck.temperature }),
-        ...(paramCheck.topP !== undefined && { top_p: paramCheck.topP }),
-        // Effort shapes tool calls too, not just prose, so classification
-        // gets the same treatment as translation.
-        ...this.resolveThinking(model),
-        system: systemPrompt,
-        tools: [classificationTool],
-        tool_choice: this.classificationToolChoice(model, classificationTool.name),
-        messages: [
-          {
-            role: "user",
-            content: `Use ${classificationTool.name} to return one classification per numbered segment, in order.\nClassify these text segments:\n${segmentsText}`
-          }
-        ]
-      });
-
-      console.log('Anthropic classification response:', response);
-
-      const classifications = await this.readClassifications(
-        response, classificationTool.name, request.segments.length, startTime
-      );
-
-      const duration = Date.now() - startTime;
-
-      console.log('Parsed classification response:', { classifications });
-
-      // Map segment IDs back to the original IDs
-      const classificationsWithIds = classifications.map((classification: any, index: number) => ({
-        id: request.segments[index]?.id || classification.id,
-        a: classification.a || 0,
-        b: classification.b || 0
-      }));
-
-      const inputTokens = response.usage.input_tokens;
-      const outputTokens = response.usage.output_tokens;
-      const totalCost = this.recordedCost(inputTokens, outputTokens);
-
-      // Log API usage
-      try {
-        await ApiUsageTracker.logApiUsage(inputTokens, outputTokens, model, 'classification');
-      } catch (loggingError) {
-        console.warn('Failed to log API usage:', loggingError);
-      }
-
-      const result = {
-        classifications: classificationsWithIds,
-        metrics: {
-          duration,
-          promptTokens: inputTokens,
-          completionTokens: outputTokens,
-          totalCost
-        }
-      };
-
-      // Track usage for multi-service analytics
-      await this.trackSuccessfulUsage(
-        'classification',
-        {
-          promptTokens: inputTokens,
-          completionTokens: outputTokens,
-          totalCost,
-          duration
-        },
-        model,
-        { language: undefined }
-      );
-
-      return result;
-      
-    } catch (error) {
-      this.handleServiceError(error, 'classification');
     }
   }
 

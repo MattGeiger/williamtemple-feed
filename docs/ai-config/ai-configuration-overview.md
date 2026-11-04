@@ -1,76 +1,49 @@
-# AI Configuration Overview
+# AI Configuration overview — v1.8.2
 
-This document provides a high-level summary of the AI Configuration section. The module manages API credentials and custom prompt templates used throughout the system.
+AI Configuration manages one organization-wide set of provider credentials,
+model configurations and system prompts. Authentication gates access;
+administrator authority gates mutations. Configurations are never partitioned
+by user.
 
-## Purpose
+## Current implementation
 
-Administrators use this section to store API keys for supported AI services and to create system prompts that control translation behavior. It serves as the central place to configure models, cost tracking, usage limits, and formatting rules.
+- `components/ai-configuration/index.tsx` orchestrates the list and dialogs.
+- `AddAIModelDialog.tsx` and `EditAIModelDialog.tsx` use `BaseAIConfigDialog`.
+- `shared/stepDefinitions.ts` defines the nine model-configuration steps:
+  Service Configuration, API Credentials, Cost Tracking, Token Limits, Cost
+  Limits, Usage Limits, AI Parameters, Thinking Level, Configuration Details.
+- System-prompt dialogs retain their existing separate flow.
+- `services/ai-config` owns API calls. `services/unified-config` combines model
+  configurations and system prompts for the shared list.
+- `useModelCatalogue` reads `GET /api/ai-config/models`, including `models`,
+  `withdrawn` and provider endpoints. No frontend `model-specs.ts` exists.
 
-## Frontend Architecture
+## Defaults and editing
 
-All React components live in `packages/frontend/src/components/ai-configuration/`.
+The Add dialog defaults to Google / Gemini 3.5 Flash-Lite. Switching provider
+selects GPT-6 Luna for OpenAI or Claude Haiku 5.5 for Anthropic. Costs and token
+limits prefill from the catalogue when it arrives. Merely opening Edit never
+replaces saved rates or thinking choices. A model change preserves supported
+effort and clears incompatible effort to the model's least-cost default.
 
-- **`index.tsx`** – Entry component that loads configurations with `useAIConfigurations` and controls dialog state.
-- **Dialog components** – `add-dialog.tsx`, `edit-dialog.tsx`, `delete-dialog.tsx`, and prompt dialogs share a `BaseAIConfigDialog` for consistent multi-step forms.
-- **`data-table/`** – Defines columns and bulk action helpers for the configuration table.
-- **Hooks** – `useAIConfigData` handles caching, optimistic updates, and encryption key checks.
+API keys are write-only. Edit shows a blank field; leaving it blank keeps the
+existing key. Nonempty unusual key formats receive a soft warning, not rejection.
+A real provider entitlement check occurs on save/activation, with provider-specific
+errors. Known retired models are rejected before generation. Withheld but still
+available models remain editable and retain replacement guidance.
 
-The UI separates API key dialogs from prompt dialogs but presents them in a unified table for simplicity. The shared table preserves pagination when edit, delete, or active-status actions refresh configuration data.
+Preset prices are managed through `pricingSource: preset`; explicit price/unit
+edits select manual pricing. Older rows and backups use null/manual semantics.
+The backend computes effective tiered/date-dependent preset rates. Costs already
+recorded against UsageRecord are never recalculated.
 
-## Backend API
+## Backend
 
-Routes in `packages/backend/src/routes/ai-config.ts` implement CRUD endpoints:
+`routes/ai-config.ts` owns CRUD, catalogue reads, validation and entitlement.
+`AIServiceFactory` selects the most recently updated active API configuration,
+reuses instances while unchanged and clears caches after configuration writes.
+`AIConfiguration` stores model settings; `SystemPrompt` stores editable prompts.
+Output token limits remain mirrored to `maxTokens` for provider compatibility.
 
-- `GET /api/ai-config` – List configurations with type information.
-- `POST /api/ai-config` – Create a new API key or prompt record.
-- `PUT /api/ai-config/:id` – Update an existing configuration.
-- `DELETE /api/ai-config/:id` – Remove a configuration.
-
-Records are stored across two tables (`AIConfiguration` and `SystemPrompt`). The service layer merges them into a single response for the frontend.
-
-Token limits are stored on `AIConfiguration` as `inputTokenLimit` and `outputTokenLimit` (with `outputTokenLimit` mirrored to `maxTokens` for provider compatibility).
-
-## Translation Integration
-
-System prompts created here drive translation behavior for food items, categories, and documents. When translations are triggered, the active prompt template and API configuration are resolved to build the final request sent to the AI provider.
-
-## Known Issues
-
-- The **Reset to Defaults** button has not been implemented. The exact parameters that should be restored are still under discussion.
-
-## Future Improvements
-
-- Add real-time metrics on token usage and cost per configuration.
-- Provide preset templates for common translation tasks.
-- Implement a restore feature to reset all settings to safe defaults.
-
-## API Key Validation (Warning-first)
-
-- The AI Configuration module performs provider-aware, soft validation for API keys.
-- If the format appears unusual for the selected provider (OpenAI, Anthropic, Google), a non-blocking warning toast is shown.
-- Users can proceed without being blocked; only empty API keys are treated as errors in the multi-step dialog.
-- Reference implementation:
-  - `packages/frontend/src/components/ai-configuration/shared/validation.ts` (format checks)
-  - `packages/frontend/src/components/ai-configuration/steps/ApiKeyStep.tsx` (warning toast on blur)
-
-## Defaults (Updated 2025-12-31)
-
-- Default service in the Add AI Model dialog: Google
-- Default Google model: Gemini 2.5 Flash Lite (`gemini-2.5-flash-lite`)
-- OpenAI default model when selecting OpenAI: GPT-5 nano (`gpt-5-nano-2025-08-07`)
-- Anthropic default model when selecting Anthropic: Claude Haiku 4.5 (`claude-haiku-4-5-20251001`)
-
-> **2026-09-11:** two of these three defaults no longer work for new setups.
-> Google refuses `gemini-2.5-flash-lite` to new projects (404, reported to
-> staff as an invalid API key), and OpenAI shuts down `gpt-5-nano-2025-08-07`
-> on 2026-12-11. Proposed replacements: `gemini-3.5-flash-lite` and
-> `gpt-5.6-luna`. Claude Haiku 4.5 remains available, with retirement not
-> sooner than 2026-10-15. See
-> [`model-catalogue-refresh-2026-09.md`](model-catalogue-refresh-2026-09.md)
-> and ISSUES.md #84.
-
-**Pending**: The OpenAI default model is under review (GPT-5 mini vs GPT-5 nano vs GPT-4o mini). Any change will be documented here and in [`archive/ai-config/defaults-update-2025-12-26.md`](../archive/ai-config/defaults-update-2025-12-26.md).
-
-Implementation details:
-- UI initial state is set in `packages/frontend/src/components/ai-configuration/AddAIModelDialog.tsx`.
-- Per-service defaults are the first entries in each provider’s `model-specs` lists in `packages/frontend/src/components/ai-configuration/model-specs.ts`.
+See [models](ai-models.md), [thinking](ai-thinking-parameters.md),
+[cost control](ai-cost-control.md), and [November validation](model-catalogue-refresh-2026-11.md).

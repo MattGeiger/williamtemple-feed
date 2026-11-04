@@ -5,10 +5,10 @@
 // under AGPL-3.0-or-later; see LICENSE. William Temple House branding is
 // not covered by this license; see TRADEMARKS.md.
 
+import { pricingRates, priceUsage } from '../ai/pricing';
 import { PrismaClient, type AIConfiguration } from '@prisma/client';
 import { wouldExceedLimit } from '../../config/limits';
 import { alertService } from '../alerts';
-import { convertToPerTokenRate } from '../token/calculation';
 
 const prisma = new PrismaClient();
 
@@ -86,8 +86,7 @@ export class LimitEnforcementService {
     // translations over it would be a worse outcome than spend that is
     // uncapped but now visible.
     if (dailyCostLimit !== null || monthlyCostLimit !== null) {
-      const inputRate = convertToPerTokenRate(config.inputCost || 0, config.unitPrice);
-      const outputRate = convertToPerTokenRate(config.outputCost || 0, config.unitPrice);
+      const { input: inputRate, output: outputRate } = pricingRates(config, estimatedInputTokens);
 
       if (inputRate === 0 && outputRate === 0 && !this.unmeteredWarned.has(config.id)) {
         this.unmeteredWarned.add(config.id);
@@ -194,11 +193,8 @@ export class LimitEnforcementService {
    * holds until output is measured per model.
    */
   private async calculateCost(estimatedInputTokens: number, config: AIConfiguration): Promise<number> {
-    const promptCost = convertToPerTokenRate(config?.inputCost || 0, config?.unitPrice);
-    const completionCost = convertToPerTokenRate(config?.outputCost || 0, config?.unitPrice);
-
     const completionTokens = estimatedInputTokens * this.OUTPUT_TO_INPUT_RATIO;
-    return (estimatedInputTokens * promptCost) + (completionTokens * completionCost);
+    return priceUsage(config, estimatedInputTokens, completionTokens);
   }
 
   private async calculateRemainingTokens(
@@ -206,8 +202,7 @@ export class LimitEnforcementService {
     costLimit: number,
     config: AIConfiguration
   ): Promise<number> {
-    const promptCost = convertToPerTokenRate(config?.inputCost || 0, config?.unitPrice);
-    const completionCost = convertToPerTokenRate(config?.outputCost || 0, config?.unitPrice);
+    const { input: promptCost, output: completionCost } = pricingRates(config);
     const avgRate = (promptCost + completionCost) / 2;
     
     if (avgRate === 0) return 0;

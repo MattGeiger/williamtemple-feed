@@ -274,3 +274,21 @@ describe('OpenAITranslationService thinking level', () => {
     );
   });
 });
+
+
+describe('GPT-6 request contracts', () => {
+  test.each(['gpt-6-luna', 'gpt-6.1-terra', 'gpt-6.1-sol'])('%s uses explicit effort, omits sampling and uses completion limits', async model => {
+    const { OpenAITranslationService: Service } = await import('../OpenAITranslationService');
+    const create = vi.fn().mockResolvedValue({ choices: [{ finish_reason: 'stop', message: { content: '{"translatedText":"Hola"}' } }],
+      usage: { prompt_tokens: 10, completion_tokens: 5 } });
+    const service = new Service(buildConfig({ model, pricingSource: 'preset' })) as any;
+    vi.spyOn(service, 'getOpenAIClient').mockResolvedValue({ chat: { completions: { create } } });
+    await service.translateText({ text: 'Hello', targetLanguage: 'Spanish' });
+    const request = create.mock.calls[0][0];
+    expect(request.reasoning_effort).toBe(model === 'gpt-6.1-sol' ? 'low' : 'none');
+    expect(request.temperature).toBeUndefined();
+    expect(request.top_p).toBeUndefined();
+    expect(request.max_completion_tokens).toBe(100);
+    expect(request).not.toHaveProperty('max_tokens');
+  });
+});

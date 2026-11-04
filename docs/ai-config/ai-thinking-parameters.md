@@ -1,3 +1,19 @@
+# Current thinking behavior — v1.8.2
+
+The historical implementation notes below are superseded by the capability-driven
+catalogue. Model settings remain nullable: unset means FEED's cheapest supported
+mode. GPT-6 Luna/Terra use `none`, Sol uses `low`; Haiku 5.5 uses disabled
+thinking, Sonnet 5.5 uses `between_tools` with low effort, and Opus 5.5 uses low
+adaptive effort. Explicit supported effort wins; unsupported values are never sent.
+Sampling controls remain model-dependent. The nine-step modal and existing slider
+are unchanged. Both offered and withheld entries resolve through `findModel`.
+
+See [current models](ai-models.md) and [November validation](model-catalogue-refresh-2026-11.md).
+
+---
+
+## Historical design and implementation notes
+
 # AI Thinking Parameters
 
 **Status**: Phase 3 complete (backend integration)  

@@ -32,6 +32,7 @@ interface CreateAIConfigData {
   requestsPerMinute?: number;
   requestsPerDay?: number;
   unitPrice?: 'per_1k' | 'per_1m';
+  pricingSource?: 'preset' | 'manual' | null;
 }
 
 interface UpdateAIConfigData extends CreateAIConfigData {

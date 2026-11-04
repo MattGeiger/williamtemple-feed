@@ -27,8 +27,8 @@ const setup = (model: string, response: unknown) => {
 beforeEach(() => vi.clearAllMocks());
 
 describe('classification tool capability', () => {
-  test.each(['classifySegments', 'classifySegmentsBatch'] as const)('%s uses auto for Fable and maps results', async method => {
-    const name = method === 'classifySegments' ? 'classify_segments' : 'classify_segments_batch';
+  test.each(['classifySegmentsBatch'] as const)('%s uses auto for Fable and maps results', async method => {
+    const name = 'classify_segments_batch';
     const { service, create } = setup('claude-fable-5-1', reply(name));
     const result = await service[method]({ segments });
     expect(create.mock.calls[0][0].tool_choice).toEqual({ type: 'auto' });
@@ -38,13 +38,13 @@ describe('classification tool capability', () => {
     expect(UsageRecordService.createUsageRecord).toHaveBeenCalledTimes(1);
   });
   test.each(['claude-sonnet-5', 'claude-opus-5', 'claude-haiku-4-5-20251001'])('%s retains forced tools', async model => {
-    const { service, create } = setup(model, reply('classify_segments'));
-    await service.classifySegments({ segments });
-    expect(create.mock.calls[0][0].tool_choice).toEqual({ type: 'tool', name: 'classify_segments' });
+    const { service, create } = setup(model, reply('classify_segments_batch'));
+    await service.classifySegmentsBatch({ segments });
+    expect(create.mock.calls[0][0].tool_choice).toEqual({ type: 'tool', name: 'classify_segments_batch' });
   });
   test('an unknown model conservatively uses auto', async () => {
-    const { service, create } = setup('claude-custom-test', reply('classify_segments'));
-    await service.classifySegments({ segments });
+    const { service, create } = setup('claude-custom-test', reply('classify_segments_batch'));
+    await service.classifySegmentsBatch({ segments });
     expect(create.mock.calls[0][0].tool_choice).toEqual({ type: 'auto' });
   });
   test('a failed parallel batch still waits for and records its successful sibling', async () => {
@@ -64,17 +64,25 @@ describe('classification tool capability', () => {
   });
   test.each([
     { ...reply('wrong_tool') },
-    { ...reply('classify_segments'), content: [{ type: 'text', text: 'Here is my answer.' }] },
-    reply('classify_segments', { classifications: [] }),
-    reply('classify_segments', { classifications: [{ id: '1', a: 2, b: 0 }] }),
-    reply('classify_segments', null),
-    { ...reply('classify_segments'), stop_reason: 'max_tokens' },
+    { ...reply('classify_segments_batch'), content: [{ type: 'text', text: 'Here is my answer.' }] },
+    reply('classify_segments_batch', { classifications: [] }),
+    reply('classify_segments_batch', { classifications: [{ id: '1', a: 2, b: 0 }] }),
+    reply('classify_segments_batch', null),
+    { ...reply('classify_segments_batch'), stop_reason: 'max_tokens' },
   ])('an unusable billed reply fails and records spend', async response => {
     const { service } = setup('claude-fable-5-1', response);
-    await expect(service.classifySegments({ segments })).rejects.toThrow();
+    await expect(service.classifySegmentsBatch({ segments })).rejects.toThrow();
     const records = vi.mocked(UsageRecordService.createUsageRecord).mock.calls;
     expect(records).toHaveLength(1);
     expect(records[0][3]).toMatchObject({ success: false, promptTokens: 900, completionTokens: 100 });
     expect(records[0][3].totalCost).toBeCloseTo(0.014);
   });
+});
+
+
+test.each(['claude-sonnet-5-5', 'claude-opus-5-5', 'claude-haiku-5-5'])('%s uses its classification capability', async model => {
+  const { service, create } = setup(model, reply('classify_segments_batch'));
+  await service.classifySegmentsBatch({ segments });
+  expect(create.mock.calls[0][0].tool_choice).toEqual(model === 'claude-haiku-5-5'
+    ? { type: 'tool', name: 'classify_segments_batch' } : { type: 'auto' });
 });

@@ -21,6 +21,20 @@ AI Configuration lists the prompts, provider keys, and model settings FEED uses 
 - Daily or monthly cost limits.
 - Usage limits.
 
+## Current Model Choices
+
+OpenAI offers GPT-6 Luna, GPT-6.1 Terra, GPT-6.1 Sol and GPT-6 Astra.
+Anthropic offers Claude Haiku 5.5, Sonnet 5.5, Opus 5.5 and Fable 5.1.
+Google choices are unchanged. Choose a model, enter its provider key, and
+continue through the existing settings to save.
+
+Older models no longer appear as new selections. A saved configuration can
+still show its older model and replacement advice; it remains usable while its
+provider supports it. Editing with the key field blank keeps the existing key.
+
+Preset prices track the published rates used by FEED. Editing a price or its
+unit keeps your manual rate instead. Daily and monthly budgets remain your choice.
+
 ## When To Change It
 
 Change AI Configuration when:

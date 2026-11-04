@@ -418,6 +418,14 @@ Known dependency note: backend installs may surface an npm peer conflict involvi
 
 ## AI Model Catalogue Maintenance
 
+Current refresh: v1.8.2 (November 2026), documented in
+`docs/ai-config/model-catalogue-refresh-2026-11.md`. The user confirmed that no
+current deployment uses GPT-5. Withheld callable models retain factual lifecycle
+and capability metadata. Never label an active provider model retired to hide it.
+Preset/manual pricing provenance is persisted; null means legacy/manual. Runtime
+pricing uses the shared resolver, including supported tiers and effective dates.
+
+
 **The AI model catalogue goes stale in months, and it fails quietly.** The
 2026-09-11 audit (ISSUES.md #84) found 15 of 16 selectable presets shut down,
 scheduled for shutdown, refused to new accounts, or superseded:

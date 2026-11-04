@@ -72,6 +72,8 @@ let sqlite: (sql: string) => string;
 beforeAll(() => {
   workdir = mkdtempSync(join(tmpdir(), 'feed-restore-empty-'));
   databasePath = join(workdir, 'fresh.db');
+  // Materialize an empty SQLite database before Prisma's schema engine opens it.
+  execFileSync('sqlite3', [databasePath, 'VACUUM;']);
 
   // A fresh instance is migrations and nothing else — exactly what a new Pi
   // holds after `docker compose up` and before anyone signs in.

@@ -1,3 +1,8 @@
+> **v1.8.2:** This is historical documentation. GPT-5 and GPT-5.6 are no longer
+> selectable presets; the current equivalents are GPT-6 Luna and GPT-6.1 Terra/Sol.
+> The user confirmed on November 4, 2026 that no current deployment uses GPT-5.
+> Existing callable models retain compatibility metadata. See [current models](ai-models.md).
+
 # GPT-5 Model Support
 
 > **Historical, 2026-09-11.** OpenAI deprecated the `gpt-5-2025-08-07`,

@@ -121,7 +121,7 @@ resolution above, and the clean-slate model — are recorded in
 [beta-6-backup-restore-brief.md](beta-6-backup-restore-brief.md), which also
 named two prerequisites that had to land first: editable API keys, and
 `AIConfiguration` redaction in place of exclusion. **Both are implemented.**
-The artifact now declares table contract version 12: version 2 added sanitized
+The artifact now declares table contract version 13: version 2 added sanitized
 `AIConfiguration`; version 3 added the first formal Service and operational
 metric fact family; version 4 adds effective-dated Service capacity plans,
 structured quality issues, and append-only operator decisions; and version 5
@@ -153,6 +153,12 @@ under a `pending` import are also filtered out, including pending-only client
 identities; only activated or historical lifecycle data belongs in the portable
 organization snapshot. Beta.6
 artifacts declare version 1 and carry no `AIConfiguration` or Service tables.
+
+Version 13 adds nullable `AIConfiguration.pricingSource`. Managed (`preset`)
+pricing and manual overrides survive backup/restore. Artifacts through version 12
+lack provenance and restore with null/manual semantics. Keys and salts remain
+redacted, and restored keyless configurations remain inactive. Older FEED builds
+reject a version-13 backup instead of attempting to insert an unknown field.
 
 ## Recovery runbook
 

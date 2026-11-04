@@ -23,6 +23,7 @@ export interface AIConfiguration {
   inputCost?: number | null
   outputCost?: number | null
   unitPrice?: string
+  pricingSource?: 'preset' | 'manual' | null
   temperature?: number
   topP?: number
   thinkingLevel?: ThinkingLevelValue | null
@@ -122,6 +123,7 @@ export interface CatalogueModel {
     shutdownDate?: string
     replacement?: string
     note?: string
+    offered?: boolean
   }
   costTier: 'economy' | 'standard' | 'frontier'
   capabilities: {
@@ -132,7 +134,7 @@ export interface CatalogueModel {
       | { kind: 'effort'; values: string[]; leastCost: string }
       | { kind: 'thinking-level'; values: string[]; leastCost: string }
       | { kind: 'extended'; leastCost: 'off' }
-      | { kind: 'adaptive'; values: string[]; leastCost: string; canDisable: boolean }
+      | { kind: 'adaptive'; values: string[]; leastCost: string; canDisable: boolean; lowestThinkingMode?: 'disabled' | 'between_tools' }
     prefill: 'allowed' | 'rejected'
     fixedTemperature?: number
     nonStreamingOutputCeiling?: number

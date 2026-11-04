@@ -1,3 +1,8 @@
+> **v1.8.2:** The factory retains its active-configuration and cache behavior.
+> It now refuses known provider-retired models before constructing an adapter.
+> Preset prices resolve per request so a date change does not require changing
+> or reactivating a saved configuration. [Current model contracts](ai-models.md).
+
 # AI Configuration Caching
 
 ## Overview

@@ -129,7 +129,6 @@ export abstract class AITranslationService {
   abstract translateTextBatch(request: BatchTranslationRequest): Promise<BatchTranslationResult>;
   
   // Classification operations
-  abstract classifySegments(request: ClassificationRequest): Promise<ClassificationResult>;
   abstract classifySegmentsBatch(request: ClassificationRequest): Promise<ClassificationResult>;
 
   // Service configuration and validation

@@ -20,6 +20,35 @@ All notable changes to FEED are documented here. This project adheres to
 - Routed non-GitHub project inquiries and private security disclosures to
   Temple Consulting; retained the originating deployment's own identity.
 
+## [1.8.2] — 2026-11-04
+
+### Changed
+
+- Replaced six selectable presets with GPT-6 Luna, GPT-6.1 Terra/Sol and Claude
+  Haiku/Sonnet/Opus 5.5. Retained Astra, Fable and all four Google selections.
+- Updated per-model thinking, sampling and classification-tool contracts without
+  changing the nine-step configuration workflow. Withheld models remain resolvable.
+- Added nullable pricing provenance, tiered/effective-dated preset pricing and
+  manual-override preservation. Existing rows remain manual; backup contract 13
+  carries provenance and older backups retain safe defaults.
+- Updated lifecycle facts and current replacement guidance. Known unavailable
+  models are refused before provider generation; configurations can be deactivated.
+- Updated Anthropic SDK from 0.125.0 to 0.129.0 for Sonnet's `between_tools` type.
+
+### Removed
+
+- Unused legacy AI form and OpenAI wrapper, unused single-segment classification
+  implementations, and obsolete token-limit repair tooling that misclassified
+  valid 128K output limits.
+
+### Validation and documentation
+
+- Extended catalogue, request, pricing, modal and backup/restore regression coverage.
+  Results and credential-dependent checks are recorded in
+  `docs/ai-config/model-catalogue-refresh-2026-11.md`.
+- Refreshed current documentation and archived the obsolete model reference.
+  Version 1.8.2 is prepared locally; no production deployment is claimed.
+
 ## [1.8.1] — 2026-09-14
 
 ### Released

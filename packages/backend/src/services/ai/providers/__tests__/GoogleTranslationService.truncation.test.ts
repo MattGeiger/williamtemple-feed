@@ -126,7 +126,7 @@ beforeEach(() => {
 });
 
 describe('a Gemini reply cut off at the token cap', () => {
-  test.each(['translateTextBatch', 'classifySegments', 'classifySegmentsBatch'] as const)(
+  test.each(['translateTextBatch', 'classifySegmentsBatch'] as const)(
     '%s records a billed failure exactly once', async method => {
       const service = serviceReturning(truncated(''));
       const request = method === 'translateTextBatch'
@@ -139,7 +139,7 @@ describe('a Gemini reply cut off at the token cap', () => {
       expect(records[0][3].totalCost).toBeCloseTo((152 * 0.75 + 497 * 3.75) / 1_000_000, 10);
     }
   );
-  test.each(['translateTextBatch', 'classifySegments', 'classifySegmentsBatch'] as const)(
+  test.each(['translateTextBatch', 'classifySegmentsBatch'] as const)(
     '%s records malformed answered replies but not provider refusals', async method => {
       const request = method === 'translateTextBatch'
         ? { texts: [{ id: 'a', text: 'Rice' }], targetLanguage: 'Spanish' }
@@ -231,7 +231,7 @@ describe('a Gemini reply cut off at the token cap', () => {
     );
 
     await expect(
-      service.classifySegments({ segments: [{ id: 's1', text: 'Food Pantry Hours' }] })
+      service.classifySegmentsBatch({ segments: [{ id: 's1', text: 'Food Pantry Hours' }] })
     ).rejects.toThrow(/Classification response was truncated/);
   });
 
@@ -333,7 +333,7 @@ describe('a Gemini reply that ran out of room before writing anything', () => {
     const service = serviceReturning(emptyTruncated(''));
 
     await expect(
-      service.classifySegments({ segments: [{ id: 's1', text: 'Food Pantry Hours' }] })
+      service.classifySegmentsBatch({ segments: [{ id: 's1', text: 'Food Pantry Hours' }] })
     ).rejects.toThrow(/Classification response was truncated/);
   });
 

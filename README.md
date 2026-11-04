@@ -18,7 +18,8 @@ food-distribution programs at scale.
 
 **Production deployment:** https://feed.williamtemple.app
 **License:** [AGPL-3.0-or-later](./LICENSE)
-**Status:** v1.8.1 — deployed and verified in production on September 14, 2026
+**Status:** v1.8.2 — AI catalogue refresh prepared locally; production deployment is a separate step.
+Latest documented production verification: v1.8.1, September 14, 2026.
 
 ---
 
@@ -39,7 +40,7 @@ software. FEED supports the common operational reality of food pantries:
   any of 59 supported languages, with a managed cache so the same
   content isn't re-translated and re-billed. Backed by configurable
   AI providers (Anthropic, OpenAI, Google) with per-configuration
-  cost limits.
+  cost limits. Current model choices and compatibility policy: [AI models](docs/ai-config/ai-models.md).
 - **Multi-language client materials** — Arabic, Persian, Hebrew, CJK,
   and other non-Latin scripts render correctly in both the in-browser
   preview and the exported PDFs (right-to-left bidi, font fallback,

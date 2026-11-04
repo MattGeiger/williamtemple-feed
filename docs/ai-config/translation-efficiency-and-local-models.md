@@ -1,3 +1,7 @@
+> **Historical September research.** Model prices, defaults and deployment references
+> below describe that study, not current configuration. Local-model hosting remains
+> shelved. See [current models](ai-models.md) and [November refresh](model-catalogue-refresh-2026-11.md).
+
 # Translation Request Efficiency and Local Models
 
 **Status**: Exploration, 2026-09-11. No code changed. Not yet committed.

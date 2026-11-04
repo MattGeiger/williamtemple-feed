@@ -155,7 +155,7 @@ describe('sanitized backup table contract', () => {
   it('has bumped the contract version for portable organization branding', () => {
     // Readers key on this, so a shape change that does not bump it is a silent
     // incompatibility.
-    expect(TABLE_CONTRACT_VERSION).toBe(12);
+    expect(TABLE_CONTRACT_VERSION).toBe(13);
   });
 
   it('keeps prepared Service imports outside the portable organization snapshot', () => {

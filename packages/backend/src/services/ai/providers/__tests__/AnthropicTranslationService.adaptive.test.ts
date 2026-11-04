@@ -182,3 +182,29 @@ describe('the request Claude 5 actually receives', () => {
     expect(request.messages).toHaveLength(2);
   });
 });
+
+
+describe('Claude 5.5 request defaults', () => {
+  test.each([
+    ['claude-haiku-5-5', 'disabled'],
+    ['claude-sonnet-5-5', 'between_tools'],
+  ])('%s uses its supported lowest thinking mode', (model, type) => {
+    expect(thinkingFor(model)).toEqual({ thinking: { type }, output_config: { effort: 'low' } });
+    expect(thinkingFor(model, 'max')).toEqual({ output_config: { effort: 'max' } });
+  });
+  test('Opus 5.5 cannot disable thinking', () => {
+    expect(thinkingFor('claude-opus-5-5')).toEqual({ output_config: { effort: 'low' } });
+  });
+  test.each(['claude-haiku-5-5', 'claude-sonnet-5-5', 'claude-opus-5-5'])('%s translates without sampling or prefill', async model => {
+    const create = vi.fn().mockResolvedValue({ stop_reason: 'end_turn',
+      content: [{ type: 'thinking', thinking: '', signature: 'fixture' }, { type: 'text', text: '{"translatedText":"Hola"}' }],
+      usage: { input_tokens: 10, output_tokens: 5 } });
+    const service = new AnthropicTranslationService(buildConfig({ model, pricingSource: 'preset' })) as any;
+    vi.spyOn(service, 'getAnthropicClient').mockResolvedValue({ messages: { create } });
+    const result = await service.translateText({ text: 'Hello', targetLanguage: 'Spanish' });
+    expect(result.translatedText).toBe('Hola');
+    expect(create.mock.calls[0][0].messages).toHaveLength(1);
+    expect(create.mock.calls[0][0]).not.toHaveProperty('temperature');
+    expect(create.mock.calls[0][0]).not.toHaveProperty('top_p');
+  });
+});

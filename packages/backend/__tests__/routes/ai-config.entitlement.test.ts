@@ -162,3 +162,35 @@ describe('AI configuration entitlement checks', () => {
     expect(mockPrisma.aIConfiguration.update).toHaveBeenCalledTimes(2);
   });
 });
+
+
+describe('catalogue refresh pricing persistence', () => {
+  test('a managed preset saves server rates and never returns credentials', async () => {
+    const app = await buildApp();
+    mockPrisma.aIConfiguration.create.mockImplementation(async ({ data }) => ({ ...storedConfig(), ...data }));
+    const response = await request(app).post('/api/ai-config').send({
+      name: 'New Haiku', type: 'apikey', apiKey: 'test-key', serviceType: 'Anthropic',
+      model: 'claude-haiku-5-5', pricingSource: 'preset', inputCost: 999, outputCost: 999,
+    }).expect(201);
+    expect(mockPrisma.aIConfiguration.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ pricingSource: 'preset', inputCost: 0.1, outputCost: 0.5, unitPrice: 'per_1m' }),
+    }));
+    expect(response.body.configuration.encryptedApiKey).toBeUndefined();
+    expect(response.body.configuration.salt).toBeUndefined();
+    expect(response.body.configuration.hasApiKey).toBe(true);
+  });
+  test('legacy saves preserve provenance; explicit rate edits become manual', async () => {
+    const app = await buildApp();
+    mockPrisma.aIConfiguration.findUnique.mockResolvedValue(storedConfig(1, { pricingSource: null }));
+    await request(app).put('/api/ai-config/1').send({ name: 'Legacy', pricingSource: null }).expect(200);
+    expect(mockPrisma.aIConfiguration.update.mock.calls[0][0].data).not.toHaveProperty('pricingSource');
+    await request(app).put('/api/ai-config/1').send({ inputCost: 3 }).expect(200);
+    expect(mockPrisma.aIConfiguration.update.mock.calls[1][0].data).toMatchObject({ pricingSource: 'manual', inputCost: 3 });
+  });
+  test('a retired configuration can be renamed and deactivated without calling its provider', async () => {
+    const app = await buildApp();
+    mockPrisma.aIConfiguration.findUnique.mockResolvedValue(storedConfig(1, { serviceType: 'OpenAI', model: 'gpt-4.1-nano-2025-04-14' }));
+    await request(app).put('/api/ai-config/1').send({ name: 'Old model', isActive: false }).expect(200);
+    expect(verifyProviderEntitlement).not.toHaveBeenCalled();
+  });
+});

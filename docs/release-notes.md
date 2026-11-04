@@ -1,5 +1,13 @@
 # Release Notes
 
+## Version 1.8.2 — 2026-11-04
+
+**Current OpenAI and Claude models, with the same setup workflow.** Choose GPT-6 Luna, GPT-6.1 Terra or Sol, or Claude Haiku, Sonnet or Opus 5.5. Astra and Fable remain available, and Google choices are unchanged. Superseded models no longer appear as new selections; existing configurations remain identifiable and supported while their provider serves them.
+
+**Model settings and spending follow the selected model.** Thinking uses the lowest supported setting by default. Preset pricing accounts for applicable prompt-length tiers and scheduled rate changes; manually entered rates remain yours.
+
+This release is prepared and validated locally. Production deployment is a separate step.
+
 ## Version 1.8.1 — 2026-09-14
 
 **The top navigation banner has its frosted glass back in Chrome.** Content

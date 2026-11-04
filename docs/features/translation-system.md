@@ -1,6 +1,8 @@
+> Current model contracts: [AI models](../ai-config/ai-models.md). Catalogue refreshes do not clear existing translations or formatting choices.
+
 # Translation System
 
-The FEED application includes a comprehensive multi-language translation system powered by OpenAI. This document explains how the translation system works and how to use it effectively.
+The FEED application includes a comprehensive multi-language translation system powered by the configured OpenAI, Anthropic or Google model. This document explains how the translation system works and how to use it effectively.
 
 ## Overview
 
@@ -28,14 +30,14 @@ The translation system consists of several components:
 1. **Frontend**: User interface for requesting and managing translations
 2. **Backend API**: Endpoints for translation requests and status updates
 3. **Translation Queue**: Asynchronous processing of translation requests
-4. **OpenAI Integration**: AI-powered translation generation
+4. **AI Provider Integration**: AI-powered translation generation
 5. **Database**: Storage for translations and their metadata
 
 ```mermaid
 graph TD
     A[User Interface] -->|Translation Request| B[Backend API]
     B -->|Queue Job| C[Translation Queue]
-    C -->|Process Job| D[OpenAI Service]
+    C -->|Process Job| D[Configured AI Service]
     D -->|Generate Translation| E[Database]
     C -->|Update Status| B
     B -->|Status Updates| A
@@ -46,7 +48,7 @@ graph TD
 1. **Request**: A translation is requested (manually or automatically)
 2. **Queuing**: The request is added to the translation queue
 3. **Processing**: The queue processes requests based on priority and rate limits
-4. **Translation**: OpenAI generates the translation
+4. **Translation**: The configured provider generates the translation
 5. **Storage**: The translation is stored in the database
 6. **Status Update**: The translation status is updated (pending → in_progress → completed/failed)
 

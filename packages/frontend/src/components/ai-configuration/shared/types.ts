@@ -34,6 +34,7 @@ export interface ApiKeyConfigData extends BaseConfigData {
   inputCost: number | null | undefined
   outputCost: number | null | undefined
   unitPrice: 'per_1k' | 'per_1m'
+  pricingSource?: 'preset' | 'manual' | null
   inputTokenLimit: number | null | undefined
   outputTokenLimit: number | null | undefined
   dailyCostLimit: number | null | undefined
@@ -135,6 +136,7 @@ export interface EditAIModelFormData {
   topP: number
   // Cost tracking fields
   unitPrice: 'per_1k' | 'per_1m'
+  pricingSource?: 'preset' | 'manual' | null
   inputCost: number | null | undefined
   outputCost: number | null | undefined
   // Usage limits fields

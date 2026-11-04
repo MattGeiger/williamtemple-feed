@@ -76,6 +76,14 @@ production stylesheet contains it. Test the optimized build, with contrasting
 content behind the banner and time for a repaint. Release/deployment evidence:
 `docs/deployment/v1.8.1-validation.md`.
 
+### AI catalogue refresh — v1.8.2 (2026-11-04)
+
+Approved scope: replace six OpenAI/Claude dropdown presets with their current
+series, retain Astra/Fable and the four Google selections, preserve the workflow,
+and leave production deployment separate. The user confirmed that no current
+deployment uses GPT-5; September's production-migration prerequisite is historical.
+Implementation and validation evidence: `docs/ai-config/model-catalogue-refresh-2026-11.md`.
+
 ### #84 — The AI model catalogue is out of date, and a refused model reports as an invalid API key
 **Priority**: High · **Status**: honest errors and alerts, Node 24, the SDK
 upgrades, one server-authoritative catalogue read by both the providers and the

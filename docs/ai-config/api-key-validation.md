@@ -18,8 +18,8 @@ The AI Configuration flow validates API keys using provider-aware, soft checks. 
   - `validateApiKeyForService(key, serviceType)` uses permissive regex patterns per provider.
 - UI Hook: `packages/frontend/src/components/ai-configuration/steps/ApiKeyStep.tsx`
   - On blur, calls `validateApiKeyForService`; if `warning`, shows a centralized toast via `useMessage().showMessage(text, 'warning')`.
-- Legacy Form Alignment: `packages/frontend/src/components/ai-configuration/form/AIConfigurationForm.tsx`
-  - OpenAI’s strict check was softened to a warning toast and no longer blocks submit.
+- The unused legacy `AIConfigurationForm` was removed in v1.8.2; Add/Edit use the shared dialog exclusively.
+- Format warnings do not replace save/activation entitlement checks. Rejected keys, unavailable models and exhausted provider credit retain distinct error handling.
 
 ## Rationale
 

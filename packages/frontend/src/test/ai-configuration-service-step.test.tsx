@@ -22,7 +22,7 @@
  */
 
 import React from 'react'
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import { describe, expect, test, vi, beforeEach } from 'vitest'
 
 import { ServiceStep } from '@/components/ai-configuration/steps/ServiceStep'
@@ -108,6 +108,7 @@ const buildData = (overrides: Partial<ApiKeyConfigData> = {}): ApiKeyConfigData 
 const withCatalogue = (models: CatalogueModel[]) => {
   vi.mocked(useModelCatalogue).mockReturnValue({
     models,
+    findModel: (id?: string | null) => models.find(entry => entry.id === id),
     endpoints: {},
     isLoading: false,
     refresh: vi.fn()
@@ -266,3 +267,27 @@ describe('ServiceStep reading the model catalogue', () => {
     expect(onChange).not.toHaveBeenCalled()
   })
 })
+
+
+test('editing a withdrawn model resolves its notice without offering it again', () => {
+  const old = { ...haiku, lifecycle: { status: 'active', offered: false, replacement: 'claude-haiku-5-5' } } as CatalogueModel;
+  const current = { ...haiku, id: 'claude-haiku-5-5', displayName: 'claude-haiku-5-5' };
+  vi.mocked(useModelCatalogue).mockReturnValue({ models: [current], withdrawn: [old],
+    findModel: id => [old, current].find(entry => entry.id === id), endpoints: {}, isLoading: false, refresh: vi.fn() });
+  render(<ServiceStep mode="edit" data={buildData({ serviceType: 'Anthropic', model: old.id, modelName: old.displayName })} onChange={vi.fn()} />);
+  expect(screen.getByRole('combobox', { name: 'Model' }).textContent).toContain(old.id);
+  fireEvent.click(screen.getByRole('combobox', { name: 'Model' }));
+  expect(screen.queryByRole('option', { name: old.id })).toBeNull();
+  expect(screen.getByRole('option', { name: current.id })).toBeTruthy();
+});
+
+test('selecting another model clears unsupported effort and sets preset pricing', () => {
+  const current = { ...haiku, id: 'claude-haiku-5-5', displayName: 'claude-haiku-5-5',
+    capabilities: { ...haiku.capabilities, reasoning: { kind: 'adaptive', values: ['low', 'medium', 'high'], leastCost: 'low', canDisable: true } } } as CatalogueModel;
+  withCatalogue([current]);
+  const onChange = vi.fn();
+  render(<ServiceStep mode="edit" data={buildData({ serviceType: 'Anthropic', model: 'old', thinkingLevel: 'minimal' })} onChange={onChange} />);
+  fireEvent.click(screen.getByRole('combobox', { name: 'Model' }));
+  fireEvent.click(screen.getByRole('option', { name: current.id }));
+  expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ model: current.id, thinkingLevel: null, pricingSource: 'preset' }));
+});

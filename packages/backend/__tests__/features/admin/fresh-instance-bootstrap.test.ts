@@ -35,6 +35,8 @@ let sqlite: (sql: string) => string;
 
 const freshDatabase = () => {
   const path = join(workdir, `db-${Math.random().toString(36).slice(2)}.db`);
+  // Materialize an empty SQLite database before Prisma's schema engine opens it.
+  execFileSync('sqlite3', [path, 'VACUUM;']);
   execFileSync('npx', ['prisma', 'migrate', 'deploy'], {
     cwd: join(__dirname, '../../..'),
     env: { ...process.env, DATABASE_URL: `file:${path}` },

@@ -54,6 +54,7 @@
  * persisted spend includes failed replies and unknown prices are refused.
  */
 
+import { pricingRates } from '../src/services/ai/pricing';
 import type { AIConfiguration } from '@prisma/client';
 
 import prisma from '../src/db';
@@ -140,6 +141,7 @@ interface Options {
   includeFrontier: boolean;
   provider?: string;
   configId?: number;
+  modelId?: string;
   ceiling: number;
 }
 
@@ -166,6 +168,7 @@ export const parseArgs = (argv: string[]): Options => {
     unbilledOnly: argv.includes('--unbilled'),
     includeFrontier: argv.includes('--include-frontier'),
     provider: value('--provider'),
+    modelId: value('--model'),
     configId: configRaw ? Number(configRaw) : undefined,
     ceiling: ceilingRaw ? Number(ceilingRaw) : DEFAULT_CEILING_USD,
   };
@@ -180,17 +183,25 @@ export const parseArgs = (argv: string[]): Options => {
  * has deleted would be indefensible.
  */
 const selectConfigurations = async (options: Options): Promise<AIConfiguration[]> => {
+  const requested = options.modelId ? findCatalogueEntry(options.modelId) : undefined;
+  if (options.modelId && !requested) throw new Error('--model must name a catalogued model.');
   const configs = await prisma.aIConfiguration.findMany({
     where: {
       type: 'apikey',
       deletedAt: null,
       ...(options.configId ? { id: options.configId } : {}),
       ...(options.provider ? { serviceType: options.provider } : {}),
+      ...(requested ? { serviceType: requested.provider } : {}),
     },
-    orderBy: [{ serviceType: 'asc' }, { id: 'asc' }],
+    orderBy: requested ? [{ updatedAt: 'desc' }] : [{ serviceType: 'asc' }, { id: 'asc' }],
   });
 
-  return configs.filter((config) => {
+  // Clone one credential-bearing local configuration, without saving or activating it.
+  const candidates = requested ? configs.filter(config => config.encryptedApiKey).slice(0, 1).map(config => ({
+    ...config, model: requested.id, modelName: requested.displayName, pricingSource: 'preset',
+    unitPrice: 'per_1m', inputCost: requested.pricing.input, outputCost: requested.pricing.output, thinkingLevel: null,
+  })) : configs;
+  return candidates.filter((config) => {
     if (!config.model || !isCatalogueProvider(config.serviceType)) return false;
     if (options.includeFrontier) return true;
     const entry = findCatalogueEntry(config.model);
@@ -225,8 +236,9 @@ export const projectedCost = (config: AIConfiguration): number | null => {
   if (multiplier === null || typeof config.inputCost !== 'number' || typeof config.outputCost !== 'number'
     || !Number.isFinite(config.inputCost) || !Number.isFinite(config.outputCost)
     || config.inputCost <= 0 || config.outputCost <= 0) return null;
-  const inputPrice = Math.max(entry.pricing.input, config.inputCost * multiplier);
-  const outputPrice = Math.max(entry.pricing.output, config.outputCost * multiplier);
+  const effective = pricingRates({ ...config, pricingSource: 'preset' }, ASSUMED_INPUT_TOKENS);
+  const inputPrice = Math.max(effective.input * 1e6, config.inputCost * multiplier);
+  const outputPrice = Math.max(effective.output * 1e6, config.outputCost * multiplier);
 
   const inputTokens = ASSUMED_INPUT_TOKENS * BILLABLE_REQUESTS;
   const outputTokens = SWEEP_OUTPUT_CAP * BILLABLE_REQUESTS;
