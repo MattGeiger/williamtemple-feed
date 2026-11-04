@@ -6,6 +6,7 @@
 // not covered by this license; see TRADEMARKS.md.
 
 import { priceUsage } from '../pricing';
+import { credentialTag, probeOpenAIEntitlement, type EntitlementTrace } from '../openai-entitlement';
 import OpenAI from 'openai';
 import { AITranslationService, TranslationRequest, TranslationResult, ClassificationRequest, ClassificationResult, BatchTranslationRequest, BatchTranslationResult, ServiceCapabilities, ServiceLimits, ProviderAccessResult } from '../base/AITranslationService';
 import { limitEnforcement } from '../../limits';
@@ -183,20 +184,17 @@ export class OpenAITranslationService extends AITranslationService {
     }
   }
 
-  async verifyEntitlement(): Promise<ProviderAccessResult> {
+  async verifyEntitlement(options: { onTrace?: (trace: EntitlementTrace) => void } = {}): Promise<ProviderAccessResult> {
     try {
       const openai = await this.getOpenAIClient();
-      const model = this.getModel();
-      const reasoning = resolveReasoning(capabilitiesFor('OpenAI', model), null).value;
-      await openai.chat.completions.create({
-        model,
-        messages: [{ role: 'user', content: 'Reply with OK.' }],
-        ...(reasoning && { reasoning_effort: reasoning as ReasoningValue }),
-        ...this.buildMaxTokensParameter(model, 16),
+      const result = await probeOpenAIEntitlement(openai, this.config, {
+        credentialTag: credentialTag(this.cachedApiKey ?? ''), onTrace: options.onTrace,
       });
-      return { ok: true };
+      return result.ok ? { ok: true } : { ok: false, error: result.error };
     } catch (error) {
-      console.error('OpenAI entitlement check failed:', error);
+      // Initialization failures can contain credentials too; the normal probe
+      // logs only allowlisted response metadata.
+      console.error('[OpenAI entitlement] Client initialization failed.');
       return { ok: false, error };
     }
   }

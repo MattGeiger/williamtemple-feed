@@ -192,6 +192,10 @@ const describe = (
         + 'An administrator needs to open Tools → AI Configuration and activate a model, entering its '
         + 'API key first if this instance was restored from a backup.';
     case 'misconfigured':
+      if (subject === 'this configuration') {
+        return `The AI provider refused access to the configured model${named} during the save check. No changes were saved. `
+          + 'Check the API key and project model permissions. If permissions were just changed, allow time for them to take effect before checking again.';
+      }
       return `The AI provider rejected FEED's API key or the model it is set to use${named}, so ${subject} was not translated. `
         + 'Retrying will not help. An administrator needs to check the key and the model in '
         + 'Tools → AI Configuration — a provider can withdraw a model, or refuse one this account cannot call.';
@@ -204,6 +208,13 @@ const describe = (
         + 'Try again in a moment. If it keeps failing, check the provider settings in Tools → AI Configuration.';
   }
 };
+
+/** A provider answered but did not demonstrate usable generation. */
+export const providerVerificationError = (model: string): AppRouteError => createRouteError(
+  `OpenAI did not return a complete, usable answer while checking ${model}. No changes were saved. `
+    + 'Choose another model or ask an administrator to review the provider check.',
+  503, 'AI_MODEL_VERIFICATION_FAILED',
+);
 
 /** The failure, its code, and the sentence staff see — without raising anything. */
 export const describeProviderFailure = (

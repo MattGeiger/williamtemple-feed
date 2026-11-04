@@ -93,6 +93,7 @@ export const verifyProviderEntitlement = async (
   const service = AIServiceFactory.createServiceFromConfiguration(config);
   const result = await service.verifyEntitlement();
   if (!result.ok) {
+    if ((result.error as { code?: string })?.code === 'AI_MODEL_VERIFICATION_FAILED') throw result.error;
     throw providerFailureError(result.error, {
       subject: 'this configuration',
       model: service.getConfiguredModel(),

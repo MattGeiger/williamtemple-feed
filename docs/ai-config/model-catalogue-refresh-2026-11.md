@@ -189,29 +189,93 @@ generation, configuration writes or permission changes were performed.
 
 Source inspection rules out the translation failure cache for ordinary saves:
 each save creates an uncached service, verifies entitlement and only then
-persists. However, successful probe responses are discarded: `verifyEntitlement`
-accepts any successful HTTP response without checking text, returned model,
-finish reason or usage. Its 16-token output cap can also be insufficient for a
-reasoning model to produce visible text. This is a validation gap; whether any
+persists. At discovery, successful probe responses were discarded:
+`verifyEntitlement` accepted any successful HTTP response without checking text,
+returned model, finish reason or usage. Its 16-token output cap could also be
+insufficient for a reasoning model to produce visible text. Whether any
 of the user's accepted saves had empty/truncated output is currently unknown.
 
-Next diagnostic round should use a fixed saved key/model/prompt and record both
-successes and failures: UTC timestamp, local attempt id, provider request id,
-status/code, requested/returned model, finish reason, output presence and token
-usage. Use an opaque credential correlation tag, never keys, authorization
-headers, cookies or full SDK error dumps. Disable hidden SDK retries for the
-comparison. Compare the save path with a direct SDK generation using identical
-parameters, repeat a small spaced sample under an agreed spend limit, then
-repeat after a delay. Require usable output and a subsequent real translation
-before marking generation verified. If identical direct calls alternate between
-403 and usable output, provide the paired request ids privately to OpenAI
-support. Do not mask 403s with automatic retries or bypass save validation.
+#### Controlled follow-up — implemented and executed
+
+The user approved up to **$1.00** for this investigation. The existing provider
+pattern was extended without new dependencies, UI steps or configuration writes:
+
+- `services/ai/openai-entitlement.ts` provides the fixed save request and strict
+  response check. The output cap is 512 tokens, including reasoning. Success
+  requires the requested model (or its dated snapshot), normal `stop`, nonempty
+  text, no refusal and valid usage counts. Empty, truncated or mismatched replies
+  return `AI_MODEL_VERIFICATION_FAILED`, not a successful save or generic outage.
+- Every probe emits an allowlisted trace: UTC time, client/provider request ids,
+  lane, config id, process-scoped HMAC credential tag, requested/returned model,
+  HTTP status/code, finish reason, output presence, usage and estimated cost.
+  Neither output text nor keys, headers, cookies or full SDK exceptions are logged.
+- Save checks disable SDK retries and retain their single-check behavior. The
+  configuration-specific refusal message says no changes were saved and allows
+  for recent permission changes; it no longer claims a configuration was being
+  translated or that retry could never succeed. Translation error copy is unchanged.
+- `scripts/diagnose-openai-entitlement.ts` defaults to plan-only. `--bill` enables
+  up to three spaced rounds, alternating service/direct order, with the same
+  saved key/model/prompt and no SDK retries. Requests reserve the higher of
+  saved/current rates for 1,000 assumed input and 512 capped output tokens. The
+  input allowance is an estimate, not a hard token cap. Missing/uncertain billed
+  usage or an exhausted reservation stops further requests. No keys or settings
+  are rewritten and no configuration is activated.
+
+Executed from `packages/backend`:
+
+```bash
+npx ts-node scripts/diagnose-openai-entitlement.ts --ceiling 1 --rounds 3
+npx ts-node scripts/diagnose-openai-entitlement.ts --bill --ceiling 1 --rounds 3
+```
+
+At approximately 11:57–11:59 AM Pacific on November 4:
+
+| Model | FEED service checks | Direct SDK checks | FEED Spanish translation |
+|---|---|---|---|
+| GPT-6 Luna | 3/3 usable | 3/3 usable | Rice → Arroz |
+| GPT-6.1 Terra | 3/3 usable | 3/3 usable | Rice → Arroz |
+| GPT-6.1 Sol | 3/3 usable | 3/3 usable | Rice → Arroz |
+| GPT-6 Astra | 3/3 usable | 3/3 usable | Rice → Arroz |
+
+All 24 probes returned HTTP 200, the expected model, normal `stop`, nonempty
+output and usage; none used more than five completion tokens. The same credential
+tag appeared in both lanes for all models. Estimated probe cost: **$0.002384**.
+The direct lane uses an independently constructed SDK client; the service lane
+exercises FEED's real save-check method, not an HTTP PUT or a configuration write.
+
+Four additional `translateText` calls used FEED's real translation prompt,
+JSON-response parsing and usage tracking with synthetic text `Rice`, Spanish,
+in-memory 512-token limits and SDK retries disabled. All returned `Arroz`, with
+94 input and 14 output tokens each; one outbound call per model. Read-only
+inspection confirms four successful UsageRecord rows with matching models/costs.
+No translation-cache, inventory or configuration rows were written by this check.
+
+The 28 paid requests total **$0.0045324 estimated ordinary-token cost**, with
+**$0.444352 reserved** across both phases, below the approved $1.00. Estimates
+use the catalogue rates and are not provider invoice reconciliation. Raw safe
+request traces remain local at `/tmp/feed-openai-diagnostic-results.jsonl` and
+`/tmp/feed-openai-translation-check.jsonl`; credentials are absent. Request ids
+can be supplied privately to OpenAI if denial recurs.
+
+Backend build passes; the full suite passes **113 files / 1,354 tests**, with
+2 skipped. New regression coverage rejects unusable HTTP 200 replies, ensures
+403s are not retried even with an `x-should-retry` hint, checks trace redaction,
+preserves the verification error through route handling, and enforces the CLI's
+opt-in and reservation guards.
+
+The earlier intermittent 403 was **not reproduced**. Its cause is still unproven;
+permission propagation/provider routing remains a hypothesis. This short sample
+establishes current usable generation for these models, not long-term reliability
+or complete language/document/classification coverage. If failures recur, compare
+safe traces with identical parameters and paired provider request ids. Do not
+mask access refusals with automatic retries or bypass save validation.
 
 The earlier unbilled checks with the original local credentials returned 401.
 The agent did not initiate billable generation in that sweep ($0 recorded).
 The user's subsequent saves perform minimal paid generation; their spend was
-not measured here. Google and reliable usable OpenAI generation remain
-unverified. Request fixtures alone do not prove entitlement or output quality.
+not measured here. Google remains unverified; the later OpenAI follow-up above
+provides current live evidence. Request fixtures alone do not prove entitlement
+or output quality.
 
 Before release, complete this remaining feature checklist:
 

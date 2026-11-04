@@ -146,7 +146,12 @@ describe('OpenAITranslationService thinking level', () => {
   });
 
   test('save-time verification makes one minimal generation request', async () => {
-    const create = vi.fn().mockResolvedValue({ choices: [] });
+    const create = vi.fn().mockReturnValue({ withResponse: async () => ({
+      response: { status: 200 }, request_id: 'req-test', data: {
+        model: 'gpt-5-2025-08-07', choices: [{ finish_reason: 'stop', message: { content: 'OK' } }],
+        usage: { prompt_tokens: 10, completion_tokens: 2 },
+      },
+    }) });
     const service = new OpenAITranslationService(buildConfig()) as any;
     vi.spyOn(service, 'getOpenAIClient').mockResolvedValue({
       chat: { completions: { create } }
@@ -157,7 +162,7 @@ describe('OpenAITranslationService thinking level', () => {
     expect(create.mock.calls[0][0]).toMatchObject({
       model: 'gpt-5-2025-08-07',
       messages: [{ role: 'user', content: 'Reply with OK.' }],
-      max_completion_tokens: 16
+      max_completion_tokens: 512
     });
   });
 

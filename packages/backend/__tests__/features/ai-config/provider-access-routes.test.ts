@@ -208,6 +208,15 @@ describe('transient runtime failures', () => {
 });
 
 describe('save-time entitlement verification', () => {
+  test('preserves incomplete-generation errors instead of calling them an outage', async () => {
+    const error = Object.assign(new Error('No usable answer. No changes were saved.'), {
+      code: 'AI_MODEL_VERIFICATION_FAILED', statusCode: 503,
+    });
+    createServiceFromConfiguration.mockReturnValue({
+      verifyEntitlement: vi.fn().mockResolvedValue({ ok: false, error }), getConfiguredModel,
+    });
+    await expect(verifyProviderEntitlement({ model: 'gpt-6.1-terra' } as any)).rejects.toBe(error);
+  });
   test('uses a real-generation check and preserves the provider refusal', async () => {
     const verifyEntitlement = vi.fn().mockResolvedValue({ ok: false, error: refusedModel });
     createServiceFromConfiguration.mockReturnValue({ verifyEntitlement, getConfiguredModel });

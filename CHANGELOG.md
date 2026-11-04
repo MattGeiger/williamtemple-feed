@@ -34,6 +34,10 @@ All notable changes to FEED are documented here. This project adheres to
 - Updated lifecycle facts and current replacement guidance. Known unavailable
   models are refused before provider generation; configurations can be deactivated.
 - Updated Anthropic SDK from 0.125.0 to 0.129.0 for Sonnet's `between_tools` type.
+- Strengthened OpenAI save checks to require completed output from the requested
+  model and valid usage; raised the tiny probe allowance to 512 tokens, disabled
+  hidden retries, and added safe success/failure tracing. Save refusals now
+  describe configuration verification and recent permission changes accurately.
 
 ### Removed
 
@@ -50,8 +54,10 @@ All notable changes to FEED are documented here. This project adheres to
   Version 1.8.2 is prepared locally; no production deployment is claimed.
 - Completed authenticated local browser checks for the catalogue, nine-step
   workflow, upgrade notices, Custom entry, pricing/thinking controls, light/dark
-  rendering and dialog cleanup. Provider-backed saves and generation remain
-  pending working local AI credentials.
+  rendering and dialog cleanup. User saves passed for Claude 5.5; a controlled
+  OpenAI service/direct comparison passed 24/24 checks, followed by four Spanish
+  adapter translations. Earlier intermittent 403s were not reproduced and their
+  cause remains unconfirmed. Backend follow-up: 1,354 tests pass, 2 skipped.
 
 ## [1.8.1] — 2026-09-14
 

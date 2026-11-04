@@ -88,10 +88,12 @@ backend restart. User testing subsequently saved all three Claude 5.5 models.
 After project permission updates, OpenAI saves intermittently return 403
 `model_not_found` before succeeding; all four current models are now saved.
 Eight subsequent unbilled model lookups passed with the same saved key and no
-SDK retries. Reliable generation is not yet verified. The save probe currently
-accepts any successful HTTP response without validating usable output; paired
-success/failure tracing and controlled generation tests are required. Full
-translation checks remain pending. A React 19 `element.ref` compatibility diagnostic was
+SDK retries. Follow-up tightened save response validation, added redacted tracing
+on both outcomes and disabled save-probe retries. A controlled 24-request
+service/direct comparison passed, followed by four real Spanish translations
+(Rice → Arroz), for $0.0045324 estimated cost within the approved $1.00. The
+intermittent 403 did not recur; its cause remains unconfirmed. Full document,
+classification and language checks remain pending. A React 19 `element.ref` compatibility diagnostic was
 observed without a blocking UI failure; its origin relative to this refresh has
 not been established.
 
