@@ -6,8 +6,6 @@
 
 **Model settings and spending follow the selected model.** Thinking uses the lowest supported setting by default. Preset pricing accounts for applicable prompt-length tiers and scheduled rate changes; manually entered rates remain yours.
 
-This release is prepared and validated locally. Production deployment is a separate step.
-
 ## Version 1.8.1 — 2026-09-14
 
 **The top navigation banner has its frosted glass back in Chrome.** Content
