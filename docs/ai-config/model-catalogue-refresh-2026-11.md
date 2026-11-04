@@ -152,13 +152,29 @@ Screenshots captured in this chat show the Claude dropdown, Opus 5.5 in light
 mode and the retained Sonnet 5 upgrade notice in dark mode. These are local
 browser observations, not provider generation or deployed verification.
 
-### Checks still blocked by local AI credentials
+### User save checks — November 4, 2026
 
-Unbilled model-access checks with the available local OpenAI, Anthropic and
-Google credentials returned 401. No billable model generation was attempted;
-recorded spend for this refresh is $0. Request fixtures establish local request
-shape, not live account entitlement or translation quality. The six new models
-still require successful live generation with working credentials.
+The user entered fresh Anthropic keys and reported successful model updates.
+A read-only local database check confirms Haiku/Sonnet/Opus 5.5 were persisted;
+Haiku is active, and Sonnet/Opus are inactive. Saves run the existing minimal
+generation entitlement check. This validates saved model/key setup, not the
+full translation/classification feature matrix or output quality.
+
+OpenAI updates with a fresh key fail during the generation entitlement check.
+The provider returned HTTP 403, `model_not_found`, explicitly stating the key's
+project does not have access to `gpt-6-astra` and `gpt-6.1-sol`. These were real
+provider responses, not FEED parameter validation or an invalid-key 401. The
+exact account restriction has not been established; project model permissions
+and organization availability need review. Creating another key in the same
+project does not by itself resolve project-level model restrictions. See
+[OpenAI project model permissions](https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/projects/subresources/model_permissions/methods/retrieve).
+No account permissions were changed, and no failed OpenAI update was persisted.
+
+The earlier unbilled checks with the original local credentials returned 401.
+The agent did not initiate billable generation in that sweep ($0 recorded).
+The user's subsequent Anthropic saves perform minimal paid generation; their
+spend was not measured here. Google and successful OpenAI generation remain
+unverified. Request fixtures alone do not prove entitlement or output quality.
 
 After local AI credentials are restored, complete this remaining feature checklist:
 

@@ -84,8 +84,11 @@ and leave production deployment separate. The user confirmed that no current
 deployment uses GPT-5; September's production-migration prerequisite is historical.
 Implementation and validation evidence: `docs/ai-config/model-catalogue-refresh-2026-11.md`.
 Authenticated local catalogue/modal checks pass after the Resend key refresh and
-backend restart. Successful provider-backed saves and translation remain blocked
-by local AI credentials. A React 19 `element.ref` compatibility diagnostic was
+backend restart. User testing subsequently saved all three Claude 5.5 models.
+OpenAI Astra/Sol saves reach the provider but return 403 `model_not_found`:
+the key's project lacks access to those models. Project/organization access
+needs review; this is not an invalid-key 401. Full translation checks remain
+pending. A React 19 `element.ref` compatibility diagnostic was
 observed without a blocking UI failure; its origin relative to this refresh has
 not been established.
 
