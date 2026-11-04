@@ -83,6 +83,11 @@ series, retain Astra/Fable and the four Google selections, preserve the workflow
 and leave production deployment separate. The user confirmed that no current
 deployment uses GPT-5; September's production-migration prerequisite is historical.
 Implementation and validation evidence: `docs/ai-config/model-catalogue-refresh-2026-11.md`.
+Authenticated local catalogue/modal checks pass after the Resend key refresh and
+backend restart. Successful provider-backed saves and translation remain blocked
+by local AI credentials. A React 19 `element.ref` compatibility diagnostic was
+observed without a blocking UI failure; its origin relative to this refresh has
+not been established.
 
 ### #84 — The AI model catalogue is out of date, and a refused model reports as an invalid API key
 **Priority**: High · **Status**: honest errors and alerts, Node 24, the SDK

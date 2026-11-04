@@ -48,6 +48,10 @@ All notable changes to FEED are documented here. This project adheres to
   `docs/ai-config/model-catalogue-refresh-2026-11.md`.
 - Refreshed current documentation and archived the obsolete model reference.
   Version 1.8.2 is prepared locally; no production deployment is claimed.
+- Completed authenticated local browser checks for the catalogue, nine-step
+  workflow, upgrade notices, Custom entry, pricing/thinking controls, light/dark
+  rendering and dialog cleanup. Provider-backed saves and generation remain
+  pending working local AI credentials.
 
 ## [1.8.1] — 2026-09-14
 

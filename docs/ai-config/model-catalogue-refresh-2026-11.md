@@ -113,11 +113,46 @@ npx vitest run
 npm run typecheck:ratchet
 ```
 
-### Checks blocked by local configuration
+### Authenticated browser pass — November 4, 2026
 
-The real browser reached login at localhost:5173. The user attempted sign-in;
-Resend rejected the local key's associated sending domain as unverified.
-Authentication was not bypassed. No authenticated modal/feature smoke is claimed.
+The user replaced the local Resend key. Restarting the backend loaded the new
+environment, and the user completed normal sign-in. Authentication was not
+bypassed. The in-app browser pass at localhost:5173 verified:
+
+- All twelve offered ids, grouped correctly by provider, plus Custom. Google
+  selections are unchanged; GPT-5.6 and the older Claude presets are absent.
+- Add opens on Gemini 3.5 Flash-Lite; switching providers selects GPT-6 Luna or
+  Haiku 5.5. GPT-6.1 Sol completed all nine steps to an enabled Create button,
+  using a dummy key only in the unsaved draft. No key or configuration was saved.
+- Sol's $2/$10 rates, 1,050,000/128,000 token limits, omitted sampling controls
+  and low-through-max thinking range. Haiku's $0.1/$0.5 rates, 1M/128K limits,
+  omitted sampling and low-through-max slider; keyboard End selects max and
+  displays the existing higher-cost warning. Opus 5.5 prefills $4/$20 rates and
+  displays the expensive-model notice.
+- Saved Sonnet 5/Opus 5 stay readable with Superseded notices. Edit offers their
+  5.5 replacements without reoffering the old ids. Switching Sonnet to 5.5
+  prefills current rates and low default thinking and reaches Save Changes.
+- Edit keeps the key empty with the existing leave-blank-to-preserve message.
+  A draft manual price survives Back/Next. Canceling and reopening Sonnet shows
+  the original saved model; existing rows remain unchanged (15 configurations).
+- Custom reveals the free-text model field, disables Next when empty and enables
+  it after entry. Light/dark dialogs render legibly, and the initial dark theme
+  was restored. Dropdown → Edit → Close/Cancel and subsequent Add operations work.
+  After animations finish there are no visible dialogs, menus or poppers, and
+  `document.body.style.pointerEvents` is empty rather than stuck at `none`.
+- The sidebar reports Version 1.8.2; Release Notes opens the matching entry and
+  describes local preparation separately from production deployment.
+
+No blocking workflow defect was observed. The console emitted a React 19
+`element.ref` compatibility diagnostic from a dependency; this pass does not
+establish whether it predates the refresh. It did not prevent the checked
+interactions. No runtime code was changed during this browser pass.
+
+Screenshots captured in this chat show the Claude dropdown, Opus 5.5 in light
+mode and the retained Sonnet 5 upgrade notice in dark mode. These are local
+browser observations, not provider generation or deployed verification.
+
+### Checks still blocked by local AI credentials
 
 Unbilled model-access checks with the available local OpenAI, Anthropic and
 Google credentials returned 401. No billable model generation was attempted;
@@ -125,15 +160,15 @@ recorded spend for this refresh is $0. Request fixtures establish local request
 shape, not live account entitlement or translation quality. The six new models
 still require successful live generation with working credentials.
 
-After local credentials are restored, complete this short feature checklist:
+After local AI credentials are restored, complete this remaining feature checklist:
 
-1. Sign in normally. Open Add AI Model, verify all provider selections and Custom,
-   then complete the existing steps and save a current model with a valid key.
-   Close/reopen dialogs and confirm the page remains clickable in light/dark mode.
-2. Edit a saved withdrawn model: its label and notice remain visible, it is absent
-   from the choices, and switching to a current model resets incompatible effort.
-   Save with the key blank to preserve it. Reopen after a manual price change and
-   confirm prices, units and provenance survive.
+1. Save a current model with a valid key, then reopen it and verify persistence.
+   The browser pass reached the save controls but deliberately did not submit
+   a dummy credential or modify existing configurations.
+2. Save an upgrade with the key blank to verify preservation against a working
+   provider account. Save/reopen a manual price override and verify rates, units
+   and provenance persist. Automated route/restore tests already cover storage;
+   successful provider-backed browser saves are still pending.
 3. Run each new model's small translation and batch classification, including
    highest effort, malformed/truncated replies and retry/usage accounting where
    fixtures cover injected failures. Review output with a qualified language user.
