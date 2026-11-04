@@ -26,3 +26,13 @@ test('unfamiliar GPT-6 Custom models use conservative reasoning parameters', () 
     reasoning: { kind: 'effort', leastCost: 'low' },
   });
 });
+
+test.each(['gpt-6-luna', 'gpt-6.1-terra', 'gpt-6.1-sol'])(
+  '%s exposes the highest effort its live API actually accepts', id => {
+    const reasoning = findCatalogueEntry(id)!.capabilities.reasoning;
+    expect(reasoning.kind).toBe('effort');
+    if (reasoning.kind !== 'effort') throw new Error('Expected effort control');
+    expect(reasoning.values.at(-1)).toBe('xhigh');
+    expect(reasoning.values).not.toContain('max');
+  },
+);

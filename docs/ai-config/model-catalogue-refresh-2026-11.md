@@ -39,6 +39,9 @@ that date. No automatic migration of saved configurations is performed.
   sampling. Luna/Terra default to `none`; Sol to `low`. Explicit effort is
   validated against each model. Newly selected models discard incompatible
   saved effort values. Provider maxima do not replace FEED operation caps.
+  November 4 live requests rejected `max` for Luna/Terra/Sol; their selectable
+  ceiling is `xhigh`, which passed for all three. This measured API contract
+  takes precedence over the higher level listed on the provider pages.
 - Claude: Messages, no assistant prefill or sampling. Haiku defaults to disabled
   thinking and low effort; Sonnet to `between_tools` and low effort; Opus to
   adaptive thinking and low effort. Haiku permits forced classification tools;
@@ -304,23 +307,96 @@ not measured here. Google remains unverified; the later OpenAI follow-up above
 provides current live evidence. Request fixtures alone do not prove entitlement
 or output quality.
 
-Before release, complete this remaining feature checklist:
+The earlier feature checklist is superseded by the local validation below.
+Provider-backed saves and blank-key preservation have now been exercised;
+manual price/provenance persistence and unavailable-model lifecycle controls
+are covered by automated route/modal/restore tests. A separate browser save of
+a manual price override was not performed. Qualified language review remains
+a human responsibility; synthetic smoke output is not a translation-quality
+certification. Google live testing is explicitly excluded by the user because
+its selections were unchanged. Production verification remains a separate step.
 
-1. Save a current model with a valid key, then reopen it and verify persistence.
-   The browser pass reached the save controls but deliberately did not submit
-   a dummy credential or modify existing configurations.
-2. Save an upgrade with the key blank to verify preservation against a working
-   provider account. Save/reopen a manual price override and verify rates, units
-   and provenance persist. Automated route/restore tests already cover storage;
-   successful provider-backed browser saves are still pending.
-3. Run each new model's small translation and batch classification, including
-   highest effort, malformed/truncated replies and retry/usage accounting where
-   fixtures cover injected failures. Review output with a qualified language user.
-4. Exercise food/category translation, DOCX classification/translation and builder
-   translated PDF with Arabic and CJK text. Render the exported PDF and compare
-   against the canvas. Confirm cache reuse avoids unnecessary generation.
-5. Verify an unavailable model is refused with replacement advice and can still
-   be deactivated/deleted. Confirm no key appears in responses or browser storage.
+### Completed feature validation — November 4 follow-up
+
+The user authorized synthetic local fixtures and a cumulative $1.00 provider
+test allowance. No Google requests were made in this follow-up. Provider-service
+checks use saved credentials without changing the saved model; browser checks
+use the authenticated application at port 5173 and the real backend at 3001.
+
+| Models | Spanish single translation | Arabic batch, including duplicate ids | Three-segment classification | Highest selectable effort |
+|---|---|---|---|---|
+| GPT-6 Luna, GPT-6.1 Terra, GPT-6.1 Sol | Pass | Pass | Pass | `xhigh`: pass after removing rejected `max` |
+| GPT-6 Astra | Pass | Pass | Pass | `xhigh`: pass |
+| Claude Haiku 5.5 | Pass | Pass after batch parsing fix | Pass | `max`: pass with 1,024-token cap |
+| Claude Sonnet 5.5, Opus 5.5, Fable 5.1 | Pass | Pass | Pass | `max`: pass |
+
+The initial OpenAI sweep was 25/28: only the three `max` requests failed with
+HTTP 400. All three complete model sweeps then passed 7/7 at the accepted
+`xhigh` ceiling. The initial Claude sweep was 27/28: Haiku returned a batch
+shape that failed JSON parsing. The old parser reproduces that failure for a
+fenced array of objects because it extracts the inner braces and drops the
+array brackets. FEED now parses complete fenced JSON first, accepts either a
+valid array or the established `translations` envelope, explicitly requests the
+envelope, and requires exactly one non-empty result per unique input. Duplicate
+input ids are restored. Incomplete batches fail instead of silently succeeding.
+Billed malformed/truncated batch replies, and truncated/empty single replies,
+now retain failed usage records with provider-reported token counts.
+
+Haiku's repeat highest-effort request exhausted the intentionally tiny 512-token
+test cap. It was rejected rather than accepted as a translation; a separately
+bounded 1,024-token check completed (`Rice` → `Arroz`, 244 input/193 output).
+This is an output-budget limitation, not evidence of lost model access. Other
+production configuration limits were not reduced by the refresh.
+
+Authenticated browser and feature checks:
+
+- Uploaded a valid, four-paragraph synthetic DOCX; Auto-Format classified all
+  four segments through GPT-6 Luna, then Spanish translation replaced all four.
+  Downloaded the DOCX, rendered it with LibreOffice/Poppler and visually inspected
+  all text. A first minimal fixture lacked the required DOCX relationships and
+  failed extraction; replacing the test fixture resolved it without app changes.
+- Selected exactly 40 synthetic failed Custom translations and used **Actions →
+  Retry Selected**. All 40 completed through Luna on the first run. Its temporary
+  512-token cap bounded this concurrent test; the original limit was restored.
+- Generated Arabic shopping-list PDF through Luna and Chinese PDF through Haiku
+  using a synthetic text/table template. Rendered both with Poppler and compared
+  their canvas previews: Arabic shaping, mirrored table columns and dividers,
+  Chinese glyphs, English tags, arrow, limits and row placement were legible and
+  consistent. App dark mode did not tint the printed pages. This exercises the
+  existing builder workflow; no Shopping List UX changes were included.
+- Repeated Chinese PDF export: usage record count stayed **229 → 229**, with no
+  extra provider generation. Both fresh and cached exports downloaded normally.
+- Ran the actual inventory translation queue with synthetic Category and FoodItem
+  records through Haiku for Arabic and Chinese. All four generic cache rows
+  completed, with two denormalized translations per inventory record. This is a
+  service-pipeline check, separate from the browser checks above.
+- Removed the two fixture documents, translated DOCX, builder template, temporary
+  inventory records and newly created translation/classification cache rows.
+  Restored the original Luna/Haiku output limits, timestamps and default-provider
+  ordering. Preserved real usage records; keys, model choices and other saved
+  settings were not changed. Evidence downloads/screenshots remain outside Git.
+
+Recorded OpenAI/Anthropic usage for November 4 totals **$0.0933044** (including
+earlier diagnostics). Two failures before the accounting fixes were unrecorded:
+the Haiku truncated single response reports 255 input/512 output tokens
+($0.0002815); reserving an additional $0.001 for the failed tiny batch keeps the
+combined accounted amount/allowance **below $0.10**, within the $1.00 approval.
+These are FEED rate-based estimates, not a provider invoice reconciliation.
+
+Final checks: backend **113 files, 1,364 passed, 2 skipped**; frontend **88 files,
+584 passed**; both production builds pass. One first full backend run timed out
+in a catalogue HTTP test under concurrent validation. The unchanged test passed
+9/9 in isolation and the complete rerun passed; no timeout increase was made.
+The frontend build retains its existing large-chunk warning. Earlier documented
+frontend type debt remains separate from this change. Regression fixtures cover
+fenced arrays, missing/blank translations, deduplication, malformed JSON,
+truncation accounting and the measured OpenAI reasoning ceiling.
+
+Evidence outside the repo: `/tmp/feed-182-final-backend-rerun.log`,
+`/tmp/feed-182-final-frontend-tests.log`, `/tmp/feed-182-cleanup.log`,
+`/tmp/feed-182-arabic-canvas.png`, `/tmp/feed-182-chinese-canvas.png`, and rendered
+pages under `/tmp/feed-182-render/`. Earlier intermittent OpenAI 403s remain
+unreproduced; the successful tests do not establish their original cause.
 
 The existing smoke runner supports an explicit model without editing/activating
 the saved configuration. It reuses the newest matching provider credential and

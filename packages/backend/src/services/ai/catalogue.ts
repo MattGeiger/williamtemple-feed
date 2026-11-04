@@ -349,7 +349,9 @@ const CATALOGUE_BASE: readonly CatalogueEntryWithoutLanguages[] = [
     capabilities: {
       sampling: 'unsupported', maxTokensField: 'max_completion_tokens', prefill: 'allowed',
       reasoning: { kind: 'effort', leastCost,
-        values: [...(leastCost === 'none' ? ['none'] : []), 'low', 'medium', 'high', 'xhigh', 'max'] },
+        // Live 2026-11-04: all three reject `max` with HTTP 400 and
+        // explicitly list xhigh as their ceiling, despite the model pages.
+        values: [...(leastCost === 'none' ? ['none'] : []), 'low', 'medium', 'high', 'xhigh'] },
     },
   })),
   ...([

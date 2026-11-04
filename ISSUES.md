@@ -92,8 +92,8 @@ SDK retries. Follow-up tightened save response validation, added redacted tracin
 on both outcomes and disabled save-probe retries. A controlled 24-request
 service/direct comparison passed, followed by four real Spanish translations
 (Rice → Arroz), for $0.0045324 estimated cost within the approved $1.00. The
-intermittent 403 did not recur; its cause remains unconfirmed. Full document,
-classification and language checks remain pending. A React 19 `element.ref` compatibility diagnostic was
+intermittent 403 did not recur; its cause remains unconfirmed. The later local
+feature validation below supersedes the pending checks. A React 19 `element.ref` compatibility diagnostic was
 observed without a blocking UI failure; its origin relative to this refresh has
 not been established.
 
@@ -102,6 +102,22 @@ OpenAI configurations passed 8/8 saves on first attempt. All provider traces wer
 200/complete; only save timestamps changed after restoration. Metadata-only
 saves still depend on an external generation check, so provider access failures
 can block them. No runtime behavior was changed in this follow-up.
+
+Final authorized local feature pass: all eight OpenAI/Anthropic models completed
+single/batch translation and classification. Live API evidence corrected the
+three new OpenAI reasoning ceilings from `max` to `xhigh`. A Haiku batch failure
+exposed a fenced-array parser defect and incomplete-result acceptance; both are
+fixed, with billed unusable responses recorded as failures. Haiku `max` completed
+with a 1,024-token test budget after a 512-token capped response was truncated.
+Authenticated browser checks passed Spanish DOCX classification/translation,
+40-row bulk retry, Arabic/Chinese PDFs and cache reuse (zero additional provider
+calls). Inventory translation queue checks passed both languages. Fixtures and
+temporary settings were removed/restored. Google testing was explicitly excluded.
+Final suites: backend 1,364 passed/2 skipped, frontend 584 passed; both builds
+pass. One initial HTTP-test timeout passed unchanged in isolation and in the
+full rerun. Accounted spend/allowance remains below $0.10 of the approved $1.00.
+Production deployment and human language review remain separate; no root cause
+is claimed for the earlier intermittent OpenAI refusals.
 
 ### #84 — The AI model catalogue is out of date, and a refused model reports as an invalid API key
 **Priority**: High · **Status**: honest errors and alerts, Node 24, the SDK

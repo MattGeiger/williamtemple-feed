@@ -30,6 +30,7 @@ import type { AIConfiguration } from '@prisma/client';
 vi.mock('../../../../db', () => ({ default: {} }));
 
 import { AnthropicTranslationService } from '../AnthropicTranslationService';
+import { PromptBuilder } from '../../prompts/PromptBuilder';
 
 const buildConfig = (overrides: Partial<AIConfiguration> = {}): AIConfiguration =>
   ({
@@ -156,10 +157,66 @@ describe('parsing a reply either way', () => {
     });
   });
 
+  test('a fenced array retains its enclosing brackets', () => {
+    expect(parse('```json\n[{"translatedText":"Arroz"},{"translatedText":"Frijoles"}]\n```', false))
+      .toEqual([{ translatedText: 'Arroz' }, { translatedText: 'Frijoles' }]);
+  });
+
   test('prose around the object does not defeat it', () => {
     expect(parse('Here you go:\n{"translatedText": "Hola"}\nHope that helps.', false)).toEqual({
       translatedText: 'Hola',
     });
+  });
+});
+
+describe('complete batch replies and billed failures', () => {
+  test('records a truncated single translation without retrying it', async () => {
+    const service = new AnthropicTranslationService(buildConfig({ model: 'claude-haiku-5-5' })) as any;
+    const create = vi.fn().mockResolvedValue({ stop_reason: 'max_tokens',
+      content: [{ type: 'text', text: '{' }], usage: { input_tokens: 20, output_tokens: 512 } });
+    vi.spyOn(service, 'getAnthropicClient').mockResolvedValue({ messages: { create } });
+    const failed = vi.spyOn(service, 'trackFailedUsage').mockResolvedValue(undefined);
+    await expect(service.translateText({ text: 'Rice', targetLanguage: 'Spanish' })).rejects.toThrow('truncated');
+    expect(create).toHaveBeenCalledOnce();
+    expect(failed).toHaveBeenCalledWith('translation', expect.objectContaining({ promptTokens: 20, completionTokens: 512 }),
+      'claude-haiku-5-5', { language: 'Spanish' });
+  });
+
+  const run = async (text: string, stopReason = 'end_turn') => {
+    const service = new AnthropicTranslationService(buildConfig({ model: 'claude-haiku-5-5' })) as any;
+    vi.spyOn(PromptBuilder, 'getPromptConfiguration').mockResolvedValue({
+      systemPrompt: 'Translate to {targetLanguage}', maxTokens: 512, isCustom: false
+    });
+    const create = vi.fn().mockResolvedValue({ stop_reason: stopReason,
+      content: [{ type: 'text', text }], usage: { input_tokens: 20, output_tokens: 10 } });
+    vi.spyOn(service, 'getAnthropicClient').mockResolvedValue({ messages: { create } });
+    const failed = vi.spyOn(service, 'trackFailedUsage').mockResolvedValue(undefined);
+    const succeeded = vi.spyOn(service, 'trackSuccessfulUsage').mockResolvedValue(undefined);
+    const result = service.translateTextBatch({ targetLanguage: 'Spanish', texts: [
+      { id: 'a', text: 'Rice' }, { id: 'b', text: 'Beans' }, { id: 'c', text: 'Rice' }
+    ] });
+    return { result, failed, succeeded, create };
+  };
+
+  test('accepts a fenced array and restores duplicate input ids', async () => {
+    const { result, failed, succeeded, create } = await run('```json\n[{"translatedText":"Arroz"},{"translatedText":"Frijoles"}]\n```');
+    expect((await result).translations.map((entry: any) => entry.id)).toEqual(['a', 'c', 'b']);
+    expect(create.mock.calls[0][0].messages[0].content).toContain('exactly 2 entries');
+    expect(failed).not.toHaveBeenCalled();
+    expect(succeeded).toHaveBeenCalledOnce();
+  });
+
+  test.each([
+    ['malformed JSON', '{bad', 'end_turn'],
+    ['missing entry', '{"translations":[{"translatedText":"Arroz"}]}', 'end_turn'],
+    ['blank entry', '{"translations":[{"translatedText":"Arroz"},{"translatedText":" "}]}', 'end_turn'],
+    ['truncated response', '{}', 'max_tokens']
+  ])('rejects %s and records actual billed usage', async (_name, text, stopReason) => {
+    const { result, failed, succeeded } = await run(text, stopReason);
+    await expect(result).rejects.toThrow();
+    expect(failed).toHaveBeenCalledWith('batch', expect.objectContaining({ promptTokens: 20, completionTokens: 10 }),
+      'claude-haiku-5-5', { language: 'Spanish' });
+    expect(succeeded).not.toHaveBeenCalled();
   });
 });
 

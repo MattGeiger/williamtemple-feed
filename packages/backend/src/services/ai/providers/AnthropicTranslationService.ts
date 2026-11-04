@@ -171,6 +171,9 @@ export class AnthropicTranslationService extends AITranslationService {
       return JSON.parse(candidate);
     } catch {
       const fenced = candidate.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+      // Parse the complete fenced value first: extracting braces from an
+      // array of objects discards its brackets and produces invalid JSON.
+      try { return JSON.parse(fenced); } catch { /* Legacy prose-wrapped object below. */ }
       const firstBrace = fenced.indexOf('{');
       const lastBrace = fenced.lastIndexOf('}');
       if (firstBrace !== -1 && lastBrace > firstBrace) {
@@ -384,6 +387,16 @@ export class AnthropicTranslationService extends AITranslationService {
 
           console.log('Anthropic response:', response);
 
+          // Truncated or empty replies are still billed by Anthropic.
+          if (response.stop_reason === 'max_tokens' || !response.content?.some(block => block.type === 'text')) {
+            await this.trackFailedUsage('translation', {
+              promptTokens: response.usage.input_tokens,
+              completionTokens: response.usage.output_tokens,
+              totalCost: this.recordedCost(response.usage.input_tokens, response.usage.output_tokens),
+              duration: Date.now() - startTime
+            }, model, { language: targetLanguage });
+          }
+
           if (response.stop_reason === 'max_tokens') {
             throw new Error('Translation response was truncated due to length');
           }
@@ -540,6 +553,7 @@ export class AnthropicTranslationService extends AITranslationService {
   async translateTextBatch(request: BatchTranslationRequest): Promise<BatchTranslationResult> {
     const model = this.getModel();
     const startTime = Date.now();
+    let billedUsage: { input_tokens: number; output_tokens: number } | undefined;
     let targetLanguage = this.normalizeLanguage(request.targetLanguage);
     
     // Validate language
@@ -612,13 +626,14 @@ export class AnthropicTranslationService extends AITranslationService {
         messages: [
           {
             role: "user",
-            content: `Translate these texts to ${targetLanguage}:\n${textsForTranslation}`
+            content: `Translate these texts to ${targetLanguage}:\n${textsForTranslation}\nReturn only {"translations":[{"translatedText":"..."}]} with exactly ${uniqueTextsList.length} entries in input order.`
           },
           ...(prefill
             ? [{ role: "assistant" as const, content: "{" }]
             : [])
         ]
       });
+      billedUsage = response.usage;
       
       if (response.stop_reason === 'max_tokens') {
         throw new Error('Translation response was truncated due to length');
@@ -634,16 +649,18 @@ export class AnthropicTranslationService extends AITranslationService {
       }
 
       const responseJson = this.parseJsonReply(textContent.text, prefill);
-
-      if (!responseJson.translations || !Array.isArray(responseJson.translations)) {
-        throw new Error('Response missing translations array');
+      // Older stored prompts ask for a JSON array rather than an envelope.
+      const translations = Array.isArray(responseJson) ? responseJson : responseJson?.translations;
+      if (!Array.isArray(translations) || translations.length !== uniqueTextsList.length ||
+          translations.some(entry => typeof entry?.translatedText !== 'string' || !entry.translatedText.trim())) {
+        throw new Error('Response must contain one non-empty translation per unique input');
       }
       
       // Map translations back to all IDs
       const allTranslations: Array<{ id: string; originalText: string; translatedText: string }> = [];
       
       uniqueTextsList.forEach(([originalText, data], index) => {
-        const translation = responseJson.translations[index];
+        const translation = translations[index];
         if (translation && translation.translatedText) {
           data.ids.forEach(id => {
             allTranslations.push({
@@ -695,6 +712,14 @@ export class AnthropicTranslationService extends AITranslationService {
       return result;
       
     } catch (error) {
+      if (billedUsage) {
+        await this.trackFailedUsage('batch', {
+          promptTokens: billedUsage.input_tokens,
+          completionTokens: billedUsage.output_tokens,
+          totalCost: this.recordedCost(billedUsage.input_tokens, billedUsage.output_tokens),
+          duration: Date.now() - startTime
+        }, model, { language: targetLanguage });
+      }
       this.handleServiceError(error, 'batch translation');
     }
   }

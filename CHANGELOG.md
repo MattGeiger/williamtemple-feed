@@ -38,6 +38,11 @@ All notable changes to FEED are documented here. This project adheres to
   model and valid usage; raised the tiny probe allowance to 512 tokens, disabled
   hidden retries, and added safe success/failure tracing. Save refusals now
   describe configuration verification and recent permission changes accurately.
+- Corrected Luna/Terra/Sol's selectable reasoning ceiling to `xhigh` after live
+  API rejection of `max`. Claude batch parsing now preserves fenced arrays,
+  validates complete non-empty results and retains duplicate input ids. Billed
+  malformed/truncated batch replies and truncated/empty single replies are
+  recorded as failed usage.
 
 ### Removed
 
@@ -61,6 +66,11 @@ All notable changes to FEED are documented here. This project adheres to
 - Verified description-only edit/restore through the real UI for all four
   OpenAI configurations: 8/8 first-attempt saves, original settings and keys
   preserved, with the earlier refusal remaining unreproduced.
+- Completed OpenAI/Anthropic live classification/translation and authenticated
+  local DOCX, 40-row bulk retry, Arabic/Chinese PDF and cache-reuse checks.
+  Google testing was excluded by the user. Final backend: 1,364 passed/2 skipped;
+  frontend: 584 passed; both builds pass. Fixtures/settings were cleaned up or
+  restored; accounted spending remains below $0.10 of the $1.00 approval.
 
 ## [1.8.1] — 2026-09-14
 
