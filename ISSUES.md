@@ -85,10 +85,13 @@ deployment uses GPT-5; September's production-migration prerequisite is historic
 Implementation and validation evidence: `docs/ai-config/model-catalogue-refresh-2026-11.md`.
 Authenticated local catalogue/modal checks pass after the Resend key refresh and
 backend restart. User testing subsequently saved all three Claude 5.5 models.
-OpenAI Astra/Sol saves reach the provider but return 403 `model_not_found`:
-the key's project lacks access to those models. Project/organization access
-needs review; this is not an invalid-key 401. Full translation checks remain
-pending. A React 19 `element.ref` compatibility diagnostic was
+After project permission updates, OpenAI saves intermittently return 403
+`model_not_found` before succeeding; all four current models are now saved.
+Eight subsequent unbilled model lookups passed with the same saved key and no
+SDK retries. Reliable generation is not yet verified. The save probe currently
+accepts any successful HTTP response without validating usable output; paired
+success/failure tracing and controlled generation tests are required. Full
+translation checks remain pending. A React 19 `element.ref` compatibility diagnostic was
 observed without a blocking UI failure; its origin relative to this refresh has
 not been established.
 

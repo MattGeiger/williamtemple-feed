@@ -168,15 +168,52 @@ exact account restriction has not been established; project model permissions
 and organization availability need review. Creating another key in the same
 project does not by itself resolve project-level model restrictions. See
 [OpenAI project model permissions](https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/projects/subresources/model_permissions/methods/retrieve).
-No account permissions were changed, and no failed OpenAI update was persisted.
+The agent changed no account permissions, and failed OpenAI updates did not persist.
+
+#### Intermittent acceptance after permission updates
+
+The user updated OpenAI permissions and reported saves succeeding after repeated
+clicks. Read-only investigation confirms all four current OpenAI models are now
+saved. The log contains twelve distinct 403 `model_not_found` entitlement
+failures across the four models; the latest failures precede their database
+update times by a few seconds. A failed request therefore proves denial at that
+moment, not permanent lack of access. Permission propagation or inconsistent
+provider routing is a hypothesis, not an established cause.
+
+At approximately 11:46 AM Pacific on November 4, the agent ran two unbilled
+`models.retrieve` calls per saved OpenAI model, with SDK retries disabled. All
+eight returned 200 and the expected model id. The four configurations use the
+same decrypted credential (compared in memory, never printed). No shell/file
+OpenAI endpoint/project/organization overrides were found. No additional paid
+generation, configuration writes or permission changes were performed.
+
+Source inspection rules out the translation failure cache for ordinary saves:
+each save creates an uncached service, verifies entitlement and only then
+persists. However, successful probe responses are discarded: `verifyEntitlement`
+accepts any successful HTTP response without checking text, returned model,
+finish reason or usage. Its 16-token output cap can also be insufficient for a
+reasoning model to produce visible text. This is a validation gap; whether any
+of the user's accepted saves had empty/truncated output is currently unknown.
+
+Next diagnostic round should use a fixed saved key/model/prompt and record both
+successes and failures: UTC timestamp, local attempt id, provider request id,
+status/code, requested/returned model, finish reason, output presence and token
+usage. Use an opaque credential correlation tag, never keys, authorization
+headers, cookies or full SDK error dumps. Disable hidden SDK retries for the
+comparison. Compare the save path with a direct SDK generation using identical
+parameters, repeat a small spaced sample under an agreed spend limit, then
+repeat after a delay. Require usable output and a subsequent real translation
+before marking generation verified. If identical direct calls alternate between
+403 and usable output, provide the paired request ids privately to OpenAI
+support. Do not mask 403s with automatic retries or bypass save validation.
 
 The earlier unbilled checks with the original local credentials returned 401.
 The agent did not initiate billable generation in that sweep ($0 recorded).
-The user's subsequent Anthropic saves perform minimal paid generation; their
-spend was not measured here. Google and successful OpenAI generation remain
+The user's subsequent saves perform minimal paid generation; their spend was
+not measured here. Google and reliable usable OpenAI generation remain
 unverified. Request fixtures alone do not prove entitlement or output quality.
 
-After local AI credentials are restored, complete this remaining feature checklist:
+Before release, complete this remaining feature checklist:
 
 1. Save a current model with a valid key, then reopen it and verify persistence.
    The browser pass reached the save controls but deliberately did not submit
