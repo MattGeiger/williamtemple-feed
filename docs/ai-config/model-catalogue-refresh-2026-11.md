@@ -1,6 +1,7 @@
 # AI catalogue refresh — v1.8.2
 
-**Prepared locally: November 4, 2026. Production deployment is a separate step.**
+**Prepared locally, then deployed November 4, 2026.** Local checks below are
+separate from the [production verification record](../deployment/v1.8.2-validation.md).
 This implements the approved curated catalogue and targeted adapter approach.
 Version 1.9.0 remains reserved for Shopping List UX; none of that roadmap scope
 is included here. Frontend/backend packages and their lockfile package metadata
@@ -66,7 +67,9 @@ instead of trusting client-supplied prices. Historical usage is unchanged.
 
 Migration `20261104173000_ai_pricing_source` adds one nullable column without
 rewriting configurations or keys. Existing rows retain null/manual behavior.
-It was applied to the local development database only. Backup contract 13
+It was first applied to the local development database; the separately authorized
+production deployment applied it on November 4 (see the verification record).
+Backup contract 13
 carries provenance; older artifacts remain accepted with null defaults. Normal
 backup secret exclusions and same-instance secret preservation remain intact.
 Older readers intentionally reject contract 13 rather than silently drop fields.
@@ -314,7 +317,8 @@ are covered by automated route/modal/restore tests. A separate browser save of
 a manual price override was not performed. Qualified language review remains
 a human responsibility; synthetic smoke output is not a translation-quality
 certification. Google live testing is explicitly excluded by the user because
-its selections were unchanged. Production verification remains a separate step.
+its selections were unchanged. Production verification is now recorded separately
+in [the deployment record](../deployment/v1.8.2-validation.md).
 
 ### Completed feature validation — November 4 follow-up
 

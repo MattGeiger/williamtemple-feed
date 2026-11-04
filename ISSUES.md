@@ -116,8 +116,14 @@ temporary settings were removed/restored. Google testing was explicitly excluded
 Final suites: backend 1,364 passed/2 skipped, frontend 584 passed; both builds
 pass. One initial HTTP-test timeout passed unchanged in isolation and in the
 full rerun. Accounted spend/allowance remains below $0.10 of the approved $1.00.
-Production deployment and human language review remain separate; no root cause
-is claimed for the earlier intermittent OpenAI refusals.
+The separately authorized production deployment completed November 4: both
+services are healthy on 1.8.2/Node 24.22.2, all 37 migrations are current, the
+public catalogue/modal checks pass and saved AI settings/credentials match their
+pre-upgrade baseline. Production GPT-6 Luna translation/classification passed for
+$0.0001063 without changing the default provider. Backups and 1.8.1 rollback
+images remain on the Pi; see `docs/deployment/v1.8.2-validation.md`. Human language
+review remains separate; no root cause is claimed for the earlier intermittent
+OpenAI refusals.
 
 ### #84 — The AI model catalogue is out of date, and a refused model reports as an invalid API key
 **Priority**: High · **Status**: honest errors and alerts, Node 24, the SDK

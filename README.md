@@ -18,8 +18,9 @@ food-distribution programs at scale.
 
 **Production deployment:** https://feed.williamtemple.app
 **License:** [AGPL-3.0-or-later](./LICENSE)
-**Status:** v1.8.2 — AI catalogue refresh prepared locally; production deployment is a separate step.
-Latest documented production verification: v1.8.1, September 14, 2026.
+**Status:** v1.8.2 — AI catalogue refresh deployed and verified November 4, 2026.
+See the [production verification record](docs/deployment/v1.8.2-validation.md),
+separate from the local model validation evidence.
 
 ---
 

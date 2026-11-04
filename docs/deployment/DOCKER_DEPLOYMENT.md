@@ -1,8 +1,8 @@
 # Docker Deployment Guide - FEED Application
 
 > **v1.8.2:** use the [release preparation checklist](v1.8.2-release-preparation.md)
-> for matching tags, migration and verification gates. Local preparation does
-> not mean this version is deployed.
+> for matching tags, migration and verification gates. Production deployment was
+> completed November 4; see the separate [verification record](v1.8.2-validation.md).
 
 Deploy from Mac to Raspberry Pi 5 using multi-architecture Docker images.
 

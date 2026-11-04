@@ -22,6 +22,18 @@ All notable changes to FEED are documented here. This project adheres to
 
 ## [1.8.2] — 2026-11-04
 
+### Released
+
+- Published the v1.8.2 release and matching ARM64 backend/frontend images in
+  `williamtempletech`; versioned and `latest` tags share the verified digests.
+- Deployed through Raspberry Pi Connect after verified database/storage backups.
+  Both services are healthy on Node 24.22.2, all 37 migrations are complete,
+  existing AI settings/credentials are preserved, and the public version,
+  catalogue and nine-step modal checks pass. Capped production OpenAI translation
+  and classification passed for $0.0001063; Google testing remained excluded.
+  Production evidence is separate from local tests in
+  `docs/deployment/v1.8.2-validation.md`.
+
 ### Changed
 
 - Replaced six selectable presets with GPT-6 Luna, GPT-6.1 Terra/Sol and Claude
@@ -56,7 +68,8 @@ All notable changes to FEED are documented here. This project adheres to
   Results and credential-dependent checks are recorded in
   `docs/ai-config/model-catalogue-refresh-2026-11.md`.
 - Refreshed current documentation and archived the obsolete model reference.
-  Version 1.8.2 is prepared locally; no production deployment is claimed.
+  Local preparation and the later authorized production deployment have separate
+  validation records.
 - Completed authenticated local browser checks for the catalogue, nine-step
   workflow, upgrade notices, Custom entry, pricing/thinking controls, light/dark
   rendering and dialog cleanup. User saves passed for Claude 5.5; a controlled
