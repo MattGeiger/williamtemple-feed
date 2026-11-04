@@ -58,6 +58,9 @@ All notable changes to FEED are documented here. This project adheres to
   OpenAI service/direct comparison passed 24/24 checks, followed by four Spanish
   adapter translations. Earlier intermittent 403s were not reproduced and their
   cause remains unconfirmed. Backend follow-up: 1,354 tests pass, 2 skipped.
+- Verified description-only edit/restore through the real UI for all four
+  OpenAI configurations: 8/8 first-attempt saves, original settings and keys
+  preserved, with the earlier refusal remaining unreproduced.
 
 ## [1.8.1] — 2026-09-14
 

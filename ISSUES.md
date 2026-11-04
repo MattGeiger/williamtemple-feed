@@ -97,6 +97,12 @@ classification and language checks remain pending. A React 19 `element.ref` comp
 observed without a blocking UI failure; its origin relative to this refresh has
 not been established.
 
+Follow-up through the actual UI: description edit + restore for each of the four
+OpenAI configurations passed 8/8 saves on first attempt. All provider traces were
+200/complete; only save timestamps changed after restoration. Metadata-only
+saves still depend on an external generation check, so provider access failures
+can block them. No runtime behavior was changed in this follow-up.
+
 ### #84 — The AI model catalogue is out of date, and a refused model reports as an invalid API key
 **Priority**: High · **Status**: honest errors and alerts, Node 24, the SDK
 upgrades, one server-authoritative catalogue read by both the providers and the

@@ -270,6 +270,33 @@ or complete language/document/classification coverage. If failures recur, compar
 safe traces with identical parameters and paired provider request ids. Do not
 mask access refusals with automatic retries or bypass save validation.
 
+#### Description-only UI saves — November 4, 2026
+
+At the user's request, the authenticated browser edited the description of each
+OpenAI configuration (Terra, Sol, Astra and Luna), saved once, reopened it and
+restored the original description with one further save. No key, model, status,
+price or other setting was intentionally changed. All **8/8 actual UI saves**
+succeeded on the first attempt; no 403 or other error appeared. Each save emitted
+one trace with HTTP 200, the expected model, normal `stop` and usable output.
+
+A before/after comparison of configuration settings plus encrypted-key/salt
+digests confirms every description and all captured settings/keys match the
+baseline. Only `updatedAt` changed. The original descriptions are visible again
+in the table. This exercises the full UI/HTTP-save path, beyond the previous
+service/direct comparison. Credential values were neither printed nor re-entered.
+
+Estimated cost of these eight checks: **$0.000796**; cumulative agent-run paid
+diagnostics: **$0.0053284**, still below the approved $1.00. Safe traces are local
+at `/tmp/feed-description-test-traces.json`; the restored UI screenshot is
+`/tmp/feed-openai-description-saves-restored.png` and is attached in the chat.
+
+Description-only updates currently still invoke provider generation. Thus an
+external access refusal can block a harmless metadata edit even when the key
+and model did not change. This behavior was preserved for this test; no runtime
+code was changed. Decoupling metadata edits from entitlement verification would
+be a separate behavior change. The earlier intermittent refusal remains
+unreproduced, not conclusively resolved.
+
 The earlier unbilled checks with the original local credentials returned 401.
 The agent did not initiate billable generation in that sweep ($0 recorded).
 The user's subsequent saves perform minimal paid generation; their spend was
