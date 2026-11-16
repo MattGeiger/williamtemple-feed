@@ -5,6 +5,64 @@ All notable changes to FEED are documented here. This project adheres to
 
 ## [Unreleased]
 
+### Changed
+
+- **Shopping List Builder: the controls were reorganised (v1.9.0 UX rework).**
+  Same capabilities, same template format, same PDF output; fewer steps to
+  reach them. Building the saved "Pantry Inventory" template from a blank page
+  drops from about 162 pointer actions to about 53. Design record, benchmark
+  and capability checklist: `docs/shopping-lists/builder-ux-rework.md`.
+  - The workspace is fitted to the window: the page no longer scrolls, and the
+    Insert panel, the canvas, and the inspector each scroll on their own.
+  - The right-hand panel is a contextual inspector with **Component** and
+    **Page** tabs. A component's properties are one scroll of short sections
+    instead of separate Layout and Content tabs.
+  - Choices with a handful of options are one click instead of a dropdown:
+    Guided/Freeform, grid, bold, alignment, page region, table behaviour,
+    corners, body layout, max pages, print sides.
+  - **Add all** places every remaining inventory section in one click.
+    **Apply to all** copies the selected table's columns and style to every
+    other section table.
+  - Zoom moved onto the canvas, with **Fit width**, **Fit whole page** and
+    **100%**. The page now opens fitted to the canvas instead of cropped.
+  - The template name, **Open** (saved templates and **New blank template**),
+    preview language, Save and Download share one header row. Save shows when
+    there are unsaved changes.
+  - Adding a text block puts the cursor in its text; double-clicking any
+    component does the same. A newly added component scrolls into view.
+  - Keyboard: Delete, ⌘/Ctrl+D duplicate, ⌘/Ctrl+Z undo, Esc deselect, arrow
+    keys nudge.
+  - An empty page offers the saved templates directly.
+  - Deleting a component no longer selects a different one.
+
+### Fixed
+
+- **Shopping Lists: "Last Updated" showed a raw timestamp**
+  (`2026-06-30T17:16:27.677Z`) instead of `6/30/2026`. A local `formatDate`
+  wrapper shadowed the shared formatter it meant to call, recursed, and its
+  `catch` returned the unformatted value. The wrapper is removed.
+- Builder palette buttons had no accessible name; every Builder control is now
+  named.
+
+### Added
+
+- `components/ui/toggle-group.tsx` — the Shadcn ToggleGroup over the Radix
+  primitive already shipped in the `radix-ui` package. No new dependency.
+
+### Validation
+
+- Clicked through at 1920×1080 and 1280×720 (sidebar open and collapsed), dark
+  and light, plus the stacked single-column layout at a 900px window (where
+  the header controls were found overflowing and now wrap): open, Add all, style, Apply to all, table behaviour, text, legend,
+  region, zoom presets, shortcuts, palette drag-and-drop, drag-to-reorder, the
+  translation dialog, save. `document.body.style.pointerEvents` clear after
+  menu → dialog → close.
+- A template built in the reworked Builder was exported through
+  `/api/shopping-list-builder/preview-pdf`, rendered to PNG, and matched the
+  canvas (column assignment, order, header title, footer legend).
+- Frontend: 584 tests pass, production build passes,
+  `tsc --project tsconfig.app.json` reports no new errors.
+
 ### Documentation
 
 - Aligned the documented React version and development Node requirement with

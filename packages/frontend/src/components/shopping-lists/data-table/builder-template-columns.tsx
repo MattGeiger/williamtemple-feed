@@ -39,14 +39,6 @@ export interface BuilderTemplateActions {
   onTranslateAndDownloadPdf: (template: SavedBuilderTemplate) => void
 }
 
-const formatDate = (value: string) => {
-  try {
-    return formatDate(value)
-  } catch {
-    return value
-  }
-}
-
 const getInventorySectionCount = (template: SavedBuilderTemplate) => {
   return template.templateData.components.filter((component) => (
     component.type === 'section-table' && component.inventorySource

@@ -7,10 +7,18 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { AlertCircle, ArrowLeft, ArrowLeftRight, GripVertical, Loader2 } from "@/components/ui/icons";
-// Page Setup label decorations — non-interactive (Rule 1) so we bypass the
-// ui/icons wrapper (which adds whileHover) and use plain lucide-react.
-import { Columns2, Files, Printer } from "lucide-react";
+import {
+  AlertCircle,
+  AlignCenter,
+  AlignLeft,
+  AlignRight,
+  ArrowLeftRight,
+  Bold,
+  Loader2,
+  Paintbrush,
+  ZoomIn,
+  ZoomOut,
+} from "@/components/ui/icons";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -22,7 +30,6 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
   DropdownMenu,
@@ -41,7 +48,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
-import { GripIcon } from '@/components/animate-ui/icons/grip';
 import { Textarea } from '@/components/ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
@@ -49,8 +55,6 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { SectionHeader } from '@/components/shared/section-header';
 import {
   Tabs as AnimatedTabs,
-  TabsContent as AnimatedTabsContent,
-  TabsContents as AnimatedTabsContents,
   TabsList as AnimatedTabsList,
   TabsTrigger as AnimatedTabsTrigger,
 } from '@/components/ui/tabs';
@@ -59,16 +63,8 @@ import { BetweenHorizontalStartIcon } from '@/components/animate-ui/icons/betwee
 import { UndoIcon } from '@/components/animate-ui/icons/undo';
 import { CopyIcon } from '@/components/animate-ui/icons/copy';
 import { Trash2Icon } from '@/components/animate-ui/icons/trash-2';
-import { ChevronDownIcon } from '@/components/animate-ui/icons/chevron-down';
-import { ChevronUpIcon } from '@/components/animate-ui/icons/chevron-up';
-import { ClipboardCheckIcon } from '@/components/animate-ui/icons/clipboard-check';
 import { GalleryVerticalEndIcon } from '@/components/animate-ui/icons/gallery-vertical-end';
 import { LayoutDashboardIcon } from '@/components/animate-ui/icons/layout-dashboard';
-import { SquareArrowOutUpRightIcon } from '@/components/animate-ui/icons/square-arrow-out-up-right';
-import { BridgedAnimatedIcon } from '@/components/animate-ui/bridge';
-import { BoxIcon } from '@/components/ui/box';
-import { LayoutPanelTopIcon } from '@/components/ui/layout-panel-top';
-import { ReceiptTextIcon } from '@/components/ui/receipt-text';
 // Action-bar & palette animated icons
 import { DownloadIcon } from '@/components/animate-ui/icons/download';
 import { SaveIcon } from '@/components/animate-ui/icons/save';
@@ -186,6 +182,16 @@ import {
   snapToGrid,
   TextBuilderComponent,
 } from './types';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import {
+  FieldRow,
+  GeometryInput,
+  InspectorSection,
+  PanelHeading,
+  Segmented,
+  SwitchRow,
+  ToolbarButton,
+} from './builder-ui';
 import { TranslationSettingsDialog } from './dialogs/translation-settings-dialog';
 import { SectionTableTranslationSettingsDialog } from './dialogs/section-table-translation-settings-dialog';
 import {
@@ -232,7 +238,6 @@ const toNumber = (value: string, fallback: number) => {
   return Number.isFinite(parsed) ? parsed : fallback;
 };
 
-const BUILDER_LIST_SCROLL_CLASS = 'h-[172px] pr-3';
 const MAX_SAVED_TEMPLATE_NAME_LENGTH = 48;
 const GUIDED_COLLISION_GAP = 4;
 // Flow stacking gap. One grid square gives stacked flowing tables a clean
@@ -250,77 +255,26 @@ const AVERAGE_TABLE_CHARACTER_WIDTH_RATIO = 0.52;
 // are stored as displayed percentages; getCanvasScale() converts them to the
 // transform: scale() multiplier used by the page frame.
 const CANVAS_ZOOM_SCALE_FACTOR = 1.2;
-const CANVAS_MIN_ZOOM = 70;
+// 40% keeps a whole Letter page width visible in the narrowest three-column
+// workspace (a 1280px window with the app sidebar open).
+const CANVAS_MIN_ZOOM = 40;
 const CANVAS_MAX_ZOOM = 200;
 const CANVAS_DEFAULT_ZOOM = 100;
 const CANVAS_ZOOM_STEP = 5;
 const getCanvasScale = (zoom: number) => (zoom * CANVAS_ZOOM_SCALE_FACTOR) / 100;
+// Breathing room kept around the page when a zoom preset fits it to the canvas.
+const CANVAS_FIT_MARGIN = 48;
 
-type BuilderLabelAnimateIcon = React.ComponentType<{
-  className?: string;
-  size?: number;
-}>;
+const CORNER_RADIUS_OPTIONS = [
+  { value: '0', label: 'Square' },
+  { value: '3', label: '3' },
+  { value: '6', label: '6' },
+  { value: '9', label: '9' },
+];
 
-type BuilderLabelBridgedIcon = React.ForwardRefExoticComponent<
-  // The lucide-animated registry files expose icon-specific handle types, but
-  // every handle follows this same imperative animation contract.
-  React.RefAttributes<{ startAnimation: () => void; stopAnimation: () => void }> &
-    Record<string, unknown>
->;
-
-type BuilderLabelIconConfig =
-  | { type: 'animate'; icon: BuilderLabelAnimateIcon }
-  | { type: 'bridged'; icon: BuilderLabelBridgedIcon };
-
-function BuilderLabelIcon({ config }: { config: BuilderLabelIconConfig }) {
-  if (config.type === 'animate') {
-    const Icon = config.icon;
-    return <Icon className="h-4 w-4 shrink-0 text-muted-foreground" size={16} />;
-  }
-
-  return (
-    <BridgedAnimatedIcon
-      icon={config.icon}
-      className="h-4 w-4 shrink-0 text-muted-foreground"
-      size={16}
-    />
-  );
-}
-
-function BuilderSectionLabel({
-  children,
-  className,
-  htmlFor,
-  icon,
-}: {
-  children: React.ReactNode;
-  className?: string;
-  htmlFor?: string;
-  icon: BuilderLabelIconConfig;
-}) {
-  // Section labels are non-interactive (Rule 1). The icon renders static
-  // here even though the underlying components (BuilderLabelIcon and the
-  // bridged imperative-ref icons) can animate, because we do not wrap in
-  // <AnimateIcon> and do not provide an AnimateIconContext. Imperative-ref
-  // icons rendered via BridgedAnimatedIcon read from context only — without
-  // one, they stay static even though their own div has hover handlers.
-  const content = (
-    <span className="flex items-center gap-2">
-      <BuilderLabelIcon config={icon} />
-      <span>{children}</span>
-    </span>
-  );
-
-  if (htmlFor) {
-    return (
-      <Label htmlFor={htmlFor} className={cn('flex items-center gap-2', className)}>
-        {content}
-      </Label>
-    );
-  }
-
-  return <div className={cn('flex items-center gap-2', className)}>{content}</div>;
-}
+const IS_APPLE_PLATFORM = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
+const undoShortcutLabel = IS_APPLE_PLATFORM ? '⌘Z' : 'Ctrl+Z';
+const duplicateShortcutLabel = IS_APPLE_PLATFORM ? '⌘D' : 'Ctrl+D';
 
 function ShoppingListBuilderTitleIcon({
   className,
@@ -2546,7 +2500,7 @@ function PreviewComponent({ component, includeCategoryIcons = false }: {
   }
 }
 
-function PageSetupPanel({
+function PageInspector({
   layoutMode,
   bodyLayoutMode,
   gridSize,
@@ -2603,130 +2557,92 @@ function PageSetupPanel({
 
   const headerMax = Math.max(0, paperHeight - footerHeight - HEADER_FOOTER_MIN_BODY);
   const footerMax = Math.max(0, paperHeight - headerHeight - HEADER_FOOTER_MIN_BODY);
+  const blurOnEnter = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      event.currentTarget.blur();
+    }
+  };
 
   return (
     <div data-testid="builder-page-setup" className="space-y-3">
-      <div>
-        <BuilderSectionLabel
-          className="text-sm font-semibold"
-          icon={{ type: 'animate', icon: GalleryVerticalEndIcon }}
-        >
-          Page
-        </BuilderSectionLabel>
-        <p className="text-xs text-muted-foreground">
-          Page anatomy, body layout, and print output. Numeric guides snap to {gridSize}pt in Guided mode.
-        </p>
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-2">
-          <Label className="flex items-center gap-1">
-            <Columns2 className="h-3.5 w-3.5" />
-            Body Layout
-          </Label>
-          <Select value={bodyLayoutMode} onValueChange={(value) => onChangeBodyLayoutMode(value as BuilderBodyLayoutMode)}>
-            <SelectTrigger data-testid="builder-body-layout-select">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="full">Full page</SelectItem>
-              <SelectItem value="split">Split page</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-2">
-          <Label className="flex items-center gap-1">
-            <Files className="h-3.5 w-3.5" />
-            Max Pages
-          </Label>
-          <Select value={String(maxPages)} onValueChange={(value) => onChangeMaxPages(Number(value))}>
-            <SelectTrigger data-testid="builder-max-pages-select">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {[1, 2, 3, 4, 5].map((pageCount) => (
-                <SelectItem key={pageCount} value={String(pageCount)}>
-                  {pageCount}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-2">
-          <BuilderSectionLabel
-            htmlFor="page-header-height"
-            icon={{ type: 'animate', icon: ChevronUpIcon }}
-          >
-            Header (pt)
-          </BuilderSectionLabel>
+      <InspectorSection title="Body">
+        <FieldRow label="Layout" controlClassName="w-[72%]">
+          <Segmented
+            ariaLabel="Body layout"
+            testId="builder-body-layout-select"
+            value={bodyLayoutMode}
+            onChange={onChangeBodyLayoutMode}
+            options={[
+              { value: 'full', label: 'Full page', testId: 'builder-body-layout-full' },
+              { value: 'split', label: 'Split page', testId: 'builder-body-layout-split' },
+            ]}
+          />
+        </FieldRow>
+        <FieldRow label="Max pages" controlClassName="w-[72%]">
+          <Segmented
+            ariaLabel="Maximum pages"
+            testId="builder-max-pages-select"
+            value={String(maxPages)}
+            onChange={(value) => onChangeMaxPages(Number(value))}
+            options={[1, 2, 3, 4, 5].map((pageCount) => ({
+              value: String(pageCount),
+              label: String(pageCount),
+              testId: `builder-max-pages-${pageCount}`,
+            }))}
+          />
+        </FieldRow>
+      </InspectorSection>
+      <InspectorSection title="Header & footer">
+        <FieldRow label="Header (pt)" htmlFor="page-header-height">
           <Input
             id="page-header-height"
             data-testid="builder-page-header-input"
             type="number"
             min={0}
             max={headerMax}
+            className="h-8 text-xs md:text-xs"
             value={headerInput}
             onChange={(event) => setHeaderInput(event.target.value)}
             onBlur={(event) => commit(event.target.value, headerMax, headerHeight, onCommitHeader)}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') {
-                event.preventDefault();
-                event.currentTarget.blur();
-              }
-            }}
+            onKeyDown={blurOnEnter}
           />
-        </div>
-        <div className="space-y-2">
-          <BuilderSectionLabel
-            htmlFor="page-footer-height"
-            icon={{ type: 'animate', icon: ChevronDownIcon }}
-          >
-            Footer (pt)
-          </BuilderSectionLabel>
+        </FieldRow>
+        <FieldRow label="Footer (pt)" htmlFor="page-footer-height">
           <Input
             id="page-footer-height"
             data-testid="builder-page-footer-input"
             type="number"
             min={0}
             max={footerMax}
+            className="h-8 text-xs md:text-xs"
             value={footerInput}
             onChange={(event) => setFooterInput(event.target.value)}
             onBlur={(event) => commit(event.target.value, footerMax, footerHeight, onCommitFooter)}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') {
-                event.preventDefault();
-                event.currentTarget.blur();
-              }
-            }}
+            onKeyDown={blurOnEnter}
           />
-        </div>
-      </div>
-      <div className="space-y-2">
-        <Label className="flex items-center gap-1">
-          <Printer className="h-3.5 w-3.5" />
-          Print
-        </Label>
-        <Select value={printMode} onValueChange={(value) => onChangePrintMode(value as BuilderPrintMode)}>
-          <SelectTrigger data-testid="builder-print-mode-select">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="single-sided">Single-sided</SelectItem>
-            <SelectItem value="two-sided-duplicate">Make 2-sided</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-      <div className="flex items-center gap-2">
-        <Checkbox
+        </FieldRow>
+      </InspectorSection>
+      <InspectorSection title="Print">
+        <FieldRow label="Sides" controlClassName="w-[72%]">
+          <Segmented
+            ariaLabel="Print mode"
+            testId="builder-print-mode-select"
+            value={printMode}
+            onChange={onChangePrintMode}
+            options={[
+              { value: 'single-sided', label: 'Single-sided' },
+              { value: 'two-sided-duplicate', label: 'Make 2-sided' },
+            ]}
+          />
+        </FieldRow>
+        <SwitchRow
           id="builder-include-category-icons"
+          label="Category icons"
           checked={includeCategoryIcons}
-          onCheckedChange={(value) => onChangeIncludeCategoryIcons(value === true)}
+          onCheckedChange={onChangeIncludeCategoryIcons}
         />
-        <Label htmlFor="builder-include-category-icons" className="cursor-pointer">
-          Include Category Icons
-        </Label>
-      </div>
+      </InspectorSection>
     </div>
   );
 }
@@ -2777,8 +2693,9 @@ function SectionTableRowActionsMenu({
       <DropdownMenuTrigger asChild>
         <Button
           type="button"
-          variant="outline"
+          variant="ghost"
           size="icon"
+          className="h-8 w-8 shrink-0"
           data-testid="builder-section-row-actions"
           aria-label={`Manage ${row.item}`}
         >
@@ -2887,104 +2804,6 @@ function SavedComponentActionsMenu({
   );
 }
 
-function LayoutModeToggle({
-  mode,
-  onChange,
-  animateOnMount,
-}: {
-  mode: BuilderLayoutMode;
-  onChange: (mode: BuilderLayoutMode) => void;
-  animateOnMount: boolean;
-}) {
-  const ModeIcon = mode === 'guided' ? Grid2x2CheckIcon : SquareDashedMousePointerIcon;
-  const modeLabel = mode === 'guided' ? 'Guided' : 'Freeform';
-  const { animateMount, handleOpenChange } = useDropdownAnimateMount();
-
-  return (
-    <DropdownMenu onOpenChange={handleOpenChange}>
-      <DropdownMenuTrigger asChild>
-        <Button
-          variant="outline"
-          size="icon"
-          data-testid="builder-layout-mode-trigger"
-          data-layout-mode={mode}
-          aria-label={`Layout mode: ${modeLabel}`}
-        >
-          <AnimateIcon animate={animateOnMount} animateOnHover animateOnTap>
-            <ModeIcon size={16} />
-          </AnimateIcon>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start">
-        <DropdownMenuLabel>Layout Mode</DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuRadioGroup value={mode} onValueChange={(value) => onChange(value as BuilderLayoutMode)}>
-          <AnimateIcon asChild animate={animateMount} animateOnHover animateOnTap>
-            <DropdownMenuRadioItem value="guided" data-testid="builder-layout-mode-guided">
-              <Grid2x2CheckIcon size={16} className="mr-2" />
-              Guided
-            </DropdownMenuRadioItem>
-          </AnimateIcon>
-          <AnimateIcon asChild animate={animateMount} animateOnHover animateOnTap>
-            <DropdownMenuRadioItem value="freeform" data-testid="builder-layout-mode-freeform">
-              <SquareDashedMousePointerIcon size={16} className="mr-2" />
-              Freeform
-            </DropdownMenuRadioItem>
-          </AnimateIcon>
-        </DropdownMenuRadioGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
-
-function GridGuidesToggle({
-  shown,
-  onChange,
-  animateOnMount,
-}: {
-  shown: boolean;
-  onChange: (next: boolean) => void;
-  animateOnMount: boolean;
-}) {
-  const stateLabel = shown ? 'Show grid' : 'Hide grid';
-  const { animateMount, handleOpenChange } = useDropdownAnimateMount();
-  return (
-    <DropdownMenu onOpenChange={handleOpenChange}>
-      <DropdownMenuTrigger asChild>
-        <Button
-          variant="outline"
-          size="icon"
-          data-testid="builder-canvas-guides-toggle"
-          data-grid-shown={shown ? 'true' : 'false'}
-          aria-label={`Grid & guides: ${stateLabel}`}
-        >
-          <AnimateIcon animate={animateOnMount} animateOnHover animateOnTap>
-            {shown ? <Grid3x3Icon size={16} /> : <GripIcon size={16} />}
-          </AnimateIcon>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start">
-        <DropdownMenuLabel>Grid &amp; Guides</DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuRadioGroup value={shown ? 'on' : 'off'} onValueChange={(value) => onChange(value === 'on')}>
-          <AnimateIcon asChild animate={animateMount} animateOnHover animateOnTap>
-            <DropdownMenuRadioItem value="on" data-testid="builder-canvas-guides-on">
-              <Grid3x3Icon size={16} className="mr-2" />
-              Show grid
-            </DropdownMenuRadioItem>
-          </AnimateIcon>
-          <AnimateIcon asChild animate={animateMount} animateOnHover animateOnTap>
-            <DropdownMenuRadioItem value="off" data-testid="builder-canvas-guides-off">
-              <GripIcon size={16} className="mr-2" />
-              Hide grid
-            </DropdownMenuRadioItem>
-          </AnimateIcon>
-        </DropdownMenuRadioGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
-
 // B3: shared instance for reading the org-wide Global Limit (the value shown
 // in the Limit column for no-limit rows when a section table opts in).
 const globalLimitService = new GlobalLimitService();
@@ -3005,6 +2824,9 @@ export function ShoppingListBuilder() {
   } = useFoodItemContext();
   const [template, setTemplate] = useState(() => normalizeLegacyBuilderTemplateGeometry(createDefaultBuilderTemplate()));
   const [selectedId, setSelectedId] = useState<string>('');
+  // Serialized template as of the last open / save / new-blank. Comparing it
+  // with the live template tells the user whether there is anything to save.
+  const [savedSnapshot, setSavedSnapshot] = useState(() => JSON.stringify(template));
   const [templateHistory, setTemplateHistory] = useState<Array<{ template: ShoppingListBuilderTemplate; selectedId: string }>>([]);
   // One-shot mount animation flag for persistent builder chrome (top action
   // bar, canvas toolbar). Per the documented animate-prop stuck-state
@@ -3414,7 +3236,8 @@ export function ShoppingListBuilder() {
         }));
 
         setTemplate(templateToApply);
-        setSelectedId(templateToApply.components[0]?.id ?? '');
+        setSavedSnapshot(JSON.stringify(templateToApply));
+        setSelectedId('');
         setActiveSavedTemplateId(savedTemplate.id);
         setEditingSavedComponentSource(null);
         setTemplateHistory([]);
@@ -3529,6 +3352,8 @@ export function ShoppingListBuilder() {
       )),
     }));
     setSelectedId(componentId);
+    // The component may have jumped to the other end of the page.
+    revealSelection();
   };
 
   const changeComponentRepeatMode = (componentId: string, mode: BuilderHeaderFooterRepeatMode) => {
@@ -3575,6 +3400,9 @@ export function ShoppingListBuilder() {
     }));
     setSelectedId(component.id);
     setEditingSavedComponentSource(null);
+    // Add, then type: focus lands in the new component's main field.
+    requestPrimaryFieldFocus();
+    revealSelection();
   };
 
   const deleteSelectedComponent = () => {
@@ -3585,11 +3413,13 @@ export function ShoppingListBuilder() {
 
     const deletedId = selectedComponent.id;
     pushHistory();
-    setTemplate((current) => {
-      const remaining = current.components.filter((component) => component.id !== deletedId);
-      setSelectedId(remaining[0]?.id ?? '');
-      return { ...current, components: remaining };
-    });
+    // Clear the selection rather than jumping to another component: a second
+    // Delete press must never remove something the user did not pick.
+    setSelectedId('');
+    setTemplate((current) => ({
+      ...current,
+      components: current.components.filter((component) => component.id !== deletedId),
+    }));
     if (editingSavedComponentSource?.canvasComponentId === deletedId) {
       setEditingSavedComponentSource(null);
     }
@@ -3618,6 +3448,7 @@ export function ShoppingListBuilder() {
     setTemplate((current) => ({ ...current, components: [...current.components, copy] }));
     setSelectedId(copy.id);
     setEditingSavedComponentSource(null);
+    revealSelection();
   };
 
   const saveSelectedComponent = async () => {
@@ -3681,7 +3512,9 @@ export function ShoppingListBuilder() {
       const savedTemplate = updateTargetId == null
         ? await shoppingListBuilderService.createSavedTemplate(savedTemplateName, templateToSave)
         : await shoppingListBuilderService.updateSavedTemplate(updateTargetId, savedTemplateName, templateToSave);
-      setTemplate(normalizeLegacyBuilderTemplateGeometry(templateToSave));
+      const normalizedSavedTemplate = normalizeLegacyBuilderTemplateGeometry(templateToSave);
+      setTemplate(normalizedSavedTemplate);
+      setSavedSnapshot(JSON.stringify(normalizedSavedTemplate));
       setActiveSavedTemplateId(savedTemplate.id);
       setSavedTemplates((current) => [
         savedTemplate,
@@ -3708,7 +3541,9 @@ export function ShoppingListBuilder() {
       }));
       pushHistory();
       setTemplate(templateToApply);
-      setSelectedId(templateToApply.components[0]?.id ?? '');
+      setSavedSnapshot(JSON.stringify(templateToApply));
+      // Open on the Page inspector: nothing is selected until the user picks.
+      setSelectedId('');
       setActiveSavedTemplateId(savedTemplate.id);
       setEditingSavedComponentSource(null);
       showSuccess(`${savedTemplate.name} applied to the canvas with current inventory.`);
@@ -3757,14 +3592,18 @@ export function ShoppingListBuilder() {
     setEditingSavedComponentSource(options.editSource
       ? { savedComponentId: savedComponent.id, canvasComponentId: component.id }
       : null);
-    showSuccess(
-      options.editSource
-        ? `${savedComponent.name} added for editing. Save it when your changes are ready.`
-        : `${savedComponent.name} added to the canvas.`,
-    );
+    revealSelection();
+    if (options.editSource) {
+      showSuccess(`${savedComponent.name} added for editing. Save it when your changes are ready.`);
+    }
   };
 
-  const insertInventorySection = (inventorySection: InventorySectionComponent, x?: number, y?: number) => {
+  const buildInventorySectionComponent = (
+    inventorySection: InventorySectionComponent,
+    targetTemplate: ShoppingListBuilderTemplate,
+    x?: number,
+    y?: number,
+  ): BuilderComponent => {
     const placementRegion: BuilderComponentRegion = 'body';
     // In Guided mode the planner ignores component.x/y for flowing tables and
     // derives positions from the user's add sequence (template.components order).
@@ -3772,12 +3611,12 @@ export function ShoppingListBuilder() {
     // it's later flipped to Freeform; the planner overwrites it on every render.
     // In Freeform mode, fall back to a cascading offset so manually-placed
     // tables stagger rather than stacking on top of each other.
-    const isGuided = getTemplateLayoutMode(template) === 'guided';
-    const bodyTop = getTemplateRegionBounds(template, 'body').top;
+    const isGuided = getTemplateLayoutMode(targetTemplate) === 'guided';
+    const bodyTop = getTemplateRegionBounds(targetTemplate, 'body').top;
     const placementY = y ?? (isGuided
       ? bodyTop
-      : Math.max(48 + (template.components.length % 6) * 24, bodyTop));
-    const component = clampComponentToTemplateRegion(cloneComponentForCanvas(
+      : Math.max(48 + (targetTemplate.components.length % 6) * 24, bodyTop));
+    return clampComponentToTemplateRegion(cloneComponentForCanvas(
       {
         ...inventorySection.component,
         x: snapCoord(x ?? 48),
@@ -3788,13 +3627,19 @@ export function ShoppingListBuilder() {
         keepHeaderWithFirstRow: true,
         keepRowsTogether: true,
       },
-      template.paper.width,
-      template.paper.height,
-    ), template, placementRegion, {
+      targetTemplate.paper.width,
+      targetTemplate.paper.height,
+    ), targetTemplate, placementRegion, {
       avoidCollisions: !isGuided,
       excludeComponentId: inventorySection.component.id,
     });
+  };
 
+  // Adding one component is its own feedback: it appears selected on the
+  // page. No toast, so a run of inserts does not stack messages over the
+  // header. Bulk and "for editing" inserts still confirm in words.
+  const insertInventorySection = (inventorySection: InventorySectionComponent, x?: number, y?: number) => {
+    const component = buildInventorySectionComponent(inventorySection, template, x, y);
     pushHistory();
     setTemplate((current) => ({
       ...current,
@@ -3802,13 +3647,14 @@ export function ShoppingListBuilder() {
     }));
     setSelectedId(component.id);
     setEditingSavedComponentSource(null);
-    showSuccess(`${inventorySection.categoryName} inventory table added to the canvas.`);
+    revealSelection();
   };
 
   const resetTemplate = () => {
     const nextTemplate = normalizeLegacyBuilderTemplateGeometry(createDefaultBuilderTemplate());
     pushHistory();
     setTemplate(nextTemplate);
+    setSavedSnapshot(JSON.stringify(nextTemplate));
     setSelectedId('');
     setActiveSavedTemplateId(null);
     setEditingSavedComponentSource(null);
@@ -4346,6 +4192,10 @@ export function ShoppingListBuilder() {
     event.preventDefault();
     event.stopPropagation();
     setSelectedId(component.id);
+    // preventDefault above also suppresses the browser's focus move, so focus
+    // is set explicitly: canvas shortcuts then act on this component, and a
+    // field left focused in the inspector cannot swallow them.
+    event.currentTarget.focus({ preventScroll: true });
     event.currentTarget.setPointerCapture(event.pointerId);
     if (isGuidedPlannedBodyComponent(component)) {
       reorderRef.current = {
@@ -4474,6 +4324,472 @@ export function ShoppingListBuilder() {
     }
   };
 
+  // ---------------------------------------------------------------------
+  // Builder chrome (v1.9 UX rework). Everything below is presentation
+  // state: which inspector tab is showing, how the workspace fits the
+  // viewport, and the shortcuts/bulk actions that shorten common tasks.
+  // None of it changes what a template can contain.
+  // ---------------------------------------------------------------------
+  const [inspectorTab, setInspectorTab] = useState<'selection' | 'page'>('page');
+  const [placementOpen, setPlacementOpen] = useState(false);
+  const [rowsOpen, setRowsOpen] = useState(true);
+  const [zoomMode, setZoomMode] = useState<'auto' | 'manual'>('auto');
+  const [focusRequest, setFocusRequest] = useState(0);
+  const [revealRequest, setRevealRequest] = useState(0);
+  const workspaceRef = useRef<HTMLDivElement | null>(null);
+  const inspectorRef = useRef<HTMLDivElement | null>(null);
+  const [workspaceLayout, setWorkspaceLayout] = useState<{
+    columns: 'wide' | 'compact' | 'stacked';
+    height: number | null;
+  }>({ columns: 'wide', height: null });
+
+  // The inspector is contextual, the convention in design tools: it shows
+  // the selected component, and the page when nothing is selected. The Page
+  // tab stays one click away while a component is selected.
+  useEffect(() => {
+    setInspectorTab(selectedId ? 'selection' : 'page');
+  }, [selectedId]);
+
+  // Fit the three-column workspace to the viewport so the panels scroll
+  // internally and the page itself never does. Measured rather than written
+  // as a `calc()` constant because the header row above wraps at narrower
+  // widths, which moves the workspace's top edge.
+  useEffect(() => {
+    const element = workspaceRef.current;
+    if (!element) return undefined;
+    const measure = () => {
+      const rect = element.getBoundingClientRect();
+      const columns = rect.width >= 1120 ? 'wide' : rect.width >= 760 ? 'compact' : 'stacked';
+      const top = rect.top + window.scrollY;
+      const height = Math.max(440, Math.floor(window.innerHeight - top - 24));
+      setWorkspaceLayout((current) => (
+        current.columns === columns && current.height === height ? current : { columns, height }
+      ));
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    if (element.parentElement) observer.observe(element.parentElement);
+    window.addEventListener('resize', measure);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', measure);
+    };
+  }, []);
+
+  const getCanvasViewportSize = useCallback(() => {
+    const root = canvasScrollRef.current;
+    if (!root) return null;
+    const viewport = root.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement | null;
+    const target = viewport ?? root;
+    if (target.clientWidth <= 0 || target.clientHeight <= 0) return null;
+    return { width: target.clientWidth, height: target.clientHeight };
+  }, []);
+
+  const zoomForScale = useCallback((scale: number) => clamp(
+    Math.floor((scale * 100) / CANVAS_ZOOM_SCALE_FACTOR / CANVAS_ZOOM_STEP) * CANVAS_ZOOM_STEP,
+    CANVAS_MIN_ZOOM,
+    CANVAS_MAX_ZOOM,
+  ), []);
+
+  const getFitWidthZoom = useCallback(() => {
+    const size = getCanvasViewportSize();
+    if (!size) return null;
+    return zoomForScale((size.width - CANVAS_FIT_MARGIN) / template.paper.width);
+  }, [getCanvasViewportSize, template.paper.width, zoomForScale]);
+
+  const fitWholePage = () => {
+    const size = getCanvasViewportSize();
+    if (!size) return;
+    setZoomMode('manual');
+    setZoom(zoomForScale(Math.min(
+      (size.width - CANVAS_FIT_MARGIN) / template.paper.width,
+      (size.height - CANVAS_FIT_MARGIN) / template.paper.height,
+    )));
+  };
+
+  const setManualZoom = (value: number) => {
+    setZoomMode('manual');
+    setZoom(clamp(value, CANVAS_MIN_ZOOM, CANVAS_MAX_ZOOM));
+  };
+
+  // Until the user picks a zoom, the page tracks the canvas width (never
+  // above 100%), so the whole page width is visible at any window size
+  // instead of opening cropped on a smaller screen.
+  useEffect(() => {
+    if (zoomMode !== 'auto') return undefined;
+    const root = canvasScrollRef.current;
+    if (!root) return undefined;
+    const apply = () => {
+      const fit = getFitWidthZoom();
+      if (fit != null) setZoom(Math.min(fit, CANVAS_DEFAULT_ZOOM));
+    };
+    apply();
+    const observer = new ResizeObserver(apply);
+    observer.observe(root);
+    return () => observer.disconnect();
+  }, [getFitWidthZoom, zoomMode]);
+
+  // Move keyboard focus to the selected component's main field (its text,
+  // or a table's title) so "add, then type" needs no extra click.
+  const requestPrimaryFieldFocus = () => setFocusRequest((current) => current + 1);
+  useEffect(() => {
+    if (focusRequest === 0) return undefined;
+    const frame = window.requestAnimationFrame(() => {
+      const field = inspectorRef.current?.querySelector<HTMLInputElement | HTMLTextAreaElement>(
+        '[data-builder-primary-field]',
+      );
+      if (!field) return;
+      field.focus({ preventScroll: false });
+      field.select();
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [focusRequest]);
+
+  // Bring a just-inserted component into view. A planned body component can
+  // land below the fold or on page 2, where the insert would otherwise look
+  // like nothing happened.
+  const revealSelection = () => setRevealRequest((current) => current + 1);
+  useEffect(() => {
+    if (revealRequest === 0 || !selectedId) return undefined;
+    const frame = window.requestAnimationFrame(() => {
+      const element = canvasScrollRef.current?.querySelector(
+        `[data-component-id="${CSS.escape(selectedId)}"]`,
+      );
+      element?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [revealRequest, selectedId]);
+
+  const insertAllInventorySections = () => {
+    if (availableInventorySections.length === 0) return;
+    pushHistory();
+    let working = template;
+    availableInventorySections.forEach((inventorySection) => {
+      const component = buildInventorySectionComponent(inventorySection, working);
+      working = { ...working, components: [...working.components, component] };
+    });
+    const added = working.components.slice(template.components.length);
+    setTemplate((current) => ({ ...current, components: [...current.components, ...added] }));
+    setSelectedId('');
+    setEditingSavedComponentSource(null);
+    showSuccess(
+      added.length === 1
+        ? `${availableInventorySections[0].categoryName} inventory table added to the page.`
+        : `${added.length} inventory sections added to the page in category order.`,
+    );
+  };
+
+  // Copies the selected table's columns and appearance to every other
+  // section table. Titles, rows, limits, translation settings and placement
+  // are per-table content and are left alone.
+  const applySelectedTableStyleToAllTables = () => {
+    if (!selectedComponent || selectedComponent.type !== 'section-table') return;
+    const sourceId = selectedComponent.id;
+    const otherTableCount = template.components.filter((component) => (
+      component.type === 'section-table' && component.id !== sourceId
+    )).length;
+    if (otherTableCount === 0) {
+      showWarning('This is the only section table on the page. Add another table before copying its style.');
+      return;
+    }
+    const style: Partial<SectionTableBuilderComponent> = {
+      fontSize: selectedComponent.fontSize,
+      rowHeight: selectedComponent.rowHeight,
+      limitWidth: selectedComponent.limitWidth,
+      wantWidth: selectedComponent.wantWidth,
+      cornerRadius: selectedComponent.cornerRadius,
+      showLimit: selectedComponent.showLimit,
+      showGlobalLimit: selectedComponent.showGlobalLimit,
+      showWant: selectedComponent.showWant,
+      wantControl: selectedComponent.wantControl,
+      showColumnDividers: selectedComponent.showColumnDividers,
+      showBorders: selectedComponent.showBorders,
+      showStatusIcons: selectedComponent.showStatusIcons,
+      alternateRows: selectedComponent.alternateRows,
+    };
+    pushHistory();
+    setTemplate((current) => ({
+      ...current,
+      components: current.components.map((component) => (
+        component.type === 'section-table' && component.id !== sourceId
+          ? clampComponentToTemplateRegion({ ...component, ...style }, current, undefined, {
+            avoidCollisions: true,
+            excludeComponentId: component.id,
+          })
+          : component
+      )),
+    }));
+    showSuccess(
+      `Columns and style copied to ${otherTableCount} other section ${otherTableCount === 1 ? 'table' : 'tables'}. Use Undo to revert.`,
+    );
+  };
+
+  const nudgeSelectedComponent = (dx: number, dy: number) => {
+    if (!selectedComponent || isGuidedPlannedBodyComponent(selectedComponent)) return;
+    const step = layoutMode === 'guided' ? gridSize : 1;
+    // Resolve the move the same way a drag would (region clamp + Guided
+    // collision placement), then accept it only if the component actually
+    // travelled the way the arrow points. Guided collision placement can
+    // otherwise relocate a blocked component in the opposite direction.
+    const resolved = clampComponentToTemplateRegion(
+      {
+        ...selectedComponent,
+        x: selectedComponent.x + dx * step,
+        y: selectedComponent.y + dy * step,
+      } as BuilderComponent,
+      template,
+      undefined,
+      { avoidCollisions: true, excludeComponentId: selectedComponent.id },
+    );
+    const movedX = resolved.x - selectedComponent.x;
+    const movedY = resolved.y - selectedComponent.y;
+    const followsArrow = (dx !== 0 && Math.sign(movedX) === dx && movedY === 0)
+      || (dy !== 0 && Math.sign(movedY) === dy && movedX === 0);
+    if (!followsArrow) return;
+    updateSelectedComponent({ x: resolved.x, y: resolved.y });
+  };
+
+  // Canvas keyboard shortcuts. Scoped to the canvas (or no focused control)
+  // so Delete/Backspace typed into an inspector field never removes a
+  // component. Handlers are read through a ref so the listener is bound once.
+  const shortcutActionsRef = useRef({
+    undo: undoLastChange,
+    remove: deleteSelectedComponent,
+    duplicate: duplicateSelectedComponent,
+    nudge: nudgeSelectedComponent,
+    hasSelection: Boolean(selectedComponent),
+    canUndo: templateHistory.length > 0,
+  });
+  useEffect(() => {
+    shortcutActionsRef.current = {
+      undo: undoLastChange,
+      remove: deleteSelectedComponent,
+      duplicate: duplicateSelectedComponent,
+      nudge: nudgeSelectedComponent,
+      hasSelection: Boolean(selectedComponent),
+      canUndo: templateHistory.length > 0,
+    };
+  });
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (!target) return;
+      // Never act on a key typed into a field, or pressed inside a menu,
+      // list or slider that uses the same keys for its own navigation.
+      if (
+        target.isContentEditable
+        || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName)
+        || target.closest('[role="menu"],[role="listbox"],[role="slider"],[role="combobox"]')
+      ) {
+        return;
+      }
+      const inCanvas = target === document.body || Boolean(canvasScrollRef.current?.contains(target));
+      // Dialogs and popovers portal outside the builder root, so they are
+      // excluded here without being named.
+      const inBuilder = inCanvas || Boolean(workspaceRef.current?.contains(target));
+      if (!inBuilder) return;
+      const actions = shortcutActionsRef.current;
+      const modifier = event.metaKey || event.ctrlKey;
+      const key = event.key.toLowerCase();
+      if (modifier && !event.shiftKey && key === 'z') {
+        if (!actions.canUndo) return;
+        event.preventDefault();
+        actions.undo();
+        return;
+      }
+      if (!actions.hasSelection) return;
+      if (modifier && key === 'd') {
+        event.preventDefault();
+        actions.duplicate();
+        return;
+      }
+      if (modifier || event.altKey) return;
+      if (key === 'delete' || key === 'backspace') {
+        event.preventDefault();
+        actions.remove();
+      } else if (key === 'escape') {
+        setSelectedId('');
+      } else if (!inCanvas) {
+        // Arrow keys move focus within toolbars, tabs and toggle groups;
+        // they only nudge when the canvas itself has focus.
+      } else if (key === 'arrowleft' || key === 'arrowright' || key === 'arrowup' || key === 'arrowdown') {
+        // The app sidebar listens for arrow keys on `document` and moves
+        // focus into the navigation. With a component selected on the canvas
+        // the arrows belong to it, so the event stops here.
+        event.preventDefault();
+        event.stopPropagation();
+        if (key === 'arrowleft') actions.nudge(-1, 0);
+        else if (key === 'arrowright') actions.nudge(1, 0);
+        else if (key === 'arrowup') actions.nudge(0, -1);
+        else actions.nudge(0, 1);
+      }
+    };
+    // Capture phase, so this runs before document-level listeners.
+    window.addEventListener('keydown', handleKeyDown, true);
+    return () => window.removeEventListener('keydown', handleKeyDown, true);
+  }, []);
+
+  const fontSizeOptions = (current: number, list: readonly number[] = BUILDER_FONT_SIZES) => (
+    list.includes(current) ? [...list] : [...list, current].sort((a, b) => a - b)
+  );
+
+  const hasUnsavedChanges = useMemo(
+    () => JSON.stringify(template) !== savedSnapshot,
+    [savedSnapshot, template],
+  );
+
+  const pageSummary = [
+    'Letter',
+    bodyLayoutModeLabel(bodyLayoutMode),
+    `up to ${maxPages} ${maxPages === 1 ? 'page' : 'pages'}`,
+    printModeLabel(printMode),
+  ].join(' · ');
+
+  const renderTypographyControls = (
+    component: TextBuilderComponent | DateBuilderComponent | LanguageTagBuilderComponent,
+    idPrefix: string,
+    onFontSizeChange: (size: number) => void,
+  ) => (
+    <>
+      <div className="flex items-center gap-1.5">
+        <Select value={String(component.fontSize)} onValueChange={(value) => onFontSizeChange(Number(value))}>
+          <SelectTrigger id={`${idPrefix}-font-size`} aria-label="Font size" className="h-8 w-[84px] shrink-0 text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {fontSizeOptions(component.fontSize).map((size) => (
+              <SelectItem key={String(size)} value={String(size)}>
+                {size} pt
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <ToggleGroup
+          type="multiple"
+          aria-label="Text weight"
+          className="w-auto shrink-0"
+          value={component.fontWeight === 'bold' ? ['bold'] : []}
+          onValueChange={(value) => updateSelectedComponent({
+            fontWeight: value.includes('bold') ? 'bold' : 'normal',
+          })}
+        >
+          <ToggleGroupItem value="bold" aria-label="Bold">
+            <Bold size={14} />
+          </ToggleGroupItem>
+        </ToggleGroup>
+        <Segmented
+          ariaLabel="Alignment"
+          value={component.align}
+          onChange={(align) => updateSelectedComponent({ align })}
+          options={[
+            { value: 'left', ariaLabel: 'Align left', label: <AlignLeft size={14} /> },
+            { value: 'center', ariaLabel: 'Align center', label: <AlignCenter size={14} /> },
+            { value: 'right', ariaLabel: 'Align right', label: <AlignRight size={14} /> },
+          ]}
+        />
+      </div>
+      <FieldRow label="Line height" htmlFor={`${idPrefix}-line-height`}>
+        <Input
+          id={`${idPrefix}-line-height`}
+          type="number"
+          step="0.05"
+          className="h-8 text-xs md:text-xs"
+          value={component.lineHeight}
+          onChange={(event) => updateSelectedComponent({ lineHeight: toNumber(event.target.value, component.lineHeight) })}
+        />
+      </FieldRow>
+    </>
+  );
+
+  const renderRegionControls = (component: BuilderComponent) => {
+    if (isInventorySectionTable(component)) return null;
+    const region = selectedComponentRegion ?? getComponentRegion(component, template);
+    return (
+      <>
+        <FieldRow label="Page region" controlClassName="w-[66%]">
+          <Segmented
+            ariaLabel="Page region"
+            testId="builder-selected-component-region-select"
+            value={region}
+            onChange={(next) => changeComponentRegion(component.id, next)}
+            options={BUILDER_COMPONENT_REGIONS.map((option) => ({
+              value: option,
+              label: componentRegionLabel(option),
+              disabled: !canPlaceComponentInRegion(component, template, option),
+            }))}
+          />
+        </FieldRow>
+        {/*
+          Always rendered: body content does not repeat, so the control
+          disables there instead of appearing and pushing the sections below
+          it down the moment a region is picked.
+        */}
+        <FieldRow label="Repeats on">
+          <Select
+            value={region === 'body' ? 'body' : component.repeatMode ?? 'every'}
+            onValueChange={(value) => changeComponentRepeatMode(component.id, value as BuilderHeaderFooterRepeatMode)}
+            disabled={region === 'body'}
+          >
+            <SelectTrigger aria-label="Repeat on pages" className="h-8 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {region === 'body' && <SelectItem value="body">Flows with the body</SelectItem>}
+              {BUILDER_HEADER_FOOTER_REPEAT_MODES.map((mode) => (
+                <SelectItem key={mode} value={mode}>
+                  {headerFooterRepeatModeLabel(mode)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </FieldRow>
+      </>
+    );
+  };
+
+  const renderGeometrySection = (component: BuilderComponent) => (
+    <InspectorSection
+      title="Position & size"
+      collapsible
+      open={placementOpen}
+      onOpenChange={setPlacementOpen}
+      testId="builder-geometry-section"
+    >
+      <div className="grid grid-cols-2 gap-1.5">
+        <GeometryInput
+          id="component-x"
+          prefix="X"
+          label="X position"
+          value={component.x}
+          onChange={(raw) => updateSelectedComponent({ x: toNumber(raw, component.x) })}
+        />
+        <GeometryInput
+          id="component-y"
+          prefix="Y"
+          label="Y position"
+          value={component.y}
+          onChange={(raw) => updateSelectedComponent({ y: toNumber(raw, component.y) })}
+        />
+        <GeometryInput
+          id="component-width"
+          prefix="W"
+          label="Width"
+          value={component.width}
+          onChange={(raw) => updateSelectedComponent({ width: toNumber(raw, component.width) })}
+        />
+        <GeometryInput
+          id="component-height"
+          prefix="H"
+          label="Height"
+          value={Math.round(getComponentHeight(component, sectionTableMeasurement))}
+          onChange={(raw) => updateSelectedComponent({ height: toNumber(raw, component.height) })}
+          disabled={component.type === 'section-table'}
+        />
+      </div>
+    </InspectorSection>
+  );
+
   const renderCanvasComponent = (
     component: BuilderComponent,
     options: {
@@ -4500,10 +4816,11 @@ export function ShoppingListBuilder() {
       <div
         key={options.key}
         className={cn(
-          'absolute select-none rounded-[2px] outline-hidden',
+          'absolute select-none rounded-[2px] outline-hidden focus-visible:ring-2 focus-visible:ring-primary/60',
           selected ? 'z-20' : 'z-10 hover:ring-1 hover:ring-primary/40',
         )}
         data-region={componentRegion}
+        data-component-id={component.id}
         data-flow-continuation={options.isContinuation ? 'true' : undefined}
         style={{
           left: options.left ?? component.x,
@@ -4519,7 +4836,13 @@ export function ShoppingListBuilder() {
             event.preventDefault();
             event.stopPropagation();
             setSelectedId(component.id);
+            event.currentTarget.focus({ preventScroll: true });
           }}
+        onDoubleClick={() => {
+          setSelectedId(component.id);
+          setInspectorTab('selection');
+          requestPrimaryFieldFocus();
+        }}
         onPointerMove={isDraggable ? (event) => handleComponentPointerMove(event, component) : undefined}
         onPointerUp={isDraggable ? handleComponentPointerUp : undefined}
         onPointerCancel={isDraggable ? handleComponentPointerUp : undefined}
@@ -4531,10 +4854,14 @@ export function ShoppingListBuilder() {
           <div className="pointer-events-none absolute inset-[-3px] z-30 rounded-[4px] border-2 border-primary" />
         )}
         {showRegionBadge && (
+          // Floating selection toolbar. Counter-scaled so it stays one size
+          // at every zoom; anchored above the component's top-left corner.
           <div
-            className="pointer-events-auto absolute -top-8 left-0 z-40 flex items-center gap-1"
+            className="pointer-events-auto absolute bottom-full left-0 z-40 mb-1.5 flex origin-bottom-left items-center gap-1"
+            style={{ transform: `scale(${1 / getCanvasScale(zoom)})` }}
             onPointerDown={(event) => event.stopPropagation()}
             onClick={(event) => event.stopPropagation()}
+            onDoubleClick={(event) => event.stopPropagation()}
           >
             {canChangeRegion && (
               <DropdownMenu modal={false}>
@@ -4608,6 +4935,28 @@ export function ShoppingListBuilder() {
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
+            <div className="flex h-6 items-center rounded-full border border-border bg-background shadow-sm">
+              <button
+                type="button"
+                aria-label="Duplicate"
+                title="Duplicate"
+                data-testid="builder-canvas-duplicate"
+                onClick={duplicateSelectedComponent}
+                className="flex h-6 w-7 items-center justify-center rounded-l-full text-foreground transition-colors hover:bg-muted focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary"
+              >
+                <CopyIcon size={12} />
+              </button>
+              <button
+                type="button"
+                aria-label="Delete"
+                title="Delete"
+                data-testid="builder-canvas-delete"
+                onClick={deleteSelectedComponent}
+                className="flex h-6 w-7 items-center justify-center rounded-r-full text-foreground transition-colors hover:bg-muted focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary"
+              >
+                <Trash2Icon size={12} />
+              </button>
+            </div>
           </div>
         )}
         <div className="relative z-10 h-full w-full">
@@ -4634,436 +4983,450 @@ export function ShoppingListBuilder() {
       }}
     >
       <TooltipProvider>
-        <div className="space-y-4 pt-6" data-testid="shopping-list-builder">
-        <div className="flex flex-col gap-4">
-          <SectionHeader
-            title="Shopping List Builder"
-            description={terminology.format('Compose printable shopping list templates from constrained {pantry} components')}
-            icon={ShoppingListBuilderTitleIcon}
-          />
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <AnimateIcon asChild animate={animateBuilderChromeMount} animateOnHover animateOnTap>
-                <Button size="sm" onClick={downloadPreviewPdf} disabled={isGeneratingPdf}>
-                  <DownloadIcon size={16} />
-                  {isGeneratingPdf ? 'Preparing PDF' : 'Download PDF'}
-                </Button>
-              </AnimateIcon>
-              <AnimateIcon asChild animate={animateBuilderChromeMount} animateOnHover animateOnTap>
-                <Button variant="outline" size="sm" onClick={saveCurrentTemplate} disabled={isSavingTemplate}>
-                  {isSavingTemplate ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <SaveIcon size={16} />
-                  )}
-                  Save Template
-                </Button>
-              </AnimateIcon>
-            </div>
-            <div className="flex items-center gap-2">
-              {/*
-                Canvas-wide translation preview. Picking a language re-renders
-                every translation-aware component (slice 2 = text components
-                only) per its own `translationMode`. "English (no preview)"
-                reverts the canvas immediately and skips any network call.
-                State + fetch effect live in the parent ShoppingListBuilder;
-                this Select is just the trigger.
-              */}
-              <Select
-                value={previewLanguage || PREVIEW_LANGUAGE_NONE_SENTINEL}
-                onValueChange={(value) => {
-                  setPreviewLanguage(value === PREVIEW_LANGUAGE_NONE_SENTINEL ? '' : value);
-                }}
-                disabled={isLoadingLanguages}
+        <div className="min-w-0 w-full space-y-4 pt-6" data-testid="shopping-list-builder">
+        {/*
+          One header row: page identity on the left, the document's own
+          controls (name, open, preview language, save, download) on the
+          right. It wraps under the title on narrower windows.
+        */}
+        <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+          {/*
+            The title block gives way first (its description wraps) so the
+            controls stay on the title's row; only when even that does not
+            fit do the controls drop beneath as one row of their own.
+          */}
+          <div className="min-w-0 flex-[1_1_340px]">
+            <SectionHeader
+              title="Shopping List Builder"
+              description={terminology.format('Compose printable shopping list templates from constrained {pantry} components')}
+              icon={ShoppingListBuilderTitleIcon}
+            />
+          </div>
+          {/* flex-none keeps the group whole beside the title; flex-wrap lets it
+              break only when it is wider than the page itself. */}
+          <div className="flex min-w-0 max-w-full flex-none flex-wrap items-center gap-2">
+            <div className="relative w-[200px] min-w-[150px] shrink 2xl:w-[300px]">
+              <Input
+                id="builder-template-name"
+                aria-label="Template name"
+                placeholder="Template name"
+                className="h-9 pr-14 font-medium"
+                title={template.name}
+                value={template.name}
+                maxLength={MAX_SAVED_TEMPLATE_NAME_LENGTH}
+                onChange={(event) =>
+                  setTemplate((current) => ({
+                    ...current,
+                    name: limitTemplateName(event.target.value),
+                  }))
+                }
+              />
+              <span
+                aria-hidden
+                className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[11px] tabular-nums text-muted-foreground"
               >
-                <SelectTrigger
-                  className="h-9 w-[180px]"
-                  aria-label="Preview language"
-                  data-testid="builder-preview-language-select"
+                {template.name.length}/{MAX_SAVED_TEMPLATE_NAME_LENGTH}
+              </span>
+            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  id="builder-apply-saved-template"
+                  type="button"
+                  variant="outline"
+                  data-testid="saved-template-apply-trigger"
+                  className="h-9 gap-2"
                 >
-                  {/*
-                    `flex!` overrides the SelectTrigger's `[&>span]:line-clamp-1`
-                    utility, which forces display: -webkit-box + vertical
-                    box-orient and stacks the Languages icon above the
-                    SelectValue text. With display:flex restored, the icon
-                    and the value sit side-by-side as intended.
-                  */}
-                  <span className="flex! items-center gap-2 truncate">
-                    <AnimateIcon asChild animate={animateBuilderChromeMount} animateOnHover animateOnTap>
-                      <LanguagesIcon size={16} className="shrink-0" />
-                    </AnimateIcon>
+                  <AnimateIcon asChild animate={animateBuilderChromeMount} animateOnHover animateOnTap>
+                    <LayoutTemplateIcon size={16} className="shrink-0" />
+                  </AnimateIcon>
+                  Open
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-72">
+                <DropdownMenuLabel>Saved templates</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {savedTemplates.length === 0 ? (
+                  <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                    {isLoadingSavedTemplates ? 'Loading saved templates…' : 'No saved templates yet. Save this page to reuse it.'}
+                  </div>
+                ) : (
+                  <ScrollArea
+                    data-testid="saved-template-apply-scroll-area"
+                    className={cn(savedTemplates.length > 5 ? 'h-[260px] pr-2' : '')}
+                  >
+                    <div className="space-y-1">
+                      {savedTemplates.map((savedTemplate) => (
+                        <DropdownMenuItem
+                          key={savedTemplate.id}
+                          data-testid="saved-template-apply-item"
+                          title={savedTemplate.name}
+                          className="flex-col items-start gap-0 py-2"
+                          onSelect={() => void applySavedTemplate(savedTemplate)}
+                        >
+                          <span className="flex w-full items-center justify-between gap-2 text-sm font-medium">
+                            <span className="min-w-0 truncate">
+                              {truncateMiddle(savedTemplate.name, MAX_SAVED_TEMPLATE_NAME_LENGTH)}
+                            </span>
+                            {savedTemplate.id === activeSavedTemplateId && (
+                              <Badge variant="secondary" className="shrink-0 text-[10px]">Current</Badge>
+                            )}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            {savedTemplate.templateData.components.length} components
+                          </span>
+                        </DropdownMenuItem>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                )}
+                <DropdownMenuSeparator />
+                <AnimateIcon asChild animateOnHover animateOnTap>
+                  <DropdownMenuItem data-testid="builder-new-blank-template" onSelect={resetTemplate}>
+                    <RotateCcwIcon size={16} className="mr-2" />
+                    New blank template
+                  </DropdownMenuItem>
+                </AnimateIcon>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            {/*
+              Canvas-wide translation preview. Picking a language re-renders
+              every translation-aware component per its own translation
+              mode. "English (no preview)" reverts the canvas immediately
+              and skips any network call.
+            */}
+            <Select
+              value={previewLanguage || PREVIEW_LANGUAGE_NONE_SENTINEL}
+              onValueChange={(value) => {
+                setPreviewLanguage(value === PREVIEW_LANGUAGE_NONE_SENTINEL ? '' : value);
+              }}
+              disabled={isLoadingLanguages}
+            >
+              <SelectTrigger
+                className="h-9 w-[176px] shrink-0"
+                aria-label="Preview language"
+                data-testid="builder-preview-language-select"
+              >
+                {/*
+                  `flex!` overrides the SelectTrigger's `[&>span]:line-clamp-1`
+                  utility, which forces display: -webkit-box and stacks the
+                  icon above the value text.
+                */}
+                <span className="flex! min-w-0 items-center gap-2">
+                  <AnimateIcon asChild animate={animateBuilderChromeMount} animateOnHover animateOnTap>
+                    <LanguagesIcon size={16} className="shrink-0" />
+                  </AnimateIcon>
+                  <span className="truncate">
                     <SelectValue placeholder="Preview language" />
                   </span>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={PREVIEW_LANGUAGE_NONE_SENTINEL}>English (no preview)</SelectItem>
-                  {enabledNonEnglishLanguages.map((lang) => (
-                    <SelectItem key={lang.name} value={lang.name}>
-                      {lang.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <AnimateIcon asChild animate={animateBuilderChromeMount} animateOnHover animateOnTap>
-                <Button variant="outline" size="sm" onClick={resetTemplate}>
-                  <RotateCcwIcon size={16} />
-                  Reset
-                </Button>
-              </AnimateIcon>
-            </div>
+                </span>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={PREVIEW_LANGUAGE_NONE_SENTINEL}>English (no preview)</SelectItem>
+                {enabledNonEnglishLanguages.map((lang) => (
+                  <SelectItem key={lang.name} value={lang.name}>
+                    {lang.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <AnimateIcon asChild animate={animateBuilderChromeMount} animateOnHover animateOnTap>
+              <Button variant="outline" className="h-9" onClick={saveCurrentTemplate} disabled={isSavingTemplate}>
+                {isSavingTemplate ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <SaveIcon size={16} />
+                )}
+                Save Template
+                {hasUnsavedChanges && (
+                  <span
+                    data-testid="builder-unsaved-dot"
+                    aria-hidden
+                    className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary"
+                  />
+                )}
+              </Button>
+            </AnimateIcon>
+            <AnimateIcon asChild animate={animateBuilderChromeMount} animateOnHover animateOnTap>
+              <Button className="h-9" onClick={downloadPreviewPdf} disabled={isGeneratingPdf}>
+                <DownloadIcon size={16} />
+                {isGeneratingPdf ? 'Preparing PDF' : 'Download PDF'}
+              </Button>
+            </AnimateIcon>
           </div>
         </div>
 
         <div
-          className="grid gap-4 lg:h-[calc(100vh-184px)] lg:min-h-0 lg:grid-cols-[minmax(0,1fr)_320px] xl:grid-cols-[320px_minmax(0,1fr)_320px]"
+          ref={workspaceRef}
+          className={cn(
+            'grid min-w-0 gap-3',
+            workspaceLayout.columns === 'wide' && 'grid-cols-[264px_minmax(0,1fr)_336px]',
+            workspaceLayout.columns === 'compact' && 'grid-cols-[216px_minmax(0,1fr)_288px]',
+            workspaceLayout.columns === 'stacked' && 'grid-cols-1',
+          )}
+          style={workspaceLayout.columns !== 'stacked' && workspaceLayout.height != null
+            ? { height: workspaceLayout.height }
+            : undefined}
+          data-workspace-columns={workspaceLayout.columns}
           data-testid="builder-workspace-grid"
         >
-          <aside className="flex flex-col rounded-md border bg-card p-3 lg:col-span-2 xl:col-span-1">
-            <div className="mb-4 space-y-4">
-              <div className="space-y-2">
-                <BuilderSectionLabel
-                  htmlFor="builder-template-name"
-                  icon={{ type: 'animate', icon: ClipboardCheckIcon }}
-                >
-                  Template Name
-                </BuilderSectionLabel>
-                <Input
-                  id="builder-template-name"
-                  value={template.name}
-                  maxLength={MAX_SAVED_TEMPLATE_NAME_LENGTH}
-                  onChange={(event) =>
-                    setTemplate((current) => ({
-                      ...current,
-                      name: limitTemplateName(event.target.value),
-                    }))
-                  }
-                />
-                <p className="text-xs text-muted-foreground">
-                  {template.name.length}/{MAX_SAVED_TEMPLATE_NAME_LENGTH} characters
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <BuilderSectionLabel
-                  htmlFor="builder-apply-saved-template"
-                  icon={{ type: 'animate', icon: SquareArrowOutUpRightIcon }}
-                >
-                  Apply Saved Template
-                </BuilderSectionLabel>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      id="builder-apply-saved-template"
-                      type="button"
-                      variant="outline"
-                      data-testid="saved-template-apply-trigger"
-                      className="w-full justify-start gap-2"
-                      disabled={isLoadingSavedTemplates || savedTemplates.length === 0}
-                    >
-                      <AnimateIcon asChild animateOnHover animateOnTap>
-                        <LayoutTemplateIcon size={16} className="shrink-0" />
-                      </AnimateIcon>
-                      <span className="min-w-0 truncate text-left">
-                        {savedTemplates.length > 0 ? 'Choose template to apply' : 'No saved templates'}
-                      </span>
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent
-                    align="start"
-                    className="w-(--radix-dropdown-menu-trigger-width)"
-                  >
-                    <DropdownMenuLabel>Apply to Canvas</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <ScrollArea
-                      data-testid="saved-template-apply-scroll-area"
-                      className={cn(savedTemplates.length > 4 ? 'h-[244px] pr-2' : 'max-h-[244px]')}
-                    >
-                      <div className="space-y-1">
-                        {savedTemplates.map((savedTemplate) => (
-                          <DropdownMenuItem
-                            key={savedTemplate.id}
-                            data-testid="saved-template-apply-item"
-                            title={savedTemplate.name}
-                            className="flex-col items-start gap-0 py-2"
-                            onSelect={() => void applySavedTemplate(savedTemplate)}
-                          >
-                            <span className="w-full text-sm font-medium">
-                              {truncateMiddle(savedTemplate.name, MAX_SAVED_TEMPLATE_NAME_LENGTH)}
-                            </span>
-                            <span className="text-xs text-muted-foreground">
-                              {savedTemplate.templateData.components.length} components
-                            </span>
-                          </DropdownMenuItem>
-                        ))}
-                      </div>
-                    </ScrollArea>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-                <p className="text-xs text-muted-foreground">
-                  Select a saved page template to replace the current canvas.
-                </p>
-              </div>
+          <aside
+            aria-label="Insert components"
+            className={cn(
+              'flex min-h-0 flex-col overflow-hidden rounded-md border bg-card',
+              workspaceLayout.columns === 'stacked' && 'h-[420px]',
+            )}
+          >
+            <div className="flex h-11 shrink-0 items-center gap-2 border-b px-3 text-sm font-semibold">
+              <BetweenHorizontalStartIcon size={16} className="text-muted-foreground" />
+              Insert
             </div>
-
-            <div className="mb-3 flex items-center justify-between">
-              <div>
-                <BuilderSectionLabel
-                  className="text-sm font-semibold"
-                  icon={{ type: 'animate', icon: BetweenHorizontalStartIcon }}
-                >
-                  Base Components
-                </BuilderSectionLabel>
-                <p className="text-xs text-muted-foreground">Customizable primitives</p>
-              </div>
-            </div>
-            <div className="space-y-2">
-              {paletteItems.map((item) => (
-                <AnimateIcon key={item.type} asChild animateOnHover animateOnTap>
-                  <button
-                    type="button"
-                    draggable
-                    onDragStart={(event) => handlePaletteDragStart(event, item.type)}
-                    onClick={() => addComponent(item.type)}
-                    className="flex w-full items-center justify-between rounded-md border bg-background px-3 py-2 text-left text-sm transition-colors hover:bg-accent focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
-                  >
-                    <span className="flex items-center gap-2">
-                      <item.icon size={16} />
-                      {item.label}
-                    </span>
-                    <GripVertical className="h-4 w-4 text-muted-foreground" />
-                  </button>
-                </AnimateIcon>
-              ))}
-            </div>
-
-            <Separator className="my-4" />
-
-            <div className="space-y-3">
-              <div>
-                <BuilderSectionLabel
-                  className="text-sm font-semibold"
-                  icon={{ type: 'bridged', icon: BoxIcon }}
-                >
-                  Inventory Sections
-                </BuilderSectionLabel>
-                <p className="text-xs text-muted-foreground">
-                  {availableInventorySections.length} current sections
-                  {placedInventoryCategoryIds.size > 0 && (
-                    <span> · {placedInventoryCategoryIds.size} on canvas</span>
-                  )}
-                </p>
-              </div>
-              {availableInventorySections.length > 0 ? (
-                <ScrollArea className={BUILDER_LIST_SCROLL_CLASS}>
-                  <div className="space-y-2">
-                    {availableInventorySections.map((inventorySection) => (
-                      <button
-                        key={inventorySection.categoryId}
-                        type="button"
-                        draggable
-                        data-testid="inventory-section-drag-source"
-                        data-inventory-section-name={inventorySection.categoryName}
-                        onDragStart={(event) => handleInventorySectionDragStart(event, inventorySection)}
-                        onClick={() => insertInventorySection(inventorySection)}
-                        className="flex w-full items-center justify-between gap-2 rounded-md border bg-background px-3 py-2 text-left text-sm transition-colors hover:bg-accent focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
-                      >
-                        <span className="min-w-0">
-                          <span className="block truncate font-medium">{inventorySection.categoryName}</span>
-                          <span className="block truncate text-xs text-muted-foreground">
-                            {inventorySection.itemCount} in-stock items
-                          </span>
-                        </span>
-                        <GripVertical className="h-4 w-4 shrink-0 text-muted-foreground" />
-                      </button>
-                    ))}
-                  </div>
-                </ScrollArea>
-              ) : inventorySections.length > 0 ? (
-                <div
-                  data-testid="inventory-sections-all-placed"
-                  className="rounded-md border border-dashed p-3 text-xs text-muted-foreground"
-                >
-                  Every inventory section is on the canvas. Delete one to bring it back here.
-                </div>
-              ) : (
-                <div className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">
-                  Inventory sections will appear when in-stock food items are available.
-                </div>
-              )}
-            </div>
-
-            <Separator className="my-4" />
-
-            <div className="space-y-3">
-              <div>
-                <BuilderSectionLabel
-                  className="text-sm font-semibold"
-                  icon={{ type: 'bridged', icon: ReceiptTextIcon }}
-                >
-                  Saved Components
-                </BuilderSectionLabel>
-                <p className="text-xs text-muted-foreground">{savedComponents.length} saved</p>
-              </div>
-              {savedComponents.length > 0 ? (
-                <ScrollArea className={BUILDER_LIST_SCROLL_CLASS}>
-                  <div className="space-y-2">
-                    {savedComponents.map((savedComponent) => (
-                      <div
-                        key={savedComponent.id}
-                        data-testid="saved-component-card"
-                        data-saved-component-name={savedComponent.name}
-                        className="flex w-full items-center gap-1 rounded-md border bg-background p-1 text-sm transition-colors hover:bg-accent"
-                      >
+            {/*
+              Definite height comes from the flex column (min-h-0 + flex-1).
+              Radix wraps viewport content in a `display: table` div, which
+              sizes to max-content and defeats `truncate`; forcing it to
+              block keeps every row inside the panel's width.
+            */}
+            <ScrollArea className="min-h-0 flex-1 [&_[data-radix-scroll-area-viewport]>div]:block!">
+              <div className="space-y-4 p-3">
+                <div className="space-y-2">
+                  <PanelHeading>Components</PanelHeading>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {paletteItems.map((item) => (
+                      <AnimateIcon key={item.type} asChild animateOnHover animateOnTap>
                         <button
                           type="button"
                           draggable
-                          onDragStart={(event) => handleSavedComponentDragStart(event, savedComponent)}
-                          onClick={() => insertSavedComponent(savedComponent)}
-                          className="flex min-w-0 flex-1 items-center justify-between gap-2 rounded-sm px-2 py-1.5 text-left focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
+                          title={`Add ${item.label.toLowerCase()} — click, or drag onto the page`}
+                          data-testid={`builder-palette-${item.type}`}
+                          onDragStart={(event) => handlePaletteDragStart(event, item.type)}
+                          onClick={() => addComponent(item.type)}
+                          className="flex h-[58px] cursor-grab flex-col items-center justify-center gap-1 rounded-md border bg-background px-1 text-center text-[11px] leading-tight transition-colors hover:border-primary/50 hover:bg-accent focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring active:cursor-grabbing"
                         >
-                          <span className="min-w-0">
-                            <span className="block truncate font-medium">{savedComponent.name}</span>
-                            <span className="block truncate text-xs text-muted-foreground">
-                              {componentTypeLabel(savedComponent.componentType)}
-                            </span>
-                          </span>
-                          <GripVertical className="h-4 w-4 shrink-0 text-muted-foreground" />
+                          <item.icon size={16} className="shrink-0 text-muted-foreground" />
+                          <span className="line-clamp-2">{item.label}</span>
                         </button>
-                        <SavedComponentActionsMenu
-                          savedComponent={savedComponent}
-                          onRename={openRenameSavedComponent}
-                          onEdit={editSavedComponent}
-                          onDelete={openDeleteSavedComponent}
-                        />
-                      </div>
+                      </AnimateIcon>
                     ))}
                   </div>
-                </ScrollArea>
-              ) : (
-                <div className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">
-                  Saved components will appear here after you save one from the canvas.
                 </div>
-              )}
-            </div>
 
-            <Separator className="my-4" />
+                <div className="space-y-2">
+                  <PanelHeading
+                    count={inventorySections.length > 0
+                      ? `${inventorySections.length - availableInventorySections.length} of ${inventorySections.length} on page`
+                      : undefined}
+                    action={availableInventorySections.length > 1 ? (
+                      <AnimateIcon asChild animateOnHover animateOnTap>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          data-testid="builder-add-all-inventory-sections"
+                          className="h-7 shrink-0 gap-1 px-2 text-xs"
+                          onClick={insertAllInventorySections}
+                        >
+                          <PlusIcon size={14} />
+                          Add all
+                        </Button>
+                      </AnimateIcon>
+                    ) : undefined}
+                  >
+                    Inventory
+                  </PanelHeading>
+                  {availableInventorySections.length > 0 ? (
+                    <div className="space-y-1">
+                      {availableInventorySections.map((inventorySection) => (
+                        <button
+                          key={inventorySection.categoryId}
+                          type="button"
+                          draggable
+                          data-testid="inventory-section-drag-source"
+                          data-inventory-section-name={inventorySection.categoryName}
+                          onDragStart={(event) => handleInventorySectionDragStart(event, inventorySection)}
+                          onClick={() => insertInventorySection(inventorySection)}
+                          className="group flex h-9 w-full cursor-grab items-center justify-between gap-2 rounded-md border bg-background px-3 text-left text-xs transition-colors hover:border-primary/50 hover:bg-accent focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring active:cursor-grabbing"
+                        >
+                          <span className="min-w-0 truncate font-medium">{inventorySection.categoryName}</span>
+                          <span className="shrink-0 tabular-nums text-muted-foreground">
+                            {inventorySection.itemCount} {inventorySection.itemCount === 1 ? 'item' : 'items'}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  ) : inventorySections.length > 0 ? (
+                    <p data-testid="inventory-sections-all-placed" className="text-xs text-muted-foreground">
+                      Every in-stock category is on the page.
+                    </p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">
+                      {isLoadingInventorySections
+                        ? 'Loading inventory sections…'
+                        : 'Inventory sections appear here when food items are in stock.'}
+                    </p>
+                  )}
+                </div>
 
-            <div className="space-y-3">
-              <div className="flex items-center justify-between text-sm">
-                <span className="font-medium">Canvas</span>
-                <Badge variant="secondary">Letter</Badge>
-              </div>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span>Zoom</span>
-                  <span data-testid="builder-zoom-value">
-                    {zoom}%{zoom === CANVAS_DEFAULT_ZOOM ? ' (Full page)' : ''}
-                  </span>
+                <div className="space-y-2">
+                  <PanelHeading count={savedComponents.length > 0 ? savedComponents.length : undefined}>
+                    Saved components
+                  </PanelHeading>
+                  {savedComponents.length > 0 ? (
+                    <div className="space-y-1">
+                      {savedComponents.map((savedComponent) => (
+                        <div
+                          key={savedComponent.id}
+                          data-testid="saved-component-card"
+                          data-saved-component-name={savedComponent.name}
+                          className="flex h-10 w-full items-center rounded-md border bg-background pl-3 pr-0.5 text-xs transition-colors hover:border-primary/50 hover:bg-accent"
+                        >
+                          <button
+                            type="button"
+                            draggable
+                            onDragStart={(event) => handleSavedComponentDragStart(event, savedComponent)}
+                            onClick={() => insertSavedComponent(savedComponent)}
+                            className="flex h-full min-w-0 flex-1 cursor-grab flex-col justify-center rounded-sm text-left focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring active:cursor-grabbing"
+                          >
+                            <span className="block truncate font-medium">{savedComponent.name}</span>
+                            <span className="block truncate text-[11px] text-muted-foreground">
+                              {componentTypeLabel(savedComponent.componentType)}
+                            </span>
+                          </button>
+                          <SavedComponentActionsMenu
+                            savedComponent={savedComponent}
+                            onRename={openRenameSavedComponent}
+                            onEdit={editSavedComponent}
+                            onDelete={openDeleteSavedComponent}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">
+                      {isLoadingSavedComponents
+                        ? 'Loading saved components…'
+                        : 'Save a component from the page to reuse it on other templates.'}
+                    </p>
+                  )}
                 </div>
-                <Slider
-                  value={[zoom]}
-                  min={CANVAS_MIN_ZOOM}
-                  max={CANVAS_MAX_ZOOM}
-                  step={CANVAS_ZOOM_STEP}
-                  onValueChange={([value]) => setZoom(value)}
-                />
-                <div className="flex flex-wrap items-center gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    data-testid="builder-zoom-full-page"
-                    onClick={() => setZoom(CANVAS_DEFAULT_ZOOM)}
-                    disabled={zoom === CANVAS_DEFAULT_ZOOM}
-                  >
-                    Full page
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    data-testid="builder-zoom-page-width"
-                    onClick={fitPageToWidth}
-                  >
-                    Page width
-                  </Button>
-                </div>
               </div>
-            </div>
+            </ScrollArea>
           </aside>
 
-          <main className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-md border translation-options-column p-3 lg:h-[calc(150vh-184px)]">
-            <div className="mb-3 space-y-2">
-              {/* Row 1: layout toggles (left) + canvas actions (right) */}
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <LayoutModeToggle mode={layoutMode} onChange={setLayoutMode} animateOnMount={animateBuilderChromeMount} />
-                  <GridGuidesToggle shown={showCanvasGuides} onChange={setShowCanvasGuides} animateOnMount={animateBuilderChromeMount} />
-                </div>
-                <div className="flex items-center gap-2">
-                <Tooltip>
-                  <TooltipTrigger asChild>
+          <main
+            className={cn(
+              'flex min-h-0 min-w-0 flex-col overflow-hidden rounded-md border translation-options-column',
+              workspaceLayout.columns === 'stacked' && 'h-[80vh]',
+            )}
+          >
+            <div className="flex h-11 shrink-0 items-center gap-1.5 border-b px-2">
+              <Segmented
+                ariaLabel="Layout mode"
+                className="w-auto shrink-0"
+                value={layoutMode}
+                onChange={setLayoutMode}
+                options={[
+                  {
+                    value: 'guided',
+                    testId: 'builder-layout-mode-guided',
+                    label: (
+                      <>
+                        <Grid2x2CheckIcon size={14} />
+                        Guided
+                      </>
+                    ),
+                  },
+                  {
+                    value: 'freeform',
+                    testId: 'builder-layout-mode-freeform',
+                    label: (
+                      <>
+                        <SquareDashedMousePointerIcon size={14} />
+                        Freeform
+                      </>
+                    ),
+                  },
+                ]}
+              />
+              <ToolbarButton
+                label={showCanvasGuides ? 'Hide grid and guides' : 'Show grid and guides'}
+                pressed={showCanvasGuides}
+                testId="builder-canvas-guides-toggle"
+                data-grid-shown={showCanvasGuides ? 'true' : 'false'}
+                onClick={() => setShowCanvasGuides((current) => !current)}
+              >
+                <Grid3x3Icon size={16} />
+              </ToolbarButton>
+              <Separator orientation="vertical" className="mx-0.5 h-5" />
+              <ToolbarButton
+                label="Undo"
+                shortcut={undoShortcutLabel}
+                onClick={undoLastChange}
+                disabled={templateHistory.length === 0}
+                testId="builder-undo"
+              >
+                <UndoIcon size={16} />
+              </ToolbarButton>
+              <div className="ml-auto flex items-center gap-0.5">
+                <ToolbarButton
+                  label="Zoom out"
+                  onClick={() => setManualZoom(zoom - CANVAS_ZOOM_STEP * 2)}
+                  disabled={zoom <= CANVAS_MIN_ZOOM}
+                >
+                  <ZoomOut size={16} />
+                </ToolbarButton>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
                     <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={undoLastChange}
-                      disabled={templateHistory.length === 0}
-                      aria-label="Undo last canvas change"
+                      type="button"
+                      variant="ghost"
+                      aria-label={`Zoom: ${zoom}%`}
+                      className="h-8 w-[58px] px-0 text-xs tabular-nums"
                     >
-                      <AnimateIcon animate={animateBuilderChromeMount} animateOnHover animateOnTap>
-                        <UndoIcon size={16} />
-                      </AnimateIcon>
+                      <span data-testid="builder-zoom-value">{zoom}%</span>
                     </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Undo last canvas change</TooltipContent>
-                </Tooltip>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={duplicateSelectedComponent}
-                      aria-label="Duplicate selected component"
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuItem
+                      data-testid="builder-zoom-page-width"
+                      onSelect={() => {
+                        setZoomMode('manual');
+                        fitPageToWidth();
+                      }}
                     >
-                      <AnimateIcon animate={animateBuilderChromeMount} animateOnHover animateOnTap>
-                        <CopyIcon size={16} />
-                      </AnimateIcon>
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Duplicate selected component</TooltipContent>
-                </Tooltip>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={deleteSelectedComponent}
-                      aria-label="Delete selected component"
+                      Fit width
+                    </DropdownMenuItem>
+                    <DropdownMenuItem data-testid="builder-zoom-fit-page" onSelect={fitWholePage}>
+                      Fit whole page
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      data-testid="builder-zoom-full-page"
+                      onSelect={() => setManualZoom(CANVAS_DEFAULT_ZOOM)}
                     >
-                      <AnimateIcon animate={animateBuilderChromeMount} animateOnHover animateOnTap>
-                        <Trash2Icon size={16} />
-                      </AnimateIcon>
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Delete selected component</TooltipContent>
-                </Tooltip>
-                </div>
-              </div>
-              {/* Row 2: status pills centered */}
-              <div className="flex flex-wrap items-center justify-center gap-2">
-                <Badge variant="outline">612 x 792 pt</Badge>
-                <Badge variant="outline">{bodyLayoutModeLabel(bodyLayoutMode)}</Badge>
-                <Badge variant="outline">Max {maxPages} pages</Badge>
-                <Badge variant="outline">{printModeLabel(printMode)}</Badge>
-                <Badge variant="outline">{template.components.length} components</Badge>
-                {flowingTablePlan.overflowRowCount > 0 && (
-                  <Badge variant="destructive" data-testid="builder-flow-overflow-warning">
-                    {flowingTablePlan.overflowRowCount} rows exceed max pages
-                  </Badge>
-                )}
+                      100%
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <div className="px-2 py-2">
+                      <Slider
+                        aria-label="Zoom"
+                        value={[zoom]}
+                        min={CANVAS_MIN_ZOOM}
+                        max={CANVAS_MAX_ZOOM}
+                        step={CANVAS_ZOOM_STEP}
+                        onValueChange={([value]) => setManualZoom(value)}
+                      />
+                    </div>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <ToolbarButton
+                  label="Zoom in"
+                  onClick={() => setManualZoom(zoom + CANVAS_ZOOM_STEP * 2)}
+                  disabled={zoom >= CANVAS_MAX_ZOOM}
+                >
+                  <ZoomIn size={16} />
+                </ToolbarButton>
               </div>
             </div>
-
             <ScrollArea
               ref={canvasScrollRef}
               data-testid="shopping-list-builder-canvas-scroll"
@@ -5213,684 +5576,834 @@ export function ShoppingListBuilder() {
                           }}
                         />
                       )}
+                      {pageIndex === 0 && template.components.length === 0 && (
+                        <div
+                          data-testid="builder-empty-canvas"
+                          className="pointer-events-none absolute inset-x-0 z-30 flex justify-center"
+                          style={{ top: headerHeight + 54 }}
+                        >
+                          {/* Counter-scaled so the starter card stays a readable size at any zoom. */}
+                          <div
+                            className="pointer-events-auto w-[340px] origin-top rounded-lg border border-dashed border-border bg-background p-4 text-foreground shadow-sm"
+                            style={{ transform: `scale(${1 / getCanvasScale(zoom)})` }}
+                            onPointerDown={(event) => event.stopPropagation()}
+                          >
+                            {savedTemplates.length > 0 ? (
+                              <>
+                                <p className="text-sm font-semibold">Start from a saved template</p>
+                                <div className="mt-2 space-y-1">
+                                  {savedTemplates.slice(0, 4).map((savedTemplate) => (
+                                    <button
+                                      key={savedTemplate.id}
+                                      type="button"
+                                      data-testid="builder-empty-canvas-template"
+                                      onClick={() => void applySavedTemplate(savedTemplate)}
+                                      className="flex w-full items-center justify-between gap-2 rounded-md border border-border px-3 py-2 text-left text-xs transition-colors hover:border-primary hover:bg-muted focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary"
+                                    >
+                                      <span className="min-w-0 truncate font-medium">{savedTemplate.name}</span>
+                                      <span className="shrink-0 text-muted-foreground">
+                                        {savedTemplate.templateData.components.length} components
+                                      </span>
+                                    </button>
+                                  ))}
+                                </div>
+                                <p className="mt-3 text-xs text-muted-foreground">
+                                  Or start blank: click or drag anything from Insert.
+                                </p>
+                              </>
+                            ) : (
+                              <>
+                                <p className="text-sm font-semibold">This page is blank</p>
+                                <p className="mt-1 text-xs text-muted-foreground">
+                                  Click or drag anything from Insert to start building.
+                                </p>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}
               </div>
               <ScrollBar orientation="horizontal" />
             </ScrollArea>
-          </main>
-
-          <aside className="flex flex-col rounded-md border bg-card p-3">
-            <PageSetupPanel
-              layoutMode={layoutMode}
-              bodyLayoutMode={bodyLayoutMode}
-              gridSize={gridSize}
-              paperHeight={template.paper.height}
-              headerHeight={headerHeight}
-              footerHeight={footerHeight}
-              maxPages={maxPages}
-              printMode={printMode}
-              includeCategoryIcons={includeCategoryIcons}
-              onCommitHeader={setHeaderHeight}
-              onCommitFooter={setFooterHeight}
-              onChangeBodyLayoutMode={setBodyLayoutMode}
-              onChangeMaxPages={setMaxPages}
-              onChangePrintMode={setPrintMode}
-              onChangeIncludeCategoryIcons={setIncludeCategoryIcons}
-            />
-            <Separator className="my-3" />
-            <div className="mb-3 flex items-center justify-between">
-              <div>
-                <BuilderSectionLabel
-                  className="text-sm font-semibold"
-                  icon={{ type: 'bridged', icon: LayoutPanelTopIcon }}
-                >
-                  Properties
-                </BuilderSectionLabel>
-                <p className="text-xs text-muted-foreground">
-                  {selectedComponent ? componentTypeLabel(selectedComponent.type) : 'No component selected'}
-                </p>
-              </div>
-              {selectedComponent && <Badge variant="outline">{selectedComponent.type}</Badge>}
-            </div>
-
-            {selectedComponent ? (
-              <div className="space-y-3">
-                <AnimateIcon asChild animateOnHover animateOnTap>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    data-testid="builder-save-selected-component"
-                    className="w-full justify-start"
-                    onClick={saveSelectedComponent}
-                    disabled={isSavingComponent}
-                  >
-                    {isSavingComponent ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <SaveIcon size={16} />
-                    )}
-                    {isEditingSelectedSavedComponent ? 'Update Saved Component' : 'Save Selected Component'}
-                  </Button>
-                </AnimateIcon>
-                {isEditingSelectedSavedComponent && (
-                  <Badge variant="secondary" className="w-full justify-center">
-                    Editing saved component
+            <div className="flex h-8 shrink-0 items-center justify-between gap-3 border-t px-3 text-xs text-muted-foreground">
+              <button
+                type="button"
+                data-testid="builder-page-summary"
+                title="Open page settings"
+                onClick={() => setInspectorTab('page')}
+                className="min-w-0 truncate rounded-sm text-left transition-colors hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                {pageSummary}
+              </button>
+              <div className="flex shrink-0 items-center gap-2">
+                {flowingTablePlan.overflowRowCount > 0 && (
+                  <Badge variant="destructive" data-testid="builder-flow-overflow-warning">
+                    {flowingTablePlan.overflowRowCount} rows exceed max pages
                   </Badge>
                 )}
+                <span data-testid="builder-save-state" aria-live="polite">
+                  {hasUnsavedChanges
+                    ? 'Unsaved changes'
+                    : activeSavedTemplateId != null ? 'Saved' : ''}
+                </span>
+                <span className="tabular-nums">
+                  {template.components.length} {template.components.length === 1 ? 'component' : 'components'}
+                </span>
+              </div>
+            </div>
+          </main>
 
-              <AnimatedTabs defaultValue="layout" className="w-full">
-                <AnimatedTabsList className="grid w-full grid-cols-2">
-                  <AnimatedTabsTrigger value="layout" data-testid="builder-layout-tab">
-                    Layout
+          <aside
+            aria-label="Inspector"
+            className={cn(
+              'flex min-h-0 flex-col overflow-hidden rounded-md border bg-card',
+              workspaceLayout.columns === 'stacked' && 'h-[560px]',
+            )}
+          >
+            <div className="flex h-11 shrink-0 items-center border-b px-2">
+              <AnimatedTabs
+                value={inspectorTab}
+                onValueChange={(value) => setInspectorTab(value as 'selection' | 'page')}
+                className="w-full"
+              >
+                <AnimatedTabsList className="grid h-8 w-full grid-cols-2">
+                  <AnimatedTabsTrigger value="selection" data-testid="builder-inspector-selection-tab" className="text-xs">
+                    Component
                   </AnimatedTabsTrigger>
-                  <AnimatedTabsTrigger value="content" data-testid="builder-content-tab">
-                    Content
+                  <AnimatedTabsTrigger value="page" data-testid="builder-inspector-page-tab" className="text-xs">
+                    Page
                   </AnimatedTabsTrigger>
                 </AnimatedTabsList>
-                <AnimatedTabsContents className="mt-4 px-1 pb-1">
-                  <AnimatedTabsContent value="layout" className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="component-name">Name</Label>
-                    <Input
-                      id="component-name"
-                      data-testid="builder-selected-component-name-input"
-                      value={selectedComponent.name}
-                      onChange={(event) => updateSelectedComponent({ name: event.target.value })}
-                    />
-                  </div>
+              </AnimatedTabs>
+            </div>
+            {/*
+              Definite height comes from the flex column (min-h-0 + flex-1).
+              Radix wraps viewport content in a `display: table` div, which
+              sizes to max-content and defeats `truncate`; forcing it to
+              block keeps every row inside the panel's width.
+            */}
+            <ScrollArea className="min-h-0 flex-1 [&_[data-radix-scroll-area-viewport]>div]:block!">
+              <div ref={inspectorRef} className="space-y-3 p-3">
+                {inspectorTab === 'page' && (
+                  <PageInspector
+                    layoutMode={layoutMode}
+                    bodyLayoutMode={bodyLayoutMode}
+                    gridSize={gridSize}
+                    paperHeight={template.paper.height}
+                    headerHeight={headerHeight}
+                    footerHeight={footerHeight}
+                    maxPages={maxPages}
+                    printMode={printMode}
+                    includeCategoryIcons={includeCategoryIcons}
+                    onCommitHeader={setHeaderHeight}
+                    onCommitFooter={setFooterHeight}
+                    onChangeBodyLayoutMode={setBodyLayoutMode}
+                    onChangeMaxPages={setMaxPages}
+                    onChangePrintMode={setPrintMode}
+                    onChangeIncludeCategoryIcons={setIncludeCategoryIcons}
+                  />
+                )}
 
-                  {!isInventorySectionTable(selectedComponent) && (
-                    <div className="space-y-2">
-                      <Label>Page Region</Label>
-                      <Select
-                        value={selectedComponentRegion ?? getComponentRegion(selectedComponent, template)}
-                        onValueChange={(value) => changeComponentRegion(
-                          selectedComponent.id,
-                          value as BuilderComponentRegion,
-                        )}
-                      >
-                        <SelectTrigger data-testid="builder-selected-component-region-select">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {BUILDER_COMPONENT_REGIONS.map((region) => (
-                            <SelectItem
-                              key={region}
-                              value={region}
-                              disabled={!canPlaceComponentInRegion(selectedComponent, template, region)}
-                            >
-                              {componentRegionLabel(region)}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <p className="text-xs text-muted-foreground">
-                        {componentRegionDescription(selectedComponentRegion ?? getComponentRegion(selectedComponent, template))}
-                      </p>
-                    </div>
-                  )}
+                {inspectorTab === 'selection' && !selectedComponent && (
+                  <p className="rounded-md border border-dashed p-4 text-center text-xs text-muted-foreground">
+                    Select a component on the page to edit it.
+                  </p>
+                )}
 
-                  <div className="grid grid-cols-2 gap-3">
+                {inspectorTab === 'selection' && selectedComponent && (
+                  <>
                     <div className="space-y-2">
-                      <Label htmlFor="component-x">X</Label>
-                      <Input
-                        id="component-x"
-                        type="number"
-                        value={selectedComponent.x}
-                        onChange={(event) => updateSelectedComponent({ x: toNumber(event.target.value, selectedComponent.x) })}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="component-y">Y</Label>
-                      <Input
-                        id="component-y"
-                        type="number"
-                        value={selectedComponent.y}
-                        onChange={(event) => updateSelectedComponent({ y: toNumber(event.target.value, selectedComponent.y) })}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="component-width">Width</Label>
-                      <Input
-                        id="component-width"
-                        type="number"
-                        value={selectedComponent.width}
-                        onChange={(event) => updateSelectedComponent({ width: toNumber(event.target.value, selectedComponent.width) })}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="component-height">Height</Label>
-                      <Input
-                        id="component-height"
-                        type="number"
-                        value={Math.round(getComponentHeight(selectedComponent, sectionTableMeasurement))}
-                        onChange={(event) => updateSelectedComponent({ height: toNumber(event.target.value, selectedComponent.height) })}
-                        disabled={selectedComponent.type === 'section-table'}
-                      />
-                    </div>
-                  </div>
-
-                  {selectedComponent.type === 'section-table' && selectedComponent.inventorySource && previewLanguage && (() => {
-                    const previewAdjustment = normalizeSectionTableTranslationHeightAdjustment(
-                      selectedComponent.translationHeightAdjustments?.[previewLanguage],
-                    );
-                    return (
-                      <div className="flex items-center justify-between gap-3 rounded-md border translation-options-column p-3">
-                        <div className="min-w-0 space-y-1">
-                          <Label className="text-sm font-medium">Preview Height</Label>
-                          <p className="text-xs text-muted-foreground">
-                            {previewLanguage}: {previewAdjustment > 0 ? `+${previewAdjustment}` : previewAdjustment} grid squares
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <AnimateIcon asChild animateOnHover animateOnTap>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="icon"
-                              className="h-8 w-8"
-                              aria-label="Decrease translated table preview height"
-                              onClick={() => updateSelectedSectionTableTranslationHeightAdjustment(previewAdjustment - 1)}
-                            >
-                              <MinusIcon size={16} />
-                            </Button>
-                          </AnimateIcon>
-                          <AnimateIcon asChild animateOnHover animateOnTap>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="icon"
-                              className="h-8 w-8"
-                              aria-label="Reset translated table preview height"
-                              disabled={previewAdjustment === 0}
-                              onClick={() => updateSelectedSectionTableTranslationHeightAdjustment(0)}
-                            >
-                              <RotateCcwIcon size={16} />
-                            </Button>
-                          </AnimateIcon>
-                          <AnimateIcon asChild animateOnHover animateOnTap>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="icon"
-                              className="h-8 w-8"
-                              aria-label="Increase translated table preview height"
-                              onClick={() => updateSelectedSectionTableTranslationHeightAdjustment(previewAdjustment + 1)}
-                            >
-                              <PlusIcon size={16} />
-                            </Button>
-                          </AnimateIcon>
-                        </div>
-                      </div>
-                    );
-                  })()}
-
-                  {selectedComponent.type === 'section-table' && (
-                    <div className="space-y-2">
-                      <Label>Table Behavior</Label>
-                      <Select
-                        value={getSectionTableFlowMode(selectedComponent)}
-                        onValueChange={(value) => updateSelectedComponent({
-                          flowMode: value as SectionTableBuilderComponent['flowMode'],
-                          repeatHeaderRows: value === 'flowing' ? true : selectedComponent.repeatHeaderRows,
-                          keepHeaderWithFirstRow: value === 'flowing' ? true : selectedComponent.keepHeaderWithFirstRow,
-                          keepRowsTogether: value === 'flowing' ? true : selectedComponent.keepRowsTogether,
-                        })}
-                      >
-                        <SelectTrigger data-testid="builder-table-flow-mode-select">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="fixed">Fixed table</SelectItem>
-                          <SelectItem value="flowing">Flowing table</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
-
-                  {selectedComponent.type === 'line' && (
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-2">
-                        <Label>Direction</Label>
-                        <Select
-                          value={selectedComponent.direction}
-                          onValueChange={(value) => updateSelectedComponent({ direction: value as LineBuilderComponent['direction'] })}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="horizontal">Horizontal</SelectItem>
-                            <SelectItem value="vertical">Vertical</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="line-stroke">Stroke</Label>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="shrink-0 text-[10px]">
+                          {componentTypeLabel(selectedComponent.type)}
+                        </Badge>
                         <Input
-                          id="line-stroke"
-                          type="number"
-                          value={selectedComponent.strokeWidth}
-                          onChange={(event) => updateSelectedComponent({ strokeWidth: toNumber(event.target.value, selectedComponent.strokeWidth) })}
+                          id="component-name"
+                          aria-label="Component name"
+                          data-testid="builder-selected-component-name-input"
+                          className="h-8 min-w-0 flex-1 text-xs font-medium md:text-xs"
+                          value={selectedComponent.name}
+                          onChange={(event) => updateSelectedComponent({ name: event.target.value })}
                         />
                       </div>
-                    </div>
-                  )}
-                  </AnimatedTabsContent>
-
-                  <AnimatedTabsContent value="content" className="space-y-4">
-                  {selectedComponent.type === 'text' && (
-                    <>
-                      <div className="space-y-2">
-                        <Label htmlFor="text-content">Text</Label>
-                        <Textarea
-                          id="text-content"
-                          value={selectedComponent.content}
-                          onChange={(event) => updateSelectedComponent({ content: event.target.value })}
-                          className="min-h-[96px]"
-                        />
-                      </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-2">
-                          <Label htmlFor="text-font-size">Font size</Label>
-                          <Select
-                            value={String(selectedComponent.fontSize)}
-                            onValueChange={(value) => {
-                              const newFontSize = Number(value);
-                              // Auto-snap height: estimate wrapped lines at the new
-                              // font and snap up to the next 9pt grid multiple so
-                              // the box always contains the rendered text.
-                              const availableWidth = Math.max(
-                                1,
-                                selectedComponent.width - 2 * BUILDER_CELL_VERTICAL_PADDING_PT,
-                              );
-                              const lineCount = typographyEstimateLineCount(
-                                selectedComponent.content,
-                                availableWidth,
-                                newFontSize,
-                              );
-                              const newHeight = typographySnapHeightForFontSize(
-                                newFontSize,
-                                lineCount,
-                                selectedComponent.lineHeight,
-                              );
-                              updateSelectedComponent({ fontSize: newFontSize, height: newHeight });
-                            }}
-                          >
-                            <SelectTrigger id="text-font-size">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {(BUILDER_FONT_SIZES.includes(selectedComponent.fontSize as never)
-                                ? BUILDER_FONT_SIZES
-                                : [...BUILDER_FONT_SIZES, selectedComponent.fontSize].sort((a, b) => a - b)
-                              ).map((size) => (
-                                <SelectItem key={String(size)} value={String(size)}>
-                                  {size} pt
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-2">
-                          <Label>Weight</Label>
-                          <Select
-                            value={selectedComponent.fontWeight}
-                            onValueChange={(value) => updateSelectedComponent({ fontWeight: value as TextBuilderComponent['fontWeight'] })}
-                          >
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="normal">Normal</SelectItem>
-                              <SelectItem value="bold">Bold</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-2">
-                          <Label>Alignment</Label>
-                          <Select
-                            value={selectedComponent.align}
-                            onValueChange={(value) => updateSelectedComponent({ align: value as TextBuilderComponent['align'] })}
-                          >
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="left">Left</SelectItem>
-                              <SelectItem value="center">Center</SelectItem>
-                              <SelectItem value="right">Right</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="text-line-height">Line height</Label>
-                          <Input
-                            id="text-line-height"
-                            type="number"
-                            step="0.05"
-                            value={selectedComponent.lineHeight}
-                            onChange={(event) => updateSelectedComponent({ lineHeight: toNumber(event.target.value, selectedComponent.lineHeight) })}
-                          />
-                        </div>
-                      </div>
-                      {/*
-                        Per-component translation settings. Opens a modal with
-                        a live preview that shows how this text component
-                        will render in a chosen target language at each of
-                        the three modes (skip / translate / translate-with-
-                        original). The chosen mode persists with the
-                        template as `translationMode` and is honoured by
-                        the backend renderer at PDF generation time.
-                      */}
-                      <div className="flex items-center justify-between gap-3 rounded-md border bg-card/40 p-2">
-                        <div className="min-w-0 space-y-0.5">
-                          <Label className="text-sm font-medium">Translation Settings</Label>
-                          <p className="text-xs text-muted-foreground">
-                            Mode:&nbsp;
-                            <span className="font-medium text-foreground">
-                              {translationModeLabel(selectedComponent.translationMode ?? DEFAULT_BUILDER_TRANSLATION_MODE)}
-                            </span>
-                          </p>
-                        </div>
+                      <div className="flex items-center gap-1">
                         <AnimateIcon asChild animateOnHover animateOnTap>
                           <Button
                             type="button"
-                            variant="outline"
+                            variant={isEditingSelectedSavedComponent ? 'default' : 'outline'}
                             size="sm"
-                            onClick={() => setTranslationSettingsTargetId(selectedComponent.id)}
+                            data-testid="builder-save-selected-component"
+                            className="h-8 min-w-0 flex-1 justify-center gap-1.5 text-xs"
+                            onClick={saveSelectedComponent}
+                            disabled={isSavingComponent}
                           >
-                            <LanguagesIcon size={16} />
-                            Configure
+                            {isSavingComponent ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <SaveIcon size={14} />
+                            )}
+                            <span className="truncate">
+                              {isEditingSelectedSavedComponent ? 'Update saved component' : 'Save as component'}
+                            </span>
                           </Button>
                         </AnimateIcon>
-                      </div>
-                    </>
-                  )}
-
-                  {selectedComponent.type === 'form-field-group' && (
-                    <>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-2">
-                          <Label htmlFor="form-label-width">Label width</Label>
-                          <Input
-                            id="form-label-width"
-                            type="number"
-                            value={selectedComponent.labelWidth}
-                            onChange={(event) => updateSelectedComponent({ labelWidth: toNumber(event.target.value, selectedComponent.labelWidth) })}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="form-font-size">Font size</Label>
-                          <Select
-                            value={String(selectedComponent.fontSize)}
-                            onValueChange={(value) => updateSelectedComponent({ fontSize: Number(value) })}
-                          >
-                            <SelectTrigger id="form-font-size">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {(BUILDER_FONT_SIZES.includes(selectedComponent.fontSize as never)
-                                ? BUILDER_FONT_SIZES
-                                : [...BUILDER_FONT_SIZES, selectedComponent.fontSize].sort((a, b) => a - b)
-                              ).map((size) => (
-                                <SelectItem key={String(size)} value={String(size)}>
-                                  {size} pt
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="form-corner-radius">Corner radius</Label>
-                        <Select
-                          value={String(selectedComponent.cornerRadius ?? 0)}
-                          onValueChange={(value) => updateSelectedComponent({ cornerRadius: Number(value) })}
+                        <ToolbarButton
+                          label="Duplicate"
+                          shortcut={duplicateShortcutLabel}
+                          variant="outline"
+                          onClick={duplicateSelectedComponent}
+                          testId="builder-duplicate-selected"
                         >
-                          <SelectTrigger id="form-corner-radius">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="0">Square</SelectItem>
-                            <SelectItem value="3">3 pt</SelectItem>
-                            <SelectItem value="6">6 pt</SelectItem>
-                            <SelectItem value="9">9 pt</SelectItem>
-                          </SelectContent>
-                        </Select>
+                          <CopyIcon size={14} />
+                        </ToolbarButton>
+                        <ToolbarButton
+                          label="Delete"
+                          shortcut="Del"
+                          variant="outline"
+                          onClick={deleteSelectedComponent}
+                          testId="builder-delete-selected"
+                        >
+                          <Trash2Icon size={14} />
+                        </ToolbarButton>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Checkbox
-                          id="form-show-dividers"
-                          checked={selectedComponent.showColumnDividers !== false}
-                          onCheckedChange={(checked) => updateSelectedComponent({ showColumnDividers: checked === true })}
-                        />
-                        <Label htmlFor="form-show-dividers">Show column dividers</Label>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Checkbox
-                          id="form-show-borders"
-                          checked={selectedComponent.showBorders !== false}
-                          onCheckedChange={(checked) => updateSelectedComponent({ showBorders: checked === true })}
-                        />
-                        <Label htmlFor="form-show-borders">Show table &amp; cell borders</Label>
-                      </div>
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between">
-                          <Label>Fields</Label>
-                          <AnimateIcon asChild animateOnHover animateOnTap>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                const fieldId = `${selectedComponent.id}-field-${Date.now()}`;
-                                updateSelectedComponent({
-                                  fields: [...selectedComponent.fields, { id: fieldId, label: 'New Field' }],
-                                });
-                              }}
-                            >
-                              <PlusIcon size={16} />
-                              Add
-                            </Button>
-                          </AnimateIcon>
-                        </div>
-                        {selectedComponent.fields.map((field, index) => (
-                          <div key={field.id} className="rounded-md border bg-background p-2">
-                            <div className="mb-2 flex items-center justify-between">
-                              <Badge variant="outline">Row {index + 1}</Badge>
-                              <AnimateIcon asChild animateOnHover animateOnTap>
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="icon"
-                                  aria-label="Remove field"
-                                  onClick={() =>
-                                    updateSelectedComponent({
-                                      fields: selectedComponent.fields.filter((current) => current.id !== field.id),
-                                    })
-                                  }
-                                >
-                                  <Trash2Icon size={16} />
-                                </Button>
-                              </AnimateIcon>
-                            </div>
-                            <div className="space-y-2">
-                              <Input
-                                value={field.label}
-                                onChange={(event) =>
-                                  updateSelectedComponent({
-                                    fields: selectedComponent.fields.map((current) =>
-                                      current.id === field.id ? { ...current, label: event.target.value } : current,
-                                    ),
-                                  })
-                                }
-                              />
-                              <div className="space-y-2">
-                                <Label>Translation</Label>
-                                <Select
-                                  value={field.translationMode ?? DEFAULT_BUILDER_TRANSLATION_MODE}
-                                  onValueChange={(value) =>
-                                    updateSelectedComponent({
-                                      fields: selectedComponent.fields.map((current) =>
-                                        current.id === field.id
-                                          ? { ...current, translationMode: value as BuilderTranslationMode }
-                                          : current,
-                                      ),
-                                    })
-                                  }
-                                >
-                                  <SelectTrigger>
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="skip">Do not translate</SelectItem>
-                                    <SelectItem value="translate">Translate</SelectItem>
-                                    <SelectItem value="translate-with-original">Include English</SelectItem>
-                                    <SelectItem value="translate-with-original-block">Include English (with line break)</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </>
-                  )}
+                    </div>
 
-                  {selectedComponent.type === 'section-table' && (
-                    <>
-                      <div className="space-y-2">
-                        <Label htmlFor="table-title">Title</Label>
-                        <Input
-                          id="table-title"
-                          value={selectedComponent.title}
-                          onChange={(event) => updateSelectedComponent({ title: event.target.value })}
-                        />
-                      </div>
-                      {selectedComponent.inventorySource && (
-                        <div className="rounded-md border translation-options-column p-2 text-xs">
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="min-w-0">
-                              <div className="font-medium text-foreground">
-                                {selectedComponent.inventorySource.categoryName} category
-                              </div>
-                              <div className="text-muted-foreground">
-                                {selectedComponent.categoryLimit && selectedComponent.categoryLimit > 0
-                                  ? `${formatCategoryLimitTag(selectedComponent.categoryLimit, selectedComponent.categoryLimitType)}`
-                                  : 'No category limit set'}
-                              </div>
-                            </div>
+                    {selectedComponent.type === 'text' && (
+                      <>
+                        <InspectorSection title="Text">
+                          <Textarea
+                            id="text-content"
+                            aria-label="Text"
+                            data-builder-primary-field
+                            value={selectedComponent.content}
+                            onChange={(event) => updateSelectedComponent({ content: event.target.value })}
+                            className="min-h-[84px] text-sm"
+                          />
+                          {renderTypographyControls(selectedComponent, 'text', (newFontSize) => {
+                            // Auto-snap height: estimate wrapped lines at the new
+                            // font and snap up to the next grid multiple so the
+                            // box always contains the rendered text.
+                            const availableWidth = Math.max(
+                              1,
+                              selectedComponent.width - 2 * BUILDER_CELL_VERTICAL_PADDING_PT,
+                            );
+                            const lineCount = typographyEstimateLineCount(
+                              selectedComponent.content,
+                              availableWidth,
+                              newFontSize,
+                            );
+                            const newHeight = typographySnapHeightForFontSize(
+                              newFontSize,
+                              lineCount,
+                              selectedComponent.lineHeight,
+                            );
+                            updateSelectedComponent({ fontSize: newFontSize, height: newHeight });
+                          })}
+                        </InspectorSection>
+                        <InspectorSection title="Placement">
+                          {renderRegionControls(selectedComponent)}
+                        </InspectorSection>
+                        {/*
+                          Per-component translation mode. The select changes it
+                          in place; Preview opens the dialog that shows the
+                          component rendered in a chosen language at each mode.
+                        */}
+                        <InspectorSection title="Translation">
+                          <div className="flex items-center gap-1.5">
+                            <Select
+                              value={selectedComponent.translationMode ?? DEFAULT_BUILDER_TRANSLATION_MODE}
+                              onValueChange={(value) => updateSelectedComponent({ translationMode: value as BuilderTranslationMode })}
+                            >
+                              <SelectTrigger aria-label="Translation mode" className="h-8 min-w-0 flex-1 text-xs">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="skip">Do not translate</SelectItem>
+                                <SelectItem value="translate">Translate</SelectItem>
+                                <SelectItem value="translate-with-original">Include English</SelectItem>
+                              </SelectContent>
+                            </Select>
                             <AnimateIcon asChild animateOnHover animateOnTap>
                               <Button
                                 type="button"
                                 variant="outline"
                                 size="sm"
-                                data-testid="builder-edit-category-trigger"
-                                onClick={() => {
-                                  if (selectedComponent.inventorySource) {
-                                    setEditingCategoryId(selectedComponent.inventorySource.categoryId);
-                                  }
-                                }}
+                                className="h-8 shrink-0 gap-1.5 text-xs"
+                                onClick={() => setTranslationSettingsTargetId(selectedComponent.id)}
                               >
-                                <SettingsIcon size={14} />
-                                Edit Category
+                                <LanguagesIcon size={14} />
+                                Preview
                               </Button>
                             </AnimateIcon>
                           </div>
-                        </div>
-                      )}
-                      {/*
-                        Translation Settings apply to every section table --
-                        inventory-backed and base-component alike. Both share
-                        the SectionTableBuilderComponent type, the
-                        `translationSettings` field, and the Headers / Tags /
-                        Rows render contract, so the control is no longer
-                        gated to `inventorySource`.
-                      */}
-                      <div className="rounded-md border translation-options-column p-3">
-                        {(() => {
-                          const settings = resolveSectionTableTranslationSettings(selectedComponent.translationSettings);
-                          return (
-                            <div className="space-y-3">
-                              <div className="flex items-center justify-between gap-3">
-                                <div className="min-w-0 space-y-1">
-                                  <Label className="text-sm font-medium">Translation Settings</Label>
-                                  <p className="text-xs text-muted-foreground">
-                                    Headers: {translationModeLabel(settings.headers)}
-                                    {' | '}
-                                    Tags: {translationModeLabel(settings.tags)}
-                                    {' | '}
-                                    Rows: {translationModeLabel(settings.rows)}
-                                  </p>
+                        </InspectorSection>
+                      </>
+                    )}
+
+                    {selectedComponent.type === 'date' && (
+                      <>
+                        <InspectorSection title="Date">
+                          <FieldRow label="Format">
+                            <Select
+                              value={selectedComponent.formatId ?? DEFAULT_DATE_FORMAT_ID}
+                              onValueChange={(value) => updateSelectedComponent({ formatId: value as BuilderDateFormatId })}
+                            >
+                              <SelectTrigger data-testid="builder-date-format-select" aria-label="Date format" className="h-8 text-xs">
+                                {/* Trigger shows the label only; the example line is for the open list. */}
+                                <span className="truncate">
+                                  {BUILDER_DATE_FORMATS.find((entry) => entry.id === (selectedComponent.formatId ?? DEFAULT_DATE_FORMAT_ID))?.label}
+                                </span>
+                              </SelectTrigger>
+                              <SelectContent>
+                                {BUILDER_DATE_FORMATS.map((entry) => (
+                                  <SelectItem key={entry.id} value={entry.id}>
+                                    <span className="flex flex-col text-left">
+                                      <span>{entry.label}</span>
+                                      <span className="text-xs text-muted-foreground">{entry.example}</span>
+                                    </span>
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </FieldRow>
+                          <FieldRow label="Shows">
+                            <Segmented
+                              ariaLabel="Date source"
+                              testId="builder-date-mode-select"
+                              value={selectedComponent.dateMode}
+                              onChange={(dateMode) => updateSelectedComponent({ dateMode })}
+                              options={[
+                                { value: 'today', label: 'Today' },
+                                { value: 'custom', label: 'Custom date' },
+                              ]}
+                            />
+                          </FieldRow>
+                          {selectedComponent.dateMode === 'custom' && (
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  data-testid="builder-date-custom-trigger"
+                                  className="h-8 w-full justify-start gap-2 text-xs"
+                                >
+                                  <AnimateIcon asChild animateOnHover animateOnTap>
+                                    <CalendarDaysIcon size={14} />
+                                  </AnimateIcon>
+                                  {selectedComponent.customDate
+                                    ? formatBuilderDate(
+                                      parseBuilderCustomDate(selectedComponent.customDate) ?? new Date(),
+                                      selectedComponent.formatId ?? DEFAULT_DATE_FORMAT_ID,
+                                    )
+                                    : 'Pick a date'}
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent align="start" className="w-auto p-0">
+                                <Calendar
+                                  mode="single"
+                                  captionLayout="dropdown"
+                                  selected={parseBuilderCustomDate(selectedComponent.customDate) ?? undefined}
+                                  onSelect={(date) => {
+                                    if (!date) return;
+                                    updateSelectedComponent({ customDate: toBuilderCustomDateIso(date) });
+                                  }}
+                                  fromYear={new Date().getFullYear() - 5}
+                                  toYear={new Date().getFullYear() + 5}
+                                />
+                              </PopoverContent>
+                            </Popover>
+                          )}
+                          {renderTypographyControls(selectedComponent, 'date', (newFontSize) => {
+                            // Date renders a single resolved-date line. Snap
+                            // height so the box contains the larger font.
+                            const newHeight = typographySnapHeightForFontSize(
+                              newFontSize,
+                              1,
+                              selectedComponent.lineHeight,
+                            );
+                            updateSelectedComponent({ fontSize: newFontSize, height: newHeight });
+                          })}
+                        </InspectorSection>
+                        <InspectorSection title="Placement">
+                          {renderRegionControls(selectedComponent)}
+                        </InspectorSection>
+                        <InspectorSection title="Translation">
+                          <Select
+                            value={selectedComponent.translationMode ?? DEFAULT_BUILDER_TRANSLATION_MODE}
+                            onValueChange={(value) => updateSelectedComponent({ translationMode: value as BuilderTranslationMode })}
+                          >
+                            <SelectTrigger aria-label="Translation mode" className="h-8 text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="skip">Do not translate</SelectItem>
+                              <SelectItem value="translate">Translate</SelectItem>
+                              <SelectItem value="translate-with-original">Include English</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </InspectorSection>
+                      </>
+                    )}
+
+                    {selectedComponent.type === 'language-tag' && (
+                      <>
+                        <InspectorSection title="Language tag">
+                          <FieldRow label="Shows">
+                            <Select
+                              value={selectedComponent.mode ?? DEFAULT_LANGUAGE_TAG_MODE}
+                              onValueChange={(value) => updateSelectedComponent({ mode: value as BuilderLanguageTagMode })}
+                            >
+                              <SelectTrigger data-testid="builder-language-tag-mode-select" aria-label="Rendering option" className="h-8 text-xs">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {(['hide-english', 'english', 'native', 'native-with-english'] as BuilderLanguageTagMode[]).map((mode) => (
+                                  <SelectItem key={mode} value={mode}>
+                                    {languageTagModeLabel(mode)}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </FieldRow>
+                          {renderTypographyControls(selectedComponent, 'language-tag', (newFontSize) => {
+                            const newHeight = typographySnapHeightForFontSize(
+                              newFontSize,
+                              1,
+                              selectedComponent.lineHeight,
+                            );
+                            updateSelectedComponent({ fontSize: newFontSize, height: newHeight });
+                          })}
+                        </InspectorSection>
+                        <InspectorSection title="Placement">
+                          {renderRegionControls(selectedComponent)}
+                        </InspectorSection>
+                      </>
+                    )}
+
+                    {selectedComponent.type === 'line' && (
+                      <InspectorSection title="Line">
+                        <FieldRow label="Direction">
+                          <Segmented
+                            ariaLabel="Line direction"
+                            value={selectedComponent.direction}
+                            onChange={(direction) => updateSelectedComponent({ direction })}
+                            options={[
+                              { value: 'horizontal', label: 'Horizontal' },
+                              { value: 'vertical', label: 'Vertical' },
+                            ]}
+                          />
+                        </FieldRow>
+                        <FieldRow label="Stroke (pt)" htmlFor="line-stroke">
+                          <Input
+                            id="line-stroke"
+                            type="number"
+                            className="h-8 text-xs md:text-xs"
+                            value={selectedComponent.strokeWidth}
+                            onChange={(event) => updateSelectedComponent({ strokeWidth: toNumber(event.target.value, selectedComponent.strokeWidth) })}
+                          />
+                        </FieldRow>
+                        {renderRegionControls(selectedComponent)}
+                      </InspectorSection>
+                    )}
+
+                    {selectedComponent.type === 'legend' && (
+                      <>
+                        <InspectorSection title="Legend">
+                          {([
+                            ['showLimited', 'limitedLabel', 'Limited'],
+                            ['showClearance', 'clearanceLabel', 'Clearance'],
+                          ] as const).map(([showKey, labelKey, entryName]) => (
+                            <div key={showKey} className="flex items-center gap-2">
+                              <Switch
+                                id={`legend-${showKey}`}
+                                aria-label={`Show "${entryName}" entry`}
+                                checked={selectedComponent[showKey]}
+                                onCheckedChange={(checked) => updateSelectedComponent({ [showKey]: checked })}
+                              />
+                              <Input
+                                id={`legend-${labelKey}`}
+                                aria-label={`${entryName} label`}
+                                className="h-8 min-w-0 flex-1 text-xs md:text-xs"
+                                value={selectedComponent[labelKey]}
+                                onChange={(event) => updateSelectedComponent({ [labelKey]: event.target.value })}
+                                disabled={!selectedComponent[showKey]}
+                              />
+                            </div>
+                          ))}
+                          <FieldRow label="Layout">
+                            <Segmented
+                              ariaLabel="Legend layout"
+                              value={selectedComponent.layout}
+                              onChange={(layout) => updateSelectedComponent({ layout })}
+                              options={[
+                                { value: 'horizontal', label: 'Horizontal' },
+                                { value: 'vertical', label: 'Vertical' },
+                              ]}
+                            />
+                          </FieldRow>
+                          <FieldRow label="Font size" htmlFor="legend-font-size">
+                            <Select
+                              value={String(selectedComponent.fontSize)}
+                              onValueChange={(value) => updateSelectedComponent({ fontSize: Number(value) })}
+                            >
+                              <SelectTrigger id="legend-font-size" className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                {fontSizeOptions(selectedComponent.fontSize).map((size) => (
+                                  <SelectItem key={String(size)} value={String(size)}>{size} pt</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </FieldRow>
+                        </InspectorSection>
+                        <InspectorSection title="Placement">
+                          {renderRegionControls(selectedComponent)}
+                        </InspectorSection>
+                      </>
+                    )}
+
+                    {selectedComponent.type === 'form-field-group' && (
+                      <>
+                        <InspectorSection
+                          title={`Fields (${selectedComponent.fields.length})`}
+                          action={(
+                            <AnimateIcon asChild animateOnHover animateOnTap>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="h-7 gap-1 px-2 text-xs"
+                                onClick={() => {
+                                  const fieldId = `${selectedComponent.id}-field-${Date.now()}`;
+                                  updateSelectedComponent({
+                                    fields: [...selectedComponent.fields, { id: fieldId, label: 'New Field' }],
+                                  });
+                                }}
+                              >
+                                <PlusIcon size={14} />
+                                Add
+                              </Button>
+                            </AnimateIcon>
+                          )}
+                        >
+                          <div className="divide-y overflow-hidden rounded-md border bg-background/40">
+                            {selectedComponent.fields.map((field, index) => {
+                              const fieldMode = field.translationMode ?? DEFAULT_BUILDER_TRANSLATION_MODE;
+                              return (
+                                <div key={field.id} className="flex items-center gap-0.5 p-0.5" data-testid="builder-form-field-row">
+                                  <Input
+                                    aria-label={`Field ${index + 1} label`}
+                                    data-builder-primary-field={index === 0 ? '' : undefined}
+                                    className="h-8 min-w-0 flex-1 text-xs md:text-xs border-transparent bg-transparent shadow-none hover:border-input focus-visible:border-input focus-visible:bg-background dark:border-transparent dark:hover:border-input"
+                                    value={field.label}
+                                    onChange={(event) =>
+                                      updateSelectedComponent({
+                                        fields: selectedComponent.fields.map((current) =>
+                                          current.id === field.id ? { ...current, label: event.target.value } : current,
+                                        ),
+                                      })
+                                    }
+                                  />
+                                  <DropdownMenu modal={false}>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <DropdownMenuTrigger asChild>
+                                          <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="icon"
+                                            aria-label={`Translation for ${field.label}: ${translationModeLabel(fieldMode)}`}
+                                            className={cn(
+                                              'h-8 w-8 shrink-0',
+                                              fieldMode !== DEFAULT_BUILDER_TRANSLATION_MODE && 'text-primary',
+                                            )}
+                                          >
+                                            <AnimateIcon animateOnHover animateOnTap>
+                                              <LanguagesIcon size={14} />
+                                            </AnimateIcon>
+                                          </Button>
+                                        </DropdownMenuTrigger>
+                                      </TooltipTrigger>
+                                      <TooltipContent side="left">Translation: {translationModeLabel(fieldMode)}</TooltipContent>
+                                    </Tooltip>
+                                    <DropdownMenuContent align="end">
+                                      <DropdownMenuLabel>Translation</DropdownMenuLabel>
+                                      <DropdownMenuSeparator />
+                                      <DropdownMenuRadioGroup
+                                        value={fieldMode}
+                                        onValueChange={(value) =>
+                                          updateSelectedComponent({
+                                            fields: selectedComponent.fields.map((current) =>
+                                              current.id === field.id
+                                                ? { ...current, translationMode: value as BuilderTranslationMode }
+                                                : current,
+                                            ),
+                                          })
+                                        }
+                                      >
+                                        <DropdownMenuRadioItem value="skip">Do not translate</DropdownMenuRadioItem>
+                                        <DropdownMenuRadioItem value="translate">Translate</DropdownMenuRadioItem>
+                                        <DropdownMenuRadioItem value="translate-with-original">Include English</DropdownMenuRadioItem>
+                                        <DropdownMenuRadioItem value="translate-with-original-block">Include English (with line break)</DropdownMenuRadioItem>
+                                      </DropdownMenuRadioGroup>
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
+                                  <ToolbarButton
+                                    label="Remove field"
+                                    tooltipSide="left"
+                                    onClick={() =>
+                                      updateSelectedComponent({
+                                        fields: selectedComponent.fields.filter((current) => current.id !== field.id),
+                                      })
+                                    }
+                                  >
+                                    <Trash2Icon size={14} />
+                                  </ToolbarButton>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </InspectorSection>
+                        <InspectorSection title="Appearance">
+                          <FieldRow label="Font size" htmlFor="form-font-size">
+                            <Select
+                              value={String(selectedComponent.fontSize)}
+                              onValueChange={(value) => updateSelectedComponent({ fontSize: Number(value) })}
+                            >
+                              <SelectTrigger id="form-font-size" className="h-8 text-xs">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {fontSizeOptions(selectedComponent.fontSize).map((size) => (
+                                  <SelectItem key={String(size)} value={String(size)}>
+                                    {size} pt
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </FieldRow>
+                          <FieldRow label="Label width (pt)" htmlFor="form-label-width">
+                            <Input
+                              id="form-label-width"
+                              type="number"
+                              className="h-8 text-xs md:text-xs"
+                              value={selectedComponent.labelWidth}
+                              onChange={(event) => updateSelectedComponent({ labelWidth: toNumber(event.target.value, selectedComponent.labelWidth) })}
+                            />
+                          </FieldRow>
+                          <FieldRow label="Corners">
+                            <Segmented
+                              ariaLabel="Corner radius"
+                              value={String(selectedComponent.cornerRadius ?? 0)}
+                              onChange={(value) => updateSelectedComponent({ cornerRadius: Number(value) })}
+                              options={CORNER_RADIUS_OPTIONS}
+                            />
+                          </FieldRow>
+                          <SwitchRow
+                            id="form-show-dividers"
+                            label="Column dividers"
+                            checked={selectedComponent.showColumnDividers !== false}
+                            onCheckedChange={(checked) => updateSelectedComponent({ showColumnDividers: checked })}
+                          />
+                          <SwitchRow
+                            id="form-show-borders"
+                            label="Table & cell borders"
+                            checked={selectedComponent.showBorders !== false}
+                            onCheckedChange={(checked) => updateSelectedComponent({ showBorders: checked })}
+                          />
+                        </InspectorSection>
+                        <InspectorSection title="Placement">
+                          {renderRegionControls(selectedComponent)}
+                        </InspectorSection>
+                      </>
+                    )}
+                    {selectedComponent.type === 'section-table' && (() => {
+                      const isSplit = bodyLayoutMode === 'split';
+                      const tableFontSizes = fontSizeOptions(
+                        selectedComponent.fontSize,
+                        isSplit ? SPLIT_PAGE_FONT_SIZES : BUILDER_FONT_SIZES,
+                      );
+                      const SPLIT_PAGE_HINT = `Split-page layout limits section-table sizes to ${SPLIT_PAGE_MAX_BUILDER_FONT_SIZE} pt. Switch to Full page to use larger sizes.`;
+                      const translationSettings = resolveSectionTableTranslationSettings(selectedComponent.translationSettings);
+                      const previewAdjustment = normalizeSectionTableTranslationHeightAdjustment(
+                        selectedComponent.translationHeightAdjustments?.[previewLanguage],
+                      );
+                      const otherTableCount = template.components.filter((component) => (
+                        component.type === 'section-table' && component.id !== selectedComponent.id
+                      )).length;
+                      return (
+                        <>
+                          <InspectorSection title="Table">
+                            <Input
+                              id="table-title"
+                              aria-label="Title"
+                              data-builder-primary-field={selectedComponent.inventorySource ? undefined : ''}
+                              className="h-8 text-xs font-medium md:text-xs"
+                              value={selectedComponent.title}
+                              onChange={(event) => updateSelectedComponent({ title: event.target.value })}
+                            />
+                            {selectedComponent.inventorySource && (
+                              <div className="flex items-center justify-between gap-2 rounded-md border translation-options-column py-1.5 pl-3 pr-1.5 text-xs">
+                                <div className="min-w-0">
+                                  <div className="truncate font-medium text-foreground">
+                                    {selectedComponent.inventorySource.categoryName} category
+                                  </div>
+                                  <div className="truncate text-muted-foreground">
+                                    {selectedComponent.categoryLimit && selectedComponent.categoryLimit > 0
+                                      ? `${formatCategoryLimitTag(selectedComponent.categoryLimit, selectedComponent.categoryLimitType)}`
+                                      : 'No category limit set'}
+                                  </div>
                                 </div>
                                 <AnimateIcon asChild animateOnHover animateOnTap>
                                   <Button
                                     type="button"
                                     variant="outline"
                                     size="sm"
-                                    onClick={() => setSectionTableTranslationSettingsTargetId(selectedComponent.id)}
+                                    data-testid="builder-edit-category-trigger"
+                                    className="h-7 shrink-0 gap-1 px-2 text-xs"
+                                    onClick={() => {
+                                      if (selectedComponent.inventorySource) {
+                                        setEditingCategoryId(selectedComponent.inventorySource.categoryId);
+                                      }
+                                    }}
                                   >
-                                    <LanguagesIcon size={16} />
-                                    Configure
+                                    <SettingsIcon size={14} />
+                                    Edit
                                   </Button>
                                 </AnimateIcon>
                               </div>
-                            </div>
-                          );
-                        })()}
-                      </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-2">
-                          <Label htmlFor="table-row-height">Row height</Label>
-                          <Input
-                            id="table-row-height"
-                            type="number"
-                            value={selectedComponent.rowHeight}
-                            onChange={(event) => updateSelectedComponent({ rowHeight: toNumber(event.target.value, selectedComponent.rowHeight) })}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="table-font-size">Font size</Label>
-                          {(() => {
-                            // Section-table font-size is gated to <=12pt while
-                            // the body is in Split-page layout. Larger fonts
-                            // are unlocked automatically in Full-page mode.
-                            // The current value is always shown even if it is
-                            // outside the active list (e.g. a saved template
-                            // at 18pt that was opened in Split mode); muted
-                            // options render with a tooltip explaining why.
-                            const isSplit = getTemplateBodyLayoutMode(template) === 'split';
-                            const activeList = isSplit ? SPLIT_PAGE_FONT_SIZES : BUILDER_FONT_SIZES;
-                            const currentValue = selectedComponent.fontSize;
-                            const displayList = activeList.includes(currentValue as never)
-                              ? activeList
-                              : [...activeList, currentValue].sort((a, b) => a - b);
-                            const SPLIT_PAGE_HINT = `Split-page layout limits section-table sizes to ${SPLIT_PAGE_MAX_BUILDER_FONT_SIZE} pt. Switch to Full page to use larger sizes.`;
-                            return (
+                            )}
+                            <FieldRow label="Behavior">
+                              <Segmented
+                                ariaLabel="Table behavior"
+                                testId="builder-table-flow-mode-select"
+                                value={getSectionTableFlowMode(selectedComponent)}
+                                onChange={(value) => updateSelectedComponent({
+                                  flowMode: value,
+                                  repeatHeaderRows: value === 'flowing' ? true : selectedComponent.repeatHeaderRows,
+                                  keepHeaderWithFirstRow: value === 'flowing' ? true : selectedComponent.keepHeaderWithFirstRow,
+                                  keepRowsTogether: value === 'flowing' ? true : selectedComponent.keepRowsTogether,
+                                })}
+                                options={[
+                                  { value: 'flowing', label: 'Flowing', testId: 'builder-table-flow-flowing' },
+                                  { value: 'fixed', label: 'Fixed', testId: 'builder-table-flow-fixed' },
+                                ]}
+                              />
+                            </FieldRow>
+                            {renderRegionControls(selectedComponent)}
+                          </InspectorSection>
+
+                          <InspectorSection
+                            title="Columns & style"
+                            action={otherTableCount > 0 ? (
+                              <Tooltip>
+                                {/* Span anchor: see ToolbarButton for why the trigger is not the button. */}
+                                <TooltipTrigger asChild>
+                                  <span className="inline-flex shrink-0">
+                                  <AnimateIcon asChild animateOnHover animateOnTap>
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="sm"
+                                      data-testid="builder-apply-table-style-to-all"
+                                      className="h-7 shrink-0 gap-1 px-2 text-xs"
+                                      onClick={applySelectedTableStyleToAllTables}
+                                    >
+                                      <Paintbrush size={14} />
+                                      Apply to all
+                                    </Button>
+                                  </AnimateIcon>
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent side="left" className="max-w-[220px] text-xs">
+                                  Copy this table&apos;s columns and style to the {otherTableCount} other section {otherTableCount === 1 ? 'table' : 'tables'} on the page.
+                                </TooltipContent>
+                              </Tooltip>
+                            ) : undefined}
+                          >
+                            <SwitchRow
+                              id="table-show-limit"
+                              label="Limit column"
+                              checked={selectedComponent.showLimit}
+                              onCheckedChange={(checked) => updateSelectedComponent({ showLimit: checked })}
+                            />
+                            {/*
+                              Sub-options stay in place and disable when their
+                              column is off. Removing them would shift every
+                              switch below while the user is working down the list.
+                            */}
+                            <SwitchRow
+                              id="table-show-global-limit"
+                              indent
+                              label={`Global Limit (${globalLimit}) for no-limit items`}
+                              checked={selectedComponent.showLimit && selectedComponent.showGlobalLimit !== false}
+                              disabled={!selectedComponent.showLimit}
+                              onCheckedChange={(checked) => updateSelectedComponent({ showGlobalLimit: checked })}
+                            />
+                            <SwitchRow
+                              id="table-show-want"
+                              label="Want column"
+                              checked={selectedComponent.showWant !== false}
+                              onCheckedChange={(checked) => updateSelectedComponent({ showWant: checked })}
+                            />
+                            <SwitchRow
+                              id="table-want-checkbox"
+                              indent
+                              label="Checkbox in Want column"
+                              checked={selectedComponent.showWant !== false && resolveSectionTableWantControl(selectedComponent) === 'checkbox'}
+                              disabled={selectedComponent.showWant === false}
+                              onCheckedChange={(checked) => updateSelectedComponent({ wantControl: checked ? 'checkbox' : 'blank' })}
+                            />
+                            <SwitchRow
+                              id="table-show-status-icons"
+                              label="Status icons (Limited / Clearance)"
+                              checked={selectedComponent.showStatusIcons === true}
+                              onCheckedChange={(checked) => updateSelectedComponent({ showStatusIcons: checked })}
+                            />
+                            <SwitchRow
+                              id="table-alternate-rows"
+                              label="Alternate row shading"
+                              checked={selectedComponent.alternateRows}
+                              onCheckedChange={(checked) => updateSelectedComponent({ alternateRows: checked })}
+                            />
+                            <SwitchRow
+                              id="table-show-borders"
+                              label="Table & cell borders"
+                              checked={selectedComponent.showBorders !== false}
+                              onCheckedChange={(checked) => updateSelectedComponent({ showBorders: checked })}
+                            />
+                            <SwitchRow
+                              id="table-show-dividers"
+                              label="Column dividers"
+                              checked={selectedComponent.showColumnDividers !== false}
+                              onCheckedChange={(checked) => updateSelectedComponent({ showColumnDividers: checked })}
+                            />
+                            <FieldRow label="Font size" htmlFor="table-font-size">
+                              {/*
+                                Section-table font size is gated to <=12pt while
+                                the body is in Split-page layout. The current
+                                value is always listed even when it is outside
+                                the active set; muted options explain why.
+                              */}
                               <Select
-                                value={String(currentValue)}
+                                value={String(selectedComponent.fontSize)}
                                 onValueChange={(value) => updateSelectedComponent({ fontSize: Number(value) })}
                               >
-                                <SelectTrigger id="table-font-size">
+                                <SelectTrigger id="table-font-size" className="h-8 text-xs">
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  {displayList.map((size) => {
+                                  {tableFontSizes.map((size) => {
                                     const muted = isSplit
                                       && size > SPLIT_PAGE_MAX_BUILDER_FONT_SIZE
-                                      && size !== currentValue;
+                                      && size !== selectedComponent.fontSize;
                                     if (muted) {
-                                      // Not using SelectItem's `disabled` prop
-                                      // because shadcn's disabled styling
-                                      // applies pointer-events: none, which
-                                      // would suppress the tooltip on hover.
-                                      // Instead we visually mute the item and
-                                      // intercept the selection with onSelect
-                                      // preventDefault.
+                                      // Not SelectItem's `disabled`: its
+                                      // pointer-events:none would suppress the
+                                      // tooltip. The item is muted and its
+                                      // selection intercepted instead.
                                       return (
                                         <Tooltip key={String(size)} delayDuration={200}>
                                           <TooltipTrigger asChild>
@@ -5902,7 +6415,7 @@ export function ShoppingListBuilder() {
                                               {size} pt
                                             </SelectItem>
                                           </TooltipTrigger>
-                                          <TooltipContent side="right" sideOffset={8} className="max-w-[220px] text-xs">
+                                          <TooltipContent side="left" sideOffset={8} className="max-w-[220px] text-xs">
                                             {SPLIT_PAGE_HINT}
                                           </TooltipContent>
                                         </Tooltip>
@@ -5916,647 +6429,301 @@ export function ShoppingListBuilder() {
                                   })}
                                 </SelectContent>
                               </Select>
-                            );
-                          })()}
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="table-limit-width">Limit width</Label>
-                          <Input
-                            id="table-limit-width"
-                            type="number"
-                            value={selectedComponent.limitWidth}
-                            onChange={(event) => updateSelectedComponent({ limitWidth: toNumber(event.target.value, selectedComponent.limitWidth) })}
-                            disabled={!selectedComponent.showLimit}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="table-want-width">Want width</Label>
-                          <Input
-                            id="table-want-width"
-                            type="number"
-                            value={selectedComponent.wantWidth}
-                            onChange={(event) => updateSelectedComponent({ wantWidth: toNumber(event.target.value, selectedComponent.wantWidth) })}
-                            disabled={selectedComponent.showWant === false}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="table-corner-radius">Corner radius</Label>
-                          <Select
-                            value={String(selectedComponent.cornerRadius ?? 0)}
-                            onValueChange={(value) => updateSelectedComponent({ cornerRadius: Number(value) })}
-                          >
-                            <SelectTrigger id="table-corner-radius">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="0">Square</SelectItem>
-                              <SelectItem value="3">3 pt</SelectItem>
-                              <SelectItem value="6">6 pt</SelectItem>
-                              <SelectItem value="9">9 pt</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Checkbox
-                          id="table-show-limit"
-                          checked={selectedComponent.showLimit}
-                          onCheckedChange={(checked) => updateSelectedComponent({ showLimit: checked === true })}
-                        />
-                        <Label htmlFor="table-show-limit">Show limit column</Label>
-                      </div>
-                      {selectedComponent.showLimit && (
-                        <div className="ml-6 flex items-center gap-2">
-                          <Checkbox
-                            id="table-show-global-limit"
-                            checked={selectedComponent.showGlobalLimit !== false}
-                            onCheckedChange={(checked) => updateSelectedComponent({ showGlobalLimit: checked === true })}
-                          />
-                          <Label htmlFor="table-show-global-limit">
-                            Show Global Limit ({globalLimit}) for no-limit items
-                          </Label>
-                        </div>
-                      )}
-                      <div className="flex items-center gap-2">
-                        <Checkbox
-                          id="table-show-want"
-                          checked={selectedComponent.showWant !== false}
-                          onCheckedChange={(checked) => updateSelectedComponent({ showWant: checked === true })}
-                        />
-                        <Label htmlFor="table-show-want">Show want column</Label>
-                      </div>
-                      {selectedComponent.showWant !== false && (
-                        <div className="ml-6 flex items-center gap-2">
-                          <Checkbox
-                            id="table-want-checkbox"
-                            checked={resolveSectionTableWantControl(selectedComponent) === 'checkbox'}
-                            onCheckedChange={(checked) =>
-                              updateSelectedComponent({ wantControl: checked === true ? 'checkbox' : 'blank' })
-                            }
-                          />
-                          <Label htmlFor="table-want-checkbox">Checkbox in Want column</Label>
-                        </div>
-                      )}
-                      <div className="flex items-center gap-2">
-                        <Checkbox
-                          id="table-show-dividers"
-                          checked={selectedComponent.showColumnDividers !== false}
-                          onCheckedChange={(checked) => updateSelectedComponent({ showColumnDividers: checked === true })}
-                        />
-                        <Label htmlFor="table-show-dividers">Show column dividers</Label>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Checkbox
-                          id="table-show-borders"
-                          checked={selectedComponent.showBorders !== false}
-                          onCheckedChange={(checked) => updateSelectedComponent({ showBorders: checked === true })}
-                        />
-                        <Label htmlFor="table-show-borders">Show table &amp; cell borders</Label>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Checkbox
-                          id="table-show-status-icons"
-                          checked={selectedComponent.showStatusIcons === true}
-                          onCheckedChange={(checked) => updateSelectedComponent({ showStatusIcons: checked === true })}
-                        />
-                        <Label htmlFor="table-show-status-icons">Show status icons (Limited / Clearance)</Label>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Checkbox
-                          id="table-alternate-rows"
-                          checked={selectedComponent.alternateRows}
-                          onCheckedChange={(checked) => updateSelectedComponent({ alternateRows: checked === true })}
-                        />
-                        <Label htmlFor="table-alternate-rows">Alternate row shading</Label>
-                      </div>
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between">
-                          <Label>Rows</Label>
-                          {selectedComponent.inventorySource ? (
-                            <DropdownMenu
-                              onOpenChange={(open) => {
-                                if (open) {
-                                  void refreshFoodItems();
-                                }
-                              }}
-                            >
-                              <DropdownMenuTrigger asChild>
+                            </FieldRow>
+                            <FieldRow label="Corners">
+                              <Segmented
+                                ariaLabel="Corner radius"
+                                value={String(selectedComponent.cornerRadius ?? 0)}
+                                onChange={(value) => updateSelectedComponent({ cornerRadius: Number(value) })}
+                                options={CORNER_RADIUS_OPTIONS}
+                              />
+                            </FieldRow>
+                            <div className="grid grid-cols-3 gap-1.5">
+                              <GeometryInput
+                                id="table-row-height"
+                                prefix="Row"
+                                label="Row height"
+                                value={selectedComponent.rowHeight}
+                                onChange={(raw) => updateSelectedComponent({ rowHeight: toNumber(raw, selectedComponent.rowHeight) })}
+                              />
+                              <GeometryInput
+                                id="table-limit-width"
+                                prefix="Limit"
+                                label="Limit column width"
+                                value={selectedComponent.limitWidth}
+                                onChange={(raw) => updateSelectedComponent({ limitWidth: toNumber(raw, selectedComponent.limitWidth) })}
+                                disabled={!selectedComponent.showLimit}
+                              />
+                              <GeometryInput
+                                id="table-want-width"
+                                prefix="Want"
+                                label="Want column width"
+                                value={selectedComponent.wantWidth}
+                                onChange={(raw) => updateSelectedComponent({ wantWidth: toNumber(raw, selectedComponent.wantWidth) })}
+                                disabled={selectedComponent.showWant === false}
+                              />
+                            </div>
+                          </InspectorSection>
+
+                          {/*
+                            Translation Settings apply to every section table,
+                            inventory-backed and base-component alike: both share
+                            the `translationSettings` field and the Headers /
+                            Tags / Rows render contract.
+                          */}
+                          <InspectorSection
+                            title="Translation"
+                            action={(
+                              <AnimateIcon asChild animateOnHover animateOnTap>
                                 <Button
                                   type="button"
                                   variant="outline"
                                   size="sm"
-                                  data-testid="builder-add-inventory-row-trigger"
+                                  className="h-7 shrink-0 gap-1 px-2 text-xs"
+                                  onClick={() => setSectionTableTranslationSettingsTargetId(selectedComponent.id)}
                                 >
+                                  <LanguagesIcon size={14} />
+                                  Configure
+                                </Button>
+                              </AnimateIcon>
+                            )}
+                          >
+                            <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-0.5 text-xs">
+                              <dt className="text-muted-foreground">Headers</dt>
+                              <dd className="truncate">{translationModeLabel(translationSettings.headers)}</dd>
+                              <dt className="text-muted-foreground">Tags</dt>
+                              <dd className="truncate">{translationModeLabel(translationSettings.tags)}</dd>
+                              <dt className="text-muted-foreground">Rows</dt>
+                              <dd className="truncate">{translationModeLabel(translationSettings.rows)}</dd>
+                            </dl>
+                            {selectedComponent.inventorySource && previewLanguage && (
+                              <div className="flex items-center justify-between gap-3">
+                                <div className="min-w-0 text-xs">
+                                  <div className="font-medium">Preview height</div>
+                                  <div className="truncate text-muted-foreground">
+                                    {previewLanguage}: {previewAdjustment > 0 ? `+${previewAdjustment}` : previewAdjustment} grid squares
+                                  </div>
+                                </div>
+                                <div className="flex shrink-0 items-center gap-0.5">
+                                  <ToolbarButton
+                                    label="Decrease translated table preview height"
+                                    variant="outline"
+                                    tooltipSide="left"
+                                    onClick={() => updateSelectedSectionTableTranslationHeightAdjustment(previewAdjustment - 1)}
+                                  >
+                                    <MinusIcon size={14} />
+                                  </ToolbarButton>
+                                  <ToolbarButton
+                                    label="Reset translated table preview height"
+                                    variant="outline"
+                                    tooltipSide="left"
+                                    disabled={previewAdjustment === 0}
+                                    onClick={() => updateSelectedSectionTableTranslationHeightAdjustment(0)}
+                                  >
+                                    <RotateCcwIcon size={14} />
+                                  </ToolbarButton>
+                                  <ToolbarButton
+                                    label="Increase translated table preview height"
+                                    variant="outline"
+                                    tooltipSide="left"
+                                    onClick={() => updateSelectedSectionTableTranslationHeightAdjustment(previewAdjustment + 1)}
+                                  >
+                                    <PlusIcon size={14} />
+                                  </ToolbarButton>
+                                </div>
+                              </div>
+                            )}
+                          </InspectorSection>
+
+                          <InspectorSection
+                            title={`Rows (${selectedComponent.rows.length})`}
+                            collapsible
+                            open={rowsOpen}
+                            onOpenChange={setRowsOpen}
+                            testId="builder-rows-section"
+                            action={selectedComponent.inventorySource ? (
+                              <DropdownMenu
+                                onOpenChange={(open) => {
+                                  if (open) {
+                                    void refreshFoodItems();
+                                  }
+                                }}
+                              >
+                                <DropdownMenuTrigger asChild>
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    data-testid="builder-add-inventory-row-trigger"
+                                    className="h-7 shrink-0 gap-1 px-2 text-xs"
+                                  >
+                                    <AnimateIcon asChild animateOnHover animateOnTap>
+                                      <PlusIcon size={14} />
+                                    </AnimateIcon>
+                                    Add
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-72">
+                                  <DropdownMenuLabel>Add to {selectedComponent.title}</DropdownMenuLabel>
+                                  <DropdownMenuSeparator />
                                   <AnimateIcon asChild animateOnHover animateOnTap>
-                                    <PlusIcon size={16} />
+                                    <DropdownMenuItem
+                                      data-testid="builder-add-new-food-item"
+                                      onSelect={() => {
+                                        if (!selectedComponent.inventorySource) return;
+                                        const ctx = {
+                                          categoryId: selectedComponent.inventorySource.categoryId,
+                                          categoryName: selectedComponent.inventorySource.categoryName,
+                                        };
+                                        window.setTimeout(() => setAddItemContext(ctx), DROPDOWN_TO_DIALOG_OPEN_DELAY_MS);
+                                      }}
+                                    >
+                                      <CirclePlusIcon size={16} className="mr-2" />
+                                      Add new item
+                                    </DropdownMenuItem>
                                   </AnimateIcon>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
+                                    Mark back in stock
+                                  </DropdownMenuLabel>
+                                  {outOfStockItemsForCategory.length === 0 ? (
+                                    <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                                      No out-of-stock items in this category.
+                                    </div>
+                                  ) : (
+                                    <ScrollArea className={cn(outOfStockItemsForCategory.length > 6 ? 'h-[180px] pr-2' : '')}>
+                                      {outOfStockItemsForCategory.map((item) => (
+                                        <AnimateIcon key={item.id} asChild animateOnHover animateOnTap>
+                                          <DropdownMenuItem
+                                            data-testid="builder-restock-out-of-stock-item"
+                                            onSelect={() => {
+                                              window.setTimeout(() => void handleAddOutOfStockItem(item), 0);
+                                            }}
+                                          >
+                                            <PackageXIcon size={16} className="mr-2" />
+                                            {item.name}
+                                          </DropdownMenuItem>
+                                        </AnimateIcon>
+                                      ))}
+                                    </ScrollArea>
+                                  )}
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            ) : (
+                              <AnimateIcon asChild animateOnHover animateOnTap>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-7 shrink-0 gap-1 px-2 text-xs"
+                                  onClick={() => {
+                                    setRowsOpen(true);
+                                    updateSelectedComponent({
+                                      rows: [
+                                        ...selectedComponent.rows,
+                                        { id: `${selectedComponent.id}-row-${Date.now()}`, item: 'New item', limit: '' },
+                                      ],
+                                    });
+                                  }}
+                                >
+                                  <PlusIcon size={14} />
                                   Add
                                 </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" className="w-72">
-                                <DropdownMenuLabel>Add to {selectedComponent.title}</DropdownMenuLabel>
-                                <DropdownMenuSeparator />
-                                <AnimateIcon asChild animateOnHover animateOnTap>
-                                  <DropdownMenuItem
-                                    data-testid="builder-add-new-food-item"
-                                    onSelect={() => {
-                                      if (!selectedComponent.inventorySource) return;
-                                      const ctx = {
-                                        categoryId: selectedComponent.inventorySource.categoryId,
-                                        categoryName: selectedComponent.inventorySource.categoryName,
-                                      };
-                                      window.setTimeout(() => setAddItemContext(ctx), DROPDOWN_TO_DIALOG_OPEN_DELAY_MS);
-                                    }}
-                                  >
-                                    <CirclePlusIcon size={16} className="mr-2" />
-                                    Add new item
-                                  </DropdownMenuItem>
-                                </AnimateIcon>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
-                                  Mark back in stock
-                                </DropdownMenuLabel>
-                                {outOfStockItemsForCategory.length === 0 ? (
-                                  <div className="px-2 py-1.5 text-xs text-muted-foreground">
-                                    No out-of-stock items in this category.
-                                  </div>
-                                ) : (
-                                  <ScrollArea className={cn(outOfStockItemsForCategory.length > 6 ? 'h-[180px] pr-2' : '')}>
-                                    {outOfStockItemsForCategory.map((item) => (
-                                      <AnimateIcon key={item.id} asChild animateOnHover animateOnTap>
-                                        <DropdownMenuItem
-                                          data-testid="builder-restock-out-of-stock-item"
-                                          onSelect={() => {
-                                            window.setTimeout(() => void handleAddOutOfStockItem(item), 0);
-                                          }}
-                                        >
-                                          <PackageXIcon size={16} className="mr-2" />
-                                          {item.name}
-                                        </DropdownMenuItem>
-                                      </AnimateIcon>
-                                    ))}
-                                  </ScrollArea>
-                                )}
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          ) : (
-                            <AnimateIcon asChild animateOnHover animateOnTap>
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={() =>
-                                  updateSelectedComponent({
-                                    rows: [
-                                      ...selectedComponent.rows,
-                                      { id: `${selectedComponent.id}-row-${Date.now()}`, item: 'New item', limit: '' },
-                                    ],
-                                  })
-                                }
-                              >
-                                <PlusIcon size={16} />
-                                Add
-                              </Button>
-                            </AnimateIcon>
-                          )}
-                        </div>
-                        <ScrollArea className="h-[300px] pr-3">
-                          <div className="space-y-3">
-                            {selectedComponent.rows.map((row, index) => (
-                              <div key={row.id} className="rounded-md border bg-background p-2" data-testid="builder-section-row">
-                                <div className="mb-2 flex items-center justify-between">
-                                  <Badge variant="outline">Row {index + 1}</Badge>
-                                  {row.foodItemId ? (
-                                    <SectionTableRowActionsMenu
-                                      row={row}
-                                      clearanceLabel={findFoodItemForRow(row)?.statusFlags.isClearance ? 'Clear Clearance' : 'Mark Clearance'}
-                                      onEdit={() => handleEditInventoryRow(row)}
-                                      onMarkOutOfStock={() => handleMarkOutOfStock(row)}
-                                      onMarkClearance={() => handleMarkClearance(row)}
-                                      onChangeCategory={() => handleOpenChangeCategory(row)}
-                                      onDelete={() => handleOpenDeleteFoodItem(row)}
+                              </AnimateIcon>
+                            )}
+                          >
+                            {selectedComponent.rows.length === 0 ? (
+                              <p className="text-xs text-muted-foreground">
+                                {selectedComponent.inventorySource
+                                  ? 'No in-stock items in this category. Use Add to restock or create one.'
+                                  : 'No rows yet. Use Add to create the first row.'}
+                              </p>
+                            ) : (
+                              // Inline-edit list: fields read as plain rows until
+                              // hovered or focused, so a 17-row table is a list
+                              // to scan rather than a wall of input boxes.
+                              <div className="divide-y overflow-hidden rounded-md border bg-background/40">
+                                {selectedComponent.rows.map((row, index) => (
+                                  <div key={row.id} className="flex items-start gap-0.5 p-0.5" data-testid="builder-section-row">
+                                    <Textarea
+                                      aria-label={`Row ${index + 1} item`}
+                                      rows={1}
+                                      value={row.item}
+                                      onChange={(event) =>
+                                        updateSelectedComponent({
+                                          rows: selectedComponent.rows.map((current) =>
+                                            current.id === row.id ? { ...current, item: event.target.value } : current,
+                                          ),
+                                        })
+                                      }
+                                      className="field-sizing-content min-h-8 min-w-0 flex-1 resize-none px-2.5 py-1.5 text-xs md:text-xs border-transparent bg-transparent shadow-none hover:border-input focus-visible:border-input focus-visible:bg-background dark:border-transparent dark:hover:border-input"
                                     />
-                                  ) : (
-                                    <AnimateIcon asChild animateOnHover animateOnTap>
-                                      <Button
-                                        type="button"
-                                        variant="outline"
-                                        size="icon"
-                                        aria-label="Remove row"
+                                    <div className="relative w-[88px] shrink-0">
+                                      <Input
+                                        aria-label={`Row ${index + 1} limit (${limitSourceLabel(row)})`}
+                                        value={row.limit}
+                                        placeholder={row.foodItemId ? '' : 'Limit'}
+                                        className={cn('h-8 px-2.5 text-xs md:text-xs border-transparent bg-transparent shadow-none hover:border-input focus-visible:border-input focus-visible:bg-background dark:border-transparent dark:hover:border-input', row.foodItemId && 'pr-[52px]')}
+                                        onChange={(event) =>
+                                          updateSelectedComponent({
+                                            rows: selectedComponent.rows.map((current) =>
+                                              current.id === row.id ? { ...current, limit: event.target.value } : current,
+                                            ),
+                                          })
+                                        }
+                                        onBlur={(event) => {
+                                          if (row.foodItemId) {
+                                            void updateInventoryRowLimit(row, event.currentTarget.value);
+                                          }
+                                        }}
+                                      />
+                                      {row.foodItemId && (
+                                        <span
+                                          aria-hidden
+                                          title={`Limit source: ${limitSourceLabel(row)}`}
+                                          className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground"
+                                        >
+                                          {limitSourceLabel(row)}
+                                        </span>
+                                      )}
+                                    </div>
+                                    {row.foodItemId ? (
+                                      <SectionTableRowActionsMenu
+                                        row={row}
+                                        clearanceLabel={findFoodItemForRow(row)?.statusFlags.isClearance ? 'Clear Clearance' : 'Mark Clearance'}
+                                        onEdit={() => handleEditInventoryRow(row)}
+                                        onMarkOutOfStock={() => handleMarkOutOfStock(row)}
+                                        onMarkClearance={() => handleMarkClearance(row)}
+                                        onChangeCategory={() => handleOpenChangeCategory(row)}
+                                        onDelete={() => handleOpenDeleteFoodItem(row)}
+                                      />
+                                    ) : (
+                                      <ToolbarButton
+                                        label="Remove row"
+                                        tooltipSide="left"
                                         onClick={() =>
                                           updateSelectedComponent({
                                             rows: selectedComponent.rows.filter((current) => current.id !== row.id),
                                           })
                                         }
                                       >
-                                        <Trash2Icon size={16} />
-                                      </Button>
-                                    </AnimateIcon>
-                                  )}
-                                </div>
-                                <div className="space-y-2">
-                                  <Textarea
-                                    value={row.item}
-                                    onChange={(event) =>
-                                      updateSelectedComponent({
-                                        rows: selectedComponent.rows.map((current) =>
-                                          current.id === row.id ? { ...current, item: event.target.value } : current,
-                                        ),
-                                      })
-                                    }
-                                    className="min-h-[52px]"
-                                  />
-                                  <div className="flex items-center gap-2">
-                                    <Input
-                                      value={row.limit}
-                                      placeholder="Limit"
-                                      onChange={(event) =>
-                                        updateSelectedComponent({
-                                          rows: selectedComponent.rows.map((current) =>
-                                            current.id === row.id ? { ...current, limit: event.target.value } : current,
-                                          ),
-                                        })
-                                      }
-                                      onBlur={(event) => {
-                                        if (row.foodItemId) {
-                                          void updateInventoryRowLimit(row, event.currentTarget.value);
-                                        }
-                                      }}
-                                    />
-                                    <Badge variant={row.foodItemId ? 'secondary' : 'outline'} className="shrink-0">
-                                      {limitSourceLabel(row)}
-                                    </Badge>
+                                        <Trash2Icon size={14} />
+                                      </ToolbarButton>
+                                    )}
                                   </div>
-                                </div>
+                                ))}
                               </div>
-                            ))}
-                          </div>
-                        </ScrollArea>
-                      </div>
-                    </>
-                  )}
+                            )}
+                          </InspectorSection>
+                        </>
+                      );
+                    })()}
 
-                  {selectedComponent.type === 'line' && (
-                    <div className="text-sm text-muted-foreground">
-                      Line content is controlled by its layout settings.
-                    </div>
-                  )}
-
-                  {selectedComponent.type === 'language-tag' && (
-                    <>
-                      <div className="space-y-2">
-                        <Label>Rendering option</Label>
-                        <Select
-                          value={selectedComponent.mode ?? DEFAULT_LANGUAGE_TAG_MODE}
-                          onValueChange={(value) => updateSelectedComponent({ mode: value as BuilderLanguageTagMode })}
-                        >
-                          <SelectTrigger data-testid="builder-language-tag-mode-select">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {(['hide-english', 'english', 'native', 'native-with-english'] as BuilderLanguageTagMode[]).map((mode) => (
-                              <SelectItem key={mode} value={mode}>
-                                {languageTagModeLabel(mode)}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-2">
-                          <Label htmlFor="language-tag-font-size">Font size</Label>
-                          <Select
-                            value={String(selectedComponent.fontSize)}
-                            onValueChange={(value) => {
-                              const newFontSize = Number(value);
-                              const newHeight = typographySnapHeightForFontSize(
-                                newFontSize,
-                                1,
-                                selectedComponent.lineHeight,
-                              );
-                              updateSelectedComponent({ fontSize: newFontSize, height: newHeight });
-                            }}
-                          >
-                            <SelectTrigger id="language-tag-font-size">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {(BUILDER_FONT_SIZES.includes(selectedComponent.fontSize as never)
-                                ? BUILDER_FONT_SIZES
-                                : [...BUILDER_FONT_SIZES, selectedComponent.fontSize].sort((a, b) => a - b)
-                              ).map((size) => (
-                                <SelectItem key={String(size)} value={String(size)}>
-                                  {size} pt
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-2">
-                          <Label>Weight</Label>
-                          <Select
-                            value={selectedComponent.fontWeight}
-                            onValueChange={(value) => updateSelectedComponent({ fontWeight: value as LanguageTagBuilderComponent['fontWeight'] })}
-                          >
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="normal">Normal</SelectItem>
-                              <SelectItem value="bold">Bold</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-2">
-                          <Label>Alignment</Label>
-                          <Select
-                            value={selectedComponent.align}
-                            onValueChange={(value) => updateSelectedComponent({ align: value as LanguageTagBuilderComponent['align'] })}
-                          >
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="left">Left</SelectItem>
-                              <SelectItem value="center">Center</SelectItem>
-                              <SelectItem value="right">Right</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="language-tag-line-height">Line height</Label>
-                          <Input
-                            id="language-tag-line-height"
-                            type="number"
-                            step="0.05"
-                            value={selectedComponent.lineHeight}
-                            onChange={(event) => updateSelectedComponent({ lineHeight: toNumber(event.target.value, selectedComponent.lineHeight) })}
-                          />
-                        </div>
-                      </div>
-                    </>
-                  )}
-
-                  {selectedComponent.type === 'legend' && (
-                    <>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-2">
-                          <Label htmlFor="legend-layout">Layout</Label>
-                          <Select
-                            value={selectedComponent.layout}
-                            onValueChange={(value) => updateSelectedComponent({ layout: value as 'horizontal' | 'vertical' })}
-                          >
-                            <SelectTrigger id="legend-layout"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="horizontal">Horizontal</SelectItem>
-                              <SelectItem value="vertical">Vertical</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="legend-font-size">Font size</Label>
-                          <Select
-                            value={String(selectedComponent.fontSize)}
-                            onValueChange={(value) => updateSelectedComponent({ fontSize: Number(value) })}
-                          >
-                            <SelectTrigger id="legend-font-size"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              {BUILDER_FONT_SIZES.map((size) => (
-                                <SelectItem key={String(size)} value={String(size)}>{size} pt</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Checkbox
-                          id="legend-show-limited"
-                          checked={selectedComponent.showLimited}
-                          onCheckedChange={(checked) => updateSelectedComponent({ showLimited: checked === true })}
-                        />
-                        <Label htmlFor="legend-show-limited">Show &quot;Limited&quot; entry</Label>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="legend-limited-label">Limited label</Label>
-                        <Input
-                          id="legend-limited-label"
-                          value={selectedComponent.limitedLabel}
-                          onChange={(event) => updateSelectedComponent({ limitedLabel: event.target.value })}
-                          disabled={!selectedComponent.showLimited}
-                        />
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Checkbox
-                          id="legend-show-clearance"
-                          checked={selectedComponent.showClearance}
-                          onCheckedChange={(checked) => updateSelectedComponent({ showClearance: checked === true })}
-                        />
-                        <Label htmlFor="legend-show-clearance">Show &quot;Clearance&quot; entry</Label>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="legend-clearance-label">Clearance label</Label>
-                        <Input
-                          id="legend-clearance-label"
-                          value={selectedComponent.clearanceLabel}
-                          onChange={(event) => updateSelectedComponent({ clearanceLabel: event.target.value })}
-                          disabled={!selectedComponent.showClearance}
-                        />
-                      </div>
-                    </>
-                  )}
-                  {selectedComponent.type === 'date' && (
-                    <>
-                      <div className="space-y-2">
-                        <Label>Date format</Label>
-                        <Select
-                          value={selectedComponent.formatId ?? DEFAULT_DATE_FORMAT_ID}
-                          onValueChange={(value) => updateSelectedComponent({ formatId: value as BuilderDateFormatId })}
-                        >
-                          <SelectTrigger data-testid="builder-date-format-select">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {BUILDER_DATE_FORMATS.map((entry) => (
-                              <SelectItem key={entry.id} value={entry.id}>
-                                <span className="flex flex-col text-left">
-                                  <span>{entry.label}</span>
-                                  <span className="text-xs text-muted-foreground">{entry.example}</span>
-                                </span>
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Date source</Label>
-                        <Select
-                          value={selectedComponent.dateMode}
-                          onValueChange={(value) => updateSelectedComponent({ dateMode: value as DateBuilderComponent['dateMode'] })}
-                        >
-                          <SelectTrigger data-testid="builder-date-mode-select">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="today">
-                              <span className="flex flex-col text-left">
-                                <span>Today</span>
-                                <span className="text-xs text-muted-foreground">Resolves at render time</span>
-                              </span>
-                            </SelectItem>
-                            <SelectItem value="custom">
-                              <span className="flex flex-col text-left">
-                                <span>Custom date</span>
-                                <span className="text-xs text-muted-foreground">Pick a specific day</span>
-                              </span>
-                            </SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      {selectedComponent.dateMode === 'custom' && (
-                        <div className="space-y-2">
-                          <Label>Custom date</Label>
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <Button
-                                type="button"
-                                variant="outline"
-                                data-testid="builder-date-custom-trigger"
-                                className="w-full justify-start gap-2"
-                              >
-                                <AnimateIcon asChild animateOnHover animateOnTap>
-                                  <CalendarDaysIcon size={16} />
-                                </AnimateIcon>
-                                {selectedComponent.customDate
-                                  ? formatBuilderDate(
-                                    parseBuilderCustomDate(selectedComponent.customDate) ?? new Date(),
-                                    selectedComponent.formatId ?? DEFAULT_DATE_FORMAT_ID,
-                                  )
-                                  : 'Pick a date'}
-                              </Button>
-                            </PopoverTrigger>
-                            <PopoverContent align="start" className="w-auto p-0">
-                              <Calendar
-                                mode="single"
-                                captionLayout="dropdown"
-                                selected={parseBuilderCustomDate(selectedComponent.customDate) ?? undefined}
-                                onSelect={(date) => {
-                                  if (!date) return;
-                                  updateSelectedComponent({ customDate: toBuilderCustomDateIso(date) });
-                                }}
-                                fromYear={new Date().getFullYear() - 5}
-                                toYear={new Date().getFullYear() + 5}
-                              />
-                            </PopoverContent>
-                          </Popover>
-                        </div>
-                      )}
-                      <div className="rounded-md border bg-card/40 p-2">
-                        <div className="space-y-2">
-                          <Label className="text-sm font-medium">Translation Settings</Label>
-                          <Select
-                            value={selectedComponent.translationMode ?? DEFAULT_BUILDER_TRANSLATION_MODE}
-                            onValueChange={(value) => updateSelectedComponent({ translationMode: value as BuilderTranslationMode })}
-                          >
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="skip">Do not translate</SelectItem>
-                              <SelectItem value="translate">Translate</SelectItem>
-                              <SelectItem value="translate-with-original">Include English</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <p className="text-xs text-muted-foreground">
-                            Mode: {translationModeLabel(selectedComponent.translationMode ?? DEFAULT_BUILDER_TRANSLATION_MODE)}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-2">
-                          <Label htmlFor="date-font-size">Font size</Label>
-                          <Select
-                            value={String(selectedComponent.fontSize)}
-                            onValueChange={(value) => {
-                              const newFontSize = Number(value);
-                              // Date renders a single resolved-date line. Snap
-                              // height to the next 9pt multiple so the box
-                              // contains the larger font at every supported size.
-                              const newHeight = typographySnapHeightForFontSize(
-                                newFontSize,
-                                1,
-                                selectedComponent.lineHeight,
-                              );
-                              updateSelectedComponent({ fontSize: newFontSize, height: newHeight });
-                            }}
-                          >
-                            <SelectTrigger id="date-font-size">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {(BUILDER_FONT_SIZES.includes(selectedComponent.fontSize as never)
-                                ? BUILDER_FONT_SIZES
-                                : [...BUILDER_FONT_SIZES, selectedComponent.fontSize].sort((a, b) => a - b)
-                              ).map((size) => (
-                                <SelectItem key={String(size)} value={String(size)}>
-                                  {size} pt
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-2">
-                          <Label>Weight</Label>
-                          <Select
-                            value={selectedComponent.fontWeight}
-                            onValueChange={(value) => updateSelectedComponent({ fontWeight: value as DateBuilderComponent['fontWeight'] })}
-                          >
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="normal">Normal</SelectItem>
-                              <SelectItem value="bold">Bold</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-2">
-                          <Label>Alignment</Label>
-                          <Select
-                            value={selectedComponent.align}
-                            onValueChange={(value) => updateSelectedComponent({ align: value as DateBuilderComponent['align'] })}
-                          >
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="left">Left</SelectItem>
-                              <SelectItem value="center">Center</SelectItem>
-                              <SelectItem value="right">Right</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="date-line-height">Line height</Label>
-                          <Input
-                            id="date-line-height"
-                            type="number"
-                            step="0.05"
-                            value={selectedComponent.lineHeight}
-                            onChange={(event) => updateSelectedComponent({ lineHeight: toNumber(event.target.value, selectedComponent.lineHeight) })}
-                          />
-                        </div>
-                      </div>
-                    </>
-                  )}
-                  </AnimatedTabsContent>
-                </AnimatedTabsContents>
-              </AnimatedTabs>
+                    {renderGeometrySection(selectedComponent)}
+                  </>
+                )}
               </div>
-            ) : (
-              <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
-                Select a component on the canvas.
-              </div>
-            )}
+            </ScrollArea>
           </aside>
         </div>
 

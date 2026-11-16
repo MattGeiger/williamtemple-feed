@@ -43,6 +43,42 @@ Everything else in this file. The application is shippable today.
 
 ## Open Issues
 
+### #87 — Shopping List Builder UX rework (v1.9.0 slot)
+**Priority**: Medium · **Status**: Implemented 2026-11-15 in the working tree; awaiting staff RITE sessions and release
+**Bucket**: v1.9.0
+**Component**: `packages/frontend/src/components/shopping-lists/builder/ShoppingListBuilder.tsx`,
+`builder/builder-ui.tsx`, `components/ui/toggle-group.tsx`
+
+The Builder's chrome was reorganised — contextual inspector, single-scroll
+property sections, canvas-side zoom, one-click segmented choices, **Add all**,
+**Apply to all**, canvas shortcuts, a save-state indicator — with no change to
+template data, routes, the planner, or PDF output. The benchmark (rebuild the
+saved templates from blank) drops from ~162 to ~53 pointer actions for "Pantry
+Inventory". Full record: `docs/shopping-lists/builder-ux-rework.md`.
+
+Done out of roadmap order by owner decision: the roadmap sequences grid
+layouts (v1.8.0 slot) first. The Page inspector is where the grid choice and
+its Duplicate All / Individual sub-mode will go.
+
+Open follow-ups:
+- Staff RITE sessions; the evaluation scores in the design record are the
+  implementer's own.
+- No guard on leaving the page with unsaved changes (the state is now shown).
+- No automated UI test covers the Builder.
+
+### #86 — Shopping Lists "Last Updated" column showed raw ISO timestamps
+**Priority**: Low · **Status**: Fixed 2026-11-15 — pending release
+**Bucket**: v1.x
+**Component**: `packages/frontend/src/components/shopping-lists/data-table/builder-template-columns.tsx`
+
+A local `formatDate` wrapper shadowed the imported `@/lib/formatting/date`
+formatter, called itself until the stack overflowed, and returned the raw value
+from its `catch`. Introduced by the date-format consolidation (af62f3d), which
+swapped the wrapper's body for a call to the shared function of the same name.
+The shared formatter already handles invalid input, so the wrapper is removed.
+Lesson recorded in `AGENTS.md`.
+
+
 ### #85 — The breadcrumb banner loses its frosted glass in Chrome production builds
 **Priority**: Low · **Status**: Fixed in 1.8.1; production visually confirmed
 **Bucket**: Layout / shell surfaces
