@@ -12,7 +12,8 @@ See `docs/deployment/2026-11-16-pi-recovery.md`.
 The 1.9.1 deployment preserves Node 24.22.3 and the existing tunnel, with fresh
 on-Pi recovery artifacts and a verified off-device portable backup. About
 647 MB remains free after retaining the 1.9.0 rollback images. Production terms
-acceptance by the operator is pending. See `docs/deployment/v1.9.1-validation.md`.
+acceptance, retained History snapshot and prompt-free reload are verified.
+See `docs/deployment/v1.9.1-validation.md`.
 Historical release headings distinguish authored versions from deployments.
 
 This file tracks open issues, planned work, and recently-resolved items
@@ -52,7 +53,7 @@ Everything else in this file. The application is shippable today.
 ### v1.9.1 — Login terms and release notes
 
 **Status:** Deployed November 17; runtime/data/gate checks pass, operator
-production agreement and post-acceptance browser checks pending. First agreement is required after
+production agreement and post-acceptance browser checks complete. First agreement is required after
 OTP/magic-link identity verification. Admin → History retains and opens the
 exact accepted document; future prompts follow document changes independently
 of software releases. The existing release-notes modal opens on first entry

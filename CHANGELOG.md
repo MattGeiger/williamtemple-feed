@@ -12,7 +12,7 @@ All notable changes to FEED are documented here. This project adheres to
 - Published `v1.9.1` and its ARM64 Docker images, then deployed backend/frontend
   to the Pi with `VERSION=1.9.1`. Both containers are healthy, all 39 migrations
   are current, and Node remains 24.22.3. Exact digests, verified backups, runtime
-  correction and pending operator production acceptance are recorded in
+  correction and completed operator production acceptance are recorded in
   `docs/deployment/v1.9.1-validation.md`. LOTTO metrics are unchanged.
 
 ### Added
