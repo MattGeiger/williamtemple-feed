@@ -67,6 +67,10 @@ describe('recovery ordering: encryption first, then restore', () => {
     // Step 4: restore. The artifact carries an administrator's model settings
     // and, by design, not the secret that makes them usable.
     const { RestoreService } = await import('../../../src/services/restore/restore-service');
+    // Destination-local security/presentation evidence is excluded from the
+    // artifact and must survive the same live-copy restore as the key.
+    sqlite("INSERT INTO TermsAcceptance(id,userId,emailAtAcceptance,organizationName,termsVersion,termsHash,termsText) VALUES ('agreement-local','retired-account','synthetic@example.org','Example Organization','test-terms','test-hash','Original retained agreement');");
+    sqlite("INSERT INTO UserReleaseVisit(id,userId,version) VALUES ('release-local','retired-account','1.9.1');");
     const outcome = await RestoreService.run({
       data: {
         AIConfiguration: [
@@ -95,6 +99,12 @@ describe('recovery ordering: encryption first, then restore', () => {
     // they encrypted with it afterwards.
     expect(sqlite('SELECT COUNT(*) FROM EncryptionKey;')).toBe('1');
     expect(sqlite("SELECT keyValue FROM EncryptionKey WHERE keyId = 'primary';")).toBe(KEY);
+  });
+
+  test('destination agreements and release presentation survive restore even without a roster row', () => {
+    expect(sqlite("SELECT termsText FROM TermsAcceptance WHERE id = 'agreement-local';")).toBe('Original retained agreement');
+    expect(sqlite("SELECT emailAtAcceptance FROM TermsAcceptance WHERE id = 'agreement-local';")).toBe('synthetic@example.org');
+    expect(sqlite("SELECT version FROM UserReleaseVisit WHERE id = 'release-local';")).toBe('1.9.1');
   });
 
   test('a restored model configuration arrives switched off', () => {

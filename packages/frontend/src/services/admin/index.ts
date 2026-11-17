@@ -7,6 +7,7 @@
 
 import config from '@/config/config';
 import { BaseApiService, parseContentDispositionFilename } from '@/services/base';
+import type { RetainedAgreement } from '@/services/auth-onboarding';
 import type {
   AccessPolicy,
   AccessPolicyUpdate,
@@ -35,6 +36,9 @@ import type {
  * crashes the next render, but only after a save.
  */
 class AdminService extends BaseApiService {
+  async getAgreement(id: string): Promise<RetainedAgreement> {
+    return (await this.get<{ acceptance: RetainedAgreement }>(`/terms-acceptances/${encodeURIComponent(id)}`)).acceptance;
+  }
   constructor() {
     super(config.api.endpoints.admin.base);
   }

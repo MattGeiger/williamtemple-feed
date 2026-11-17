@@ -67,6 +67,7 @@ export function LoginPage() {
         </Tabs>
 
         <AuthAttribution className="mt-6" showSourceLink={false} />
+        <p className="mt-3 text-center text-xs"><a href="/terms" className="underline underline-offset-4">FEED Terms of Use</a></p>
       </CardContent>
     </Card>
   );

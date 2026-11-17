@@ -81,6 +81,7 @@ export const DENIED_MESSAGE_MAX_LENGTH = 240;
 
 /** Human wording for audit actions, used by the Audit tab. */
 export const AUDIT_ACTION_LABELS: Record<string, string> = {
+  TERMS_ACCEPTED: 'Accepted FEED Terms of Use',
   ROLE_GRANTED: 'Made Administrator',
   ROLE_REVOKED: 'Changed to Staff',
   ACCESS_REVOKED: 'Access revoked',

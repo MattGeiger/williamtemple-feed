@@ -5,6 +5,48 @@ All notable changes to FEED are documented here. This project adheres to
 
 ## [Unreleased]
 
+## [1.9.1] — 2026-11-17
+
+### Development
+
+- Prepared local v1.9.1 development: frontend and backend package versions and
+  lockfiles now read 1.9.1. Terms acceptance and first-login release notes are
+  implemented locally; the LOTTO initial-range correction is separate work.
+  Production remains 1.9.0; the eventual Docker build and deployment must use
+  `VERSION=1.9.1` and finalized matching release notes.
+
+### Added
+
+- Organization-aware FEED Terms of Use and a server-enforced agreement step
+  after OTP/magic-link sign-in. Exact accepted text, account/email and
+  Organization snapshots, version/hash and original acceptance time are
+  retained independently of later roster deletion. Admin → History opens each
+  retained agreement. Application releases alone do not require new agreement.
+- First-login release notes reuse the sidebar’s existing modal and remember
+  each release per account across browsers. Terms acceptance precedes release
+  notes. Stale clients cannot mark a newer server release as presented.
+- Additive migration for destination-local agreement and release-presentation
+  records. Portable backups exclude these records; normal live-copy restore
+  preserves the destination’s evidence. Protected APIs now require individual
+  identity as well as agreement; legacy Basic/PDF-header shortcuts do not grant
+  access. Auth, public inventory/branding, health and bootstrap exceptions are
+  preserved. Details: `docs/auth/terms-and-release-notes.md`.
+
+### Documentation
+
+- Roadmap records why the first LOTTO batch and final configured range cannot
+  establish initial issuance, the initial-range evidence LOTTO must retain, and
+  the strict producer/consumer schema coordination needed before FEED changes
+  its chart, tile and PDF/CSV accessors. LOTTO analytics are unchanged here.
+
+### Validation
+
+- November 17 local browser follow-up: operator-confirmed agreement appears
+  in Admin History and opens the retained document; the sidebar release-notes
+  modal shows 1.9.1; both dialogs close cleanly. Reloading the authenticated
+  session repeats neither prompt. A fresh sign-out/sign-in cycle is covered by
+  integration tests and was not repeated in this browser follow-up.
+
 ### Operations
 
 - Recovered the Pi from Docker/containerd binary corruption, verified a

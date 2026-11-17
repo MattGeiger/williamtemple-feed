@@ -161,6 +161,8 @@ export const RESTORE_CLEARED_TABLES: Record<string, {
 };
 
 export const EXCLUDED_TABLES: Record<string, string> = {
+  TermsAcceptance: 'Destination-local agreement evidence. An imported file cannot grant acceptance or replace retained agreements.',
+  UserReleaseVisit: 'Destination-local release presentation history, not portable organization data.',
   // --- Secrets. Non-negotiable; this is why the artifact exists at all. ---
   EncryptionKey:
     'Key material. The runtime encryption key lives here, not in env (KeyManager.getActiveKey).',

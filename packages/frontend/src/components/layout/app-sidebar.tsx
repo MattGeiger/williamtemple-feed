@@ -29,7 +29,7 @@ import { APP_VERSION } from '@/config/app-version';
 import { AnimateIcon } from '@/components/animate-ui/icons/icon';
 import { AboutNavIcon } from './animated-nav-icons';
 import { AboutCard } from '@/components/about/AboutPage';
-import { ReleaseNotesCard } from '@/components/release-notes/ReleaseNotesCard';
+import { ReleaseNotesDialog } from '@/components/release-notes/ReleaseNotesDialog';
 import {
   Dialog,
   DialogContent,
@@ -371,8 +371,7 @@ export function AppSidebar() {
           "
         >
           <div className="group-data-[collapsible=icon]:hidden">
-            <Dialog>
-              <DialogTrigger asChild>
+            <ReleaseNotesDialog>
                 <button
                   type="button"
                   className="
@@ -385,15 +384,7 @@ export function AppSidebar() {
                 >
                   Version {APP_VERSION}
                 </button>
-              </DialogTrigger>
-              <DialogContent className="border-0! bg-transparent! p-0! shadow-none! outline-hidden! ring-0! focus:outline-hidden! focus-visible:outline-hidden! focus-visible:ring-0! sm:max-w-2xl [&>button]:right-4 [&>button]:top-4">
-                <DialogTitle className="sr-only">Release Notes</DialogTitle>
-                <DialogDescription className="sr-only">
-                  Plain-language release notes for FEED versions 1.0.0 through {APP_VERSION}.
-                </DialogDescription>
-                <ReleaseNotesCard />
-              </DialogContent>
-            </Dialog>
+            </ReleaseNotesDialog>
           </div>
           {/*
             No tooltip here, unlike the collapsed-rail items above. This block

@@ -45,6 +45,23 @@ Everything else in this file. The application is shippable today.
 
 ## Open Issues
 
+### v1.9.1 — Login terms and release notes
+
+**Status:** Implemented locally; not deployed. First agreement is required after
+OTP/magic-link identity verification. Admin → History retains and opens the
+exact accepted document; future prompts follow document changes independently
+of software releases. The existing release-notes modal opens on first entry
+to a release per account. Contract and validation:
+`docs/auth/terms-and-release-notes.md`.
+
+**Separate follow-up:** “Initial issuance” currently measures the first LOTTO
+batch, not the configured range at initial sort. LOTTO does not retain that
+range separately in its closeout; its final configured range can include later
+extensions. The owner is handling upstream capture separately. Required
+producer/consumer compatibility, evidence-only historical recovery and shared
+screen/PDF/CSV correction are in `docs/roadmap/v1.6-to-v2.0.md`. No metric change
+is included in v1.9.1.
+
 ### Pi storage reliability after runtime binary corruption
 
 **Priority**: High · **Status**: Runtime repaired 2026-11-16; cause unresolved

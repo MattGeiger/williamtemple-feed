@@ -40,6 +40,7 @@ import { maintenanceGuard } from './services/restore/maintenance-mode';
 import { errorHandler } from './middleware/error-handler';
 import { jsonErrorHandler } from './middleware/json-error-handler';
 import { authMiddleware, jwtAuthMiddleware } from './middleware/auth';
+import { requireTermsAcceptance } from './middleware/auth/terms-middleware';
 import { version } from '../package.json';
 
 export const createServer = () => {
@@ -92,6 +93,7 @@ export const createServer = () => {
   // Add authentication middleware (before routes, after basic middleware)
   app.use(jwtAuthMiddleware);
   app.use(authMiddleware);
+  app.use(requireTermsAcceptance);
 
   // After authentication, so an unauthenticated caller still gets 401 first —
   // maintenance is not an authentication bypass. Refuses mutations with 503

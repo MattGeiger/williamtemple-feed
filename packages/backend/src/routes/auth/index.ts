@@ -10,8 +10,10 @@ import { z } from 'zod';
 import { VerificationService } from '../../services/auth/verification-service';
 import { TokenService } from '../../services/auth/token-service';
 import { AccessPolicyService } from '../../services/auth/access-policy-service';
+import onboardingRouter, { loginRequirements } from './onboarding';
 
 const router = Router();
+router.use(onboardingRouter);
 const cookieDomain = process.env.COOKIE_DOMAIN?.trim();
 const cookieDomainOption = cookieDomain ? cookieDomain : undefined;
 
@@ -249,6 +251,7 @@ router.get('/session', async (req: Request, res: Response, next: NextFunction) =
 
     res.json({
       authenticated: true,
+      ...await loginRequirements(req.auth.userId),
       user: {
         id: req.auth.userId,
         email: req.auth.email,

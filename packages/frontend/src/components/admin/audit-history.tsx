@@ -13,6 +13,11 @@ import { ErrorHandlerService } from '@/services/error/ErrorHandlerService';
 import { adminService } from '@/services/admin';
 import { formatDateTime } from '@/lib/formatting/date';
 import { AUDIT_ACTION_LABELS, type AuditEntry } from '@/types/admin';
+import type { RetainedAgreement } from '@/services/auth-onboarding';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { MarkdownGuideContent } from '@/components/help/MarkdownGuide';
 
 /**
  * Who did what, to whom, and when.
@@ -61,7 +66,7 @@ const targetLabel = (entry: AuditEntry): string => {
   return ISO_TIMESTAMP.test(label) ? formatDateTime(label) : label;
 };
 
-const columns: ColumnDef<AuditEntry>[] = [
+const historyColumns = (review: (id: string) => void): ColumnDef<AuditEntry>[] => [
   {
     // Sorts on the timestamp, not the rendered string. "8/5/2026 9:04 AM"
     // sorted as text puts October before February.
@@ -96,12 +101,35 @@ const columns: ColumnDef<AuditEntry>[] = [
     ),
     size: 220,
   },
+  {
+    id: 'actions', header: 'Actions', size: 160, meta: { align: 'right' },
+    cell: ({ row }) => row.original.action === 'TERMS_ACCEPTED' && row.original.targetId
+      ? <Button variant="outline" size="sm" onClick={() => review(row.original.targetId!)}>View agreement</Button>
+      : null,
+  },
 ];
 
 export function AuditHistory() {
   const [entries, setEntries] = React.useState<AuditEntry[]>([]);
   const [isTruncated, setIsTruncated] = React.useState(false);
   const [isLoading, setIsLoading] = React.useState(true);
+  const [agreement, setAgreement] = React.useState<RetainedAgreement | null>(null);
+  const [reviewing, setReviewing] = React.useState(false);
+  const [reviewError, setReviewError] = React.useState<string | null>(null);
+  const reviewRequest = React.useRef(0);
+  const review = React.useCallback(async (id: string) => {
+    const request = ++reviewRequest.current;
+    setAgreement(null);
+    setReviewError(null);
+    setReviewing(true);
+    try {
+      const retained = await adminService.getAgreement(id);
+      if (request === reviewRequest.current) setAgreement(retained);
+    } catch (error) {
+      if (request === reviewRequest.current) setReviewError(ErrorHandlerService.toUserMessage(error));
+    }
+  }, []);
+  const columns = React.useMemo(() => historyColumns(id => void review(id)), [review]);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -145,6 +173,19 @@ export function AuditHistory() {
 
   return (
     <div className="space-y-2">
+      <Dialog open={reviewing} onOpenChange={open => { setReviewing(open); if (!open) reviewRequest.current++; }}>
+        <DialogContent className="sm:max-w-3xl">
+          <DialogTitle>Retained agreement</DialogTitle>
+          <DialogDescription>
+            {agreement ? `${agreement.emailAtAcceptance} · Accepted ${formatDateTime(agreement.acceptedAt)} · Version ${agreement.termsVersion}` : 'The exact FEED Terms of Use saved at acceptance.'}
+          </DialogDescription>
+          <ScrollArea className="h-[60svh] pr-4">
+            {reviewError ? <p role="alert">{reviewError}</p> : agreement
+              ? <article className="space-y-5"><MarkdownGuideContent content={agreement.termsText} /><p className="break-all text-xs text-muted-foreground">Document SHA-256: {agreement.termsHash}</p></article>
+              : <p role="status">Loading the retained agreement…</p>}
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
       <EnhancedDataTable
         columns={columns}
         data={entries}

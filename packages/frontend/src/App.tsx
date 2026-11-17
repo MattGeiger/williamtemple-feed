@@ -45,6 +45,7 @@ import { AdminRoute } from './components/admin-route'
 import { AdminPage as AdminWorkspace } from './components/admin'
 import LoginPage from './components/pages/login-page'
 import { MagicLinkConfirmPage } from './components/auth/magic-link-confirm'
+import { TermsPage } from './components/auth/terms-page'
 import LogoutPage from './components/pages/logout-page'
 import { AIConfiguration } from './components/ai-configuration'
 import { HelpGuidePage } from './components/help/HelpGuidePage'
@@ -436,6 +437,8 @@ function App() {
                 <Routes>
                   {/* Public login route */}
                   <Route path="/login" element={<LoginPage />} />
+                  <Route path="/terms" element={<TermsPage />} />
+                  <Route path="/terms/accept" element={<TermsPage acceptance />} />
                   {/* Public by necessity: the visitor is not signed in yet.
                       Consumes nothing on load — the token is spent only when
                       the recipient presses the button. */}

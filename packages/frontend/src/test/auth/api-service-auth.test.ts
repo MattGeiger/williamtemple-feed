@@ -6,12 +6,14 @@
 // not covered by this license; see TRADEMARKS.md.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { BaseApiService } from '@/services/base';
+import { ApiError, BaseApiService } from '@/services/base';
 
 class TestService extends BaseApiService {
   async ping() {
     return this.get<{ ok: boolean }>('/ping');
   }
+  async upload() { return this.requestFormData('/upload', new FormData()); }
+  async download() { return this.requestBinary('/download'); }
 }
 
 describe('BaseApiService authentication', () => {
@@ -29,6 +31,7 @@ describe('BaseApiService authentication', () => {
   afterEach(() => {
     globalThis.fetch = originalFetch;
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 
   it('sends cookies and omits Basic auth headers', async () => {
@@ -40,5 +43,18 @@ describe('BaseApiService authentication', () => {
     expect(options.credentials).toBe('include');
     expect(options.headers['Content-Type']).toBe('application/json');
     expect(options.headers.Authorization).toBeUndefined();
+  });
+
+  it.each(['ping', 'upload', 'download'] as const)('routes a terms-required %s response to agreement without turning it into login expiry', async method => {
+    const location = { href: '', pathname: '/' };
+    vi.stubGlobal('window', { location });
+    globalThis.fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ error: {
+      message: 'Read and accept the current FEED Terms of Use before continuing.', code: 'TERMS_ACCEPTANCE_REQUIRED',
+    } }), { status: 403, headers: { 'content-type': 'application/json' } }));
+    const service = new TestService('/api/test');
+    const error = await service[method]().catch(err => err);
+    expect(error).toBeInstanceOf(ApiError);
+    expect(error).toMatchObject({ status: 403, code: 'TERMS_ACCEPTANCE_REQUIRED' });
+    expect(location.href).toBe('/terms/accept');
   });
 });

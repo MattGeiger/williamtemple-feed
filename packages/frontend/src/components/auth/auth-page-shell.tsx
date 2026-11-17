@@ -28,12 +28,12 @@ import { useBrand } from '@/contexts/BrandContext';
  * a fixed constant (it spells FEED), but going through the payload means this
  * component has no opinion about it.
  */
-export function AuthPageShell({ children }: { children: ReactNode }) {
+export function AuthPageShell({ children, wide = false }: { children: ReactNode; wide?: boolean }) {
   const brand = useBrand();
 
   return (
     <div className="flex min-h-svh items-center justify-center bg-linear-to-br from-gray-50 to-gray-100 px-4 py-10 dark:from-gray-950 dark:to-gray-900">
-      <div className="flex w-full max-w-lg flex-col items-center gap-8">
+      <div className={`flex w-full flex-col items-center gap-8 ${wide ? 'max-w-3xl' : 'max-w-lg'}`}>
         <div className="space-y-5 text-center">
           <BrandLogo className="mx-auto h-auto w-72" />
           <div className="space-y-2">

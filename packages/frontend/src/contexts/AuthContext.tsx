@@ -17,6 +17,8 @@ interface User {
 }
 
 interface AuthContextType {
+  termsAccepted: boolean;
+  release: { version: string; seen: boolean };
   isAuthenticated: boolean;
   user: User | null;
   isLoading: boolean;
@@ -31,6 +33,8 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType>({
+  termsAccepted: false,
+  release: { version: '', seen: false },
   isAuthenticated: false,
   user: null,
   isLoading: true,
@@ -45,6 +49,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [release, setRelease] = useState({ version: '', seen: false });
 
   const apiBase = ((import.meta as any).env.VITE_API_BASE_URL || config.api.baseUrl).replace(/\/$/, '');
 
@@ -56,6 +62,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const data = await response.json();
 
       if (data.authenticated && data.user) {
+        setTermsAccepted(data.termsAccepted === true);
+        setRelease(data.release ?? { version: '', seen: false });
         setIsAuthenticated(true);
         setUser({
           name: data.user.email.split('@')[0], // Use email prefix as name
@@ -69,10 +77,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } else {
         setIsAuthenticated(false);
         setUser(null);
+        setTermsAccepted(false);
+        setRelease({ version: '', seen: false });
       }
     } catch (error) {
       setIsAuthenticated(false);
       setUser(null);
+      setTermsAccepted(false);
+      setRelease({ version: '', seen: false });
     } finally {
       setIsLoading(false);
     }
@@ -86,6 +98,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
       setIsAuthenticated(false);
       setUser(null);
+      setTermsAccepted(false);
+      setRelease({ version: '', seen: false });
     } catch (error) {
       console.error('Logout error:', error);
     }
@@ -98,6 +112,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   return (
     <AuthContext.Provider
       value={{
+        termsAccepted,
+        release,
         isAuthenticated,
         user,
         isLoading,

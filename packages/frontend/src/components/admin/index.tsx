@@ -76,7 +76,7 @@ export function AdminPage() {
     <div className="space-y-6 min-w-0 w-full pt-6">
       <SectionHeader
         title="Admin"
-        description="Manage who can use FEED, choose how sign-in works, and review what administrators have changed."
+        description="Manage access to FEED and review administrator actions and retained user agreements."
         icon={PageTitleShieldUserIcon}
       />
 

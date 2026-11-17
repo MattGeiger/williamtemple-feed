@@ -1,5 +1,12 @@
 # LOTTO → FEED Queue Session Contract
 
+> **November 16, 2026 follow-up:** The initial configured ticket range is not
+> retained separately from the final closeout range. FEED’s initial-issuance
+> analytics currently count the first batch instead. Required source evidence,
+> strict-schema compatibility, historical recovery and coordinated analytics
+> changes are recorded in the [v1.9.1 roadmap update](v1.6-to-v2.0.md#lotto-initial-ticket-range--separate-upstream-work).
+> This correction is separate upstream work, not part of FEED v1.9.1.
+
 **Status:** Implemented in LOTTO v1.21.0 and consumed by FEED v1.6.0.
 
 **Reviewed:** 2026-08-22 against LOTTO v1.21.0 in

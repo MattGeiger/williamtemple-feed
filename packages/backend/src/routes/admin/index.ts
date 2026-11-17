@@ -7,6 +7,7 @@
 
 import { Router } from 'express';
 import { z } from 'zod';
+import prisma from '../../db';
 import { rateLimiter } from '../../middleware/rate-limiter';
 import { auditActorFrom, requireAdmin } from '../../middleware/auth/require-admin';
 import { AccessPolicyService } from '../../services/auth/access-policy-service';
@@ -43,6 +44,18 @@ router.use(requireAdmin);
 router.use('/restore', restoreRouter);
 router.use('/brand', brandRouter);
 router.use('/deployment-settings', deploymentSettingsRouter);
+
+/** Retained agreement snapshots are visible only to administrators. */
+router.get('/terms-acceptances/:id', async (req, res, next) => {
+  try {
+    const acceptance = await prisma.termsAcceptance.findUnique({ where: { id: req.params.id } });
+    if (!acceptance) return res.status(404).json({ error: {
+      message: 'That retained agreement was not found. Refresh History and try again.', code: 'AGREEMENT_NOT_FOUND',
+    } });
+    res.setHeader('Cache-Control', 'no-store');
+    res.json({ acceptance });
+  } catch (error) { next(error); }
+});
 
 const inviteSchema = z.object({
   email: z.string().email('Enter a valid email address to invite.'),

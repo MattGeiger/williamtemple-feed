@@ -41,6 +41,7 @@ export const ACCESS_MODES = {
 export type AccessMode = (typeof ACCESS_MODES)[keyof typeof ACCESS_MODES];
 
 export const AUDIT_ACTIONS = {
+  TERMS_ACCEPTED: 'TERMS_ACCEPTED',
   ROLE_GRANTED: 'ROLE_GRANTED',
   ROLE_REVOKED: 'ROLE_REVOKED',
   ACCESS_REVOKED: 'ACCESS_REVOKED',

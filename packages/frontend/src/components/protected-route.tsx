@@ -7,9 +7,10 @@
 
 import { Navigate, Outlet } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { FirstLoginReleaseNotes } from '@/components/release-notes/ReleaseNotesDialog';
 
 export const ProtectedRoute = () => {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, termsAccepted, user } = useAuth();
 
   // Show nothing while checking authentication
   if (isLoading) {
@@ -21,5 +22,7 @@ export const ProtectedRoute = () => {
     return <Navigate to="/login" replace />;
   }
 
-  return <Outlet />;
+  if (!termsAccepted) return <Navigate to="/terms/accept" replace />;
+
+  return <><FirstLoginReleaseNotes key={user?.email} /><Outlet /></>;
 };

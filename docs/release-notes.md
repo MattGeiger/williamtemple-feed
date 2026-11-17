@@ -1,5 +1,18 @@
 # Release Notes
 
+## Version 1.9.1 — 2026-11-17
+
+**Review FEED’s terms once, then continue working.** After signing in, review
+the FEED Terms of Use and select **Agree and continue**. Your agreement is
+retained for the Organization’s administrators in **Admin → History**, where
+they can open the exact document you accepted. You will be asked again when
+the terms change, rather than every time FEED is updated.
+
+**See what’s new on your first sign-in to a release.** FEED opens these release
+notes once for each new version you use. Your account remembers across
+browsers. You can always open them again by selecting the version number in
+the sidebar.
+
 ## Version 1.9.0 — 2026-11-16
 
 **The Shopping List Builder is quicker to use.** Everything it could do before, it still does, in fewer steps. The page no longer scrolls away from its controls. Click an item and its settings open in one panel on the right; click an empty part of the page for the page's own settings. Building a list like Pantry Inventory from a blank page now takes about a third of the clicks it did.

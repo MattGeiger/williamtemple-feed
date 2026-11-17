@@ -309,6 +309,7 @@ export abstract class BaseApiService {
 
       if (!response.ok) {
         const { message, code, details } = await this.parseErrorPayload(response);
+        if (code === 'TERMS_ACCEPTANCE_REQUIRED' && window.location.pathname !== '/terms/accept') window.location.href = '/terms/accept';
 
         this.logError('Request failed', {
           status: response.status,
@@ -364,6 +365,7 @@ export abstract class BaseApiService {
 
       if (!response.ok) {
         const { message, code, details } = await this.parseErrorPayload(response);
+        if (code === 'TERMS_ACCEPTANCE_REQUIRED' && window.location.pathname !== '/terms/accept') window.location.href = '/terms/accept';
         this.logError('Multipart request failed', {
           status: response.status,
           url: `${this.baseUrl}${path}`,
@@ -410,6 +412,7 @@ export abstract class BaseApiService {
 
       if (!response.ok) {
         const { message, code, details } = await this.parseErrorPayload(response);
+        if (code === 'TERMS_ACCEPTANCE_REQUIRED' && window.location.pathname !== '/terms/accept') window.location.href = '/terms/accept';
         this.logError('Binary request failed', {
           status: response.status,
           url: `${this.baseUrl}${path}`,

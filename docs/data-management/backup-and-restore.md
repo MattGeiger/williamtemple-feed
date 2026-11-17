@@ -192,6 +192,15 @@ What does not survive, by design: uploaded files, the administrator audit log,
 API keys, the encryption key, and the association between a translation and the
 document it was made from.
 
+**v1.9.1 destination-local login records:** `TermsAcceptance` and
+`UserReleaseVisit` are excluded from portable artifacts, like the administrator
+audit log. A file must not confer agreement or replace the destination’s retained
+evidence. On an existing destination, the live-copy restore preserves these
+independent tables, even when the roster is replaced. Restoring an artifact
+onto a fresh deployment does not recover the source’s agreement History;
+operator database snapshots are the recovery source for that evidence. Account
+ID and email must both match before a retained agreement authorizes entry.
+
 **This runbook is only worth what its last rehearsal proved.** It should be
 executed end to end — a second Docker stack on a fresh volume is enough — by
 someone who did not write it.

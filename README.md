@@ -89,7 +89,10 @@ software. FEED supports the common operational reality of food pantries:
 - **In-app Help** — searchable staff guides written in plain language,
   plus a concise About page with project and license information.
 - **Magic-link OTP authentication** — no passwords. Email-based
-  sign-in via [Resend](https://resend.com/).
+  sign-in via [Resend](https://resend.com/). After verification, staff agree to
+  the current FEED Terms of Use; administrators can inspect retained agreements
+  in History. Release notes appear on each account’s first entry to a release.
+  [Terms and release-note behavior](docs/auth/terms-and-release-notes.md).
 
 ## Who FEED is for
 

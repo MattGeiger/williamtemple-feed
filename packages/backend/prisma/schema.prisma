@@ -1539,6 +1539,33 @@ model User {
   @@index([role])
 }
 
+// Account access evidence, not per-user operational data. Deliberately no
+// foreign key: deleting/replacing a roster row must never erase agreements.
+model TermsAcceptance {
+  id                String   @id @default(cuid())
+  userId            String
+  emailAtAcceptance String
+  organizationName  String
+  termsVersion      String
+  termsHash         String
+  termsText         String
+  acceptedAt        DateTime @default(now())
+
+  @@unique([userId, emailAtAcceptance, termsHash])
+  @@index([acceptedAt])
+}
+
+// Personal presentation state explicitly requested for first-login notes.
+// Excluded from portable backups, like the destination's acceptance evidence.
+model UserReleaseVisit {
+  id          String   @id @default(cuid())
+  userId      String
+  version     String
+  firstSeenAt DateTime @default(now())
+
+  @@unique([userId, version])
+}
+
 model VerificationToken {
   identifier String // email address
   token      String // hashed token or OTP
