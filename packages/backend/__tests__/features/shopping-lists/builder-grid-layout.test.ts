@@ -129,24 +129,67 @@ describe('Shopping List Builder grid layout planner', () => {
     expect(plan.bodyPlacements.map((placement) => placement.lane)).toEqual(['cell-3']);
   });
 
-  test('content that overflows a square continues in the same square on the next page', () => {
+  test('a grid is one page: Max pages is ignored and overflow is never carried to another page', () => {
     const plan = createFlowingTablePlan(gridTemplate({
       gridLayout: '2x4',
       gridContentMode: 'individual',
-      maxPages: 2,
+      maxPages: 5,
       components: [table('long', 14, { gridCell: 5 })],
     }));
 
-    expect(plan.overflowRowCount).toBe(0);
-    expect(plan.pageCount).toBe(2);
-    expect(plan.segments.map((segment) => [segment.lane, segment.pageIndex, segment.isContinuation])).toEqual([
-      ['cell-5', 0, false],
-      ['cell-5', 1, true],
+    expect(plan.pageCount).toBe(1);
+    expect(plan.segments.every((segment) => segment.pageIndex === 0 && segment.lane === 'cell-5')).toBe(true);
+    // The rows that do not fit are reported, not moved to a second page or
+    // into a neighbouring square.
+    expect(plan.overflowRowCount).toBeGreaterThan(0);
+  });
+
+  test('a grid has no header or footer: every component is planned as body content', () => {
+    const plan = createFlowingTablePlan(gridTemplate({
+      components: [text('title', { region: 'header', y: 6 }), text('note', { region: 'footer', y: 770 })],
+    }));
+
+    expect(plan.plannedBodyComponentIds.has('title')).toBe(true);
+    expect(plan.plannedBodyComponentIds.has('note')).toBe(true);
+    expect(plan.bodyPlacements.filter((placement) => !placement.isDuplicate).map((placement) => placement.lane))
+      .toEqual(['cell-0', 'cell-0']);
+  });
+
+  test('Freeform keeps a component where it was put, inside its own square', () => {
+    const plan = createFlowingTablePlan(gridTemplate({
+      layoutMode: 'freeform',
+      gridLayout: '2x2',
+      gridContentMode: 'individual',
+      components: [
+        // Inside square 0 (x 0-306, y 36-396): untouched, and not snapped.
+        text('inside', { x: 20.5, y: 101.25, width: 100 }),
+        // Asked for a spot outside square 3 (x 306-612, y 396-756): pulled in.
+        text('outside', { gridCell: 3, x: 10, y: 10, width: 100 }),
+        text('pastEdge', { gridCell: 3, x: 900, y: 900, width: 100 }),
+      ],
+    }));
+    const at = (id: string) => plan.bodyPlacements.find((placement) => placement.componentId === id)!;
+
+    expect([at('inside').x, at('inside').y]).toEqual([20.5, 101.25]);
+    expect([at('outside').x, at('outside').y]).toEqual([306, 396]);
+    expect(at('pastEdge').x).toBe(612 - 100);
+    expect(at('pastEdge').y).toBe(756 - at('pastEdge').height);
+  });
+
+  test('Freeform Duplicate All repeats the freely placed square', () => {
+    const plan = createFlowingTablePlan(gridTemplate({
+      layoutMode: 'freeform',
+      gridLayout: '2x2',
+      components: [text('a', { x: 40, y: 120, width: 100 }), table('t', 3, { x: 30, y: 200 })],
+    }));
+
+    // Tables are placed whole in Freeform: no flowing segments.
+    expect(plan.segments).toHaveLength(0);
+    expect(plan.bodyPlacements).toHaveLength(2 * 4);
+    const copies = plan.bodyPlacements.filter((placement) => placement.componentId === 'a');
+    expect(copies.map((placement) => [placement.x, placement.y])).toEqual([
+      [40, 120], [346, 120], [40, 480], [346, 480],
     ]);
-    expect(plan.segments.reduce((sum, segment) => sum + segment.rows.length, 0)).toBe(14);
-    // Both pieces sit in the same place on their page.
-    expect(plan.segments[1].x).toBe(plan.segments[0].x);
-    expect(plan.segments[1].y).toBe(plan.segments[0].y);
   });
 
   test('rows that do not fit the square on any page are reported as overflow', () => {
@@ -160,16 +203,6 @@ describe('Shopping List Builder grid layout planner', () => {
     // Every square shows the same truncated table.
     expect(plan.segments).toHaveLength(8);
     expect(new Set(plan.segments.map((segment) => segment.rows.length)).size).toBe(1);
-  });
-
-  test('a grid is planned as Guided even when the template says Freeform', () => {
-    const plan = createFlowingTablePlan(gridTemplate({
-      layoutMode: 'freeform',
-      components: [text('a')],
-    }));
-
-    expect(plan.plannedBodyComponentIds.has('a')).toBe(true);
-    expect(plan.bodyPlacements).toHaveLength(4);
   });
 
   test('full and split pages are unaffected by the grid fields', () => {

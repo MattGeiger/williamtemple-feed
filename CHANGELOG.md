@@ -15,11 +15,18 @@ All notable changes to FEED are documented here. This project adheres to
   - **Individual**: each square holds its own content. Click a square to make
     it the target for new components, drag a component into another square, or
     pick its square in the inspector.
-  - Content too long for a square continues in the same square on the next
-    page — the back of the slip when printed two-sided — rather than spilling
-    into the neighbouring slip.
-  - Canvas and PDF render from the same plan; a status-bar warning reports
-    components that do not fit.
+  - A grid is always one page and a square never overflows: a change that
+    would not fit is refused with a message naming the component. **Make
+    2-sided** repeats the page on the back.
+  - A grid has no header or footer. Those options are locked in the Page
+    region control and explain why in a tooltip.
+  - Guided stacks components in a square; Freeform places them anywhere
+    inside it, without snapping.
+  - The Shopping Lists table has a **Layout** column (Full page, Split page,
+    Grid size and square mode).
+- **Cut marks.** Split and Grid pages print dashed cut lines by default;
+  **Page → Print → Cut marks** hides them. Existing Split templates gain the
+  line down the middle of the body.
   - Design record: `docs/shopping-lists/grid-page-layout.md`.
 
 ### Changed
@@ -42,6 +49,7 @@ All notable changes to FEED are documented here. This project adheres to
     other section table.
   - Zoom moved onto the canvas, with **Fit width**, **Fit whole page** and
     **100%**. The page now opens fitted to the canvas instead of cropped.
+  - The lines above and below the canvas are gone; its own border is enough.
   - The template name, **Open** (saved templates and **New blank template**),
     preview language, Save and Download share one header row. Save shows when
     there are unsaved changes.
@@ -77,12 +85,12 @@ All notable changes to FEED are documented here. This project adheres to
 - A template built in the reworked Builder was exported through
   `/api/shopping-list-builder/preview-pdf`, rendered to PNG, and matched the
   canvas (column assignment, order, header title, footer legend).
-- Grid: built slips in the Builder in both content modes, exported them through
-  `/api/shopping-list-builder/preview-pdf`, rendered the PDFs to PNG, and
-  matched them to the canvas (Individual 2 × 3; Duplicate all 2 × 4). Dragged
-  a component between squares. Confirmed `refresh-inventory` keeps the grid
-  fields. Eight new backend planner tests; all 149 shopping-list tests pass.
-- Frontend: 584 tests pass, production build passes,
+- Grid: built slips in both content modes and both layout modes; confirmed an
+  overflowing insert is refused, the locked Header option explains itself, and
+  a Freeform drag stops at the square's edge. Exported four PDFs, rendered
+  them to PNG and matched them to the canvas, including cut marks and Make
+  2-sided. Ten backend and twenty-one frontend grid tests.
+- Frontend: 605 tests pass, production build passes,
   `tsc --project tsconfig.app.json` reports no new errors.
 
 ### Documentation

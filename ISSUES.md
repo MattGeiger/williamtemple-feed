@@ -51,17 +51,21 @@ Everything else in this file. The application is shippable today.
 
 Adds `bodyLayoutMode: 'grid'` with `gridLayout` (2×2 / 2×3 / 2×4) and
 `gridContentMode` (Duplicate All / Individual). Grid squares are planner lanes;
-each square is its own lane chain, so overflow continues in the same square on
-the next page. Duplicate All is produced by the planner, so the PDF renderer is
+each square is its own lane chain. Duplicate All is produced by the planner, so the PDF renderer is
 unchanged. Record: `docs/shopping-lists/grid-page-layout.md`.
 
-Decisions that are the owner's to confirm (each is a small change either way):
-- Overflow goes to the same square on the next page, not the next square.
-- Header and footer stay one per page; they are not repeated per square.
-- No cut marks are printed between squares; the guides are canvas-only.
-- Two-sided printing does not mirror columns, so on a long-edge flip the back
-  of the left-hand slip is the right-hand square.
-- Grid requires Guided mode.
+Owner decisions, 2026-11-16 (all implemented):
+- A grid is one page and never overflows; a change that would not fit is
+  refused with an error toast.
+- No header or footer components in a grid; the Page region control locks to
+  Body and says why.
+- Cut marks print by default on Split and Grid, with a switch to hide them.
+- Make 2-sided repeats the single page.
+- Freeform is allowed, constrained to the inside of each square.
+- The Shopping Lists table shows each template's layout.
+
+Open: two-sided printing does not mirror columns for Individual grids, and
+Freeform does not prevent overlap inside a square.
 
 ### #87 — Shopping List Builder UX rework (v1.9.0 slot)
 **Priority**: Medium · **Status**: Implemented 2026-11-15 in the working tree; awaiting staff RITE sessions and release

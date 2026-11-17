@@ -515,6 +515,8 @@ export interface ShoppingListBuilderTemplate {
   bodyLayoutMode?: BuilderBodyLayoutMode;
   gridLayout?: BuilderGridLayout;
   gridContentMode?: BuilderGridContentMode;
+  // Print dashed cut lines on Split and Grid pages. Absent means on.
+  showCutMarks?: boolean;
   gridSize?: number;
   headerHeight?: number;
   footerHeight?: number;
@@ -638,9 +640,14 @@ export const getTemplateRegionBounds = (
 // A grid divides the page body into 2 columns x 2, 3 or 4 rows of equal
 // squares, so one Letter sheet carries 4, 6 or 8 small slips. Each square is a
 // planner lane (`cell-0` .. `cell-N`, row-major: left to right, then down).
-// A square's content that does not fit continues in the SAME square on the
-// next page -- the back of the slip when printed two-sided -- never in a
-// neighbouring square.
+// A grid is always ONE page and a square never overflows: the Builder refuses
+// a change that would not fit. Two-sided printing repeats that page. Header
+// and footer regions hold no components in a grid -- every component is body
+// content in a square -- so their heights act only as top and bottom margins.
+//
+// Layout modes inside a square:
+//   Guided   -- components stack from the top of the square in sequence.
+//   Freeform -- components keep their stored x/y, clamped inside the square.
 //
 // Content modes:
 //   'duplicate'  -- "Duplicate All": every body component belongs to the first
@@ -737,15 +744,65 @@ export const getComponentGridCell = (
   return Math.min(Math.max(0, cell), cellCount - 1);
 };
 
+/** The whole square, cut line to cut line: the bounds Freeform clamps to. */
+export const getTemplateGridCellRect = (
+  template: ShoppingListBuilderTemplate,
+  cellIndex: number,
+): { left: number; right: number; top: number; bottom: number } => {
+  const cellCount = getTemplateGridCellCount(template);
+  const cell = Math.min(Math.max(0, cellIndex), cellCount - 1);
+  const row = getTemplateGridRowBounds(template, Math.floor(cell / BUILDER_GRID_COLUMNS));
+  const columnWidth = template.paper.width / BUILDER_GRID_COLUMNS;
+  const left = (cell % BUILDER_GRID_COLUMNS) * columnWidth;
+  return { left, right: left + columnWidth, top: row.top, bottom: row.bottom };
+};
+
+/** A grid prints one page; other layouts use the template's Max pages. */
+export const getTemplateEffectiveMaxPages = (template: ShoppingListBuilderTemplate): number => (
+  getTemplateBodyLayoutMode(template) === 'grid' ? 1 : getTemplateMaxPages(template)
+);
+
+/**
+ * Cut marks: dashed guide lines printed where a Split or Grid page is meant
+ * to be cut apart. On by default for both; `showCutMarks: false` hides them.
+ * A Full page has nothing to cut.
+ */
+export const getTemplateShowCutMarks = (template: ShoppingListBuilderTemplate): boolean => (
+  getTemplateBodyLayoutMode(template) !== 'full' && template.showCutMarks !== false
+);
+
+/**
+ * Cut lines in page points. Split: the centre line through the body. Grid:
+ * the centre line and every row boundary, edge to edge, because the whole
+ * sheet is cut into slips.
+ */
+export const getTemplateCutMarkLines = (
+  template: ShoppingListBuilderTemplate,
+): Array<{ x1: number; y1: number; x2: number; y2: number }> => {
+  if (!getTemplateShowCutMarks(template)) return [];
+  const center = template.paper.width / 2;
+  if (getTemplateBodyLayoutMode(template) === 'grid') {
+    const lines = [{ x1: center, y1: 0, x2: center, y2: template.paper.height }];
+    for (let rowIndex = 0; rowIndex < getTemplateGridRowCount(template) - 1; rowIndex += 1) {
+      const y = getTemplateGridRowBounds(template, rowIndex).bottom;
+      lines.push({ x1: 0, y1: y, x2: template.paper.width, y2: y });
+    }
+    return lines;
+  }
+  const bodyTop = Math.min(getTemplateHeaderHeight(template), template.paper.height);
+  const bodyBottom = Math.max(bodyTop, template.paper.height - getTemplateFooterHeight(template));
+  return [{ x1: center, y1: bodyTop, x2: center, y2: bodyBottom }];
+};
+
 /**
  * Lanes the Guided planner fills, as independent chains. Full and split pages
- * are one chain read page by page. A grid is one chain per square, each
- * running through that square on every page.
+ * are one chain read page by page. A grid is one chain per square, on its
+ * single page.
  */
 export const getTemplateBodyLaneChains = (
   template: ShoppingListBuilderTemplate,
 ): Array<Array<{ pageIndex: number; lane: BuilderBodyLane }>> => {
-  const maxPages = getTemplateMaxPages(template);
+  const maxPages = getTemplateEffectiveMaxPages(template);
   const mode = getTemplateBodyLayoutMode(template);
   const pages = Array.from({ length: maxPages }, (_, pageIndex) => pageIndex);
   if (mode === 'grid') {

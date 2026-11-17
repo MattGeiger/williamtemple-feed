@@ -5,7 +5,7 @@
 // under AGPL-3.0-or-later; see LICENSE. William Temple House branding is
 // not covered by this license; see TRADEMARKS.md.
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   AlertCircle,
@@ -128,6 +128,10 @@ import {
   getBodyLaneHalf,
   getComponentGridCell,
   getTemplateBodyLaneChains,
+  getTemplateCutMarkLines,
+  getTemplateEffectiveMaxPages,
+  getTemplateGridCellRect,
+  getTemplateShowCutMarks,
   getTemplateGridCellCount,
   getTemplateGridContentMode,
   getTemplateGridLayout,
@@ -170,7 +174,6 @@ import {
   getTemplateGridSize,
   getTemplateHeaderHeight,
   getTemplateLayoutMode,
-  getTemplateMaxPages,
   getTemplateIncludeCategoryIcons,
   getTemplatePrintMode,
   getTemplateRegionBounds,
@@ -1098,11 +1101,14 @@ interface FlowingTableState {
 //
 // - Freeform: legacy two-phase planner that respects component.y for first
 //   placement on a virgin lane and drains continuations per lane.
-const createFlowingTablePlan = (
+// Exported for unit tests (src/test/shopping-list-builder-grid.test.ts). The
+// cost is a full reload instead of fast refresh when this file changes in dev.
+// eslint-disable-next-line react-refresh/only-export-components
+export const createFlowingTablePlan = (
   template: ShoppingListBuilderTemplate,
   measurement?: SectionTableMeasurementOptions,
 ): FlowingTablePlan => {
-  const maxPages = getTemplateMaxPages(template);
+  const maxPages = getTemplateEffectiveMaxPages(template);
   const bodyBounds = getTemplateRegionBounds(template, 'body');
   const bodyLayout = getTemplateBodyLayoutMode(template);
   const isSplit = bodyLayout === 'split';
@@ -1297,12 +1303,31 @@ const createFlowingTablePlan = (
     };
 
     if (isGrid) {
-      laneChains.forEach((chain) => {
-        const cellIndex = gridCellIndexOfLane(chain[0]?.lane ?? 'full') ?? 0;
-        planChain(chain, bodyComponents.filter((component) => (
-          getComponentGridCell(component, template) === cellIndex
-        )));
-      });
+      if (getTemplateLayoutMode(template) === 'freeform') {
+        // Freeform inside a square: each component keeps its stored x/y,
+        // clamped so it stays within its own square. Tables are placed whole;
+        // a grid never splits or flows content.
+        bodyComponents.forEach((component) => {
+          const cellIndex = getComponentGridCell(component, template);
+          const rect = getTemplateGridCellRect(template, cellIndex);
+          const height = getCanvasComponentHeight(component, measurement);
+          bodyPlacements.push({
+            componentId: component.id,
+            pageIndex: 0,
+            lane: gridCellLane(cellIndex),
+            x: Math.min(Math.max(component.x, rect.left), Math.max(rect.left, rect.right - component.width)),
+            y: Math.min(Math.max(component.y, rect.top), Math.max(rect.top, rect.bottom - height)),
+            height,
+          });
+        });
+      } else {
+        laneChains.forEach((chain) => {
+          const cellIndex = gridCellIndexOfLane(chain[0]?.lane ?? 'full') ?? 0;
+          planChain(chain, bodyComponents.filter((component) => (
+            getComponentGridCell(component, template) === cellIndex
+          )));
+        });
+      }
 
       if (getTemplateGridContentMode(template) === 'duplicate') {
         // "Duplicate All": repeat the first square's finished layout in every
@@ -1446,7 +1471,7 @@ const computeGuidedInsertTargets = (
 ): GuidedInsertTarget[] => {
   const bodyLayout = getTemplateBodyLayoutMode(template);
   const isGrid = bodyLayout === 'grid';
-  if (!isGrid && getTemplateLayoutMode(template) !== 'guided') return [];
+  if (getTemplateLayoutMode(template) !== 'guided') return [];
 
   const remainingComponents = template.components.filter((c) => c.id !== draggedComponentId);
   const sequenceIndexOf = (componentId: string) => {
@@ -1628,6 +1653,43 @@ const findNearestInsertTarget = (
     }
   }
   return best;
+};
+
+// Names of the components that do not fit their grid square. A grid is one
+// page and a square never overflows, so the Builder rejects any change that
+// makes this list longer (see the overflow guard in ShoppingListBuilder).
+// Exported for unit tests (src/test/shopping-list-builder-grid.test.ts). The
+// cost is a full reload instead of fast refresh when this file changes in dev.
+// eslint-disable-next-line react-refresh/only-export-components
+export const getGridOverflowNames = (
+  template: ShoppingListBuilderTemplate,
+  plan: FlowingTablePlan,
+): string[] => {
+  if (getTemplateBodyLayoutMode(template) !== 'grid') return [];
+  const isGuided = getTemplateLayoutMode(template) === 'guided';
+  const tolerance = 0.5;
+  return template.components.filter((component) => {
+    const cellIndex = getComponentGridCell(component, template);
+    const rect = getTemplateGridCellRect(template, cellIndex);
+    // Guided content stops at the square's inset content edge; Freeform may
+    // use the whole square.
+    const limitBottom = isGuided
+      ? getTemplateBodyLaneBounds(template, gridCellLane(cellIndex)).bottom
+      : rect.bottom;
+    if (component.width > rect.right - rect.left + tolerance) return true;
+    const segments = plan.segments.filter((segment) => segment.component.id === component.id && !segment.isDuplicate);
+    if (segments.length > 0) {
+      const placedRows = segments.reduce((sum, segment) => sum + segment.rows.length, 0);
+      if (component.type === 'section-table' && placedRows < component.rows.length) return true;
+      return segments.some((segment) => segment.y + segment.height > limitBottom + tolerance);
+    }
+    const placement = plan.bodyPlacements.find((entry) => entry.componentId === component.id && !entry.isDuplicate);
+    if (!placement) {
+      // A flowing table with no rows draws nothing, so it cannot overflow.
+      return !(component.type === 'section-table' && component.rows.length === 0);
+    }
+    return placement.y + placement.height > limitBottom + tolerance;
+  }).map((component) => component.name);
 };
 
 const cloneTemplate = <T,>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
@@ -1821,9 +1883,12 @@ const isInventorySectionTable = (
 const getComponentRegion = (
   component: BuilderComponent,
   template: ShoppingListBuilderTemplate,
-): BuilderComponentRegion => (
-  isInventorySectionTable(component) ? 'body' : component.region ?? inferComponentRegion(component, template)
-);
+): BuilderComponentRegion => {
+  // A grid has no header or footer components: everything is body content in
+  // a square. The stored `region` is left alone, so leaving Grid restores it.
+  if (getTemplateBodyLayoutMode(template) === 'grid') return 'body';
+  return isInventorySectionTable(component) ? 'body' : component.region ?? inferComponentRegion(component, template);
+};
 
 const getSectionTableFlowMode = (component: SectionTableBuilderComponent) => (
   ENABLE_FLOWING_TABLE_PREVIEW && component.flowMode === 'flowing' ? 'flowing' : 'fixed'
@@ -1853,6 +1918,11 @@ const getComponentPlacementBounds = (
 ) => {
   const regionBounds = getTemplateRegionBounds(template, region);
   const lane = getComponentBodyLane({ ...component, region } as BuilderComponent, template);
+  // Freeform in a grid still keeps a component inside its own square.
+  if (getTemplateBodyLayoutMode(template) === 'grid' && getTemplateLayoutMode(template) === 'freeform') {
+    const rect = getTemplateGridCellRect(template, getComponentGridCell(component, template));
+    return { region, lane, left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom };
+  }
   const laneBounds = region === 'body' && getTemplateLayoutMode(template) === 'guided'
     ? getTemplateBodyLaneBounds(template, lane)
     : null;
@@ -1943,7 +2013,7 @@ const canPlaceComponentInRegion = (
   template: ShoppingListBuilderTemplate,
   region: BuilderComponentRegion,
 ) => {
-  if (isInventorySectionTable(component)) {
+  if (isInventorySectionTable(component) || getTemplateBodyLayoutMode(template) === 'grid') {
     return region === 'body';
   }
 
@@ -1964,7 +2034,7 @@ const resolveComponentRegion = (
   template: ShoppingListBuilderTemplate,
   preferredRegion?: BuilderComponentRegion,
 ): BuilderComponentRegion => {
-  if (isInventorySectionTable(component)) {
+  if (isInventorySectionTable(component) || getTemplateBodyLayoutMode(template) === 'grid') {
     return 'body';
   }
 
@@ -2628,7 +2698,11 @@ function PageInspector({
   onChangeMaxPages,
   onChangePrintMode,
   onChangeIncludeCategoryIcons,
+  showCutMarks,
+  onChangeShowCutMarks,
 }: {
+  showCutMarks: boolean;
+  onChangeShowCutMarks: (value: boolean) => void;
   gridLayout: BuilderGridLayout;
   gridContentMode: BuilderGridContentMode;
   onChangeGridLayout: (value: BuilderGridLayout) => void;
@@ -2746,6 +2820,9 @@ function PageInspector({
             options={[1, 2, 3, 4, 5].map((pageCount) => ({
               value: String(pageCount),
               label: String(pageCount),
+              ...(bodyLayoutMode === 'grid' && pageCount > 1
+                ? { lockedReason: 'Locked in Grid layout. A grid prints on one page; choose Make 2-sided to repeat it on the back.' }
+                : {}),
               testId: `builder-max-pages-${pageCount}`,
             }))}
           />
@@ -2794,6 +2871,15 @@ function PageInspector({
             ]}
           />
         </FieldRow>
+        {/* Stays in place and disables on a Full page, which has nothing to cut. */}
+        <SwitchRow
+          id="builder-show-cut-marks"
+          testId="builder-show-cut-marks"
+          label="Cut marks"
+          checked={showCutMarks}
+          disabled={bodyLayoutMode === 'full'}
+          onCheckedChange={onChangeShowCutMarks}
+        />
         <SwitchRow
           id="builder-include-category-icons"
           label="Category icons"
@@ -2970,7 +3056,7 @@ export function ShoppingListBuilder() {
   const terminology = useTerminology();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { showSuccess, showWarning } = useMessage();
+  const { showSuccess, showWarning, showError } = useMessage();
   const { categories, updateCategory, isSaving: isSavingCategory } = useCategoryContext();
   const {
     foodItems,
@@ -2985,6 +3071,10 @@ export function ShoppingListBuilder() {
   // Serialized template as of the last open / save / new-blank. Comparing it
   // with the live template tells the user whether there is anything to save.
   const [savedSnapshot, setSavedSnapshot] = useState(() => JSON.stringify(template));
+  // Set just before a template replacement the user did not author as an
+  // edit (open, save, inventory refresh, undo, new blank). The grid overflow
+  // guard warns about those instead of reverting them.
+  const externalTemplateChangeRef = useRef(false);
   const [templateHistory, setTemplateHistory] = useState<Array<{ template: ShoppingListBuilderTemplate; selectedId: string }>>([]);
   // One-shot mount animation flag for persistent builder chrome (top action
   // bar, canvas toolbar). Per the documented animate-prop stuck-state
@@ -3098,8 +3188,9 @@ export function ShoppingListBuilder() {
 
   const bodyLayoutMode = getTemplateBodyLayoutMode(template);
   const isGridLayout = bodyLayoutMode === 'grid';
-  // A grid is always Guided: its squares are the layout.
-  const layoutMode: BuilderLayoutMode = isGridLayout ? 'guided' : getTemplateLayoutMode(template);
+  const layoutMode = getTemplateLayoutMode(template);
+  const isFreeformGrid = isGridLayout && layoutMode === 'freeform';
+  const showCutMarks = getTemplateShowCutMarks(template);
   const gridLayout = getTemplateGridLayout(template);
   const gridContentMode = getTemplateGridContentMode(template);
   const gridCellCount = getTemplateGridCellCount(template);
@@ -3112,7 +3203,8 @@ export function ShoppingListBuilder() {
   const headerHeight = getTemplateHeaderHeight(template);
   const footerHeight = getTemplateFooterHeight(template);
   const bodyColumnGap = getTemplateBodyColumnGap(template);
-  const maxPages = getTemplateMaxPages(template);
+  // A grid is always one page; Max pages applies to Full and Split.
+  const maxPages = getTemplateEffectiveMaxPages(template);
   const printMode = getTemplatePrintMode(template);
   const includeCategoryIcons = getTemplateIncludeCategoryIcons(template);
   const sectionTableMeasurement = useMemo<SectionTableMeasurementOptions | undefined>(() => (
@@ -3167,12 +3259,42 @@ export function ShoppingListBuilder() {
   const setLayoutMode = (nextMode: BuilderLayoutMode) => {
     if (nextMode === layoutMode) return;
     pushHistory();
+    if (isGridLayout) {
+      // Entering Freeform in a grid: keep every component where Guided put
+      // it, so the squares do not rearrange the moment the mode changes.
+      const plannedPosition = new Map<string, { x: number; y: number }>();
+      flowingTablePlan.bodyPlacements.forEach((placement) => {
+        if (!placement.isDuplicate) plannedPosition.set(placement.componentId, { x: placement.x, y: placement.y });
+      });
+      flowingTablePlan.segments.forEach((segment) => {
+        if (!segment.isDuplicate && segment.isFirstSegment) {
+          plannedPosition.set(segment.component.id, { x: segment.x, y: segment.y });
+        }
+      });
+      setTemplate((current) => ({
+        ...current,
+        layoutMode: nextMode,
+        components: nextMode === 'freeform'
+          ? current.components.map((component) => ({
+            ...component,
+            ...(plannedPosition.get(component.id) ?? {}),
+          } as BuilderComponent))
+          : current.components,
+      }));
+      return;
+    }
     setTemplate((current) => {
       const nextTemplate = { ...current, layoutMode: nextMode };
       return nextMode === 'guided'
         ? clampTemplateComponentsToRegions(nextTemplate, { avoidCollisions: true })
         : nextTemplate;
     });
+  };
+
+  const setShowCutMarks = (value: boolean) => {
+    if (value === showCutMarks) return;
+    pushHistory();
+    setTemplate((current) => ({ ...current, showCutMarks: value }));
   };
 
   const setBodyLayoutMode = (nextMode: BuilderBodyLayoutMode) => {
@@ -3185,7 +3307,6 @@ export function ShoppingListBuilder() {
           bodyLayoutMode: nextMode,
           // Stored explicitly so the saved template says what it is rather
           // than relying on defaults that could change.
-          layoutMode: 'guided',
           gridLayout: getTemplateGridLayout(current),
           gridContentMode: getTemplateGridContentMode(current),
         }
@@ -3221,18 +3342,52 @@ export function ShoppingListBuilder() {
     return row * BUILDER_GRID_COLUMNS + column;
   };
 
-  // Square a newly inserted body component joins: the one under the drop
-  // point, or the active square for a click-insert. Undefined outside an
-  // 'individual' grid, where squares are not chosen per component.
-  const insertGridCellFor = (point?: { x: number; y: number }): number | undefined => {
-    if (!isIndividualGrid) return undefined;
-    return point ? gridCellAtPoint(point.x, point.y) : activeGridCell;
+  // Settle a newly inserted component into a grid: it is body content, it
+  // joins a square (the one under the drop point, or the active square for a
+  // click-insert), and in Freeform it gets a starting position in that
+  // square -- under whatever the square already holds for a click-insert.
+  const finalizeGridInsert = (component: BuilderComponent, point?: { x: number; y: number }): BuilderComponent => {
+    if (!isGridLayout) return component;
+    const cellIndex = isIndividualGrid ? (point ? gridCellAtPoint(point.x, point.y) : activeGridCell) : 0;
+    let next = {
+      ...component,
+      region: 'body',
+      ...(isIndividualGrid ? { gridCell: cellIndex } : {}),
+    } as BuilderComponent;
+    if (isFreeformGrid) {
+      const rect = getTemplateGridCellRect(template, cellIndex);
+      if (!point) {
+        const occupiedBottom = template.components
+          .filter((current) => getComponentGridCell(current, template) === cellIndex)
+          .reduce(
+            (bottom, current) => Math.max(bottom, current.y + getCanvasComponentHeight(current, sectionTableMeasurement)),
+            rect.top,
+          );
+        next = {
+          ...next,
+          x: rect.left + Math.max(0, (rect.right - rect.left - next.width) / 2),
+          y: occupiedBottom + FLOWING_TABLE_GAP,
+        } as BuilderComponent;
+      }
+      next = clampComponentToTemplateRegion(next, template, 'body');
+    }
+    return next;
   };
 
   const setSelectedComponentGridCell = (cellIndex: number) => {
     if (!selectedComponent) return;
     setActiveGridCell(cellIndex);
-    updateSelectedComponent({ gridCell: cellIndex });
+    // In Freeform keep the component's position within its square when it
+    // moves to another one.
+    const from = getTemplateGridCellRect(template, getComponentGridCell(selectedComponent, template));
+    const to = getTemplateGridCellRect(template, cellIndex);
+    updateSelectedComponent(isFreeformGrid
+      ? {
+        gridCell: cellIndex,
+        x: selectedComponent.x + (to.left - from.left),
+        y: selectedComponent.y + (to.top - from.top),
+      }
+      : { gridCell: cellIndex });
     revealSelection();
   };
 
@@ -3455,6 +3610,7 @@ export function ShoppingListBuilder() {
           name: limitTemplateName(refreshedTemplate.name),
         }));
 
+        externalTemplateChangeRef.current = true;
         setTemplate(templateToApply);
         setSavedSnapshot(JSON.stringify(templateToApply));
         setSelectedId('');
@@ -3484,6 +3640,7 @@ export function ShoppingListBuilder() {
       return;
     }
 
+    externalTemplateChangeRef.current = true;
     setTemplate(normalizeLegacyBuilderTemplateGeometry(previous.template));
     setSelectedId(previous.selectedId);
     setEditingSavedComponentSource(null);
@@ -3614,12 +3771,10 @@ export function ShoppingListBuilder() {
       region,
       { avoidCollisions: true, excludeComponentId: createdComponent.id },
     );
-    const insertCell = region === 'body'
-      ? insertGridCellFor(y == null ? undefined : { x: snappedX, y: snappedY })
-      : undefined;
+    const inserted = finalizeGridInsert(component, y == null ? undefined : { x: snappedX, y: snappedY });
     setTemplate((current) => ({
       ...current,
-      components: [...current.components, insertCell == null ? component : { ...component, gridCell: insertCell }],
+      components: [...current.components, inserted],
     }));
     setSelectedId(component.id);
     setEditingSavedComponentSource(null);
@@ -3736,6 +3891,7 @@ export function ShoppingListBuilder() {
         ? await shoppingListBuilderService.createSavedTemplate(savedTemplateName, templateToSave)
         : await shoppingListBuilderService.updateSavedTemplate(updateTargetId, savedTemplateName, templateToSave);
       const normalizedSavedTemplate = normalizeLegacyBuilderTemplateGeometry(templateToSave);
+      externalTemplateChangeRef.current = true;
       setTemplate(normalizedSavedTemplate);
       setSavedSnapshot(JSON.stringify(normalizedSavedTemplate));
       setActiveSavedTemplateId(savedTemplate.id);
@@ -3763,6 +3919,7 @@ export function ShoppingListBuilder() {
         name: limitTemplateName(refreshedTemplate.name),
       }));
       pushHistory();
+      externalTemplateChangeRef.current = true;
       setTemplate(templateToApply);
       setSavedSnapshot(JSON.stringify(templateToApply));
       // Open on the Page inspector: nothing is selected until the user picks.
@@ -3806,13 +3963,11 @@ export function ShoppingListBuilder() {
       excludeComponentId: savedComponent.componentData.id,
     });
 
-    const insertCell = placementRegion === 'body'
-      ? insertGridCellFor(x != null && y != null ? { x, y } : undefined)
-      : undefined;
+    const inserted = finalizeGridInsert(component, x != null && y != null ? { x, y } : undefined);
     pushHistory();
     setTemplate((current) => ({
       ...current,
-      components: [...current.components, insertCell == null ? component : { ...component, gridCell: insertCell }],
+      components: [...current.components, inserted],
     }));
     setSelectedId(component.id);
     setEditingSavedComponentSource(options.editSource
@@ -3823,6 +3978,10 @@ export function ShoppingListBuilder() {
       showSuccess(`${savedComponent.name} added for editing. Save it when your changes are ready.`);
     }
   };
+
+  const finalizeInventoryInsert = (component: BuilderComponent, point?: { x: number; y: number }) => (
+    finalizeGridInsert(component, point)
+  );
 
   const buildInventorySectionComponent = (
     inventorySection: InventorySectionComponent,
@@ -3842,11 +4001,9 @@ export function ShoppingListBuilder() {
     const placementY = y ?? (isGuided
       ? bodyTop
       : Math.max(48 + (targetTemplate.components.length % 6) * 24, bodyTop));
-    const insertCell = insertGridCellFor(x != null && y != null ? { x, y } : undefined);
-    return clampComponentToTemplateRegion(cloneComponentForCanvas(
+    return finalizeInventoryInsert(clampComponentToTemplateRegion(cloneComponentForCanvas(
       {
         ...inventorySection.component,
-        ...(insertCell == null ? {} : { gridCell: insertCell }),
         x: snapCoord(x ?? 48),
         y: snapCoord(placementY),
         region: placementRegion,
@@ -3860,7 +4017,7 @@ export function ShoppingListBuilder() {
     ), targetTemplate, placementRegion, {
       avoidCollisions: !isGuided,
       excludeComponentId: inventorySection.component.id,
-    });
+    }), x != null && y != null ? { x, y } : undefined);
   };
 
   // Adding one component is its own feedback: it appears selected on the
@@ -3881,6 +4038,7 @@ export function ShoppingListBuilder() {
   const resetTemplate = () => {
     const nextTemplate = normalizeLegacyBuilderTemplateGeometry(createDefaultBuilderTemplate());
     pushHistory();
+    externalTemplateChangeRef.current = true;
     setTemplate(nextTemplate);
     setSavedSnapshot(JSON.stringify(nextTemplate));
     setSelectedId('');
@@ -3994,6 +4152,7 @@ export function ShoppingListBuilder() {
   const refreshTemplateInventoryFromServer = useCallback(async () => {
     try {
       const refreshed = await shoppingListBuilderService.refreshTemplateInventory(template);
+      externalTemplateChangeRef.current = true;
       setTemplate(normalizeLegacyBuilderTemplateGeometry(annotateTemplateComponentRegions(refreshed)));
     } catch (error) {
       ErrorHandlerService.handleError(error, 'shoppingListBuilderRefreshInventory');
@@ -4473,9 +4632,15 @@ export function ShoppingListBuilder() {
     const nextX = clamp(snapCoord(Math.round(drag.originalX + (event.clientX - drag.startX) / scale)), 0, template.paper.width - component.width);
     const nextY = clamp(snapCoord(Math.round(drag.originalY + (event.clientY - drag.startY) / scale)), 0, template.paper.height - displayHeight);
 
+    // Freeform in an Individual grid: the component belongs to whichever
+    // square its centre is over, and the clamp then keeps it inside that one.
+    const gridCellUpdate = isFreeformGrid && isIndividualGrid
+      ? { gridCell: gridCellAtPoint(nextX + component.width / 2, nextY + displayHeight / 2) }
+      : {};
+
     updateComponent(
       component.id,
-      (current) => ({ ...current, x: nextX, y: nextY }) as BuilderComponent,
+      (current) => ({ ...current, x: nextX, y: nextY, ...gridCellUpdate }) as BuilderComponent,
       { recordHistory: false },
     );
   };
@@ -4521,6 +4686,7 @@ export function ShoppingListBuilder() {
       setIsGeneratingPdf(true);
       const refreshedTemplate = await shoppingListBuilderService.refreshTemplateInventory(template);
       const printableTemplate = annotateTemplateComponentRegions(refreshedTemplate);
+      externalTemplateChangeRef.current = true;
       setTemplate(normalizeLegacyBuilderTemplateGeometry(printableTemplate));
       // When the user has a non-English Preview language active in the
       // action bar, download a print-ready PDF in that language. The
@@ -4877,6 +5043,46 @@ export function ShoppingListBuilder() {
     list.includes(current) ? [...list] : [...list, current].sort((a, b) => a - b)
   );
 
+  // ---- Grid overflow guard ------------------------------------------------
+  // A grid is one page and a square never overflows. Rather than guard each
+  // of the many ways a template can change, every change is checked after
+  // the fact: if it left more components overflowing than before, it is
+  // undone before the browser paints and the user is told why.
+  const gridOverflowNames = useMemo(
+    () => getGridOverflowNames(template, flowingTablePlan),
+    [flowingTablePlan, template],
+  );
+  const lastAcceptedRef = useRef({ template, selectedId, overflowCount: 0 });
+  useLayoutEffect(() => {
+    const accepted = lastAcceptedRef.current;
+    const overflowCount = gridOverflowNames.length;
+    const isExternal = externalTemplateChangeRef.current;
+    externalTemplateChangeRef.current = false;
+    if (accepted.template !== template && overflowCount > accepted.overflowCount) {
+      const name = gridOverflowNames[0];
+      if (isExternal) {
+        // Opened or refreshed into an overflowing state (inventory grew, for
+        // example). Nothing to revert to, so say what needs attention.
+        showWarning(
+          `${name} no longer fits in its grid square. Shorten or remove content in that square, or choose a grid with larger squares.`,
+        );
+      } else {
+        const rejectedSnapshot = JSON.stringify(accepted.template);
+        setTemplate(accepted.template);
+        setSelectedId(accepted.selectedId);
+        // Drop the undo step recorded for the change that was just refused.
+        setTemplateHistory((current) => (
+          current[0] && JSON.stringify(current[0].template) === rejectedSnapshot ? current.slice(1) : current
+        ));
+        showError(
+          `That change was not applied: ${name} would not fit in its grid square. Grid squares cannot overflow. Shorten or remove content in that square, or choose a grid with larger squares.`,
+        );
+        return;
+      }
+    }
+    lastAcceptedRef.current = { template, selectedId, overflowCount };
+  }, [gridOverflowNames, selectedId, showError, showWarning, template]);
+
   const hasUnsavedChanges = useMemo(
     () => JSON.stringify(template) !== savedSnapshot,
     [savedSnapshot, template],
@@ -4948,7 +5154,9 @@ export function ShoppingListBuilder() {
   );
 
   const renderRegionControls = (component: BuilderComponent) => {
-    if (isInventorySectionTable(component)) return null;
+    // Inventory tables are always body content, so outside a grid there is
+    // nothing to choose. In a grid they still need their square picker.
+    if (isInventorySectionTable(component) && !isGridLayout) return null;
     const region = selectedComponentRegion ?? getComponentRegion(component, template);
     return (
       <>
@@ -4961,7 +5169,10 @@ export function ShoppingListBuilder() {
             options={BUILDER_COMPONENT_REGIONS.map((option) => ({
               value: option,
               label: componentRegionLabel(option),
-              disabled: !canPlaceComponentInRegion(component, template, option),
+              ...(isGridLayout && option !== 'body'
+                ? { lockedReason: `Locked in Grid layout. A grid page has no ${option}: every component sits in a square.` }
+                : { disabled: !canPlaceComponentInRegion(component, template, option) }),
+              testId: `builder-region-${option}`,
             }))}
           />
         </FieldRow>
@@ -5071,7 +5282,8 @@ export function ShoppingListBuilder() {
     const isDraggable = options.isDraggable ?? true;
     const showRegionBadge = selected && (options.showRegionBadge ?? true);
     const isReorderingThis = reorderState?.componentId === component.id;
-    const canChangeRegion = !isInventorySectionTable(component);
+    // A grid is body-only, so there is no region to change.
+    const canChangeRegion = !isInventorySectionTable(component) && !isGridLayout;
 
     return (
       <div
@@ -5580,7 +5792,9 @@ export function ShoppingListBuilder() {
               workspaceLayout.columns === 'stacked' && 'h-[80vh]',
             )}
           >
-            <div className="flex h-11 shrink-0 items-center gap-1.5 border-b px-2">
+            {/* No rule under the toolbar or above the status bar: the canvas
+                viewport below carries its own border. */}
+            <div className="flex h-11 shrink-0 items-center gap-1.5 px-2">
               <Segmented
                 ariaLabel="Layout mode"
                 className="w-auto shrink-0"
@@ -5599,8 +5813,6 @@ export function ShoppingListBuilder() {
                   },
                   {
                     value: 'freeform',
-                    // A grid's squares are the layout, so it is always Guided.
-                    disabled: isGridLayout,
                     testId: 'builder-layout-mode-freeform',
                     label: (
                       <>
@@ -5693,7 +5905,7 @@ export function ShoppingListBuilder() {
             <ScrollArea
               ref={canvasScrollRef}
               data-testid="shopping-list-builder-canvas-scroll"
-              className="shopping-list-print-workspace min-h-0 flex-1 rounded-md border bg-background"
+              className="shopping-list-print-workspace mx-2 min-h-0 flex-1 rounded-md border bg-background"
             >
               <div className="flex min-w-max flex-col items-center py-6">
                 {Array.from({ length: flowingTablePlan.pageCount }, (_, pageIndex) => (
@@ -5746,6 +5958,21 @@ export function ShoppingListBuilder() {
                           }}
                         />
                       )}
+                      {/*
+                        Cut marks are printed output, not an editing guide: they
+                        show whatever the grid toggle says, and match the PDF.
+                      */}
+                      {getTemplateCutMarkLines(template).map((line) => (
+                        <div
+                          key={`cut-${line.x1}-${line.y1}-${line.x2}-${line.y2}`}
+                          aria-hidden
+                          data-testid={pageIndex === 0 ? 'shopping-list-builder-cut-mark' : undefined}
+                          className="pointer-events-none absolute z-5"
+                          style={line.x1 === line.x2
+                            ? { left: line.x1, top: line.y1, height: line.y2 - line.y1, borderLeft: '0.5pt dashed #9ca3af' }
+                            : { left: line.x1, top: line.y1, width: line.x2 - line.x1, borderTop: '0.5pt dashed #9ca3af' }}
+                        />
+                      ))}
                       {isGridLayout && showCanvasGuides && Array.from(
                         { length: getTemplateGridRowCount(template) - 1 },
                         (_, rowIndex) => (
@@ -5940,7 +6167,7 @@ export function ShoppingListBuilder() {
               </div>
               <ScrollBar orientation="horizontal" />
             </ScrollArea>
-            <div className="flex h-8 shrink-0 items-center justify-between gap-3 border-t px-3 text-xs text-muted-foreground">
+            <div className="flex h-8 shrink-0 items-center justify-between gap-3 px-3 text-xs text-muted-foreground">
               <button
                 type="button"
                 data-testid="builder-page-summary"
@@ -5956,10 +6183,12 @@ export function ShoppingListBuilder() {
                     {flowingTablePlan.overflowRowCount} rows exceed max pages
                   </Badge>
                 )}
-                {flowingTablePlan.unplacedComponentCount > 0 && (
+                {(isGridLayout ? gridOverflowNames.length : flowingTablePlan.unplacedComponentCount) > 0 && (
                   <Badge variant="destructive" data-testid="builder-unplaced-warning">
-                    {flowingTablePlan.unplacedComponentCount}{' '}
-                    {flowingTablePlan.unplacedComponentCount === 1 ? 'component does' : 'components do'} not fit
+                    {isGridLayout ? gridOverflowNames.length : flowingTablePlan.unplacedComponentCount}{' '}
+                    {(isGridLayout ? gridOverflowNames.length : flowingTablePlan.unplacedComponentCount) === 1
+                      ? 'component does'
+                      : 'components do'} not fit
                   </Badge>
                 )}
                 <span data-testid="builder-save-state" aria-live="polite">
@@ -6026,6 +6255,8 @@ export function ShoppingListBuilder() {
                     onChangeMaxPages={setMaxPages}
                     onChangePrintMode={setPrintMode}
                     onChangeIncludeCategoryIcons={setIncludeCategoryIcons}
+                    showCutMarks={showCutMarks}
+                    onChangeShowCutMarks={setShowCutMarks}
                   />
                 )}
 

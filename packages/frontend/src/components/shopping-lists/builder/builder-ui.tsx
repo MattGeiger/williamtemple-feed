@@ -160,7 +160,48 @@ export interface SegmentedOption<T extends string> {
   /** Accessible name when `label` is an icon. */
   ariaLabel?: string;
   disabled?: boolean;
+  /**
+   * Why this option cannot be chosen right now. A locked option stays
+   * visible and muted, and explains itself in a tooltip on hover, focus or
+   * click -- unlike `disabled`, which says nothing.
+   */
+  lockedReason?: string;
   testId?: string;
+}
+
+/**
+ * A segmented option that is locked, with the reason in a tooltip. It is not
+ * `disabled`: a disabled button gets no pointer events, so it could never
+ * show why. Selecting it is refused by `Segmented` instead.
+ */
+function LockedSegmentItem({ value, label, ariaLabel, reason, testId }: {
+  value: string;
+  label: React.ReactNode;
+  ariaLabel?: string;
+  reason: string;
+  testId?: string;
+}) {
+  const [open, setOpen] = React.useState(false);
+  return (
+    <Tooltip open={open} onOpenChange={setOpen}>
+      <TooltipTrigger asChild>
+        <ToggleGroupItem
+          value={value}
+          aria-label={ariaLabel}
+          aria-disabled="true"
+          data-locked="true"
+          data-testid={testId}
+          className="cursor-not-allowed opacity-45 hover:text-muted-foreground"
+          // Radix closes a tooltip on pointer-down; reopen it so a click on
+          // a locked option answers "why not?" too.
+          onClick={() => window.setTimeout(() => setOpen(true), 0)}
+        >
+          {label}
+        </ToggleGroupItem>
+      </TooltipTrigger>
+      <TooltipContent side="bottom" className="max-w-[240px] text-xs">{reason}</TooltipContent>
+    </Tooltip>
+  );
 }
 
 /**
@@ -189,13 +230,24 @@ export function Segmented<T extends string>({
       // Radix lets a single group be cleared by re-pressing the active item;
       // these are required choices, so an empty value is ignored.
       onValueChange={(next) => {
-        if (next) onChange(next as T);
+        if (!next) return;
+        if (options.some((option) => option.value === next && option.lockedReason)) return;
+        onChange(next as T);
       }}
       aria-label={ariaLabel}
       data-testid={testId}
       className={cn('w-full', className)}
     >
-      {options.map((option) => (
+      {options.map((option) => (option.lockedReason ? (
+        <LockedSegmentItem
+          key={option.value}
+          value={option.value}
+          label={option.label}
+          ariaLabel={option.ariaLabel}
+          reason={option.lockedReason}
+          testId={option.testId}
+        />
+      ) : (
         <ToggleGroupItem
           key={option.value}
           value={option.value}
@@ -205,7 +257,7 @@ export function Segmented<T extends string>({
         >
           {option.label}
         </ToggleGroupItem>
-      ))}
+      )))}
     </ToggleGroup>
   );
 }

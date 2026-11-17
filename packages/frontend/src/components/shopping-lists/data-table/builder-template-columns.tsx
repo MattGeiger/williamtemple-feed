@@ -6,7 +6,9 @@
 // not covered by this license; see TRADEMARKS.md.
 
 import { ColumnDef } from "@tanstack/react-table"
-import { LayoutTemplate } from "@/components/ui/icons";
+// Layout column icons sit in a non-interactive cell, so they are static
+// lucide icons rather than the hover-animated ui/icons wrappers.
+import { Columns2, FileText, LayoutGrid } from "lucide-react";
 import { PencilIcon } from "@/components/animate-ui/icons/pencil";
 import { CopyIcon } from "@/components/animate-ui/icons/copy";
 import { SquarePenIcon } from "@/components/animate-ui/icons/square-pen";
@@ -20,7 +22,13 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { TableActionMenu } from "@/components/ui/table-action-menu"
 import { IconDisplay } from "@/components/shared/icon-display"
 import { ResponsiveTruncatedText } from "@/components/ui/responsive-truncated-text"
-import { SavedBuilderTemplate, SectionTableBuilderComponent } from "@/components/shopping-lists/builder/types"
+import {
+  getTemplateBodyLayoutMode,
+  getTemplateGridContentMode,
+  getTemplateGridLayout,
+  SavedBuilderTemplate,
+  SectionTableBuilderComponent,
+} from "@/components/shopping-lists/builder/types"
 import { SortableHeader } from "@/components/ui/sortable-header"
 import { formatDate } from '@/lib/formatting/date'
 
@@ -43,6 +51,25 @@ const getInventorySectionCount = (template: SavedBuilderTemplate) => {
   return template.templateData.components.filter((component) => (
     component.type === 'section-table' && component.inventorySource
   )).length
+}
+
+// How a saved template lays out its page body, for the Layout column.
+const getTemplateLayoutSummary = (template: SavedBuilderTemplate) => {
+  const data = template.templateData
+  const mode = getTemplateBodyLayoutMode(data)
+  if (mode === 'grid') {
+    const size = getTemplateGridLayout(data)
+    return {
+      icon: LayoutGrid,
+      label: `Grid ${size.replace('x', ' × ')}`,
+      detail: getTemplateGridContentMode(data) === 'individual' ? 'Individual squares' : 'Duplicate all',
+      sortKey: `3-${size}`,
+    }
+  }
+  if (mode === 'split') {
+    return { icon: Columns2, label: 'Split page', detail: null, sortKey: '2' }
+  }
+  return { icon: FileText, label: 'Full page', detail: null, sortKey: '1' }
 }
 
 const getTemplateSectionLabels = (template: SavedBuilderTemplate) => {
@@ -151,6 +178,30 @@ export const builderTemplateColumns = ({
                 )}
               </div>
             )}
+          </div>
+        )
+      },
+    },
+    {
+      id: "layout",
+      // Sorts Full, Split, then Grid by size, so like layouts group together.
+      accessorFn: (row) => getTemplateLayoutSummary(row).sortKey,
+      size: 130,
+      enableHiding: true,
+      header: ({ column }) => (
+      <SortableHeader column={column}>Layout</SortableHeader>
+    ),
+      cell: ({ row }) => {
+        const layout = getTemplateLayoutSummary(row.original)
+        return (
+          <div className="flex min-w-0 items-center gap-2 text-sm" data-testid="builder-template-layout">
+            <IconDisplay icon={layout.icon} size="sm" className="shrink-0" />
+            <div className="min-w-0">
+              <div className="truncate">{layout.label}</div>
+              {layout.detail && (
+                <div className="truncate text-xs text-muted-foreground">{layout.detail}</div>
+              )}
+            </div>
           </div>
         )
       },
