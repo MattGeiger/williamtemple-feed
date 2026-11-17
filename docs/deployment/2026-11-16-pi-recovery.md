@@ -74,13 +74,39 @@ checks passed again after deployment. Downloaded apt package cache was cleared
 with `apt-get clean`; free space was approximately 2.3 GB after image pulls.
 No historical backups or rollback images were deleted.
 
-At this checkpoint, administrator sign-in is still required for the portable
-backup download and authenticated browser smoke. Do not interpret the public
-health/sign-in checks as completed signed-in feature validation. No application
-code changed in this recovery, so no local rebuild or unit-test suite was run.
-After sign-in: download Backup from Data Management, verify its manifest and
-checksum off-device, open the saved shopping-list templates and Builder, and
-generate a PDF without overwriting a shared template.
+## Off-device backup and authenticated validation
+
+Completed normal administrator OTP sign-in and downloaded the portable Backup
+from Data Management. The browser event waiter timed out, but the download
+completed in the Mac's Downloads folder; filesystem inspection and independent
+checksum verification established success. No second backup request was needed.
+
+The file is 157,687,422 bytes, declares FEED 1.9.0 / table contract 13, and
+contains 342,398 records across 52 tables. Every declared table count matches
+the payload. Recomputed the canonical JSON SHA-256 using the backup service's
+key-sorting algorithm; it matches the manifest:
+`19874e52e0a337cfbaaf7d614135a91b9f0ed1ff4ce63834de7006615ef1e7b1`.
+
+Retained the original download and a verified copy in a restricted Mac folder:
+
+`~/Documents/FEED Backups/2026-11-16/feed-backup-2026-11-17-01-27-48.json`
+
+The directory is mode 700 and backup is mode 600. `SHA256SUMS` alongside records
+the full-file digest (different from the manifest's payload-only digest):
+`3a5a5053bf2cfb77fe65d15a72ae5e3af051971bf2bf0c994bc2d991cc22f4a3`.
+The two Mac copies match. No production backup was placed in Git.
+
+Authenticated dashboard and Data Management loaded organization data. A full
+page reload confirmed the sidebar also displays 1.9.0 (the already-open app
+initially retained the older frontend). All four saved shopping-list templates
+were listed. Opened Pantry Inventory in the revised Builder, confirmed its 13
+saved components and two-page layout, and downloaded its PDF without editing or
+saving the template. Both Letter pages rendered legibly with inventory names,
+category icons, limits, cut lines and legend; there was no obvious clipping or
+overlap. This is an English export smoke, not full translation regression.
+
+No application code changed in this recovery, so no local rebuild or unit-test
+suite was run. A fresh-install restore rehearsal was not performed.
 
 ## Follow-up
 

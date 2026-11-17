@@ -6,8 +6,9 @@
 Recovered damaged Docker/containerd binaries; backend/frontend are healthy and
 all 37 migrations are current. Verified recovery database and storage/config
 archive: `backups/2026-11-16-recovery/` in the Pi checkout. 1.8.2 rollback images
-are retained. Portable backup download and authenticated smoke checks await
-administrator sign-in. See `docs/deployment/2026-11-16-pi-recovery.md`.
+are retained. The portable backup is downloaded and verified on the Mac;
+authenticated Builder and PDF export smoke checks passed.
+See `docs/deployment/2026-11-16-pi-recovery.md`.
 Historical release headings distinguish authored versions from deployments.
 
 This file tracks open issues, planned work, and recently-resolved items
@@ -51,8 +52,9 @@ Everything else in this file. The application is shippable today.
 Installed-package checksums confirmed damage to Docker and containerd binaries.
 Reinstalling the same official package versions restored operations; SQLite's
 recovery snapshot passed integrity checks. The physical cause has not been
-established. Secure an off-device portable backup, then replace or migrate the
-suspect SD-card storage. Other package-verification differences were visible in
+established. An off-device portable backup is secured and verified on the Mac;
+replace or migrate the suspect SD-card storage next.
+Other package-verification differences were visible in
 the prior operator shell and have not been diagnosed. Evidence and remaining
 validation: `docs/deployment/2026-11-16-pi-recovery.md`.
 

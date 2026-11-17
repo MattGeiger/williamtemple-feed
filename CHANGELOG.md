@@ -10,8 +10,9 @@ All notable changes to FEED are documented here. This project adheres to
 - Recovered the Pi from Docker/containerd binary corruption, verified a
   consistent SQLite snapshot and storage/configuration archive, and deployed
   1.9.0. Both services are healthy and the public health endpoint reports 1.9.0.
-  Hardware reliability remains unresolved; portable backup download and
-  authenticated smoke checks await administrator sign-in. Evidence and backup
+  Downloaded and independently verified the portable backup on the Mac
+  (342,398 records); authenticated Builder and PDF export smoke checks passed.
+  Hardware reliability remains unresolved. Evidence and backup
   location: `docs/deployment/2026-11-16-pi-recovery.md`.
 
 ## [1.9.0] — 2026-11-16, deployed
