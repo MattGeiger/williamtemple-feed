@@ -1,5 +1,19 @@
 # Release Notes
 
+## Version 1.9.0 — 2026-11-16
+
+**The Shopping List Builder is quicker to use.** Everything it could do before, it still does, in fewer steps. The page no longer scrolls away from its controls. Click an item and its settings open in one panel on the right; click an empty part of the page for the page's own settings. Building a list like Pantry Inventory from a blank page now takes about a third of the clicks it did.
+
+**Add every inventory section at once, and style every table at once.** **Add all** places all the sections in one click. Set up one table the way you want it, click **Apply to all**, and the rest match.
+
+**Grid pages print several slips on one sheet.** Choose **Grid** under Page → Layout, then 2 × 2, 2 × 3 or 2 × 4 for four, six or eight slips. **Duplicate all** repeats one slip in every square; **Individual** lets each square hold something different. A grid is always one page, and the Builder will not add something that does not fit in its square.
+
+**Split and Grid pages print cut lines.** A dashed line shows where to cut. Split-page lists made before this version now print one down the middle; turn off **Cut marks** under Page → Print if you do not want it.
+
+**Smaller improvements.** Save Template shows a dot when you have unsaved changes. A blank page offers your saved templates. A new text block is ready to type in. Delete, undo and copy work from the keyboard. Zoom sits above the page and opens fitted to your window. The Shopping Lists page shows each template's layout, and its Last Updated column shows a readable date again.
+
+Help has a new guide to the Builder, with pictures.
+
 ## Version 1.8.2 — 2026-11-04
 
 **Current OpenAI and Claude models, with the same setup workflow.** Choose GPT-6 Luna, GPT-6.1 Terra or Sol, or Claude Haiku, Sonnet or Opus 5.5. Astra and Fable remain available, and Google choices are unchanged. Superseded models no longer appear as new selections; existing configurations remain identifiable and supported while their provider serves them.

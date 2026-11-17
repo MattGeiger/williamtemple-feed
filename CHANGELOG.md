@@ -5,6 +5,13 @@ All notable changes to FEED are documented here. This project adheres to
 
 ## [Unreleased]
 
+## [1.9.0] — 2026-11-16, authored; not yet deployed
+
+Version sources bumped together: frontend and backend `package.json` (and
+their lockfiles) read 1.9.0. The Docker `VERSION` build arg is set at build
+time and must be 1.9.0 for this release. In-app release notes carry the 1.9.0
+entry.
+
 ### Added
 
 - **Shopping List Builder: Grid page layout** (roadmap v1.8.0 slot, ISSUES.md
