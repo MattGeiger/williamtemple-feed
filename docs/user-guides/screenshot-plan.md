@@ -110,6 +110,29 @@ The detected-source reconciliation review remains uncaptured. The synthetic
 fixture reaches source confirmation, but reconciliation totals appear only
 after starting an import; the capture session stopped before that write.
 
+## Builder Rework Captures (2026-11-16)
+
+The Builder was reorganised and gained the Grid layout, so its one existing
+screenshot showed an interface that no longer exists. Captured at 1440 × 900
+from the development database (inventory and template names only; no personal
+information), light and dark for each.
+
+| Guide | Section | Filename | What it shows | Status |
+|---|---|---|---|---|
+| Shopping Lists | When To Use This Page | `shopping-lists-table` | Saved templates with the new Layout column | Re-captured |
+| Shopping List Builder | Find Your Way Around | `shopping-list-builder-canvas` | Insert panel, page, and Page settings with a template open | Re-captured |
+| Shopping List Builder | Start A Template | `shopping-list-builder-start` | Blank page offering saved templates | Added |
+| Shopping List Builder | Change An Item | `shopping-list-builder-component` | An inventory table selected with its settings | Added |
+| Shopping List Builder | Make Slips With A Grid | `shopping-list-builder-grid` | 2 × 3 grid, Duplicate all, with the Page settings | Added |
+
+These were captured with a script driving headless Chromium rather than by
+hand, so both themes come from the same state. The theme was set by emulating
+the device colour scheme and stamping the matching class.
+
+Not captured: the overflow error message, the locked Header/Footer tooltip,
+and the row and Export Settings menus on Shopping Lists (unchanged, existing
+captures still match except for the new column behind the menu).
+
 ## Planned Screenshots
 
 | Priority | Guide | Section | User question | Proposed screenshot | Notes | Status |
@@ -128,7 +151,7 @@ after starting an import; the capture session stopped before that write.
 | High | Document Translator | How To Translate A Document | How do I start a translation? | Upload dialog and document table | Captured authenticated dev data | Added |
 | High | Shopping Lists | How To Export A List | How do I download a PDF? | Shopping Lists table row menu | Captured authenticated dev data with Download PDF and Translate & Download PDF visible | Added |
 | Medium | Shopping Lists | Export Settings | How are filenames controlled? | Export Settings dialog | Captured authenticated dev data with filename preview | Added |
-| High | Shopping List Builder | What You Build | What am I editing? | Builder canvas with side panels | Captured authenticated dev data | Added |
+| High | Shopping List Builder | Find Your Way Around | What am I editing? | Builder canvas with side panels | Re-captured 2026-11-16 after the Builder rework | Added |
 | High | Shopping List Builder | Translation Settings | How do I show English and translation? | Translation Settings dialog | Show row settings when possible | Planned |
 | Medium | AI Configuration | What It Controls | Where are provider settings? | AI Configuration list | Captured authenticated dev data; no API key values visible | Added |
 | High | Data Management | Add Data | Where do I import a CSV? | Unified Add Data drop area and detected-source review | Drop area captured; review stopped before an import write | Partial |

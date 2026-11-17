@@ -74,6 +74,16 @@ All notable changes to FEED are documented here. This project adheres to
 - `components/ui/toggle-group.tsx` — the Shadcn ToggleGroup over the Radix
   primitive already shipped in the `radix-ui` package. No new dependency.
 
+### Documentation
+
+- **Help: Shopping List Builder guide rewritten** for the reorganised Builder
+  and the Grid layout, in plain language, with four new or re-captured
+  screenshots in paired light and dark. The Shopping Lists guide explains the
+  new Layout column and its screenshot is re-captured.
+- **GitHub release notes drafted** at `docs/releases/v1.9.0-github-release.md`
+  with before/after screenshots and the step-count comparison. Not published;
+  version sources still read 1.8.2.
+
 ### Validation
 
 - Clicked through at 1920×1080 and 1280×720 (sidebar open and collapsed), dark

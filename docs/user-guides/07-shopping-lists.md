@@ -16,6 +16,14 @@ Use Shopping Lists when you already have a saved template and need to print or d
 
 Use the Builder when you need to design or change a template.
 
+## What The Table Shows
+
+Each row is one saved template.
+
+- **Details** lists what the template contains.
+- **Layout** shows how the page is arranged: Full page, Split page, or a Grid with its size.
+- **Last Updated** shows when it was last saved.
+
 ## How To Export A List
 
 Use the row action menu when a template is ready to export.
