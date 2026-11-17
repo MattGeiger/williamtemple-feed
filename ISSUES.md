@@ -1,12 +1,13 @@
 # FEED — Known Issues & Future Work
 
-**Last Updated**: September 14, 2026
-**Status**: 1.8.1 deployed and verified in production
-**Production**: https://feed.williamtemple.app — serving **1.8.1**,
-deployed 2026-09-14 over stable 1.8.0. Both services are healthy and all 36
-migrations are current. The verified rollback backup is
-`backups/2026-09-14-pre-1.8.1/` in the Pi checkout, with 1.8.0 images retained.
-See `docs/deployment/v1.8.1-validation.md` for release and browser evidence.
+**Last Updated**: November 16, 2026
+**Status**: 1.9.0 deployed; Pi hardware reliability remains unresolved
+**Production**: https://feed.williamtemple.app — serving **1.9.0**.
+Recovered damaged Docker/containerd binaries; backend/frontend are healthy and
+all 37 migrations are current. Verified recovery database and storage/config
+archive: `backups/2026-11-16-recovery/` in the Pi checkout. 1.8.2 rollback images
+are retained. Portable backup download and authenticated smoke checks await
+administrator sign-in. See `docs/deployment/2026-11-16-pi-recovery.md`.
 Historical release headings distinguish authored versions from deployments.
 
 This file tracks open issues, planned work, and recently-resolved items
@@ -42,6 +43,18 @@ Everything else in this file. The application is shippable today.
 ---
 
 ## Open Issues
+
+### Pi storage reliability after runtime binary corruption
+
+**Priority**: High · **Status**: Runtime repaired 2026-11-16; cause unresolved
+
+Installed-package checksums confirmed damage to Docker and containerd binaries.
+Reinstalling the same official package versions restored operations; SQLite's
+recovery snapshot passed integrity checks. The physical cause has not been
+established. Secure an off-device portable backup, then replace or migrate the
+suspect SD-card storage. Other package-verification differences were visible in
+the prior operator shell and have not been diagnosed. Evidence and remaining
+validation: `docs/deployment/2026-11-16-pi-recovery.md`.
 
 ### #88 — Shopping List Builder Grid page layout (v1.8.0 slot)
 **Priority**: Medium · **Status**: Implemented 2026-11-16 in the working tree; awaiting staff review and release
