@@ -1,6 +1,8 @@
 # FEED terms acceptance and first-login release notes
 
-Implemented locally for v1.9.1; not a production deployment record.
+Implemented in v1.9.1. Local behavior/evidence is recorded here; production
+deployment evidence and operator-acceptance status are in
+[`v1.9.1-validation.md`](../deployment/v1.9.1-validation.md).
 
 ## Login sequence
 

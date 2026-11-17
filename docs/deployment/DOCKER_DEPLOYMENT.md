@@ -51,6 +51,14 @@ The version-number dialog renders this file directly, so draft labels become
 visible to staff. Check the built release notes as part of release verification.
 `CHANGELOG.md` is separate and may keep its developer-facing Unreleased section.
 
+**Refresh base images and verify the runtime.** The build helper passes `--pull`
+for both targets. Include it in manual equivalents too: a cached `node:24-alpine`
+tag can otherwise build a healthy new FEED image with an older Node patch than
+production. This was caught during the 1.9.1 rollout and corrected before final
+verification. Check with `docker run --rm --entrypoint node IMAGE -v`.
+Record the final image digest and
+actual runtime, not just the floating `24` tag or local build-machine version.
+
 ```bash
 # Run from the repository root.
 
@@ -62,12 +70,14 @@ export VERSION="0.14.9"
 
 # Or, run the equivalent buildx commands manually:
 docker buildx build --platform linux/amd64,linux/arm64 \
+  --pull \
   --target backend \
   -t ${DOCKER_REGISTRY}/feed-backend:${VERSION} \
   -t ${DOCKER_REGISTRY}/feed-backend:latest \
   --push .
 
 docker buildx build --platform linux/amd64,linux/arm64 \
+  --pull \
   --target frontend \
   --build-arg VITE_API_BASE_URL=${VITE_API_BASE_URL} \
   -t ${DOCKER_REGISTRY}/feed-frontend:${VERSION} \

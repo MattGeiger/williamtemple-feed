@@ -7,13 +7,13 @@ All notable changes to FEED are documented here. This project adheres to
 
 ## [1.9.1] — 2026-11-17
 
-### Development
+### Released
 
-- Prepared local v1.9.1 development: frontend and backend package versions and
-  lockfiles now read 1.9.1. Terms acceptance and first-login release notes are
-  implemented locally; the LOTTO initial-range correction is separate work.
-  Production remains 1.9.0; the eventual Docker build and deployment must use
-  `VERSION=1.9.1` and finalized matching release notes.
+- Published `v1.9.1` and its ARM64 Docker images, then deployed backend/frontend
+  to the Pi with `VERSION=1.9.1`. Both containers are healthy, all 39 migrations
+  are current, and Node remains 24.22.3. Exact digests, verified backups, runtime
+  correction and pending operator production acceptance are recorded in
+  `docs/deployment/v1.9.1-validation.md`. LOTTO metrics are unchanged.
 
 ### Added
 
@@ -46,6 +46,18 @@ All notable changes to FEED are documented here. This project adheres to
   modal shows 1.9.1; both dialogs close cleanly. Reloading the authenticated
   session repeats neither prompt. A fresh sign-out/sign-in cycle is covered by
   integration tests and was not repeated in this browser follow-up.
+- Fresh release checks: backend 1,385 passed/two existing skipped; frontend 614
+  passed; both builds and the TypeScript ratchet passed. Production verifies
+  matching image/source identities, SQLite integrity/WAL, unchanged sampled
+  data counts, public health and the authenticated agreement gate.
+
+### Build workflow
+
+- Docker builds now pass `--pull` for both targets. The first 1.9.1 runtime
+  check caught a cached Node base below the prior production patch; refreshed
+  images restored Node 24.22.3 before final runtime verification. Removed only
+  the superseded rollout images when extraction exhausted free space, retaining
+  production data, backups and the 1.9.0 rollback images.
 
 ### Operations
 

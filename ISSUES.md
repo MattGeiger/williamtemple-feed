@@ -1,14 +1,18 @@
 # FEED — Known Issues & Future Work
 
-**Last Updated**: November 16, 2026
-**Status**: 1.9.0 deployed; Pi hardware reliability remains unresolved
-**Production**: https://feed.williamtemple.app — serving **1.9.0**.
+**Last Updated**: November 17, 2026
+**Status**: 1.9.1 deployed; Pi hardware reliability and storage headroom remain unresolved
+**Production**: https://feed.williamtemple.app — serving **1.9.1**.
 Recovered damaged Docker/containerd binaries; backend/frontend are healthy and
-all 37 migrations are current. Verified recovery database and storage/config
+all 39 migrations are current. Verified recovery database and storage/config
 archive: `backups/2026-11-16-recovery/` in the Pi checkout. 1.8.2 rollback images
 are retained. The portable backup is downloaded and verified on the Mac;
 authenticated Builder and PDF export smoke checks passed.
 See `docs/deployment/2026-11-16-pi-recovery.md`.
+The 1.9.1 deployment preserves Node 24.22.3 and the existing tunnel, with fresh
+on-Pi recovery artifacts and a verified off-device portable backup. About
+647 MB remains free after retaining the 1.9.0 rollback images. Production terms
+acceptance by the operator is pending. See `docs/deployment/v1.9.1-validation.md`.
 Historical release headings distinguish authored versions from deployments.
 
 This file tracks open issues, planned work, and recently-resolved items
@@ -47,7 +51,8 @@ Everything else in this file. The application is shippable today.
 
 ### v1.9.1 — Login terms and release notes
 
-**Status:** Implemented locally; not deployed. First agreement is required after
+**Status:** Deployed November 17; runtime/data/gate checks pass, operator
+production agreement and post-acceptance browser checks pending. First agreement is required after
 OTP/magic-link identity verification. Admin → History retains and opens the
 exact accepted document; future prompts follow document changes independently
 of software releases. The existing release-notes modal opens on first entry

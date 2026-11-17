@@ -46,6 +46,7 @@ docker buildx inspect --bootstrap
 echo ""
 echo -e "${GREEN}Building backend for $PLATFORMS...${NC}"
 docker buildx build \
+    --pull \
     --platform $PLATFORMS \
     --target backend \
     -t ${DOCKER_REGISTRY}/feed-backend:${VERSION} \
@@ -57,6 +58,7 @@ docker buildx build \
 echo ""
 echo -e "${GREEN}Building frontend for $PLATFORMS...${NC}"
 docker buildx build \
+    --pull \
     --platform $PLATFORMS \
     --target frontend \
     --build-arg VITE_API_BASE_URL=$VITE_API_BASE_URL \
