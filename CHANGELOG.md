@@ -5,6 +5,23 @@ All notable changes to FEED are documented here. This project adheres to
 
 ## [Unreleased]
 
+### Added
+
+- **Shopping List Builder: Grid page layout** (roadmap v1.8.0 slot, ISSUES.md
+  #88). Page → Layout now offers **Full**, **Split** and **Grid**. A grid
+  divides the page body into 2 × 2, 2 × 3 or 2 × 4 squares, so one Letter
+  sheet prints 4, 6 or 8 slips.
+  - **Duplicate all** (default): build one square and every square repeats it.
+  - **Individual**: each square holds its own content. Click a square to make
+    it the target for new components, drag a component into another square, or
+    pick its square in the inspector.
+  - Content too long for a square continues in the same square on the next
+    page — the back of the slip when printed two-sided — rather than spilling
+    into the neighbouring slip.
+  - Canvas and PDF render from the same plan; a status-bar warning reports
+    components that do not fit.
+  - Design record: `docs/shopping-lists/grid-page-layout.md`.
+
 ### Changed
 
 - **Shopping List Builder: the controls were reorganised (v1.9.0 UX rework).**
@@ -60,6 +77,11 @@ All notable changes to FEED are documented here. This project adheres to
 - A template built in the reworked Builder was exported through
   `/api/shopping-list-builder/preview-pdf`, rendered to PNG, and matched the
   canvas (column assignment, order, header title, footer legend).
+- Grid: built slips in the Builder in both content modes, exported them through
+  `/api/shopping-list-builder/preview-pdf`, rendered the PDFs to PNG, and
+  matched them to the canvas (Individual 2 × 3; Duplicate all 2 × 4). Dragged
+  a component between squares. Confirmed `refresh-inventory` keeps the grid
+  fields. Eight new backend planner tests; all 149 shopping-list tests pass.
 - Frontend: 584 tests pass, production build passes,
   `tsc --project tsconfig.app.json` reports no new errors.
 

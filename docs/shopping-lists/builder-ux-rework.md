@@ -215,9 +215,8 @@ now the button reading "Update saved component".
 
 ## 7. Known limits and follow-ups
 
-- **Grid layouts (v1.8.0 slot) are still unbuilt.** The Page tab's Body
-  section is where the 2×2 / 2×3 / 2×4 choice and its **Duplicate All** /
-  **Individual** sub-mode belong; see `docs/roadmap/v1.6-to-v2.0.md`.
+- **Grid layouts were built the next day** in the Page tab's Body section,
+  as planned here; see `grid-page-layout.md`.
 - The floating toolbar can cover content directly above the selected
   component. This is the usual trade for an on-canvas toolbar.
 - Leaving the page with unsaved changes is still not intercepted; the save

@@ -272,6 +272,18 @@ Failing to do so will cause silent icon fallback (to `package`) in PDF export wh
 - **Save state is derived, not tracked.** `hasUnsavedChanges` compares the serialized template with `savedSnapshot`, which is set on open, save, and new-blank. Any new code path that replaces the whole template for a non-edit reason must set the snapshot too, or the Builder will claim unsaved changes the user did not make.
 - Selection chrome drawn inside the paper (the floating toolbar, the empty-page starter card) is counter-scaled by `1 / getCanvasScale(zoom)` so it stays one size, and inherits the print theme's tokens.
 
+**Grid page layout (v1.8.0 slot, built 2026-11-16)**: `bodyLayoutMode` is `'full' | 'split' | 'grid'`. A grid divides the page body into 2 columns × 2, 3 or 4 rows (`gridLayout`: `'2x2' | '2x3' | '2x4'`), so one Letter sheet carries 4, 6 or 8 slips. Design record: `docs/shopping-lists/grid-page-layout.md`.
+
+- **A square is a planner lane.** Lanes are `'full' | 'left' | 'right' | 'cell-N'` (row-major). `getTemplateBodyLaneBounds` gives a square its column's horizontal extent (the same halves split lanes use) and its row's vertical extent, inset by half the column gap top and bottom. Nothing downstream needs to know a lane is a square.
+- **Lane chains, not one sequence.** `getTemplateBodyLaneChains` returns the lanes the Guided planner fills as independent chains: full and split are one chain read page by page; a grid is one chain *per square*, running through that square on every page. Content that overflows a square continues in the **same square on the next page** (the back of the slip when printed two-sided), never in a neighbouring square.
+- **Two content modes** (`gridContentMode`). `'duplicate'` ("Duplicate All", the default): every body component belongs to the first square; the planner lays it out once and appends copies for every other square, flagged `isDuplicate`. `'individual'`: each body component carries `gridCell`. Switching to Duplicate All does **not** erase `gridCell`, so switching back restores the arrangement.
+- **Copies are plan output, not template data.** The canvas and the Chromium renderer both draw `segments` / `bodyPlacements` as given, which is why the PDF needed no renderer change. Anything that asks "where is this component" (drag targets, selection toolbar) must skip `isDuplicate` entries.
+- **A grid is always Guided.** Both planners force sequence planning when `bodyLayoutMode === 'grid'`, the UI disables Freeform there, and choosing Grid writes `layoutMode: 'guided'`.
+- **The grid block is mirrored.** The helpers between the `Grid page layout. MIRRORED` and `end grid layout` comments are identical in `frontend/.../builder/types.ts` and `backend/src/routes/shopping-list-builder.ts` apart from `export`, and `planChain` has the same body in both planners. Change both in one commit; `__tests__/features/shopping-lists/builder-grid-layout.test.ts` pins the contract on the backend side.
+- **Header and footer stay page-level.** They are not repeated per square. A slip that needs its own title carries it as a body component.
+- Squares are as narrow as split lanes, so the ≤12pt section-table font ceiling applies in Grid as it does in Split.
+- In an Individual grid, click-inserts go to the *active square* (outlined on the canvas; it follows the selection and a click on an empty square), drops go to the square under the pointer, and dragging a component into another square reassigns `gridCell`. A drop anywhere in a square's open area counts (`catchHeight`), not just within a few points of the insert line.
+
 Current builder expectations:
 
 - Base Components, Inventory Sections, and Saved Components should support both click-to-add and drag-and-drop.

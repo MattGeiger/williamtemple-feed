@@ -121,6 +121,20 @@ import {
 import {
   BUILDER_COMPONENT_REGIONS,
   BUILDER_DATE_FORMATS,
+  BUILDER_GRID_COLUMNS,
+  BUILDER_GRID_LAYOUTS,
+  BuilderGridContentMode,
+  BuilderGridLayout,
+  getBodyLaneHalf,
+  getComponentGridCell,
+  getTemplateBodyLaneChains,
+  getTemplateGridCellCount,
+  getTemplateGridContentMode,
+  getTemplateGridLayout,
+  getTemplateGridRowBounds,
+  getTemplateGridRowCount,
+  gridCellIndexOfLane,
+  gridCellLane,
   BUILDER_HEADER_FOOTER_REPEAT_MODES,
   BODY_SPLIT_GUIDE_COLOR,
   BuilderComponent,
@@ -909,6 +923,9 @@ interface FlowingTableSegment {
   startRowIndex: number;
   isFirstSegment: boolean;
   isContinuation: boolean;
+  // A repeat of the first grid square ("Duplicate All"). Rendered, but not
+  // an editing target: the original in the first square is.
+  isDuplicate?: boolean;
 }
 
 interface BodyPlacement {
@@ -918,6 +935,7 @@ interface BodyPlacement {
   x: number;
   y: number;
   height: number;
+  isDuplicate?: boolean;
 }
 
 interface FlowingTablePlan {
@@ -933,6 +951,9 @@ interface FlowingTablePlan {
   // x/y or use plan-derived positions.
   plannedBodyComponentIds: Set<string>;
   overflowRowCount: number;
+  // Body components the plan could not place at all because their lane chain
+  // ran out (a full grid square on the last page, for example).
+  unplacedComponentCount: number;
 }
 
 const getSectionTableMetrics = (
@@ -1014,13 +1035,14 @@ const getFlowSegmentX = (
   lane: BuilderBodyLane,
   isFirstSegment: boolean,
 ) => {
-  if (getTemplateBodyLayoutMode(template) !== 'split' || lane === 'full') {
+  const half = getBodyLaneHalf(template, lane);
+  if (!half) {
     return isFirstSegment ? component.x : clamp(component.x, 0, template.paper.width - component.width);
   }
 
   const center = template.paper.width / 2;
-  const halfLeft = lane === 'right' ? center : 0;
-  const halfRight = lane === 'right' ? template.paper.width : center;
+  const halfLeft = half === 'right' ? center : 0;
+  const halfRight = half === 'right' ? template.paper.width : center;
   const usableWidth = Math.max(0, halfRight - halfLeft);
   if (component.width >= usableWidth) {
     return halfLeft;
@@ -1037,12 +1059,13 @@ const getBodyPlacementX = (
   template: ShoppingListBuilderTemplate,
   lane: BuilderBodyLane,
 ): number => {
-  if (getTemplateBodyLayoutMode(template) !== 'split' || lane === 'full') {
+  const half = getBodyLaneHalf(template, lane);
+  if (!half) {
     return clamp(component.x, 0, template.paper.width - component.width);
   }
   const center = template.paper.width / 2;
-  const halfLeft = lane === 'right' ? center : 0;
-  const halfRight = lane === 'right' ? template.paper.width : center;
+  const halfLeft = half === 'right' ? center : 0;
+  const halfRight = half === 'right' ? template.paper.width : center;
   const usableWidth = Math.max(0, halfRight - halfLeft);
   if (component.width >= usableWidth) {
     return halfLeft;
@@ -1081,13 +1104,18 @@ const createFlowingTablePlan = (
 ): FlowingTablePlan => {
   const maxPages = getTemplateMaxPages(template);
   const bodyBounds = getTemplateRegionBounds(template, 'body');
-  const isSplit = getTemplateBodyLayoutMode(template) === 'split';
-  const isGuided = getTemplateLayoutMode(template) === 'guided';
+  const bodyLayout = getTemplateBodyLayoutMode(template);
+  const isSplit = bodyLayout === 'split';
+  const isGrid = bodyLayout === 'grid';
+  // A grid is always sequence-planned: its squares are the layout, so there
+  // is no free placement to honour.
+  const isGuided = isGrid || getTemplateLayoutMode(template) === 'guided';
   const segments: FlowingTableSegment[] = [];
   const flowingComponentIds = new Set<string>();
   const bodyPlacements: BodyPlacement[] = [];
   const plannedBodyComponentIds = new Set<string>();
   let overflowRowCount = 0;
+  let unplacedComponentCount = 0;
   let pageCount = 1;
 
   const orderedComponents = isGuided
@@ -1115,15 +1143,10 @@ const createFlowingTablePlan = (
   });
 
   type LaneSlot = { pageIndex: number; lane: BuilderBodyLane };
-  const laneSequence: LaneSlot[] = [];
-  for (let pageIndex = 0; pageIndex < maxPages; pageIndex += 1) {
-    if (isSplit) {
-      laneSequence.push({ pageIndex, lane: 'left' });
-      laneSequence.push({ pageIndex, lane: 'right' });
-    } else {
-      laneSequence.push({ pageIndex, lane: 'full' });
-    }
-  }
+  const laneChains: LaneSlot[][] = getTemplateBodyLaneChains(template);
+  // Freeform never plans a grid (see `isGuided`), so its single chain is the
+  // full / split reading order.
+  const laneSequence: LaneSlot[] = laneChains[0] ?? [];
 
   const tryPlace = (
     state: FlowingTableState,
@@ -1205,63 +1228,103 @@ const createFlowingTablePlan = (
     const flowingStateById = new Map<string, FlowingTableState>(
       flowingTables.map((state) => [state.component.id, state]),
     );
-    let slotIdx = 0;
-    let cursor = bodyBounds.top;
-    const advanceSlot = () => {
-      slotIdx += 1;
-      cursor = bodyBounds.top;
-    };
-
     const bodyComponents = template.components.filter((component) => isBodyComponent(component, template));
     bodyComponents.forEach((component) => plannedBodyComponentIds.add(component.id));
 
-    for (const component of bodyComponents) {
-      if (slotIdx >= laneSequence.length) break;
+    // Plan one chain of lanes with the components that belong to it. Full and
+    // split pages are a single chain holding every body component; a grid is
+    // one chain per square (see `getTemplateBodyLaneChains`).
+    const planChain = (chain: LaneSlot[], chainComponents: BuilderComponent[]) => {
+      let slotIdx = 0;
+      let cursor = bodyBounds.top;
+      const advanceSlot = () => {
+        slotIdx += 1;
+        cursor = bodyBounds.top;
+      };
 
-      if (isFlowingBodyTable(component, template)) {
-        const state = flowingStateById.get(component.id)!;
-        while (state.rowIndex < component.rows.length && slotIdx < laneSequence.length) {
-          const slot = laneSequence[slotIdx];
-          const laneBounds = getTemplateBodyLaneBounds(template, slot.lane);
-          const { newCursor, placed } = tryPlace(state, slot, laneBounds, cursor, false, { ignoreUserY: true });
-          if (placed) {
-            cursor = newCursor;
-          } else {
-            advanceSlot();
-            continue;
-          }
-          if (state.rowIndex < component.rows.length) {
-            advanceSlot();
-          }
+      for (const component of chainComponents) {
+        if (slotIdx >= chain.length) {
+          unplacedComponentCount += 1;
+          continue;
         }
-        overflowRowCount += component.rows.length - state.rowIndex;
-      } else {
-        const height = getCanvasComponentHeight(component, measurement);
-        let placed = false;
-        while (!placed && slotIdx < laneSequence.length) {
-          const slot = laneSequence[slotIdx];
-          const laneBounds = getTemplateBodyLaneBounds(template, slot.lane);
-          const availableTop = Math.max(cursor, laneBounds.top);
-          const availableBottom = Math.min(laneBounds.bottom, bodyBounds.bottom);
-          const fitsHere = availableTop + height <= availableBottom;
-          const isLaneVirgin = cursor <= laneBounds.top;
-          if (fitsHere || isLaneVirgin) {
-            bodyPlacements.push({
-              componentId: component.id,
-              pageIndex: slot.pageIndex,
-              lane: slot.lane,
-              x: getBodyPlacementX(component, template, slot.lane),
-              y: availableTop,
-              height,
-            });
-            cursor = availableTop + height + FLOWING_TABLE_GAP;
-            pageCount = Math.max(pageCount, slot.pageIndex + 1);
-            placed = true;
-          } else {
-            advanceSlot();
+
+        if (isFlowingBodyTable(component, template)) {
+          const state = flowingStateById.get(component.id)!;
+          while (state.rowIndex < component.rows.length && slotIdx < chain.length) {
+            const slot = chain[slotIdx];
+            const laneBounds = getTemplateBodyLaneBounds(template, slot.lane);
+            const { newCursor, placed } = tryPlace(state, slot, laneBounds, cursor, false, { ignoreUserY: true });
+            if (placed) {
+              cursor = newCursor;
+            } else {
+              advanceSlot();
+              continue;
+            }
+            if (state.rowIndex < component.rows.length) {
+              advanceSlot();
+            }
           }
+          overflowRowCount += component.rows.length - state.rowIndex;
+        } else {
+          const height = getCanvasComponentHeight(component, measurement);
+          let placed = false;
+          while (!placed && slotIdx < chain.length) {
+            const slot = chain[slotIdx];
+            const laneBounds = getTemplateBodyLaneBounds(template, slot.lane);
+            const availableTop = Math.max(cursor, laneBounds.top);
+            const availableBottom = Math.min(laneBounds.bottom, bodyBounds.bottom);
+            const fitsHere = availableTop + height <= availableBottom;
+            const isLaneVirgin = cursor <= laneBounds.top;
+            if (fitsHere || isLaneVirgin) {
+              bodyPlacements.push({
+                componentId: component.id,
+                pageIndex: slot.pageIndex,
+                lane: slot.lane,
+                x: getBodyPlacementX(component, template, slot.lane),
+                y: availableTop,
+                height,
+              });
+              cursor = availableTop + height + FLOWING_TABLE_GAP;
+              pageCount = Math.max(pageCount, slot.pageIndex + 1);
+              placed = true;
+            } else {
+              advanceSlot();
+            }
+          }
+          if (!placed) unplacedComponentCount += 1;
         }
       }
+    };
+
+    if (isGrid) {
+      laneChains.forEach((chain) => {
+        const cellIndex = gridCellIndexOfLane(chain[0]?.lane ?? 'full') ?? 0;
+        planChain(chain, bodyComponents.filter((component) => (
+          getComponentGridCell(component, template) === cellIndex
+        )));
+      });
+
+      if (getTemplateGridContentMode(template) === 'duplicate') {
+        // "Duplicate All": repeat the first square's finished layout in every
+        // other square. Squares share a size, so a copy is the original moved
+        // by whole columns and rows.
+        const originBounds = getTemplateBodyLaneBounds(template, gridCellLane(0));
+        const originalSegments = [...segments];
+        const originalPlacements = [...bodyPlacements];
+        for (let cellIndex = 1; cellIndex < getTemplateGridCellCount(template); cellIndex += 1) {
+          const lane = gridCellLane(cellIndex);
+          const dx = (cellIndex % BUILDER_GRID_COLUMNS) * (template.paper.width / BUILDER_GRID_COLUMNS);
+          const dy = getTemplateBodyLaneBounds(template, lane).top - originBounds.top;
+          originalSegments.forEach((segment) => {
+            segments.push({ ...segment, lane, x: segment.x + dx, y: segment.y + dy, isDuplicate: true });
+          });
+          originalPlacements.forEach((placement) => {
+            bodyPlacements.push({ ...placement, lane, x: placement.x + dx, y: placement.y + dy, isDuplicate: true });
+          });
+        }
+      }
+    } else {
+      planChain(laneSequence, bodyComponents);
     }
 
     return {
@@ -1271,6 +1334,7 @@ const createFlowingTablePlan = (
       bodyPlacements,
       plannedBodyComponentIds,
       overflowRowCount,
+      unplacedComponentCount,
     };
   }
 
@@ -1344,6 +1408,7 @@ const createFlowingTablePlan = (
     bodyPlacements,
     plannedBodyComponentIds,
     overflowRowCount,
+    unplacedComponentCount,
   };
 };
 
@@ -1356,6 +1421,13 @@ interface GuidedInsertTarget {
   x: number;
   y: number;
   width: number;
+  // Grid square the dragged component joins when dropped here. Set only for
+  // an 'individual' grid, where a drop can move a component between squares.
+  gridCell?: number;
+  // Height below `y` that also counts as this target. Lets a drop anywhere
+  // in the open part of a grid square land there, instead of requiring the
+  // pointer to be within a few points of the insert line.
+  catchHeight?: number;
 }
 
 // Compute drop targets for drag-reorder of body components in Guided Mode.
@@ -1363,28 +1435,32 @@ interface GuidedInsertTarget {
 // AND single-placement components) in plan reading order. The dragged
 // component is excluded so the target index maps cleanly to a post-removal
 // splice position in template.components.
+//
+// Full and split pages are one reading sequence. An 'individual' grid is one
+// sequence per square, and an empty square still offers a target at its top so
+// a component can be dragged into it.
 const computeGuidedInsertTargets = (
   template: ShoppingListBuilderTemplate,
   plan: FlowingTablePlan,
   draggedComponentId: string,
 ): GuidedInsertTarget[] => {
-  if (getTemplateLayoutMode(template) !== 'guided') return [];
+  const bodyLayout = getTemplateBodyLayoutMode(template);
+  const isGrid = bodyLayout === 'grid';
+  if (!isGrid && getTemplateLayoutMode(template) !== 'guided') return [];
 
-  const bodyBounds = getTemplateRegionBounds(template, 'body');
   const remainingComponents = template.components.filter((c) => c.id !== draggedComponentId);
   const sequenceIndexOf = (componentId: string) => {
     const idx = remainingComponents.findIndex((c) => c.id === componentId);
     return idx === -1 ? remainingComponents.length : idx;
   };
 
-  const laneXAndWidth = (pageLane: BuilderBodyLane) => {
+  const laneBox = (pageLane: BuilderBodyLane) => {
     const lb = getTemplateBodyLaneBounds(template, pageLane);
-    return { x: lb.left, width: Math.max(1, lb.right - lb.left) };
+    return { x: lb.left, width: Math.max(1, lb.right - lb.left), top: lb.top, bottom: lb.bottom };
   };
 
-  // Build a unified ordered list of placed body components: for each component
-  // in template.components order (excluding the dragged one), capture its
-  // first placement (top) and last placement (tail) on the page.
+  // For each placed component (excluding the dragged one and any Duplicate
+  // All copies), its first placement (top) and last placement (tail).
   type PlacedRef = {
     componentId: string;
     firstPageIndex: number;
@@ -1394,15 +1470,12 @@ const computeGuidedInsertTargets = (
     lastLane: BuilderBodyLane;
     lastBottom: number;
   };
-  const placed: PlacedRef[] = [];
-  for (const component of template.components) {
-    if (component.id === draggedComponentId) continue;
-    if (!plan.plannedBodyComponentIds.has(component.id)) continue;
-    const segs = plan.segments.filter((s) => s.component.id === component.id);
+  const placedRefFor = (component: BuilderComponent): PlacedRef | null => {
+    const segs = plan.segments.filter((s) => s.component.id === component.id && !s.isDuplicate);
     if (segs.length > 0) {
       const head = segs[0];
       const tail = segs[segs.length - 1];
-      placed.push({
+      return {
         componentId: component.id,
         firstPageIndex: head.pageIndex,
         firstLane: head.lane,
@@ -1410,96 +1483,120 @@ const computeGuidedInsertTargets = (
         lastPageIndex: tail.pageIndex,
         lastLane: tail.lane,
         lastBottom: tail.y + tail.height,
-      });
-      continue;
+      };
     }
-    const placement = plan.bodyPlacements.find((p) => p.componentId === component.id);
-    if (placement) {
-      placed.push({
-        componentId: component.id,
-        firstPageIndex: placement.pageIndex,
-        firstLane: placement.lane,
-        firstY: placement.y,
-        lastPageIndex: placement.pageIndex,
-        lastLane: placement.lane,
-        lastBottom: placement.y + placement.height,
-      });
-    }
-  }
+    const placement = plan.bodyPlacements.find((p) => p.componentId === component.id && !p.isDuplicate);
+    if (!placement) return null;
+    return {
+      componentId: component.id,
+      firstPageIndex: placement.pageIndex,
+      firstLane: placement.lane,
+      firstY: placement.y,
+      lastPageIndex: placement.pageIndex,
+      lastLane: placement.lane,
+      lastBottom: placement.y + placement.height,
+    };
+  };
 
   const targets: GuidedInsertTarget[] = [];
 
-  if (placed.length === 0) {
-    const lane: BuilderBodyLane = getTemplateBodyLayoutMode(template) === 'split' ? 'left' : 'full';
-    const { x, width } = laneXAndWidth(lane);
-    targets.push({
-      sequenceIndex: remainingComponents.length,
-      pageIndex: 0,
-      lane,
-      x,
-      y: bodyBounds.top,
-      width,
-    });
+  // Targets for one reading sequence. `emptyLane` is where a drop lands when
+  // the sequence holds nothing; `gridCell` tags every target of a square.
+  const addSequenceTargets = (
+    components: BuilderComponent[],
+    emptyLane: BuilderBodyLane,
+    gridCell?: number,
+  ) => {
+    const placed = components
+      .filter((component) => plan.plannedBodyComponentIds.has(component.id))
+      .map(placedRefFor)
+      .filter((ref): ref is PlacedRef => ref != null);
+
+    if (placed.length === 0) {
+      const { x, width, top, bottom } = laneBox(emptyLane);
+      targets.push({
+        sequenceIndex: remainingComponents.length,
+        pageIndex: 0,
+        lane: emptyLane,
+        x,
+        y: top,
+        width,
+        gridCell,
+        catchHeight: gridCell == null ? undefined : Math.max(0, bottom - top),
+      });
+      return;
+    }
+
+    // Before first placement.
+    {
+      const first = placed[0];
+      const { x, width, top } = laneBox(first.firstLane);
+      targets.push({
+        sequenceIndex: sequenceIndexOf(first.componentId),
+        pageIndex: first.firstPageIndex,
+        lane: first.firstLane,
+        x,
+        y: top,
+        width,
+        gridCell,
+      });
+    }
+
+    // Between consecutive placements.
+    for (let i = 0; i < placed.length - 1; i += 1) {
+      const before = placed[i];
+      const after = placed[i + 1];
+      const sameLane = before.lastPageIndex === after.firstPageIndex && before.lastLane === after.firstLane;
+      const lane = sameLane ? before.lastLane : after.firstLane;
+      const { x, width, top } = laneBox(lane);
+      targets.push({
+        sequenceIndex: sequenceIndexOf(after.componentId),
+        pageIndex: sameLane ? before.lastPageIndex : after.firstPageIndex,
+        lane,
+        x,
+        y: sameLane ? (before.lastBottom + after.firstY) / 2 : top,
+        width,
+        gridCell,
+      });
+    }
+
+    // After last placement.
+    {
+      const last = placed[placed.length - 1];
+      const { x, width, bottom } = laneBox(last.lastLane);
+      const afterY = last.lastBottom + FLOWING_TABLE_GAP / 2;
+      targets.push({
+        catchHeight: gridCell == null ? undefined : Math.max(0, bottom - afterY),
+        // Within a grid square the component goes right after the square's
+        // last component; on a single-sequence page that is the very end.
+        sequenceIndex: gridCell == null ? remainingComponents.length : sequenceIndexOf(last.componentId) + 1,
+        pageIndex: last.lastPageIndex,
+        lane: last.lastLane,
+        x,
+        y: last.lastBottom + FLOWING_TABLE_GAP / 2,
+        width,
+        gridCell,
+      });
+    }
+  };
+
+  if (isGrid && getTemplateGridContentMode(template) === 'individual') {
+    for (let cellIndex = 0; cellIndex < getTemplateGridCellCount(template); cellIndex += 1) {
+      addSequenceTargets(
+        remainingComponents.filter((component) => (
+          isBodyComponent(component, template) && getComponentGridCell(component, template) === cellIndex
+        )),
+        gridCellLane(cellIndex),
+        cellIndex,
+      );
+    }
     return targets;
   }
 
-  // Before first placement.
-  {
-    const first = placed[0];
-    const { x, width } = laneXAndWidth(first.firstLane);
-    targets.push({
-      sequenceIndex: sequenceIndexOf(first.componentId),
-      pageIndex: first.firstPageIndex,
-      lane: first.firstLane,
-      x,
-      y: bodyBounds.top,
-      width,
-    });
-  }
-
-  // Between consecutive placements.
-  for (let i = 0; i < placed.length - 1; i += 1) {
-    const a = placed[i];
-    const b = placed[i + 1];
-    const sameLane = a.lastPageIndex === b.firstPageIndex && a.lastLane === b.firstLane;
-    if (sameLane) {
-      const midY = (a.lastBottom + b.firstY) / 2;
-      const { x, width } = laneXAndWidth(a.lastLane);
-      targets.push({
-        sequenceIndex: sequenceIndexOf(b.componentId),
-        pageIndex: a.lastPageIndex,
-        lane: a.lastLane,
-        x,
-        y: midY,
-        width,
-      });
-    } else {
-      const { x, width } = laneXAndWidth(b.firstLane);
-      targets.push({
-        sequenceIndex: sequenceIndexOf(b.componentId),
-        pageIndex: b.firstPageIndex,
-        lane: b.firstLane,
-        x,
-        y: bodyBounds.top,
-        width,
-      });
-    }
-  }
-
-  // After last placement.
-  {
-    const last = placed[placed.length - 1];
-    const { x, width } = laneXAndWidth(last.lastLane);
-    targets.push({
-      sequenceIndex: remainingComponents.length,
-      pageIndex: last.lastPageIndex,
-      lane: last.lastLane,
-      x,
-      y: last.lastBottom + FLOWING_TABLE_GAP / 2,
-      width,
-    });
-  }
-
+  addSequenceTargets(
+    remainingComponents,
+    isGrid ? gridCellLane(0) : bodyLayout === 'split' ? 'left' : 'full',
+  );
   return targets;
 };
 
@@ -1516,7 +1613,10 @@ const findNearestInsertTarget = (
   let bestScore = Infinity;
   for (const target of targets) {
     const targetFlat = target.pageIndex * paperHeight + target.y;
-    const yDist = Math.abs(targetFlat - cursorFlat);
+    const insideCatch = target.catchHeight != null
+      && cursorFlat >= targetFlat
+      && cursorFlat <= targetFlat + target.catchHeight;
+    const yDist = insideCatch ? 0 : Math.abs(targetFlat - cursorFlat);
     const left = target.x;
     const right = target.x + target.width;
     const xDist = cursor.x < left ? left - cursor.x : cursor.x > right ? cursor.x - right : 0;
@@ -1663,6 +1763,8 @@ const bodyLayoutModeLabel = (mode: BuilderBodyLayoutMode) => {
   switch (mode) {
     case 'split':
       return 'Split page';
+    case 'grid':
+      return 'Grid page';
     case 'full':
     default:
       return 'Full page';
@@ -1731,8 +1833,14 @@ const getComponentBodyLane = (
   component: BuilderComponent,
   template: ShoppingListBuilderTemplate,
 ): BuilderBodyLane => {
-  if (getTemplateBodyLayoutMode(template) !== 'split' || getComponentRegion(component, template) !== 'body') {
+  const bodyLayout = getTemplateBodyLayoutMode(template);
+  if (bodyLayout === 'full' || getComponentRegion(component, template) !== 'body') {
     return 'full';
+  }
+  // A grid component's lane is the square it belongs to, not where its stale
+  // stored x happens to fall.
+  if (bodyLayout === 'grid') {
+    return gridCellLane(getComponentGridCell(component, template));
   }
 
   return component.x + component.width / 2 >= template.paper.width / 2 ? 'right' : 'left';
@@ -2513,10 +2621,18 @@ function PageInspector({
   onCommitHeader,
   onCommitFooter,
   onChangeBodyLayoutMode,
+  gridLayout,
+  gridContentMode,
+  onChangeGridLayout,
+  onChangeGridContentMode,
   onChangeMaxPages,
   onChangePrintMode,
   onChangeIncludeCategoryIcons,
 }: {
+  gridLayout: BuilderGridLayout;
+  gridContentMode: BuilderGridContentMode;
+  onChangeGridLayout: (value: BuilderGridLayout) => void;
+  onChangeGridContentMode: (value: BuilderGridContentMode) => void;
   layoutMode: BuilderLayoutMode;
   bodyLayoutMode: BuilderBodyLayoutMode;
   gridSize: number;
@@ -2574,8 +2690,50 @@ function PageInspector({
             value={bodyLayoutMode}
             onChange={onChangeBodyLayoutMode}
             options={[
-              { value: 'full', label: 'Full page', testId: 'builder-body-layout-full' },
-              { value: 'split', label: 'Split page', testId: 'builder-body-layout-split' },
+              { value: 'full', label: 'Full', ariaLabel: 'Full page', testId: 'builder-body-layout-full' },
+              { value: 'split', label: 'Split', ariaLabel: 'Split page', testId: 'builder-body-layout-split' },
+              { value: 'grid', label: 'Grid', ariaLabel: 'Grid page', testId: 'builder-body-layout-grid' },
+            ]}
+          />
+        </FieldRow>
+        {/*
+          Grid settings stay in place and disable outside Grid, so choosing a
+          layout never shifts the rows below it.
+        */}
+        <FieldRow label="Grid size" controlClassName="w-[72%]">
+          <Segmented
+            ariaLabel="Grid size"
+            testId="builder-grid-layout-select"
+            value={gridLayout}
+            onChange={onChangeGridLayout}
+            options={BUILDER_GRID_LAYOUTS.map((layout) => ({
+              value: layout,
+              label: layout.replace('x', ' × '),
+              ariaLabel: `${layout.replace('x', ' by ')} grid, ${Number(layout[0]) * Number(layout[2])} squares`,
+              disabled: bodyLayoutMode !== 'grid',
+              testId: `builder-grid-layout-${layout}`,
+            }))}
+          />
+        </FieldRow>
+        <FieldRow label="Squares" controlClassName="w-[72%]">
+          <Segmented
+            ariaLabel="Grid square content"
+            testId="builder-grid-content-mode-select"
+            value={gridContentMode}
+            onChange={onChangeGridContentMode}
+            options={[
+              {
+                value: 'duplicate',
+                label: 'Duplicate all',
+                disabled: bodyLayoutMode !== 'grid',
+                testId: 'builder-grid-content-duplicate',
+              },
+              {
+                value: 'individual',
+                label: 'Individual',
+                disabled: bodyLayoutMode !== 'grid',
+                testId: 'builder-grid-content-individual',
+              },
             ]}
           />
         </FieldRow>
@@ -2938,8 +3096,18 @@ export function ShoppingListBuilder() {
     [selectedId, template.components],
   );
 
-  const layoutMode = getTemplateLayoutMode(template);
   const bodyLayoutMode = getTemplateBodyLayoutMode(template);
+  const isGridLayout = bodyLayoutMode === 'grid';
+  // A grid is always Guided: its squares are the layout.
+  const layoutMode: BuilderLayoutMode = isGridLayout ? 'guided' : getTemplateLayoutMode(template);
+  const gridLayout = getTemplateGridLayout(template);
+  const gridContentMode = getTemplateGridContentMode(template);
+  const gridCellCount = getTemplateGridCellCount(template);
+  const isIndividualGrid = isGridLayout && gridContentMode === 'individual';
+  // The square that click-inserts go to in an 'individual' grid. Follows the
+  // selection and a click on an empty square.
+  const [activeGridCellState, setActiveGridCell] = useState(0);
+  const activeGridCell = Math.min(activeGridCellState, gridCellCount - 1);
   const gridSize = getTemplateGridSize(template);
   const headerHeight = getTemplateHeaderHeight(template);
   const footerHeight = getTemplateFooterHeight(template);
@@ -2989,7 +3157,7 @@ export function ShoppingListBuilder() {
   );
 
   const getClickInsertXForBodyComponent = (objectWidth: number): number => {
-    if (layoutMode !== 'guided' || bodyLayoutMode !== 'split') {
+    if (layoutMode !== 'guided' || bodyLayoutMode === 'full') {
       return snapCoord(48);
     }
 
@@ -3011,9 +3179,61 @@ export function ShoppingListBuilder() {
     if (nextMode === bodyLayoutMode) return;
     pushHistory();
     setTemplate((current) => clampTemplateComponentsToRegions(
-      { ...current, bodyLayoutMode: nextMode },
+      nextMode === 'grid'
+        ? {
+          ...current,
+          bodyLayoutMode: nextMode,
+          // Stored explicitly so the saved template says what it is rather
+          // than relying on defaults that could change.
+          layoutMode: 'guided',
+          gridLayout: getTemplateGridLayout(current),
+          gridContentMode: getTemplateGridContentMode(current),
+        }
+        : { ...current, bodyLayoutMode: nextMode },
       { avoidCollisions: true },
     ));
+  };
+
+  const setGridLayout = (nextLayout: BuilderGridLayout) => {
+    if (nextLayout === gridLayout) return;
+    pushHistory();
+    setTemplate((current) => ({ ...current, gridLayout: nextLayout }));
+  };
+
+  // Switching to Duplicate All keeps each component's stored square, so
+  // switching back to Individual restores the arrangement.
+  const setGridContentMode = (nextMode: BuilderGridContentMode) => {
+    if (nextMode === gridContentMode) return;
+    pushHistory();
+    setTemplate((current) => ({ ...current, gridContentMode: nextMode }));
+  };
+
+  const gridCellAtPoint = (x: number, y: number): number => {
+    const column = x >= template.paper.width / 2 ? 1 : 0;
+    const rowCount = getTemplateGridRowCount(template);
+    let row = rowCount - 1;
+    for (let index = 0; index < rowCount; index += 1) {
+      if (y < getTemplateGridRowBounds(template, index).bottom) {
+        row = index;
+        break;
+      }
+    }
+    return row * BUILDER_GRID_COLUMNS + column;
+  };
+
+  // Square a newly inserted body component joins: the one under the drop
+  // point, or the active square for a click-insert. Undefined outside an
+  // 'individual' grid, where squares are not chosen per component.
+  const insertGridCellFor = (point?: { x: number; y: number }): number | undefined => {
+    if (!isIndividualGrid) return undefined;
+    return point ? gridCellAtPoint(point.x, point.y) : activeGridCell;
+  };
+
+  const setSelectedComponentGridCell = (cellIndex: number) => {
+    if (!selectedComponent) return;
+    setActiveGridCell(cellIndex);
+    updateSelectedComponent({ gridCell: cellIndex });
+    revealSelection();
   };
 
   const setMaxPages = (value: number) => {
@@ -3394,9 +3614,12 @@ export function ShoppingListBuilder() {
       region,
       { avoidCollisions: true, excludeComponentId: createdComponent.id },
     );
+    const insertCell = region === 'body'
+      ? insertGridCellFor(y == null ? undefined : { x: snappedX, y: snappedY })
+      : undefined;
     setTemplate((current) => ({
       ...current,
-      components: [...current.components, component],
+      components: [...current.components, insertCell == null ? component : { ...component, gridCell: insertCell }],
     }));
     setSelectedId(component.id);
     setEditingSavedComponentSource(null);
@@ -3583,10 +3806,13 @@ export function ShoppingListBuilder() {
       excludeComponentId: savedComponent.componentData.id,
     });
 
+    const insertCell = placementRegion === 'body'
+      ? insertGridCellFor(x != null && y != null ? { x, y } : undefined)
+      : undefined;
     pushHistory();
     setTemplate((current) => ({
       ...current,
-      components: [...current.components, component],
+      components: [...current.components, insertCell == null ? component : { ...component, gridCell: insertCell }],
     }));
     setSelectedId(component.id);
     setEditingSavedComponentSource(options.editSource
@@ -3616,9 +3842,11 @@ export function ShoppingListBuilder() {
     const placementY = y ?? (isGuided
       ? bodyTop
       : Math.max(48 + (targetTemplate.components.length % 6) * 24, bodyTop));
+    const insertCell = insertGridCellFor(x != null && y != null ? { x, y } : undefined);
     return clampComponentToTemplateRegion(cloneComponentForCanvas(
       {
         ...inventorySection.component,
+        ...(insertCell == null ? {} : { gridCell: insertCell }),
         x: snapCoord(x ?? 48),
         y: snapCoord(placementY),
         region: placementRegion,
@@ -4078,7 +4306,7 @@ export function ShoppingListBuilder() {
   // The collision/clamp logic later in the insert helpers still keeps the
   // object inside the lane proper.
   const centerDroppedXInBodyLane = (pointerX: number, pointerY: number, objectWidth: number): number => {
-    if (layoutMode !== 'guided' || bodyLayoutMode !== 'split') {
+    if (layoutMode !== 'guided' || bodyLayoutMode === 'full') {
       return snapCoord(pointerX);
     }
     if (getRegionForPoint(pointerY, template) !== 'body') {
@@ -4261,11 +4489,17 @@ export function ShoppingListBuilder() {
       if (finalState && finalState.target) {
         const draggedId = reorder.componentId;
         const targetIndex = finalState.target.sequenceIndex;
+        const targetGridCell = finalState.target.gridCell;
+        if (targetGridCell != null) setActiveGridCell(targetGridCell);
         pushHistory();
         setTemplate((current) => {
           const remaining = current.components.filter((c) => c.id !== draggedId);
-          const dragged = current.components.find((c) => c.id === draggedId);
-          if (!dragged) return current;
+          const original = current.components.find((c) => c.id === draggedId);
+          if (!original) return current;
+          // Dropping into another grid square moves the component there.
+          const dragged = targetGridCell == null
+            ? original
+            : ({ ...original, gridCell: targetGridCell } as BuilderComponent);
           const clampedIndex = Math.max(0, Math.min(targetIndex, remaining.length));
           const nextComponents = [
             ...remaining.slice(0, clampedIndex),
@@ -4349,6 +4583,15 @@ export function ShoppingListBuilder() {
   useEffect(() => {
     setInspectorTab(selectedId ? 'selection' : 'page');
   }, [selectedId]);
+
+  // In an 'individual' grid the active square follows the selection, so the
+  // next click-insert lands beside the component just picked.
+  const selectedGridCell = selectedComponent && isIndividualGrid && selectedComponentRegion === 'body'
+    ? getComponentGridCell(selectedComponent, template)
+    : null;
+  useEffect(() => {
+    if (selectedGridCell != null) setActiveGridCell(selectedGridCell);
+  }, [selectedGridCell]);
 
   // Fit the three-column workspace to the viewport so the panels scroll
   // internally and the page itself never does. Measured rather than written
@@ -4641,7 +4884,9 @@ export function ShoppingListBuilder() {
 
   const pageSummary = [
     'Letter',
-    bodyLayoutModeLabel(bodyLayoutMode),
+    isGridLayout
+      ? `Grid ${gridLayout.replace('x', '×')} · ${gridContentMode === 'individual' ? 'individual squares' : 'duplicated'}`
+      : bodyLayoutModeLabel(bodyLayoutMode),
     `up to ${maxPages} ${maxPages === 1 ? 'page' : 'pages'}`,
     printModeLabel(printMode),
   ].join(' · ');
@@ -4720,6 +4965,22 @@ export function ShoppingListBuilder() {
             }))}
           />
         </FieldRow>
+        {isIndividualGrid && (
+          <FieldRow label="Grid square" controlClassName="w-[66%]">
+            <Segmented
+              ariaLabel="Grid square"
+              testId="builder-selected-component-grid-cell"
+              value={String(region === 'body' ? getComponentGridCell(component, template) : -1)}
+              onChange={(value) => setSelectedComponentGridCell(Number(value))}
+              options={Array.from({ length: gridCellCount }, (_, cellIndex) => ({
+                value: String(cellIndex),
+                label: String(cellIndex + 1),
+                ariaLabel: `Square ${cellIndex + 1}`,
+                disabled: region !== 'body',
+              }))}
+            />
+          </FieldRow>
+        )}
         {/*
           Always rendered: body content does not repeat, so the control
           disables there instead of appearing and pushing the sections below
@@ -5214,7 +5475,7 @@ export function ShoppingListBuilder() {
                 <div className="space-y-2">
                   <PanelHeading
                     count={inventorySections.length > 0
-                      ? `${inventorySections.length - availableInventorySections.length} of ${inventorySections.length} on page`
+                      ? `${inventorySections.length - availableInventorySections.length}/${inventorySections.length} on page`
                       : undefined}
                     action={availableInventorySections.length > 1 ? (
                       <AnimateIcon asChild animateOnHover animateOnTap>
@@ -5338,6 +5599,8 @@ export function ShoppingListBuilder() {
                   },
                   {
                     value: 'freeform',
+                    // A grid's squares are the layout, so it is always Guided.
+                    disabled: isGridLayout,
                     testId: 'builder-layout-mode-freeform',
                     label: (
                       <>
@@ -5459,7 +5722,17 @@ export function ShoppingListBuilder() {
                       data-print-mode={printMode}
                       onDragOver={pageIndex === 0 ? (event) => event.preventDefault() : undefined}
                       onDrop={pageIndex === 0 ? handlePaperDrop : undefined}
-                      onPointerDown={() => setSelectedId('')}
+                      onPointerDown={(event) => {
+                        setSelectedId('');
+                        // Clicking an empty square makes it the target for
+                        // click-inserts.
+                        if (isIndividualGrid) {
+                          const point = pointerToPaperCoords(event);
+                          if (point && getRegionForPoint(point.y, template) === 'body') {
+                            setActiveGridCell(gridCellAtPoint(point.x, point.y));
+                          }
+                        }
+                      }}
                     >
                       {showCanvasGuides && layoutMode === 'guided' && (
                         <div
@@ -5473,7 +5746,44 @@ export function ShoppingListBuilder() {
                           }}
                         />
                       )}
-                      {showCanvasGuides && bodyLayoutMode === 'split' && (
+                      {isGridLayout && showCanvasGuides && Array.from(
+                        { length: getTemplateGridRowCount(template) - 1 },
+                        (_, rowIndex) => (
+                          <div
+                            key={`grid-row-${rowIndex}`}
+                            aria-hidden
+                            data-testid={pageIndex === 0 ? 'shopping-list-builder-grid-row-line' : undefined}
+                            className="pointer-events-none absolute left-0 right-0 z-6"
+                            style={{
+                              top: getTemplateGridRowBounds(template, rowIndex).bottom,
+                              height: 1,
+                              backgroundColor: BODY_SPLIT_GUIDE_COLOR,
+                            }}
+                          />
+                        ),
+                      )}
+                      {isIndividualGrid && showCanvasGuides && pageIndex === 0 && (() => {
+                        // Outline the square that click-inserts will land in.
+                        const row = getTemplateGridRowBounds(template, Math.floor(activeGridCell / BUILDER_GRID_COLUMNS));
+                        const isRightColumn = activeGridCell % BUILDER_GRID_COLUMNS === 1;
+                        return (
+                          <div
+                            aria-hidden
+                            data-testid="shopping-list-builder-active-grid-cell"
+                            data-grid-cell={activeGridCell}
+                            className="pointer-events-none absolute z-6"
+                            style={{
+                              left: isRightColumn ? template.paper.width / 2 : 0,
+                              width: template.paper.width / 2,
+                              top: row.top,
+                              height: row.bottom - row.top,
+                              boxShadow: `inset 0 0 0 2px ${BODY_SPLIT_GUIDE_COLOR}`,
+                              backgroundColor: 'rgba(22, 163, 74, 0.05)',
+                            }}
+                          />
+                        );
+                      })()}
+                      {showCanvasGuides && bodyLayoutMode !== 'full' && (
                         <div
                           aria-hidden
                           data-testid={pageIndex === 0 ? 'shopping-list-builder-split-line' : undefined}
@@ -5540,12 +5850,14 @@ export function ShoppingListBuilder() {
                           const component = template.components.find((c) => c.id === placement.componentId);
                           if (!component) return null;
                           return renderCanvasComponent(component, {
-                            key: `placement:${pageIndex}:${component.id}`,
+                            key: `placement:${pageIndex}:${placement.lane}:${component.id}`,
                             left: placement.x,
                             top: placement.y,
                             height: placement.height,
-                            isDraggable: true,
-                            showRegionBadge: true,
+                            // A Duplicate All copy selects its original but
+                            // is not itself dragged or given a toolbar.
+                            isDraggable: !placement.isDuplicate,
+                            showRegionBadge: !placement.isDuplicate,
                           });
                         })}
                       {flowingTablePlan.segments
@@ -5557,8 +5869,8 @@ export function ShoppingListBuilder() {
                           height: segment.height,
                           rows: segment.rows,
                           rowHeights: segment.rowHeights,
-                          isDraggable: segment.isFirstSegment,
-                          showRegionBadge: segment.isFirstSegment,
+                          isDraggable: segment.isFirstSegment && !segment.isDuplicate,
+                          showRegionBadge: segment.isFirstSegment && !segment.isDuplicate,
                           isContinuation: segment.isContinuation,
                         }))}
                       {reorderState?.target && reorderState.target.pageIndex === pageIndex && (
@@ -5644,6 +5956,12 @@ export function ShoppingListBuilder() {
                     {flowingTablePlan.overflowRowCount} rows exceed max pages
                   </Badge>
                 )}
+                {flowingTablePlan.unplacedComponentCount > 0 && (
+                  <Badge variant="destructive" data-testid="builder-unplaced-warning">
+                    {flowingTablePlan.unplacedComponentCount}{' '}
+                    {flowingTablePlan.unplacedComponentCount === 1 ? 'component does' : 'components do'} not fit
+                  </Badge>
+                )}
                 <span data-testid="builder-save-state" aria-live="polite">
                   {hasUnsavedChanges
                     ? 'Unsaved changes'
@@ -5701,6 +6019,10 @@ export function ShoppingListBuilder() {
                     onCommitHeader={setHeaderHeight}
                     onCommitFooter={setFooterHeight}
                     onChangeBodyLayoutMode={setBodyLayoutMode}
+                    gridLayout={gridLayout}
+                    gridContentMode={gridContentMode}
+                    onChangeGridLayout={setGridLayout}
+                    onChangeGridContentMode={setGridContentMode}
                     onChangeMaxPages={setMaxPages}
                     onChangePrintMode={setPrintMode}
                     onChangeIncludeCategoryIcons={setIncludeCategoryIcons}
@@ -6220,7 +6542,9 @@ export function ShoppingListBuilder() {
                       </>
                     )}
                     {selectedComponent.type === 'section-table' && (() => {
-                      const isSplit = bodyLayoutMode === 'split';
+                      // Grid squares are as narrow as split lanes, so the same
+                      // section-table font-size ceiling applies.
+                      const isSplit = bodyLayoutMode !== 'full';
                       const tableFontSizes = fontSizeOptions(
                         selectedComponent.fontSize,
                         isSplit ? SPLIT_PAGE_FONT_SIZES : BUILDER_FONT_SIZES,

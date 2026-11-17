@@ -167,9 +167,10 @@ export const resolveBuilderLanguageTagText = (
 };
 
 export type BuilderLayoutMode = 'guided' | 'freeform';
-export type BuilderBodyLayoutMode = 'full' | 'split';
+export type BuilderBodyLayoutMode = 'full' | 'split' | 'grid';
 export type BuilderComponentRegion = 'header' | 'body' | 'footer';
-export type BuilderBodyLane = 'full' | 'left' | 'right';
+// `cell-N` names grid square N (row-major) when the body layout is 'grid'.
+export type BuilderBodyLane = 'full' | 'left' | 'right' | `cell-${number}`;
 // `single-sided`: render the planner's page count as-is.
 // `two-sided-duplicate`: always duplicate the rendered output so a stack of
 //   single-side prints comes out two-sided.
@@ -268,6 +269,9 @@ interface BuilderComponentBase {
   height: number;
   region?: BuilderComponentRegion;
   repeatMode?: BuilderHeaderFooterRepeatMode;
+  // Grid square (row-major, 0-based) this body component belongs to when the
+  // template uses the grid layout in 'individual' content mode.
+  gridCell?: number;
 }
 
 /**
@@ -509,6 +513,8 @@ export interface ShoppingListBuilderTemplate {
   components: BuilderComponent[];
   layoutMode?: BuilderLayoutMode;
   bodyLayoutMode?: BuilderBodyLayoutMode;
+  gridLayout?: BuilderGridLayout;
+  gridContentMode?: BuilderGridContentMode;
   gridSize?: number;
   headerHeight?: number;
   footerHeight?: number;
@@ -623,6 +629,141 @@ export const getTemplateRegionBounds = (
   }
 };
 
+// ---------------------------------------------------------------------------
+// Grid page layout. MIRRORED: the block from here to "end grid layout" is the
+// same in `frontend/.../builder/types.ts` and
+// `backend/src/routes/shopping-list-builder.ts` (apart from `export`). Change
+// both together, like the typography engine.
+//
+// A grid divides the page body into 2 columns x 2, 3 or 4 rows of equal
+// squares, so one Letter sheet carries 4, 6 or 8 small slips. Each square is a
+// planner lane (`cell-0` .. `cell-N`, row-major: left to right, then down).
+// A square's content that does not fit continues in the SAME square on the
+// next page -- the back of the slip when printed two-sided -- never in a
+// neighbouring square.
+//
+// Content modes:
+//   'duplicate'  -- "Duplicate All": every body component belongs to the first
+//                   square; the planner lays that square out once and repeats
+//                   it in every other square.
+//   'individual' -- each body component carries `gridCell`, the square it
+//                   belongs to.
+// ---------------------------------------------------------------------------
+export type BuilderGridLayout = '2x2' | '2x3' | '2x4';
+export type BuilderGridContentMode = 'duplicate' | 'individual';
+
+export const BUILDER_GRID_LAYOUTS: readonly BuilderGridLayout[] = ['2x2', '2x3', '2x4'];
+export const BUILDER_GRID_COLUMNS = 2;
+export const DEFAULT_GRID_LAYOUT: BuilderGridLayout = '2x2';
+export const DEFAULT_GRID_CONTENT_MODE: BuilderGridContentMode = 'duplicate';
+
+export const getTemplateGridLayout = (template: ShoppingListBuilderTemplate): BuilderGridLayout => (
+  template.gridLayout === '2x3' || template.gridLayout === '2x4' ? template.gridLayout : DEFAULT_GRID_LAYOUT
+);
+
+export const getTemplateGridContentMode = (template: ShoppingListBuilderTemplate): BuilderGridContentMode => (
+  template.gridContentMode === 'individual' ? 'individual' : DEFAULT_GRID_CONTENT_MODE
+);
+
+export const getTemplateGridRowCount = (template: ShoppingListBuilderTemplate): number => {
+  const layout = getTemplateGridLayout(template);
+  if (layout === '2x4') return 4;
+  if (layout === '2x3') return 3;
+  return 2;
+};
+
+export const getTemplateGridCellCount = (template: ShoppingListBuilderTemplate): number => (
+  BUILDER_GRID_COLUMNS * getTemplateGridRowCount(template)
+);
+
+export const gridCellLane = (cellIndex: number): BuilderBodyLane => `cell-${cellIndex}`;
+
+/** The square a lane names, or null for the full / left / right lanes. */
+export const gridCellIndexOfLane = (lane: BuilderBodyLane): number | null => {
+  if (!lane.startsWith('cell-')) return null;
+  const index = Number(lane.slice(5));
+  return Number.isInteger(index) && index >= 0 ? index : null;
+};
+
+/**
+ * Which half of the page a lane sits in, or null when it spans the page.
+ * Split lanes and grid squares both centre their content in a half.
+ */
+export const getBodyLaneHalf = (
+  template: ShoppingListBuilderTemplate,
+  lane: BuilderBodyLane,
+): 'left' | 'right' | null => {
+  const mode = getTemplateBodyLayoutMode(template);
+  if (mode === 'full' || lane === 'full') return null;
+  if (lane === 'left' || lane === 'right') return lane;
+  if (mode !== 'grid') return null;
+  const cellIndex = gridCellIndexOfLane(lane);
+  if (cellIndex == null) return null;
+  return cellIndex % BUILDER_GRID_COLUMNS === 1 ? 'right' : 'left';
+};
+
+/**
+ * Vertical extent of one grid row. `top`/`bottom` are the row's cut lines;
+ * `contentTop`/`contentBottom` are inset by half the column gap so stacked
+ * squares keep the same gutter the two columns have.
+ */
+export const getTemplateGridRowBounds = (
+  template: ShoppingListBuilderTemplate,
+  rowIndex: number,
+): { top: number; bottom: number; contentTop: number; contentBottom: number } => {
+  const bodyTop = Math.min(getTemplateHeaderHeight(template), template.paper.height);
+  const bodyBottom = Math.max(bodyTop, template.paper.height - getTemplateFooterHeight(template));
+  const rowCount = getTemplateGridRowCount(template);
+  const gridSize = getTemplateGridSize(template);
+  // Rows are equal and sit on the placement grid; any remainder goes to the
+  // last row so the squares still tile the whole body.
+  const rawRowHeight = (bodyBottom - bodyTop) / rowCount;
+  const rowHeight = Math.max(gridSize, Math.floor(rawRowHeight / gridSize) * gridSize);
+  const row = Math.min(Math.max(0, rowIndex), rowCount - 1);
+  const top = bodyTop + row * rowHeight;
+  const bottom = row === rowCount - 1 ? bodyBottom : top + rowHeight;
+  const inset = Math.min(getTemplateBodyColumnGap(template) / 2, Math.max(0, (bottom - top) / 4));
+  return { top, bottom, contentTop: top + inset, contentBottom: Math.max(top + inset, bottom - inset) };
+};
+
+/** The square a body component belongs to under the template's grid. */
+export const getComponentGridCell = (
+  component: { gridCell?: number },
+  template: ShoppingListBuilderTemplate,
+): number => {
+  if (getTemplateGridContentMode(template) !== 'individual') return 0;
+  const cellCount = getTemplateGridCellCount(template);
+  const cell = Number.isInteger(component.gridCell) ? (component.gridCell as number) : 0;
+  return Math.min(Math.max(0, cell), cellCount - 1);
+};
+
+/**
+ * Lanes the Guided planner fills, as independent chains. Full and split pages
+ * are one chain read page by page. A grid is one chain per square, each
+ * running through that square on every page.
+ */
+export const getTemplateBodyLaneChains = (
+  template: ShoppingListBuilderTemplate,
+): Array<Array<{ pageIndex: number; lane: BuilderBodyLane }>> => {
+  const maxPages = getTemplateMaxPages(template);
+  const mode = getTemplateBodyLayoutMode(template);
+  const pages = Array.from({ length: maxPages }, (_, pageIndex) => pageIndex);
+  if (mode === 'grid') {
+    const cells = getTemplateGridContentMode(template) === 'individual'
+      ? Array.from({ length: getTemplateGridCellCount(template) }, (_, cellIndex) => cellIndex)
+      : [0];
+    return cells.map((cellIndex) => pages.map((pageIndex) => ({ pageIndex, lane: gridCellLane(cellIndex) })));
+  }
+  if (mode === 'split') {
+    return [pages.flatMap((pageIndex) => [
+      { pageIndex, lane: 'left' as BuilderBodyLane },
+      { pageIndex, lane: 'right' as BuilderBodyLane },
+    ])];
+  }
+  return [pages.map((pageIndex) => ({ pageIndex, lane: 'full' as BuilderBodyLane }))];
+};
+// ------------------------------ end grid layout -----------------------------
+
 export interface BuilderBodyLaneBounds {
   lane: BuilderBodyLane;
   left: number;
@@ -638,9 +779,9 @@ export const getTemplateBodyLaneBounds = (
   lane: BuilderBodyLane,
 ): BuilderBodyLaneBounds => {
   const bodyBounds = getTemplateRegionBounds(template, 'body');
-  const mode = getTemplateBodyLayoutMode(template);
+  const half = getBodyLaneHalf(template, lane);
 
-  if (mode !== 'split' || lane === 'full') {
+  if (!half) {
     return {
       lane: 'full',
       left: 0,
@@ -657,26 +798,35 @@ export const getTemplateBodyLaneBounds = (
   const leftRight = center - gap / 2;
   const rightLeft = center + gap / 2;
 
-  if (lane === 'right') {
+  // A grid square shares its column's horizontal extent with a split lane and
+  // narrows only vertically, to its row.
+  const cellIndex = getTemplateBodyLayoutMode(template) === 'grid' ? gridCellIndexOfLane(lane) : null;
+  const rowBounds = cellIndex == null
+    ? null
+    : getTemplateGridRowBounds(template, Math.floor(cellIndex / BUILDER_GRID_COLUMNS));
+  const top = rowBounds ? rowBounds.contentTop : bodyBounds.top;
+  const bottom = rowBounds ? rowBounds.contentBottom : bodyBounds.bottom;
+
+  if (half === 'right') {
     return {
       lane,
       left: rightLeft,
       right: template.paper.width,
       width: Math.max(0, template.paper.width - rightLeft),
-      top: bodyBounds.top,
-      bottom: bodyBounds.bottom,
-      height: bodyBounds.height,
+      top,
+      bottom,
+      height: Math.max(0, bottom - top),
     };
   }
 
   return {
-    lane: 'left',
+    lane,
     left: 0,
     right: leftRight,
     width: Math.max(0, leftRight),
-    top: bodyBounds.top,
-    bottom: bodyBounds.bottom,
-    height: bodyBounds.height,
+    top,
+    bottom,
+    height: Math.max(0, bottom - top),
   };
 };
 

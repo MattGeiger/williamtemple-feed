@@ -43,6 +43,26 @@ Everything else in this file. The application is shippable today.
 
 ## Open Issues
 
+### #88 — Shopping List Builder Grid page layout (v1.8.0 slot)
+**Priority**: Medium · **Status**: Implemented 2026-11-16 in the working tree; awaiting staff review and release
+**Bucket**: v1.8.0 slot (built after the v1.9.0 UX rework, #87)
+**Component**: `builder/types.ts`, `builder/ShoppingListBuilder.tsx`,
+`packages/backend/src/routes/shopping-list-builder.ts`
+
+Adds `bodyLayoutMode: 'grid'` with `gridLayout` (2×2 / 2×3 / 2×4) and
+`gridContentMode` (Duplicate All / Individual). Grid squares are planner lanes;
+each square is its own lane chain, so overflow continues in the same square on
+the next page. Duplicate All is produced by the planner, so the PDF renderer is
+unchanged. Record: `docs/shopping-lists/grid-page-layout.md`.
+
+Decisions that are the owner's to confirm (each is a small change either way):
+- Overflow goes to the same square on the next page, not the next square.
+- Header and footer stay one per page; they are not repeated per square.
+- No cut marks are printed between squares; the guides are canvas-only.
+- Two-sided printing does not mirror columns, so on a long-edge flip the back
+  of the left-hand slip is the right-hand square.
+- Grid requires Guided mode.
+
 ### #87 — Shopping List Builder UX rework (v1.9.0 slot)
 **Priority**: Medium · **Status**: Implemented 2026-11-15 in the working tree; awaiting staff RITE sessions and release
 **Bucket**: v1.9.0

@@ -44,8 +44,9 @@ type BuilderDateFormatId =
   | 'short-slash'
   | 'short-dash'
   | 'iso';
-type BuilderBodyLayoutMode = 'full' | 'split';
-type BuilderBodyLane = 'full' | 'left' | 'right';
+type BuilderBodyLayoutMode = 'full' | 'split' | 'grid';
+// `cell-N` names grid square N (row-major) when the body layout is 'grid'.
+type BuilderBodyLane = 'full' | 'left' | 'right' | `cell-${number}`;
 type BuilderComponentRegion = 'header' | 'body' | 'footer';
 type BuilderHeaderFooterRepeatMode = 'every' | 'odd' | 'even' | 'once';
 // `single-sided`: render exactly the planner's page count.
@@ -140,6 +141,9 @@ interface BuilderComponentBase {
   height: number;
   region?: BuilderComponentRegion;
   repeatMode?: BuilderHeaderFooterRepeatMode;
+  // Grid square (row-major, 0-based) this body component belongs to when the
+  // template uses the grid layout in 'individual' content mode.
+  gridCell?: number;
 }
 
 // Per-component translation mode set via the builder's Properties panel
@@ -357,6 +361,8 @@ export interface ShoppingListBuilderTemplate {
   components: BuilderComponent[];
   layoutMode?: BuilderLayoutMode;
   bodyLayoutMode?: BuilderBodyLayoutMode;
+  gridLayout?: BuilderGridLayout;
+  gridContentMode?: BuilderGridContentMode;
   headerHeight?: number;
   footerHeight?: number;
   bodyColumnGap?: number;
@@ -482,7 +488,7 @@ const getTemplateIncludeCategoryIcons = (template: ShoppingListBuilderTemplate):
 );
 
 const getTemplateBodyLayoutMode = (template: ShoppingListBuilderTemplate): BuilderBodyLayoutMode => (
-  template.bodyLayoutMode === 'split' ? 'split' : 'full'
+  template.bodyLayoutMode === 'split' || template.bodyLayoutMode === 'grid' ? template.bodyLayoutMode : 'full'
 );
 
 const getTemplateLayoutMode = (template: ShoppingListBuilderTemplate): BuilderLayoutMode => (
@@ -552,14 +558,157 @@ const getTemplateRegionBounds = (
   }
 };
 
+// Mirrors the frontend `getTemplateGridSize`: legacy 9pt grids read as 3pt.
+const getTemplateGridSize = (template: ShoppingListBuilderTemplate): number => {
+  const size = asNumber(template.gridSize, DEFAULT_GRID_SIZE);
+  if (size === LEGACY_DEFAULT_GRID_SIZE) return DEFAULT_GRID_SIZE;
+  return size > 0 ? size : DEFAULT_GRID_SIZE;
+};
+
+// ---------------------------------------------------------------------------
+// Grid page layout. MIRRORED: the block from here to "end grid layout" is the
+// same in `frontend/.../builder/types.ts` and
+// `backend/src/routes/shopping-list-builder.ts` (apart from `export`). Change
+// both together, like the typography engine.
+//
+// A grid divides the page body into 2 columns x 2, 3 or 4 rows of equal
+// squares, so one Letter sheet carries 4, 6 or 8 small slips. Each square is a
+// planner lane (`cell-0` .. `cell-N`, row-major: left to right, then down).
+// A square's content that does not fit continues in the SAME square on the
+// next page -- the back of the slip when printed two-sided -- never in a
+// neighbouring square.
+//
+// Content modes:
+//   'duplicate'  -- "Duplicate All": every body component belongs to the first
+//                   square; the planner lays that square out once and repeats
+//                   it in every other square.
+//   'individual' -- each body component carries `gridCell`, the square it
+//                   belongs to.
+// ---------------------------------------------------------------------------
+type BuilderGridLayout = '2x2' | '2x3' | '2x4';
+type BuilderGridContentMode = 'duplicate' | 'individual';
+
+const BUILDER_GRID_LAYOUTS: readonly BuilderGridLayout[] = ['2x2', '2x3', '2x4'];
+const BUILDER_GRID_COLUMNS = 2;
+const DEFAULT_GRID_LAYOUT: BuilderGridLayout = '2x2';
+const DEFAULT_GRID_CONTENT_MODE: BuilderGridContentMode = 'duplicate';
+
+const getTemplateGridLayout = (template: ShoppingListBuilderTemplate): BuilderGridLayout => (
+  template.gridLayout === '2x3' || template.gridLayout === '2x4' ? template.gridLayout : DEFAULT_GRID_LAYOUT
+);
+
+const getTemplateGridContentMode = (template: ShoppingListBuilderTemplate): BuilderGridContentMode => (
+  template.gridContentMode === 'individual' ? 'individual' : DEFAULT_GRID_CONTENT_MODE
+);
+
+const getTemplateGridRowCount = (template: ShoppingListBuilderTemplate): number => {
+  const layout = getTemplateGridLayout(template);
+  if (layout === '2x4') return 4;
+  if (layout === '2x3') return 3;
+  return 2;
+};
+
+const getTemplateGridCellCount = (template: ShoppingListBuilderTemplate): number => (
+  BUILDER_GRID_COLUMNS * getTemplateGridRowCount(template)
+);
+
+const gridCellLane = (cellIndex: number): BuilderBodyLane => `cell-${cellIndex}`;
+
+/** The square a lane names, or null for the full / left / right lanes. */
+const gridCellIndexOfLane = (lane: BuilderBodyLane): number | null => {
+  if (!lane.startsWith('cell-')) return null;
+  const index = Number(lane.slice(5));
+  return Number.isInteger(index) && index >= 0 ? index : null;
+};
+
+/**
+ * Which half of the page a lane sits in, or null when it spans the page.
+ * Split lanes and grid squares both centre their content in a half.
+ */
+const getBodyLaneHalf = (
+  template: ShoppingListBuilderTemplate,
+  lane: BuilderBodyLane,
+): 'left' | 'right' | null => {
+  const mode = getTemplateBodyLayoutMode(template);
+  if (mode === 'full' || lane === 'full') return null;
+  if (lane === 'left' || lane === 'right') return lane;
+  if (mode !== 'grid') return null;
+  const cellIndex = gridCellIndexOfLane(lane);
+  if (cellIndex == null) return null;
+  return cellIndex % BUILDER_GRID_COLUMNS === 1 ? 'right' : 'left';
+};
+
+/**
+ * Vertical extent of one grid row. `top`/`bottom` are the row's cut lines;
+ * `contentTop`/`contentBottom` are inset by half the column gap so stacked
+ * squares keep the same gutter the two columns have.
+ */
+const getTemplateGridRowBounds = (
+  template: ShoppingListBuilderTemplate,
+  rowIndex: number,
+): { top: number; bottom: number; contentTop: number; contentBottom: number } => {
+  const bodyTop = Math.min(getTemplateHeaderHeight(template), template.paper.height);
+  const bodyBottom = Math.max(bodyTop, template.paper.height - getTemplateFooterHeight(template));
+  const rowCount = getTemplateGridRowCount(template);
+  const gridSize = getTemplateGridSize(template);
+  // Rows are equal and sit on the placement grid; any remainder goes to the
+  // last row so the squares still tile the whole body.
+  const rawRowHeight = (bodyBottom - bodyTop) / rowCount;
+  const rowHeight = Math.max(gridSize, Math.floor(rawRowHeight / gridSize) * gridSize);
+  const row = Math.min(Math.max(0, rowIndex), rowCount - 1);
+  const top = bodyTop + row * rowHeight;
+  const bottom = row === rowCount - 1 ? bodyBottom : top + rowHeight;
+  const inset = Math.min(getTemplateBodyColumnGap(template) / 2, Math.max(0, (bottom - top) / 4));
+  return { top, bottom, contentTop: top + inset, contentBottom: Math.max(top + inset, bottom - inset) };
+};
+
+/** The square a body component belongs to under the template's grid. */
+const getComponentGridCell = (
+  component: { gridCell?: number },
+  template: ShoppingListBuilderTemplate,
+): number => {
+  if (getTemplateGridContentMode(template) !== 'individual') return 0;
+  const cellCount = getTemplateGridCellCount(template);
+  const cell = Number.isInteger(component.gridCell) ? (component.gridCell as number) : 0;
+  return Math.min(Math.max(0, cell), cellCount - 1);
+};
+
+/**
+ * Lanes the Guided planner fills, as independent chains. Full and split pages
+ * are one chain read page by page. A grid is one chain per square, each
+ * running through that square on every page.
+ */
+const getTemplateBodyLaneChains = (
+  template: ShoppingListBuilderTemplate,
+): Array<Array<{ pageIndex: number; lane: BuilderBodyLane }>> => {
+  const maxPages = getTemplateMaxPages(template);
+  const mode = getTemplateBodyLayoutMode(template);
+  const pages = Array.from({ length: maxPages }, (_, pageIndex) => pageIndex);
+  if (mode === 'grid') {
+    const cells = getTemplateGridContentMode(template) === 'individual'
+      ? Array.from({ length: getTemplateGridCellCount(template) }, (_, cellIndex) => cellIndex)
+      : [0];
+    return cells.map((cellIndex) => pages.map((pageIndex) => ({ pageIndex, lane: gridCellLane(cellIndex) })));
+  }
+  if (mode === 'split') {
+    return [pages.flatMap((pageIndex) => [
+      { pageIndex, lane: 'left' as BuilderBodyLane },
+      { pageIndex, lane: 'right' as BuilderBodyLane },
+    ])];
+  }
+  return [pages.map((pageIndex) => ({ pageIndex, lane: 'full' as BuilderBodyLane }))];
+};
+// ------------------------------ end grid layout -----------------------------
+
 const getTemplateBodyLaneBounds = (
   template: ShoppingListBuilderTemplate,
   lane: BuilderBodyLane,
 ) => {
   const bodyBounds = getTemplateRegionBounds(template, 'body');
-  if (getTemplateBodyLayoutMode(template) !== 'split' || lane === 'full') {
+  const half = getBodyLaneHalf(template, lane);
+  if (!half) {
     return {
-      lane: 'full' as const,
+      lane: 'full' as BuilderBodyLane,
       left: 0,
       right: template.paper.width,
       width: template.paper.width,
@@ -574,26 +723,35 @@ const getTemplateBodyLaneBounds = (
   const leftRight = center - gap / 2;
   const rightLeft = center + gap / 2;
 
-  if (lane === 'right') {
+  // A grid square shares its column's horizontal extent with a split lane and
+  // narrows only vertically, to its row.
+  const cellIndex = getTemplateBodyLayoutMode(template) === 'grid' ? gridCellIndexOfLane(lane) : null;
+  const rowBounds = cellIndex == null
+    ? null
+    : getTemplateGridRowBounds(template, Math.floor(cellIndex / BUILDER_GRID_COLUMNS));
+  const top = rowBounds ? rowBounds.contentTop : bodyBounds.top;
+  const bottom = rowBounds ? rowBounds.contentBottom : bodyBounds.bottom;
+
+  if (half === 'right') {
     return {
       lane,
       left: rightLeft,
       right: template.paper.width,
       width: Math.max(0, template.paper.width - rightLeft),
-      top: bodyBounds.top,
-      bottom: bodyBounds.bottom,
-      height: bodyBounds.height,
+      top,
+      bottom,
+      height: Math.max(0, bottom - top),
     };
   }
 
   return {
-    lane: 'left' as const,
+    lane,
     left: 0,
     right: leftRight,
     width: Math.max(0, leftRight),
-    top: bodyBounds.top,
-    bottom: bodyBounds.bottom,
-    height: bodyBounds.height,
+    top,
+    bottom,
+    height: Math.max(0, bottom - top),
   };
 };
 
@@ -1100,6 +1258,8 @@ interface FlowingTableSegment {
   startRowIndex: number;
   isFirstSegment: boolean;
   isContinuation: boolean;
+  // A repeat of the first grid square ("Duplicate All").
+  isDuplicate?: boolean;
 }
 
 interface BodyPlacement {
@@ -1109,6 +1269,7 @@ interface BodyPlacement {
   x: number;
   y: number;
   height: number;
+  isDuplicate?: boolean;
 }
 
 interface FlowingTablePlan {
@@ -1277,12 +1438,13 @@ const getBodyPlacementX = (
   template: ShoppingListBuilderTemplate,
   lane: BuilderBodyLane,
 ): number => {
-  if (getTemplateBodyLayoutMode(template) !== 'split' || lane === 'full') {
+  const half = getBodyLaneHalf(template, lane);
+  if (!half) {
     return Math.max(0, Math.min(component.x, template.paper.width - component.width));
   }
   const center = template.paper.width / 2;
-  const halfLeft = lane === 'right' ? center : 0;
-  const halfRight = lane === 'right' ? template.paper.width : center;
+  const halfLeft = half === 'right' ? center : 0;
+  const halfRight = half === 'right' ? template.paper.width : center;
   const usableWidth = Math.max(0, halfRight - halfLeft);
   if (component.width >= usableWidth) {
     return halfLeft;
@@ -1316,13 +1478,14 @@ const getFlowSegmentX = (
   lane: BuilderBodyLane,
   isFirstSegment: boolean,
 ) => {
-  if (getTemplateBodyLayoutMode(template) !== 'split' || lane === 'full') {
+  const half = getBodyLaneHalf(template, lane);
+  if (!half) {
     return isFirstSegment ? component.x : Math.min(Math.max(component.x, 0), template.paper.width - component.width);
   }
 
   const center = template.paper.width / 2;
-  const halfLeft = lane === 'right' ? center : 0;
-  const halfRight = lane === 'right' ? template.paper.width : center;
+  const halfLeft = half === 'right' ? center : 0;
+  const halfRight = half === 'right' ? template.paper.width : center;
   const usableWidth = Math.max(0, halfRight - halfLeft);
   if (component.width >= usableWidth) {
     return halfLeft;
@@ -1360,8 +1523,12 @@ export const createFlowingTablePlan = (
 ): FlowingTablePlan => {
   const maxPages = getTemplateMaxPages(template);
   const bodyBounds = getTemplateRegionBounds(template, 'body');
-  const isSplit = getTemplateBodyLayoutMode(template) === 'split';
-  const isGuided = getTemplateLayoutMode(template) === 'guided';
+  const bodyLayout = getTemplateBodyLayoutMode(template);
+  const isSplit = bodyLayout === 'split';
+  const isGrid = bodyLayout === 'grid';
+  // A grid is always sequence-planned: its squares are the layout, so there
+  // is no free placement to honour.
+  const isGuided = isGrid || getTemplateLayoutMode(template) === 'guided';
   const segments: FlowingTableSegment[] = [];
   const flowingComponentIds = new Set<string>();
   const bodyPlacements: BodyPlacement[] = [];
@@ -1370,15 +1537,10 @@ export const createFlowingTablePlan = (
   let pageCount = 1;
 
   type LaneSlot = { pageIndex: number; lane: BuilderBodyLane };
-  const laneSequence: LaneSlot[] = [];
-  for (let pageIndex = 0; pageIndex < maxPages; pageIndex += 1) {
-    if (isSplit) {
-      laneSequence.push({ pageIndex, lane: 'left' });
-      laneSequence.push({ pageIndex, lane: 'right' });
-    } else {
-      laneSequence.push({ pageIndex, lane: 'full' });
-    }
-  }
+  const laneChains: LaneSlot[][] = getTemplateBodyLaneChains(template);
+  // Freeform never plans a grid (see `isGuided`), so its single chain is the
+  // full / split reading order.
+  const laneSequence: LaneSlot[] = laneChains[0] ?? [];
 
   // Build flowing-table state. In Guided mode, preserve the order from
   // template.components (the user's sequence). In Freeform mode, sort by y/x
@@ -1488,65 +1650,102 @@ export const createFlowingTablePlan = (
     const flowingStateById = new Map<string, FlowingTableState>(
       flowingTables.map((state) => [state.component.id, state]),
     );
-    let slotIdx = 0;
-    let cursor = bodyBounds.top;
-    const advanceSlot = () => {
-      slotIdx += 1;
-      cursor = bodyBounds.top;
-    };
-
     const bodyComponents = template.components.filter(isBodyComponent);
     bodyComponents.forEach((component) => plannedBodyComponentIds.add(component.id));
 
-    for (const component of bodyComponents) {
-      if (slotIdx >= laneSequence.length) break;
+    // Plan one chain of lanes with the components that belong to it. Full and
+    // split pages are a single chain holding every body component; a grid is
+    // one chain per square (see `getTemplateBodyLaneChains`). Mirrors the
+    // frontend `planChain`.
+    const planChain = (chain: LaneSlot[], chainComponents: BuilderComponent[]) => {
+      let slotIdx = 0;
+      let cursor = bodyBounds.top;
+      const advanceSlot = () => {
+        slotIdx += 1;
+        cursor = bodyBounds.top;
+      };
 
-      if (isHtmlFlowingBodyTable(component)) {
-        const state = flowingStateById.get(component.id)!;
-        while (state.rowIndex < component.rows.length && slotIdx < laneSequence.length) {
-          const slot = laneSequence[slotIdx];
-          const laneBounds = getTemplateBodyLaneBounds(template, slot.lane);
-          const { newCursor, placed } = tryPlace(state, slot, laneBounds, cursor, false, { ignoreUserY: true });
-          if (placed) {
-            cursor = newCursor;
-          } else {
-            advanceSlot();
-            continue;
+      for (const component of chainComponents) {
+        if (slotIdx >= chain.length) continue;
+
+        if (isHtmlFlowingBodyTable(component)) {
+          const state = flowingStateById.get(component.id)!;
+          while (state.rowIndex < component.rows.length && slotIdx < chain.length) {
+            const slot = chain[slotIdx];
+            const laneBounds = getTemplateBodyLaneBounds(template, slot.lane);
+            const { newCursor, placed } = tryPlace(state, slot, laneBounds, cursor, false, { ignoreUserY: true });
+            if (placed) {
+              cursor = newCursor;
+            } else {
+              advanceSlot();
+              continue;
+            }
+            if (state.rowIndex < component.rows.length) {
+              advanceSlot();
+            }
           }
-          if (state.rowIndex < component.rows.length) {
-            advanceSlot();
-          }
-        }
-        overflowRowCount += component.rows.length - state.rowIndex;
-      } else {
-        const height = getNonFlowingBodyHeight(component, measurement, {
-          includeCategoryIcons,
-        });
-        let placed = false;
-        while (!placed && slotIdx < laneSequence.length) {
-          const slot = laneSequence[slotIdx];
-          const laneBounds = getTemplateBodyLaneBounds(template, slot.lane);
-          const availableTop = Math.max(cursor, laneBounds.top);
-          const availableBottom = Math.min(laneBounds.bottom, bodyBounds.bottom);
-          const fitsHere = availableTop + height <= availableBottom;
-          const isLaneVirgin = cursor <= laneBounds.top;
-          if (fitsHere || isLaneVirgin) {
-            bodyPlacements.push({
-              componentId: component.id,
-              pageIndex: slot.pageIndex,
-              lane: slot.lane,
-              x: getBodyPlacementX(component, template, slot.lane),
-              y: availableTop,
-              height,
-            });
-            cursor = availableTop + height + FLOWING_TABLE_GAP;
-            pageCount = Math.max(pageCount, slot.pageIndex + 1);
-            placed = true;
-          } else {
-            advanceSlot();
+          overflowRowCount += component.rows.length - state.rowIndex;
+        } else {
+          const height = getNonFlowingBodyHeight(component, measurement, {
+            includeCategoryIcons,
+          });
+          let placed = false;
+          while (!placed && slotIdx < chain.length) {
+            const slot = chain[slotIdx];
+            const laneBounds = getTemplateBodyLaneBounds(template, slot.lane);
+            const availableTop = Math.max(cursor, laneBounds.top);
+            const availableBottom = Math.min(laneBounds.bottom, bodyBounds.bottom);
+            const fitsHere = availableTop + height <= availableBottom;
+            const isLaneVirgin = cursor <= laneBounds.top;
+            if (fitsHere || isLaneVirgin) {
+              bodyPlacements.push({
+                componentId: component.id,
+                pageIndex: slot.pageIndex,
+                lane: slot.lane,
+                x: getBodyPlacementX(component, template, slot.lane),
+                y: availableTop,
+                height,
+              });
+              cursor = availableTop + height + FLOWING_TABLE_GAP;
+              pageCount = Math.max(pageCount, slot.pageIndex + 1);
+              placed = true;
+            } else {
+              advanceSlot();
+            }
           }
         }
       }
+    };
+
+    if (isGrid) {
+      laneChains.forEach((chain) => {
+        const cellIndex = gridCellIndexOfLane(chain[0]?.lane ?? 'full') ?? 0;
+        planChain(chain, bodyComponents.filter((component) => (
+          getComponentGridCell(component, template) === cellIndex
+        )));
+      });
+
+      if (getTemplateGridContentMode(template) === 'duplicate') {
+        // "Duplicate All": repeat the first square's finished layout in every
+        // other square. Squares share a size, so a copy is the original moved
+        // by whole columns and rows.
+        const originBounds = getTemplateBodyLaneBounds(template, gridCellLane(0));
+        const originalSegments = [...segments];
+        const originalPlacements = [...bodyPlacements];
+        for (let cellIndex = 1; cellIndex < getTemplateGridCellCount(template); cellIndex += 1) {
+          const lane = gridCellLane(cellIndex);
+          const dx = (cellIndex % BUILDER_GRID_COLUMNS) * (template.paper.width / BUILDER_GRID_COLUMNS);
+          const dy = getTemplateBodyLaneBounds(template, lane).top - originBounds.top;
+          originalSegments.forEach((segment) => {
+            segments.push({ ...segment, lane, x: segment.x + dx, y: segment.y + dy, isDuplicate: true });
+          });
+          originalPlacements.forEach((placement) => {
+            bodyPlacements.push({ ...placement, lane, x: placement.x + dx, y: placement.y + dy, isDuplicate: true });
+          });
+        }
+      }
+    } else {
+      planChain(laneSequence, bodyComponents);
     }
 
     return {
